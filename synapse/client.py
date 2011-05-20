@@ -149,7 +149,7 @@ class Synapse:
         for key in keys:
             oldEntity[key] = entity[key]
 
-        return self.putEntity(uri, entity)
+        return self.putEntity(uri, oldEntity)
 
     def putEntity(self, uri, entity):
         '''
@@ -173,7 +173,7 @@ class Synapse:
     
         storedEntity = None
         try:
-            conn.request('PUT', uri, json.dumps(oldEntity), putHeaders)
+            conn.request('PUT', uri, json.dumps(entity), putHeaders)
             resp = conn.getresponse()
             output = resp.read()
             if self.debug:
