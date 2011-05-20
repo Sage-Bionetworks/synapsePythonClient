@@ -120,6 +120,37 @@ class Synapse:
             conn.close()
         return entity
             
+    def updateEntity(self, uri, entity):
+        '''
+        Update a dataset, layer, preview, annotations, etc...
+
+        This convenience method first grabs a copy of the currently
+	stored entity, then overwrites fields from the entity passed
+	in on top of the stored entity we retrieved and then PUTs the
+	entity. This essentially does a partial update from the point
+	of view of the user of this API.
+	
+	Note that users of this API may want to inspect what they are
+	overwriting before they do so. Another approach would be to do
+	a GET, display the field to the user, allow them to edit the
+	fields, and then do a PUT.
+        '''
+        if(None == uri or None == entity
+           or not (isinstance(entity, dict)
+                   and (isinstance(uri, str) or isinstance(uri, unicode)))):
+            raise Exception("invalid parameters")
+
+        oldEntity = self.getEntity(uri)
+        if(oldEntity == None):
+            return None
+
+        # Overwrite our stored fields with our updated fields
+        keys = entity.keys()
+        for key in keys:
+            oldEntity[key] = entity[key]
+
+        return self.putEntity(uri, entity)
+
     def putEntity(self, uri, entity):
         '''
         Update a dataset, layer, preview, annotations, etc..
@@ -132,23 +163,14 @@ class Synapse:
         if(0 != string.find(uri, self.servletPrefix)):
                 uri = self.servletPrefix + uri
     
-        oldEntity = self.getEntity(uri)
-        if(oldEntity == None):
-            return None
-
         conn = httplib.HTTPConnection(self.serviceEndpoint, timeout=30)
         if(self.debug):
             conn.set_debuglevel(2);
             print 'About to update %s with %s' % (uri, json.dumps(entity))
     
         putHeaders = Synapse.HEADERS
-        putHeaders['ETag'] = oldEntity['etag']
+        putHeaders['ETag'] = entity['etag']
     
-        # Overwrite our stored fields with our updated fields
-        keys = entity.keys()
-        for key in keys:
-            oldEntity[key] = entity[key]
-
         storedEntity = None
         try:
             conn.request('PUT', uri, json.dumps(oldEntity), putHeaders)
