@@ -2,33 +2,28 @@
 
 # To debug this, python -m pdb myscript.py
 
-import os, sys, string, traceback, json, urllib, httplib
+import os, sys, string, traceback, json, urllib, urlparse, httplib
 
 def addArguments(parser):
     '''
     Synapse command line argument helper
     '''
     parser.add_argument('--serviceEndpoint', '-e',
-                        help='the host and optionally port to which to send '
-                        + 'the metadata',
+                        help='the url to which to send the metadata '
+                        + '(e.g. https://repositoryservice.sagebase.org:/repo/v1)',
                         required=True)
 
-    parser.add_argument('--servletPrefix', '-p',
-                        help='the servlet URL prefix, defaults to /repo/v1',
-                        default='/repo/v1')
+    parser.add_argument('--serviceTimeoutSeconds', '-t',
+                        help='the socket timeout for blocking operations to the service (e.g., connect, send, receive), defaults to 30 seconds',
+                        default=30)
 
-    parser.add_argument('--https', '--secure', '-s',
-                        help='whether to do HTTPS instead of HTTP, defaults '
-                        + 'to False',
-                        action='store_true', default=False)
-
+    
 def factory(args):
     '''
     Factory method to create a Synapse instance from command line args
     '''
     return Synapse(args.serviceEndpoint,
-                   args.servletPrefix,
-                   args.https,
+                   args.serviceTimeoutSeconds,
                    args.debug)
     
 class Synapse:
@@ -41,15 +36,19 @@ class Synapse:
         'Accept': 'application/json',
         }
     
-    def __init__(self, serviceEndpoint, servletPrefix, https, debug):
+    def __init__(self, serviceEndpoint, serviceTimeoutSeconds, debug):
         '''
         Constructor
         '''
         self.serviceEndpoint = serviceEndpoint
-        self.servletPrefix = servletPrefix
-        self.https = https
+        self.serviceTimeoutSeconds = serviceTimeoutSeconds 
         self.debug = debug
-    
+
+        parseResult = urlparse.urlparse(serviceEndpoint)
+        self.serviceLocation = parseResult.netloc
+        self.servicePrefix = parseResult.path
+        self.serviceProtocol = parseResult.scheme
+        
     def createEntity(self, uri, entity):
         '''
         Create a new dataset, layer, etc ...
@@ -59,10 +58,17 @@ class Synapse:
                    and (isinstance(uri, str) or isinstance(uri, unicode)))):
             raise Exception("invalid parameters")
 
-        if(0 != string.find(uri, self.servletPrefix)):
-                uri = self.servletPrefix + uri
-        
-        conn = httplib.HTTPConnection(self.serviceEndpoint, timeout=30)
+        if(0 != string.find(uri, self.servicePrefix)):
+                uri = self.servicePrefix + uri
+
+        conn = {}
+        if('https' == self.serviceProtocol):
+            conn = httplib.HTTPSConnection(self.serviceLocation,
+                                           timeout=self.serviceTimeoutSeconds)
+        else:
+            conn = httplib.HTTPConnection(self.serviceLocation,
+                                          timeout=self.serviceTimeoutSeconds)
+
         if(self.debug):
             conn.set_debuglevel(10);
             print 'About to create %s with %s' % (uri, json.dumps(entity))
@@ -92,10 +98,17 @@ class Synapse:
         '''
         if(uri == None):
             return
-        if(0 != string.find(uri, self.servletPrefix)):
-                uri = self.servletPrefix + uri
+        if(0 != string.find(uri, self.servicePrefix)):
+                uri = self.servicePrefix + uri
     
-        conn = httplib.HTTPConnection(self.serviceEndpoint, timeout=30)
+        conn = {}
+        if('https' == self.serviceProtocol):
+            conn = httplib.HTTPSConnection(self.serviceLocation,
+                                           timeout=self.serviceTimeoutSeconds)
+        else:
+            conn = httplib.HTTPConnection(self.serviceLocation,
+                                          timeout=self.serviceTimeoutSeconds)
+
         if(self.debug):
             conn.set_debuglevel(10);
             print 'About to get %s' % (uri)
@@ -160,10 +173,17 @@ class Synapse:
                    and (isinstance(uri, str) or isinstance(uri, unicode)))):
             raise Exception("invalid parameters")
 
-        if(0 != string.find(uri, self.servletPrefix)):
-                uri = self.servletPrefix + uri
+        if(0 != string.find(uri, self.servicePrefix)):
+                uri = self.servicePrefix + uri
     
-        conn = httplib.HTTPConnection(self.serviceEndpoint, timeout=30)
+        conn = {}
+        if('https' == self.serviceProtocol):
+            conn = httplib.HTTPSConnection(self.serviceLocation,
+                                           timeout=self.serviceTimeoutSeconds)
+        else:
+            conn = httplib.HTTPConnection(self.serviceLocation,
+                                          timeout=self.serviceTimeoutSeconds)
+
         if(self.debug):
             conn.set_debuglevel(2);
             print 'About to update %s with %s' % (uri, json.dumps(entity))
@@ -196,10 +216,17 @@ class Synapse:
         '''
         if(None == uri):
             return
-        if(0 != string.find(uri, self.servletPrefix)):
-                uri = self.servletPrefix + uri
+        if(0 != string.find(uri, self.servicePrefix)):
+                uri = self.servicePrefix + uri
     
-        conn = httplib.HTTPConnection(self.serviceEndpoint, timeout=30)
+        conn = {}
+        if('https' == self.serviceProtocol):
+            conn = httplib.HTTPSConnection(self.serviceLocation,
+                                           timeout=self.serviceTimeoutSeconds)
+        else:
+            conn = httplib.HTTPConnection(self.serviceLocation,
+                                          timeout=self.serviceTimeoutSeconds)
+
         if(self.debug):
             conn.set_debuglevel(10);
             print 'About to delete %s' % (uri)
@@ -223,9 +250,16 @@ class Synapse:
         '''
         Query for datasets, layers, etc..
         '''
-        uri = self.servletPrefix + '/query?query=' + urllib.quote(query)
+        uri = self.servicePrefix + '/query?query=' + urllib.quote(query)
     
-        conn = httplib.HTTPConnection(self.serviceEndpoint, timeout=30)
+        conn = {}
+        if('https' == self.serviceProtocol):
+            conn = httplib.HTTPSConnection(self.serviceLocation,
+                                           timeout=self.serviceTimeoutSeconds)
+        else:
+            conn = httplib.HTTPConnection(self.serviceLocation,
+                                          timeout=self.serviceTimeoutSeconds)
+
         if(self.debug):
             conn.set_debuglevel(10);
             print 'About to query %s' % (query)
