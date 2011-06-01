@@ -10,7 +10,7 @@ def addArguments(parser):
     '''
     parser.add_argument('--serviceEndpoint', '-e',
                         help='the url to which to send the metadata '
-                        + '(e.g. https://repositoryservice.sagebase.org:/repo/v1)',
+                        + '(e.g. https://repositoryservice.sagebase.org/repo/v1)',
                         required=True)
 
     parser.add_argument('--serviceTimeoutSeconds', '-t',
