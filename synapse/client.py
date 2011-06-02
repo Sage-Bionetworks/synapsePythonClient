@@ -160,7 +160,12 @@ class Synapse:
         # Overwrite our stored fields with our updated fields
         keys = entity.keys()
         for key in keys:
-            oldEntity[key] = entity[key]
+            if(0 != string.find(uri, "annotations")):
+                # annotations need special handling
+                for annotKey in entity[key].keys():
+                    oldEntity[key][annotKey] = entity[key][annotKey]
+            else:
+                oldEntity[key] = entity[key]
 
         return self.putEntity(uri, oldEntity)
 
