@@ -58,7 +58,7 @@ class Synapse:
                    and (isinstance(uri, str) or isinstance(uri, unicode)))):
             raise Exception("invalid parameters")
 
-        if(0 != string.find(uri, self.servicePrefix)):
+        if(1 != string.find(uri, self.servicePrefix)):
                 uri = self.servicePrefix + uri
 
         conn = {}
