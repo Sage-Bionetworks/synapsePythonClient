@@ -34,6 +34,10 @@ class Synapse:
     HEADERS = {
         'Content-type': 'application/json',
         'Accept': 'application/json',
+
+        # XA: I put this in here temporarily for integration tests,
+        # feel free to remove it
+        'sessionToken': 'admin',
         }
     
     def __init__(self, serviceEndpoint, serviceTimeoutSeconds, debug):
@@ -160,7 +164,7 @@ class Synapse:
         # Overwrite our stored fields with our updated fields
         keys = entity.keys()
         for key in keys:
-            if(0 != string.find(uri, "annotations")):
+            if(-1 != string.find(uri, "annotations")):
                 # annotations need special handling
                 for annotKey in entity[key].keys():
                     oldEntity[key][annotKey] = entity[key][annotKey]
@@ -303,34 +307,50 @@ class Synapse:
 
 
     
-#------- UNIT TESTS -----------------
+#------- INTEGRATION TESTS -----------------
 if __name__ == '__main__':
-    import unittest
-
-    class TestSynapse(unittest.TestCase):
-        '''
-        Unit tests against a local service, read/write operations are okay here
-        '''
-        def setUp(self):
-            self.client = Synapse('localhost:8080', '/repo/v1', False, True)
-
-        def test_getDataset(self):
-            self.assertRaises(Exception, self.client.getDataset, list())
+    import unittest, utils
     
     class IntegrationTestSynapse(unittest.TestCase):
         '''
-        Integration tests against a remote service, do only read-only operations here
-        '''
-        def setUp(self):
-            self.client = Synapse('repositoryservicea.elasticbeanstalk.com',
-                                  '/repo/v1', False, True)
+        Integration tests against a repository service
 
-        def test_getDataset(self):
-            dataset = self.client.getDataset(0)
-            self.assertTrue(None != dataset)
-    
-        def test_query(self):
-            dataset = self.client.query('select * from dataset')
-            self.assertTrue(None != dataset)
+        To run them locally,
+        (1) edit platform/trunk/integration-test/pom.xml set this to true
+        <org.sagebionetworks.integration.debug>true</org.sagebionetworks.integration.debug>
+        (2) run the integration build to start the servlets
+        /platform/trunk/integration-test>mvn clean verify 
+        '''
+        #-------------------[ Constants ]----------------------
+        DATASET = '{"status": "pending", "description": "Genetic and epigenetic alterations have been identified that lead to transcriptional Annotation of prostate cancer genomes provides a foundation for discoveries that can impact disease understanding and treatment. Concordant assessment of DNA copy number, mRNA expression, and focused exon resequencing in the 218 prostate cancer tumors represented in this dataset haveidentified the nuclear receptor coactivator NCOA2 as an oncogene in approximately 11% of tumors. Additionally, the androgen-driven TMPRSS2-ERG fusion was associated with a previously unrecognized, prostate-specific deletion at chromosome 3p14 that implicates FOXP1, RYBP, and SHQ1 as potential cooperative tumor suppressors. DNA copy-number data from primary tumors revealed that copy-number alterations robustly define clusters of low- and high-risk disease beyond that achieved by Gleason score.  ", "creator": "Charles Sawyers", "releaseDate": "2008-09-14", "version": "1.0.0", "name": "MSKCC Prostate Cancer"}' 
+        def setUp(self):
+            self.client = Synapse('http://localhost:8080/services-repository-0.4-SNAPSHOT/repo/v1',
+                                  30,
+                                  True)
+
+        def test_datasetCRUD(self):
+            dataset = json.loads(IntegrationTestSynapse.DATASET)
+
+            # create
+            createdDataset = self.client.createDataset(dataset)
+            self.assertEqual(dataset['name'], createdDataset['name'])
+
+            # read
+            storedDataset = self.client.getEntity(createdDataset['uri'])
+            self.assertTrue(None != storedDataset)
+
+            # update
+            storedDataset['status'] = 'current'
+            updatedDataset = self.client.updateEntity(storedDataset['uri'], storedDataset)
+            self.assertEqual('current', updatedDataset['status'])
+            
+            # query
+            datasets = self.client.query('select * from dataset')
+            self.assertTrue(None != datasets)
+            
+            # delete
+            self.client.deleteEntity(createdDataset['uri']);
+            goneDataset = self.client.getEntity(createdDataset['uri'])
+            self.assertTrue(None == goneDataset)
     
     unittest.main()

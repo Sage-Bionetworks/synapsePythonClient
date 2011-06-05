@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org\
+                    /2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0\
+                             http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  
+  <parent>
+	<artifactId>client</artifactId>
+	<groupId>org.sagebionetworks</groupId>
+	<version>parent-1.0</version>
+  </parent>
+
+  <groupId>org.sagebionetworks</groupId>
+  <artifactId>synapsePythonClient</artifactId>
+  <packaging>pom</packaging>
+  <version>${applicationVersion}</version>
+  <name>Synapse Python Client</name>
+
+  <build>
+    <plugins>
+      <!-- We use this assembly to package the R and Python dependencies so they are aviablible for integration testing. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.1</version>
+        <configuration>
+          <descriptors>
+            <descriptor>synapsePythonClient-assembly.xml</descriptor>
+          </descriptors>
+        </configuration>
+        <executions>
+          <execution>
+            <id>make-assembly</id> <!-- this is used for inheritance merges -->
+            <phase>package</phase> <!-- bind to the packaging phase -->
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
