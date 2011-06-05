@@ -62,7 +62,7 @@ class Synapse:
                    and (isinstance(uri, str) or isinstance(uri, unicode)))):
             raise Exception("invalid parameters")
 
-        if(1 != string.find(uri, self.servicePrefix)):
+        if(0 != string.find(uri, self.servicePrefix)):
                 uri = self.servicePrefix + uri
 
         conn = {}
@@ -82,12 +82,12 @@ class Synapse:
             conn.request('POST', uri, json.dumps(entity), Synapse.HEADERS)
             resp = conn.getresponse()
             output = resp.read()
-            if self.debug:
-                print output
             if resp.status == 201:
+                if self.debug:
+                    print output
                 storedEntity = json.loads(output)
             else:
-                print resp.status, resp.reason
+                print resp.status, resp.reason, output
         except Exception, err:
             traceback.print_exc(file=sys.stderr)
             # re-throw the exception
@@ -123,12 +123,12 @@ class Synapse:
             conn.request('GET', uri, None, Synapse.HEADERS)
             resp = conn.getresponse()
             output = resp.read()
-            if self.debug:
-                print output
             if resp.status == 200:
+                if self.debug:
+                    print output
                 entity = json.loads(output)
             else:
-                print resp.status, resp.reason
+                print resp.status, resp.reason, output
         except Exception, err:
             traceback.print_exc(file=sys.stderr)
             # re-throw the exception
@@ -205,12 +205,12 @@ class Synapse:
             conn.request('PUT', uri, json.dumps(entity), putHeaders)
             resp = conn.getresponse()
             output = resp.read()
-            if self.debug:
-                print output
             if resp.status == 200:
+                if self.debug:
+                    print output
                 storedEntity = json.loads(output)
             else:
-                print resp.status, resp.reason
+                print resp.status, resp.reason, output
         except Exception, err:
             traceback.print_exc(file=sys.stderr)
             # re-throw the exception
@@ -244,10 +244,10 @@ class Synapse:
             conn.request('DELETE', uri, None, Synapse.HEADERS)
             resp = conn.getresponse()
             output = resp.read()
-            if self.debug:
-                print output
             if resp.status != 204:
-                print resp.status, resp.reason
+                print resp.status, resp.reason, output
+            elif self.debug:
+                print output
             return None;
         except Exception, err:
             traceback.print_exc(file=sys.stderr)
@@ -279,12 +279,12 @@ class Synapse:
             conn.request('GET', uri, None, Synapse.HEADERS)
             resp = conn.getresponse()
             output = resp.read()
-            if self.debug:
-                print output
             if resp.status == 200:
+                if self.debug:
+                    print output
                 results = json.loads(output)
             else:
-                print resp.status, resp.reason
+                print resp.status, resp.reason, output
         except Exception, err:
             traceback.print_exc(file=sys.stderr)
             # re-throw the exception
@@ -327,6 +327,12 @@ if __name__ == '__main__':
             self.client = Synapse('http://localhost:8080/services-repository-0.4-SNAPSHOT/repo/v1',
                                   30,
                                   True)
+
+        def test_constructor(self):
+            testClient = Synapse('http://localhost:8080/services-repository-0.4-SNAPSHOT/repo/v1/', 30, True)
+            self.assertEqual(testClient.serviceLocation, 'localhost:8080')
+            self.assertEqual(testClient.servicePrefix, '/services-repository-0.4-SNAPSHOT/repo/v1/')
+            self.assertEqual(testClient.serviceProtocol, 'http')
 
         def test_datasetCRUD(self):
             dataset = json.loads(IntegrationTestSynapse.DATASET)
