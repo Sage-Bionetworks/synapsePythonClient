@@ -43,7 +43,12 @@ def uploadToS3(localFilepath, s3url, md5):
             'curl -f -X PUT -H Content-MD5:' + base64.b64encode(md5)
             + ' --data-binary @' + localFilepath
             + ' -H x-amz-acl:bucket-owner-full-control ' + s3url))
-
+    
+    
+#def downloadFromS3(s3url, localFilePath, md5):
+#    pass
+    
+    
 def sendEmail():
 # TODO sample impl here http://docs.python.org/faq/library.html
     return

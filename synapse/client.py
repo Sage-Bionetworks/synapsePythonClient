@@ -80,7 +80,7 @@ class Synapse:
         #self.authProtocol = parseResult.scheme
 
 
-    def authenticate(self, email, password):
+    def login(self, email, password):
         """
         Authenticate and get session token
         """
@@ -90,6 +90,7 @@ class Synapse:
         # Hack: take this out once Bruce has a stub for the auth service
         if('admin' == email):
             self.headers["sessionToken"] = 'admin'
+            self.sessionToken = "admin"
             return
 
         uri = "/session"
@@ -207,11 +208,11 @@ class Synapse:
             conn.close()
         return entity
         
-    def getAuthEntity(self, uri):
-        """
-        Get an entity from auth service
-        """
-        return self.getEntity(self.authEndpoint, uri)
+    #def getAuthEntity(self, uri):
+    #    """
+    #    Get an entity from auth service
+    #    """
+    #    return self.getEntity(self.authEndpoint, uri)
         
     def getRepoEntity(self, uri):
         """
@@ -255,8 +256,8 @@ class Synapse:
 
         return self.putEntity(endpoint, uri, oldEntity)
         
-    def updateAuthEntity(self, uri, entity):
-        return self.updateEntity(self.authEndpoint, uri, entity)
+    #def updateAuthEntity(self, uri, entity):
+    #    return self.updateEntity(self.authEndpoint, uri, entity)
         
     def updateRepoEntity(self, uri, entity):
         return self.updateEntity(self.repoEndpoint, uri, entity)
@@ -309,11 +310,11 @@ class Synapse:
             conn.close()
         return storedEntity
         
-    def putAuthEntity(self, uri, entity):
-        """
-        Updates an entity (user, ...) in the auth service
-        """
-        return self.putEntity(self.authEndpoint, uri, entity)
+    #def putAuthEntity(self, uri, entity):
+    #    """
+    #    Updates an entity (user, ...) in the auth service
+    #    """
+    #    return self.putEntity(self.authEndpoint, uri, entity)
         
     def putRepoEntity(self, uri, entity):
         """
@@ -409,7 +410,7 @@ class Synapse:
             conn.close()
         return results
         
-    def repoQuery(self, query):
+    def queryRepo(self, query):
         """
         Query for datasets, layers etc.
         """
@@ -448,7 +449,25 @@ class Synapse:
         l.extend(self.getRepoEntity('/user'))
         return l
         
+    #def downloadSynapseFile(uri, destFile):
+    #    location = self.getRepoEntity('/location', uri)
+    #    s3url = location["path"]
+    #    expectedMd5sum = location["md5"]
+    #    downloadFromS3(destFile, s3url, expectedMd5sum)
+    #    
+    #
+    #def uploadSynapseFile(self, parentEntity, srcFilePath, checksum):
+    #    parentId = parentEntity["id"]
+    #    locationSpec = {"md5sum":checksum, "parentId":parentId, "path":srcFilePath, "type":"awss3"}
+    #    location = self.createRepoEntity('/location', locationSpec)
+    #    uploadtoS3(srcFilePath, location["path"], checksum)
+    #    # TODO: remove location if upload fails
+    #    return location
     
+        
+
+
+        
 #------- INTEGRATION TESTS -----------------
 if __name__ == '__main__':
     import unittest, utils
@@ -467,163 +486,176 @@ if __name__ == '__main__':
         DATASET = '{"status": "pending", "description": "Genetic and epigenetic alterations have been identified that lead to transcriptional Annotation of prostate cancer genomes provides a foundation for discoveries that can impact disease understanding and treatment. Concordant assessment of DNA copy number, mRNA expression, and focused exon resequencing in the 218 prostate cancer tumors represented in this dataset haveidentified the nuclear receptor coactivator NCOA2 as an oncogene in approximately 11% of tumors. Additionally, the androgen-driven TMPRSS2-ERG fusion was associated with a previously unrecognized, prostate-specific deletion at chromosome 3p14 that implicates FOXP1, RYBP, and SHQ1 as potential cooperative tumor suppressors. DNA copy-number data from primary tumors revealed that copy-number alterations robustly define clusters of low- and high-risk disease beyond that achieved by Gleason score.  ", "creator": "Charles Sawyers", "releaseDate": "2008-09-14", "version": "1.0.0", "name": "MSKCC Prostate Cancer"}' 
         
         def setUp(self):
-            pass
-            #self.Client = Synapse('http://140.107.149.29:8080/repo/v1',
-            #                      'http://staging-auth.elasticbeanstalk.com/auth/v1',
-            #                      30,
-            #                      True)
-
-        def test_constructor(self):
-            testClient = Synapse('http://140.107.149.29:8080/repo/v1', 'http://staging-auth.elasticbeanstalk.com/auth/v1', 30, False)
-            self.assertEqual(testClient.repoEndpoint["location"], '140.107.149.29:8080')
-            self.assertEqual(testClient.repoEndpoint["prefix"], '/repo/v1')
-            self.assertEqual(testClient.repoEndpoint["protocol"], 'http')
-            self.assertEqual(testClient.authEndpoint["location"], 'staging-auth.elasticbeanstalk.com')
-            self.assertEqual(testClient.authEndpoint["prefix"], '/auth/v1')
-            self.assertEqual(testClient.authEndpoint["protocol"], 'http')
+            print "setUp"
+            # Anonymous connection
+#            self.anonClient = Synapse('http://140.107.149.29:8080/repo/v1', 'https://staging-auth.elasticbeanstalk.com/auth/v1', 30, False)
+            self.anonClient = Synapse('http://localhost:8080/services-repository-0.5-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.5-SNAPSHOT/auth/v1', 30, False)
+            # TODO: Move to unit test
+##            self.assertEqual(self.anonClient.repoEndpoint["location"], 'localhost:8080')
+#            self.assertEqual(self.anonClient.repoEndpoint["prefix"], '/repo/v1')
+#            self.assertEqual(self.anonClient.repoEndpoint["protocol"], 'http')
+# #           self.assertEqual(self.anonClient.authEndpoint["location"], 'staging-auth.elasticbeanstalk.com')
+#            self.assertEqual(self.anonClient.authEndpoint["prefix"], '/auth/v1')
+#            self.assertEqual(self.anonClient.authEndpoint["protocol"], 'https')
+            self.assertTrue(self.anonClient.sessionToken == None)
+            self.assertFalse("sessionToken" in self.anonClient.headers)
+            # Admin connection
+            self.adminClient = Synapse('http://localhost:8080/services-repository-0.5-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.5-SNAPSHOT/auth/v1', 30, False)
+            self.adminClient.login("admin", "admin")
+            self.assertFalse(self.adminClient.sessionToken == None)
+            self.assertTrue("sessionToken" in self.adminClient.headers)
+            if "sessionToken" in self.adminClient.headers:
+                self.assertTrue(self.adminClient.sessionToken == self.adminClient.headers["sessionToken"])
+            # Postponed until stubs have been implemented
+            ## Logged in connection but not part of any group
+            #self.authClient = Synapse('http://localhost:8080/repo/v1', 'http://staging-auth.elasticbeanstalk.com/auth/v1', 30, False)
+            #self.authClient.login("nonAdmin", "nonAdmin-pw")
+            #self.assertFalse(self.authClient.sessionToken == None)
+            #self.assertTrue("sessionToken" in self.authClient.headers)
+            #if "sessionToken" in self.authClient.headers:
+            #    self.assertTrue(self.authClient.sessionToken == self.authClient.headers["sessionToken"])
+                
+        def tearDown(self):
+            allProjects = self.adminClient.getRepoEntity("/project?limit=100");
+            for project in allProjects["results"]:
+                print "About to nuke: " + project["uri"]
+                self.adminClient.deleteRepoEntity(project["uri"])
+                
+            allDatasets = self.adminClient.getRepoEntity("/dataset?limit=500");
+            for dataset in allDatasets["results"]:
+                print "About to nuke: " + dataset["uri"]
+                self.adminClient.deleteRepoEntity(dataset["uri"])
+                
+            allLayers = self.adminClient.getRepoEntity("/layer?limit=500");
+            for layer in allLayers["results"]:
+                print "About to nuke: " + layer["uri"]
+                self.adminClient.deleteRepoEntity(layer["uri"])
             
-        def test_anonymous(self):
-            ## Create some entities to test update/delete
-            idClient = Synapse('http://140.107.149.29:8080/repo/v1', 'http://staging-auth.elasticbeanstalk.com/auth/v1', 30, False)
-            idClient.authenticate("demouser@sagebase.org", "demouser-pw")
-            self.assertFalse(idClient.sessionToken == None)
-            self.assertTrue("sessionToken" in idClient.headers)
-            p = idClient.getPrincipals()[0]
+        def test_admin(self):
+            print "test_admin"
+            # Create some entities to test update/delete
+            # TODO: This is dangerous if order of principals changes, change.
+            p = self.adminClient.getPrincipals()[0]
             self.assertEqual(p["name"], "Identified Users")
+            
+            # Project setup
             projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
-            project = idClient.createProject(projectSpec)
+            project = self.adminClient.createProject(projectSpec)
             self.assertEqual(project["name"], projectSpec["name"])
             projectId = project["id"]
-            datasetSpec = {"name":"testDataset1","description":"Test dataset 1", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
-            dataset = idClient.createDataset(datasetSpec)
-            self.assertEqual(dataset["name"], datasetSpec["name"])
-            datasetSpec = {"name":"testDataset2","description":"Test dataset 2", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
-            dataset = idClient.createDataset(datasetSpec)
-            self.assertEqual(dataset["name"], datasetSpec["name"])
-            datasetSpec = {"name":"testDataset3","description":"Test dataset 3", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org"}
-            dataset = idClient.createDataset(datasetSpec)
-            self.assertEqual(dataset["name"], datasetSpec["name"])
-
-            anonClient = Synapse('http://140.107.149.29:8080/repo/v1', 'http://staging-auth.elasticbeanstalk.com/auth/v1', 30, False)
-            self.assertTrue(anonClient.sessionToken == None)
-                        
-            # Create
-            projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
-            project = anonClient.createProject(projectSpec)
-            self.assertEqual(None, project)
-            # TODO: Add tests for other types of entities
             
+            # Change permissions on project to allow logged in users to read
+            #p = idClient.getPrincipals()[0]
+            #self.assertEqual(p["name"], "Identified Users")
+            resourceAccessList = [{"userGroupId":p["id"], "accessType":["READ"]}]
+            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
+            updatedProject = self.adminClient.updateRepoEntity(project["uri"]+"/acl", accessList)
+            
+            # Dataset 1: inherits ACL from parent project
+            datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
+            dataset = self.adminClient.createDataset(datasetSpec)
+            self.assertEqual(dataset["name"], datasetSpec["name"])
+            
+            # Dataset 2: overrides ACL
+            datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
+            dataset = self.adminClient.createDataset(datasetSpec)
+            self.assertEqual(dataset["name"], datasetSpec["name"])
+            resourceAccessList = [{"userGroupId":p["id"], "accessType":["READ", "UPDATE"]}]
+            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
+            updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)            
+            # TODO: Add asserts
+                        
+            # Dataset 3: top-level (no parent)
+            datasetSpec = {"name":"testDataset3","description":"Test dataset 3 top level ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org"}
+            dataset = self.adminClient.createDataset(datasetSpec)
+            self.assertEqual(dataset["name"], datasetSpec["name"])
+            resourceAccessList = [{"userGroupId":p["id"], "accessType":["READ", "UPDATE"]}]
+            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
+            updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)
+            
+            # Actual admin tests
+            # Create project, dataset child, top level dataset covered above
             # Read
-            list = anonClient.getRepoEntity('/project')
+            list = self.adminClient.getRepoEntity('/project')
+            self.assertEqual(list["totalNumberOfResults"], 1)
+            list = self.adminClient.getRepoEntity('/dataset')
+            self.assertEqual(list["totalNumberOfResults"], 3)
+            # TODO: Change when adding entities
+            list = self.adminClient.getRepoEntity('/layer')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = anonClient.getRepoEntity('/dataset')
+            list = self.adminClient.getRepoEntity('/preview')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = anonClient.getRepoEntity('/layer')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = anonClient.getRepoEntity('/preview')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = anonClient.getRepoEntity('/location')
+            list = self.adminClient.getRepoEntity('/location')
             self.assertEqual(list["totalNumberOfResults"], 0)
             # Can read user/userGroup until changed
-            list = anonClient.getRepoEntity('/user')
+            list = self.adminClient.getRepoEntity('/user')
             self.assertNotEqual(len(list), 0)
-            list = anonClient.getRepoEntity('/userGroup')
+            list = self.adminClient.getRepoEntity('/userGroup')
+            self.assertNotEqual(len(list), 0)
+            
+        
+        #@unittest.skip("Skip")
+        def test_anonymous(self):
+            # Read
+            list = self.anonClient.getRepoEntity('/project')
+            self.assertEqual(list["totalNumberOfResults"], 0)
+            list = self.anonClient.getRepoEntity('/dataset')
+            self.assertEqual(list["totalNumberOfResults"], 0)
+            list = self.anonClient.getRepoEntity('/layer')
+            self.assertEqual(list["totalNumberOfResults"], 0)
+            list = self.anonClient.getRepoEntity('/preview')
+            self.assertEqual(list["totalNumberOfResults"], 0)
+            list = self.anonClient.getRepoEntity('/location')
+            self.assertEqual(list["totalNumberOfResults"], 0)
+            # Can read user/userGroup until changed
+            list = self.anonClient.getRepoEntity('/user')
+            self.assertNotEqual(len(list), 0)
+            list = self.anonClient.getRepoEntity('/userGroup')
             self.assertNotEqual(len(list), 0)
             
             # Query
-            list = anonClient.repoQuery('select * from project')
+            list = self.anonClient.queryRepo('select * from project')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = anonClient.repoQuery('select * from dataset')
+            list = self.anonClient.queryRepo('select * from dataset')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = anonClient.repoQuery('select * from layer')
+            list = self.anonClient.queryRepo('select * from layer')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = anonClient.repoQuery('select * from layerpreview')
+            list = self.anonClient.queryRepo('select * from layerpreview')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = anonClient.repoQuery('select * from layerlocation')
+            list = self.anonClient.queryRepo('select * from layerlocation')
             self.assertEqual(list["totalNumberOfResults"], 0)
             
+            # Create by anon
+            projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
+            project = self.anonClient.createProject(projectSpec)
+            self.assertEqual(None, project)
+            datasetSpec = {"name":"testDataset1","description":"Test dataset 1", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org"}
+            dataset = self.anonClient.createDataset(datasetSpec)
+            self.assertEqual(None, dataset)
+            # TODO: Add tests for other types of entities
+            
+            # Create some entities by admin account
+            projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
+            project = self.adminClient.createProject(projectSpec)
+            self.assertIsNotNone(project)
+              
             # Update
-            # TODO: Recode to remove explicit reference to entity ids
             attributeChangeList = {"creator":"demouser@sagebase.org"}
-            project = idClient.getRepoEntity("/project/0")
-            updatedProject = anonClient.updateRepoEntity(project["uri"], attributeChangeList)
+            updatedProject = self.anonClient.updateRepoEntity(project["uri"], attributeChangeList)
             self.assertIsNone(updatedProject)
             project["creator"] = "demouser@sagebase.org"
-            updateProject = anonClient.putRepoEntity(project["uri"], project)
+            updateProject = self.anonClient.putRepoEntity(project["uri"], project)
             self.assertIsNone(updatedProject)
             # TODO: Add tests for other types of entities
             
             # Delete
-            dataset = idClient.getRepoEntity("/dataset/1")
-            anonClient.deleteRepoEntity(dataset["uri"])
-            self.assertIsNotNone(idClient.getRepoEntity(dataset["uri"]))
+            #project = self.anonClient.getRepoEntity("/project")
+            self.anonClient.deleteRepoEntity(project["uri"])
+            self.assertIsNotNone(self.adminClient.getRepoEntity(project["uri"]))
             # TODO: Add tests for other types of entities
-            
-        #def test_admin(self):
-        #    idClient = Synapse('http://140.107.149.29:8080/repo/v1', 'http://staging-auth.elasticbeanstalk.com/auth/v1', 30, False)
-        #    idClient.authenticate("demouser@sagebase.org", "demouser-pw")
-        #    self.assertFalse(idClient.sessionToken == None)
-        #    self.assertTrue("sessionToken" in idClient.headers)
-        #
-        #    # Create already tested in setup for anonymous
-        #    # This is not not good, figure out setup/teardown for suites and redo the whole thing using that
-        #    
-        #    # Read
-        #    list = idClient.getRepoEntity('/project')
-        #    self.assertEqual(list["totalNumberOfResults"], 1)
-        #    list = idClient.getRepoEntity('/dataset')
-        #    self.assertEqual(list["totalNumberOfResults"], 3)
-        #    list = idClient.getRepoEntity('/layer')
-        #    self.assertEqual(list["totalNumberOfResults"], 0)
-        #    list = idClient.getRepoEntity('/preview')
-        #    self.assertEqual(list["totalNumberOfResults"], 0)
-        #    list = idClient.getRepoEntity('/location')
-        #    self.assertEqual(list["totalNumberOfResults"], 0)
-        #    # Can read user/userGroup until changed
-        #    list = idClient.getRepoEntity('/user')
-        #    self.assertNotEqual(len(list), 0)
-        #    list = idClient.getRepoEntity('/userGroup')
-        #    self.assertNotEqual(len(list), 0)
-        #    
-        #    # Query
-        #    list = idClient.repoQuery('select * from project')
-        #    self.assertEqual(list["totalNumberOfResults"], 1)
-        #    list = idClient.repoQuery('select * from dataset')
-        #    self.assertEqual(list["totalNumberOfResults"], 3)
-        #    list = idClient.repoQuery('select * from layer')
-        #    self.assertEqual(list["totalNumberOfResults"], 0)
-        #    list = idClient.repoQuery('select * from layerpreview')
-        #    self.assertEqual(list["totalNumberOfResults"], 0)
-        #    list = idClient.repoQuery('select * from layerlocation')
-        #    self.assertEqual(list["totalNumberOfResults"], 0)
-            
-        def test_create_parent_and_acl(self):
+                    
+        def test_file_up_download(self):
             pass
+        
             
-
-        #def test_datasetCRUD(self):
-        #    dataset = json.loads(IntegrationTestSynapse.DATASET)
-        #
-        #    # create
-        #    createdDataset = self.client.createDataset(dataset)
-        #    self.assertEqual(dataset['name'], createdDataset['name'])
-        #
-        #    # read
-        #    storedDataset = self.client.getRepoEntity(createdDataset['uri'])
-        #    self.assertTrue(None != storedDataset)
-        #
-        #    # update
-        #    storedDataset['status'] = 'current'
-        #    updatedDataset = self.client.updateRepoEntity(storedDataset['uri'], storedDataset)
-        #    self.assertEqual('current', updatedDataset['status'])
-        #    
-        #    # query
-        #    datasets = self.client.RepoQuery('select * from dataset')
-        #    self.assertTrue(None != datasets)
-        #    
-        #    # delete
-        #    self.client.deleteRepoEntity(createdDataset['uri']);
-        #    goneDataset = self.client.getRepoEntity(createdDataset['uri'])
-        #    self.assertTrue(None == goneDataset)
-    
     unittest.main()
