@@ -416,6 +416,28 @@ class Synapse:
         """
         return self.query(self.repoEndpoint, query)
             
+    def getRepoEntityByName(self, kind, name, parentId=None):
+        """
+        Get an entity (dataset, layer, ...) from repository service using its name and optionally parentId
+        """
+        return self.getRepoEntityByProperty(kind, "name", name, parentId)
+    
+    def getRepoEntityByProperty(self, kind, propertyName, propertyValue, parentId=None):
+        """
+        Get an entity (dataset, layer, ...) from repository service by exact match on a property and optionally parentId
+        """
+        query = 'select * from %s where %s == "%s"' % (kind, propertyName, propertyValue)
+        if(None != parentId):
+            query = '%s and parentId == "%s"' % (query, parentId)
+        queryResult = self.queryRepo(query)
+        if(0 == queryResult["totalNumberOfResults"]):
+            return None
+        elif(1 < queryResult["totalNumberOfResults"]):
+            raise Exception("found more than one matching entity for " + query)
+        else:
+            return self.getRepoEntity('/' + kind + '/'
+                                      + queryResult["results"][0][kind + ".id"])
+
     def createDataset(self, dataset):
         '''
         We have a helper method to create a dataset since it is a top level url
