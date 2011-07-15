@@ -620,7 +620,7 @@ if __name__ == '__main__':
             self.assertEqual(list["totalNumberOfResults"], 0)
             list = self.anonClient.queryRepo('select * from layer')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.queryRepo('select * from layerpreview')
+            list = self.anonClient.queryRepo('select * from preview')
             self.assertEqual(list["totalNumberOfResults"], 0)
             list = self.anonClient.queryRepo('select * from location')
             self.assertEqual(list["totalNumberOfResults"], 0)
