@@ -522,7 +522,7 @@ if __name__ == '__main__':
             self.assertTrue(self.anonClient.sessionToken == None)
             self.assertFalse("sessionToken" in self.anonClient.headers)
             # Admin connection
-            self.adminClient = Synapse('http://localhost:8080/services-repository-0.5-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.5-SNAPSHOT/auth/v1', 30, False)
+            self.adminClient = Synapse('http://localhost:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
             self.adminClient.login("admin", "admin")
             self.assertFalse(self.adminClient.sessionToken == None)
             self.assertTrue("sessionToken" in self.adminClient.headers)
