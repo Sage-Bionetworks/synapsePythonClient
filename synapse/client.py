@@ -555,6 +555,8 @@ if __name__ == '__main__':
             
         def test_admin(self):
             print "test_admin"
+            list = self.adminClient.getRepoEntity('/project')
+            self.assertEqual(list["totalNumberOfResults"], 0)
             # Create some entities to test update/delete
             # TODO: This is dangerous if order of principals changes, change.
             p = self.adminClient.getPrincipals()[0]
@@ -588,7 +590,7 @@ if __name__ == '__main__':
             # TODO: Add asserts
                         
             # Dataset 3: top-level (no parent)
-            datasetSpec = {"name":"testDataset3","description":"Test dataset 3 top level ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org"}
+            datasetSpec = {"name":"testDataset3","description":"Test dataset 3 top level ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
             dataset = self.adminClient.createDataset(datasetSpec)
             self.assertEqual(dataset["name"], datasetSpec["name"])
             resourceAccessList = [{"userGroupId":p["id"], "accessType":["READ", "UPDATE"]}]
