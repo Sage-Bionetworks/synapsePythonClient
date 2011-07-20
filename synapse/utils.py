@@ -31,7 +31,7 @@ def computeMd5ForFile(filename, block_size=2**20):
         md5.update(data)
     return(md5)
 
-def uploadToS3(localFilepath, s3url, md5):
+def uploadToS3(localFilepath, s3url, md5, debug=False):
     '''
     The -f flag to curl will cause this to throw an exception upon failure to upload
     '''
@@ -39,11 +39,10 @@ def uploadToS3(localFilepath, s3url, md5):
     f = open(localFilepath,'rb')
     f.close()
 
-    subprocess.check_output(shlex.split(
-            'curl -f -X PUT -H Content-MD5:' + base64.b64encode(md5)
-            + ' --data-binary @' + localFilepath
-            + ' -H x-amz-acl:bucket-owner-full-control ' + s3url))
-    
+    command = 'curl -v -X PUT -H Content-MD5:' + base64.encodestring(md5.digest()) + ' -H Content-Type:application/binary --data-binary @' + localFilepath + ' -H x-amz-acl:bucket-owner-full-control ' + s3url
+    if(debug):
+        print "About to run: " + command
+    print subprocess.check_output(shlex.split(command.encode('ascii')))
     
 #def downloadFromS3(s3url, localFilePath, md5):
 #    pass
