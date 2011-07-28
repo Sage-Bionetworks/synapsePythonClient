@@ -560,7 +560,7 @@ if __name__ == '__main__':
             # Create some entities to test update/delete
             # TODO: This is dangerous if order of principals changes, change.
             p = self.adminClient.getPrincipals()[0]
-            self.assertEqual(p["name"], "Identified Users")
+            self.assertEqual(p["name"], "AUTHENTICATED_USERS")
             
             # Project setup
             projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
@@ -570,7 +570,7 @@ if __name__ == '__main__':
             
             # Change permissions on project to allow logged in users to read
             #p = idClient.getPrincipals()[0]
-            #self.assertEqual(p["name"], "Identified Users")
+            #self.assertEqual(p["name"], "AUTHENTICATED_USERS")
             resourceAccessList = [{"userGroupId":p["id"], "accessType":["READ"]}]
             accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
             updatedProject = self.adminClient.updateRepoEntity(project["uri"]+"/acl", accessList)
