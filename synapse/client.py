@@ -471,25 +471,6 @@ class Synapse:
         l.extend(self.getRepoEntity('/user'))
         return l
         
-    #def downloadSynapseFile(uri, destFile):
-    #    location = self.getRepoEntity('/location', uri)
-    #    s3url = location["path"]
-    #    expectedMd5sum = location["md5"]
-    #    downloadFromS3(destFile, s3url, expectedMd5sum)
-    #    
-    #
-    #def uploadSynapseFile(self, parentEntity, srcFilePath, checksum):
-    #    parentId = parentEntity["id"]
-    #    locationSpec = {"md5sum":checksum, "parentId":parentId, "path":srcFilePath, "type":"awss3"}
-    #    location = self.createRepoEntity('/location', locationSpec)
-    #    uploadtoS3(srcFilePath, location["path"], checksum)
-    #    # TODO: remove location if upload fails
-    #    return location
-    
-        
-
-
-        
 #------- INTEGRATION TESTS -----------------
 if __name__ == '__main__':
     import unittest, utils
@@ -512,6 +493,7 @@ if __name__ == '__main__':
             # Anonymous connection
 #            self.anonClient = Synapse('http://140.107.149.29:8080/repo/v1', 'https://staging-auth.elasticbeanstalk.com/auth/v1', 30, False)
             self.anonClient = Synapse('http://localhost:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
+#            self.anonClient = Synapse('http://140.107.149.29:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://140.107.149.29:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
             # TODO: Move to unit test
 ##            self.assertEqual(self.anonClient.repoEndpoint["location"], 'localhost:8080')
 #            self.assertEqual(self.anonClient.repoEndpoint["prefix"], '/repo/v1')
@@ -523,6 +505,7 @@ if __name__ == '__main__':
             self.assertFalse("sessionToken" in self.anonClient.headers)
             # Admin connection
             self.adminClient = Synapse('http://localhost:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
+#            self.adminClient = Synapse('http://140.107.149.29:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://140.107.149.29:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
             self.adminClient.login("admin", "admin")
             self.assertFalse(self.adminClient.sessionToken == None)
             self.assertTrue("sessionToken" in self.adminClient.headers)
@@ -559,32 +542,37 @@ if __name__ == '__main__':
             self.assertEqual(list["totalNumberOfResults"], 0)
             # Create some entities to test update/delete
             # TODO: This is dangerous if order of principals changes, change.
-            p = self.adminClient.getPrincipals()[0]
+            for p in self.adminClient.getPrincipals():
+                if p["name"] == "AUTHENTICATED_USERS":
+                    break
             self.assertEqual(p["name"], "AUTHENTICATED_USERS")
             
             # Project setup
             projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
             project = self.adminClient.createProject(projectSpec)
+            self.assertNotEqual(project, None)
             self.assertEqual(project["name"], projectSpec["name"])
             projectId = project["id"]
             
             # Change permissions on project to allow logged in users to read
             #p = idClient.getPrincipals()[0]
             #self.assertEqual(p["name"], "AUTHENTICATED_USERS")
-            resourceAccessList = [{"userGroupId":p["id"], "accessType":["READ"]}]
+            resourceAccessList = [{"groupName":p["name"], "accessType":["READ"]}]
             accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
             updatedProject = self.adminClient.updateRepoEntity(project["uri"]+"/acl", accessList)
+            self.assertNotEqual(updatedProject, None)
             
             # Dataset 1: inherits ACL from parent project
             datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
             dataset = self.adminClient.createDataset(datasetSpec)
+            self.assertNotEqual(dataset, None)
             self.assertEqual(dataset["name"], datasetSpec["name"])
             
             # Dataset 2: overrides ACL
             datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
             dataset = self.adminClient.createDataset(datasetSpec)
             self.assertEqual(dataset["name"], datasetSpec["name"])
-            resourceAccessList = [{"userGroupId":p["id"], "accessType":["READ", "UPDATE"]}]
+            resourceAccessList = [{"groupName":p["name"], "accessType":["READ", "UPDATE"]}]
             accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
             updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)            
             # TODO: Add asserts
@@ -593,7 +581,7 @@ if __name__ == '__main__':
             datasetSpec = {"name":"testDataset3","description":"Test dataset 3 top level ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
             dataset = self.adminClient.createDataset(datasetSpec)
             self.assertEqual(dataset["name"], datasetSpec["name"])
-            resourceAccessList = [{"userGroupId":p["id"], "accessType":["READ", "UPDATE"]}]
+            resourceAccessList = [{"groupName":p["name"], "accessType":["READ", "UPDATE"]}]
             accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
             updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)
             
@@ -620,6 +608,7 @@ if __name__ == '__main__':
         
         #@unittest.skip("Skip")
         def test_anonymous(self):
+            print "test_anonymous"
             # Read
             list = self.anonClient.getRepoEntity('/project')
             self.assertEqual(list["totalNumberOfResults"], 0)
@@ -653,15 +642,15 @@ if __name__ == '__main__':
             projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
             project = self.anonClient.createProject(projectSpec)
             self.assertEqual(None, project)
-            datasetSpec = {"name":"testDataset1","description":"Test dataset 1", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org"}
-            dataset = self.anonClient.createDataset(datasetSpec)
-            self.assertEqual(None, dataset)
             # TODO: Add tests for other types of entities
             
             # Create some entities by admin account
             projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
             project = self.adminClient.createProject(projectSpec)
             self.assertIsNotNone(project)
+            datasetSpec = {"name":"testDataset1","description":"Test dataset 1", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(project["id"])}
+            dataset = self.anonClient.createDataset(datasetSpec)
+            self.assertEqual(None, dataset)
               
             # Update
             attributeChangeList = {"creator":"demouser@sagebase.org"}
@@ -678,8 +667,5 @@ if __name__ == '__main__':
             self.assertIsNotNone(self.adminClient.getRepoEntity(project["uri"]))
             # TODO: Add tests for other types of entities
                     
-        def test_file_up_download(self):
-            pass
-        
             
     unittest.main()
