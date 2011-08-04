@@ -87,12 +87,6 @@ class Synapse:
         if (None == email or None == password):
             raise Exception("invalid parameters")
 
-        # Hack: take this out once Bruce has a stub for the auth service
-        if('admin' == email):
-            self.headers["sessionToken"] = 'admin'
-            self.sessionToken = "admin"
-            return
-
         uri = "/session"
         #req = "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"
         req = {"email":email, "password":password}
