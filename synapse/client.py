@@ -132,13 +132,7 @@ class Synapse:
                     print output
                 storedEntity = json.loads(output)
             else:
-                print resp.status, resp.reason
-                print json.dumps(entity)
-                print output
-        except Exception, err:
-            traceback.print_exc(file=sys.stderr)
-            # re-throw the exception
-            raise
+                raise Exception('POST %s failed: %d %s %s %s' % (uri, resp.status, resp.reason, json.dumps(entity), output))
         finally:
             conn.close()
         return storedEntity
@@ -193,11 +187,7 @@ class Synapse:
                     print output
                 entity = json.loads(output)
             else:
-                print resp.status, resp.reason, output
-        except Exception, err:
-            traceback.print_exc(file=sys.stderr)
-            # re-throw the exception
-            raise
+                raise Exception('GET %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
         finally:
             conn.close()
         return entity
@@ -295,11 +285,7 @@ class Synapse:
                     print output
                 storedEntity = json.loads(output)
             else:
-                print resp.status, resp.reason, output
-        except Exception, err:
-            traceback.print_exc(file=sys.stderr)
-            # re-throw the exception
-            raise
+                raise Exception('PUT %s failed: %d %s %s %s' % (uri, resp.status, resp.reason, json.dumps(entity), output))
         finally:
             conn.close()
         return storedEntity
@@ -344,16 +330,13 @@ class Synapse:
             resp = conn.getresponse()
             output = resp.read()
             if resp.status != 204:
-                print resp.status, resp.reason, output
+                raise Exception('DELETE %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
             elif self.debug:
                 print output
 
             return None;
-        except Exception, err:
-            traceback.print_exc(file=sys.stderr)
-            # re-throw the exception
-            raise
-        conn.close()
+        finally:
+            conn.close()
         
     #def deleteAuthEntity(self, uri):
     #    pass
@@ -395,11 +378,7 @@ class Synapse:
                     print output
                 results = json.loads(output)
             else:
-                print resp.status, resp.reason, output
-        except Exception, err:
-            traceback.print_exc(file=sys.stderr)
-            # re-throw the exception
-            raise
+                raise Exception('Query %s failed: %d %s %s' % (query, resp.status, resp.reason, output))
         finally:
             conn.close()
         return results
