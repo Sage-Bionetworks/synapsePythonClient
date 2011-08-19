@@ -121,14 +121,14 @@ class IntegrationTestSynapse(unittest.TestCase):
             pr = self.anonConn.getRepoEntity("/project/"+str(projectId))
             self.assertIsNone(pr)
         # Should be able to see dataset1 from authenticated but not from anonymous conn
-        ds = self.authenticatedConn.getRepoEntity("/project/"+str(datasetId1))
+        ds = self.authenticatedConn.getRepoEntity("/dataset/"+str(datasetId1))
         self.assertIsNotNone(ds)
         with self.assertRaises(Exception) as cm:
             ds = None
             ds = self.anonConn.getRepoEntity("/dataset/"+str(datasetId1))
             self.assertIsNone(ds)
         # Should be able to see dataset1 from authenticated and anonymous conn
-        ds = self.authenticatedConn.getRepoEntity("/project/"+str(datasetId2))
+        ds = self.authenticatedConn.getRepoEntity("/dataset/"+str(datasetId2))
         self.assertIsNotNone(ds)
         ds = None
         ds = self.anonConn.getRepoEntity("/dataset/"+str(datasetId2))
