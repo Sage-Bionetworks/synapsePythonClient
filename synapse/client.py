@@ -2,7 +2,12 @@
 
 # To debug this, python -m pdb myscript.py
 
-import os, sys, string, traceback, json, urllib, urlparse, httplib
+import os, sys
+import string
+import traceback
+import json
+import base64
+import urllib, urlparse, httplib
 
 def addArguments(parser):
     '''
@@ -40,13 +45,7 @@ def factory(args):
 class Synapse:
     '''
     Python implementation for Synapse repository service client
-    '''
-    #-------------------[ Constants ]----------------------
-    #HEADERS = {
-    #    'Content-type': 'application/json',
-    #    'Accept': 'application/json',
-    #    }
-    
+    '''    
     def __init__(self, repoEndpoint, authEndpoint, serviceTimeoutSeconds, debug):
         '''
         Constructor
@@ -67,17 +66,14 @@ class Synapse:
         self.repoEndpoint["location"] = parseResult.netloc
         self.repoEndpoint["prefix"] = parseResult.path
         self.repoEndpoint["protocol"] = parseResult.scheme
-        #self.serviceLocation = parseResult.netloc
-        #self.servicePrefix = parseResult.path
-        #self.serviceProtocol = parseResult.scheme
         
         parseResult = urlparse.urlparse(authEndpoint)
         self.authEndpoint["location"] = parseResult.netloc
         self.authEndpoint["prefix"] = parseResult.path
         self.authEndpoint["protocol"] = parseResult.scheme
-        #self.authLocation = parseResult.netloc
-        #self.authPrefix = parseResult.path
-        #self.authProtocol = parseResult.scheme
+        
+        self.request_profile = False
+        self.profile_data = None
 
 
     def login(self, email, password):
@@ -91,12 +87,22 @@ class Synapse:
         #req = "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"
         req = {"email":email, "password":password}
         
+        # Disable profiling during login
+        # TODO: Check what happens if enabled
+        req_profile = None
+        if self.request_profile != None:
+            req_profile = self.request_profile
+            self.request_profile = False
+        
         if(0 != string.find(uri, self.authEndpoint["prefix"])):
             uri = self.authEndpoint["prefix"] + uri
         
         storedEntity = self.createAuthEntity(uri, req)
         self.sessionToken = storedEntity["sessionToken"]
         self.headers["sessionToken"] = self.sessionToken
+        
+        if req_profile != None:
+            self.request_profile = req_profile
         
     def createEntity(self, endpoint, uri, entity):
         '''
@@ -123,9 +129,21 @@ class Synapse:
             print 'About to create %s with %s' % (uri, json.dumps(entity))
 
         storedEntity = None
+        self.profile_data = None
+        
         try:
-            conn.request('POST', uri, json.dumps(entity), self.headers)
+            headers = self.headers
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('POST', uri, json.dumps(entity), headers)
             resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))                
             output = resp.read()
             if resp.status == 201:
                 if self.debug:
@@ -141,7 +159,12 @@ class Synapse:
         """
         Create a new user, session etc. on authentication service
         """
-        return self.createEntity(self.authEndpoint, uri, entity)
+        # Disable profiling for auth
+        req_profile = self.request_profile
+        self.request_profile = False
+        e = self.createEntity(self.authEndpoint, uri, entity)
+        self.request_profile = req_profile
+        return e
         
     def createRepoEntity(self, uri, entity):
         """
@@ -177,10 +200,21 @@ class Synapse:
             print 'About to get %s' % (uri)
     
         entity = None
+        self.profile_data = None
     
         try:
-            conn.request('GET', uri, None, self.headers)
+            headers = self.headers
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('GET', uri, None, headers)
             resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
             output = resp.read()
             if resp.status == 200:
                 if self.debug:
@@ -275,9 +309,18 @@ class Synapse:
             putHeaders['ETag'] = entity['etag']
     
         storedEntity = None
+        self.profile_data = None
+        
         try:
             conn.request('PUT', uri, json.dumps(entity), putHeaders)
             resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
             output = resp.read()
             # Handle both 200 and 204 as auth returns 204 for success
             if resp.status == 200 or resp.status == 204:
@@ -324,10 +367,22 @@ class Synapse:
         if(self.debug):
             conn.set_debuglevel(10);
             print 'About to delete %s' % (uri)
+            
+        self.profile_data = None
 
         try:
-            conn.request('DELETE', uri, None, self.headers)
+            headers = self.headers
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('DELETE', uri, None, headers)
             resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
             output = resp.read()
             if resp.status != 204:
                 raise Exception('DELETE %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
@@ -368,10 +423,21 @@ class Synapse:
             print 'About to query %s' % (query)
     
         results = None
+        self.profile_data = None
     
         try:
-            conn.request('GET', uri, None, self.headers)
+            headers = self.headers
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('GET', uri, None, headers)
             resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
             output = resp.read()
             if resp.status == 200:
                 if self.debug:
