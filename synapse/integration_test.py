@@ -99,19 +99,19 @@ class IntegrationTestSynapse(unittest.TestCase):
         datasetId1 = dataset["id"]
         
         # Dataset 2: overrides ACL
-        datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
-        dataset = self.authenticatedConn.createDataset(datasetSpec)
-        self.assertIsNotNone(dataset)
-        self.assertEqual(dataset["name"], datasetSpec["name"])
-        datasetId2 = dataset["id"]
-        existingAcl = self.authenticatedConn.getRepoEntity("/dataset/"+str(datasetId2)+"/acl")
-        self.assertIsNotNone(existingAcl)
-        resourceAccessList = existingAcl["resourceAccess"]
-        resourceAccessList.append({"groupName":p["name"], "accessType":["READ", "UPDATE"]})
-        resourceAccessList.append({"groupName":"PUBLIC", "accessType":["READ"]})
-        accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
-        updatedAcl = self.authenticatedConn.updateRepoEntity(dataset["uri"]+"/acl", accessList)
-        self.assertIsNotNone(updatedAcl)
+#        datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
+#        dataset = self.authenticatedConn.createDataset(datasetSpec)
+#        self.assertIsNotNone(dataset)
+#        self.assertEqual(dataset["name"], datasetSpec["name"])
+#        datasetId2 = dataset["id"]
+#        existingAcl = self.authenticatedConn.getRepoEntity("/dataset/"+str(datasetId2)+"/acl")
+#        self.assertIsNotNone(existingAcl)
+#        resourceAccessList = existingAcl["resourceAccess"]
+#        resourceAccessList.append({"groupName":p["name"], "accessType":["READ", "UPDATE"]})
+#        resourceAccessList.append({"groupName":"PUBLIC", "accessType":["READ"]})
+#        accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
+#        updatedAcl = self.authenticatedConn.updateRepoEntity(dataset["uri"]+"/acl", accessList)
+#        self.assertIsNotNone(updatedAcl)
 
         # Should be able to see created project from authenticated but not from anonymous
         pr = self.authenticatedConn.getRepoEntity("/project/"+str(projectId))
@@ -128,11 +128,11 @@ class IntegrationTestSynapse(unittest.TestCase):
             ds = self.anonConn.getRepoEntity("/dataset/"+str(datasetId1))
             self.assertIsNone(ds)
         # Should be able to see dataset1 from authenticated and anonymous conn
-        ds = self.authenticatedConn.getRepoEntity("/dataset/"+str(datasetId2))
-        self.assertIsNotNone(ds)
-        ds = None
-        ds = self.anonConn.getRepoEntity("/dataset/"+str(datasetId2))
-        self.assertIsNotNone(ds)
+#        ds = self.authenticatedConn.getRepoEntity("/dataset/"+str(datasetId2))
+#        self.assertIsNotNone(ds)
+#        ds = None
+#        ds = self.anonConn.getRepoEntity("/dataset/"+str(datasetId2))
+#        self.assertIsNotNone(ds)
                     
         # Cleanup
         self.authenticatedConn.deleteRepoEntity("/project/" + str(projectId))
