@@ -9,13 +9,12 @@
   <parent>
 	<artifactId>client</artifactId>
 	<groupId>org.sagebionetworks</groupId>
-	<version>parent-1.0</version>
+	<version>0.8-SNAPSHOT</version>
   </parent>
 
   <groupId>org.sagebionetworks</groupId>
   <artifactId>synapsePythonClient</artifactId>
   <packaging>pom</packaging>
-  <version>${applicationVersion}</version>
   <name>Synapse Python Client</name>
 
   <build>
