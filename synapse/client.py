@@ -2,12 +2,7 @@
 
 # To debug this, python -m pdb myscript.py
 
-import os, sys
-import string
-import traceback
-import json
-import base64
-import urllib, urlparse, httplib
+import os, sys, string, traceback, json, base64, urllib, urlparse, httplib, utils
 
 def addArguments(parser):
     '''
@@ -237,7 +232,25 @@ class Synapse:
         Get an entity (dataset, layer, ...) from repository service
         """
         return self.getEntity(self.repoEndpoint, uri)
-        
+
+    def loadEntity(self, uri):
+        """
+        Download the data for an entity to the current working
+        directory, TODO synapse cache support to ensure we don't
+        overwrite files
+        """
+        entity = self.getEntity(self.repoEndpoint, uri)
+        locations = self.getEntity(self.repoEndpoint, entity['locations'])
+        if(0 == len(locations['results'])):
+            raise Exception("entity has no locations")
+        location = locations['results'][0]
+        url = location['path']
+        parseResult = urlparse.urlparse(url)
+        pathComponents = string.split(parseResult.path, '/')
+        filename = pathComponents[len(pathComponents)-1]
+        utils.downloadFile(url, filename)
+        return filename
+
     def updateEntity(self, endpoint, uri, entity):
         '''
         Update a dataset, layer, preview, annotations, etc...
@@ -500,6 +513,12 @@ class Synapse:
         Helper method to get a project
         """
         return self.getRepoEntity('/project/' + str(projectId))
+        
+    def loadLayer(self, layerId):
+        """
+        Helper method to load a layer
+        """
+        return self.loadEntity('/layer/' + str(layerId))
         
     def getPrincipals(self):
         """

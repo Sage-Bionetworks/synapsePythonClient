@@ -2,7 +2,7 @@
 
 # To debug this, python -m pdb myscript.py
 
-import os, argparse, csv, codecs, cStringIO, hashlib, base64, subprocess, shlex
+import os, argparse, csv, codecs, cStringIO, urllib, hashlib, base64, subprocess, shlex
 
 def createBasicArgParser(description):
     '''
@@ -46,7 +46,9 @@ def uploadToS3(localFilepath, s3url, md5, contentType, debug=False):
     
 #def downloadFromS3(s3url, localFilePath, md5):
 #    pass
-    
+
+def downloadFile(url, localFilepath):
+    urllib.urlretrieve (url, localFilepath)
     
 def sendEmail():
 # TODO sample impl here http://docs.python.org/faq/library.html
