@@ -544,7 +544,7 @@ if __name__ == '__main__':
         /platform/trunk/integration-test>mvn clean verify 
         '''
         #-------------------[ Constants ]----------------------
-        DATASET = '{"status": "pending", "description": "Genetic and epigenetic alterations have been identified that lead to transcriptional Annotation of prostate cancer genomes provides a foundation for discoveries that can impact disease understanding and treatment. Concordant assessment of DNA copy number, mRNA expression, and focused exon resequencing in the 218 prostate cancer tumors represented in this dataset haveidentified the nuclear receptor coactivator NCOA2 as an oncogene in approximately 11% of tumors. Additionally, the androgen-driven TMPRSS2-ERG fusion was associated with a previously unrecognized, prostate-specific deletion at chromosome 3p14 that implicates FOXP1, RYBP, and SHQ1 as potential cooperative tumor suppressors. DNA copy-number data from primary tumors revealed that copy-number alterations robustly define clusters of low- and high-risk disease beyond that achieved by Gleason score.  ", "creator": "Charles Sawyers", "releaseDate": "2008-09-14", "version": "1.0.0", "name": "MSKCC Prostate Cancer"}' 
+        DATASET = '{"status": "pending", "description": "Genetic and epigenetic alterations have been identified that lead to transcriptional Annotation of prostate cancer genomes provides a foundation for discoveries that can impact disease understanding and treatment. Concordant assessment of DNA copy number, mRNA expression, and focused exon resequencing in the 218 prostate cancer tumors represented in this dataset haveidentified the nuclear receptor coactivator NCOA2 as an oncogene in approximately 11% of tumors. Additionally, the androgen-driven TMPRSS2-ERG fusion was associated with a previously unrecognized, prostate-specific deletion at chromosome 3p14 that implicates FOXP1, RYBP, and SHQ1 as potential cooperative tumor suppressors. DNA copy-number data from primary tumors revealed that copy-number alterations robustly define clusters of low- and high-risk disease beyond that achieved by Gleason score.  ", "createdBy": "Charles Sawyers", "releaseDate": "2008-09-14T00:00:00.000-07:00", "version": "1.0.0", "name": "MSKCC Prostate Cancer"}' 
         
         def setUp(self):
             print "setUp"
@@ -606,7 +606,7 @@ if __name__ == '__main__':
             self.assertEqual(p["name"], "AUTHENTICATED_USERS")
             
             # Project setup
-            projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
+            projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
             project = self.adminClient.createProject(projectSpec)
             self.assertNotEqual(project, None)
             self.assertEqual(project["name"], projectSpec["name"])
@@ -616,31 +616,31 @@ if __name__ == '__main__':
             #p = idClient.getPrincipals()[0]
             #self.assertEqual(p["name"], "AUTHENTICATED_USERS")
             resourceAccessList = [{"groupName":p["name"], "accessType":["READ"]}]
-            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
+            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
             updatedProject = self.adminClient.updateRepoEntity(project["uri"]+"/acl", accessList)
             self.assertNotEqual(updatedProject, None)
             
             # Dataset 1: inherits ACL from parent project
-            datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
+            datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
             dataset = self.adminClient.createDataset(datasetSpec)
             self.assertNotEqual(dataset, None)
             self.assertEqual(dataset["name"], datasetSpec["name"])
             
             # Dataset 2: overrides ACL
-            datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
+            datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
             dataset = self.adminClient.createDataset(datasetSpec)
             self.assertEqual(dataset["name"], datasetSpec["name"])
             resourceAccessList = [{"groupName":p["name"], "accessType":["READ", "UPDATE"]}]
-            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
+            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
             updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)            
             # TODO: Add asserts
                         
             # Dataset 3: top-level (no parent)
-            datasetSpec = {"name":"testDataset3","description":"Test dataset 3 top level ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
+            datasetSpec = {"name":"testDataset3","description":"Test dataset 3 top level ACL", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
             dataset = self.adminClient.createDataset(datasetSpec)
             self.assertEqual(dataset["name"], datasetSpec["name"])
             resourceAccessList = [{"groupName":p["name"], "accessType":["READ", "UPDATE"]}]
-            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
+            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
             updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)
             
             # Actual admin tests
@@ -697,24 +697,24 @@ if __name__ == '__main__':
             self.assertEqual(list["totalNumberOfResults"], 0)
             
             # Create by anon
-            projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
+            projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
             project = self.anonClient.createProject(projectSpec)
             self.assertEqual(None, project)
             # TODO: Add tests for other types of entities
             
             # Create some entities by admin account
-            projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
+            projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
             project = self.adminClient.createProject(projectSpec)
             self.assertIsNotNone(project)
-            datasetSpec = {"name":"testDataset1","description":"Test dataset 1", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(project["id"])}
+            datasetSpec = {"name":"testDataset1","description":"Test dataset 1", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(project["id"])}
             dataset = self.anonClient.createDataset(datasetSpec)
             self.assertEqual(None, dataset)
               
             # Update
-            attributeChangeList = {"creator":"demouser@sagebase.org"}
+            attributeChangeList = {"createdBy":"demouser@sagebase.org"}
             updatedProject = self.anonClient.updateRepoEntity(project["uri"], attributeChangeList)
             self.assertIsNone(updatedProject)
-            project["creator"] = "demouser@sagebase.org"
+            project["createdBy"] = "demouser@sagebase.org"
             updateProject = self.anonClient.putRepoEntity(project["uri"], project)
             self.assertIsNone(updatedProject)
             # TODO: Add tests for other types of entities

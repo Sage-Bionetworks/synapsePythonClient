@@ -79,7 +79,7 @@ class IntegrationTestSynapse(unittest.TestCase):
         self.assertEqual(p["name"], "AUTHENTICATED_USERS")
         
         # Should not be able to create a project from anon conn
-        projectSpec = {"name":"testProj1","description":"Test project","creationDate":"2011-06-06", "creator":"test@sagebase.org"}
+        projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
         project = None
         with self.assertRaises(Exception) as cm:
             project = self.anonConn.createProject(projectSpec)
@@ -92,14 +92,14 @@ class IntegrationTestSynapse(unittest.TestCase):
         projectId = project["id"]
         
         # Dataset 1: inherits ACL from parent project
-        datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
+        datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
         dataset = self.authenticatedConn.createDataset(datasetSpec)
         self.assertIsNotNone(dataset)
         self.assertEqual(dataset["name"], datasetSpec["name"])
         datasetId1 = dataset["id"]
         
         # Dataset 2: overrides ACL
-#        datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "creationDate":"2011-06-06", "creator":"test@sagebase.org", "parentId":str(projectId)}
+#        datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
 #        dataset = self.authenticatedConn.createDataset(datasetSpec)
 #        self.assertIsNotNone(dataset)
 #        self.assertEqual(dataset["name"], datasetSpec["name"])
@@ -109,7 +109,7 @@ class IntegrationTestSynapse(unittest.TestCase):
 #        resourceAccessList = existingAcl["resourceAccess"]
 #        resourceAccessList.append({"groupName":p["name"], "accessType":["READ", "UPDATE"]})
 #        resourceAccessList.append({"groupName":"PUBLIC", "accessType":["READ"]})
-#        accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06", "resourceAccess":resourceAccessList}
+#        accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
 #        updatedAcl = self.authenticatedConn.updateRepoEntity(dataset["uri"]+"/acl", accessList)
 #        self.assertIsNotNone(updatedAcl)
 
