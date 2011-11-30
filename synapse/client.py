@@ -2,7 +2,8 @@
 
 # To debug this, python -m pdb myscript.py
 
-import os, sys, string, traceback, json, base64, urllib, urlparse, httplib, utils
+import os, sys, string, traceback, json, base64, urllib, urlparse, httplib, utils, time
+from progressbar import ProgressBar
 
 def addArguments(parser):
     '''
@@ -415,6 +416,145 @@ class Synapse:
         """
             
         return self.deleteEntity(self.repoEndpoint, uri)
+    
+    def monitorDaemonStatus(self, id):
+        '''
+        Continously monitor daemon status until it completes
+        '''
+        status = None
+        complete = False
+        pbar = None
+        while (not complete):            
+            status = self.checkDaemonStatus(id)
+            complete = status["status"] != "STARTED"
+            if (not complete):
+                if (not pbar):
+                    pbar = ProgressBar(maxval=int(status["progresssTotal"]))
+                pbar.update(int(status["progresssCurrent"]))
+                time.sleep(15) #in seconds  
+        if (pbar):
+            pbar.finish()  
+        return status
+    
+    def checkDaemonStatus(self, id):
+        '''
+        Make a single call to check daemon status
+        '''
+        conn = {}
+        if ('https' == self.repoEndpoint["protocol"]):
+            conn = httplib.HTTPSConnection(self.repoEndpoint["location"],
+                                           timeout=self.serviceTimeoutSeconds)
+        else:
+            conn = httplib.HTTPConnection(self.repoEndpoint("protocol"),
+                                          timeout=self.serviceTimeoutSeconds)
+        if (self.debug):
+            conn.set_debuglevel(10)
+            
+        uri = self.repoEndpoint["prefix"] + "/daemonStatus/" + str(id)
+        results = None
+        
+        try:
+            headers = self.headers            
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('GET', uri, None, headers)
+            resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
+            output = resp.read()
+            if resp.status == 200:
+                if self.debug:
+                    print output
+                results = json.loads(output)
+            else:
+                raise Exception('Call failed: %d %s %s' % (resp.status, resp.reason, output))
+        finally:
+            conn.close()
+        return results   
+        
+    def startBackup(self):
+        conn = {}
+        if ('https' == self.repoEndpoint["protocol"]):
+            conn = httplib.HTTPSConnection(self.repoEndpoint["location"],
+                                           timeout=self.serviceTimeoutSeconds)
+        else:
+            conn = httplib.HTTPConnection(self.repoEndpoint("protocol"),
+                                          timeout=self.serviceTimeoutSeconds)
+        if (self.debug):
+            conn.set_debuglevel(10)
+            print 'Starting backup of repository'
+        
+        uri = self.repoEndpoint["prefix"] + "/startBackupDaemon"
+        results = None
+        
+        try:
+            headers = self.headers            
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('POST', uri, "{}", headers)
+            resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
+            output = resp.read()
+            if resp.status == 201:
+                if self.debug:
+                    print output
+                results = json.loads(output)
+            else:
+                raise Exception('Call failed: %d %s %s' % (resp.status, resp.reason, output))
+        finally:
+            conn.close()
+        return results    
+    
+    def startRestore(self, backupFile):
+        conn = {}
+        if ('https' == self.repoEndpoint["protocol"]):
+            conn = httplib.HTTPSConnection(self.repoEndpoint["location"],
+                                           timeout=self.serviceTimeoutSeconds)
+        else:
+            conn = httplib.HTTPConnection(self.repoEndpoint("protocol"),
+                                          timeout=self.serviceTimeoutSeconds)
+        if (self.debug):
+            conn.set_debuglevel(10)
+            print 'Starting restore of repository'
+        
+        uri = self.repoEndpoint["prefix"] + "/startRestoreDaemon"
+        results = None
+        
+        try:
+            headers = self.headers            
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            body = "{\"url\": \""+backupFile+"\"}"
+            conn.request('POST', uri, body, headers)
+            resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
+            output = resp.read()
+            if resp.status == 201:
+                if self.debug:
+                    print output
+                results = json.loads(output)
+            else:
+                raise Exception('Call failed: %d %s %s' % (resp.status, resp.reason, output))
+        finally:
+            conn.close()
+        return results    
 
     def query(self, endpoint, query):
         '''
