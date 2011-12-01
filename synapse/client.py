@@ -3,7 +3,7 @@
 # To debug this, python -m pdb myscript.py
 
 import os, sys, string, traceback, json, base64, urllib, urlparse, httplib, utils, time
-from progressbar import ProgressBar
+#from progressbar import ProgressBar
 
 def addArguments(parser):
     '''
@@ -428,9 +428,9 @@ class Synapse:
             status = self.checkDaemonStatus(id)
             complete = status["status"] != "STARTED"
             if (not complete):
-                if (not pbar):
-                    pbar = ProgressBar(maxval=int(status["progresssTotal"]))
-                pbar.update(int(status["progresssCurrent"]))
+                #if (not pbar):
+                    #pbar = ProgressBar(maxval=int(status["progresssTotal"]))
+                #pbar.update(int(status["progresssCurrent"]))
                 time.sleep(15) #in seconds  
         if (pbar):
             pbar.finish()  
