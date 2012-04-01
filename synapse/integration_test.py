@@ -92,7 +92,7 @@ class IntegrationTestSynapse(unittest.TestCase):
         projectId = project["id"]
         
         # Dataset 1: inherits ACL from parent project
-        datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
+        datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
         dataset = self.authenticatedConn.createDataset(datasetSpec)
         self.assertIsNotNone(dataset)
         self.assertEqual(dataset["name"], datasetSpec["name"])
