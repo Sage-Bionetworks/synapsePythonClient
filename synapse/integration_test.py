@@ -70,7 +70,7 @@ class IntegrationTestSynapse(unittest.TestCase):
     def test_integrated(self):
         print "test_integrated"
         
-        list = self.authenticatedConn.getRepoEntity('/project')
+        list = self.authenticatedConn.getRepoEntity('/query?query=''select+id+from+project''')
         self.assertIsNotNone(list)
 
         for p in self.authenticatedConn.getPrincipals():
@@ -114,18 +114,18 @@ class IntegrationTestSynapse(unittest.TestCase):
 #        self.assertIsNotNone(updatedAcl)
 
         # Should be able to see created project from authenticated but not from anonymous
-        pr = self.authenticatedConn.getRepoEntity("/project/"+str(projectId))
+        pr = self.authenticatedConn.getRepoEntity("/entity/"+str(projectId))
         self.assertIsNotNone(pr)
         with self.assertRaises(Exception) as cm:
             pr = None
-            pr = self.anonConn.getRepoEntity("/project/"+str(projectId))
+            pr = self.anonConn.getRepoEntity("/entity/"+str(projectId))
             self.assertIsNone(pr)
         # Should be able to see dataset1 from authenticated but not from anonymous conn
-        ds = self.authenticatedConn.getRepoEntity("/dataset/"+str(datasetId1))
+        ds = self.authenticatedConn.getRepoEntity("/entity/"+str(datasetId1))
         self.assertIsNotNone(ds)
         with self.assertRaises(Exception) as cm:
             ds = None
-            ds = self.anonConn.getRepoEntity("/dataset/"+str(datasetId1))
+            ds = self.anonConn.getRepoEntity("/entity/"+str(datasetId1))
             self.assertIsNone(ds)
         # Should be able to see dataset1 from authenticated and anonymous conn
 #        ds = self.authenticatedConn.getRepoEntity("/dataset/"+str(datasetId2))
