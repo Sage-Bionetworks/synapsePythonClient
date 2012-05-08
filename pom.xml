@@ -9,7 +9,7 @@
   <parent>
 	<artifactId>client</artifactId>
 	<groupId>org.sagebionetworks</groupId>
-	<version>0.13-SNAPSHOT</version>
+	<version>0.13.1</version>
   </parent>
 
   <groupId>org.sagebionetworks</groupId>
