@@ -5,46 +5,19 @@
 import os, sys, string, traceback, json, base64, urllib, urlparse, httplib, utils, time
 #from progressbar import ProgressBar
 
-def addArguments(parser):
-    '''
-    Synapse command line argument helper
-    '''
-    parser.add_argument('--repoEndpoint', '-e',
-                        help='the url to which to send the metadata '
-                        + '(e.g. https://staging-repoService.elasticbeanstalk.com/repo/v1)',
-                        required=True)
-    
-    parser.add_argument('--authEndpoint', '-a',
-                        help='the url against which to authenticate '
-                        + '(e.g. http://staging-auth.elasticbeanstalk.com/auth/v1)',
-                        required=True)
-
-    parser.add_argument('--serviceTimeoutSeconds', '-t',
-                        help='the socket timeout for blocking operations to the service (e.g., connect, send, receive), defaults to 30 seconds',
-                        default=30)
-    
-    parser.add_argument('--user', '-u', help='user (email name)', required=True)
-    
-    parser.add_argument('--password', '-p', help='password', required=True)
-
-
-    
-def factory(args):
-    '''
-    Factory method to create a Synapse instance from command line args
-    '''
-    return Synapse(args.repoEndpoint,
-                   args.authEndpoint,
-                   args.serviceTimeoutSeconds,
-                   args.debug)
-    
 class Synapse:
     '''
     Python implementation for Synapse repository service client
     '''    
-    def __init__(self, repoEndpoint, authEndpoint, serviceTimeoutSeconds, debug):
-        '''
-        Constructor
+    def __init__(self, repoEndpoint='https://repo-prod.sagebase.org/repo/v1', 
+                 authEndpoint='https://auth-prod.sagebase.org/auth/v1', 
+                 serviceTimeoutSeconds=30, debug=False):
+        '''Constructor of Synapse client
+        params:
+        - repoEndpoint: location of synapse repository
+        - authEndpoint: location of authentication service
+        - serviceTimeoutSeconds : wait time before timeout
+        - debug: Boolean weather to print debugging messages.
         '''
         
         self.headers = {'content-type': 'application/json', 'Accept': 'application/json'}
@@ -55,8 +28,6 @@ class Synapse:
 
         self.repoEndpoint = {}
         self.authEndpoint = {}
-        #self.serviceEndpoint = serviceEndpoint
-        #self.authEndpoint = authEndpoint
 
         parseResult = urlparse.urlparse(repoEndpoint)
         self.repoEndpoint["location"] = parseResult.netloc
@@ -72,6 +43,23 @@ class Synapse:
         self.profile_data = None
 
 
+    def _connect(self, endpoint):
+        """Creates a http connection to the desired endpoint
+
+        Arguments:
+        - `endpoint`: dictionary of endpoint details, like self.repoEndpoint
+        Returns:
+        - `conn`: Either a httplib.HTTPConnection or httplib.HTTPSConnection
+        """
+        conn = {}
+        if('https' == endpoint["protocol"]):
+            conn = httplib.HTTPSConnection(endpoint["location"],
+                                           timeout=self.serviceTimeoutSeconds)
+        else:
+            conn = httplib.HTTPConnection(endpoint["location"],
+                                          timeout=self.serviceTimeoutSeconds)
+        return conn
+
     def login(self, email, password):
         """
         Authenticate and get session token
@@ -80,7 +68,6 @@ class Synapse:
             raise Exception("invalid parameters")
 
         uri = "/session"
-        #req = "{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"
         req = {"email":email, "password":password}
         
         # Disable profiling during login
@@ -93,17 +80,21 @@ class Synapse:
         if(0 != string.find(uri, self.authEndpoint["prefix"])):
             uri = self.authEndpoint["prefix"] + uri
         
-        storedEntity = self.createAuthEntity(uri, req)
+        storedEntity = self.createEntity(uri, req, self.authEndpoint)
         self.sessionToken = storedEntity["sessionToken"]
         self.headers["sessionToken"] = self.sessionToken
-        
+    
         if req_profile != None:
             self.request_profile = req_profile
+
         
-    def createEntity(self, endpoint, uri, entity):
-        '''
+    def createEntity(self, uri, entity, endpoint=None):
+        """
         Create a new entity on either service
-        '''
+        """
+        if endpoint == None:
+            endpoint = self.repoEndpoint
+
         if(None == uri or None == entity or None == endpoint
            or not (isinstance(entity, dict)
                    and (isinstance(uri, str) or isinstance(uri, unicode)))):
@@ -112,13 +103,7 @@ class Synapse:
         if(0 != string.find(uri, endpoint["prefix"])):
                 uri = endpoint["prefix"] + uri
 
-        conn = {}
-        if('https' == endpoint["protocol"]):
-            conn = httplib.HTTPSConnection(endpoint["location"],
-                                           timeout=self.serviceTimeoutSeconds)
-        else:
-            conn = httplib.HTTPConnection(endpoint["location"],
-                                          timeout=self.serviceTimeoutSeconds)
+        conn = self._connect(endpoint)
 
         if(self.debug):
             conn.set_debuglevel(10);
@@ -151,53 +136,29 @@ class Synapse:
             conn.close()
         return storedEntity
         
-    def createAuthEntity(self, uri, entity):
-        """
-        Create a new user, session etc. on authentication service
-        """
-        # Disable profiling for auth
-        req_profile = self.request_profile
-        self.request_profile = False
-        e = self.createEntity(self.authEndpoint, uri, entity)
-        self.request_profile = req_profile
-        return e
         
-    def createRepoEntity(self, uri, entity):
-        """
-        Create a new dataset, layer etc. on repository service
-        """
-            
-        return self.createEntity(self.repoEndpoint, uri, entity)
         
-    def getEntity(self, endpoint, uri):
+    def  getEntity(self, uri, endpoint=None):
         '''
         Get a dataset, layer, preview, annotations, etc..
+        By default fetches from the repo.
         '''
-      
         if endpoint == None:
-            raise Exception("invalid parameters")
-            
+            endpoint = self.repoEndpoint
         if uri == None:
             return
-            
+
         if(0 != string.find(uri, endpoint["prefix"])):
                 uri = endpoint["prefix"] + uri
-    
-        conn = {}
-        if('https' == endpoint["protocol"]):
-            conn = httplib.HTTPSConnection(endpoint["location"],
-                                           timeout=self.serviceTimeoutSeconds)
-        else:
-            conn = httplib.HTTPConnection(endpoint["location"],
-                                          timeout=self.serviceTimeoutSeconds)
+
+        conn = self._connect(endpoint)
 
         if(self.debug):
             conn.set_debuglevel(10);
             print 'About to get %s' % (uri)
-    
+
         entity = None
         self.profile_data = None
-    
         try:
             headers = self.headers
             if self.request_profile:
@@ -221,18 +182,6 @@ class Synapse:
         finally:
             conn.close()
         return entity
-        
-    #def getAuthEntity(self, uri):
-    #    """
-    #    Get an entity from auth service
-    #    """
-    #    return self.getEntity(self.authEndpoint, uri)
-        
-    def getRepoEntity(self, uri):
-        """
-        Get an entity (dataset, layer, ...) from repository service
-        """
-        return self.getEntity(self.repoEndpoint, uri)
 
     def loadEntity(self, uri):
         """
@@ -240,8 +189,8 @@ class Synapse:
         directory, TODO synapse cache support to ensure we don't
         overwrite files
         """
-        entity = self.getEntity(self.repoEndpoint, uri)
-        locations = self.getEntity(self.repoEndpoint, entity['locations'])
+        entity = self.getEntity(uri, self.repoEndpoint)
+        locations = self.getEntity(entity['locations'], self.repoEndpoint,)
         if(0 == len(locations['results'])):
             raise Exception("entity has no locations")
         location = locations['results'][0]
@@ -271,8 +220,8 @@ class Synapse:
            or not (isinstance(entity, dict)
                    and (isinstance(uri, str) or isinstance(uri, unicode)))):
             raise Exception("invalid parameters")
-            
-        oldEntity = self.getEntity(endpoint, uri)
+
+        oldEntity = self.getEntity(uri, endpoint)
         if(oldEntity == None):
             return None
 
@@ -288,11 +237,6 @@ class Synapse:
 
         return self.putEntity(endpoint, uri, oldEntity)
         
-    #def updateAuthEntity(self, uri, entity):
-    #    return self.updateEntity(self.authEndpoint, uri, entity)
-        
-    def updateRepoEntity(self, uri, entity):
-        return self.updateEntity(self.repoEndpoint, uri, entity)
 
     def putEntity(self, endpoint, uri, entity):
         '''
@@ -302,29 +246,22 @@ class Synapse:
            or not (isinstance(entity, dict)
                    and (isinstance(uri, str) or isinstance(uri, unicode)))):
             raise Exception("invalid parameters")
-          
         if(0 != string.find(uri, endpoint["prefix"])):
-                uri = endpoint["prefix"] + uri
-    
-        conn = {}
-        if('https' == endpoint["protocol"]):
-            conn = httplib.HTTPSConnection(endpoint["location"],
-                                           timeout=self.serviceTimeoutSeconds)
-        else:
-            conn = httplib.HTTPConnection(endpoint["location"],
-                                          timeout=self.serviceTimeoutSeconds)
+                uri = endpoint["prefix"] + uri  
+
+        conn = self._connect(enpoint)
 
         if(self.debug):
             conn.set_debuglevel(2);
             print 'About to update %s with %s' % (uri, json.dumps(entity))
-    
+
         putHeaders = self.headers
         if "etag" in entity:
             putHeaders['ETag'] = entity['etag']
-    
+
         storedEntity = None
         self.profile_data = None
-        
+
         try:
             conn.request('PUT', uri, json.dumps(entity), putHeaders)
             resp = conn.getresponse()
@@ -347,17 +284,6 @@ class Synapse:
             conn.close()
         return storedEntity
         
-    #def putAuthEntity(self, uri, entity):
-    #    """
-    #    Updates an entity (user, ...) in the auth service
-    #    """
-    #    return self.putEntity(self.authEndpoint, uri, entity)
-        
-    def putRepoEntity(self, uri, entity):
-        """
-        Update an entity (dataset, layer, ...) in the repository service
-        """
-        return self.putEntity(self.repoEndpoint, uri, entity)
 
     def deleteEntity(self, endpoint, uri):
         '''
@@ -369,19 +295,13 @@ class Synapse:
             
         if(0 != string.find(uri, endpoint["prefix"])):
                 uri = endpoint["prefix"] + uri
-    
-        conn = {}
-        if('https' == endpoint["protocol"]):
-            conn = httplib.HTTPSConnection(endpoint["location"],
-                                           timeout=self.serviceTimeoutSeconds)
-        else:
-            conn = httplib.HTTPConnection(endpoint["location"],
-                                          timeout=self.serviceTimeoutSeconds)
+
+        conn = self._connect(endpoint)
 
         if(self.debug):
             conn.set_debuglevel(10);
             print 'About to delete %s' % (uri)
-            
+
         self.profile_data = None
 
         try:
@@ -406,17 +326,8 @@ class Synapse:
             return None;
         finally:
             conn.close()
-        
-    #def deleteAuthEntity(self, uri):
-    #    pass
-        
-    def deleteRepoEntity(self, uri):
-        """
-        Delete an entity (dataset, layer, ...) on the repository service
-        """
-            
-        return self.deleteEntity(self.repoEndpoint, uri)
-    
+
+
     def monitorDaemonStatus(self, id):
         '''
         Continously monitor daemon status until it completes
@@ -435,18 +346,14 @@ class Synapse:
         if (pbar):
             pbar.finish()  
         return status
-    
+
     def checkDaemonStatus(self, id):
         '''
         Make a single call to check daemon status
         '''
-        conn = {}
-        if ('https' == self.repoEndpoint["protocol"]):
-            conn = httplib.HTTPSConnection(self.repoEndpoint["location"],
-                                           timeout=self.serviceTimeoutSeconds)
-        else:
-            conn = httplib.HTTPConnection(self.repoEndpoint("protocol"),
-                                          timeout=self.serviceTimeoutSeconds)
+        
+        conn = self._connect(self.repoEndpoint)
+
         if (self.debug):
             conn.set_debuglevel(10)
             
@@ -478,13 +385,7 @@ class Synapse:
         return results   
         
     def startBackup(self):
-        conn = {}
-        if ('https' == self.repoEndpoint["protocol"]):
-            conn = httplib.HTTPSConnection(self.repoEndpoint["location"],
-                                           timeout=self.serviceTimeoutSeconds)
-        else:
-            conn = httplib.HTTPConnection(self.repoEndpoint("protocol"),
-                                          timeout=self.serviceTimeoutSeconds)
+        conn = self._connect(self.repoEndpoint)
         if (self.debug):
             conn.set_debuglevel(10)
             print 'Starting backup of repository'
@@ -515,15 +416,10 @@ class Synapse:
         finally:
             conn.close()
         return results    
-    
+
     def startRestore(self, backupFile):
-        conn = {}
-        if ('https' == self.repoEndpoint["protocol"]):
-            conn = httplib.HTTPSConnection(self.repoEndpoint["location"],
-                                           timeout=self.serviceTimeoutSeconds)
-        else:
-            conn = httplib.HTTPConnection(self.repoEndpoint("protocol"),
-                                          timeout=self.serviceTimeoutSeconds)
+        conn = self._connect(self.repoEndpoint)
+
         if (self.debug):
             conn.set_debuglevel(10)
             print 'Starting restore of repository'
@@ -556,28 +452,23 @@ class Synapse:
             conn.close()
         return results    
 
-    def query(self, endpoint, query):
+    def query(self, queryStr):
         '''
         Query for datasets, layers, etc..
+
+        Example:
+        query("select id, name from entity where entity.parentId=='syn449742'")
         '''
-        
-        uri = endpoint["prefix"] + '/query?query=' + urllib.quote(query)
-    
-        conn = {}
-        if('https' == endpoint["protocol"]):
-            conn = httplib.HTTPSConnection(endpoint["location"],
-                                           timeout=self.serviceTimeoutSeconds)
-        else:
-            conn = httplib.HTTPConnection(endpoint["location"],
-                                          timeout=self.serviceTimeoutSeconds)
+        uri = self.repoEndpoint["prefix"] + '/query?query=' + urllib.quote(queryStr)
+        conn = self._connect(self.repoEndpoint)
 
         if(self.debug):
             conn.set_debuglevel(10);
-            print 'About to query %s' % (query)
-    
+            print 'About to query %s' % (queryStr)
+
         results = None
         self.profile_data = None
-    
+
         try:
             headers = self.headers
             if self.request_profile:
@@ -597,78 +488,76 @@ class Synapse:
                     print output
                 results = json.loads(output)
             else:
-                raise Exception('Query %s failed: %d %s %s' % (query, resp.status, resp.reason, output))
+                raise Exception('Query %s failed: %d %s %s' % (queryStr, resp.status, resp.reason, output))
         finally:
             conn.close()
         return results
-        
-    def queryRepo(self, query):
-        """
-        Query for datasets, layers etc.
-        """
-        return self.query(self.repoEndpoint, query)
-            
-    def getRepoEntityByName(self, kind, name, parentId=None):
-        """
-        Get an entity (dataset, layer, ...) from repository service using its name and optionally parentId
-        """
-        return self.getRepoEntityByProperty(kind, "name", name, parentId)
-    
-    def getRepoEntityByProperty(self, kind, propertyName, propertyValue, parentId=None):
-        """
-        Get an entity (dataset, layer, ...) from repository service by exact match on a property and optionally parentId
-        """
-        query = 'select * from %s where %s == "%s"' % (kind, propertyName, propertyValue)
-        if(None != parentId):
-            query = '%s and parentId == "%s"' % (query, parentId)
-        queryResult = self.queryRepo(query)
-        if(0 == queryResult["totalNumberOfResults"]):
-            return None
-        elif(1 < queryResult["totalNumberOfResults"]):
-            raise Exception("found more than one matching entity for " + query)
-        else:
-            return self.getRepoEntity('/' + kind + '/'
-                                      + queryResult["results"][0][kind + ".id"])
 
-    def createDataset(self, dataset):
-        '''
-        We have a helper method to create a dataset since it is a top level url
-        '''
-        return self.createRepoEntity('/dataset', dataset)
 
-    def getDataset(self, datasetId):
-        '''
-        We have a helper method to get a dataset since it is a top level url
-        '''
-        return self.getRepoEntity('/dataset/' + str(datasetId))
+    # def getRepoEntityByName(self, kind, name, parentId=None):
+    #     """
+    #     Get an entity (dataset, layer, ...) from repository service using its name and optionally parentId
+    #     """
+    #     return self.getRepoEntityByProperty(kind, "name", name, parentId)
+
+    # def getRepoEntityByProperty(self, kind, propertyName, propertyValue, parentId=None):
+    #     """
+    #     Get an entity (dataset, layer, ...) from repository service by exact match on a property and optionally parentId
+    #     """
+    #     query = 'select * from %s where %s == "%s"' % (kind, propertyName, propertyValue)
+    #     if(None != parentId):
+    #         query = '%s and parentId == "%s"' % (query, parentId)
+    #     queryResult = self.query(query)
+    #     if(0 == queryResult["totalNumberOfResults"]):
+    #         return None
+    #     elif(1 < queryResult["totalNumberOfResults"]):
+    #         raise Exception("found more than one matching entity for " + query)
+    #     else:
+    #         return self.getEntity('/' + kind + '/'
+    #                                   + queryResult["results"][0][kind + ".id"])
+
+    # def createDataset(self, dataset):
+    #     '''
+    #     We have a helper method to create a dataset since it is a top level url
+    #     '''
+    #     return self.createRepoEntity('/entity', dataset)
+
+    # def getDataset(self, datasetId):
+    #     '''
+    #     We have a helper method to get a dataset since it is a top level url
+    #     '''
+    #     return self.getEntity('/entity/' + str(datasetId))
         
-    def createProject(self, project):
-        """
-        Helper method to create project
-        """
-        return self.createRepoEntity('/project', project)
+    # def createProject(self, project):
+    #     """
+    #     Helper method to create project
+    #     """
+    #     return self.createRepoEntity('/project', project)
         
-    def getProject(self, projectId):
-        """
-        Helper method to get a project
-        """
-        return self.getRepoEntity('/project/' + str(projectId))
+    # def getProject(self, projectId):
+    #     """
+    #     Helper method to get a project
+    #     """
+    #     return self.getEntity('/project/' + str(projectId))
         
-    def loadLayer(self, layerId):
-        """
-        Helper method to load a layer
-        """
-        return self.loadEntity('/layer/' + str(layerId))
+    # def loadLayer(self, layerId):
+    #     """
+    #     Helper method to load a layer
+    #     """
+    #     return self.loadEntity('/layer/' + str(layerId))
         
-    def getPrincipals(self):
-        """
-        Helper method to get list of principals
-        """
-        l = []
-        l.extend(self.getRepoEntity('/userGroup'))
-        l.extend(self.getRepoEntity('/user'))
-        return l
+    # def getPrincipals(self):
+    #     """
+    #     Helper method to get list of principals
+    #     """
+    #     l = []
+    #     l.extend(self.getEntity('/userGroup'))
+    #     l.extend(self.getEntity('/user'))
+    #     return l
         
+
+
+
 #------- INTEGRATION TESTS -----------------
 if __name__ == '__main__':
     import unittest, utils
@@ -825,15 +714,15 @@ if __name__ == '__main__':
             self.assertNotEqual(len(list), 0)
             
             # Query
-            list = self.anonClient.queryRepo('select * from project')
+            list = self.anonClient.query('select * from project')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.queryRepo('select * from dataset')
+            list = self.anonClient.query('select * from dataset')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.queryRepo('select * from layer')
+            list = self.anonClient.query('select * from layer')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.queryRepo('select * from preview')
+            list = self.anonClient.query('select * from preview')
             self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.queryRepo('select * from location')
+            list = self.anonClient.query('select * from location')
             self.assertEqual(list["totalNumberOfResults"], 0)
             
             # Create by anon
