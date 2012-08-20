@@ -44,10 +44,11 @@ def uploadToS3(localFilepath, s3url, md5, contentType, debug=False):
         print "About to run: " + command
     print subprocess.check_output(shlex.split(command.encode('ascii')))
     
-#def downloadFromS3(s3url, localFilePath, md5):
-#    pass
 
 def downloadFile(url, localFilepath):
+    dir = os.path.dirname(localFilepath)
+    if not os.path.exists(dir):
+        os.makedirs(dir)
     urllib.urlretrieve (url, localFilepath)
     
 def sendEmail():
