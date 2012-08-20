@@ -1,14 +1,23 @@
 #!/usr/bin/env python2.7
-
 # To debug this, python -m pdb myscript.py
+import os
+import string
+import json
+import base64
+import urllib
+import urlparse
+import httplib
+import time
+import zipfile
 
-import os, sys, string, traceback, json, base64, urllib, urlparse, httplib, utils, time
-#from progressbar import ProgressBar
+import utils
+
+CACHE_DIR='~/.synapseCache/python'  #TODO: this needs to be handled in a transparent way!
 
 class Synapse:
-    '''
+    """
     Python implementation for Synapse repository service client
-    '''    
+    """    
     def __init__(self, repoEndpoint='https://repo-prod.sagebase.org/repo/v1', 
                  authEndpoint='https://auth-prod.sagebase.org/auth/v1', 
                  serviceTimeoutSeconds=30, debug=False):
@@ -19,7 +28,8 @@ class Synapse:
         - serviceTimeoutSeconds : wait time before timeout
         - debug: Boolean weather to print debugging messages.
         '''
-        
+
+        self.cacheDir = os.path.expanduser(CACHE_DIR)
         self.headers = {'content-type': 'application/json', 'Accept': 'application/json'}
 
         self.serviceTimeoutSeconds = serviceTimeoutSeconds 
@@ -58,7 +68,15 @@ class Synapse:
         else:
             conn = httplib.HTTPConnection(endpoint["location"],
                                           timeout=self.serviceTimeoutSeconds)
+        if (self.debug):
+            conn.set_debuglevel(10);
         return conn
+
+
+    def printEntity(self, entity):
+        """Pretty prints an entity."""
+        print json.dumps(entity, sort_keys=True, indent=2)
+
 
     def login(self, email, password):
         """
@@ -67,9 +85,6 @@ class Synapse:
         if (None == email or None == password):
             raise Exception("invalid parameters")
 
-        uri = "/session"
-        req = {"email":email, "password":password}
-        
         # Disable profiling during login
         # TODO: Check what happens if enabled
         req_profile = None
@@ -77,85 +92,39 @@ class Synapse:
             req_profile = self.request_profile
             self.request_profile = False
         
-        if(0 != string.find(uri, self.authEndpoint["prefix"])):
-            uri = self.authEndpoint["prefix"] + uri
+        uri = self.authEndpoint["prefix"] + "/session"
+        req = {"email":email, "password":password}
         
-        storedEntity = self.createEntity(uri, req, self.authEndpoint)
+        storedEntity = self._createUniversalEntity(uri, req, self.authEndpoint)
         self.sessionToken = storedEntity["sessionToken"]
         self.headers["sessionToken"] = self.sessionToken
     
         if req_profile != None:
             self.request_profile = req_profile
 
-        
-    def createEntity(self, uri, entity, endpoint=None):
+
+    def  getEntity(self, entity, endpoint=None):
+        """Retrieves metainformation about an entity from a synapse Repository
+        Arguments:
+        - `entity`: A synapse ID of entity (i.e dictionary describing an entity)
+        Returns:
+        - A dictionary representing an entitity
         """
-        Create a new entity on either service
-        """
+        #process input arguments
         if endpoint == None:
             endpoint = self.repoEndpoint
-
-        if(None == uri or None == entity or None == endpoint
-           or not (isinstance(entity, dict)
-                   and (isinstance(uri, str) or isinstance(uri, unicode)))):
+        if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
             raise Exception("invalid parameters")
-            
-        if(0 != string.find(uri, endpoint["prefix"])):
-                uri = endpoint["prefix"] + uri
+        if isinstance(entity, dict):
+            entity = entity['id']
 
+        if not (endpoint['prefix'] in entity):
+            uri = endpoint["prefix"] + '/entity/' + entity
+        else:
+            uri=entity
         conn = self._connect(endpoint)
 
-        if(self.debug):
-            conn.set_debuglevel(10);
-            print 'About to create %s with %s' % (uri, json.dumps(entity))
-
-        storedEntity = None
-        self.profile_data = None
-        
-        try:
-            headers = self.headers
-            if self.request_profile:
-                headers["profile_request"] = "True"
-            conn.request('POST', uri, json.dumps(entity), headers)
-            resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))                
-            output = resp.read()
-            if resp.status == 201:
-                if self.debug:
-                    print output
-                storedEntity = json.loads(output)
-            else:
-                raise Exception('POST %s failed: %d %s %s %s' % (uri, resp.status, resp.reason, json.dumps(entity), output))
-        finally:
-            conn.close()
-        return storedEntity
-        
-        
-        
-    def  getEntity(self, uri, endpoint=None):
-        '''
-        Get a dataset, layer, preview, annotations, etc..
-        By default fetches from the repo.
-        '''
-        if endpoint == None:
-            endpoint = self.repoEndpoint
-        if uri == None:
-            return
-
-        if(0 != string.find(uri, endpoint["prefix"])):
-                uri = endpoint["prefix"] + uri
-
-        conn = self._connect(endpoint)
-
-        if(self.debug):
-            conn.set_debuglevel(10);
-            print 'About to get %s' % (uri)
+        if(self.debug):  print 'About to get %s' % (uri)
 
         entity = None
         self.profile_data = None
@@ -183,24 +152,101 @@ class Synapse:
             conn.close()
         return entity
 
-    def loadEntity(self, uri):
-        """
-        Download the data for an entity to the current working
-        directory, TODO synapse cache support to ensure we don't
-        overwrite files
-        """
-        entity = self.getEntity(uri, self.repoEndpoint)
-        locations = self.getEntity(entity['locations'], self.repoEndpoint,)
-        if(0 == len(locations['results'])):
-            raise Exception("entity has no locations")
-        location = locations['results'][0]
-        url = location['path']
-        parseResult = urlparse.urlparse(url)
-        pathComponents = string.split(parseResult.path, '/')
-        filename = pathComponents[len(pathComponents)-1]
-        utils.downloadFile(url, filename)
-        return filename
 
+    def downloadEntity(self, entity):
+        """Download an entity and files associated with an entity to local cache
+        TODO: Add storing of files in cache
+        TODO: Add unpacking of files.
+        
+        Arguments:
+        - `entity`: A synapse ID of entity (i.e dictionary describing an entity)
+        Returns:
+        - A dictionary representing an entitity
+        """
+        entity = self.getEntity(entity)
+        if not entity.has_key('locations'):
+            return entity
+        locations = entity['locations']
+
+        for location in locations:  #TODO: verify, can a entity have more than 1 location?
+            url = location['path']
+            parseResult = urlparse.urlparse(url)
+            pathComponents = string.split(parseResult.path, '/')
+
+            filename = os.path.join(self.cacheDir,entity['id'] ,pathComponents[-1])
+            print filename, 'downloaded and unpacked'
+            utils.downloadFile(url, filename)
+
+            ## Unpack file
+            filepath=os.path.join(os.path.dirname(filename), os.path.basename(filename)+'_unpacked')
+            #TODO!!!FIX THIS TO BE PATH SAFE!  DON'T ALLOW ARBITRARY UNZIPING
+            z = zipfile.ZipFile(filename, 'r')
+            z.extractall(filepath) #WARNING!!!NOT SAFE
+
+            #figure out files stored in there and return references to them
+            entity['cacheDir'] = filepath
+            entity['files'] = z.namelist()
+        return entity
+
+    def loadEntity(self, entity):
+        """Downloads and attempts to load the contents of an entity into memory
+        TODO: Currently only performs downlaod.
+        Arguments:
+        - `entity`: Either a string or dict representing and entity
+        """
+        #TODO: Try to load the entity into memory as well.
+        #This will be depenendent on the type of entity.
+        print 'WARNING!: THIS ONLY DOWNLOADS ENTITIES!'
+        return self.downloadEntity(entity)
+
+
+    def _createUniversalEntity(self, uri, entity, endpoint):
+        """Creates an entity on either auth or repo"""
+
+        if(None == uri or None == entity or None == endpoint
+           or not (isinstance(entity, dict)
+                   and (isinstance(uri, str) or isinstance(uri, unicode)))):
+            raise Exception("invalid parameters")
+ 
+        conn = self._connect(endpoint)
+
+        if(self.debug): print 'About to create %s with %s' % (uri, json.dumps(entity))
+
+        storedEntity = None
+        self.profile_data = None
+        
+        try:
+            headers = self.headers
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('POST', uri, json.dumps(entity), headers)
+            resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))              
+            output = resp.read()
+            if resp.status == 201:
+                if self.debug:
+                    print output
+                storedEntity = json.loads(output)
+            else:
+                raise Exception('POST %s failed: %d %s %s %s' % (uri, resp.status, resp.reason, json.dumps(entity), output))
+        finally:
+            conn.close()
+        return storedEntity
+
+
+    def createEntity(self, entity):
+        """Create a new entity in the synapse Repository according to entity json object"""
+        endpoint=self.repoEndpoint
+        uri = endpoint["prefix"] + '/entity'
+        return self._createUniversalEntity(uri, entity, endpoint)
+        
+        
     def updateEntity(self, endpoint, uri, entity):
         '''
         Update a dataset, layer, preview, annotations, etc...
@@ -215,6 +261,8 @@ class Synapse:
         overwriting before they do so. Another approach would be to do
         a GET, display the field to the user, allow them to edit the
         fields, and then do a PUT.
+
+        TODO: Verify functionality
         '''
         if(None == uri or None == entity or None == endpoint
            or not (isinstance(entity, dict)
@@ -238,6 +286,81 @@ class Synapse:
         return self.putEntity(endpoint, uri, oldEntity)
         
 
+
+    def query(self, queryStr):
+        '''
+        Query for datasets, layers, etc..
+
+        Example:
+        query("select id, name from entity where entity.parentId=='syn449742'")
+        '''
+        uri = self.repoEndpoint["prefix"] + '/query?query=' + urllib.quote(queryStr)
+        conn = self._connect(self.repoEndpoint)
+
+        if(self.debug): print 'About to query %s' % (queryStr)
+
+        results = None
+        self.profile_data = None
+
+        try:
+            headers = self.headers
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('GET', uri, None, headers)
+            resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
+            output = resp.read()
+            if resp.status == 200:
+                if self.debug:
+                    print output
+                results = json.loads(output)
+            else:
+                raise Exception('Query %s failed: %d %s %s' % (queryStr, resp.status, resp.reason, output))
+        finally:
+            conn.close()
+        return results
+
+
+    def deleteEntity(self, entity):
+        """Deletes an entity (dataset, layer, user, ...) on either service"""
+        endpoint = self.repoEndpoint
+        uri = endpoint["prefix"] + '/entity/' + entity
+        conn = self._connect(endpoint)
+
+        if (self.debug): print 'About to delete %s' % (uri)
+
+        self.profile_data = None
+
+        try:
+            headers = self.headers
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('DELETE', uri, None, headers)
+            resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
+            output = resp.read()
+            if resp.status != 204:
+                raise Exception('DELETE %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
+            elif self.debug:
+                print output
+
+            return None;
+        finally:
+            conn.close()
+
+
     def putEntity(self, endpoint, uri, entity):
         '''
         Update an entity on given endpoint
@@ -249,11 +372,9 @@ class Synapse:
         if(0 != string.find(uri, endpoint["prefix"])):
                 uri = endpoint["prefix"] + uri  
 
-        conn = self._connect(enpoint)
+        conn = self._connect(endpoint)
 
-        if(self.debug):
-            conn.set_debuglevel(2);
-            print 'About to update %s with %s' % (uri, json.dumps(entity))
+        if(self.debug): print 'About to update %s with %s' % (uri, json.dumps(entity))
 
         putHeaders = self.headers
         if "etag" in entity:
@@ -285,213 +406,120 @@ class Synapse:
         return storedEntity
         
 
-    def deleteEntity(self, endpoint, uri):
-        '''
-        Delete an entity (dataset, layer, user, ...) on either service
-        '''
+    # def monitorDaemonStatus(self, id):
+    #     '''
+    #     Continously monitor daemon status until it completes
+    #     '''
+    #     status = None
+    #     complete = False
+    #     pbar = None
+    #     while (not complete):            
+    #         status = self.checkDaemonStatus(id)
+    #         complete = status["status"] != "STARTED"
+    #         if (not complete):
+    #             time.sleep(15) #in seconds  
+    #     if (pbar):
+    #         pbar.finish()  
+    #     return status
 
-        if(None == uri):
-            return
+    # def checkDaemonStatus(self, id):
+    #     '''
+    #     Make a single call to check daemon status
+    #     '''
+        
+    #     conn = self._connect(self.repoEndpoint)
+
             
-        if(0 != string.find(uri, endpoint["prefix"])):
-                uri = endpoint["prefix"] + uri
-
-        conn = self._connect(endpoint)
-
-        if(self.debug):
-            conn.set_debuglevel(10);
-            print 'About to delete %s' % (uri)
-
-        self.profile_data = None
-
-        try:
-            headers = self.headers
-            if self.request_profile:
-                headers["profile_request"] = "True"
-            conn.request('DELETE', uri, None, headers)
-            resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))
-            output = resp.read()
-            if resp.status != 204:
-                raise Exception('DELETE %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
-            elif self.debug:
-                print output
-
-            return None;
-        finally:
-            conn.close()
-
-
-    def monitorDaemonStatus(self, id):
-        '''
-        Continously monitor daemon status until it completes
-        '''
-        status = None
-        complete = False
-        pbar = None
-        while (not complete):            
-            status = self.checkDaemonStatus(id)
-            complete = status["status"] != "STARTED"
-            if (not complete):
-                #if (not pbar):
-                    #pbar = ProgressBar(maxval=int(status["progresssTotal"]))
-                #pbar.update(int(status["progresssCurrent"]))
-                time.sleep(15) #in seconds  
-        if (pbar):
-            pbar.finish()  
-        return status
-
-    def checkDaemonStatus(self, id):
-        '''
-        Make a single call to check daemon status
-        '''
+    #     uri = self.repoEndpoint["prefix"] + "/daemonStatus/" + str(id)
+    #     results = None
         
-        conn = self._connect(self.repoEndpoint)
-
-        if (self.debug):
-            conn.set_debuglevel(10)
-            
-        uri = self.repoEndpoint["prefix"] + "/daemonStatus/" + str(id)
-        results = None
+    #     try:
+    #         headers = self.headers            
+    #         if self.request_profile:
+    #             headers["profile_request"] = "True"
+    #         conn.request('GET', uri, None, headers)
+    #         resp = conn.getresponse()
+    #         if self.request_profile:
+    #             profile_data = None
+    #             for k,v in resp.getheaders():
+    #                 if k == "profile_response_object":
+    #                     profile_data = v
+    #                     break
+    #             self.profile_data = json.loads(base64.b64decode(profile_data))
+    #         output = resp.read()
+    #         if resp.status == 200:
+    #             if self.debug:
+    #                 print output
+    #             results = json.loads(output)
+    #         else:
+    #             raise Exception('Call failed: %d %s %s' % (resp.status, resp.reason, output))
+    #     finally:
+    #         conn.close()
+    #     return results   
         
-        try:
-            headers = self.headers            
-            if self.request_profile:
-                headers["profile_request"] = "True"
-            conn.request('GET', uri, None, headers)
-            resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))
-            output = resp.read()
-            if resp.status == 200:
-                if self.debug:
-                    print output
-                results = json.loads(output)
-            else:
-                raise Exception('Call failed: %d %s %s' % (resp.status, resp.reason, output))
-        finally:
-            conn.close()
-        return results   
+    # def startBackup(self):
+    #     conn = self._connect(self.repoEndpoint)
+    #     if (self.debug): print 'Starting backup of repository'
         
-    def startBackup(self):
-        conn = self._connect(self.repoEndpoint)
-        if (self.debug):
-            conn.set_debuglevel(10)
-            print 'Starting backup of repository'
+    #     uri = self.repoEndpoint["prefix"] + "/startBackupDaemon"
+    #     results = None
         
-        uri = self.repoEndpoint["prefix"] + "/startBackupDaemon"
-        results = None
+    #     try:
+    #         headers = self.headers            
+    #         if self.request_profile:
+    #             headers["profile_request"] = "True"
+    #         conn.request('POST', uri, "{}", headers)
+    #         resp = conn.getresponse()
+    #         if self.request_profile:
+    #             profile_data = None
+    #             for k,v in resp.getheaders():
+    #                 if k == "profile_response_object":
+    #                     profile_data = v
+    #                     break
+    #             self.profile_data = json.loads(base64.b64decode(profile_data))
+    #         output = resp.read()
+    #         if resp.status == 201:
+    #             if self.debug:
+    #                 print output
+    #             results = json.loads(output)
+    #         else:
+    #             raise Exception('Call failed: %d %s %s' % (resp.status, resp.reason, output))
+    #     finally:
+    #         conn.close()
+    #     return results    
+
+    # def startRestore(self, backupFile):
+    #     conn = self._connect(self.repoEndpoint)
+
+    #     if (self.debug): print 'Starting restore of repository'
         
-        try:
-            headers = self.headers            
-            if self.request_profile:
-                headers["profile_request"] = "True"
-            conn.request('POST', uri, "{}", headers)
-            resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))
-            output = resp.read()
-            if resp.status == 201:
-                if self.debug:
-                    print output
-                results = json.loads(output)
-            else:
-                raise Exception('Call failed: %d %s %s' % (resp.status, resp.reason, output))
-        finally:
-            conn.close()
-        return results    
-
-    def startRestore(self, backupFile):
-        conn = self._connect(self.repoEndpoint)
-
-        if (self.debug):
-            conn.set_debuglevel(10)
-            print 'Starting restore of repository'
+    #     uri = self.repoEndpoint["prefix"] + "/startRestoreDaemon"
+    #     results = None
         
-        uri = self.repoEndpoint["prefix"] + "/startRestoreDaemon"
-        results = None
-        
-        try:
-            headers = self.headers            
-            if self.request_profile:
-                headers["profile_request"] = "True"
-            body = "{\"url\": \""+backupFile+"\"}"
-            conn.request('POST', uri, body, headers)
-            resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))
-            output = resp.read()
-            if resp.status == 201:
-                if self.debug:
-                    print output
-                results = json.loads(output)
-            else:
-                raise Exception('Call failed: %d %s %s' % (resp.status, resp.reason, output))
-        finally:
-            conn.close()
-        return results    
-
-    def query(self, queryStr):
-        '''
-        Query for datasets, layers, etc..
-
-        Example:
-        query("select id, name from entity where entity.parentId=='syn449742'")
-        '''
-        uri = self.repoEndpoint["prefix"] + '/query?query=' + urllib.quote(queryStr)
-        conn = self._connect(self.repoEndpoint)
-
-        if(self.debug):
-            conn.set_debuglevel(10);
-            print 'About to query %s' % (queryStr)
-
-        results = None
-        self.profile_data = None
-
-        try:
-            headers = self.headers
-            if self.request_profile:
-                headers["profile_request"] = "True"
-            conn.request('GET', uri, None, headers)
-            resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))
-            output = resp.read()
-            if resp.status == 200:
-                if self.debug:
-                    print output
-                results = json.loads(output)
-            else:
-                raise Exception('Query %s failed: %d %s %s' % (queryStr, resp.status, resp.reason, output))
-        finally:
-            conn.close()
-        return results
+    #     try:
+    #         headers = self.headers            
+    #         if self.request_profile:
+    #             headers["profile_request"] = "True"
+    #         body = "{\"url\": \""+backupFile+"\"}"
+    #         conn.request('POST', uri, body, headers)
+    #         resp = conn.getresponse()
+    #         if self.request_profile:
+    #             profile_data = None
+    #             for k,v in resp.getheaders():
+    #                 if k == "profile_response_object":
+    #                     profile_data = v
+    #                     break
+    #             self.profile_data = json.loads(base64.b64decode(profile_data))
+    #         output = resp.read()
+    #         if resp.status == 201:
+    #             if self.debug:
+    #                 print output
+    #             results = json.loads(output)
+    #         else:
+    #             raise Exception('Call failed: %d %s %s' % (resp.status, resp.reason, output))
+    #     finally:
+    #         conn.close()
+    #     return results    
 
 
     # def getRepoEntityByName(self, kind, name, parentId=None):
@@ -500,259 +528,175 @@ class Synapse:
     #     """
     #     return self.getRepoEntityByProperty(kind, "name", name, parentId)
 
-    # def getRepoEntityByProperty(self, kind, propertyName, propertyValue, parentId=None):
-    #     """
-    #     Get an entity (dataset, layer, ...) from repository service by exact match on a property and optionally parentId
-    #     """
-    #     query = 'select * from %s where %s == "%s"' % (kind, propertyName, propertyValue)
-    #     if(None != parentId):
-    #         query = '%s and parentId == "%s"' % (query, parentId)
-    #     queryResult = self.query(query)
-    #     if(0 == queryResult["totalNumberOfResults"]):
-    #         return None
-    #     elif(1 < queryResult["totalNumberOfResults"]):
-    #         raise Exception("found more than one matching entity for " + query)
-    #     else:
-    #         return self.getEntity('/' + kind + '/'
-    #                                   + queryResult["results"][0][kind + ".id"])
 
-    # def createDataset(self, dataset):
-    #     '''
-    #     We have a helper method to create a dataset since it is a top level url
-    #     '''
-    #     return self.createRepoEntity('/entity', dataset)
-
-    # def getDataset(self, datasetId):
-    #     '''
-    #     We have a helper method to get a dataset since it is a top level url
-    #     '''
-    #     return self.getEntity('/entity/' + str(datasetId))
-        
-    # def createProject(self, project):
-    #     """
-    #     Helper method to create project
-    #     """
-    #     return self.createRepoEntity('/project', project)
-        
-    # def getProject(self, projectId):
-    #     """
-    #     Helper method to get a project
-    #     """
-    #     return self.getEntity('/project/' + str(projectId))
-        
-    # def loadLayer(self, layerId):
-    #     """
-    #     Helper method to load a layer
-    #     """
-    #     return self.loadEntity('/layer/' + str(layerId))
-        
-    # def getPrincipals(self):
-    #     """
-    #     Helper method to get list of principals
-    #     """
-    #     l = []
-    #     l.extend(self.getEntity('/userGroup'))
-    #     l.extend(self.getEntity('/user'))
-    #     return l
         
 
 
 
 #------- INTEGRATION TESTS -----------------
 if __name__ == '__main__':
-    import unittest, utils
+    pass
     
-    class IntegrationTestSynapse(unittest.TestCase):
-        '''
-        Integration tests against a repository service
+    # import unittest, utils
 
-        To run them locally,
-        (1) edit platform/trunk/integration-test/pom.xml set this to true
-        <org.sagebionetworks.integration.debug>true</org.sagebionetworks.integration.debug>
-        (2) run the integration build to start the servlets
-        /platform/trunk/integration-test>mvn clean verify 
-        '''
-        #-------------------[ Constants ]----------------------
-        DATASET = '{"status": "pending", "description": "Genetic and epigenetic alterations have been identified that lead to transcriptional Annotation of prostate cancer genomes provides a foundation for discoveries that can impact disease understanding and treatment. Concordant assessment of DNA copy number, mRNA expression, and focused exon resequencing in the 218 prostate cancer tumors represented in this dataset haveidentified the nuclear receptor coactivator NCOA2 as an oncogene in approximately 11% of tumors. Additionally, the androgen-driven TMPRSS2-ERG fusion was associated with a previously unrecognized, prostate-specific deletion at chromosome 3p14 that implicates FOXP1, RYBP, and SHQ1 as potential cooperative tumor suppressors. DNA copy-number data from primary tumors revealed that copy-number alterations robustly define clusters of low- and high-risk disease beyond that achieved by Gleason score.  ", "createdBy": "Charles Sawyers", "releaseDate": "2008-09-14T00:00:00.000-07:00", "version": "1.0.0", "name": "MSKCC Prostate Cancer"}' 
+    # class IntegrationTestSynapse(unittest.TestCase):
+    #     """TODO!  THESE TESTS ARE NO LONGER TRUE TO THE IMPLEMENTATION OF SYNAPSE!
+    #        THESE TESTS SHOULD BE COMPLETELEY REWRITTEN.
+
+    #     Integration tests against a repository service
+
+    #     To run them locally,
+    #     (1) edit platform/trunk/integration-test/pom.xml set this to true
+    #     <org.sagebionetworks.integration.debug>true</org.sagebionetworks.integration.debug>
+    #     (2) run the integration build to start the servlets
+    #     /platform/trunk/integration-test>mvn clean verify """
+    #     #-------------------[ Constants ]----------------------
+    #     DATASET = '{"status": "pending", "description": "Genetic and epigenetic alterations have been identified that lead to transcriptional Annotation of prostate cancer genomes provides a foundation for discoveries that can impact disease understanding and treatment. Concordant assessment of DNA copy number, mRNA expression, and focused exon resequencing in the 218 prostate cancer tumors represented in this dataset haveidentified the nuclear receptor coactivator NCOA2 as an oncogene in approximately 11% of tumors. Additionally, the androgen-driven TMPRSS2-ERG fusion was associated with a previously unrecognized, prostate-specific deletion at chromosome 3p14 that implicates FOXP1, RYBP, and SHQ1 as potential cooperative tumor suppressors. DNA copy-number data from primary tumors revealed that copy-number alterations robustly define clusters of low- and high-risk disease beyond that achieved by Gleason score.  ", "createdBy": "Charles Sawyers", "releaseDate": "2008-09-14T00:00:00.000-07:00", "version": "1.0.0", "name": "MSKCC Prostate Cancer"}' 
         
-        def setUp(self):
-            print "setUp"
-            # Anonymous connection
-#            self.anonClient = Synapse('http://140.107.149.29:8080/repo/v1', 'https://staging-auth.elasticbeanstalk.com/auth/v1', 30, False)
-            self.anonClient = Synapse('http://localhost:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
-#            self.anonClient = Synapse('http://140.107.149.29:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://140.107.149.29:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
-            # TODO: Move to unit test
-##            self.assertEqual(self.anonClient.repoEndpoint["location"], 'localhost:8080')
-#            self.assertEqual(self.anonClient.repoEndpoint["prefix"], '/repo/v1')
-#            self.assertEqual(self.anonClient.repoEndpoint["protocol"], 'http')
-# #           self.assertEqual(self.anonClient.authEndpoint["location"], 'staging-auth.elasticbeanstalk.com')
-#            self.assertEqual(self.anonClient.authEndpoint["prefix"], '/auth/v1')
-#            self.assertEqual(self.anonClient.authEndpoint["protocol"], 'https')
-            self.assertTrue(self.anonClient.sessionToken == None)
-            self.assertFalse("sessionToken" in self.anonClient.headers)
-            # Admin connection
-            self.adminClient = Synapse('http://localhost:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
-#            self.adminClient = Synapse('http://140.107.149.29:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://140.107.149.29:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
-            self.adminClient.login("admin", "admin")
-            self.assertFalse(self.adminClient.sessionToken == None)
-            self.assertTrue("sessionToken" in self.adminClient.headers)
-            if "sessionToken" in self.adminClient.headers:
-                self.assertTrue(self.adminClient.sessionToken == self.adminClient.headers["sessionToken"])
-            # Postponed until stubs have been implemented
-            ## Logged in connection but not part of any group
-            #self.authClient = Synapse('http://localhost:8080/repo/v1', 'http://staging-auth.elasticbeanstalk.com/auth/v1', 30, False)
-            #self.authClient.login("nonAdmin", "nonAdmin-pw")
-            #self.assertFalse(self.authClient.sessionToken == None)
-            #self.assertTrue("sessionToken" in self.authClient.headers)
-            #if "sessionToken" in self.authClient.headers:
-            #    self.assertTrue(self.authClient.sessionToken == self.authClient.headers["sessionToken"])
+    #     def setUp(self):
+    #         print "setUp"
+    #         # Anonymous connection
+    #         self.anonClient = Synapse('http://localhost:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
+    #         self.assertTrue(self.anonClient.sessionToken == None)
+    #         self.assertFalse("sessionToken" in self.anonClient.headers)
+    #         # Admin connection
+    #         self.adminClient = Synapse('http://localhost:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
+    #         self.adminClient.login("admin", "admin")
+    #         self.assertFalse(self.adminClient.sessionToken == None)
+    #         self.assertTrue("sessionToken" in self.adminClient.headers)
+    #         if "sessionToken" in self.adminClient.headers:
+    #             self.assertTrue(self.adminClient.sessionToken == self.adminClient.headers["sessionToken"])
                 
-        def tearDown(self):
-            allProjects = self.adminClient.getRepoEntity("/project?limit=100");
-            for project in allProjects["results"]:
-                print "About to nuke: " + project["uri"]
-                self.adminClient.deleteRepoEntity(project["uri"])
+    #     def tearDown(self):
+    #         allProjects = self.adminClient.getRepoEntity("/project?limit=100");
+    #         for project in allProjects["results"]:
+    #             print "About to nuke: " + project["uri"]
+    #             self.adminClient.deleteRepoEntity(project["uri"])
                 
-            allDatasets = self.adminClient.getRepoEntity("/dataset?limit=500");
-            for dataset in allDatasets["results"]:
-                print "About to nuke: " + dataset["uri"]
-                self.adminClient.deleteRepoEntity(dataset["uri"])
+    #         allDatasets = self.adminClient.getRepoEntity("/dataset?limit=500");
+    #         for dataset in allDatasets["results"]:
+    #             print "About to nuke: " + dataset["uri"]
+    #             self.adminClient.deleteRepoEntity(dataset["uri"])
                 
-            allLayers = self.adminClient.getRepoEntity("/layer?limit=500");
-            for layer in allLayers["results"]:
-                print "About to nuke: " + layer["uri"]
-                self.adminClient.deleteRepoEntity(layer["uri"])
+    #         allLayers = self.adminClient.getRepoEntity("/layer?limit=500");
+    #         for layer in allLayers["results"]:
+    #             print "About to nuke: " + layer["uri"]
+    #             self.adminClient.deleteRepoEntity(layer["uri"])
             
-        def test_admin(self):
-            print "test_admin"
-            list = self.adminClient.getRepoEntity('/project')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            # Create some entities to test update/delete
-            # TODO: This is dangerous if order of principals changes, change.
-            for p in self.adminClient.getPrincipals():
-                if p["name"] == "AUTHENTICATED_USERS":
-                    break
-            self.assertEqual(p["name"], "AUTHENTICATED_USERS")
+    #     def test_admin(self):
+    #         print "test_admin"
+    #         list = self.adminClient.getRepoEntity('/project')
+    #         self.assertEqual(list["totalNumberOfResults"], 0)
+    #         for p in self.adminClient.getPrincipals():
+    #             if p["name"] == "AUTHENTICATED_USERS":
+    #                 break
+    #         self.assertEqual(p["name"], "AUTHENTICATED_USERS")
             
-            # Project setup
-            projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
-            project = self.adminClient.createProject(projectSpec)
-            self.assertNotEqual(project, None)
-            self.assertEqual(project["name"], projectSpec["name"])
-            projectId = project["id"]
+    #         # Project setup
+    #         projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
+    #         project = self.adminClient.createProject(projectSpec)
+    #         self.assertNotEqual(project, None)
+    #         self.assertEqual(project["name"], projectSpec["name"])
+    #         projectId = project["id"]
             
-            # Change permissions on project to allow logged in users to read
-            #p = idClient.getPrincipals()[0]
-            #self.assertEqual(p["name"], "AUTHENTICATED_USERS")
-            resourceAccessList = [{"groupName":p["name"], "accessType":["READ"]}]
-            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
-            updatedProject = self.adminClient.updateRepoEntity(project["uri"]+"/acl", accessList)
-            self.assertNotEqual(updatedProject, None)
+    #         resourceAccessList = [{"groupName":p["name"], "accessType":["READ"]}]
+    #         accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
+    #         updatedProject = self.adminClient.updateRepoEntity(project["uri"]+"/acl", accessList)
+    #         self.assertNotEqual(updatedProject, None)
             
-            # Dataset 1: inherits ACL from parent project
-            datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
-            dataset = self.adminClient.createDataset(datasetSpec)
-            self.assertNotEqual(dataset, None)
-            self.assertEqual(dataset["name"], datasetSpec["name"])
+    #         # Dataset 1: inherits ACL from parent project
+    #         datasetSpec = {"name":"testDataset1","description":"Test dataset 1 inherits from project 1", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
+    #         dataset = self.adminClient.createDataset(datasetSpec)
+    #         self.assertNotEqual(dataset, None)
+    #         self.assertEqual(dataset["name"], datasetSpec["name"])
             
-            # Dataset 2: overrides ACL
-            datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
-            dataset = self.adminClient.createDataset(datasetSpec)
-            self.assertEqual(dataset["name"], datasetSpec["name"])
-            resourceAccessList = [{"groupName":p["name"], "accessType":["READ", "UPDATE"]}]
-            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
-            updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)            
-            # TODO: Add asserts
+    #         # Dataset 2: overrides ACL
+    #         datasetSpec = {"name":"testDataset2","description":"Test dataset 2 overrides ACL", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
+    #         dataset = self.adminClient.createDataset(datasetSpec)
+    #         self.assertEqual(dataset["name"], datasetSpec["name"])
+    #         resourceAccessList = [{"groupName":p["name"], "accessType":["READ", "UPDATE"]}]
+    #         accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
+    #         updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)            
+    #         # TODO: Add asserts
                         
-            # Dataset 3: top-level (no parent)
-            datasetSpec = {"name":"testDataset3","description":"Test dataset 3 top level ACL", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
-            dataset = self.adminClient.createDataset(datasetSpec)
-            self.assertEqual(dataset["name"], datasetSpec["name"])
-            resourceAccessList = [{"groupName":p["name"], "accessType":["READ", "UPDATE"]}]
-            accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
-            updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)
+    #         # Dataset 3: top-level (no parent)
+    #         datasetSpec = {"name":"testDataset3","description":"Test dataset 3 top level ACL", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(projectId)}
+    #         dataset = self.adminClient.createDataset(datasetSpec)
+    #         self.assertEqual(dataset["name"], datasetSpec["name"])
+    #         resourceAccessList = [{"groupName":p["name"], "accessType":["READ", "UPDATE"]}]
+    #         accessList = {"modifiedBy":"dataLoader", "modifiedOn":"2011-06-06T00:00:00.000-07:00", "resourceAccess":resourceAccessList}
+    #         updatedDataset = self.adminClient.updateRepoEntity(dataset["uri"]+"/acl", accessList)
             
-            # Actual admin tests
-            # Create project, dataset child, top level dataset covered above
-            # Read
-            list = self.adminClient.getRepoEntity('/project')
-            self.assertEqual(list["totalNumberOfResults"], 1)
-            list = self.adminClient.getRepoEntity('/dataset')
-            self.assertEqual(list["totalNumberOfResults"], 3)
-            # TODO: Change when adding entities
-            list = self.adminClient.getRepoEntity('/layer')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.adminClient.getRepoEntity('/preview')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.adminClient.getRepoEntity('/location')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            # Can read user/userGroup until changed
-            list = self.adminClient.getRepoEntity('/user')
-            self.assertNotEqual(len(list), 0)
-            list = self.adminClient.getRepoEntity('/userGroup')
-            self.assertNotEqual(len(list), 0)
+    #         # Actual admin tests
+    #         # Create project, dataset child, top level dataset covered above
+    #         # Read
+    #         list = self.adminClient.getRepoEntity('/project')
+    #         self.assertEqual(list["totalNumberOfResults"], 1)
+    #         list = self.adminClient.getRepoEntity('/dataset')
+    #         self.assertEqual(list["totalNumberOfResults"], 3)
+    #         # TODO: Change when adding entities
+    #         list = self.adminClient.getRepoEntity('/layer')
+    #         self.assertEqual(list["totalNumberOfResults"], 0)
+    #         list = self.adminClient.getRepoEntity('/preview')
+    #         self.assertEqual(list["totalNumberOfResults"], 0)
+    #         list = self.adminClient.getRepoEntity('/location')
+    #         self.assertEqual(list["totalNumberOfResults"], 0)
+    #         # Can read user/userGroup until changed
+    #         list = self.adminClient.getRepoEntity('/user')
+    #         self.assertNotEqual(len(list), 0)
+    #         list = self.adminClient.getRepoEntity('/userGroup')
+    #         self.assertNotEqual(len(list), 0)
             
         
-        #@unittest.skip("Skip")
-        def test_anonymous(self):
-            print "test_anonymous"
-            # Read
-            list = self.anonClient.getRepoEntity('/project')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.getRepoEntity('/dataset')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.getRepoEntity('/layer')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.getRepoEntity('/preview')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.getRepoEntity('/location')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            # Can read user/userGroup until changed
-            list = self.anonClient.getRepoEntity('/user')
-            self.assertNotEqual(len(list), 0)
-            list = self.anonClient.getRepoEntity('/userGroup')
-            self.assertNotEqual(len(list), 0)
+    #     #@unittest.skip("Skip")
+    #     def test_anonymous(self):
+    #         print "test_anonymous"
+    #         # Read
+    #         list = self.anonClient.getRepoEntity('/project')
+    #         self.assertEqual(list["totalNumberOfResults"], 0)
+    #         list = self.anonClient.getRepoEntity('/dataset')
+    #         self.assertEqual(list["totalNumberOfResults"], 0)
+    #         list = self.anonClient.getRepoEntity('/layer')
+    #         self.assertEqual(list["totalNumberOfResults"], 0)
+    #         list = self.anonClient.getRepoEntity('/preview')
+    #         self.assertEqual(list["totalNumberOfResults"], 0)
+    #         list = self.anonClient.getRepoEntity('/location')
+    #         self.assertEqual(list["totalNumberOfResults"], 0)
+    #         # Can read user/userGroup until changed
+    #         list = self.anonClient.getRepoEntity('/user')
+    #         self.assertNotEqual(len(list), 0)
+    #         list = self.anonClient.getRepoEntity('/userGroup')
+    #         self.assertNotEqual(len(list), 0)
             
-            # Query
-            list = self.anonClient.query('select * from project')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.query('select * from dataset')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.query('select * from layer')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.query('select * from preview')
-            self.assertEqual(list["totalNumberOfResults"], 0)
-            list = self.anonClient.query('select * from location')
-            self.assertEqual(list["totalNumberOfResults"], 0)
+    #         # Query
             
-            # Create by anon
-            projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
-            project = self.anonClient.createProject(projectSpec)
-            self.assertEqual(None, project)
-            # TODO: Add tests for other types of entities
+    #         # Create by anon
+    #         projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
+    #         project = self.anonClient.createProject(projectSpec)
+    #         self.assertEqual(None, project)
+    #         # TODO: Add tests for other types of entities
             
-            # Create some entities by admin account
-            projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
-            project = self.adminClient.createProject(projectSpec)
-            self.assertIsNotNone(project)
-            datasetSpec = {"name":"testDataset1","description":"Test dataset 1", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(project["id"])}
-            dataset = self.anonClient.createDataset(datasetSpec)
-            self.assertEqual(None, dataset)
+    #         # Create some entities by admin account
+    #         projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
+    #         project = self.adminClient.createProject(projectSpec)
+    #         self.assertIsNotNone(project)
+    #         datasetSpec = {"name":"testDataset1","description":"Test dataset 1", "status":"pending", "createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org", "parentId":str(project["id"])}
+    #         dataset = self.anonClient.createDataset(datasetSpec)
+    #         self.assertEqual(None, dataset)
               
-            # Update
-            attributeChangeList = {"createdBy":"demouser@sagebase.org"}
-            updatedProject = self.anonClient.updateRepoEntity(project["uri"], attributeChangeList)
-            self.assertIsNone(updatedProject)
-            project["createdBy"] = "demouser@sagebase.org"
-            updateProject = self.anonClient.putRepoEntity(project["uri"], project)
-            self.assertIsNone(updatedProject)
-            # TODO: Add tests for other types of entities
+    #         # Update
+    #         attributeChangeList = {"createdBy":"demouser@sagebase.org"}
+    #         updatedProject = self.anonClient.updateRepoEntity(project["uri"], attributeChangeList)
+    #         self.assertIsNone(updatedProject)
+    #         project["createdBy"] = "demouser@sagebase.org"
+    #         updateProject = self.anonClient.putRepoEntity(project["uri"], project)
+    #         self.assertIsNone(updatedProject)
+    #         # TODO: Add tests for other types of entities
             
-            # Delete
-            #project = self.anonClient.getRepoEntity("/project")
-            self.anonClient.deleteRepoEntity(project["uri"])
-            self.assertIsNotNone(self.adminClient.getRepoEntity(project["uri"]))
-            # TODO: Add tests for other types of entities
-                    
+    #         # Delete
+    #         #project = self.anonClient.getRepoEntity("/project")
+    #         self.anonClient.deleteRepoEntity(project["uri"])
+    #         self.assertIsNotNone(self.adminClient.getRepoEntity(project["uri"]))
+    #         # TODO: Add tests for other types of entities
             
-    unittest.main()
+    # unittest.main()
