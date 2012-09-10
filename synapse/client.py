@@ -10,6 +10,7 @@ import httplib
 import time
 import zipfile
 
+
 import utils
 
 CACHE_DIR='~/.synapseCache/python'  #TODO: this needs to be handled in a transparent way!
@@ -103,7 +104,7 @@ class Synapse:
             self.request_profile = req_profile
 
 
-    def  getEntity(self, entity, endpoint=None):
+    def getEntity(self, entity, endpoint=None):
         """Retrieves metainformation about an entity from a synapse Repository
         Arguments:
         - `entity`: A synapse ID of entity (i.e dictionary describing an entity)
@@ -404,7 +405,76 @@ class Synapse:
         finally:
             conn.close()
         return storedEntity
+
+
+    def _traverseTree(self, id, name=None, version=None):
+        """Creates a tree of all 
         
+        Arguments:
+        - `id`:
+        """
+        children =  self.query("select id, versionNumber, name from entity where entity.parentId=='%s'" %id)
+        count=children['totalNumberOfResults']
+        children=children['results']
+        output=[]
+        if count>0:
+            output.append({'name':name, 'targetVersionNumber':version, 'targetId':id, 'records':[]})
+            for ent in children:
+                output[-1]['records'].extend(self._traverseTree(ent['entity.id'], ent['entity.name'], ent['entity.versionNumber']))
+        else:
+            output.append({'targetId':id, 'targetVersionNumber':version})
+        return output
+
+    def _flattenTree2Groups(self,tree, level=0, out=[]):
+        """Converts a complete tree to 2 levels corresponding to json schema of summary
+        
+        Arguments:
+        - `tree`: json object representing entity organizion as output from _traverseTree
+        """
+        if level==0:  #Move direct entities to subgroup "Content"
+            #I am so sorry!  This is incredibly inefficient but I had no time to think through it.
+            contents = [group for group in tree if not group.has_key('records')]
+            tree.append({'name':'Content', 'records':contents, 'targetId':'', 'targetVersionNumber':''})
+            for i in sorted([i for i, group in enumerate(tree) if not group.has_key('records')], reverse=True):
+                tree.pop(i)
+
+            #tree=[group for i, group in enumerate(tree) if i not in contents]
+            self.printEntity(tree)
+            print "============================================"
+        
+        for i, group in enumerate(tree):
+            if group.has_key('records'): #Means that it has subrecords
+                self._flattenTree2Groups(group['records'], level+1, out)
+            else:
+                out.append({'entityReference':group})
+            if level==0:
+                del group['targetId']
+                del group['targetVersionNumber']
+                group['records']=out
+                out=list()
+
+    def createSnapshotSummary(self, id, name='summary', description=None, ):
+        """Given the id of an entity traverses all subentities and creates a summary object within
+        same entity as id.
+        
+        Arguments:
+        - `id`:  Id of entity to traverse to create entity 
+        - `name`: Name of created summary entity
+        - `description`: Description of created entity.
+        """
+        print "hello"
+        tree=self._traverseTree(id)[0]['records']
+        print self.printEntity(tree)
+        
+        self._flattenTree2Groups(tree)
+        self.printEntity(tree)
+        self.createEntity({'name': name,
+                           "description": description,
+                           "entityType": "org.sagebionetworks.repo.model.Summary", 
+                           "groups": tree,
+                           "name": "Test_summary", 
+                           "parentId": id})
+
 
     # def monitorDaemonStatus(self, id):
     #     '''
