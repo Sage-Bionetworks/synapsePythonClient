@@ -10,6 +10,10 @@ import httplib
 import time
 import zipfile
 
+# added for upload
+import requests
+import os.path
+import mimetypes
 
 import utils
 
@@ -474,6 +478,77 @@ class Synapse:
                            "groups": tree,
                            "name": "Test_summary", 
                            "parentId": id})
+
+    def upload(self, entity, filename, endpoint=None):
+        """Given an entity or the id of an entity, upload a filename as the location of that entity.
+        
+        Arguments:
+        - `entity`:  an entity (dictionary) or Id of entity whose location you want to set 
+        - `filename`: Name of file to upload
+        """
+
+        print(entity)
+
+        # check parameters
+        if entity is None or not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
+           raise Exception("invalid entity parameter")
+        if isinstance(entity, basestring):
+            entity = self.getEntity(entity)
+        if endpoint == None:
+            endpoint = self.repoEndpoint
+
+
+        # compute hash of file to be uploaded
+        md5 = utils.computeMd5ForFile(filename)
+
+        print("computed md5: %s, or in base64: %s" % (md5.hexdigest(), base64.b64encode(md5.digest())) )
+
+        # ask synapse for a signed URL for S3 upload
+        headers = { "sessionToken": self.sessionToken,
+                    "Content-Type": "application/json",
+                    "Accept": "application/json" }
+
+        url = "%s://%s%s/entity/%s/s3Token" % (
+            self.repoEndpoint['protocol'],
+            self.repoEndpoint['location'],
+            self.repoEndpoint['prefix'],
+            entity['id'])
+
+        (_, base_filename) = os.path.split(filename)
+        data = {"md5":md5.hexdigest(), "path":base_filename}
+
+        response = requests.post(url, headers=headers, data=json.dumps(data))
+        response.raise_for_status()
+
+        location_path = response.json['path']
+
+        #print("got signed URL for S3 upload: " + location_path)
+
+        (mimetype, enc) = mimetypes.guess_type(filename)
+
+        # PUT file to S3
+        headers = { "Content-MD5": base64.b64encode(md5.digest()),
+                  "Content-Type" : mimetype,
+                  "x-amz-acl" : "bucket-owner-full-control" }
+
+        response = requests.put(response.json['presignedUrl'], headers=headers, data=open(filename))
+        #print(response)
+        response.raise_for_status()
+
+        # todo: error checking?
+
+        # todo: how to update a location that already exists? handle versioning?
+        #       for now, we just overwrite the existing location. The old thing
+        #       will still be in an S3 bucket. Should we delete it??
+
+        # add location to entity
+        entity['locations'] = [{
+        'path': location_path,
+        'type': 'awss3'
+        }]
+        entity['md5'] = md5.hexdigest()
+
+        return self.putEntity(self.repoEndpoint, entity['uri'], entity)
 
 
     # def monitorDaemonStatus(self, id):
