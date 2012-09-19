@@ -495,7 +495,6 @@ class Synapse:
         if endpoint == None:
             endpoint = self.repoEndpoint
 
-
         # compute hash of file to be uploaded
         md5 = utils.computeMd5ForFile(filename)
 
@@ -519,9 +518,6 @@ class Synapse:
         response.raise_for_status()
 
         location_path = response.json['path']
-
-        #print("got signed URL for S3 upload: " + location_path)
-
         (mimetype, enc) = mimetypes.guess_type(filename)
 
         # PUT file to S3
@@ -530,7 +526,6 @@ class Synapse:
                   "x-amz-acl" : "bucket-owner-full-control" }
 
         response = requests.put(response.json['presignedUrl'], headers=headers, data=open(filename))
-        #print(response)
         response.raise_for_status()
 
         # todo: error checking?
