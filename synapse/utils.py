@@ -16,33 +16,6 @@ def createBasicArgParser(description):
                         action='store_true', default=False)
 
     return parser
-
-def computeMd5ForFile(filename, block_size=2**20):
-    '''
-    lifted this function from
-    http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python
-    '''
-    md5 = hashlib.md5()
-    f = open(filename,'rb')
-    while True:
-        data = f.read(block_size)
-        if not data:
-            break
-        md5.update(data)
-    return(md5)
-
-def uploadToS3(localFilepath, s3url, md5, contentType, debug=False):
-    '''
-    The -f flag to curl will cause this to throw an exception upon failure to upload
-    '''
-    # Test that we can read the file
-    f = open(localFilepath,'rb')
-    f.close()
-
-    command = 'curl -v -X PUT -H Content-MD5:' + base64.encodestring(md5.digest()) + ' -H Content-Type:' + contentType + ' --data-binary @' + localFilepath + ' -H x-amz-acl:bucket-owner-full-control ' + s3url
-    if(debug):
-        print "About to run: " + command
-    print subprocess.check_output(shlex.split(command.encode('ascii')))
     
 
 def downloadFile(url, localFilepath):

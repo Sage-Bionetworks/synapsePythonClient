@@ -9,8 +9,6 @@ import urlparse
 import httplib
 import time
 import zipfile
-
-# added for upload
 import requests
 import os.path
 import mimetypes
@@ -479,7 +477,7 @@ class Synapse:
                            "name": "Test_summary", 
                            "parentId": id})
 
-    def upload(self, entity, filename, endpoint=None):
+    def uploadFile(self, entity, filename, endpoint=None):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
         
         Arguments:
