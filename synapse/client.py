@@ -170,15 +170,21 @@ class Synapse:
         if not entity.has_key('locations'):
             return entity
         locations = entity['locations']
-
         for location in locations:  #TODO: verify, can a entity have more than 1 location?
             url = location['path']
             parseResult = urlparse.urlparse(url)
             pathComponents = string.split(parseResult.path, '/')
 
             filename = os.path.join(self.cacheDir,entity['id'] ,pathComponents[-1])
-            print filename, 'downloaded and unpacked'
-            utils.downloadFile(url, filename)
+            if os.path.exists(filename):
+                print filename, "cached"
+                md5 = utils.computeMd5ForFile(filename)
+                if md5.hexdigest() != entity['md5']:
+                    print filename, "changed, redownloading"
+                    utils.downloadFile(url, filename)
+            else:
+                print filename, 'downloading and unpacking'
+                utils.downloadFile(url, filename)
 
             ## Unpack file
             filepath=os.path.join(os.path.dirname(filename), os.path.basename(filename)+'_unpacked')
@@ -195,7 +201,7 @@ class Synapse:
         """Downloads and attempts to load the contents of an entity into memory
         TODO: Currently only performs downlaod.
         Arguments:
-        - `entity`: Either a string or dict representing and entity
+r        - `entity`: Either a string or dict representing and entity
         """
         #TODO: Try to load the entity into memory as well.
         #This will be depenendent on the type of entity.
@@ -250,9 +256,9 @@ class Synapse:
         return self._createUniversalEntity(uri, entity, endpoint)
         
         
-    def updateEntity(self, endpoint, uri, entity):
-        '''
-        Update a dataset, layer, preview, annotations, etc...
+    def updateEntity(self, entity):
+        """
+        Update an entity stored in synapse with the properties in entity
 
         This convenience method first grabs a copy of the currently
         stored entity, then overwrites fields from the entity passed
@@ -260,34 +266,8 @@ class Synapse:
         entity. This essentially does a partial update from the point
         of view of the user of this API.
         
-        Note that users of this API may want to inspect what they are
-        overwriting before they do so. Another approach would be to do
-        a GET, display the field to the user, allow them to edit the
-        fields, and then do a PUT.
-
-        TODO: Verify functionality
-        '''
-        if(None == uri or None == entity or None == endpoint
-           or not (isinstance(entity, dict)
-                   and (isinstance(uri, str) or isinstance(uri, unicode)))):
-            raise Exception("invalid parameters")
-
-        oldEntity = self.getEntity(uri, endpoint)
-        if(oldEntity == None):
-            return None
-
-        # Overwrite our stored fields with our updated fields
-        keys = entity.keys()
-        for key in keys:
-            if(-1 != string.find(uri, "annotations")):
-                # annotations need special handling
-                for annotKey in entity[key].keys():
-                    oldEntity[key][annotKey] = entity[key][annotKey]
-            else:
-                oldEntity[key] = entity[key]
-
-        return self.putEntity(endpoint, uri, oldEntity)
-        
+        """
+        return self.putEntity(self.repoEndpoint, entity['uri'], entity)
 
 
     def query(self, queryStr):
@@ -417,6 +397,7 @@ class Synapse:
         """
         children =  self.query("select id, versionNumber, name from entity where entity.parentId=='%s'" %id)
         count=children['totalNumberOfResults']
+        print id, count, name
         children=children['results']
         output=[]
         if count>0:
@@ -474,7 +455,6 @@ class Synapse:
                            "description": description,
                            "entityType": "org.sagebionetworks.repo.model.Summary", 
                            "groups": tree,
-                           "name": "Test_summary", 
                            "parentId": id})
 
     def uploadFile(self, entity, filename, endpoint=None):
@@ -529,10 +509,6 @@ class Synapse:
         response.raise_for_status()
 
         # todo: error checking?
-
-        # todo: how to update a location that already exists? handle versioning?
-        #       for now, we just overwrite the existing location. The old thing
-        #       will still be in an S3 bucket. Should we delete it??
 
         # add location to entity
         entity['locations'] = [{
