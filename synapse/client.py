@@ -465,11 +465,9 @@ r        - `entity`: Either a string or dict representing and entity
         - `filename`: Name of file to upload
         """
 
-        print(entity)
-
         # check parameters
         if entity is None or not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
-           raise Exception("invalid entity parameter")
+           raise Exception('invalid entity parameter')
         if isinstance(entity, basestring):
             entity = self.getEntity(entity)
         if endpoint == None:
@@ -477,38 +475,32 @@ r        - `entity`: Either a string or dict representing and entity
 
         # compute hash of file to be uploaded
         md5 = utils.computeMd5ForFile(filename)
-
-        print("computed md5: %s, or in base64: %s" % (md5.hexdigest(), base64.b64encode(md5.digest())) )
+        (mimetype, enc) = mimetypes.guess_type(filename)
 
         # ask synapse for a signed URL for S3 upload
-        headers = { "sessionToken": self.sessionToken,
-                    "Content-Type": "application/json",
-                    "Accept": "application/json" }
+        headers = { 'sessionToken': self.sessionToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json' }
 
-        url = "%s://%s%s/entity/%s/s3Token" % (
+        url = '%s://%s%s/entity/%s/s3Token' % (
             self.repoEndpoint['protocol'],
             self.repoEndpoint['location'],
             self.repoEndpoint['prefix'],
             entity['id'])
 
         (_, base_filename) = os.path.split(filename)
-        data = {"md5":md5.hexdigest(), "path":base_filename}
+        data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
 
         response = requests.post(url, headers=headers, data=json.dumps(data))
         response.raise_for_status()
 
         location_path = response.json['path']
-        (mimetype, enc) = mimetypes.guess_type(filename)
-
         # PUT file to S3
-        headers = { "Content-MD5": base64.b64encode(md5.digest()),
-                  "Content-Type" : mimetype,
-                  "x-amz-acl" : "bucket-owner-full-control" }
-
+        headers = { 'Content-MD5': base64.b64encode(md5.digest()),
+                  'Content-Type' : mimetype,
+                  'x-amz-acl' : 'bucket-owner-full-control' }
         response = requests.put(response.json['presignedUrl'], headers=headers, data=open(filename))
         response.raise_for_status()
-
-        # todo: error checking?
 
         # add location to entity
         entity['locations'] = [{
@@ -529,7 +521,7 @@ r        - `entity`: Either a string or dict representing and entity
     #     pbar = None
     #     while (not complete):            
     #         status = self.checkDaemonStatus(id)
-    #         complete = status["status"] != "STARTED"
+    #         complete = status['status'] != 'STARTED'
     #         if (not complete):
     #             time.sleep(15) #in seconds  
     #     if (pbar):
@@ -544,19 +536,19 @@ r        - `entity`: Either a string or dict representing and entity
     #     conn = self._connect(self.repoEndpoint)
 
             
-    #     uri = self.repoEndpoint["prefix"] + "/daemonStatus/" + str(id)
+    #     uri = self.repoEndpoint['prefix'] + '/daemonStatus/' + str(id)
     #     results = None
         
     #     try:
     #         headers = self.headers            
     #         if self.request_profile:
-    #             headers["profile_request"] = "True"
+    #             headers['profile_request'] = 'True'
     #         conn.request('GET', uri, None, headers)
     #         resp = conn.getresponse()
     #         if self.request_profile:
     #             profile_data = None
     #             for k,v in resp.getheaders():
-    #                 if k == "profile_response_object":
+    #                 if k == 'profile_response_object':
     #                     profile_data = v
     #                     break
     #             self.profile_data = json.loads(base64.b64decode(profile_data))
@@ -575,19 +567,19 @@ r        - `entity`: Either a string or dict representing and entity
     #     conn = self._connect(self.repoEndpoint)
     #     if (self.debug): print 'Starting backup of repository'
         
-    #     uri = self.repoEndpoint["prefix"] + "/startBackupDaemon"
+    #     uri = self.repoEndpoint['prefix'] + '/startBackupDaemon'
     #     results = None
         
     #     try:
     #         headers = self.headers            
     #         if self.request_profile:
-    #             headers["profile_request"] = "True"
-    #         conn.request('POST', uri, "{}", headers)
+    #             headers['profile_request'] = 'True'
+    #         conn.request('POST', uri, '{}', headers)
     #         resp = conn.getresponse()
     #         if self.request_profile:
     #             profile_data = None
     #             for k,v in resp.getheaders():
-    #                 if k == "profile_response_object":
+    #                 if k == 'profile_response_object':
     #                     profile_data = v
     #                     break
     #             self.profile_data = json.loads(base64.b64decode(profile_data))
@@ -607,14 +599,14 @@ r        - `entity`: Either a string or dict representing and entity
 
     #     if (self.debug): print 'Starting restore of repository'
         
-    #     uri = self.repoEndpoint["prefix"] + "/startRestoreDaemon"
+    #     uri = self.repoEndpoint['prefix'] + '/startRestoreDaemon'
     #     results = None
         
     #     try:
     #         headers = self.headers            
     #         if self.request_profile:
-    #             headers["profile_request"] = "True"
-    #         body = "{\"url\": \""+backupFile+"\"}"
+    #             headers['profile_request'] = 'True'
+    #         body = '{\"url\": \"'+backupFile+"\"}"
     #         conn.request('POST', uri, body, headers)
     #         resp = conn.getresponse()
     #         if self.request_profile:
