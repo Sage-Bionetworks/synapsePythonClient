@@ -169,32 +169,34 @@ class Synapse:
         entity = self.getEntity(entity)
         if not entity.has_key('locations'):
             return entity
-        locations = entity['locations']
-        for location in locations:  #TODO: verify, can a entity have more than 1 location?
-            url = location['path']
-            parseResult = urlparse.urlparse(url)
-            pathComponents = string.split(parseResult.path, '/')
+        location = entity['locations'][0]  #TODO verify that this doesn't fail for unattached files
+        url = location['path']
+        parseResult = urlparse.urlparse(url)
+        pathComponents = string.split(parseResult.path, '/')
 
-            filename = os.path.join(self.cacheDir,entity['id'] ,pathComponents[-1])
-            if os.path.exists(filename):
-                print filename, "cached"
-                md5 = utils.computeMd5ForFile(filename)
-                if md5.hexdigest() != entity['md5']:
-                    print filename, "changed, redownloading"
-                    utils.downloadFile(url, filename)
-            else:
-                print filename, 'downloading and unpacking'
+        filename = os.path.join(self.cacheDir,entity['id'] ,pathComponents[-1])
+        if os.path.exists(filename):
+            print filename, "cached"
+            md5 = utils.computeMd5ForFile(filename)
+            if md5.hexdigest() != entity['md5']:
+                print filename, "changed, redownloading"
                 utils.downloadFile(url, filename)
+        else:
+            print filename, 'downloading...',
+            utils.downloadFile(url, filename)
 
+        if entity['contentType']=='application/zip':
+            print 'unpacking...'
             ## Unpack file
             filepath=os.path.join(os.path.dirname(filename), os.path.basename(filename)+'_unpacked')
             #TODO!!!FIX THIS TO BE PATH SAFE!  DON'T ALLOW ARBITRARY UNZIPING
             z = zipfile.ZipFile(filename, 'r')
             z.extractall(filepath) #WARNING!!!NOT SAFE
-
-            #figure out files stored in there and return references to them
             entity['cacheDir'] = filepath
             entity['files'] = z.namelist()
+        else:
+            entity['cacheDir'] = os.path.dirname(filename)
+            entity['files'] = [os.path.basename(filename)]
         return entity
 
     def loadEntity(self, entity):
@@ -436,7 +438,7 @@ r        - `entity`: Either a string or dict representing and entity
                 group['records']=out
                 out=list()
 
-    def createSnapshotSummary(self, id, name='summary', description=None, ):
+    def createSnapshotSummary(self, id, name='summary', description=None, groupBy=None ):
         """Given the id of an entity traverses all subentities and creates a summary object within
         same entity as id.
         
@@ -449,6 +451,9 @@ r        - `entity`: Either a string or dict representing and entity
         tree=self._traverseTree(id)[0]['records']
         print self.printEntity(tree)
         
+        #TODO: Insteaad of doing a flatten just by the default heirarchy structure I should be 
+        #using an external groupby parameter that determines weather by what property of structure
+        # to group by.
         self._flattenTree2Groups(tree)
         self.printEntity(tree)
         self.createEntity({'name': name,
@@ -456,6 +461,8 @@ r        - `entity`: Either a string or dict representing and entity
                            "entityType": "org.sagebionetworks.repo.model.Summary", 
                            "groups": tree,
                            "parentId": id})
+
+
 
     def uploadFile(self, entity, filename, endpoint=None):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
