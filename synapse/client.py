@@ -482,7 +482,11 @@ r        - `entity`: Either a string or dict representing and entity
 
         # compute hash of file to be uploaded
         md5 = utils.computeMd5ForFile(filename)
+
+        # guess mime-type - important for confirmation of MD5 sum by receiver
         (mimetype, enc) = mimetypes.guess_type(filename)
+        if (mimetype is None):
+            mimetype = "application/octet-stream"
 
         # ask synapse for a signed URL for S3 upload
         headers = { 'sessionToken': self.sessionToken,
