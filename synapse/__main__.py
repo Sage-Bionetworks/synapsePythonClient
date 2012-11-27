@@ -28,8 +28,10 @@ def get(args, syn):
     ent = syn.downloadEntity(args.id)
     for f in ent['files']:
         src = os.path.join(ent['cacheDir'], f)
-        dst = os.path.join('.', f)
+        dst = os.path.join('.', f.replace(".R_OBJECTS/",""))
         sys.stderr.write('creating %s\n' %dst)
+        if not os.path.exists(os.path.dirname(dst)):
+            os.mkdir(dst)
         shutil.copyfile(src, dst)
     return 0
 
