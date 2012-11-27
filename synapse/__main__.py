@@ -28,8 +28,10 @@ def get(args, syn):
     ent = syn.downloadEntity(args.id)
     for f in ent['files']:
         src = os.path.join(ent['cacheDir'], f)
-        dst = os.path.join('.', f)
+        dst = os.path.join('.', f.replace(".R_OBJECTS/",""))
         sys.stderr.write('creating %s\n' %dst)
+        if not os.path.exists(os.path.dirname(dst)):
+            os.mkdir(dst)
         shutil.copyfile(src, dst)
     return 0
 
@@ -98,7 +100,7 @@ if __name__ == '__main__':
     
     parser_query = subparsers.add_parser('query', help='Performs SQL like queries on Synapse')
     parser_query.add_argument('queryString', metavar='string', type=str, nargs='*',
-                         help='A query string, see http://... for more information')
+                         help='A query string, see https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI for more information')
     parser_query.set_defaults(func=query)
 
     parser_get = subparsers.add_parser('get', help='downloads a dataset from Synapse')
