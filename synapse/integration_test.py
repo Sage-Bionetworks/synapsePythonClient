@@ -1,55 +1,71 @@
 import client
-#import utils
-#import argparse
+import ConfigParser
+from nose.tools import *
 
 def test_b():
     assert 'b' == 'b'
 
 class TestClient:
-    '''
+    """
     Integration tests against a repository service
-    '''
+    """
 
-    def __init__(self, repoEndpoint='https://repo-prod.sagebase.org/repo/v1'):
+    def __init__(self, repoEndpoint='https://repo-prod.sagebase.org/repo/v1',
+                 authEndpoint='https://auth-prod.sagebase.org/auth/v1'):
         """
-        
         Arguments:
-        - `self`:
         - `repoEndpoint`:
         """
-        
-   def setUp(self):
+
+        print 'running init'
+        config = ConfigParser.ConfigParser()
+        config.read('config')
+        self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, debug=False)
+        self.syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
+
+    def setUp(self):
        print "setUp"
        pass
 
-   def tearDown(self):
+    def tearDown(self):
        pass
 
-    def test_printEntity():
-        assert 'c' == 'b'
 
-    def test_getEntity():
+    def test__connect(self):
+        import httplib
+        #Test https protocol
+        self.syn.repoEndpoint['protocol']='https'
+        conn = self.syn._connect(self.syn.repoEndpoint)
+        assert isinstance(conn, httplib.HTTPSConnection)
+
+        #Test http protocol
+        self.syn.repoEndpoint['protocol']='http'
+        conn = self.syn._connect(self.syn.repoEndpoint)
+        assert isinstance(conn, httplib.HTTPConnection)
+
+
+    def test_printEntity(self):
+        self.syn.printEntity({'hello':'world', 'alist':[1,2,3,4]}) 
+        #Nothing really to test
+
+    
+    def test_login(self):
+        #Has already been tested for correct username and password.
+        #Test that we fail gracefully with wrong user
+        assert_raises(Exception, self.syn.login, 'asdf', 'notarealpassword')
+        
+
+    def test_getEntity(self):
         pass
 
-    #...
-    #...
-    #...
 
+if __name__ == '__main__':
+    test = TestClient()
+    test.test__connect()
+    test.test_printEntity()
+    test.test_login()
+    test.test_getEntity()
 
-    
-#     #-------------------[ Constants ]----------------------
-    
-    
-#     def test_integrated(self):
-#         print "test_integrated"
-        
-#         list = self.authenticatedConn.getRepoEntity('/query?query=''select+id+from+project''')
-#         self.assertIsNotNone(list)
-
-#         for p in self.authenticatedConn.getPrincipals():
-#             if p["name"] == "AUTHENTICATED_USERS":
-#                 break
-#         self.assertEqual(p["name"], "AUTHENTICATED_USERS")
         
 #         # Should not be able to create a project from anon conn
 #         projectSpec = {"name":"testProj1","description":"Test project","createdOn":"2011-06-06T00:00:00.000-07:00", "createdBy":"test@sagebase.org"}
@@ -114,54 +130,8 @@ class TestClient:
 
 
 #------- INTEGRATION TESTS -----------------
-if __name__ == '__main__':
-    pass
-    
-    # import unittest, utils
+#if __name__ == '__main__':
 
-    # class IntegrationTestSynapse(unittest.TestCase):
-    #     """TODO!  THESE TESTS ARE NO LONGER TRUE TO THE IMPLEMENTATION OF SYNAPSE!
-    #        THESE TESTS SHOULD BE COMPLETELEY REWRITTEN.
-
-    #     Integration tests against a repository service
-
-    #     To run them locally,
-    #     (1) edit platform/trunk/integration-test/pom.xml set this to true
-    #     <org.sagebionetworks.integration.debug>true</org.sagebionetworks.integration.debug>
-    #     (2) run the integration build to start the servlets
-    #     /platform/trunk/integration-test>mvn clean verify """
-    #     #-------------------[ Constants ]----------------------
-    #     DATASET = '{"status": "pending", "description": "Genetic and epigenetic alterations have been identified that lead to transcriptional Annotation of prostate cancer genomes provides a foundation for discoveries that can impact disease understanding and treatment. Concordant assessment of DNA copy number, mRNA expression, and focused exon resequencing in the 218 prostate cancer tumors represented in this dataset haveidentified the nuclear receptor coactivator NCOA2 as an oncogene in approximately 11% of tumors. Additionally, the androgen-driven TMPRSS2-ERG fusion was associated with a previously unrecognized, prostate-specific deletion at chromosome 3p14 that implicates FOXP1, RYBP, and SHQ1 as potential cooperative tumor suppressors. DNA copy-number data from primary tumors revealed that copy-number alterations robustly define clusters of low- and high-risk disease beyond that achieved by Gleason score.  ", "createdBy": "Charles Sawyers", "releaseDate": "2008-09-14T00:00:00.000-07:00", "version": "1.0.0", "name": "MSKCC Prostate Cancer"}' 
-        
-    #     def setUp(self):
-    #         print "setUp"
-    #         # Anonymous connection
-    #         self.anonClient = Synapse('http://localhost:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
-    #         self.assertTrue(self.anonClient.sessionToken == None)
-    #         self.assertFalse("sessionToken" in self.anonClient.headers)
-    #         # Admin connection
-    #         self.adminClient = Synapse('http://localhost:8080/services-repository-0.6-SNAPSHOT/repo/v1', 'http://localhost:8080/services-authentication-0.6-SNAPSHOT/auth/v1', 30, False)
-    #         self.adminClient.login("admin", "admin")
-    #         self.assertFalse(self.adminClient.sessionToken == None)
-    #         self.assertTrue("sessionToken" in self.adminClient.headers)
-    #         if "sessionToken" in self.adminClient.headers:
-    #             self.assertTrue(self.adminClient.sessionToken == self.adminClient.headers["sessionToken"])
-                
-    #     def tearDown(self):
-    #         allProjects = self.adminClient.getRepoEntity("/project?limit=100");
-    #         for project in allProjects["results"]:
-    #             print "About to nuke: " + project["uri"]
-    #             self.adminClient.deleteRepoEntity(project["uri"])
-                
-    #         allDatasets = self.adminClient.getRepoEntity("/dataset?limit=500");
-    #         for dataset in allDatasets["results"]:
-    #             print "About to nuke: " + dataset["uri"]
-    #             self.adminClient.deleteRepoEntity(dataset["uri"])
-                
-    #         allLayers = self.adminClient.getRepoEntity("/layer?limit=500");
-    #         for layer in allLayers["results"]:
-    #             print "About to nuke: " + layer["uri"]
-    #             self.adminClient.deleteRepoEntity(layer["uri"])
             
     #     def test_admin(self):
     #         print "test_admin"
@@ -279,4 +249,3 @@ if __name__ == '__main__':
     #         self.assertIsNotNone(self.adminClient.getRepoEntity(project["uri"]))
     #         # TODO: Add tests for other types of entities
             
-    # unittest.main()
