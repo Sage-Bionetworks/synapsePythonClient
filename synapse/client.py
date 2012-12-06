@@ -311,10 +311,20 @@ r        - `entity`: Either a string or dict representing and entity
         return results
 
 
-    def deleteEntity(self, entity):
+    def deleteEntity(self, entity, endpoint=None):
         """Deletes an entity (dataset, layer, user, ...) on either service"""
-        endpoint = self.repoEndpoint
-        uri = endpoint["prefix"] + '/entity/' + entity
+        if endpoint == None:
+            endpoint = self.repoEndpoint
+
+        if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
+            raise Exception("invalid parameters")
+        if isinstance(entity, dict):
+            entity = entity['id']
+
+        if not (endpoint['prefix'] in entity):
+            uri = endpoint["prefix"] + '/entity/' + entity
+        else:
+            uri=entity
         conn = self._connect(endpoint)
 
         if (self.debug): print 'About to delete %s' % (uri)
