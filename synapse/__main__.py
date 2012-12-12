@@ -90,7 +90,7 @@ def onweb(args, syn):
     """
     webbrowser.open("https://synapse.sagebase.org/#Synapse:%s" %args.id)
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Interfaces with the Synapse repository.')
     parser.add_argument('-u', '--username', dest='synapseUser', help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword', help='Password used to connect to Synapse')
@@ -158,4 +158,8 @@ if __name__ == '__main__':
 
     # #print qry
 
-    
+
+## call main method if this file is run as a script
+if __name__ == "__main__":
+    main()
+

@@ -13,8 +13,8 @@ models into a Commons that enables true collaborative research. The platform
 consists of a web portal, web services, and integration with data analysis tools.
 """.replace("\n", " ")
 
-setup(name='Synapse Client',
-    version='0.1',
+setup(name='SynapseClient',
+    version='0.1.1',
     description=description,
     long_description=long_description,
     url='http://synapse.sagebase.org/',
@@ -26,6 +26,9 @@ setup(name='Synapse Client',
     install_requires=[
         'requests',
     ],
+    entry_points = {
+        'console_scripts': ['synapse = synapse.__main__:main']
+    },
     zip_safe=False,
     classifiers=[
     	'Development Status :: 3 - Alpha',
