@@ -11,7 +11,7 @@ Installation
 
     pip install SynapseClient
 
-The python synapse client has been tested, so far, only on python 2.7.
+The python synapse client has been tested on python 2.7.
 
 
 Command line usage
@@ -21,10 +21,15 @@ The synapse client can be used from the shell command prompt. Valid commands
 include: query, get, cat, add, update, delete, and onweb. A few examples are
 shown.
 
-### querying for a synapse entity
+### querying for entities that are part of the [Synapse Commons Repository](https://synapse.sagebase.org/Portal.html#Synapse:syn150935)
+    synapse -u me@nowhere.com -p secret query 'select id, name from entity where parentId=="syn150935"'
+
+### querying for a test [entity](https://synapse.sagebase.org/Portal.html#Synapse:syn1528299)
+The test entity is tagged with an attribute test_data whose value is "bogus". We'll use the ID
+of this entity in the next example.
     synapse -u me@nowhere.com -p secret query 'select id, name, parentId from entity where test_data=="bogus"'
 
-### downloading data from synapse
+### downloading test data from synapse
     synapse -u me@nowhere.com -p secret get syn1528299
 
 ### getting help

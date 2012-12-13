@@ -26,14 +26,18 @@ def get(args, syn):
     - `args`:
     """
     ent = syn.downloadEntity(args.id)
-    for f in ent['files']:
-        src = os.path.join(ent['cacheDir'], f)
-        dst = os.path.join('.', f.replace(".R_OBJECTS/",""))
-        sys.stderr.write('creating %s\n' %dst)
-        if not os.path.exists(os.path.dirname(dst)):
-            os.mkdir(dst)
-        shutil.copyfile(src, dst)
-    return 0
+    if 'files' in ent:
+        for f in ent['files']:
+            src = os.path.join(ent['cacheDir'], f)
+            dst = os.path.join('.', f.replace(".R_OBJECTS/",""))
+            sys.stderr.write('creating %s\n' %dst)
+            if not os.path.exists(os.path.dirname(dst)):
+                os.mkdir(dst)
+            shutil.copyfile(src, dst)
+    else:
+        sys.stderr.write('WARNING: No files associated with entity %s\n' % (entity['id'],))
+        syn.printEntity(ent)
+    return ent
 
 def cat(args, syn):
     """
@@ -42,11 +46,18 @@ def cat(args, syn):
     - `args`:
     """
     ent = syn.downloadEntity(args.id)
-    for f in ent['files']:
-        with open(os.path.join(ent['cacheDir'], f)) as fp:
-            for l in fp:
-                sys.stdout.write(l)
+    if 'files' in ent:
+        for f in ent['files']:
+            with open(os.path.join(ent['cacheDir'], f)) as fp:
+                for l in fp:
+                    sys.stdout.write(l)
 
+def show(args, syn):
+    """
+    show metadata for an entity
+    """
+    ent = syn.getEntity(args.id)
+    syn.printEntity(ent)
 
 def delete(args, syn):
     """
@@ -70,6 +81,7 @@ def upload(args, syn):
     entity=syn.createEntity(entity)
     entity = syn.uploadFile(entity, args.file)
     sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file))
+    return(entity)
 
 
 def update(args, syn):
@@ -107,6 +119,11 @@ def main():
     parser_get.add_argument('id', metavar='syn123', type=str, 
                          help='Synapse ID of form syn123 of desired data object')
     parser_get.set_defaults(func=get)
+
+    parser_get = subparsers.add_parser('show', help='show metadata for an entity')
+    parser_get.add_argument('id', metavar='syn123', type=str, 
+                         help='Synapse ID of form syn123 of desired synapse object')
+    parser_get.set_defaults(func=show)
 
     parser_cat = subparsers.add_parser('cat', help='prints a dataset from Synapse')
     parser_cat.add_argument('id', metavar='syn123', type=str,

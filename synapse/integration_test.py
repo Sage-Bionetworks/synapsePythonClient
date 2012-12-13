@@ -1,8 +1,13 @@
-import client
+## integration tests for Python client
+## to run tests: nosetests -vs
+## to run single test: nosetests -vs synapse/integration_test.py:TestClient.test_downloadFile
+
+import client, utils
 import ConfigParser
 from nose.tools import *
 import tempfile
 import os
+
 
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
 DATA_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Data', u'parentId': ''}
@@ -158,6 +163,25 @@ class TestClient:
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
         assert entity['files'][0]==os.path.split(fname)[-1]
+
+
+    def test_downloadFile(self):
+        "test download file function in utils.py"
+        result = utils.downloadFile("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
+        if (result):
+            # print("status: \"%s\"" % str(result[1].status))
+            # print("filename: \"%s\"" % str(result[0]))
+            filename = result[0]
+            assert os.path.exists(filename)
+
+            ## cleanup
+            try:
+                os.remove(filename)
+            except:
+                print("warning: couldn't delete file: \"%s\"\n" % filename)
+        else:
+            print("failed to download file: \"%s\"" % filename)
+            assert False
 
 
 
