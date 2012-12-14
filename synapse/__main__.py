@@ -4,6 +4,7 @@ import shutil
 import sys
 import client
 import webbrowser
+import version_check
 
 def query(args, syn):
     """
@@ -104,8 +105,10 @@ def onweb(args, syn):
 
 def main():
     parser = argparse.ArgumentParser(description='Interfaces with the Synapse repository.')
+    parser.add_argument('--version', action='version', version='Synapse Client %s' % (version_check.CURRENT_VERSION,))
     parser.add_argument('-u', '--username', dest='synapseUser', help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword', help='Password used to connect to Synapse')
+
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
                                        help='additional help')
 
@@ -161,7 +164,6 @@ def main():
     parser_onweb.add_argument('id', type=str,
                          help='Synapse id')
     parser_onweb.set_defaults(func=onweb)
-
 
     args = parser.parse_args()
 

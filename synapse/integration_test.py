@@ -3,6 +3,7 @@
 ## to run single test: nosetests -vs synapse/integration_test.py:TestClient.test_downloadFile
 
 import client, utils
+from version_check import version_check
 import ConfigParser
 from nose.tools import *
 import tempfile
@@ -182,6 +183,28 @@ class TestClient:
         else:
             print("failed to download file: \"%s\"" % filename)
             assert False
+
+
+    def test_version_check(self):
+        """
+        test the version checking and blacklisting functionality
+        """
+
+        ## should be higher than current version and return true
+        assert version_check(current_version="999.999.999")
+
+        ## test out of date version
+        assert not version_check(current_version="0.0.1")
+
+        ## test blacklisted version
+        try:
+            assert not version_check(current_version="0.0.0")
+        except SystemExit, e:
+            assert True
+
+        ## test bad url
+        assert not version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/bad_filename_doesnt_exist")
+
 
 
 

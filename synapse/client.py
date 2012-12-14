@@ -11,6 +11,7 @@ import zipfile
 import requests
 import os.path
 import mimetypes
+from version_check import version_check
 
 import utils
 
@@ -84,6 +85,9 @@ class Synapse:
         """
         Authenticate and get session token
         """
+        ## check version before logging in
+        version_check()
+
         if (None == email or None == password):
             raise Exception("invalid parameters")
 
