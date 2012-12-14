@@ -16,7 +16,7 @@ CURRENT_VERSION = "0.1.1"
 ## Get the latest version information from version_url and check against
 ## the current version. Recommend upgrade, if a newer version exists.
 def version_check(current_version=CURRENT_VERSION,
-				  version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient",
+				  version_url="http://versions.synapse.sagebase.org/synapsePythonClient",
 				  upgrade_url="https://github.com/Sage-Bionetworks/synapsePythonClient"):
 
 	try:
@@ -28,10 +28,15 @@ def version_check(current_version=CURRENT_VERSION,
 			msg = "\nPLEASE UPGRADE YOUR CLIENT\n\nUpgrading your SynapseClient is required. Please visit:\n%s\n\n" % (upgrade_url,)
 			raise SystemExit(msg)
 
+		if 'message' in version_info:
+			sys.stdout.write(version_info['message'] + '\n')
+
 		## check latest version
 		if StrictVersion(current_version) < StrictVersion(version_info['latestVersion']):
 			msg = "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. Your version (%s) can be upgraded by visiting:\n%s\n\n" % (version_info['latestVersion'], current_version, upgrade_url,)
 			sys.stderr.write(msg)
+			if 'releaseNotes' in version_info:
+				sys.stdout.write(version_info['releaseNotes'] + '\n')
 			return False
 
 	except Exception, e:

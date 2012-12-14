@@ -191,14 +191,14 @@ class TestClient:
         """
 
         ## should be higher than current version and return true
-        assert version_check(current_version="999.999.999")
+        assert version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
 
         ## test out of date version
-        assert not version_check(current_version="0.0.1")
+        assert not version_check(current_version="0.0.1", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
 
         ## test blacklisted version
         try:
-            assert not version_check(current_version="0.0.0")
+            assert not version_check(current_version="0.0.0", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
         except SystemExit, e:
             assert True
 
