@@ -16,6 +16,26 @@ import utils
 
 CACHE_DIR='~/.synapseCache/python'  #TODO: this needs to be handled in a transparent way!
 
+class Annotations(dict):
+    type_list = ["doubleAnnotations", "longAnnotations", "dateAnnotations", "stringAnnotations", "blobAnnotations"]
+
+    def listAnnot(self):
+        out = []
+        for t in self.type_list:
+            for k in self[t]:
+                out.append(k)
+        return out
+
+    def getAnnot(self, key):
+        for t in self.type_list:
+            if key in self[t]:
+                return self[t][key]
+
+    def setAnnot(self, key, value):
+        if isinstance(value, basestring):
+            self["stringAnnotations"][key] = [value]
+
+
 class Synapse:
     """
     Python implementation for Synapse repository service client
@@ -209,6 +229,92 @@ r        - `entity`: Either a string or dict representing and entity
         print 'WARNING!: THIS ONLY DOWNLOADS ENTITIES!'
         return self.downloadEntity(entity)
 
+    def getAnnot(self, entity, endpoint=None):
+        if endpoint == None:
+            endpoint = self.repoEndpoint
+        if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('annotations'))):
+            raise Exception("invalid parameters")
+        if isinstance(entity, dict):
+            entity = entity['annotations']
+
+        if not (endpoint['prefix'] in entity):
+            uri = endpoint["prefix"] + entity
+        else:
+            uri=entity
+        conn = self._connect(endpoint)
+
+        if(self.debug):  print 'About to get %s' % (uri)
+
+        annot = None
+        self.profile_data = None
+        try:
+            headers = self.headers
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('GET', uri, None, headers)
+            resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
+            output = resp.read()
+            if resp.status == 200:
+                if self.debug:
+                    print output
+                annot = json.loads(output)
+            else:
+                raise Exception('GET %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
+        finally:
+            conn.close()
+        return Annotations(annot)
+
+    def setAnnot(self, entity, annot, endpoint=None):
+        '''
+        Update an entitie's annotation on given endpoint
+        '''
+        if(None == entity or annot == endpoint
+           or not (isinstance(entity, dict)
+                   )):
+            raise Exception("invalid parameters")
+        if endpoint == None:
+            endpoint = self.repoEndpoint
+
+        uri = entity['annotations']
+        conn = self._connect(endpoint)
+
+        if(self.debug): print 'About to update %s with %s' % (uri, json.dumps(entity))
+
+        putHeaders = self.headers
+        if "etag" in annot:
+            putHeaders['ETag'] = entity['etag']
+
+        storedEntity = None
+        self.profile_data = None
+
+        try:
+            conn.request('PUT', uri, json.dumps(annot), putHeaders)
+            resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
+            output = resp.read()
+            # Handle both 200 and 204 as auth returns 204 for success
+            if resp.status == 200 or resp.status == 204:
+                if self.debug:
+                    print output
+                storedEntity = json.loads(output)
+            else:
+                raise Exception('PUT %s failed: %d %s %s %s' % (uri, resp.status, resp.reason, json.dumps(entity), output))
+        finally:
+            conn.close()
+        return storedEntity
 
     def _createUniversalEntity(self, uri, entity, endpoint):
         """Creates an entity on either auth or repo"""
