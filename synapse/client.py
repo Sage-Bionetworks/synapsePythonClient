@@ -209,6 +209,47 @@ r        - `entity`: Either a string or dict representing and entity
         print 'WARNING!: THIS ONLY DOWNLOADS ENTITIES!'
         return self.downloadEntity(entity)
 
+    def getAnnot(self, entity, endpoint=None):
+        if endpoint == None:
+            endpoint = self.repoEndpoint
+        if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('annotations'))):
+            raise Exception("invalid parameters")
+        if isinstance(entity, dict):
+            entity = entity['annotations']
+
+        if not (endpoint['prefix'] in entity):
+            uri = endpoint["prefix"] + entity
+        else:
+            uri=entity
+        conn = self._connect(endpoint)
+
+        if(self.debug):  print 'About to get %s' % (uri)
+
+        annot = None
+        self.profile_data = None
+        try:
+            headers = self.headers
+            if self.request_profile:
+                headers["profile_request"] = "True"
+            conn.request('GET', uri, None, headers)
+            resp = conn.getresponse()
+            if self.request_profile:
+                profile_data = None
+                for k,v in resp.getheaders():
+                    if k == "profile_response_object":
+                        profile_data = v
+                        break
+                self.profile_data = json.loads(base64.b64decode(profile_data))
+            output = resp.read()
+            if resp.status == 200:
+                if self.debug:
+                    print output
+                annot = json.loads(output)
+            else:
+                raise Exception('GET %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
+        finally:
+            conn.close()
+        return annot        
 
     def _createUniversalEntity(self, uri, entity, endpoint):
         """Creates an entity on either auth or repo"""
