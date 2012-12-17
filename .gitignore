@@ -4,4 +4,3 @@ pypi.info.txt
 /dist/
 *.egg-info
 config
-synapsePythonClient
