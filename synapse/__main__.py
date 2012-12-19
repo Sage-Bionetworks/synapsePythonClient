@@ -112,6 +112,11 @@ def main():
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
                                        help='additional help')
 
+
+    parser_login = subparsers.add_parser('login', help='login to Synapse')
+    parser_login.add_argument('synapseUser', metavar='USER', type=str, help='Synapse username')
+    parser_login.add_argument('synapsePassword', metavar='PASSWORD', type=str, help='Synapse password')
+
     
     parser_query = subparsers.add_parser('query', help='Performs SQL like queries on Synapse')
     parser_query.add_argument('queryString', metavar='string', type=str, nargs='*',
@@ -168,12 +173,13 @@ def main():
     args = parser.parse_args()
 
     #TODO Perform proper login either prompt for info or use parameters
-    #  if prompting store token in file and remember
+    ## if synapseUser and synapsePassword are not given, try to use cached session token
     syn = client.Synapse(debug=False)
     syn.login(args.synapseUser, args.synapsePassword)
 
     #Perform the requested action
-    args.func(args, syn)
+    if 'func' in args:
+        args.func(args, syn)
 
     # #print qry
 
