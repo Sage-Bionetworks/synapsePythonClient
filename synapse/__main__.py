@@ -4,6 +4,7 @@ import shutil
 import sys
 import client
 import webbrowser
+import version_check
 
 def query(args, syn):
     """
@@ -26,14 +27,18 @@ def get(args, syn):
     - `args`:
     """
     ent = syn.downloadEntity(args.id)
-    for f in ent['files']:
-        src = os.path.join(ent['cacheDir'], f)
-        dst = os.path.join('.', f.replace(".R_OBJECTS/",""))
-        sys.stderr.write('creating %s\n' %dst)
-        if not os.path.exists(os.path.dirname(dst)):
-            os.mkdir(dst)
-        shutil.copyfile(src, dst)
-    return 0
+    if 'files' in ent:
+        for f in ent['files']:
+            src = os.path.join(ent['cacheDir'], f)
+            dst = os.path.join('.', f.replace(".R_OBJECTS/",""))
+            sys.stderr.write('creating %s\n' %dst)
+            if not os.path.exists(os.path.dirname(dst)):
+                os.mkdir(dst)
+            shutil.copyfile(src, dst)
+    else:
+        sys.stderr.write('WARNING: No files associated with entity %s\n' % (entity['id'],))
+        syn.printEntity(ent)
+    return ent
 
 def cat(args, syn):
     """
@@ -42,11 +47,18 @@ def cat(args, syn):
     - `args`:
     """
     ent = syn.downloadEntity(args.id)
-    for f in ent['files']:
-        with open(os.path.join(ent['cacheDir'], f)) as fp:
-            for l in fp:
-                sys.stdout.write(l)
+    if 'files' in ent:
+        for f in ent['files']:
+            with open(os.path.join(ent['cacheDir'], f)) as fp:
+                for l in fp:
+                    sys.stdout.write(l)
 
+def show(args, syn):
+    """
+    show metadata for an entity
+    """
+    ent = syn.getEntity(args.id)
+    syn.printEntity(ent)
 
 def delete(args, syn):
     """
@@ -70,6 +82,7 @@ def upload(args, syn):
     entity=syn.createEntity(entity)
     entity = syn.uploadFile(entity, args.file)
     sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file))
+    return(entity)
 
 
 def update(args, syn):
@@ -92,10 +105,17 @@ def onweb(args, syn):
 
 def main():
     parser = argparse.ArgumentParser(description='Interfaces with the Synapse repository.')
+    parser.add_argument('--version', action='version', version='Synapse Client %s' % (version_check.getCurrentVersion(),))
     parser.add_argument('-u', '--username', dest='synapseUser', help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword', help='Password used to connect to Synapse')
+
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
                                        help='additional help')
+
+
+    parser_login = subparsers.add_parser('login', help='login to Synapse')
+    parser_login.add_argument('synapseUser', metavar='USER', type=str, help='Synapse username')
+    parser_login.add_argument('synapsePassword', metavar='PASSWORD', type=str, help='Synapse password')
 
     
     parser_query = subparsers.add_parser('query', help='Performs SQL like queries on Synapse')
@@ -107,6 +127,11 @@ def main():
     parser_get.add_argument('id', metavar='syn123', type=str, 
                          help='Synapse ID of form syn123 of desired data object')
     parser_get.set_defaults(func=get)
+
+    parser_get = subparsers.add_parser('show', help='show metadata for an entity')
+    parser_get.add_argument('id', metavar='syn123', type=str, 
+                         help='Synapse ID of form syn123 of desired synapse object')
+    parser_get.set_defaults(func=show)
 
     parser_cat = subparsers.add_parser('cat', help='prints a dataset from Synapse')
     parser_cat.add_argument('id', metavar='syn123', type=str,
@@ -145,16 +170,16 @@ def main():
                          help='Synapse id')
     parser_onweb.set_defaults(func=onweb)
 
-
     args = parser.parse_args()
 
     #TODO Perform proper login either prompt for info or use parameters
-    #  if prompting store token in file and remember
+    ## if synapseUser and synapsePassword are not given, try to use cached session token
     syn = client.Synapse(debug=False)
     syn.login(args.synapseUser, args.synapsePassword)
 
     #Perform the requested action
-    args.func(args, syn)
+    if 'func' in args:
+        args.func(args, syn)
 
     # #print qry
 
