@@ -40,7 +40,7 @@ def version_check(current_version=None,
             current_version = getCurrentVersion()
 
         headers = { 'Accept': 'application/json' }
-        version_info = requests.get(version_url, headers=headers).json
+        version_info = requests.get(version_url, headers=headers).json()
 
         ## check blacklist
         if current_version in version_info['blacklist']:
@@ -60,7 +60,7 @@ def version_check(current_version=None,
 
     except Exception, e:
         ## don't prevent the client from running if something goes wrong
-        sys.stderr.write("Exception in version check.\n")
+        sys.stderr.write("Exception in version check: %s\n" % (str(e),))
         return False
 
     return True

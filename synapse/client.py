@@ -532,12 +532,13 @@ r        - `entity`: Either a string or dict representing and entity
         response = requests.post(url, headers=headers, data=json.dumps(data))
         response.raise_for_status()
 
-        location_path = response.json['path']
+        response_json = response.json()
+        location_path = response_json['path']
         # PUT file to S3
         headers = { 'Content-MD5': base64.b64encode(md5.digest()),
                   'Content-Type' : mimetype,
                   'x-amz-acl' : 'bucket-owner-full-control' }
-        response = requests.put(response.json['presignedUrl'], headers=headers, data=open(filename))
+        response = requests.put(response_json['presignedUrl'], headers=headers, data=open(filename))
         response.raise_for_status()
 
         # add location to entity

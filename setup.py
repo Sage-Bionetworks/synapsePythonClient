@@ -28,7 +28,7 @@ setup(name='SynapseClient',
     license='GPL',
     packages=['synapse'],
     install_requires=[
-        'requests',
+        'requests>=1.0',
     ],
     entry_points = {
         'console_scripts': ['synapse = synapse.__main__:main']
