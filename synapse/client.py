@@ -98,7 +98,7 @@ class Synapse:
             return sessionToken
 
         if (None == email or None == password):
-            raise Exception("missing Synapse username and password")
+            raise Exception("missing Synapse username or password")
 
         # Disable profiling during login
         # TODO: Check what happens if enabled

@@ -198,7 +198,9 @@ class TestClient:
 
         ## test blacklisted version
         try:
-            assert not version_check(current_version="0.0.0", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+            version_check(current_version="0.0.0", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+            ## should have thrown an exception
+            assert False
         except SystemExit, e:
             assert True
 
