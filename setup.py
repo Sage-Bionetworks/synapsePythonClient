@@ -2,6 +2,8 @@
 ############################################################
 
 from setuptools import setup
+from version_check import getCurrentVersion
+
 
 description = """A client for the Sage Synapse, a collaborative compute space 
 that allows scientists to share and analyze data together.""".replace("\n", " ")
@@ -13,8 +15,10 @@ models into a Commons that enables true collaborative research. The platform
 consists of a web portal, web services, and integration with data analysis tools.
 """.replace("\n", " ")
 
+current_version = getCurrentVersion()
+
 setup(name='SynapseClient',
-    version='0.1.1',
+    version=current_version,
     description=description,
     long_description=long_description,
     url='http://synapse.sagebase.org/',
@@ -24,7 +28,7 @@ setup(name='SynapseClient',
     license='GPL',
     packages=['synapse'],
     install_requires=[
-        'requests',
+        'requests>=1.0',
     ],
     entry_points = {
         'console_scripts': ['synapse = synapse.__main__:main']

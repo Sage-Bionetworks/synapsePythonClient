@@ -1,8 +1,14 @@
-import client
+## integration tests for Python client
+## to run tests: nosetests -vs
+## to run single test: nosetests -vs synapse/integration_test.py:TestClient.test_downloadFile
+
+import client, utils
+from version_check import version_check
 import ConfigParser
 from nose.tools import *
 import tempfile
 import os
+
 
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
 DATA_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Data', u'parentId': ''}
@@ -158,6 +164,49 @@ class TestClient:
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
         assert entity['files'][0]==os.path.split(fname)[-1]
+
+
+    def test_downloadFile(self):
+        "test download file function in utils.py"
+        result = utils.downloadFile("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
+        if (result):
+            # print("status: \"%s\"" % str(result[1].status))
+            # print("filename: \"%s\"" % str(result[0]))
+            filename = result[0]
+            assert os.path.exists(filename)
+
+            ## cleanup
+            try:
+                os.remove(filename)
+            except:
+                print("warning: couldn't delete file: \"%s\"\n" % filename)
+        else:
+            print("failed to download file: \"%s\"" % filename)
+            assert False
+
+
+    def test_version_check(self):
+        """
+        test the version checking and blacklisting functionality
+        """
+
+        ## should be higher than current version and return true
+        assert version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+
+        ## test out of date version
+        assert not version_check(current_version="0.0.1", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+
+        ## test blacklisted version
+        try:
+            version_check(current_version="0.0.0", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+            ## should have thrown an exception
+            assert False
+        except SystemExit, e:
+            assert True
+
+        ## test bad url
+        assert not version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/bad_filename_doesnt_exist")
+
 
 
 

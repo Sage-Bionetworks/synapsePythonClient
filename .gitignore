@@ -3,3 +3,4 @@ pypi.info.txt
 /build/
 /dist/
 *.egg-info
+config

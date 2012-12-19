@@ -11,6 +11,8 @@ import zipfile
 import requests
 import os.path
 import mimetypes
+import stat
+from version_check import version_check
 
 import utils
 
@@ -84,8 +86,19 @@ class Synapse:
         """
         Authenticate and get session token
         """
+        ## check version before logging in
+        version_check()
+
+        session_file = os.path.join(self.cacheDir, ".session")
+        if (None==email and None==password and os.path.exists(session_file)):
+            with open(session_file) as f:
+                sessionToken = f.read().strip()
+            self.sessionToken = sessionToken
+            self.headers["sessionToken"] = sessionToken
+            return sessionToken
+
         if (None == email or None == password):
-            raise Exception("invalid parameters")
+            raise Exception("missing Synapse username or password")
 
         # Disable profiling during login
         # TODO: Check what happens if enabled
@@ -100,7 +113,12 @@ class Synapse:
         storedEntity = self._createUniversalEntity(uri, req, self.authEndpoint)
         self.sessionToken = storedEntity["sessionToken"]
         self.headers["sessionToken"] = self.sessionToken
-    
+
+        ## cache session token
+        with open(session_file, "w") as f:
+            f.write(self.sessionToken)
+        os.chmod(session_file, stat.S_IRUSR | stat.S_IWUSR)
+
         if req_profile != None:
             self.request_profile = req_profile
 
@@ -514,12 +532,13 @@ r        - `entity`: Either a string or dict representing and entity
         response = requests.post(url, headers=headers, data=json.dumps(data))
         response.raise_for_status()
 
-        location_path = response.json['path']
+        response_json = response.json()
+        location_path = response_json['path']
         # PUT file to S3
         headers = { 'Content-MD5': base64.b64encode(md5.digest()),
                   'Content-Type' : mimetype,
                   'x-amz-acl' : 'bucket-owner-full-control' }
-        response = requests.put(response.json['presignedUrl'], headers=headers, data=open(filename))
+        response = requests.put(response_json['presignedUrl'], headers=headers, data=open(filename))
         response.raise_for_status()
 
         # add location to entity
