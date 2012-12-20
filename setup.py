@@ -2,7 +2,7 @@
 ############################################################
 
 from setuptools import setup
-from version_check import getCurrentVersion
+import json
 
 
 description = """A client for the Sage Synapse, a collaborative compute space 
@@ -15,7 +15,10 @@ models into a Commons that enables true collaborative research. The platform
 consists of a web portal, web services, and integration with data analysis tools.
 """.replace("\n", " ")
 
-current_version = getCurrentVersion()
+## read current version in from JSON file
+with open("synapsePythonClient") as f:
+        version_info = json.loads(f.read())
+current_version = version_info['latestVersion']
 
 setup(name='SynapseClient',
     version=current_version,
