@@ -2,6 +2,5 @@
 	"client":"synapsePythonClient",
 	"latestVersion":"0.1.2",
 	"releaseNotes":"Python client is in early beta.",
-	"message":"Welcome to the Synapse Client for Python.",
 	"blacklist":["0.0.0"]
 }
