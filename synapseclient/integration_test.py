@@ -197,12 +197,7 @@ class TestClient:
         assert not version_check(current_version="0.0.1", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
 
         ## test blacklisted version
-        try:
-            version_check(current_version="0.0.0", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
-            ## should have thrown an exception
-            assert False
-        except SystemExit, e:
-            assert True
+        assert_raises(SystemExit, version_check, current_version="0.0.0", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
 
         ## test bad url
         assert not version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/bad_filename_doesnt_exist")
@@ -221,3 +216,4 @@ if __name__ == '__main__':
     test.test_updateEntity()
     test.test_query()
     test.test_uploadFile()
+    test.test_version_check()
