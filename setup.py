@@ -2,7 +2,6 @@
 ############################################################
 
 from setuptools import setup
-import json
 from synapseclient.client import __version__
 
 description = """A client for Synapse, a collaborative compute space 
@@ -30,6 +29,8 @@ setup(name='synapseclient',
     install_requires=[
         'requests>=1.0',
     ],
+    test_suite='nose.collector',
+    tests_require=['nose'],
     entry_points = {
         'console_scripts': ['synapse = synapseclient.__main__:main']
     },

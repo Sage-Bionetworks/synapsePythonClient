@@ -37,14 +37,14 @@ def version_check(current_version=None,
         ## check latest version
         if StrictVersion(current_version) < StrictVersion(version_info['latestVersion']):
             msg = "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. Your version (%s) can be upgraded by visiting:\n%s\n\n" % (version_info['latestVersion'], current_version, upgrade_url,)
-            sys.stderr.write(msg)
+            sys.stdout.write(msg)
             if 'releaseNotes' in version_info:
                 sys.stdout.write(version_info['releaseNotes'] + '\n')
             return False
 
     except Exception, e:
         ## don't prevent the client from running if something goes wrong
-        sys.stderr.write("Exception in version check: %s\n" % (str(e),))
+        sys.stderr.write("Exception in version check: %s" % (str(e),))
         return False
 
     return True
