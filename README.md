@@ -61,9 +61,9 @@ The synapse client can be used to write software that interacts with the Sage Sy
 
 ### Example
 
-    import synapse.client
+    import synapseclient
 
-    s = synapse.client.Synapse()
+    s = synapseclient.Synapse()
     s.login('me@nowhere.com', 'secret')
 
     e = s.getEntity('syn1528299')

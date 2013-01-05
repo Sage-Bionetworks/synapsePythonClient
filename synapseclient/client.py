@@ -17,6 +17,7 @@ from version_check import version_check
 import utils
 
 CACHE_DIR='~/.synapseCache/python'  #TODO: this needs to be handled in a transparent way!
+__version__='0.1.2'
 
 class Synapse:
     """
