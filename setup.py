@@ -2,7 +2,7 @@
 ############################################################
 
 from setuptools import setup
-from synapseclient.client import __version__
+import json
 
 description = """A client for Synapse, a collaborative compute space 
 that allows scientists to share and analyze data together.""".replace("\n", " ")
@@ -15,6 +15,7 @@ platform consists of a web portal, web services, and integration with
 data analysis tools such as R, python, Galaxy and Java.
 """.replace("\n", " ")
 
+__version__=json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
 
 setup(name='synapseclient',
     version=__version__,
@@ -35,6 +36,7 @@ setup(name='synapseclient',
         'console_scripts': ['synapse = synapseclient.__main__:main']
     },
     zip_safe=False,
+    package_data={'synapseclient': ['README.md', 'synapsePythonClient']},
     classifiers=[
     	'Development Status :: 3 - Alpha',
 			'Topic :: Software Development :: Libraries',

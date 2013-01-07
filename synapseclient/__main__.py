@@ -2,7 +2,7 @@ import argparse
 import os
 import shutil
 import sys
-import client
+import synapseclient
 import webbrowser
 import version_check
 
@@ -105,7 +105,7 @@ def onweb(args, syn):
 
 def main():
     parser = argparse.ArgumentParser(description='Interfaces with the Synapse repository.')
-    parser.add_argument('--version', action='version', version='Synapse Client %s' % client.__version__)
+    parser.add_argument('--version', action='version', version='Synapse Client %s' % synapseclient.__version__)
     parser.add_argument('-u', '--username', dest='synapseUser', help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword', help='Password used to connect to Synapse')
 
@@ -174,7 +174,7 @@ def main():
 
     #TODO Perform proper login either prompt for info or use parameters
     ## if synapseUser and synapsePassword are not given, try to use cached session token
-    syn = client.Synapse(debug=False)
+    syn = synapseclient.Synapse(debug=False)
     syn.login(args.synapseUser, args.synapsePassword)
 
     #Perform the requested action
