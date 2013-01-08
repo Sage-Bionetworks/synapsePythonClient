@@ -36,7 +36,7 @@ setup(name='synapseclient',
         'console_scripts': ['synapse = synapseclient.__main__:main']
     },
     zip_safe=False,
-    package_data={'synapseclient': ['README.md', 'synapsePythonClient']},
+    package_data={'synapseclient': ['synapsePythonClient']},
     classifiers=[
     	'Development Status :: 3 - Alpha',
 			'Topic :: Software Development :: Libraries',
