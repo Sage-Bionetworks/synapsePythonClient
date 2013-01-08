@@ -13,8 +13,12 @@ import os.path
 import mimetypes
 import stat
 from version_check import version_check
+import pkg_resources
 
 import utils
+
+
+__version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 
 CACHE_DIR='~/.synapseCache/python'  #TODO: this needs to be handled in a transparent way!
 
