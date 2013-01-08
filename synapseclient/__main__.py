@@ -113,9 +113,9 @@ def main():
                                        help='additional help')
 
 
-    parser_login = subparsers.add_parser('login', help='login to Synapse')
-    parser_login.add_argument('synapseUser', metavar='USER', type=str, help='Synapse username')
-    parser_login.add_argument('synapsePassword', metavar='PASSWORD', type=str, help='Synapse password')
+    #parser_login = subparsers.add_parser('login', help='login to Synapse')
+    #parser_login.add_argument('synapseUser', metavar='USER', type=str, help='Synapse username')
+    #parser_login.add_argument('synapsePassword', metavar='PASSWORD', type=str, help='Synapse password')
 
     
     parser_query = subparsers.add_parser('query', help='Performs SQL like queries on Synapse')

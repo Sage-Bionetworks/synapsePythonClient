@@ -28,10 +28,8 @@ class TestClient:
         Arguments:
         - `repoEndpoint`:
         """
-        config = ConfigParser.ConfigParser()
-        config.read('config')
         self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, debug=False)
-        self.syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
+        self.syn.login() #Assumes that a configuration file exists in the home directory with login information
         self.toRemove=[]
 
     def setUp(self):
@@ -70,9 +68,27 @@ class TestClient:
 
     
     def test_login(self):
-        #Has already been tested for correct username and password.
         #Test that we fail gracefully with wrong user
         assert_raises(Exception, self.syn.login, 'asdf', 'notarealpassword')
+
+        #Test that it work with assumed existing config file
+        self.syn.login()
+
+        #Test that it works with username and password
+        import ConfigParser
+        config = ConfigParser.ConfigParser()
+        config.read(client.CONFIG_FILE)
+        self.syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
+
+         #Test that it works with session token (created in previous passed step)
+        (fd, fname) = tempfile.mkstemp()
+        client.CONFIG_FILE=fname
+        self.syn.login()
+
+        #Test that we fail with the wrong config file and no session token
+        os.remove(os.path.join(client.CACHE_DIR, '.session'))
+        assert_raises(Exception, self.syn.login)
+
         
 
     def test_getEntity(self):
