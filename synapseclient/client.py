@@ -39,6 +39,12 @@ class Synapse:
         '''
 
         self.cacheDir = os.path.expanduser(CACHE_DIR)
+        #create cacheDir if it does not exist
+        try:
+            os.makedirs(self.cacheDir)
+        except OSError as exception:
+            if exception.errno != os.errno.EEXIST:
+                raise
         self.headers = {'content-type': 'application/json', 'Accept': 'application/json'}
 
         self.serviceTimeoutSeconds = serviceTimeoutSeconds 
