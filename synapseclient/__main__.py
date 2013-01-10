@@ -13,6 +13,8 @@ def query(args, syn):
     results = syn.query(' '.join(args.queryString))
 
     results = results['results']
+    if len(results)==0:  #No results found
+        return
     headings = results[0].keys()
     print '\t'.join(headings)
     for result in results:
