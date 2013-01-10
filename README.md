@@ -15,7 +15,7 @@ The python synapse client has been tested on python 2.7.
 
 The [Python Synapse Client is on PyPI](http://pypi.python.org/pypi/SynapseClient) and can be installed with pip:
 
-    pip install SynapseClient
+    pip install synapseclient
 
 ### Install from source
 
@@ -75,6 +75,24 @@ The synapse client can be used to write software that interacts with the Sage Sy
     ## assuming the file is a short text file, read it as a list of lines
     with open(e['files'][0]) as f:
   		lines = f.readlines()
+
+
+Authentication
+--------------
+Authentication toward [synapse](https://synapse.sagebase.org/#RegisterAccount:0) can be specified in three ways:
+
+1. By passing username and password to the login function (or using the -u and -p parameters on the command line)
+
+2. Creating a configuration file in the home directory called .synapseConfig that contains the username and password. See example below.
+
+3. Using cached authentication. Everytime the client authenticates the credentials are cached for 24 hours.  Meaning that subsequent interactions do not need the username and password credentials.
+
+
+###Example config file stored in ~/.synapseConfig
+    [authentication]
+    username: me@nowhere.com
+    password: secret
+    
 
 
 License and Copyright
