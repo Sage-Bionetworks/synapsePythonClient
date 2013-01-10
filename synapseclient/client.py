@@ -19,8 +19,9 @@ import utils
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
+CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TODO change to /data when storing files as md5
+CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 
-CACHE_DIR='~/.synapseCache/python'  #TODO: this needs to be handled in a transparent way!
 
 class Synapse:
     """
@@ -38,6 +39,12 @@ class Synapse:
         '''
 
         self.cacheDir = os.path.expanduser(CACHE_DIR)
+        #create cacheDir if it does not exist
+        try:
+            os.makedirs(self.cacheDir)
+        except OSError as exception:
+            if exception.errno != os.errno.EEXIST:
+                raise
         self.headers = {'content-type': 'application/json', 'Accept': 'application/json'}
 
         self.serviceTimeoutSeconds = serviceTimeoutSeconds 
@@ -86,26 +93,38 @@ class Synapse:
         print json.dumps(entity, sort_keys=True, indent=2)
 
 
-    def login(self, email, password):
+    def login(self, email=None, password=None):
         """
-        Authenticate and get session token
+        Authenticate and get session token by using (in order of preference):
+        1) supplied email and password
+        2) check for configuraton file
+        3) Use already existing session token
         """
         ## check version before logging in
         version_check()
 
         session_file = os.path.join(self.cacheDir, ".session")
-        if (None==email and None==password and os.path.exists(session_file)):
-            with open(session_file) as f:
-                sessionToken = f.read().strip()
-            self.sessionToken = sessionToken
-            self.headers["sessionToken"] = sessionToken
-            return sessionToken
 
-        if (None == email or None == password):
-            raise Exception("missing Synapse username or password")
 
-        # Disable profiling during login
-        # TODO: Check what happens if enabled
+        if (email==None or password==None): #Try to use config then session token
+            try:
+                import ConfigParser
+                config = ConfigParser.ConfigParser()
+                config.read(CONFIG_FILE)
+                email=config.get('authentication', 'username')
+                password=config.get('authentication', 'password')
+            except ConfigParser.NoSectionError:  #Authentication not defined in config reverting to session token
+                if os.path.exists(session_file):
+                    with open(session_file) as f:
+                        sessionToken = f.read().strip()
+                    self.sessionToken = sessionToken
+                    self.headers["sessionToken"] = sessionToken
+                    return sessionToken
+                else:
+                    raise Exception("LOGIN FAILED: no username/password, configuration or cached session token available")
+
+
+        # Disable profiling during login and proceed with authentication
         req_profile = None
         if self.request_profile != None:
             req_profile = self.request_profile

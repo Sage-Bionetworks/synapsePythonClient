@@ -8,7 +8,7 @@ import json
 import sys
 import traceback
 import warnings
-import client
+import pkg_resources
 
 
 def version_check(current_version=None,
@@ -21,7 +21,7 @@ def version_check(current_version=None,
 
     try:
         if (not current_version):
-            current_version = client.__version__
+            current_version = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 
         headers = { 'Accept': 'application/json' }
         version_info = requests.get(version_url, headers=headers).json()
@@ -52,6 +52,6 @@ def version_check(current_version=None,
 ## if this file is run as a script, print current version
 ## then perform version check
 if __name__ == "__main__":
-    print("Python Synapse Client version: %s" % client.__version__)
+    print("Python Synapse Client version: %s" % json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion'])
     if version_check():
         print("ok")
