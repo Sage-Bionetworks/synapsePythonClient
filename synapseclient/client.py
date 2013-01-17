@@ -216,7 +216,7 @@ class Synapse:
 
         filename = os.path.join(self.cacheDir,entity['id'] ,pathComponents[-1])
         if os.path.exists(filename):
-            print filename, "cached"
+            #print filename, "cached"
             md5 = utils.computeMd5ForFile(filename)
             if md5.hexdigest() != entity['md5']:
                 print filename, "changed, redownloading"
