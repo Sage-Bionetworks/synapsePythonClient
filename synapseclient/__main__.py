@@ -87,6 +87,21 @@ def upload(args, syn):
     return(entity)
 
 
+def create(args, syn):
+    """
+
+    Arguments:
+    - `args`:
+    """
+    entity={'name': args.name,
+            'parentId': args.parentid,
+            'description':args.description,
+            'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
+    entity=syn.createEntity(entity)
+    sys.stderr.write('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
+    return(entity)
+
+
 def update(args, syn):
     """
     
@@ -142,20 +157,34 @@ def main():
 
     parser_add = subparsers.add_parser('add', help='uploads and adds a dataset to Synapse')
     parser_add.add_argument('-parentid', metavar='syn123', type=str, required=True, 
-                         help='Synapse ID of project or file where to upload data object')
+                         help='Synapse ID of project or folder where to upload data.')
     #TODO make so names can have white space
-    parser_add.add_argument('-name', metavar='This is a data name', type=str, required=True,
-                         help='Synapse ID of project or file where to upload data object')
+    parser_add.add_argument('-name', metavar='NAME', type=str, required=True,
+                         help='Name of data object in Synapse')
     #TODO make sure that description can have whitespace
-    parser_add.add_argument('-description', metavar='syn123', type=str, 
-                         help='Synapse ID of project or file where to upload data object')
+    parser_add.add_argument('-description', metavar='DESCRIPTION', type=str, 
+                         help='Description of data object in Synapse.')
     parser_add.add_argument('file', type=str,
                          help='file to be added to synapse.')
     parser_add.set_defaults(func=upload)
 
 
+    parser_create = subparsers.add_parser('create', help='Creates folders or projects on Synapse')
+    parser_create.add_argument('-parentid', metavar='syn123', type=str, required=False, 
+                         help='Synapse ID of project or folder where to place folder [not used with project]')
+    #TODO make so names can have white space
+    parser_create.add_argument('-name', metavar='NAME', type=str, required=True,
+                         help='Name of folder/project.')
+    #TODO make sure that description can have whitespace
+    parser_create.add_argument('-description', metavar='DESCRIPTION', type=str, 
+                         help='Description of project/folder')
+    parser_create.add_argument('type', type=str,
+                         help='Type of object to create in synapse one of {Project, Folder}')
+    parser_create.set_defaults(func=create)
+
+
     parser_update = subparsers.add_parser('update', help='uploads a new file to an existing Synapse Entity')
-    parser_update.add_argument('-id', metavar='syn123', type=str, 
+    parser_update.add_argument('-id', metavar='syn123', type=str, required=True,
                          help='Synapse ID of entity to be updated')
     parser_update.add_argument('file', type=str,
                          help='file to be added to synapse.')
