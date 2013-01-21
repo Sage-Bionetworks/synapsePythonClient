@@ -218,7 +218,7 @@ class Synapse:
         if os.path.exists(filename):
             #print filename, "cached"
             md5 = utils.computeMd5ForFile(filename)
-            if md5.hexdigest() != entity['md5']:
+            if md5.hexdigest() != entity.get('md5', ''):
                 print filename, "changed, redownloading"
                 utils.downloadFile(url, filename)
         else:
