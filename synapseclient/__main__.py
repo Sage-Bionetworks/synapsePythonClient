@@ -5,6 +5,7 @@ import sys
 import synapseclient
 import webbrowser
 import version_check
+import signal
 
 def query(args, syn):
     """
@@ -48,6 +49,7 @@ def cat(args, syn):
     Arguments:
     - `args`:
     """
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     ent = syn.downloadEntity(args.id)
     if 'files' in ent:
         for f in ent['files']:
