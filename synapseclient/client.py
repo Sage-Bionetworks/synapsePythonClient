@@ -218,7 +218,7 @@ class Synapse:
         if os.path.exists(filename):
             #print filename, "cached"
             md5 = utils.computeMd5ForFile(filename)
-            if md5.hexdigest() != entity['md5']:
+            if md5.hexdigest() != entity.get('md5', ''):
                 print filename, "changed, redownloading"
                 utils.downloadFile(url, filename)
         else:
@@ -226,7 +226,6 @@ class Synapse:
             utils.downloadFile(url, filename)
 
         if entity['contentType']=='application/zip':
-            print 'unpacking...'
             ## Unpack file
             filepath=os.path.join(os.path.dirname(filename), os.path.basename(filename)+'_unpacked')
             #TODO!!!FIX THIS TO BE PATH SAFE!  DON'T ALLOW ARBITRARY UNZIPING
