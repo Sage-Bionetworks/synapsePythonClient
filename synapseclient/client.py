@@ -226,7 +226,6 @@ class Synapse:
             utils.downloadFile(url, filename)
 
         if entity['contentType']=='application/zip':
-            print 'unpacking...'
             ## Unpack file
             filepath=os.path.join(os.path.dirname(filename), os.path.basename(filename)+'_unpacked')
             #TODO!!!FIX THIS TO BE PATH SAFE!  DON'T ALLOW ARBITRARY UNZIPING
