@@ -45,7 +45,7 @@ class Synapse:
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
-        self.headers = {'content-type': 'application/json', 'Accept': 'application/json'}
+        self.headers = {'content-type': 'application/json', 'Accept': 'application/json', 'request_profile':'False'}
 
         self.serviceTimeoutSeconds = serviceTimeoutSeconds 
         self.debug = debug
@@ -63,9 +63,6 @@ class Synapse:
         self.authEndpoint["location"] = parseResult.netloc
         self.authEndpoint["prefix"] = parseResult.path
         self.authEndpoint["protocol"] = parseResult.scheme
-        
-        self.request_profile = False
-        self.profile_data = None
 
 
     def _connect(self, endpoint):
@@ -86,6 +83,17 @@ class Synapse:
         if (self.debug):
             conn.set_debuglevel(10);
         return conn
+
+
+    def _storeTimingProfile(self, resp):
+        """Stores timint information for the last call if request_profile was set."""
+        if self.headers.get('request_profile', 'False')=='True':
+            profile_data = None
+            for k,v in resp.getheaders():
+                if k == "profile_response_object":
+                    profile_data = v
+                    break
+            self.profile_data = json.loads(base64.b64decode(profile_data))
 
 
     def printEntity(self, entity):
@@ -125,11 +133,8 @@ class Synapse:
 
 
         # Disable profiling during login and proceed with authentication
-        req_profile = None
-        if self.request_profile != None:
-            req_profile = self.request_profile
-            self.request_profile = False
-        
+        self.headers['request_profile'], orig_request_profile='False', self.headers['request_profile']
+
         uri = self.authEndpoint["prefix"] + "/session"
         req = {"email":email, "password":password}
         
@@ -141,9 +146,8 @@ class Synapse:
         with open(session_file, "w") as f:
             f.write(self.sessionToken)
         os.chmod(session_file, stat.S_IRUSR | stat.S_IWUSR)
+        self.headers['request_profile'] = orig_request_profile
 
-        if req_profile != None:
-            self.request_profile = req_profile
 
 
     def getEntity(self, entity, endpoint=None):
@@ -170,20 +174,11 @@ class Synapse:
         if(self.debug):  print 'About to get %s' % (uri)
 
         entity = None
-        self.profile_data = None
         try:
             headers = self.headers
-            if self.request_profile:
-                headers["profile_request"] = "True"
             conn.request('GET', uri, None, headers)
             resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))
+            self._storeTimingProfile(resp)
             output = resp.read()
             if resp.status == 200:
                 if self.debug:
@@ -263,21 +258,12 @@ r        - `entity`: Either a string or dict representing and entity
         if(self.debug): print 'About to create %s with %s' % (uri, json.dumps(entity))
 
         storedEntity = None
-        self.profile_data = None
         
         try:
             headers = self.headers
-            if self.request_profile:
-                headers["profile_request"] = "True"
             conn.request('POST', uri, json.dumps(entity), headers)
             resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))              
+            self._storeTimingProfile(resp)
             output = resp.read()
             if resp.status == 201:
                 if self.debug:
@@ -324,21 +310,12 @@ r        - `entity`: Either a string or dict representing and entity
         if(self.debug): print 'About to query %s' % (queryStr)
 
         results = None
-        self.profile_data = None
 
         try:
             headers = self.headers
-            if self.request_profile:
-                headers["profile_request"] = "True"
             conn.request('GET', uri, None, headers)
             resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))
+            self._storeTimingProfile(resp)
             output = resp.read()
             if resp.status == 200:
                 if self.debug:
@@ -369,21 +346,12 @@ r        - `entity`: Either a string or dict representing and entity
 
         if (self.debug): print 'About to delete %s' % (uri)
 
-        self.profile_data = None
 
         try:
             headers = self.headers
-            if self.request_profile:
-                headers["profile_request"] = "True"
             conn.request('DELETE', uri, None, headers)
             resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))
+            self._storeTimingProfile(resp)
             output = resp.read()
             if resp.status != 204:
                 raise Exception('DELETE %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
@@ -415,18 +383,11 @@ r        - `entity`: Either a string or dict representing and entity
             putHeaders['ETag'] = entity['etag']
 
         storedEntity = None
-        self.profile_data = None
 
         try:
             conn.request('PUT', uri, json.dumps(entity), putHeaders)
             resp = conn.getresponse()
-            if self.request_profile:
-                profile_data = None
-                for k,v in resp.getheaders():
-                    if k == "profile_response_object":
-                        profile_data = v
-                        break
-                self.profile_data = json.loads(base64.b64decode(profile_data))
+            self._storeTimingProfile(resp)
             output = resp.read()
             # Handle both 200 and 204 as auth returns 204 for success
             if resp.status == 200 or resp.status == 204:

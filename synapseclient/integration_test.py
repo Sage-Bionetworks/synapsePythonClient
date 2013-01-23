@@ -124,7 +124,7 @@ class TestClient:
         assert entity == returnEntity
 
 
-    def test_updateEntitity(self):
+    def test_updateEntity(self):
         entity = self.createProject()
         DATA_JSON['parentId']= entity['id']
         entity = self.syn.createEntity(DATA_JSON)
