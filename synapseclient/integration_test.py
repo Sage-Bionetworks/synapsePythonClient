@@ -14,16 +14,13 @@ PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name'
 DATA_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Data', u'parentId': ''}
 
 
-def test_b():
-    assert 'b' == 'b'
-
 class TestClient:
     """
     Integration tests against a repository service
     """
 
-    def __init__(self, repoEndpoint='https://repo-prod.sagebase.org/repo/v1',
-                 authEndpoint='https://auth-prod.sagebase.org/auth/v1'):
+    def __init__(self, repoEndpoint='https://repo-prod.prod.sagebase.org/repo/v1',
+                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1'):
         """
         Arguments:
         - `repoEndpoint`:
