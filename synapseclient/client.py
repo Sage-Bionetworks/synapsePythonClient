@@ -27,8 +27,8 @@ class Synapse:
     """
     Python implementation for Synapse repository service client
     """    
-    def __init__(self, repoEndpoint='https://repo-prod.sagebase.org/repo/v1', 
-                 authEndpoint='https://auth-prod.sagebase.org/auth/v1', 
+    def __init__(self, repoEndpoint='https://repo-prod.prod.sagebase.org/repo/v1', 
+                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1', 
                  serviceTimeoutSeconds=30, debug=False):
         '''Constructor of Synapse client
         params:

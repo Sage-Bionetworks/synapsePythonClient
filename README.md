@@ -5,6 +5,10 @@ A python client for [Sage Synapse](https://synapse.sagebase.org/), a collaborati
 
 The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility. See also the [Synapse R client](https://sagebionetworks.jira.com/wiki/display/SYNR/Home).
 
+Upgrade Python Client
+---------------------
+**Note**: This version of the Python client is necessary for compatibility with the January 25th, 2013 release of the Synapse platform. This platform update includes back-end changes and requires upgrading to the latest versions of the clients.
+
 
 Installation
 ------------
