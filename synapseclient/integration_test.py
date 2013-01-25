@@ -1,8 +1,9 @@
 ## integration tests for Python client
 ## to run tests: nosetests -vs
-## to run single test: nosetests -vs synapse/integration_test.py:TestClient.test_downloadFile
+## to run single test: nosetests -vs synapseclient/integration_test.py:TestClient.test_downloadFile
 
 import client, utils
+from client import Activity
 from version_check import version_check
 import ConfigParser
 from nose.tools import *
@@ -12,6 +13,7 @@ import os
 
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
 DATA_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Data', u'parentId': ''}
+CODE_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Code', u'parentId': ''}
 
 
 def test_b():
@@ -184,6 +186,8 @@ class TestClient:
         entity = self.syn.downloadEntity(entity)
         assert entity['files'][0]==os.path.split(fname)[-1]
 
+        # TODO clean up temp file and really compare file content
+
 
     def test_downloadFile(self):
         "test download file function in utils.py"
@@ -222,7 +226,82 @@ class TestClient:
         assert not version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/bad_filename_doesnt_exist")
 
 
+    def test_provenance(self):
+        """
+        test provenance features
+        """
 
+        ## create a new project
+        project = self.createProject()
+
+        # make some bogus data
+        import random
+        random.seed(12345)
+        data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
+
+        ## create a data entity
+        try:
+            try:
+                f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+                f.write(", ".join((str(n) for n in data)))
+                f.write("\n")
+            finally:
+                f.close()
+            DATA_JSON['parentId']= project['id']
+            data_entity = self.syn.createEntity(DATA_JSON)
+            data_entity = self.syn.uploadFile(data_entity, f.name)
+        finally:
+            os.remove(f.name)
+
+        ## create a code entity, source of the data above
+        code = """
+        ## Chris's fabulous random data generator
+        ############################################################
+        import random
+        random.seed(12345)
+        data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
+        """
+        try:
+            try:
+                f = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+                f.write(code)
+                f.write("\n")
+            finally:
+                f.close()
+            CODE_JSON['parentId']= project['id']
+            code_entity = self.syn.createEntity(CODE_JSON)
+            code_entity = self.syn.uploadFile(code_entity, f.name)
+        finally:
+            os.remove(f.name)
+
+        ## create a new activity asserting that the code entity was used to
+        ## make the data entity
+        activity = Activity(name='random.gauss', description='Generate some random numbers')
+        activity.used(code_entity['id'], wasExecuted=True)
+
+        activity = self.syn.setProvenance(data_entity, activity)
+
+        ## retrieve the saved provenance record
+        retrieved_activity = self.syn.getProvenance(data_entity['id'])
+
+        ## does it match what we expect?
+        assert retrieved_activity == activity
+
+        ## test update
+        new_description = 'Generate random numbers like a gangsta'
+        retrieved_activity['description'] = new_description
+        updated_activity = self.syn.updateActivity(retrieved_activity)
+
+        ## did the update stick?
+        assert updated_activity['name'] == retrieved_activity['name']
+        assert updated_activity['description'] == new_description
+
+        ## test delete
+        self.syn.deleteProvenance(data_entity)
+
+        ## should be gone now
+        deleted_activity = self.syn.getProvenance(data_entity['id'])
+        assert deleted_activity is None
 
 
 if __name__ == '__main__':
@@ -236,3 +315,5 @@ if __name__ == '__main__':
     test.test_query()
     test.test_uploadFile()
     test.test_version_check()
+    test.test_provenance()
+
