@@ -102,6 +102,9 @@ class TestClient:
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
 
+        #Check that I can get annotations
+        print self.syn.getEntity(returnEntity['annotations'])
+
 
     def test_loadEntity(self):
         #loadEntity does the same thing as downloadEntity so nothing new to test

@@ -45,6 +45,14 @@ class Synapse:
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
+
+        resp=requests.get(repoEndpoint, allow_redirects=False)
+        if resp.status_code==301:
+            repoEndpoint=resp.headers['location']
+        resp=requests.get(authEndpoint, allow_redirects=False)
+        if resp.status_code==301:
+            authEndpoint=resp.headers['location']
+
         self.headers = {'content-type': 'application/json', 'Accept': 'application/json', 'request_profile':'False'}
 
         self.serviceTimeoutSeconds = serviceTimeoutSeconds 
