@@ -86,9 +86,21 @@ def upload(args, syn):
             'parentId': args.parentid, 
             'description':args.description, 
             'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
-    entity=syn.createEntity(entity)
+    entity = syn.createEntity(entity)
     entity = syn.uploadFile(entity, args.file)
     sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file))
+
+    ## set provenance, if -used or -executed given
+    if args.used or args.executed:
+        activity = Activity()
+        if args.used:
+            for item in args.used:
+                activity.used(item)
+        if args.executed:
+            for item in args.executed:
+                activity.used(item, wasExecuted=True)
+        activity = syn.setProvenance(entity['id'], activity)
+
     return(entity)
 
 
@@ -116,7 +128,8 @@ def update(args, syn):
     entity=syn.getEntity(args.id)
     entity = syn.uploadFile(entity, args.file)
     sys.stderr.write('Updated entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file))
-    
+
+
 def onweb(args, syn):
     """
     
@@ -125,29 +138,43 @@ def onweb(args, syn):
     """
     webbrowser.open("https://synapse.sagebase.org/#Synapse:%s" %args.id)
 
-def provenance(args, syn):
-    """
-    get or set provenance information on a synapse entity
-    """
-    if args.name or args.description or args.used or args.executed:
-        if not (args.name and (args.used or args.executed)):
-            sys.stderr.write('To create an activity, a NAME and at least one USED or EXECUTED entity must be specified')
-            return -1
-        activity = Activity(name=args.name, description=args.description)
-        if args.used:
-            for item in args.used:
-                activity.used(item)
-        if args.executed:
-            for item in args.executed:
-                activity.used(item, wasExecuted=True)
-        activity = syn.setProvenance(args.id, activity)
-    else:
-        ## just get provenance record
-        activity = syn.getProvenance(args.id)
 
-    if activity:
+def setProvenance(args, syn):
+    """
+    set provenance information on a synapse entity
+    """
+    activity = Activity(name=args.name, description=args.description)
+    if args.used:
+        for item in args.used:
+            activity.used(item)
+    if args.executed:
+        for item in args.executed:
+            activity.used(item, wasExecuted=True)
+    activity = syn.setProvenance(args.id, activity)
+
+    ## display the activity record, if -o or -output specified
+    if args.output:
+        if args.output=='STDOUT':
+            sys.stdout.write(json.dumps(activity))
+            sys.stdout.write('\n')
+        else:
+            with open(args.output, 'w') as f:
+                f.write(json.dumps(activity))
+                f.write('\n')
+    else:
+        sys.stdout.write('Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id),))
+
+
+def getProvenance(args, syn):
+    activity = syn.getProvenance(args.id)
+
+    if args.output is None or args.output=='STDOUT':
         sys.stdout.write(json.dumps(activity))
         sys.stdout.write('\n')
+    else:
+        with open(args.output, 'w') as f:
+            f.write(json.dumps(activity))
+            f.write('\n')
 
 
 def main():
@@ -196,23 +223,39 @@ def main():
                          help='Description of data object in Synapse.')
     parser_add.add_argument('-type', type=str, default='Data',
                          help='Type of object to create in synapse one of {Project, Folder}')
+    parser_add.add_argument('-used', metavar='TargetID', type=str, nargs='*',
+                         help='ID of a target data entity from which the specified entity is derived')
+    parser_add.add_argument('-executed', metavar='TargetID', type=str, nargs='*',
+                         help='ID of a code entity from which the specified entity is derived')
     parser_add.add_argument('file', type=str,
                          help='file to be added to synapse.')
     parser_add.set_defaults(func=upload)
 
 
-    parser_provenance = subparsers.add_parser('provenance', help='show and modify provenance records')
-    parser_provenance.add_argument('-id', metavar='syn123', type=str, required=True,
+    parser_set_provenance = subparsers.add_parser('set-provenance', help='create provenance records')
+    parser_set_provenance.add_argument('-id', metavar='syn123', type=str, required=True,
                          help='Synapse ID of entity whose provenance we are accessing.')
-    parser_provenance.add_argument('-name', metavar='NAME', type=str, required=False,
+    parser_set_provenance.add_argument('-name', metavar='NAME', type=str, required=False,
                          help='Name of the activity that generated the entity')
-    parser_provenance.add_argument('-description', metavar='DESCRIPTION', type=str, required=False, 
+    parser_set_provenance.add_argument('-description', metavar='DESCRIPTION', type=str, required=False, 
                          help='Description of the activity that generated the entity')
-    parser_provenance.add_argument('-used', metavar='TargetID', type=str, nargs='*',
+    parser_set_provenance.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+                         const='STDOUT', nargs='?', type=str,
+                         help='Output the provenance record in JSON format')
+    parser_set_provenance.add_argument('-used', metavar='TargetID', type=str, nargs='*',
                          help='ID of a target data entity from which the specified entity is derived')
-    parser_provenance.add_argument('-executed', metavar='TargetID', type=str, nargs='*',
+    parser_set_provenance.add_argument('-executed', metavar='TargetID', type=str, nargs='*',
                          help='ID of a code entity from which the specified entity is derived')
-    parser_provenance.set_defaults(func=provenance)
+    parser_set_provenance.set_defaults(func=setProvenance)
+
+
+    parser_get_provenance = subparsers.add_parser('get-provenance', help='show provenance records')
+    parser_get_provenance.add_argument('-id', metavar='syn123', type=str, required=True,
+                         help='Synapse ID of entity whose provenance we are accessing.')
+    parser_get_provenance.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+                         const='STDOUT', nargs='?', type=str,
+                         help='Output the provenance record in JSON format')
+    parser_get_provenance.set_defaults(func=getProvenance)
 
 
     parser_create = subparsers.add_parser('create', help='Creates folders or projects on Synapse')
@@ -257,8 +300,6 @@ def main():
     #Perform the requested action
     if 'func' in args:
         args.func(args, syn)
-
-    # #print qry
 
 
 ## call main method if this file is run as a script

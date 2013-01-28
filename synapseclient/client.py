@@ -686,3 +686,6 @@ class Activity(dict):
     def used(self, targetId, targetVersion=None, wasExecuted=False):
         self.setdefault('used', []).append(makeUsed(targetId, targetVersion=targetVersion, wasExecuted=wasExecuted))
 
+    def executed(self, targetId, targetVersion=None):
+        self.setdefault('used', []).append(makeUsed(targetId, targetVersion=targetVersion, wasExecuted=True))
+
