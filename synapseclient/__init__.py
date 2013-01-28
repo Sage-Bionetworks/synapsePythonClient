@@ -1,2 +1,2 @@
-from client import Synapse, __version__
+from client import Synapse, Activity, makeUsed, __version__
 
