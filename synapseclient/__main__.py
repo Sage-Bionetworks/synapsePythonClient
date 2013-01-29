@@ -86,21 +86,9 @@ def upload(args, syn):
             'parentId': args.parentid, 
             'description':args.description, 
             'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
-    entity = syn.createEntity(entity)
+    entity = syn.createEntity(entity, args.used, args.executed)
     entity = syn.uploadFile(entity, args.file)
     sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file))
-
-    ## set provenance, if -used or -executed given
-    if args.used or args.executed:
-        activity = Activity()
-        if args.used:
-            for item in args.used:
-                activity.used(item)
-        if args.executed:
-            for item in args.executed:
-                activity.used(item, wasExecuted=True)
-        activity = syn.setProvenance(entity['id'], activity)
-
     return(entity)
 
 
