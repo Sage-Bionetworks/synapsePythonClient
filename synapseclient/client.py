@@ -284,11 +284,24 @@ class Synapse:
         return storedEntity
 
 
-    def createEntity(self, entity):
+    def createEntity(self, entity, used=None, executed=None):
         """Create a new entity in the synapse Repository according to entity json object"""
         endpoint=self.repoEndpoint
         uri = endpoint["prefix"] + '/entity'
-        return self._createUniversalEntity(uri, entity, endpoint)
+        entity = self._createUniversalEntity(uri, entity, endpoint)
+
+        ## set provenance, if used or executed given
+        if used or executed:
+            activity = Activity()
+            if used:
+                for item in used:
+                    activity.used(item)
+            if executed:
+                for item in executed:
+                    activity.used(item, wasExecuted=True)
+            activity = self.setProvenance(entity['id'], activity)
+        return entity
+
         
         
     def updateEntity(self, entity):

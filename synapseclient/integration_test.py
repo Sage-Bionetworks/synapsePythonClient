@@ -125,6 +125,10 @@ class TestClient:
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
 
+        #Create entity with provenance record
+        self.syn.deleteEntity(returnEntity['id'])
+        entity = self.syn.createEntity(DATA_JSON, used='syn123')
+
 
     def test_updateEntity(self):
         entity = self.createProject()
@@ -176,14 +180,15 @@ class TestClient:
         entity = self.syn.createEntity(DATA_JSON)       
 
         #create a temporary file
-        (fd, fname) = tempfile.mkstemp()
+        (fp, fname) = tempfile.mkstemp()
+        with open(fname, 'w') as f:
+            f.write('foo\n')
         self.syn.uploadFile(entity, fname)
 
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
         assert entity['files'][0]==os.path.split(fname)[-1]
-
-        # TODO clean up temp file and really compare file content
+        os.remove(fname)
 
 
     def test_downloadFile(self):
