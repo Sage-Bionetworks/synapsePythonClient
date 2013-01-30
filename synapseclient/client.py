@@ -12,11 +12,11 @@ import requests
 import os.path
 import mimetypes
 import stat
-from version_check import version_check
 import pkg_resources
-from copy import deepcopy
-
 import utils
+from version_check import version_check
+from copy import deepcopy
+from annotations import Annotations
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
@@ -155,6 +155,32 @@ class Synapse:
         if self.debug:  print response.text
 
         return response.json()
+
+
+    def getAnnotations(self, entity):
+
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+        url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
+
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        
+        return Annotations.fromSynapseAnnotations(response.json())
+
+
+    def setAnnotations(self, entity, annotations):
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+        url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
+
+        a = annotations.toSynapseAnnotations()
+        a['id'] = entity_id
+        if 'etag' in entity and 'etag' not in a:
+            a['etag'] = entity['etag']
+
+        response = requests.put(url, data=json.dumps(a), headers=self.headers)
+        response.raise_for_status()
+        
+        return Annotations.fromSynapseAnnotations(response.json())
 
 
     def downloadEntity(self, entity):
@@ -549,4 +575,3 @@ class Activity(dict):
 
     def executed(self, targetId, targetVersion=None):
         self.setdefault('used', []).append(makeUsed(targetId, targetVersion=targetVersion, wasExecuted=True))
-

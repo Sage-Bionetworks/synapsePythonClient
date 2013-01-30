@@ -10,6 +10,7 @@ from nose.tools import *
 import tempfile
 import os
 import ConfigParser
+from datetime import datetime
 
 
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
@@ -288,6 +289,37 @@ class TestClient:
         ## should be gone now
         deleted_activity = self.syn.getProvenance(data_entity['id'])
         assert deleted_activity is None
+
+
+    def test_annotations(self):
+        ## create a new project
+        project = self.createProject()
+
+        DATA_JSON['parentId']= project['id']
+        entity = self.syn.createEntity(DATA_JSON)
+
+        a = self.syn.getAnnotations(entity)
+        assert 'etag' in a
+
+        a['bogosity'] = 'total'
+        self.syn.setAnnotations(entity, a)
+
+        a2 = self.syn.getAnnotations(entity)
+        assert a2['bogosity'] == ['total']
+
+        a2['primes'] = [2,3,5,7,11,13,17,19,23,29]
+        a2['phat_numbers'] = [1234.5678, 8888.3333, 1212.3434, 6677.8899]
+        a2['goobers'] = ['chris', 'jen', 'jane']
+        a2['present_time'] = datetime.now()
+
+        self.syn.setAnnotations(entity, a2)
+        a3 = self.syn.getAnnotations(entity)
+        assert a3['primes'] == [2,3,5,7,11,13,17,19,23,29]
+        assert a3['phat_numbers'] == [1234.5678, 8888.3333, 1212.3434, 6677.8899]
+        assert a3['goobers'] == ['chris', 'jen', 'jane']
+        ## only accurate to within a second 'cause synapse strips off the fractional part
+        assert a3['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == a2['present_time'].strftime('%Y-%m-%d %H:%M:%S')
+
 
 
 if __name__ == '__main__':
