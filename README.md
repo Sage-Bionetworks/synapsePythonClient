@@ -72,13 +72,20 @@ The synapse client can be used to write software that interacts with the Sage Sy
 
     e = s.getEntity('syn1528299')
 
-    print(e['name'])
-    print(e['description'])
-    print(e['files'])
+    print e['name']
+    print e['description']
+    print e['files']
 
-    ## assuming the file is a short text file, read it as a list of lines
-    with open(e['files'][0]) as f:
-  		lines = f.readlines()
+
+### querying for entities that are part of the [Synapse Commons Repository](https://synapse.sagebase.org/Portal.html#Synapse:syn150935)
+
+    syn.query('select id, name from entity where parentId=="syn150935"')
+
+
+### querying for entities that are part of the [TCGA](https://synapse.sagebase.org/Portal.html#Synapse:syn300013) that are also RNA-Seq data
+    syn.query('select id, name from entity where freeze=="tcga_pancancer_v4" and platform=="IlluminaHiSeq_RNASeqV2"')
+
+
 
 
 Authentication
