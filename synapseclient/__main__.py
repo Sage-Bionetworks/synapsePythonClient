@@ -4,7 +4,6 @@ import shutil
 import sys
 import synapseclient
 from synapseclient import Activity
-import webbrowser
 import version_check
 import signal
 import json
@@ -124,7 +123,7 @@ def onweb(args, syn):
     Arguments:
     - `args`:
     """
-    webbrowser.open("https://synapse.sagebase.org/#Synapse:%s" %args.id)
+    syn.onweb(args.id)
 
 
 def setProvenance(args, syn):
