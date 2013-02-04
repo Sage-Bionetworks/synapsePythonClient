@@ -13,6 +13,8 @@ import os.path
 import mimetypes
 import stat
 import pkg_resources
+import webbrowser
+
 import utils
 from version_check import version_check
 from copy import deepcopy
@@ -129,6 +131,16 @@ class Synapse:
         os.chmod(session_file, stat.S_IRUSR | stat.S_IWUSR)
         self.headers['request_profile'] = orig_request_profile
 
+
+
+    def onweb(self, entity):
+        """Opens up a webbrowser window on the entity page.
+        
+        Arguments:
+        - `entity`: Either an entity or a synapse id
+        """
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+        webbrowser.open("https://synapse.sagebase.org/#Synapse:%s" %entity_id)
 
 
     def getEntity(self, entity):
