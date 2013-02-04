@@ -157,7 +157,7 @@ class Synapse:
         return response.json()
 
 
-    def getAnnotations(self, entity):
+    def _getAnnotations(self, entity):
 
         entity_id = entity['id'] if 'id' in entity else str(entity)
         url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
@@ -168,7 +168,7 @@ class Synapse:
         return Annotations.fromSynapseAnnotations(response.json())
 
 
-    def setAnnotations(self, entity, annotations):
+    def _setAnnotations(self, entity, annotations):
         entity_id = entity['id'] if 'id' in entity else str(entity)
         url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
 
