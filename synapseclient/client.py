@@ -473,6 +473,29 @@ class Synapse:
         return self.updateEntity(entity)
 
 
+    def getUserProfile(self, ownerId=None):
+        url = '%s/userProfile/%s' % (self.repoEndpoint, '' if ownerId is None else str(ownerId),)
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _getACL(self, entity):
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+        
+        ## get benefactor. (An entity gets its ACL from its benefactor.)
+        url = '%s/entity/%s/benefactor' % (self.repoEndpoint, entity_id,)
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        benefactor = response.json()
+
+        ## get the ACL from the benefactor (which may be the entity itself)
+        url = '%s/entity/%s/acl' % (self.repoEndpoint, benefactor['id'],)        
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+
     def getProvenance(self, entity, versionNumber=None):
         """Retrieve provenance information for a synapse entity. Entity may be
         either an Entity object or a string holding a Synapse ID. Returns
