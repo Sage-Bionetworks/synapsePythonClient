@@ -9,6 +9,8 @@ import ConfigParser
 from nose.tools import *
 import tempfile
 import os
+import ConfigParser
+from datetime import datetime
 
 
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
@@ -48,18 +50,6 @@ class TestClient:
         self.toRemove.append(entity)
         return entity
 
-    def test__connect(self):
-        import httplib
-        #Test https protocol
-        self.syn.repoEndpoint['protocol']='https'
-        conn = self.syn._connect(self.syn.repoEndpoint)
-        assert isinstance(conn, httplib.HTTPSConnection)
-
-        #Test http protocol
-        self.syn.repoEndpoint['protocol']='http'
-        conn = self.syn._connect(self.syn.repoEndpoint)
-        assert isinstance(conn, httplib.HTTPConnection)
-
 
     def test_printEntity(self):
         self.syn.printEntity({'hello':'world', 'alist':[1,2,3,4]}) 
@@ -74,7 +64,6 @@ class TestClient:
         self.syn.login()
 
         #Test that it works with username and password
-        import ConfigParser
         config = ConfigParser.ConfigParser()
         config.read(client.CONFIG_FILE)
         self.syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
@@ -88,7 +77,6 @@ class TestClient:
         os.remove(os.path.join(client.CACHE_DIR, '.session'))
         assert_raises(Exception, self.syn.login)
 
-        
 
     def test_getEntity(self):
         #Create a new project
@@ -100,9 +88,6 @@ class TestClient:
         #Get entity by id
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
-
-        #Check that I can get annotations
-        print self.syn.getEntity(returnEntity['annotations'])
 
 
     def test_loadEntity(self):
@@ -304,6 +289,37 @@ class TestClient:
         ## should be gone now
         deleted_activity = self.syn.getProvenance(data_entity['id'])
         assert deleted_activity is None
+
+
+    def test_annotations(self):
+        ## create a new project
+        project = self.createProject()
+
+        DATA_JSON['parentId']= project['id']
+        entity = self.syn.createEntity(DATA_JSON)
+
+        a = self.syn._getAnnotations(entity)
+        assert 'etag' in a
+
+        a['bogosity'] = 'total'
+        self.syn._setAnnotations(entity, a)
+
+        a2 = self.syn._getAnnotations(entity)
+        assert a2['bogosity'] == ['total']
+
+        a2['primes'] = [2,3,5,7,11,13,17,19,23,29]
+        a2['phat_numbers'] = [1234.5678, 8888.3333, 1212.3434, 6677.8899]
+        a2['goobers'] = ['chris', 'jen', 'jane']
+        a2['present_time'] = datetime.now()
+
+        self.syn._setAnnotations(entity, a2)
+        a3 = self.syn._getAnnotations(entity)
+        assert a3['primes'] == [2,3,5,7,11,13,17,19,23,29]
+        assert a3['phat_numbers'] == [1234.5678, 8888.3333, 1212.3434, 6677.8899]
+        assert a3['goobers'] == ['chris', 'jen', 'jane']
+        ## only accurate to within a second 'cause synapse strips off the fractional part
+        assert a3['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == a2['present_time'].strftime('%Y-%m-%d %H:%M:%S')
+
 
 
 if __name__ == '__main__':

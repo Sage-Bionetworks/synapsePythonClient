@@ -17,6 +17,9 @@ import webbrowser
 
 from version_check import version_check
 import utils
+from version_check import version_check
+from copy import deepcopy
+from annotations import Annotations
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
@@ -60,42 +63,12 @@ class Synapse:
         self.debug = debug
         self.sessionToken = None
 
-        self.repoEndpoint = {}
-        self.authEndpoint = {}
-
-        parseResult = urlparse.urlparse(repoEndpoint)
-        self.repoEndpoint["location"] = parseResult.netloc
-        self.repoEndpoint["prefix"] = parseResult.path
-        self.repoEndpoint["protocol"] = parseResult.scheme
-        
-        parseResult = urlparse.urlparse(authEndpoint)
-        self.authEndpoint["location"] = parseResult.netloc
-        self.authEndpoint["prefix"] = parseResult.path
-        self.authEndpoint["protocol"] = parseResult.scheme
-
-
-    def _connect(self, endpoint):
-        """Creates a http connection to the desired endpoint
-
-        Arguments:
-        - `endpoint`: dictionary of endpoint details, like self.repoEndpoint
-        Returns:
-        - `conn`: Either a httplib.HTTPConnection or httplib.HTTPSConnection
-        """
-        conn = {}
-        if('https' == endpoint["protocol"]):
-            conn = httplib.HTTPSConnection(endpoint["location"],
-                                           timeout=self.serviceTimeoutSeconds)
-        else:
-            conn = httplib.HTTPConnection(endpoint["location"],
-                                          timeout=self.serviceTimeoutSeconds)
-        if (self.debug):
-            conn.set_debuglevel(10);
-        return conn
+        self.repoEndpoint = repoEndpoint
+        self.authEndpoint = authEndpoint
 
 
     def _storeTimingProfile(self, resp):
-        """Stores timint information for the last call if request_profile was set."""
+        """Stores timing information for the last call if request_profile was set."""
         if self.headers.get('request_profile', 'False')=='True':
             profile_data = None
             for k,v in resp.getheaders():
@@ -122,7 +95,6 @@ class Synapse:
 
         session_file = os.path.join(self.cacheDir, ".session")
 
-
         if (email==None or password==None): #Try to use config then session token
             try:
                 import ConfigParser
@@ -144,11 +116,14 @@ class Synapse:
         # Disable profiling during login and proceed with authentication
         self.headers['request_profile'], orig_request_profile='False', self.headers['request_profile']
 
-        uri = self.authEndpoint["prefix"] + "/session"
+        url = self.authEndpoint + "/session"
         req = {"email":email, "password":password}
-        
-        storedEntity = self._createUniversalEntity(uri, req, self.authEndpoint)
-        self.sessionToken = storedEntity["sessionToken"]
+
+        response = requests.post(url, data=json.dumps(req), headers=self.headers)
+        response.raise_for_status()
+
+        session = response.json()
+        self.sessionToken = session["sessionToken"]
         self.headers["sessionToken"] = self.sessionToken
 
         ## cache session token
@@ -169,45 +144,56 @@ class Synapse:
         webbrowser.open("https://synapse.sagebase.org/#Synapse:%s" %entity_id)
 
 
-    def getEntity(self, entity, endpoint=None):
+    def getEntity(self, entity):
         """Retrieves metainformation about an entity from a synapse Repository
         Arguments:
         - `entity`: A synapse ID of entity (i.e dictionary describing an entity)
         Returns:
-        - A dictionary representing an entitity
+        - A dictionary representing an entity
         """
         #process input arguments
-        if endpoint == None:
-            endpoint = self.repoEndpoint
         if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
             raise Exception("invalid parameters")
         if isinstance(entity, dict):
             entity = entity['id']
 
-        if not (endpoint['prefix'] in entity):
-            uri = endpoint["prefix"] + '/entity/' + entity
-        else:
-            uri=entity
-        conn = self._connect(endpoint)
+        url = self.repoEndpoint + '/entity/' + entity
 
-        if(self.debug):  print 'About to get %s' % (uri)
+        if (self.debug):  print 'About to get %s' % (url)
 
-        entity = None
-        try:
-            headers = self.headers
-            conn.request('GET', uri, None, headers)
-            resp = conn.getresponse()
-            self._storeTimingProfile(resp)
-            output = resp.read()
-            if resp.status == 200:
-                if self.debug:
-                    print output
-                entity = json.loads(output)
-            else:
-                raise Exception('GET %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
-        finally:
-            conn.close()
-        return entity
+        response = requests.get(url, headers=self.headers)
+        self._storeTimingProfile(response)
+        response.raise_for_status()
+
+        if self.debug:  print response.text
+
+        return response.json()
+
+
+    def _getAnnotations(self, entity):
+
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+        url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
+
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        
+        return Annotations.fromSynapseAnnotations(response.json())
+
+
+    def _setAnnotations(self, entity, annotations):
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+        url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
+
+        a = annotations.toSynapseAnnotations()
+        a['id'] = entity_id
+        if 'etag' in entity and 'etag' not in a:
+            a['etag'] = entity['etag']
+
+        response = requests.put(url, data=json.dumps(a), headers=self.headers)
+        response.raise_for_status()
+        
+        return Annotations.fromSynapseAnnotations(response.json())
 
 
     def downloadEntity(self, entity):
@@ -218,7 +204,7 @@ class Synapse:
         Arguments:
         - `entity`: A synapse ID of entity (i.e dictionary describing an entity)
         Returns:
-        - A dictionary representing an entitity
+        - A dictionary representing an entity
         """
         entity = self.getEntity(entity)
         if not entity.has_key('locations'):
@@ -228,7 +214,7 @@ class Synapse:
         parseResult = urlparse.urlparse(url)
         pathComponents = string.split(parseResult.path, '/')
 
-        filename = os.path.join(self.cacheDir,entity['id'] ,pathComponents[-1])
+        filename = os.path.join(self.cacheDir, entity['id'] ,pathComponents[-1])
         if os.path.exists(filename):
             #print filename, "cached"
             md5 = utils.computeMd5ForFile(filename)
@@ -252,6 +238,7 @@ class Synapse:
             entity['files'] = [os.path.basename(filename)]
         return entity
 
+
     def loadEntity(self, entity):
         """Downloads and attempts to load the contents of an entity into memory
         TODO: Currently only performs downlaod.
@@ -264,42 +251,14 @@ class Synapse:
         return self.downloadEntity(entity)
 
 
-    def _createUniversalEntity(self, uri, entity, endpoint):
-        """Creates an entity on either auth or repo"""
-
-        if(None == uri or None == entity or None == endpoint
-           or not (isinstance(entity, dict)
-                   and (isinstance(uri, str) or isinstance(uri, unicode)))):
-            raise Exception("invalid parameters")
- 
-        conn = self._connect(endpoint)
-
-        if(self.debug): print 'About to create %s with %s' % (uri, json.dumps(entity))
-
-        storedEntity = None
-        
-        try:
-            headers = self.headers
-            conn.request('POST', uri, json.dumps(entity), headers)
-            resp = conn.getresponse()
-            self._storeTimingProfile(resp)
-            output = resp.read()
-            if resp.status == 201:
-                if self.debug:
-                    print output
-                storedEntity = json.loads(output)
-            else:
-                raise Exception('POST %s failed: %d %s %s %s' % (uri, resp.status, resp.reason, json.dumps(entity), output), resp.status, resp.reason)
-        finally:
-            conn.close()
-        return storedEntity
-
-
     def createEntity(self, entity, used=None, executed=None):
         """Create a new entity in the synapse Repository according to entity json object"""
-        endpoint=self.repoEndpoint
-        uri = endpoint["prefix"] + '/entity'
-        entity = self._createUniversalEntity(uri, entity, endpoint)
+
+        url = self.repoEndpoint + '/entity'
+        response = requests.post(url, data=json.dumps(entity), headers=self.headers)
+        response.raise_for_status()
+
+        entity = response.json()
 
         ## set provenance, if used or executed given
         if used or executed:
@@ -312,21 +271,44 @@ class Synapse:
                     activity.used(item, wasExecuted=True)
             activity = self.setProvenance(entity['id'], activity)
         return entity
-
         
         
     def updateEntity(self, entity):
         """
         Update an entity stored in synapse with the properties in entity
-
-        This convenience method first grabs a copy of the currently
-        stored entity, then overwrites fields from the entity passed
-        in on top of the stored entity we retrieved and then PUTs the
-        entity. This essentially does a partial update from the point
-        of view of the user of this API.
-        
         """
-        return self.putEntity(self.repoEndpoint, entity['uri'], entity)
+
+        if not entity:
+            raise Exception("entity cannot be empty")
+
+        if 'id' not in entity:
+            raise Exception("A entity without an 'id' can't be updated")
+
+        url = '%s/entity/%s' % (self.repoEndpoint, entity['id'],)
+
+        if(self.debug): print 'About to update %s with %s' % (url, json.dumps(entity))
+
+        headers = deepcopy(self.headers)
+        if "etag" in entity:
+            headers['ETag'] = entity['etag']
+
+        response = requests.put(url, data=json.dumps(entity), headers=self.headers)
+        response.raise_for_status()
+
+        return response.json()
+
+
+    def deleteEntity(self, entity):
+        """Deletes a synapse entity"""
+        
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+
+        url = '%s/entity/%s' % (self.repoEndpoint, entity_id,)
+
+        if (self.debug): print 'About to delete %s' % (url)
+
+        response = requests.delete(url, headers=self.headers)
+        response.raise_for_status()
 
 
     def query(self, queryStr):
@@ -336,101 +318,14 @@ class Synapse:
         Example:
         query("select id, name from entity where entity.parentId=='syn449742'")
         '''
-        uri = self.repoEndpoint["prefix"] + '/query?query=' + urllib.quote(queryStr)
-        conn = self._connect(self.repoEndpoint)
+        url = self.repoEndpoint + '/query?query=' + urllib.quote(queryStr)
 
         if(self.debug): print 'About to query %s' % (queryStr)
 
-        results = None
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
 
-        try:
-            headers = self.headers
-            conn.request('GET', uri, None, headers)
-            resp = conn.getresponse()
-            self._storeTimingProfile(resp)
-            output = resp.read()
-            if resp.status == 200:
-                if self.debug:
-                    print output
-                results = json.loads(output)
-            else:
-                raise Exception('Query %s failed: %d %s %s' % (queryStr, resp.status, resp.reason, output))
-        finally:
-            conn.close()
-        return results
-
-
-    def deleteEntity(self, entity, endpoint=None):
-        """Deletes an entity (dataset, layer, user, ...) on either service"""
-        if endpoint == None:
-            endpoint = self.repoEndpoint
-
-        if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
-            raise Exception("invalid parameters")
-        if isinstance(entity, dict):
-            entity = entity['id']
-
-        if not (endpoint['prefix'] in entity):
-            uri = endpoint["prefix"] + '/entity/' + entity
-        else:
-            uri=entity
-        conn = self._connect(endpoint)
-
-        if (self.debug): print 'About to delete %s' % (uri)
-
-
-        try:
-            headers = self.headers
-            conn.request('DELETE', uri, None, headers)
-            resp = conn.getresponse()
-            self._storeTimingProfile(resp)
-            output = resp.read()
-            if resp.status != 204:
-                raise Exception('DELETE %s failed: %d %s %s' % (uri, resp.status, resp.reason, output))
-            elif self.debug:
-                print output
-
-            return None;
-        finally:
-            conn.close()
-
-
-    def putEntity(self, endpoint, uri, entity):
-        '''
-        Update an entity on given endpoint
-        '''
-        if(None == uri or None == entity or None == endpoint
-           or not (isinstance(entity, dict)
-                   and (isinstance(uri, str) or isinstance(uri, unicode)))):
-            raise Exception("invalid parameters")
-        if(0 != string.find(uri, endpoint["prefix"])):
-                uri = endpoint["prefix"] + uri  
-
-        conn = self._connect(endpoint)
-
-        if(self.debug): print 'About to update %s with %s' % (uri, json.dumps(entity))
-
-        putHeaders = self.headers
-        if "etag" in entity:
-            putHeaders['ETag'] = entity['etag']
-
-        storedEntity = None
-
-        try:
-            conn.request('PUT', uri, json.dumps(entity), putHeaders)
-            resp = conn.getresponse()
-            self._storeTimingProfile(resp)
-            output = resp.read()
-            # Handle both 200 and 204 as auth returns 204 for success
-            if resp.status == 200 or resp.status == 204:
-                if self.debug:
-                    print output
-                storedEntity = json.loads(output)
-            else:
-                raise Exception('PUT %s failed: %d %s %s %s' % (uri, resp.status, resp.reason, json.dumps(entity), output))
-        finally:
-            conn.close()
-        return storedEntity
+        return response.json()
 
 
     def _traverseTree(self, id, name=None, version=None):
@@ -505,7 +400,7 @@ class Synapse:
                            "parentId": id})
 
 
-    def uploadFile(self, entity, filename, endpoint=None):
+    def uploadFile(self, entity, filename):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
         
         Arguments:
@@ -518,8 +413,6 @@ class Synapse:
            raise Exception('invalid entity parameter')
         if isinstance(entity, basestring):
             entity = self.getEntity(entity)
-        if endpoint == None:
-            endpoint = self.repoEndpoint
 
         # compute hash of file to be uploaded
         md5 = utils.computeMd5ForFile(filename)
@@ -534,10 +427,8 @@ class Synapse:
                     'Content-Type': 'application/json',
                     'Accept': 'application/json' }
 
-        url = '%s://%s%s/entity/%s/s3Token' % (
-            self.repoEndpoint['protocol'],
-            self.repoEndpoint['location'],
-            self.repoEndpoint['prefix'],
+        url = '%s/entity/%s/s3Token' % (
+            self.repoEndpoint,
             entity['id'])
 
         (_, base_filename) = os.path.split(filename)
@@ -562,7 +453,7 @@ class Synapse:
         }]
         entity['md5'] = md5.hexdigest()
 
-        return self.putEntity(self.repoEndpoint, entity['uri'], entity)
+        return self.updateEntity(entity)
 
 
     def getProvenance(self, entity, versionNumber=None):
@@ -584,17 +475,13 @@ class Synapse:
             versionNumber = entity['versionNumber']
 
         if versionNumber:
-            url = '%s://%s%s/entity/%s/version/%d/generatedBy' % (
-                self.repoEndpoint['protocol'],
-                self.repoEndpoint['location'],
-                self.repoEndpoint['prefix'],
+            url = '%s/entity/%s/version/%d/generatedBy' % (
+                self.repoEndpoint,
                 entity_id,
                 versionNumber)
         else:
-            url = '%s://%s%s/entity/%s/generatedBy' % (
-                self.repoEndpoint['protocol'],
-                self.repoEndpoint['location'],
-                self.repoEndpoint['prefix'],
+            url = '%s/entity/%s/generatedBy' % (
+                self.repoEndpoint,
                 entity_id)
 
         response = requests.get(url, headers=self.headers)
@@ -609,10 +496,7 @@ class Synapse:
 
         if 'id' not in activity:
             # create the activity: post to <endpoint>/activity
-            url = '%s://%s%s/activity' % (
-                self.repoEndpoint['protocol'],
-                self.repoEndpoint['location'],
-                self.repoEndpoint['prefix'])
+            url = '%s/activity' % (self.repoEndpoint)
 
             response = requests.post(url, data=json.dumps(activity), headers=self.headers)
             response.raise_for_status()
@@ -624,10 +508,8 @@ class Synapse:
 
         # assert that an entity is generated by an activity
         # put to <endpoint>/entity/{id}/generatedBy?generatedBy={activityId}
-        url = '%s://%s%s/entity/%s/generatedBy?generatedBy=%s' % (
-            self.repoEndpoint['protocol'],
-            self.repoEndpoint['location'],
-            self.repoEndpoint['prefix'],
+        url = '%s/entity/%s/generatedBy?generatedBy=%s' % (
+            self.repoEndpoint,
             entity_id,
             activity['id'])
 
@@ -647,20 +529,16 @@ class Synapse:
         entity_id = entity['id'] if 'id' in entity else str(entity)
 
         # delete /entity/{id}/generatedBy
-        url = '%s://%s%s/entity/%s/generatedBy' % (
-            self.repoEndpoint['protocol'],
-            self.repoEndpoint['location'],
-            self.repoEndpoint['prefix'],
+        url = '%s/entity/%s/generatedBy' % (
+            self.repoEndpoint,
             entity_id)
 
         response = requests.delete(url, headers=self.headers)
         response.raise_for_status()
 
         # delete /activity/{activityId}
-        url = '%s://%s%s/activity/%s' % (
-            self.repoEndpoint['protocol'],
-            self.repoEndpoint['location'],
-            self.repoEndpoint['prefix'],
+        url = '%s/activity/%s' % (
+            self.repoEndpoint,
             activity['id'])
 
         response = requests.delete(url, headers=self.headers)
@@ -671,10 +549,8 @@ class Synapse:
 
     def updateActivity(self, activity):
         # put /activity/{activityId}
-        url = '%s://%s%s/activity/%s' % (
-            self.repoEndpoint['protocol'],
-            self.repoEndpoint['location'],
-            self.repoEndpoint['prefix'],
+        url = '%s/activity/%s' % (
+            self.repoEndpoint,
             activity['id'])
 
         response = requests.put(url, data=json.dumps(activity), headers=self.headers)
@@ -712,4 +588,3 @@ class Activity(dict):
 
     def executed(self, targetId, targetVersion=None):
         self.setdefault('used', []).append(makeUsed(targetId, targetVersion=targetVersion, wasExecuted=True))
-
