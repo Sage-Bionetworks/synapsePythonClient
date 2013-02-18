@@ -265,15 +265,17 @@ class Synapse:
             activity = Activity()
             if used:
                 for item in used:
-                    activity.used(item)
+                    activity.used(item['id'] if 'id' in item else str(item))
             if executed:
                 for item in executed:
-                    activity.used(item, wasExecuted=True)
+                    activity.used(item['id'] if 'id' in item else str(item), wasExecuted=True)
             activity = self.setProvenance(entity['id'], activity)
+            entity = self.getEntity(entity)
+        #I need to update the entity
         return entity
         
         
-    def updateEntity(self, entity):
+    def updateEntity(self, entity, used=None, executed=None):
         """
         Update an entity stored in synapse with the properties in entity
         """
@@ -294,8 +296,18 @@ class Synapse:
 
         response = requests.put(url, data=json.dumps(entity), headers=self.headers)
         response.raise_for_status()
-
-        return response.json()
+        entity = response.json()
+        if used or executed:
+            activity = Activity()
+            if used:
+                for item in used:
+                    activity.used(item['id'] if 'id' in item else str(item))
+            if executed:
+                for item in executed:
+                    activity.used(item['id'] if 'id' in item else str(item), wasExecuted=True)
+            activity = self.setProvenance(entity['id'], activity)
+            entity = self.getEntity(entity)
+        return entity
 
 
     def deleteEntity(self, entity):
