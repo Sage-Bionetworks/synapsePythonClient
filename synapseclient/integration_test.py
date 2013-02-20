@@ -9,6 +9,7 @@ import ConfigParser
 from nose.tools import *
 import tempfile
 import os
+import sys
 import ConfigParser
 from datetime import datetime
 
@@ -24,14 +25,32 @@ class TestClient:
     """
 
     def __init__(self, repoEndpoint='https://repo-prod.prod.sagebase.org/repo/v1',
-                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1'):
+                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1',
+                 fileHandleEndpoint='https://file-prod.prod.sagebase.org/file/v1'):
         """
         Arguments:
         - `repoEndpoint`:
         """
-        self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, debug=False)
+
+        ## if testing endpoints are set in the config file, use them
+        ## this was created 'cause nosetests doesn't have a good means of
+        ## passing parameters to the tests
+        if os.path.exists(client.CONFIG_FILE):
+            try:
+                import ConfigParser
+                config = ConfigParser.ConfigParser()
+                config.read(client.CONFIG_FILE)
+                repoEndpoint=config.get('testEndpoints', 'repo')
+                authEndpoint=config.get('testEndpoints', 'auth')
+                fileHandleEndpoint=config.get('testEndpoints', 'file')
+            except Exception as e:
+                print e
+                pass
+
+        self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, fileHandleEndpoint=fileHandleEndpoint, debug=False)
         self.syn.login() #Assumes that a configuration file exists in the home directory with login information
         self.toRemove=[]
+
 
     def setUp(self):
         self.toRemove=[]
@@ -94,9 +113,6 @@ class TestClient:
         #loadEntity does the same thing as downloadEntity so nothing new to test
         pass
 
-    def test__createUniveralEntity(self):
-        #Tested by testing of login and createEntity
-        pass
 
     def test_createEntity(self):
         #Create a project
@@ -319,6 +335,51 @@ class TestClient:
         assert a3['goobers'] == ['chris', 'jen', 'jane']
         ## only accurate to within a second 'cause synapse strips off the fractional part
         assert a3['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == a2['present_time'].strftime('%Y-%m-%d %H:%M:%S')
+
+
+    def test_fileHandle(self):
+        ## file the setup.py file to upload
+        path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+
+        ## upload a file to the file handle service
+        fileHandleList = self.syn._uploadFileToFileHandleService(path)
+
+        ## extract the first file handle
+        fileHandle = fileHandleList['list'][0]
+
+        fileHandle2 = self.syn._getFileHandle(fileHandle)
+
+        # print fileHandle
+        # print fileHandle2
+        assert fileHandle==fileHandle2
+
+
+    def test_wikiAttachment(self):
+        md = """
+        This is a test wiki
+        =======================
+
+        Blabber jabber blah blah boo.
+        """
+
+        ## create a new project
+        project = self.createProject()
+
+        ## file the setup.py file to upload
+        path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+
+        ## upload a file to the file handle service
+        fileHandleList = self.syn._uploadFileToFileHandleService(path)
+
+        ## extract the first file handle
+        fileHandle = fileHandleList['list'][0]
+
+        wiki = self.syn._createWiki(project, 'A Test Wiki', md, [fileHandle['id']])
+
+        path = self.syn._downloadWikiAttachment(project, wiki, os.path.basename(path), dest_dir='')
+
+        assert os.path.exists(path)
+
 
 
 

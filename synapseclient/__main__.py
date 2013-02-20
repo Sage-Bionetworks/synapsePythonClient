@@ -12,7 +12,7 @@ import json
 def query(args, syn):
     """
     """
-    #TODO: Should use loop over multiple returned values if return is too long 
+    #TODO: Should use loop over multiple returned values if return is too long
     results = syn.query(' '.join(args.queryString))
 
     results = results['results']

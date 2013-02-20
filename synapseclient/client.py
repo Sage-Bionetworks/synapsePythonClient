@@ -11,13 +11,13 @@ import zipfile
 import requests
 import os.path
 import mimetypes
+import shutil
 import stat
 import pkg_resources
 import webbrowser
 
 from version_check import version_check
 import utils
-from version_check import version_check
 from copy import deepcopy
 from annotations import Annotations
 
@@ -32,7 +32,8 @@ class Synapse:
     Python implementation for Synapse repository service client
     """    
     def __init__(self, repoEndpoint='https://repo-prod.prod.sagebase.org/repo/v1', 
-                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1', 
+                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1',
+                 fileHandleEndpoint='https://file-prod.prod.sagebase.org/file/v1/',
                  serviceTimeoutSeconds=30, debug=False):
         '''Constructor of Synapse client
         params:
@@ -65,6 +66,7 @@ class Synapse:
 
         self.repoEndpoint = repoEndpoint
         self.authEndpoint = authEndpoint
+        self.fileHandleEndpoint = fileHandleEndpoint
 
 
     def _storeTimingProfile(self, resp):
@@ -340,6 +342,8 @@ class Synapse:
         if(self.debug): print 'About to query %s' % (queryStr)
 
         response = requests.get(url, headers=self.headers)
+        if response.status_code in range(400,600):
+            raise Exception(response.text)
         response.raise_for_status()
 
         return response.json()
@@ -495,6 +499,13 @@ class Synapse:
         response.raise_for_status()
         return response.json()
 
+    def getPermissions(self, entity, user=None, group=None):
+        """get permissions that a user or group has on an entity"""
+        pass
+
+    def setPermissions(self, entity, user=None, group=None):
+        """set permission that a user or groups has on an entity"""
+        pass
 
     def getProvenance(self, entity, versionNumber=None):
         """Retrieve provenance information for a synapse entity. Entity may be
@@ -597,6 +608,91 @@ class Synapse:
         response.raise_for_status()
 
         return Activity(data=response.json())
+
+
+    def _loggedIn(self):
+        """Test whether the user is logged in to Synapse"""
+        url = '%s/userProfile' % (self.repoEndpoint,)
+        response = requests.get(url, headers=self.headers)
+        if response.status_code==401:
+            ## bad or expired session token
+            return False
+        response.raise_for_status()
+        user = response.json()
+        if 'displayName' in user:
+            if user['displayName']=='Anonymous':
+                ## no session token, not logged in
+                return False
+            return user['displayName']
+        return False
+
+
+    def _uploadFileToFileHandleService(self, filepath):
+        """Upload a file to the new fileHandle service (experimental)"""
+        url = "%s/fileHandle" % (self.fileHandleEndpoint,)
+        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
+        with open(filepath, 'r') as file:
+            response = requests.post(url, files={os.path.basename(filepath): file}, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _getFileHandle(self, fileHandle):
+        """Retrieve a fileHandle from the fileHandle service (experimental)"""
+        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
+        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
+        headers = {'Accept': 'multipart/form-data, application/json', 'sessionToken': self.sessionToken}
+        response = requests.get(url, headers=headers, stream=True)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _createWiki(self, entity, title, markdown, attachmentFileHandleIds):
+        """Create a new wiki page for an Entity (experimental).
+
+        parameters:
+        entity -- the entity with which the new wiki page will be associated
+        markdown -- the contents of the wiki page in markdown
+        attachmentFileHandleIds -- a list of file handles or file handle IDs
+        """
+        url = '%s/entity/%s/wiki' % (self.repoEndpoint, entity['id'],)
+        wiki = {'title':title, 'markdown':markdown, 'attachmentFileHandleIds':attachmentFileHandleIds}
+        response = requests.post(url, data=json.dumps(wiki), headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _downloadWikiAttachment(self, entity, wiki, filename, dest_dir=None):
+        """Download a file attached to a wiki page (experimental)"""
+
+        # TODO can wiki pages exist without being associated with an Entity?
+
+        ## build URL
+        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+        url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, entity_id, wiki_id, filename,)
+
+        ## we expect to be redirected to a signed S3 URL
+        ## TODO how will external URLs be handled?
+        response = requests.get(url, headers=self.headers, allow_redirects=False)
+        if response.status_code in [301,302,303,307,308]:
+          url = response.headers['location']
+          # print url
+          headers = {'sessionToken':self.sessionToken}
+          response = requests.get(url, headers=headers, stream=True)
+          response.raise_for_status()
+
+        ## stream file to disk
+        filename = utils.extract_filename(response.headers['content-disposition'])
+        if dest_dir:
+            filename = os.path.join(dest_dir, filename)
+        with open(filename, "wb") as f:
+          data = response.raw.read(1024)
+          while data:
+            f.write(data)
+            data = response.raw.read(1024)
+
+        return os.path.abspath(filename)
 
 
 

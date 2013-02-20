@@ -2,7 +2,7 @@
 
 # To debug this, python -m pdb myscript.py
 
-import os, urllib, hashlib
+import os, urllib, hashlib, re
 
 def computeMd5ForFile(filename, block_size=2**20):
     '''
@@ -28,3 +28,13 @@ def downloadFile(url, localFilepath=None):
         if not os.path.exists(dir):
             os.makedirs(dir)
     return urllib.urlretrieve (url, localFilepath)
+
+
+# this could be made more robust
+# see: http://tools.ietf.org/html/rfc6266
+# and the python library http://pypi.python.org/pypi/rfc6266
+def extract_filename(content_disposition):
+  match = re.search('filename=([^ ]*)', content_disposition)
+  return match.group(1) if match else 'filename'
+
+
