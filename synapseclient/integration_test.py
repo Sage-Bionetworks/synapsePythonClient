@@ -12,6 +12,8 @@ import os
 import sys
 import ConfigParser
 from datetime import datetime
+import filecmp
+import shutil
 
 
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
@@ -353,6 +355,9 @@ class TestClient:
         # print fileHandle2
         assert fileHandle==fileHandle2
 
+        self.syn._deleteFileHandle(fileHandle)
+
+
 
     def test_wikiAttachment(self):
         md = """
@@ -366,20 +371,36 @@ class TestClient:
         project = self.createProject()
 
         ## file the setup.py file to upload
-        path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+        original_path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
 
         ## upload a file to the file handle service
-        fileHandleList = self.syn._uploadFileToFileHandleService(path)
+        fileHandleList = self.syn._uploadFileToFileHandleService(original_path)
 
         ## extract the first file handle
         fileHandle = fileHandleList['list'][0]
 
         wiki = self.syn._createWiki(project, 'A Test Wiki', md, [fileHandle['id']])
 
-        path = self.syn._downloadWikiAttachment(project, wiki, os.path.basename(path), dest_dir='')
+        ## retrieve the file we just uploaded
+        tmpdir = tempfile.mkdtemp()
+        path = self.syn._downloadWikiAttachment(project, wiki, os.path.basename(original_path), dest_dir=tmpdir)
 
+        ## check and delete it
         assert os.path.exists(path)
+        filecmp.cmp(original_path, path)
+        shutil.rmtree(tmpdir)
 
+        ## try making an update
+        wiki['title'] = 'A New Title'
+        wiki['markdown'] = wiki['markdown'] + "\nNew stuff here!!!\n"
+        wiki = self.syn._updateWiki(project, wiki)
+
+        assert wiki['title'] == 'A New Title'
+        assert wiki['markdown'].endswith("\nNew stuff here!!!\n")
+
+        ## cleanup
+        self.syn._deleteFileHandle(fileHandle)
+        self.syn._deleteWiki(project, wiki)
 
 
 

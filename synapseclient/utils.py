@@ -38,3 +38,20 @@ def extract_filename(content_disposition):
   return match.group(1) if match else 'filename'
 
 
+def guess_object_type(obj):
+    if isinstance(obj, basestring):
+        if obj.startswith('syn'):
+            return 'entity'
+    elif 'entityType' in obj:
+        return 'entity'
+    elif 'contentSource' in obj:
+        return 'evaluation'
+    else:
+        return 'entity'
+
+def id_of(obj):
+    try:
+        obj['id'] if 'id' in obj else str(obj)
+    except:
+        return str(obj)
+

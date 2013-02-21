@@ -647,17 +647,80 @@ class Synapse:
         return response.json()
 
 
-    def _createWiki(self, entity, title, markdown, attachmentFileHandleIds):
+    def _deleteFileHandle(self, fileHandle):
+        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
+        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
+        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
+        response = requests.delete(url, headers=headers, stream=True)
+        response.raise_for_status()
+        return fileHandle
+
+
+    def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None, owner_type=None):
         """Create a new wiki page for an Entity (experimental).
 
         parameters:
-        entity -- the entity with which the new wiki page will be associated
+        owner -- the owner object (entity, competition, evaluation) with which the new wiki page will be associated
         markdown -- the contents of the wiki page in markdown
         attachmentFileHandleIds -- a list of file handles or file handle IDs
         """
-        url = '%s/entity/%s/wiki' % (self.repoEndpoint, entity['id'],)
-        wiki = {'title':title, 'markdown':markdown, 'attachmentFileHandleIds':attachmentFileHandleIds}
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wiki' % (self.repoEndpoint, owner_type, owner_id,)
+        wiki = {'title':title, 'markdown':markdown}
+        if attachmentFileHandleIds:
+            wiki['attachmentFileHandleIds'] = attachmentFileHandleIds
         response = requests.post(url, data=json.dumps(wiki), headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _getWiki(self, owner, wiki, owner_type=None):
+        """Get the specified wiki page"""
+        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, owner_id, wiki_id,)
+        response = requests.get(url, headers=self.headers)
+        if response.status_code==404: return None
+        response.raise_for_status()
+        return response.json()
+
+
+    def _updateWiki(self, owner, wiki, owner_type=None):
+        """Get the specified wiki page"""
+        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, owner_id, wiki_id,)
+        response = requests.put(url, data=json.dumps(wiki), headers=self.headers)
+        if response.status_code==404: return None
+        response.raise_for_status()
+        return response.json()
+
+
+    def _deleteWiki(self, owner, wiki, owner_type=None):
+        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, owner_id, wiki_id,)
+        response = requests.delete(url, headers=self.headers)
+        response.raise_for_status()
+        return wiki
+
+
+    def _getWikiHeaderTree(self, owner, owner_type=None):
+        """Get the tree of wiki pages owned by the given object"""
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wikiheadertree' % (self.repoEndpoint, owner_type, owner_id,)
+        response = requests.get(url, headers=self.headers)
+        if response.status_code==404: return None
         response.raise_for_status()
         return response.json()
 
