@@ -17,7 +17,7 @@ The python synapse client has been tested on python 2.7.
 
 ### Install using pip
 
-The [Python Synapse Client is on PyPI](http://pypi.python.org/pypi/SynapseClient) and can be installed with pip:
+The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclient) and can be installed with pip:
 
     pip install synapseclient
 
