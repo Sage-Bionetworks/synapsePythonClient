@@ -83,7 +83,7 @@ class Synapse:
         print json.dumps(entity, sort_keys=True, indent=2)
 
 
-    def login(self, email=None, password=None):
+    def login(self, email=None, password=None, sessionToken=None):
         """
         Authenticate and get session token by using (in order of preference):
         1) supplied email and password
@@ -95,22 +95,27 @@ class Synapse:
 
         session_file = os.path.join(self.cacheDir, ".session")
 
-        if (email==None or password==None): #Try to use config then session token
-            try:
-                import ConfigParser
-                config = ConfigParser.ConfigParser()
-                config.read(CONFIG_FILE)
-                email=config.get('authentication', 'username')
-                password=config.get('authentication', 'password')
-            except ConfigParser.NoSectionError:  #Authentication not defined in config reverting to session token
-                if os.path.exists(session_file):
-                    with open(session_file) as f:
-                        sessionToken = f.read().strip()
-                    self.sessionToken = sessionToken
-                    self.headers["sessionToken"] = sessionToken
-                    return sessionToken
-                else:
-                    raise Exception("LOGIN FAILED: no username/password, configuration or cached session token available")
+        if (email==None or password==None): 
+            if sessionToken is not None:
+                self.headers["sessionToken"] = sessionToken
+                return sessionToken
+            else:
+                #Try to use config then session token
+                try:
+                    import ConfigParser
+                    config = ConfigParser.ConfigParser()
+                    config.read(CONFIG_FILE)
+                    email=config.get('authentication', 'username')
+                    password=config.get('authentication', 'password')
+                except ConfigParser.NoSectionError:  #Authentication not defined in config reverting to session token
+                    if os.path.exists(session_file):
+                        with open(session_file) as f:
+                            sessionToken = f.read().strip()
+                        self.sessionToken = sessionToken
+                        self.headers["sessionToken"] = sessionToken
+                        return sessionToken
+                    else:
+                        raise Exception("LOGIN FAILED: no username/password, configuration or cached session token available")
 
 
         # Disable profiling during login and proceed with authentication
