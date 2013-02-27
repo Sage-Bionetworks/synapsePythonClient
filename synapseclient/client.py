@@ -418,7 +418,7 @@ class Synapse:
                            "parentId": id})
 
 
-    def uploadFile(self, entity, filename, dst_filename=None):
+    def uploadFile(self, entity, filename, dstFilename=None):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
         
         Arguments:
@@ -449,8 +449,8 @@ class Synapse:
             self.repoEndpoint,
             entity['id'])
         
-        if dst_filename is not None:
-            (_, base_filename) = os.path.split(dst_filename)
+        if dstFilename is not None:
+            (_, base_filename) = os.path.split(dstFilename)
         else:
             (_, base_filename) = os.path.split(filename)
         data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
