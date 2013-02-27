@@ -98,6 +98,7 @@ class Synapse:
         if (email==None or password==None): 
             if sessionToken is not None:
                 self.headers["sessionToken"] = sessionToken
+                self.sessionToken = sessionToken
                 return sessionToken
             else:
                 #Try to use config then session token
@@ -417,7 +418,7 @@ class Synapse:
                            "parentId": id})
 
 
-    def uploadFile(self, entity, filename):
+    def uploadFile(self, entity, filename, dst_filename=None):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
         
         Arguments:
@@ -447,8 +448,11 @@ class Synapse:
         url = '%s/entity/%s/s3Token' % (
             self.repoEndpoint,
             entity['id'])
-
-        (_, base_filename) = os.path.split(filename)
+        
+        if dst_filename is not None:
+            (_, base_filename) = os.path.split(dst_filename)
+        else:
+            (_, base_filename) = os.path.split(filename)
         data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
 
         response = requests.post(url, headers=headers, data=json.dumps(data))
