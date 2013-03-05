@@ -30,7 +30,11 @@ CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 class Synapse:
     """
     Python implementation for Synapse repository service client
-    """    
+    """
+
+    ## set this flag to true to skip version checking on login
+    _skip_version_check = False
+
     def __init__(self, repoEndpoint='https://repo-prod.prod.sagebase.org/repo/v1', 
                  authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1',
                  fileHandleEndpoint='https://file-prod.prod.sagebase.org/file/v1/',
@@ -93,13 +97,14 @@ class Synapse:
         3) Use already existing session token
         """
         ## check version before logging in
-        version_check()
+        if not Synapse._skip_version_check: version_check()
 
         session_file = os.path.join(self.cacheDir, ".session")
 
         if (email==None or password==None): 
             if sessionToken is not None:
                 self.headers["sessionToken"] = sessionToken
+                self.sessionToken = sessionToken
                 return sessionToken
             else:
                 #Try to use config then session token
@@ -109,16 +114,9 @@ class Synapse:
                     config.read(CONFIG_FILE)
                     email=config.get('authentication', 'username')
                     password=config.get('authentication', 'password')
-                except ConfigParser.NoSectionError:  #Authentication not defined in config reverting to session token
-                    if os.path.exists(session_file):
-                        with open(session_file) as f:
-                            sessionToken = f.read().strip()
-                        self.sessionToken = sessionToken
-                        self.headers["sessionToken"] = sessionToken
-                        return sessionToken
-                    else:
-                        raise Exception("LOGIN FAILED: no username/password, configuration or cached session token available")
-
+                except ConfigParser.NoSectionError:
+                    #Authentication not defined in config
+                    raise Exception("LOGIN FAILED: no username/password provided or found in config file (%s)" % (CONFIG_FILE,))
 
         # Disable profiling during login and proceed with authentication
         self.headers['request_profile'], orig_request_profile='False', self.headers['request_profile']
@@ -138,7 +136,6 @@ class Synapse:
             f.write(self.sessionToken)
         os.chmod(session_file, stat.S_IRUSR | stat.S_IWUSR)
         self.headers['request_profile'] = orig_request_profile
-
 
 
     def onweb(self, entity):

@@ -50,6 +50,7 @@ class TestClient:
                 print e
 
         self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, fileHandleEndpoint=fileHandleEndpoint, debug=False)
+        self.syn._skip_version_check = True
         self.syn.login() #Assumes that a configuration file exists in the home directory with login information
         self.toRemove=[]
 
@@ -89,13 +90,9 @@ class TestClient:
         config.read(client.CONFIG_FILE)
         self.syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
 
-         #Test that it works with session token (created in previous passed step)
+        # Test that we fail with the wrong config file
         (fd, fname) = tempfile.mkstemp()
         client.CONFIG_FILE=fname
-        self.syn.login()
-
-        #Test that we fail with the wrong config file and no session token
-        os.remove(os.path.join(client.CACHE_DIR, '.session'))
         assert_raises(Exception, self.syn.login)
 
 
@@ -406,14 +403,17 @@ class TestClient:
 
 if __name__ == '__main__':
     test = TestClient()
-    test.test__connect()
     test.test_printEntity()
     test.test_login()
     test.test_getEntity()
     test.test_createEntity()
     test.test_updateEntity()
+    test.test_deleteEntity()
     test.test_query()
     test.test_uploadFile()
     test.test_version_check()
     test.test_provenance()
+    test.test_annotations()
+    test.test_fileHandle()
+    test.test_wikiAttachment()
 
