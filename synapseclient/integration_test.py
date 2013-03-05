@@ -42,12 +42,12 @@ class TestClient:
                 import ConfigParser
                 config = ConfigParser.ConfigParser()
                 config.read(client.CONFIG_FILE)
-                repoEndpoint=config.get('testEndpoints', 'repo')
-                authEndpoint=config.get('testEndpoints', 'auth')
-                fileHandleEndpoint=config.get('testEndpoints', 'file')
+                if config.has_section('testEndpoints'):
+                    repoEndpoint=config.get('testEndpoints', 'repo')
+                    authEndpoint=config.get('testEndpoints', 'auth')
+                    fileHandleEndpoint=config.get('testEndpoints', 'file')
             except Exception as e:
                 print e
-                pass
 
         self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, fileHandleEndpoint=fileHandleEndpoint, debug=False)
         self.syn.login() #Assumes that a configuration file exists in the home directory with login information
