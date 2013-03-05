@@ -496,7 +496,7 @@ class Synapse:
         response.raise_for_status()
         return response.json()
 
-    def _storeACL(self, entity):
+    def _storeACL(self, entity, acl):
         entity_id = entity['id'] if 'id' in entity else str(entity)
 
         ## get benefactor. (An entity gets its ACL from its benefactor.)

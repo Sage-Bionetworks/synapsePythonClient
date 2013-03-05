@@ -336,6 +336,44 @@ class TestClient:
         assert a3['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == a2['present_time'].strftime('%Y-%m-%d %H:%M:%S')
 
 
+    def test_ACL(self):
+        ## get the user's principalId, which is called ownerId and is
+        ## returned as a string, while in the ACL, it's an integer
+        current_user_id = int(self.syn.getUserProfile()['ownerId'])
+
+        ## other user: using chris's principalId, should be a test user
+        other_user_id = 1421212
+
+        ## create a new project
+        project = self.createProject()
+
+        acl = self.syn._getACL(project)
+        #self.syn.printEntity(acl)
+        assert('resourceAccess' in acl)
+        current_user_id in [access['principalId'] for access in acl['resourceAccess']]
+
+        acl['resourceAccess'].append({u'accessType': [u'READ', u'CREATE', u'UPDATE'], u'principalId': other_user_id})
+
+        acl = self.syn._storeACL(project, acl)
+
+        acl = self.syn._getACL(project)
+        #self.syn.printEntity(acl)
+        
+        permissions = [access for access in acl['resourceAccess'] if access['principalId'] == current_user_id]
+        assert len(permissions) == 1
+        assert u'DELETE' in permissions[0]['accessType']
+        assert u'CHANGE_PERMISSIONS' in permissions[0]['accessType']
+        assert u'READ' in permissions[0]['accessType']
+        assert u'CREATE' in permissions[0]['accessType']
+        assert u'UPDATE' in permissions[0]['accessType']
+
+        permissions = [access for access in acl['resourceAccess'] if access['principalId'] == other_user_id]
+        assert len(permissions) == 1
+        assert u'READ' in permissions[0]['accessType']
+        assert u'CREATE' in permissions[0]['accessType']
+        assert u'UPDATE' in permissions[0]['accessType']
+
+
     def test_fileHandle(self):
         ## file the setup.py file to upload
         path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
@@ -398,6 +436,7 @@ class TestClient:
         ## cleanup
         self.syn._deleteFileHandle(fileHandle)
         self.syn._deleteWiki(project, wiki)
+
 
 
 
