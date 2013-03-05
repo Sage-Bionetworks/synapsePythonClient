@@ -499,6 +499,26 @@ class Synapse:
         response.raise_for_status()
         return response.json()
 
+    def _storeACL(self, entity):
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+
+        ## get benefactor. (An entity gets its ACL from its benefactor.)
+        url = '%s/entity/%s/benefactor' % (self.repoEndpoint, entity_id,)
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        benefactor = response.json()
+
+        ## update or create new ACL
+        url = '%s/entity/%s/acl' % (self.repoEndpoint, entity_id,)
+        if benefactor['id']==entity_id:
+            response = requests.put(url, data=json.dumps(acl), headers=self.headers)
+        else:
+            response = requests.post(url, data=json.dumps(acl), headers=self.headers)
+        response.raise_for_status()
+
+        ## return the new/modified ACL
+        return response.json()
+
     def getPermissions(self, entity, user=None, group=None):
         """get permissions that a user or group has on an entity"""
         pass
