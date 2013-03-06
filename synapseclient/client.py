@@ -279,7 +279,7 @@ class Synapse:
         return entity
         
         
-    def updateEntity(self, entity, used=None, executed=None):
+    def updateEntity(self, entity, incrementVersion=False, versionLabel=None, used=None, executed=None):
         """
         Update an entity stored in synapse with the properties in entity
         """
@@ -291,6 +291,12 @@ class Synapse:
             raise Exception("A entity without an 'id' can't be updated")
 
         url = '%s/entity/%s' % (self.repoEndpoint, entity['id'],)
+
+        if incrementVersion:
+            entity['versionNumber'] += 1
+            url += '/version'
+            if versionLabel:
+                entity['versionLabel'] = str(versionLabel)
 
         if(self.debug): print 'About to update %s with %s' % (url, json.dumps(entity))
 

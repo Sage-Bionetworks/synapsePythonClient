@@ -140,6 +140,21 @@ class TestClient:
         assert entity == returnEntity
 
 
+    def test_updateEntity_version(self):
+        entity = self.createProject()
+        DATA_JSON['parentId']= entity['id']
+        entity = self.syn.createEntity(DATA_JSON)
+        entity['name'] = 'foobarbat'
+        entity['description'] = 'This is a test entity...'
+        entity = self.syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
+        returnEntity = self.syn.getEntity(entity)
+        #self.syn.printEntity(returnEntity)
+        assert returnEntity['name'] == 'foobarbat'
+        assert returnEntity['description'] == 'This is a test entity...'
+        assert returnEntity['versionNumber'] == 2
+        assert returnEntity['versionLabel'] == 'Prada remix'
+
+
     def test_putEntity(self):
         #Does the same thing as updateEntity
         pass
