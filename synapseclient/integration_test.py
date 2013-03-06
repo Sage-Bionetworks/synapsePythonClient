@@ -9,8 +9,11 @@ import ConfigParser
 from nose.tools import *
 import tempfile
 import os
+import sys
 import ConfigParser
 from datetime import datetime
+import filecmp
+import shutil
 
 
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
@@ -24,14 +27,33 @@ class TestClient:
     """
 
     def __init__(self, repoEndpoint='https://repo-prod.prod.sagebase.org/repo/v1',
-                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1'):
+                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1',
+                 fileHandleEndpoint='https://file-prod.prod.sagebase.org/file/v1'):
         """
         Arguments:
         - `repoEndpoint`:
         """
-        self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, debug=False)
+
+        ## if testing endpoints are set in the config file, use them
+        ## this was created 'cause nosetests doesn't have a good means of
+        ## passing parameters to the tests
+        if os.path.exists(client.CONFIG_FILE):
+            try:
+                import ConfigParser
+                config = ConfigParser.ConfigParser()
+                config.read(client.CONFIG_FILE)
+                if config.has_section('testEndpoints'):
+                    repoEndpoint=config.get('testEndpoints', 'repo')
+                    authEndpoint=config.get('testEndpoints', 'auth')
+                    fileHandleEndpoint=config.get('testEndpoints', 'file')
+            except Exception as e:
+                print e
+
+        self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, fileHandleEndpoint=fileHandleEndpoint, debug=False)
+        self.syn._skip_version_check = True
         self.syn.login() #Assumes that a configuration file exists in the home directory with login information
         self.toRemove=[]
+
 
     def setUp(self):
         self.toRemove=[]
@@ -68,13 +90,9 @@ class TestClient:
         config.read(client.CONFIG_FILE)
         self.syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
 
-         #Test that it works with session token (created in previous passed step)
+        # Test that we fail with the wrong config file
         (fd, fname) = tempfile.mkstemp()
         client.CONFIG_FILE=fname
-        self.syn.login()
-
-        #Test that we fail with the wrong config file and no session token
-        os.remove(os.path.join(client.CACHE_DIR, '.session'))
         assert_raises(Exception, self.syn.login)
 
 
@@ -94,9 +112,6 @@ class TestClient:
         #loadEntity does the same thing as downloadEntity so nothing new to test
         pass
 
-    def test__createUniveralEntity(self):
-        #Tested by testing of login and createEntity
-        pass
 
     def test_createEntity(self):
         #Create a project
@@ -321,17 +336,123 @@ class TestClient:
         assert a3['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == a2['present_time'].strftime('%Y-%m-%d %H:%M:%S')
 
 
+    def test_ACL(self):
+        ## get the user's principalId, which is called ownerId and is
+        ## returned as a string, while in the ACL, it's an integer
+        current_user_id = int(self.syn.getUserProfile()['ownerId'])
+
+        ## other user: using chris's principalId, should be a test user
+        other_user_id = 1421212
+
+        ## create a new project
+        project = self.createProject()
+
+        acl = self.syn._getACL(project)
+        #self.syn.printEntity(acl)
+        assert('resourceAccess' in acl)
+        current_user_id in [access['principalId'] for access in acl['resourceAccess']]
+
+        acl['resourceAccess'].append({u'accessType': [u'READ', u'CREATE', u'UPDATE'], u'principalId': other_user_id})
+
+        acl = self.syn._storeACL(project, acl)
+
+        acl = self.syn._getACL(project)
+        #self.syn.printEntity(acl)
+        
+        permissions = [access for access in acl['resourceAccess'] if access['principalId'] == current_user_id]
+        assert len(permissions) == 1
+        assert u'DELETE' in permissions[0]['accessType']
+        assert u'CHANGE_PERMISSIONS' in permissions[0]['accessType']
+        assert u'READ' in permissions[0]['accessType']
+        assert u'CREATE' in permissions[0]['accessType']
+        assert u'UPDATE' in permissions[0]['accessType']
+
+        permissions = [access for access in acl['resourceAccess'] if access['principalId'] == other_user_id]
+        assert len(permissions) == 1
+        assert u'READ' in permissions[0]['accessType']
+        assert u'CREATE' in permissions[0]['accessType']
+        assert u'UPDATE' in permissions[0]['accessType']
+
+
+    def test_fileHandle(self):
+        ## file the setup.py file to upload
+        path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+
+        ## upload a file to the file handle service
+        fileHandleList = self.syn._uploadFileToFileHandleService(path)
+
+        ## extract the first file handle
+        fileHandle = fileHandleList['list'][0]
+
+        fileHandle2 = self.syn._getFileHandle(fileHandle)
+
+        # print fileHandle
+        # print fileHandle2
+        assert fileHandle==fileHandle2
+
+        self.syn._deleteFileHandle(fileHandle)
+
+
+
+    def test_wikiAttachment(self):
+        md = """
+        This is a test wiki
+        =======================
+
+        Blabber jabber blah blah boo.
+        """
+
+        ## create a new project
+        project = self.createProject()
+
+        ## file the setup.py file to upload
+        original_path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+
+        ## upload a file to the file handle service
+        fileHandleList = self.syn._uploadFileToFileHandleService(original_path)
+
+        ## extract the first file handle
+        fileHandle = fileHandleList['list'][0]
+
+        wiki = self.syn._createWiki(project, 'A Test Wiki', md, [fileHandle['id']])
+
+        ## retrieve the file we just uploaded
+        tmpdir = tempfile.mkdtemp()
+        path = self.syn._downloadWikiAttachment(project, wiki, os.path.basename(original_path), dest_dir=tmpdir)
+
+        ## check and delete it
+        assert os.path.exists(path)
+        filecmp.cmp(original_path, path)
+        shutil.rmtree(tmpdir)
+
+        ## try making an update
+        wiki['title'] = 'A New Title'
+        wiki['markdown'] = wiki['markdown'] + "\nNew stuff here!!!\n"
+        wiki = self.syn._updateWiki(project, wiki)
+
+        assert wiki['title'] == 'A New Title'
+        assert wiki['markdown'].endswith("\nNew stuff here!!!\n")
+
+        ## cleanup
+        self.syn._deleteFileHandle(fileHandle)
+        self.syn._deleteWiki(project, wiki)
+
+
+
 
 if __name__ == '__main__':
     test = TestClient()
-    test.test__connect()
     test.test_printEntity()
     test.test_login()
     test.test_getEntity()
     test.test_createEntity()
     test.test_updateEntity()
+    test.test_deleteEntity()
     test.test_query()
     test.test_uploadFile()
     test.test_version_check()
     test.test_provenance()
+    test.test_annotations()
+    test.test_fileHandle()
+    test.test_wikiAttachment()
 

@@ -11,13 +11,13 @@ import zipfile
 import requests
 import os.path
 import mimetypes
+import shutil
 import stat
 import pkg_resources
 import webbrowser
 
 from version_check import version_check
 import utils
-from version_check import version_check
 from copy import deepcopy
 from annotations import Annotations
 
@@ -30,9 +30,14 @@ CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 class Synapse:
     """
     Python implementation for Synapse repository service client
-    """    
+    """
+
+    ## set this flag to true to skip version checking on login
+    _skip_version_check = False
+
     def __init__(self, repoEndpoint='https://repo-prod.prod.sagebase.org/repo/v1', 
-                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1', 
+                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1',
+                 fileHandleEndpoint='https://file-prod.prod.sagebase.org/file/v1/',
                  serviceTimeoutSeconds=30, debug=False):
         '''Constructor of Synapse client
         params:
@@ -65,6 +70,7 @@ class Synapse:
 
         self.repoEndpoint = repoEndpoint
         self.authEndpoint = authEndpoint
+        self.fileHandleEndpoint = fileHandleEndpoint
 
 
     def _storeTimingProfile(self, resp):
@@ -91,13 +97,14 @@ class Synapse:
         3) Use already existing session token
         """
         ## check version before logging in
-        version_check()
+        if not Synapse._skip_version_check: version_check()
 
         session_file = os.path.join(self.cacheDir, ".session")
 
         if (email==None or password==None): 
             if sessionToken is not None:
                 self.headers["sessionToken"] = sessionToken
+                self.sessionToken = sessionToken
                 return sessionToken
             else:
                 #Try to use config then session token
@@ -107,16 +114,9 @@ class Synapse:
                     config.read(CONFIG_FILE)
                     email=config.get('authentication', 'username')
                     password=config.get('authentication', 'password')
-                except ConfigParser.NoSectionError:  #Authentication not defined in config reverting to session token
-                    if os.path.exists(session_file):
-                        with open(session_file) as f:
-                            sessionToken = f.read().strip()
-                        self.sessionToken = sessionToken
-                        self.headers["sessionToken"] = sessionToken
-                        return sessionToken
-                    else:
-                        raise Exception("LOGIN FAILED: no username/password, configuration or cached session token available")
-
+                except ConfigParser.NoSectionError:
+                    #Authentication not defined in config
+                    raise Exception("LOGIN FAILED: no username/password provided or found in config file (%s)" % (CONFIG_FILE,))
 
         # Disable profiling during login and proceed with authentication
         self.headers['request_profile'], orig_request_profile='False', self.headers['request_profile']
@@ -136,7 +136,6 @@ class Synapse:
             f.write(self.sessionToken)
         os.chmod(session_file, stat.S_IRUSR | stat.S_IWUSR)
         self.headers['request_profile'] = orig_request_profile
-
 
 
     def onweb(self, entity):
@@ -340,6 +339,8 @@ class Synapse:
         if(self.debug): print 'About to query %s' % (queryStr)
 
         response = requests.get(url, headers=self.headers)
+        if response.status_code in range(400,600):
+            raise Exception(response.text)
         response.raise_for_status()
 
         return response.json()
@@ -473,6 +474,56 @@ class Synapse:
         return self.updateEntity(entity)
 
 
+    def getUserProfile(self, ownerId=None):
+        url = '%s/userProfile/%s' % (self.repoEndpoint, '' if ownerId is None else str(ownerId),)
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _getACL(self, entity):
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+        
+        ## get benefactor. (An entity gets its ACL from its benefactor.)
+        url = '%s/entity/%s/benefactor' % (self.repoEndpoint, entity_id,)
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        benefactor = response.json()
+
+        ## get the ACL from the benefactor (which may be the entity itself)
+        url = '%s/entity/%s/acl' % (self.repoEndpoint, benefactor['id'],)        
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+    def _storeACL(self, entity, acl):
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+
+        ## get benefactor. (An entity gets its ACL from its benefactor.)
+        url = '%s/entity/%s/benefactor' % (self.repoEndpoint, entity_id,)
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        benefactor = response.json()
+
+        ## update or create new ACL
+        url = '%s/entity/%s/acl' % (self.repoEndpoint, entity_id,)
+        if benefactor['id']==entity_id:
+            response = requests.put(url, data=json.dumps(acl), headers=self.headers)
+        else:
+            response = requests.post(url, data=json.dumps(acl), headers=self.headers)
+        response.raise_for_status()
+
+        ## return the new/modified ACL
+        return response.json()
+
+    def getPermissions(self, entity, user=None, group=None):
+        """get permissions that a user or group has on an entity"""
+        pass
+
+    def setPermissions(self, entity, user=None, group=None):
+        """set permission that a user or groups has on an entity"""
+        pass
+
     def getProvenance(self, entity, versionNumber=None):
         """Retrieve provenance information for a synapse entity. Entity may be
         either an Entity object or a string holding a Synapse ID. Returns
@@ -574,6 +625,154 @@ class Synapse:
         response.raise_for_status()
 
         return Activity(data=response.json())
+
+
+    def _loggedIn(self):
+        """Test whether the user is logged in to Synapse"""
+        url = '%s/userProfile' % (self.repoEndpoint,)
+        response = requests.get(url, headers=self.headers)
+        if response.status_code==401:
+            ## bad or expired session token
+            return False
+        response.raise_for_status()
+        user = response.json()
+        if 'displayName' in user:
+            if user['displayName']=='Anonymous':
+                ## no session token, not logged in
+                return False
+            return user['displayName']
+        return False
+
+
+    def _uploadFileToFileHandleService(self, filepath):
+        """Upload a file to the new fileHandle service (experimental)"""
+        url = "%s/fileHandle" % (self.fileHandleEndpoint,)
+        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
+        with open(filepath, 'r') as file:
+            response = requests.post(url, files={os.path.basename(filepath): file}, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _getFileHandle(self, fileHandle):
+        """Retrieve a fileHandle from the fileHandle service (experimental)"""
+        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
+        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
+        headers = {'Accept': 'multipart/form-data, application/json', 'sessionToken': self.sessionToken}
+        response = requests.get(url, headers=headers, stream=True)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _deleteFileHandle(self, fileHandle):
+        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
+        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
+        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
+        response = requests.delete(url, headers=headers, stream=True)
+        response.raise_for_status()
+        return fileHandle
+
+
+    def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None, owner_type=None):
+        """Create a new wiki page for an Entity (experimental).
+
+        parameters:
+        owner -- the owner object (entity, competition, evaluation) with which the new wiki page will be associated
+        markdown -- the contents of the wiki page in markdown
+        attachmentFileHandleIds -- a list of file handles or file handle IDs
+        """
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wiki' % (self.repoEndpoint, owner_type, owner_id,)
+        wiki = {'title':title, 'markdown':markdown}
+        if attachmentFileHandleIds:
+            wiki['attachmentFileHandleIds'] = attachmentFileHandleIds
+        response = requests.post(url, data=json.dumps(wiki), headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _getWiki(self, owner, wiki, owner_type=None):
+        """Get the specified wiki page"""
+        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, owner_id, wiki_id,)
+        response = requests.get(url, headers=self.headers)
+        if response.status_code==404: return None
+        response.raise_for_status()
+        return response.json()
+
+
+    def _updateWiki(self, owner, wiki, owner_type=None):
+        """Get the specified wiki page"""
+        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, owner_id, wiki_id,)
+        response = requests.put(url, data=json.dumps(wiki), headers=self.headers)
+        if response.status_code==404: return None
+        response.raise_for_status()
+        return response.json()
+
+
+    def _deleteWiki(self, owner, wiki, owner_type=None):
+        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, owner_id, wiki_id,)
+        response = requests.delete(url, headers=self.headers)
+        response.raise_for_status()
+        return wiki
+
+
+    def _getWikiHeaderTree(self, owner, owner_type=None):
+        """Get the tree of wiki pages owned by the given object"""
+        owner_id = owner['id'] if 'id' in owner else str(owner)
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = '%s/%s/%s/wikiheadertree' % (self.repoEndpoint, owner_type, owner_id,)
+        response = requests.get(url, headers=self.headers)
+        if response.status_code==404: return None
+        response.raise_for_status()
+        return response.json()
+
+
+    def _downloadWikiAttachment(self, entity, wiki, filename, dest_dir=None):
+        """Download a file attached to a wiki page (experimental)"""
+
+        # TODO can wiki pages exist without being associated with an Entity?
+
+        ## build URL
+        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
+        entity_id = entity['id'] if 'id' in entity else str(entity)
+        url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, entity_id, wiki_id, filename,)
+
+        ## we expect to be redirected to a signed S3 URL
+        ## TODO how will external URLs be handled?
+        response = requests.get(url, headers=self.headers, allow_redirects=False)
+        if response.status_code in [301,302,303,307,308]:
+          url = response.headers['location']
+          # print url
+          headers = {'sessionToken':self.sessionToken}
+          response = requests.get(url, headers=headers, stream=True)
+          response.raise_for_status()
+
+        ## stream file to disk
+        filename = utils.extract_filename(response.headers['content-disposition'])
+        if dest_dir:
+            filename = os.path.join(dest_dir, filename)
+        with open(filename, "wb") as f:
+          data = response.raw.read(1024)
+          while data:
+            f.write(data)
+            data = response.raw.read(1024)
+
+        return os.path.abspath(filename)
 
 
 
