@@ -279,12 +279,12 @@ class TestClient:
         ## create a new activity asserting that the code entity was used to
         ## make the data entity
         activity = Activity(name='random.gauss', description='Generate some random numbers')
-        activity.used(code_entity['id'], wasExecuted=True)
+        activity.used(code_entity, wasExecuted=True)
 
         activity = self.syn.setProvenance(data_entity, activity)
 
         ## retrieve the saved provenance record
-        retrieved_activity = self.syn.getProvenance(data_entity['id'])
+        retrieved_activity = self.syn.getProvenance(data_entity)
 
         ## does it match what we expect?
         assert retrieved_activity == activity

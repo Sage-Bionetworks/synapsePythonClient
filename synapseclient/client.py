@@ -776,7 +776,8 @@ class Synapse:
 
 
 
-def makeUsed(targetId, targetVersion=None, wasExecuted=False):
+def makeUsed(target, targetVersion=None, wasExecuted=False):
+    targetId = target['id'] if 'id' in target else str(target)
     reference = {'targetId':targetId}
     if targetVersion:
         reference['targetVersion'] = str(targetVersion)
@@ -799,8 +800,8 @@ class Activity(dict):
         if used:
             self['used'] = used
 
-    def used(self, targetId, targetVersion=None, wasExecuted=False):
-        self.setdefault('used', []).append(makeUsed(targetId, targetVersion=targetVersion, wasExecuted=wasExecuted))
+    def used(self, target, targetVersion=None, wasExecuted=False):
+        self.setdefault('used', []).append(makeUsed(target, targetVersion=targetVersion, wasExecuted=wasExecuted))
 
-    def executed(self, targetId, targetVersion=None):
-        self.setdefault('used', []).append(makeUsed(targetId, targetVersion=targetVersion, wasExecuted=True))
+    def executed(self, target, targetVersion=None):
+        self.setdefault('used', []).append(makeUsed(target, targetVersion=targetVersion, wasExecuted=True))
