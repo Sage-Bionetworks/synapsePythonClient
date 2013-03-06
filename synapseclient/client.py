@@ -967,6 +967,158 @@ class Synapse:
 
 
     ############################################################
+    # CRUD for Evaluations
+    ############################################################
+
+    def getEvaluation(self, evaluation):
+        evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
+        url = '%s/evaluation/%s' % (self.repoEndpoint, evaluation_id,)
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+
+    def createEvaluation(self, name, description='',status='OPEN', contentSource='' ):
+        """Creates an evaluation where users can submit entities for evaluation by a monitoring process.
+        
+        Arguments:
+        - `name`: Name of the Evaluation
+        - `description`: A string describing the evaluation in detail
+        - `status`: A string describing the status: one of { PLANNED, OPEN, CLOSED, COMPLETED}
+        """
+        #Prep variables for submission
+        url = self.repoEndpoint + '/evaluation'
+        args = {'name':name, 'description':description, 'status':status, 'contentSource':contentSource}
+        request_profile=self.headers.pop('request_profile')
+        
+        response = requests.post(url, data=json.dumps(args), headers=self.headers)
+        response.raise_for_status()
+
+        #Reset the value of request_profile
+        self.headers['request_profile']=request_profile
+
+        return  response.json()
+
+
+    def deleteEvaluation(self, evaluation):
+        """Removes a existing evaluation
+        
+        Arguments:
+        - `id`: either a json object representing an evaluation or a evaluation id
+        """
+        evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
+
+        url = '%s/evaluation/%s' % (self.repoEndpoint, evaluation_id,)
+        if (self.debug): print 'About to delete %s' % (url)
+        response = requests.delete(url, headers=self.headers)
+        response.raise_for_status()
+
+
+    def updateEvaluation(self, evaluation):
+        evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
+
+        url = '%s/evaluation/%s' % (self.repoEndpoint, evaluation_id,)
+
+        response = requests.put(url, data=json.dumps(evaluation), headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+
+    def addEvaluationParticipant(self, evaluation, userId=None):
+        """Adds a participant to to a evaluation
+
+        Arguments:
+        - `evaluation`: an evaluation object or evaluation id
+        - `userId`: The prinicipal id of the participant, if not supplied uses your own
+        """
+        evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
+        if userId == None:
+            url = self.repoEndpoint + '/userProfile'
+            response = requests.get(url, headers=self.headers)
+            response.raise_for_status()
+            userId=response.json()['ownerId']
+
+        url = '%s/evaluation/%s/participant/%s'  %(self.repoEndpoint, evaluation_id, userId) 
+        response = requests.post(url, data=json.dumps({}), headers=self.headers)
+        response.raise_for_status()
+        return  response.json()
+
+  
+    def submitForEvaluation(self, evaluation, entity, name=''):
+        """submit an Entity for evaluation by evaluator already set up
+        
+        Arguments:
+        - `entity`: The entity containing the submission
+        - `evaluation`: Evaluation board to submit to.
+        """
+
+        evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
+        if not 'versionNumber' in entity:
+            entity = self.getEntity(entity)    
+        entity_version = entity['versionNumber']
+        entity_id = entity['id']
+
+        if name == None and 'id' in entity:
+            name=entity['name']
+        else:
+            name=''
+
+        submission =  {'evaluationId':evaluation_id, 'entityId':entity_id, 'name':name, 
+                       'versionNumber': entity_version}
+        url = self.repoEndpoint +  '/evaluation/submission'
+
+
+        response = requests.post(url, data=json.dumps(submission), headers=self.headers)
+        response.raise_for_status()
+
+        return  response.json()
+
+
+    def getEvaluationSubmissions(self, evaluation, status=None):
+        """Return a generator over all submissions for a evaluation, or optionally all
+           submissions with a specified status.
+
+        Arguments:
+        - `evaluation`: Evaluation board to get submissions from.
+        - `status` :   Get submissions that have specific status one of {OPEN, CLOSED, SCORED, INVALID}
+
+        Example:
+        for submission in syn.getEvaluationSubmissions(1234567):
+          print submission['entityId']
+        """
+        evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
+
+        result_count = 0
+        limit = 20
+        offset = 0 - limit
+        max_results = 1000 ## gets updated later
+        submissions = []
+
+        while result_count < max_results:
+
+            ## if we're out of results, do a(nother) REST call
+            if result_count >= offset + len(submissions):
+                offset += limit
+                if status != None:
+                    if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
+                        raise Exception('status may be one of {OPEN, CLOSED, SCORED, INVALID}')
+                    url = "%s/evaluation/%s/submission/all?status=%s&limit=%d&offset=%d" %(self.repoEndpoint, evaluation_id, limitBy, offset, limit)
+                else:
+                    url = "%s/evaluation/%s/submission/all?limit=%d&offset=%d" %(self.repoEndpoint, evaluation_id, offset, limit)
+
+                print url
+                response = requests.get(url, headers=self.headers)
+                response.raise_for_status()
+                page_of_submissions = response.json()
+                max_results = page_of_submissions['totalNumberOfResults']
+                submissions = page_of_submissions['results']
+
+            i = result_count - offset
+            result_count += 1
+            yield submissions[i]
+
+
+    ############################################################
     # CRUD for Wikis
     ############################################################
 
