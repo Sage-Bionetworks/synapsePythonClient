@@ -125,9 +125,21 @@ class TestClient:
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
 
-        #Create entity with provenance record
         self.syn.deleteEntity(returnEntity['id'])
+
+
+    def test_createEntity_with_provenance(self):
+        #Create a project
+        entity = self.createProject()
+
+        #Add a data entity to project
+        DATA_JSON['parentId']= entity['id']
+
+        #Create entity with provenance record
         entity = self.syn.createEntity(DATA_JSON, used='syn123')
+
+        activity = self.syn.getProvenance(entity)
+        assert activity['used'][0]['reference']['targetId'] == 'syn123'
 
 
     def test_updateEntity(self):
