@@ -273,7 +273,20 @@ class Synapse:
 
         #I need to update the entity
         return entity
-        
+
+
+    def _createFileEntity(self, entity, filename, used=None, executed=None):
+
+        fileHandle = self._uploadFileToFileHandleService(filename)
+
+        if 'entityType' not in entity:
+            entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
+
+        # add fileHandle to entity
+        entity['dataFileHandleId'] = fileHandle['list'][0]['id']
+
+        return self.createEntity(entity, used=used, executed=executed)
+
         
     def updateEntity(self, entity, incrementVersion=False, versionLabel=None, used=None, executed=None):
         """
