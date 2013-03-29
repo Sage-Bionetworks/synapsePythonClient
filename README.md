@@ -67,14 +67,28 @@ The synapse client can be used to write software that interacts with the Sage Sy
 
     import synapseclient
 
-    s = synapseclient.Synapse()
-    s.login('me@nowhere.com', 'secret')
+    syn = synapseclient.Synapse()
+    syn.login('me@nowhere.com', 'secret')
 
-    e = s.getEntity('syn1528299')
+    ## credentials may also be specified in .synapseConfig,
+    ## in which case you can do:
+    # syn.login()
 
+    ## retrieve metadata about an entity
+    e = syn.getEntity('syn1528299')
+
+    ## inspect its properties
     print e['name']
     print e['description']
+
+    ## download a data file associated with the entity
+    e = syn.downloadEntity(e)
+
     print e['files']
+
+    ## get full path to the downloaded file
+    import os.path
+    path = os.path.join(e['cacheDir'], e['files'][0])
 
 
 ### querying for entities that are part of the [Synapse Commons Repository](https://synapse.sagebase.org/Portal.html#Synapse:syn150935)
@@ -82,7 +96,7 @@ The synapse client can be used to write software that interacts with the Sage Sy
     syn.query('select id, name from entity where parentId=="syn150935"')
 
 
-### querying for entities that are part of the [TCGA](https://synapse.sagebase.org/Portal.html#Synapse:syn300013) that are also RNA-Seq data
+### querying for entities that are part of [TCGA pancancer](https://synapse.sagebase.org/Portal.html#Synapse:syn300013) that are also RNA-Seq data
     syn.query('select id, name from entity where freeze=="tcga_pancancer_v4" and platform=="IlluminaHiSeq_RNASeqV2"')
 
 
