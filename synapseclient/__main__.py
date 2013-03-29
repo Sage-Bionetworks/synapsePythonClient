@@ -18,12 +18,16 @@ def query(args, syn):
     results = results['results']
     if len(results)==0:  #No results found
         return
-    headings = results[0].keys()
+    headings = {}
+    for r in results:
+        for c in r:
+            headings[c] = True
     print '\t'.join(headings)
     for result in results:
+        out = []
         for k in headings:
-            print result[k],'\t',
-        print 
+            out.append(str(result.get(k, "")))
+        print "\t".join(out)
 
 def get(args, syn):
     """
