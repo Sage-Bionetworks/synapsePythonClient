@@ -418,7 +418,7 @@ class Synapse:
                            "parentId": id})
 
 
-    def uploadFile(self, entity, filename, dstFilename=None):
+    def uploadFile(self, entity, filename):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
         
         Arguments:
@@ -448,11 +448,8 @@ class Synapse:
         url = '%s/entity/%s/s3Token' % (
             self.repoEndpoint,
             entity['id'])
-        
-        if dstFilename is not None:
-            (_, base_filename) = os.path.split(dstFilename)
-        else:
-            (_, base_filename) = os.path.split(filename)
+
+        (_, base_filename) = os.path.split(filename)
         data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
 
         response = requests.post(url, headers=headers, data=json.dumps(data))
