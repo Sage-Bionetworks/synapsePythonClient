@@ -72,8 +72,8 @@ def test_activity_creation_from_dict():
     assert u['reference']['targetId'] == 'syn12345'
     assert u['reference']['versionNumber'] == 42
 
-def test_activity_creation():
-    """test activity creation"""
+def test_activity_used_execute_methods():
+    """test activity creation and used and execute methods"""
     a = Activity(name='Fuzz', description='hipster beard dataset')
     a.used({'id':'syn101', 'versionNumber':42, 'entityType': 'org.sagebionetworks.repo.model.Data'})
     a.executed('syn102', targetVersion=1)
@@ -100,8 +100,8 @@ def test_activity_creation():
     assert used_syn102['reference']['targetVersionNumber'] == 1
     assert used_syn102['wasExecuted'] == True
 
-def test_activity_creation_2():
-    """test activity creation more"""
+def test_activity_creation_by_constructor():
+    """test activity creation adding used entities by the constructor"""
 
     ue1 = {'reference':{'targetId':'syn101', 'targetVersionNumber':42}, 'wasExecuted':False}
     ue2 = {'id':'syn102', 'versionNumber':2, 'entityType': 'org.sagebionetworks.repo.model.Code'}

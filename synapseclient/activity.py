@@ -28,9 +28,8 @@ def makeUsed(target, targetVersion=None, wasExecuted=False):
         try:
             ## if we have an entity, get it's version number
             reference['targetVersionNumber'] = target['versionNumber']
-        except:
-            ## TODO: maybe we want to get the current version of the entity from synapse?
-            ##       Or does the platform already do this?
+        except (KeyError, TypeError):
+            ## count on platform to get the current version of the entity from synapse
             pass
     used = {'reference':reference, 'wasExecuted':wasExecuted}
     return used
@@ -70,10 +69,8 @@ class Activity(dict):
 
     def used(self, target, targetVersion=None, wasExecuted=False):
         if isinstance(target, list):
-            for t in target: self.used(t)
+            for t in target: self.used(t, targetVersion=targetVersion, wasExecuted=wasExecuted)
         self['used'].append(makeUsed(target, targetVersion=targetVersion, wasExecuted=wasExecuted))
 
     def executed(self, target, targetVersion=None):
-        if isinstance(target, list):
-            for t in target: self.executed(t)
-        self['used'].append(makeUsed(target, targetVersion=targetVersion, wasExecuted=True))
+        self.used(target=target, targetVersion=targetVersion, wasExecuted=True)

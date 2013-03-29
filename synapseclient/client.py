@@ -288,7 +288,7 @@ class Synapse:
         return self.createEntity(entity, used=used, executed=executed)
 
         
-    def updateEntity(self, entity, incrementVersion=False, versionLabel=None, used=None, executed=None):
+    def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None):
         """
         Update an entity stored in synapse with the properties in entity
         """
