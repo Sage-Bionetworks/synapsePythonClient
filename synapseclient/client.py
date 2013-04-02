@@ -243,9 +243,11 @@ class Synapse:
             #TODO!!!FIX THIS TO BE PATH SAFE!  DON'T ALLOW ARBITRARY UNZIPING
             z = zipfile.ZipFile(filename, 'r')
             z.extractall(filepath) #WARNING!!!NOT SAFE
+            ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
             entity['cacheDir'] = filepath
             entity['files'] = z.namelist()
         else:
+            ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
             entity['cacheDir'] = os.path.dirname(filename)
             entity['files'] = [os.path.basename(filename)]
         return entity
@@ -264,6 +266,8 @@ class Synapse:
                 raise
 
         filename = self._downloadFile(url, destDir)
+
+        ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
         entity['cacheDir'] = destDir
         entity['files'] = [os.path.basename(filename)]
 
@@ -483,7 +487,56 @@ class Synapse:
                            "parentId": id})
 
 
+    def _isLocationable(self, entity):
+        locationable_entity_types = ['org.sagebionetworks.repo.model.Data',
+                                     'org.sagebionetworks.repo.model.Code',
+                                     'org.sagebionetworks.repo.model.ExpressionData',
+                                     'org.sagebionetworks.repo.model.GenericData',
+                                     'org.sagebionetworks.repo.model.GenomicData',
+                                     'org.sagebionetworks.repo.model.GenotypeData',
+                                     'org.sagebionetworks.repo.model.Media',
+                                     'org.sagebionetworks.repo.model.PhenotypeData',
+                                     'org.sagebionetworks.repo.model.RObject',
+                                     'org.sagebionetworks.repo.model.Study',
+                                     'org.sagebionetworks.repo.model.ExampleEntity']
+
+        ## if we got a synapse ID as a string, get the entity from synapse
+        if isinstance(entity, basestring):
+            entity = self.getEntity(entity)
+
+        return ('locations' in entity or ('entityType' in entity and entity['entityType'] in locationable_entity_types))
+
+
     def uploadFile(self, entity, filename):
+
+        ## if we got a synapse ID as a string, get the entity from synapse
+        if isinstance(entity, basestring):
+            entity = self.getEntity(entity)
+
+        ## if we have an old location-able object use the deprecated file upload method
+        if self._isLocationable(entity):
+            return self.uploadFileAsLocation(entity, filename)
+
+        ## if we haven't specified the entity type, make it a FileEntity
+        if 'entityType' not in entity:
+            entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
+
+        if entity['entityType'] != 'org.sagebionetworks.repo.model.FileEntity':
+            raise Exception('Files can only be uploaded to FileEntity entities')
+
+        fileHandle = self._uploadFileToFileHandleService(filename)
+
+        # add fileHandle to entity
+        entity['dataFileHandleId'] = fileHandle['list'][0]['id']
+
+        ## if we're creating a new entity
+        if not 'id' in entity:
+            return self.createEntity(entity)
+        else:
+            return self.updateEntity(entity)
+
+
+    def uploadFileAsLocation(self, entity, filename):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
         
         Arguments:

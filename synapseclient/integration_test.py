@@ -218,6 +218,45 @@ class TestClient:
         os.remove(fname)
 
 
+    def test_uploadFileEntity(self):
+        projectEntity = self.createProject()
+        entity = {'name':'foo', 'description':'A test file entity', 'parentId':projectEntity['id']}
+
+        #create a temporary file
+        (fp, fname) = tempfile.mkstemp()
+        with open(fname, 'w') as f:
+            f.write('foo bar bat!\n')
+
+        ## create new FileEntity
+        entity = self.syn.uploadFile(entity, fname)
+
+        #Download and verify that it is the same filename
+        entity = self.syn.downloadEntity(entity)
+        assert entity['files'][0]==os.path.split(fname)[-1]
+        os.remove(fname)
+
+        #create a different temporary file
+        (fp, fname) = tempfile.mkstemp()
+        with open(fname, 'w') as f:
+            f.write('blither blather bonk!\n')
+
+        ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
+        del entity['files']
+        del entity['cacheDir']
+
+        ## update existing FileEntity
+        try:
+            entity = self.syn.uploadFile(entity, fname)
+        except Exception as e:
+            print e
+            print e.response.text
+
+        #Download and verify that it is the same filename
+        entity = self.syn.downloadEntity(entity)
+        assert entity['files'][0]==os.path.split(fname)[-1]
+        os.remove(fname)
+
+
     def test_downloadFile(self):
         "test download file function in utils.py"
         result = utils.downloadFile("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
