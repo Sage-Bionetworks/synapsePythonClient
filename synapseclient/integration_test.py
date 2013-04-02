@@ -420,6 +420,24 @@ class TestClient:
         self.syn._deleteFileHandle(fileHandle)
 
 
+    def test_fileEntity_round_trip(self):
+        ## create a new project
+        project = self.createProject()
+
+        ## file the setup.py file to upload
+        original_path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+
+        entity = {'name':'Foobar', 'description':'A test file entity...', 'parentId':project['id']}
+        entity = self.syn._createFileEntity(entity, original_path)
+
+        entity_downloaded = self.syn.downloadEntity(entity['id'])
+
+        path = os.path.join(entity_downloaded['cacheDir'], entity_downloaded['files'][0])
+
+        assert os.path.exists(path)
+        assert filecmp.cmp(original_path, path)
+        shutil.rmtree(entity_downloaded['cacheDir'])
+
 
     def test_wikiAttachment(self):
         md = """
@@ -449,7 +467,7 @@ class TestClient:
 
         ## check and delete it
         assert os.path.exists(path)
-        filecmp.cmp(original_path, path)
+        assert filecmp.cmp(original_path, path)
         shutil.rmtree(tmpdir)
 
         ## try making an update

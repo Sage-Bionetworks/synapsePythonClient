@@ -4,6 +4,7 @@
 
 import os, urllib, hashlib, re
 
+
 def computeMd5ForFile(filename, block_size=2**20):
     '''
     lifted this function from
@@ -21,7 +22,7 @@ def computeMd5ForFile(filename, block_size=2**20):
 
 ## download a remote file
 ## localFilePath can be None, in which case a temporary file is created
-## returns a tuple (localFilePath, HTTPmsg), see urlib.urlretrieve
+## returns a tuple (localFilePath, HTTPmsg), see urllib.urlretrieve
 def downloadFile(url, localFilepath=None):
     if (localFilepath):
         dir = os.path.dirname(localFilepath)
