@@ -2,6 +2,7 @@
 ############################################################
 from nose.tools import *
 from annotations import Annotations
+from activity import Activity, makeUsed
 from datetime import datetime
 
 
@@ -52,4 +53,86 @@ def test_idempotent_annotations():
     a2.update(sa)
     sa2 = a2.toSynapseAnnotations()
     assert sa == sa2
+
+def test_activity_creation_from_dict():
+    """test that activities are created correctly from a dictionary"""
+    d = {'name':'Project Fuzz',
+         'description':'hipster beard dataset',
+         'used':[ {'reference':{'targetId':'syn12345', 'versionNumber':42}, 'wasExecuted':True} ]}
+    a = Activity(data=d)
+    assert a['name'] == 'Project Fuzz'
+    assert a['description'] == 'hipster beard dataset'
+
+    usedEntities = a['used']
+    assert len(usedEntities) == 1
+
+    u = usedEntities[0]
+    assert u['wasExecuted'] == True
+
+    assert u['reference']['targetId'] == 'syn12345'
+    assert u['reference']['versionNumber'] == 42
+
+def test_activity_used_execute_methods():
+    """test activity creation and used and execute methods"""
+    a = Activity(name='Fuzz', description='hipster beard dataset')
+    a.used({'id':'syn101', 'versionNumber':42, 'entityType': 'org.sagebionetworks.repo.model.Data'})
+    a.executed('syn102', targetVersion=1)
+    usedEntities = a['used']
+    len(usedEntities) == 2
+
+    assert a['name'] == 'Fuzz'
+    assert a['description'] == 'hipster beard dataset'
+
+    ## ??? are activities supposed to come back in order? Let's not count on it
+    used_syn101 = None
+    for usedEntity in usedEntities:
+        if usedEntity['reference']['targetId'] == 'syn101':
+            used_syn101 = usedEntity
+
+    assert used_syn101['reference']['targetVersionNumber'] == 42
+    assert used_syn101['wasExecuted'] == False
+
+    used_syn102 = None
+    for usedEntity in usedEntities:
+        if usedEntity['reference']['targetId'] == 'syn102':
+            used_syn102 = usedEntity
+
+    assert used_syn102['reference']['targetVersionNumber'] == 1
+    assert used_syn102['wasExecuted'] == True
+
+def test_activity_creation_by_constructor():
+    """test activity creation adding used entities by the constructor"""
+
+    ue1 = {'reference':{'targetId':'syn101', 'targetVersionNumber':42}, 'wasExecuted':False}
+    ue2 = {'id':'syn102', 'versionNumber':2, 'entityType': 'org.sagebionetworks.repo.model.Code'}
+    ue3 = 'syn103'
+
+    a = Activity(name='Fuzz', description='hipster beard dataset', used=[ue1, ue3], executed=[ue2])
+
+    # print a['used']
+
+    used_syn101 = None
+    for usedEntity in a['used']:
+        if usedEntity['reference']['targetId'] == 'syn101':
+            used_syn101 = usedEntity
+
+    assert used_syn101 is not None
+    assert used_syn101['reference']['targetVersionNumber'] == 42
+    assert used_syn101['wasExecuted'] == False
+
+    used_syn102 = None
+    for usedEntity in a['used']:
+        if usedEntity['reference']['targetId'] == 'syn102':
+            used_syn102 = usedEntity
+
+    assert used_syn102 is not None
+    assert used_syn102['reference']['targetVersionNumber'] == 2
+    assert used_syn102['wasExecuted'] == True
+
+    used_syn103 = None
+    for usedEntity in a['used']:
+        if usedEntity['reference']['targetId'] == 'syn103':
+            used_syn103 = usedEntity
+
+    assert used_syn103 is not None
 

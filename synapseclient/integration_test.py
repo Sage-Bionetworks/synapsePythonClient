@@ -125,9 +125,21 @@ class TestClient:
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
 
-        #Create entity with provenance record
         self.syn.deleteEntity(returnEntity['id'])
+
+
+    def test_createEntity_with_provenance(self):
+        #Create a project
+        entity = self.createProject()
+
+        #Add a data entity to project
+        DATA_JSON['parentId']= entity['id']
+
+        #Create entity with provenance record
         entity = self.syn.createEntity(DATA_JSON, used='syn123')
+
+        activity = self.syn.getProvenance(entity)
+        assert activity['used'][0]['reference']['targetId'] == 'syn123'
 
 
     def test_updateEntity(self):
@@ -138,6 +150,21 @@ class TestClient:
         entity = self.syn.updateEntity(entity)
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
+
+
+    def test_updateEntity_version(self):
+        entity = self.createProject()
+        DATA_JSON['parentId']= entity['id']
+        entity = self.syn.createEntity(DATA_JSON)
+        entity['name'] = 'foobarbat'
+        entity['description'] = 'This is a test entity...'
+        entity = self.syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
+        returnEntity = self.syn.getEntity(entity)
+        #self.syn.printEntity(returnEntity)
+        assert returnEntity['name'] == 'foobarbat'
+        assert returnEntity['description'] == 'This is a test entity...'
+        assert returnEntity['versionNumber'] == 2
+        assert returnEntity['versionLabel'] == 'Prada remix'
 
 
     def test_putEntity(self):
@@ -279,12 +306,12 @@ class TestClient:
         ## create a new activity asserting that the code entity was used to
         ## make the data entity
         activity = Activity(name='random.gauss', description='Generate some random numbers')
-        activity.used(code_entity['id'], wasExecuted=True)
+        activity.used(code_entity, wasExecuted=True)
 
         activity = self.syn.setProvenance(data_entity, activity)
 
         ## retrieve the saved provenance record
-        retrieved_activity = self.syn.getProvenance(data_entity['id'])
+        retrieved_activity = self.syn.getProvenance(data_entity)
 
         ## does it match what we expect?
         assert retrieved_activity == activity

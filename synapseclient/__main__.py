@@ -45,7 +45,7 @@ def get(args, syn):
                 os.mkdir(dst)
             shutil.copyfile(src, dst)
     else:
-        sys.stderr.write('WARNING: No files associated with entity %s\n' % (entity['id'],))
+        sys.stderr.write('WARNING: No files associated with entity %s\n' % (args.id,))
         syn.printEntity(ent)
     return ent
 

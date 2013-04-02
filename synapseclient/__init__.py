@@ -1,2 +1,3 @@
-from client import Synapse, Activity, makeUsed, __version__
-
+from client import Synapse, __version__
+from activity import Activity, makeUsed
+from annotations import Annotations
