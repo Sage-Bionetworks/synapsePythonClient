@@ -26,6 +26,7 @@ from activity import Activity
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TODO change to /data when storing files as md5
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
+FILE_BUFFER_SIZE = 1024
 
 
 class Synapse:
@@ -212,8 +213,14 @@ class Synapse:
         - A dictionary representing an entity
         """
         entity = self.getEntity(entity)
-        if not entity.has_key('locations'):
-            return entity
+        if entity['entityType'] == 'org.sagebionetworks.repo.model.FileEntity':
+            return self._downloadFileEntity(entity)
+        if entity.has_key('locations'):
+            return self._downloadLocations(entity)
+        return entity
+
+
+    def _downloadLocations(self, entity):
         location = entity['locations'][0]  #TODO verify that this doesn't fail for unattached files
         url = location['path']
         parseResult = urlparse.urlparse(url)
@@ -236,12 +243,59 @@ class Synapse:
             #TODO!!!FIX THIS TO BE PATH SAFE!  DON'T ALLOW ARBITRARY UNZIPING
             z = zipfile.ZipFile(filename, 'r')
             z.extractall(filepath) #WARNING!!!NOT SAFE
+            ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
             entity['cacheDir'] = filepath
             entity['files'] = z.namelist()
         else:
+            ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
             entity['cacheDir'] = os.path.dirname(filename)
             entity['files'] = [os.path.basename(filename)]
         return entity
+
+
+    def _downloadFileEntity(self, entity):
+        url = '%s/entity/%s/file' % (self.repoEndpoint, entity['id'],)
+
+        destDir = os.path.join(self.cacheDir, entity['id'])
+
+        #create destDir if it does not exist
+        try:
+            os.makedirs(destDir, mode=0700)
+        except OSError as exception:
+            if exception.errno != os.errno.EEXIST:
+                raise
+
+        filename = self._downloadFile(url, destDir)
+
+        ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
+        entity['cacheDir'] = destDir
+        entity['files'] = [os.path.basename(filename)]
+
+        return entity
+
+
+    def _downloadFile(self, url, destDir):
+        ## we expect to be redirected to a signed S3 URL
+        ## TODO how will external URLs be handled?
+        response = requests.get(url, headers=self.headers, allow_redirects=False)
+        if response.status_code in [301,302,303,307,308]:
+          url = response.headers['location']
+          # print url
+          headers = {'sessionToken':self.sessionToken}
+          response = requests.get(url, headers=headers, stream=True)
+          response.raise_for_status()
+
+        ## stream file to disk
+        filename = utils.extract_filename(response.headers['content-disposition'])
+        if destDir:
+            filename = os.path.join(destDir, filename)
+        with open(filename, "wb") as f:
+          data = response.raw.read(FILE_BUFFER_SIZE)
+          while data:
+            f.write(data)
+            data = response.raw.read(FILE_BUFFER_SIZE)
+
+        return filename
 
 
     def loadEntity(self, entity):
@@ -421,8 +475,8 @@ class Synapse:
         tree=self._traverseTree(id)[0]['records']
         print self.printEntity(tree)
         
-        #TODO: Insteaad of doing a flatten just by the default heirarchy structure I should be 
-        #using an external groupby parameter that determines weather by what property of structure
+        #TODO: Instead of doing a flatten just by the default hierarchy structure I should be 
+        #using an external group-by parameter that determines weather by what property of structure
         # to group by.
         self._flattenTree2Groups(tree)
         self.printEntity(tree)
@@ -433,7 +487,56 @@ class Synapse:
                            "parentId": id})
 
 
+    def _isLocationable(self, entity):
+        locationable_entity_types = ['org.sagebionetworks.repo.model.Data',
+                                     'org.sagebionetworks.repo.model.Code',
+                                     'org.sagebionetworks.repo.model.ExpressionData',
+                                     'org.sagebionetworks.repo.model.GenericData',
+                                     'org.sagebionetworks.repo.model.GenomicData',
+                                     'org.sagebionetworks.repo.model.GenotypeData',
+                                     'org.sagebionetworks.repo.model.Media',
+                                     'org.sagebionetworks.repo.model.PhenotypeData',
+                                     'org.sagebionetworks.repo.model.RObject',
+                                     'org.sagebionetworks.repo.model.Study',
+                                     'org.sagebionetworks.repo.model.ExampleEntity']
+
+        ## if we got a synapse ID as a string, get the entity from synapse
+        if isinstance(entity, basestring):
+            entity = self.getEntity(entity)
+
+        return ('locations' in entity or ('entityType' in entity and entity['entityType'] in locationable_entity_types))
+
+
     def uploadFile(self, entity, filename):
+
+        ## if we got a synapse ID as a string, get the entity from synapse
+        if isinstance(entity, basestring):
+            entity = self.getEntity(entity)
+
+        ## if we have an old location-able object use the deprecated file upload method
+        if self._isLocationable(entity):
+            return self.uploadFileAsLocation(entity, filename)
+
+        ## if we haven't specified the entity type, make it a FileEntity
+        if 'entityType' not in entity:
+            entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
+
+        if entity['entityType'] != 'org.sagebionetworks.repo.model.FileEntity':
+            raise Exception('Files can only be uploaded to FileEntity entities')
+
+        fileHandle = self._uploadFileToFileHandleService(filename)
+
+        # add fileHandle to entity
+        entity['dataFileHandleId'] = fileHandle['list'][0]['id']
+
+        ## if we're creating a new entity
+        if not 'id' in entity:
+            return self.createEntity(entity)
+        else:
+            return self.updateEntity(entity)
+
+
+    def uploadFileAsLocation(self, entity, filename):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
         
         Arguments:
@@ -441,9 +544,11 @@ class Synapse:
         - `filename`: Name of file to upload
         """
 
-        # check parameters
+        ## check parameters
         if entity is None or not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
            raise Exception('invalid entity parameter')
+
+        ## if we got a synapse ID as a string, get the entity from synapse
         if isinstance(entity, basestring):
             entity = self.getEntity(entity)
 
@@ -668,7 +773,8 @@ class Synapse:
 
 
     def _uploadFileToFileHandleService(self, filepath):
-        """Upload a file to the new fileHandle service (experimental)"""
+        """Upload a file to the new fileHandle service (experimental)
+           returns a fileHandle which can be used to create a FileEntity or attach to a wiki"""
         url = "%s/fileHandle" % (self.fileHandleEndpoint,)
         headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
         with open(filepath, 'r') as file:
