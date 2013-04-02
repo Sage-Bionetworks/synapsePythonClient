@@ -44,7 +44,7 @@ def version_check(current_version=None,
 
     except Exception, e:
         ## don't prevent the client from running if something goes wrong
-        sys.stderr.write("Exception in version check: %s" % (str(e),))
+        sys.stderr.write("Exception in version check: %s\n" % (str(e),))
         return False
 
     return True
