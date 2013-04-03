@@ -281,6 +281,9 @@ class TestClient:
         test the version checking and blacklisting functionality
         """
 
+        ## current version against dev synapsePythonClient version file
+        version_check(version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+
         ## should be higher than current version and return true
         assert version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
 
