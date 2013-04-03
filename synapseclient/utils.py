@@ -2,7 +2,7 @@
 
 # To debug this, python -m pdb myscript.py
 
-import os, urllib, hashlib, re
+import os, urllib, urlparse, hashlib, re
 
 
 def computeMd5ForFile(filename, block_size=2**20):
@@ -35,8 +35,8 @@ def downloadFile(url, localFilepath=None):
 # see: http://tools.ietf.org/html/rfc6266
 # and the python library http://pypi.python.org/pypi/rfc6266
 def extract_filename(content_disposition):
-  match = re.search('filename=([^ ]*)', content_disposition)
-  return match.group(1) if match else 'filename'
+    match = re.search('filename=([^ ]*)', content_disposition)
+    return match.group(1) if match else 'filename'
 
 
 def guess_object_type(obj):
@@ -50,9 +50,21 @@ def guess_object_type(obj):
     else:
         return 'entity'
 
+
 def id_of(obj):
     try:
         obj['id'] if 'id' in obj else str(obj)
     except:
         return str(obj)
+
+
+def is_url(s):
+    """Return True if a string is a valid URL"""
+    if isinstance(s, basestring):
+        try:
+            url_parts = urlparse.urlsplit(s)
+            return bool(url_parts.scheme) and bool(url_parts.netloc)
+        except Exception as e:
+            return False
+    return False
 

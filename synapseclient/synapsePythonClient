@@ -1,5 +1,6 @@
 {
 	"client":"synapsePythonClient",
-	"latestVersion":"0.2.0",
-	"blacklist":["0.0.0"]
+	"latestVersion":"0.2.1",
+	"blacklist":["0.0.0"],
+  "releaseNotes":"The latest release of the Synapse Client includes changes that maintain compatibility with the Synapse API relating to file transfer and provenance. Client versions prior to 0.2.1 will likely experience errors when trying to access this functionality."
 }

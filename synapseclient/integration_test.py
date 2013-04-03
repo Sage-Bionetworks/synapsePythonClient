@@ -281,6 +281,9 @@ class TestClient:
         test the version checking and blacklisting functionality
         """
 
+        ## current version against dev synapsePythonClient version file
+        version_check(version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+
         ## should be higher than current version and return true
         assert version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
 
@@ -346,6 +349,7 @@ class TestClient:
         ## make the data entity
         activity = Activity(name='random.gauss', description='Generate some random numbers')
         activity.used(code_entity, wasExecuted=True)
+        activity.used({'name':'Superhack', 'url':'https://github.com/joe_coder/Superhack'}, wasExecuted=True)
 
         activity = self.syn.setProvenance(data_entity, activity)
 
@@ -538,5 +542,6 @@ if __name__ == '__main__':
     test.test_provenance()
     test.test_annotations()
     test.test_fileHandle()
+    test.test_fileEntity_round_trip()
     test.test_wikiAttachment()
 
