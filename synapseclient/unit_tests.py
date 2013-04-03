@@ -4,6 +4,7 @@ from nose.tools import *
 from annotations import Annotations
 from activity import Activity, makeUsed
 from datetime import datetime
+import utils
 
 
 def test_annotations():
@@ -136,3 +137,55 @@ def test_activity_creation_by_constructor():
 
     assert used_syn103 is not None
 
+def test_activity_used_url():
+    """test activity creation with UsedURLs"""
+    u1 = 'http://xkcd.com'
+    u2 = {'name':'The Onion', 'url':'http://theonion.com'}
+    u3 = {'name':'Seriously advanced code', 'url':'https://github.com/cbare/Pydoku/blob/ef88069f70823808f3462410e941326ae7ffbbe0/solver.py', 'wasExecuted':True}
+    u4 = makeUsed('Heavy duty algorithm', url='https://github.com/cbare/Pydoku/blob/master/solver.py')
+
+    a = Activity(name='Foobarbat', description='Apply foo to a bar and a bat', used=[u1, u2, u3], executed=[u4])
+
+    used_xkcd = None
+    for usedEntity in a['used']:
+        if 'url' in usedEntity and usedEntity['url'] == u1:
+           used_xkcd = usedEntity
+           break
+    assert used_xkcd is not None
+    assert used_xkcd['url'] == u1
+    assert used_xkcd['wasExecuted'] == False
+
+    used_onion = None
+    for usedEntity in a['used']:
+        if 'url' in usedEntity and usedEntity['url'] == u2['url']:
+           used_onion = usedEntity
+           break
+    assert used_onion is not None
+    assert used_onion['name'] == 'The Onion'
+    assert used_onion['wasExecuted'] == False
+
+    used_code = None
+    for usedEntity in a['used']:
+        if 'name' in usedEntity and usedEntity['name'] == 'Seriously advanced code':
+           used_code = usedEntity
+           break
+    assert used_code is not None
+    assert used_code['url'] == u3['url']
+    assert used_code['wasExecuted'] == u3['wasExecuted']
+
+    used_code = None
+    for usedEntity in a['used']:
+        if 'name' in usedEntity and usedEntity['name'] == 'Heavy duty algorithm':
+           used_code = usedEntity
+           break
+    assert used_code is not None
+    assert used_code['url'] == u4['url']
+    assert used_code['wasExecuted'] == True
+
+
+def test_is_url():
+    """test the ability to determine whether a string is a URL"""
+    assert utils.is_url("http://mydomain.com/foo/bar/bat?asdf=1234&qewr=ooo")
+    assert utils.is_url("http://xkcd.com/1193/")
+    assert not utils.is_url("syn123445")    
+    assert not utils.is_url("wasssuuuup???")
