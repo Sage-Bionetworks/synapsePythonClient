@@ -57,15 +57,20 @@ class Synapse:
             if exception.errno != os.errno.EEXIST:
                 raise
 
+        ## update endpoints if we get redirected
         resp=requests.get(repoEndpoint, allow_redirects=False)
         if resp.status_code==301:
             repoEndpoint=resp.headers['location']
         resp=requests.get(authEndpoint, allow_redirects=False)
         if resp.status_code==301:
             authEndpoint=resp.headers['location']
+        resp=requests.get(fileHandleEndpoint, allow_redirects=False)
+        if resp.status_code==301:
+            fileHandleEndpoint=resp.headers['location']
 
         self.headers = {'content-type': 'application/json', 'Accept': 'application/json', 'request_profile':'False'}
 
+        ## TODO serviceTimeoutSeconds is never used. Either use it or delete it.
         self.serviceTimeoutSeconds = serviceTimeoutSeconds 
         self.debug = debug
         self.sessionToken = None
