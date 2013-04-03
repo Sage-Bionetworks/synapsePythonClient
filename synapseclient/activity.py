@@ -3,7 +3,7 @@
 ############################################################
 
 import collections
-## make used and data consistent w/ createEntity and etc
+
 
 def makeUsed(target, targetVersion=None, wasExecuted=False):
     """
@@ -31,7 +31,7 @@ def makeUsed(target, targetVersion=None, wasExecuted=False):
         except (KeyError, TypeError):
             ## count on platform to get the current version of the entity from synapse
             pass
-    used = {'reference':reference, 'wasExecuted':wasExecuted}
+    used = {'reference':reference, 'wasExecuted':wasExecuted, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
     return used
 
 
