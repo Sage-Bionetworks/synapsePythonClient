@@ -543,6 +543,8 @@ class Synapse:
 
     def uploadFileAsLocation(self, entity, filename):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
+
+        (deprecated in favor of FileEntities)
         
         Arguments:
         - `entity`:  an entity (dictionary) or Id of entity whose location you want to set 
@@ -814,6 +816,7 @@ class Synapse:
         owner -- the owner object (entity, competition, evaluation) with which the new wiki page will be associated
         markdown -- the contents of the wiki page in markdown
         attachmentFileHandleIds -- a list of file handles or file handle IDs
+        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
         """
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
@@ -828,7 +831,11 @@ class Synapse:
 
 
     def _getWiki(self, owner, wiki, owner_type=None):
-        """Get the specified wiki page"""
+        """Get the specified wiki page
+        owner -- the owner object (entity, competition, evaluation) or its ID
+        wiki -- the Wiki object or its ID
+        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+        """
         wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
@@ -841,7 +848,11 @@ class Synapse:
 
 
     def _updateWiki(self, owner, wiki, owner_type=None):
-        """Get the specified wiki page"""
+        """Update the specified wiki page
+        owner -- the owner object (entity, competition, evaluation) or its ID
+        wiki -- the Wiki object or its ID
+        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+        """
         wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
@@ -854,6 +865,11 @@ class Synapse:
 
 
     def _deleteWiki(self, owner, wiki, owner_type=None):
+        """Delete the specified wiki page
+        owner -- the owner object (entity, competition, evaluation) or its ID
+        wiki -- the Wiki object or its ID
+        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+        """
         wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
