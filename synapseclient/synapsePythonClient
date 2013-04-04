@@ -2,5 +2,7 @@
 	"client":"synapsePythonClient",
 	"latestVersion":"0.2.1",
 	"blacklist":["0.0.0"],
-  "releaseNotes":"The latest release of the Synapse Client includes changes that maintain compatibility with the Synapse API relating to file transfer and provenance. Client versions prior to 0.2.1 will likely experience errors when trying to access this functionality."
+  "releaseNotes":"---------------\n Please Note:\n---------------\n\nThe latest version of the Synapse Platform makes several important improvements\nincluding changes in the way files and provenance are represented and the\nintroduction of a Wiki feature that replaces markdown in entity descriptions.\n\nExisting markdown will be automatically migrated to Wiki pages. Going forward,\nentity descriptions are intended be short plain-text descriptions used for\nsearch and in programmatic clients.\n\nExperimental methods for manipulating Wiki pages are available in the 0.2.1\nrelease of the python client. See methods on the Synapse object in client.py:\n  _createWiki\n  _getWiki\n  _updateWiki\n  _deleteWiki\n\nThis support is preliminary. These features will be more fully supported and\ndocumented in future releases of the client.\n\nSpecific areas of API change that may cause errors in older Synapse Client\nversion are downloading files and specifying provenance. Please upgrade your\nclient to maintain compatibility.\n"
 }
+
+
