@@ -351,6 +351,10 @@ class TestClient:
         activity.used(code_entity, wasExecuted=True)
         activity.used({'name':'Superhack', 'url':'https://github.com/joe_coder/Superhack'}, wasExecuted=True)
 
+        print '~'*80
+        print activity
+        print '~'*80
+
         activity = self.syn.setProvenance(data_entity, activity)
 
         ## retrieve the saved provenance record

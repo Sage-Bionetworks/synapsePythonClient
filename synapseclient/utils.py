@@ -3,6 +3,7 @@
 # To debug this, python -m pdb myscript.py
 
 import os, urllib, urlparse, hashlib, re
+import collections
 
 
 def computeMd5ForFile(filename, block_size=2**20):
@@ -66,5 +67,11 @@ def is_url(s):
             return bool(url_parts.scheme) and bool(url_parts.netloc)
         except Exception as e:
             return False
+    return False
+
+
+def is_synapse_entity(entity):
+    if isinstance(entity, collections.Mapping):
+        return 'entityType' in entity
     return False
 

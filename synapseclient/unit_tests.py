@@ -2,7 +2,7 @@
 ############################################################
 from nose.tools import *
 from annotations import Annotations
-from activity import Activity, makeUsed
+from activity import Activity
 from datetime import datetime
 import utils
 
@@ -73,6 +73,15 @@ def test_activity_creation_from_dict():
     assert u['reference']['targetId'] == 'syn12345'
     assert u['reference']['versionNumber'] == 42
 
+
+## a helper method to find a particular used resource in an activity
+## that matches a predicate
+def _findUsed(activity, predicate):
+    for resource in activity['used']:
+        if predicate(resource):
+            return resource
+    return None
+
 def test_activity_used_execute_methods():
     """test activity creation and used and execute methods"""
     a = Activity(name='Fuzz', description='hipster beard dataset')
@@ -85,19 +94,11 @@ def test_activity_used_execute_methods():
     assert a['description'] == 'hipster beard dataset'
 
     ## ??? are activities supposed to come back in order? Let's not count on it
-    used_syn101 = None
-    for usedEntity in usedEntities:
-        if usedEntity['reference']['targetId'] == 'syn101':
-            used_syn101 = usedEntity
-
+    used_syn101 = _findUsed(a, lambda res: res['reference']['targetId'] == 'syn101')
     assert used_syn101['reference']['targetVersionNumber'] == 42
     assert used_syn101['wasExecuted'] == False
 
-    used_syn102 = None
-    for usedEntity in usedEntities:
-        if usedEntity['reference']['targetId'] == 'syn102':
-            used_syn102 = usedEntity
-
+    used_syn102 = _findUsed(a, lambda res: res['reference']['targetId'] == 'syn102')
     assert used_syn102['reference']['targetVersionNumber'] == 1
     assert used_syn102['wasExecuted'] == True
 
@@ -112,29 +113,17 @@ def test_activity_creation_by_constructor():
 
     # print a['used']
 
-    used_syn101 = None
-    for usedEntity in a['used']:
-        if usedEntity['reference']['targetId'] == 'syn101':
-            used_syn101 = usedEntity
-
+    used_syn101 = _findUsed(a, lambda res: res['reference']['targetId'] == 'syn101')
     assert used_syn101 is not None
     assert used_syn101['reference']['targetVersionNumber'] == 42
     assert used_syn101['wasExecuted'] == False
 
-    used_syn102 = None
-    for usedEntity in a['used']:
-        if usedEntity['reference']['targetId'] == 'syn102':
-            used_syn102 = usedEntity
-
+    used_syn102 = _findUsed(a, lambda res: res['reference']['targetId'] == 'syn102')
     assert used_syn102 is not None
     assert used_syn102['reference']['targetVersionNumber'] == 2
     assert used_syn102['wasExecuted'] == True
 
-    used_syn103 = None
-    for usedEntity in a['used']:
-        if usedEntity['reference']['targetId'] == 'syn103':
-            used_syn103 = usedEntity
-
+    used_syn103 = _findUsed(a, lambda res: res['reference']['targetId'] == 'syn103')
     assert used_syn103 is not None
 
 def test_activity_used_url():
@@ -142,46 +131,42 @@ def test_activity_used_url():
     u1 = 'http://xkcd.com'
     u2 = {'name':'The Onion', 'url':'http://theonion.com'}
     u3 = {'name':'Seriously advanced code', 'url':'https://github.com/cbare/Pydoku/blob/ef88069f70823808f3462410e941326ae7ffbbe0/solver.py', 'wasExecuted':True}
-    u4 = makeUsed('Heavy duty algorithm', url='https://github.com/cbare/Pydoku/blob/master/solver.py')
+    u4 = {'name':'Heavy duty algorithm', 'url':'https://github.com/cbare/Pydoku/blob/master/solver.py'}
 
-    a = Activity(name='Foobarbat', description='Apply foo to a bar and a bat', used=[u1, u2, u3], executed=[u4])
+    a = Activity(name='Foobarbat', description='Apply foo to a bar and a bat', used=[u1, u2, u3], executed=[u3, u4])
 
-    used_xkcd = None
-    for usedEntity in a['used']:
-        if 'url' in usedEntity and usedEntity['url'] == u1:
-           used_xkcd = usedEntity
-           break
-    assert used_xkcd is not None
-    assert used_xkcd['url'] == u1
-    assert used_xkcd['wasExecuted'] == False
+    a.executed(url='http://cran.r-project.org/web/packages/glmnet/index.html', name='glm.net')
+    a.used(url='http://earthquake.usgs.gov/earthquakes/feed/geojson/2.5/day', name='earthquakes')
 
-    used_onion = None
-    for usedEntity in a['used']:
-        if 'url' in usedEntity and usedEntity['url'] == u2['url']:
-           used_onion = usedEntity
-           break
-    assert used_onion is not None
-    assert used_onion['name'] == 'The Onion'
-    assert used_onion['wasExecuted'] == False
+    u = _findUsed(a, lambda res: 'url' in res and res['url']==u1)
+    assert u is not None
+    assert u['url'] == u1
+    assert u['wasExecuted'] == False
 
-    used_code = None
-    for usedEntity in a['used']:
-        if 'name' in usedEntity and usedEntity['name'] == 'Seriously advanced code':
-           used_code = usedEntity
-           break
-    assert used_code is not None
-    assert used_code['url'] == u3['url']
-    assert used_code['wasExecuted'] == u3['wasExecuted']
+    u = _findUsed(a, lambda res: 'name' in res and res['name']=='The Onion')
+    assert u is not None
+    assert u['url'] == 'http://theonion.com'
+    assert u['wasExecuted'] == False
 
-    used_code = None
-    for usedEntity in a['used']:
-        if 'name' in usedEntity and usedEntity['name'] == 'Heavy duty algorithm':
-           used_code = usedEntity
-           break
-    assert used_code is not None
-    assert used_code['url'] == u4['url']
-    assert used_code['wasExecuted'] == True
+    u = _findUsed(a, lambda res: 'name' in res and res['name'] == 'Seriously advanced code')
+    assert u is not None
+    assert u['url'] == u3['url']
+    assert u['wasExecuted'] == u3['wasExecuted']
 
+    u = _findUsed(a, lambda res: 'name' in res and res['name'] == 'Heavy duty algorithm')
+    assert u is not None
+    assert u['url'] == u4['url']
+    assert u['wasExecuted'] == True
+
+    u = _findUsed(a, lambda res: 'name' in res and res['name'] == 'glm.net')
+    assert u is not None
+    assert u['url'] == 'http://cran.r-project.org/web/packages/glmnet/index.html'
+    assert u['wasExecuted'] == True
+
+    u = _findUsed(a, lambda res: 'name' in res and res['name'] == 'earthquakes')
+    assert u is not None
+    assert u['url'] == 'http://earthquake.usgs.gov/earthquakes/feed/geojson/2.5/day'
+    assert u['wasExecuted'] == False
 
 def test_is_url():
     """test the ability to determine whether a string is a URL"""
