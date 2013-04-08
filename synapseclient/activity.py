@@ -7,6 +7,9 @@ from utils import is_url, id_of, is_synapse_entity
 
 
 def is_used_entity(x):
+    """
+    Does the given object represent a UsedEntity
+    """
     if not isinstance(x, collections.Mapping):
         return False
     if 'reference' not in x:
@@ -23,6 +26,9 @@ def is_used_entity(x):
 
 
 def is_used_url(x):
+    """
+    Does the given object represent a UsedURL
+    """
     if not isinstance(x, collections.Mapping):
         return False
     if 'url' not in x:
@@ -216,4 +222,8 @@ class Activity(dict):
 
 
     def executed(self, target=None, targetVersion=None, url=None, name=None):
+        """
+        Add a code resource that was executed during the activity.
+        See Activity.used().
+        """
         self.used(target=target, targetVersion=targetVersion, url=url, name=name, wasExecuted=True)

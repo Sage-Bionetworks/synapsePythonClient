@@ -585,9 +585,9 @@ class Synapse:
         response_json = response.json()
         location_path = response_json['path']
         # PUT file to S3
-        headers = { 'Content-MD5': base64.b64encode(md5.digest()),
-                  'Content-Type' : mimetype,
-                  'x-amz-acl' : 'bucket-owner-full-control' }
+        headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
+                    'Content-Type' : mimetype,
+                    'x-amz-acl' : 'bucket-owner-full-control' }
         response = requests.put(response_json['presignedUrl'], headers=headers, data=open(filename))
         response.raise_for_status()
 
