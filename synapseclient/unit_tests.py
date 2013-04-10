@@ -1,7 +1,7 @@
 ## unit tests for python synapse client
 ############################################################
 from nose.tools import *
-from annotations import Annotations
+from annotations import Annotations, toSynapseAnnotations, fromSynapseAnnotations
 from activity import Activity
 from datetime import datetime
 import utils
@@ -9,7 +9,7 @@ import utils
 
 def test_annotations():
     a = Annotations(foo='bar', zoo=['zing','zaboo'], species='Platypus')
-    sa = a.toSynapseAnnotations()
+    sa = toSynapseAnnotations(a)
     # print sa
     assert sa['stringAnnotations']['foo'] == ['bar']
     assert sa['stringAnnotations']['zoo'] == ['zing','zaboo']
@@ -17,28 +17,30 @@ def test_annotations():
 
 def test_more_annotations():
     a = Annotations(foo=1234, zoo=[123.1, 456.2, 789.3], species='Platypus', birthdays=[datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3)])
-    sa = a.toSynapseAnnotations()
+    sa = toSynapseAnnotations(a)
     # print sa
     assert sa['longAnnotations']['foo'] == [1234]
     assert sa['doubleAnnotations']['zoo'] == [123.1, 456.2, 789.3]
     assert sa['stringAnnotations']['species'] == ['Platypus']
-    bdays = [datetime.utcfromtimestamp(t) for t in sa['dateAnnotations']['birthdays']]
+
+    ## this part of the test is kinda fragile. It it breaks again, it should be removed
+    bdays = [datetime.utcfromtimestamp(float(t)/1000.0) for t in sa['dateAnnotations']['birthdays']]
     assert bdays == [datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3)]
 
 def test_round_trip_annotations():
-    a = Annotations(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose', birthdays=[datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3)])
-    sa = a.toSynapseAnnotations()
+    a = Annotations(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose', birthdays=[datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3), datetime(2013,3,15)])
+    sa = toSynapseAnnotations(a)
     # print sa
-    a2 = Annotations.fromSynapseAnnotations(sa)
+    a2 = fromSynapseAnnotations(sa)
     # print a2
     a = a2
 
 def test_mixed_annotations():
     """test that toSynapseAnnotations will coerce a list of mixed types to strings"""
     a = Annotations(foo=[1, 'a', datetime(1969,4,28,11,47)])
-    sa = a.toSynapseAnnotations()
+    sa = toSynapseAnnotations(a)
     # print sa
-    a2 = Annotations.fromSynapseAnnotations(sa)
+    a2 = fromSynapseAnnotations(sa)
     # print a2
     assert a2['foo'][0] == '1'
     assert a2['foo'][1] == 'a'
@@ -49,10 +51,10 @@ def test_idempotent_annotations():
     """test that toSynapseAnnotations won't mess up a dictionary that's already
     in synapse-style form"""
     a = Annotations(species='Moose', n=42, birthday=datetime(1969,4,28))
-    sa = a.toSynapseAnnotations()
+    sa = toSynapseAnnotations(a)
     a2 = Annotations()
     a2.update(sa)
-    sa2 = a2.toSynapseAnnotations()
+    sa2 = toSynapseAnnotations(a2)
     assert sa == sa2
 
 def test_activity_creation_from_dict():

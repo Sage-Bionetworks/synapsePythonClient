@@ -387,13 +387,13 @@ class TestClient:
         DATA_JSON['parentId']= project['id']
         entity = self.syn.createEntity(DATA_JSON)
 
-        a = self.syn._getAnnotations(entity)
+        a = self.syn.getAnnotations(entity)
         assert 'etag' in a
 
         a['bogosity'] = 'total'
-        self.syn._setAnnotations(entity, a)
+        self.syn.setAnnotations(entity, a)
 
-        a2 = self.syn._getAnnotations(entity)
+        a2 = self.syn.getAnnotations(entity)
         assert a2['bogosity'] == ['total']
 
         a2['primes'] = [2,3,5,7,11,13,17,19,23,29]
@@ -401,13 +401,28 @@ class TestClient:
         a2['goobers'] = ['chris', 'jen', 'jane']
         a2['present_time'] = datetime.now()
 
-        self.syn._setAnnotations(entity, a2)
-        a3 = self.syn._getAnnotations(entity)
+        self.syn.setAnnotations(entity, a2)
+        a3 = self.syn.getAnnotations(entity)
         assert a3['primes'] == [2,3,5,7,11,13,17,19,23,29]
         assert a3['phat_numbers'] == [1234.5678, 8888.3333, 1212.3434, 6677.8899]
         assert a3['goobers'] == ['chris', 'jen', 'jane']
         ## only accurate to within a second 'cause synapse strips off the fractional part
         assert a3['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == a2['present_time'].strftime('%Y-%m-%d %H:%M:%S')
+
+    def test_keyword_annotations(self):
+        """
+        Test setting annotations using keyword arguments
+        """
+        ## create a new project
+        project = self.createProject()
+
+        DATA_JSON['parentId']= project['id']
+        entity = self.syn.createEntity(DATA_JSON)
+
+        annos = self.syn.setAnnotations(entity, wazoo='Frank', label='Barking Pumpkin', shark=16776960)
+        assert annos['wazoo'] == ['Frank']
+        assert annos['label'] == ['Barking Pumpkin']
+        assert annos['shark'] == [16776960]
 
 
     def test_ACL(self):

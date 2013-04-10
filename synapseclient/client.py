@@ -19,7 +19,7 @@ import webbrowser
 from version_check import version_check
 import utils
 from copy import deepcopy
-from annotations import Annotations
+from annotations import fromSynapseAnnotations, toSynapseAnnotations
 from activity import Activity
 
 
@@ -181,31 +181,42 @@ class Synapse:
         return response.json()
 
 
-    def _getAnnotations(self, entity):
-
+    def getAnnotations(self, entity):
+        """
+        Retrieve the annotations stored for an entity in the Synapse Repository
+        """
         entity_id = entity['id'] if 'id' in entity else str(entity)
         url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
 
         response = requests.get(url, headers=self.headers)
         response.raise_for_status()
-        
-        return Annotations.fromSynapseAnnotations(response.json())
+
+        return fromSynapseAnnotations(response.json())
 
 
-    def _setAnnotations(self, entity, annotations):
+    def setAnnotations(self, entity, annotations={}, **kwargs):
+        """
+        Store Annotations on an entity in the Synapse Repository.
+
+        Accepts a dictionary, either in the Synapse format or a plain
+        dictionary or key/value pairs.
+        """
         entity_id = entity['id'] if 'id' in entity else str(entity)
         url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
 
-        a = annotations.toSynapseAnnotations()
-        a['id'] = entity_id
-        if 'etag' in entity and 'etag' not in a:
-            a['etag'] = entity['etag']
+        ## update annotations with keyword args
+        annotations.update(kwargs)
 
-        response = requests.put(url, data=json.dumps(a), headers=self.headers)
+        synapseAnnos = toSynapseAnnotations(annotations)
+        synapseAnnos['id'] = entity_id
+        if 'etag' in entity and 'etag' not in synapseAnnos:
+            synapseAnnos['etag'] = entity['etag']
+
+        response = requests.put(url, data=json.dumps(synapseAnnos), headers=self.headers)
         response.raise_for_status()
-        
-        return Annotations.fromSynapseAnnotations(response.json())
 
+        return fromSynapseAnnotations(response.json())
+ 
 
     def downloadEntity(self, entity):
         """Download an entity and files associated with an entity to local cache
