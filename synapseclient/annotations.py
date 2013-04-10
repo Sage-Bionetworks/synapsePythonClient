@@ -40,9 +40,10 @@ def _is_date(dt):
 
 def isSynapseAnnotations(annotations):
     """
-    Test is the given object is a synapse-style annotations object,
+    Test if the given object is a synapse-style annotations object,
     based on its keys
     """
+    if not isinstance(annotations, collections.Mapping): return False
     annotations_keys = ['id', 'etag', 'creationDate', 'uri', 'stringAnnotations','longAnnotations','doubleAnnotations','dateAnnotations', 'blobAnnotations']
     return all([key in annotations_keys for key in annotations.keys()])
 
@@ -76,9 +77,10 @@ def toSynapseAnnotations(annotations):
 
 ## create Annotations object from synapse-style annotations
 def fromSynapseAnnotations(annotations):
+    """transform a dictionary in synapse annotations format to a simple flat dictionary"""
     ## flatten the raw annos to consolidate doubleAnnotations, longAnnotations,
     ## stringAnnotations and dateAnnotations into one dictionary
-    annos = Annotations()
+    annos = dict()
     for key, value in annotations.iteritems():
         if key=='dateAnnotations':
             for k,v in value.iteritems():
@@ -92,13 +94,5 @@ def fromSynapseAnnotations(annotations):
         else:
             annos[key] = value
     return annos
-
-
-class Annotations(dict):
-    """Arbitrary key/value annotations attached to a synapse entity"""
-    def __init__(self, data=None, **kwargs):
-        if data is not None:
-            self.update(data)
-        self.update(kwargs)
 
 

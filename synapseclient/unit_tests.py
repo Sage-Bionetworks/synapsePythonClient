@@ -1,14 +1,15 @@
 ## unit tests for python synapse client
 ############################################################
 from nose.tools import *
-from annotations import Annotations, toSynapseAnnotations, fromSynapseAnnotations
+from annotations import toSynapseAnnotations, fromSynapseAnnotations
 from activity import Activity
 from datetime import datetime
 import utils
 
 
 def test_annotations():
-    a = Annotations(foo='bar', zoo=['zing','zaboo'], species='Platypus')
+    """Test string annotations"""
+    a = dict(foo='bar', zoo=['zing','zaboo'], species='Platypus')
     sa = toSynapseAnnotations(a)
     # print sa
     assert sa['stringAnnotations']['foo'] == ['bar']
@@ -16,7 +17,8 @@ def test_annotations():
     assert sa['stringAnnotations']['species'] == ['Platypus']
 
 def test_more_annotations():
-    a = Annotations(foo=1234, zoo=[123.1, 456.2, 789.3], species='Platypus', birthdays=[datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3)])
+    """Test long, float and data annotations"""
+    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Platypus', birthdays=[datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3)])
     sa = toSynapseAnnotations(a)
     # print sa
     assert sa['longAnnotations']['foo'] == [1234]
@@ -28,7 +30,9 @@ def test_more_annotations():
     assert bdays == [datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3)]
 
 def test_round_trip_annotations():
-    a = Annotations(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose', birthdays=[datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3), datetime(2013,3,15)])
+    """Test that annotations can make the round trip from a simple dictionary
+    to the synapse format and back"""
+    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose', birthdays=[datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3), datetime(2013,3,15)])
     sa = toSynapseAnnotations(a)
     # print sa
     a2 = fromSynapseAnnotations(sa)
@@ -37,7 +41,7 @@ def test_round_trip_annotations():
 
 def test_mixed_annotations():
     """test that toSynapseAnnotations will coerce a list of mixed types to strings"""
-    a = Annotations(foo=[1, 'a', datetime(1969,4,28,11,47)])
+    a = dict(foo=[1, 'a', datetime(1969,4,28,11,47)])
     sa = toSynapseAnnotations(a)
     # print sa
     a2 = fromSynapseAnnotations(sa)
@@ -49,10 +53,10 @@ def test_mixed_annotations():
 
 def test_idempotent_annotations():
     """test that toSynapseAnnotations won't mess up a dictionary that's already
-    in synapse-style form"""
-    a = Annotations(species='Moose', n=42, birthday=datetime(1969,4,28))
+    in the synapse format"""
+    a = dict(species='Moose', n=42, birthday=datetime(1969,4,28))
     sa = toSynapseAnnotations(a)
-    a2 = Annotations()
+    a2 = dict()
     a2.update(sa)
     sa2 = toSynapseAnnotations(a2)
     assert sa == sa2
