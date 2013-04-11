@@ -17,9 +17,11 @@ import webbrowser
 
 from version_check import version_check
 import utils
+from utils import id_of
 from copy import deepcopy
 from annotations import fromSynapseAnnotations, toSynapseAnnotations
 from activity import Activity
+from entity import Entity
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
@@ -320,7 +322,13 @@ class Synapse:
 
 
     def createEntity(self, entity, used=None, executed=None):
-        """Create a new entity in the synapse Repository according to entity json object"""
+        """
+        Create a new entity in the synapse Repository according to entity json object.
+
+        entity: an Entity object or dictionary
+        used: an entity, a synapse ID, a URL or a Used object or a List containing these
+        executed: an entity, a synapse ID, a URL or a Used object or a List containing these        
+        """
 
         entity = self.restPOST('/entity', body=json.dumps(entity))
 
@@ -945,6 +953,4 @@ class Synapse:
         except:
             print response.content
             raise 
-
-
 

@@ -14,6 +14,7 @@ import ConfigParser
 from datetime import datetime
 import filecmp
 import shutil
+import uuid
 
 
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
@@ -66,7 +67,6 @@ class TestClient:
 
 
     def createProject(self):
-        import uuid
         PROJECT_JSON['name'] = str(uuid.uuid4())
         entity = self.syn.createEntity(PROJECT_JSON)
         self.toRemove.append(entity)
@@ -90,10 +90,18 @@ class TestClient:
         config.read(client.CONFIG_FILE)
         self.syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
 
-        # Test that we fail with the wrong config file
-        (fd, fname) = tempfile.mkstemp()
-        client.CONFIG_FILE=fname
-        assert_raises(Exception, self.syn.login)
+        #Test that it works with session token (created in previous passed step)
+        old_config_file = client.CONFIG_FILE
+
+        try:
+            (fd, fname) = tempfile.mkstemp()
+            client.CONFIG_FILE = fname
+
+            #Test that we fail with the wrong config file and no session token
+            os.remove(os.path.join(client.CACHE_DIR, '.session'))
+            assert_raises(Exception, self.syn.login)
+        finally:
+            client.CONFIG_FILE = old_config_file
 
 
     def test_getEntity(self):
