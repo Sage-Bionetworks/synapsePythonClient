@@ -970,6 +970,25 @@ class Synapse:
     # CRUD for Evaluations
     ############################################################
 
+    def _getFileHandle(self, fileHandle):
+        """Retrieve a fileHandle from the fileHandle service (experimental)"""
+        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
+        url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
+        headers = {'Accept': 'multipart/form-data, application/json', 'sessionToken': self.sessionToken}
+        response = requests.get(url, headers=headers, stream=True)
+        response.raise_for_status()
+        return response.json()
+
+
+    def _deleteFileHandle(self, fileHandle):
+        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
+        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
+        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
+        response = requests.delete(url, headers=headers, stream=True)
+        response.raise_for_status()
+        return fileHandle
+
+
     def getEvaluation(self, evaluation):
         evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
         url = '%s/evaluation/%s' % (self.repoEndpoint, evaluation_id,)
@@ -1058,7 +1077,7 @@ class Synapse:
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
-        if name == None and 'id' in entity:
+        if name == '' and 'id' in entity:
             name=entity['name']
         else:
             name=''
@@ -1071,7 +1090,15 @@ class Synapse:
         response = requests.post(url, data=json.dumps(submission), headers=self.headers)
         response.raise_for_status()
 
-        return  response.json()
+    def removeForEvaluation(self, submission):
+        submission_id = submission['id'] if 'id' in submission else str(submission)
+
+        url = '%s//evaluation/submission/%s' % (self.repoEndpoint, submission_id)
+        if (self.debug): print 'About to delete %s' % (url)
+        response = requests.delete(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+        
 
 
     def getEvaluationSubmissions(self, evaluation, status=None):
@@ -1095,7 +1122,6 @@ class Synapse:
         submissions = []
 
         while result_count < max_results:
-
             ## if we're out of results, do a(nother) REST call
             if result_count >= offset + len(submissions):
                 offset += limit
@@ -1106,7 +1132,6 @@ class Synapse:
                 else:
                     url = "%s/evaluation/%s/submission/all?limit=%d&offset=%d" %(self.repoEndpoint, evaluation_id, offset, limit)
 
-                print url
                 response = requests.get(url, headers=self.headers)
                 response.raise_for_status()
                 page_of_submissions = response.json()
@@ -1117,6 +1142,36 @@ class Synapse:
             result_count += 1
             yield submissions[i]
 
+
+    def getEvaluationSubmissionStatus(self, submission):
+        """Get the status of a submission
+        Arguments:
+        - `submission`: Downloads the status of a evaluations submission
+        
+        """
+        submission_id = submission['id'] if 'id' in submission else str(submission)
+
+        
+        url = '%s/evaluation/submission/%s/status' %(self.repoEndpoint, submission_id)
+        response = requests.get(url, headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+
+    
+    def updateEvaluationSubmissionStatus(self, submission, status):
+        """Set the status of a submission
+        Arguments:
+        - `status`: Downloads the status of a evaluations submission
+        
+        """
+        submission_id = submission['id'] if 'id' in submission else str(submission)
+
+        url = '%s/evaluation/submission/%s/status' %(self.repoEndpoint, submission_id)
+
+        response = requests.put(url, data=json.dumps(status), headers=self.headers)
+        response.raise_for_status()
+        return response.json()
+        
 
     ############################################################
     # CRUD for Wikis
