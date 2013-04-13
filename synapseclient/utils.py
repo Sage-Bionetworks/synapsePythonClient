@@ -8,6 +8,7 @@ import tempfile
 import datetime
 from datetime import datetime as Datetime
 from datetime import date as Date
+from numbers import Number
 
 
 def computeMd5ForFile(filename, block_size=2**20):
@@ -56,13 +57,34 @@ def guess_object_type(obj):
         return 'entity'
 
 
-def id_of(obj):
+def _get_from_members_items_or_properties(obj, key):
     try:
-        if 'id' in obj:
-            return obj['id']
-    except:
-        pass
-    return str(obj)
+        if hasattr(obj, key):
+            return obj.id
+        if hasattr(obj, 'properties') and key in obj.properties:
+            return obj.properties[key]
+    except (KeyError, TypeError, AttributeError): pass
+    try:
+        if key in obj:
+            return obj[key]
+        elif 'properties' in obj and key in obj['properties']:
+            return obj['properties'][key]
+    except (KeyError, TypeError): pass
+    return None
+
+
+def id_of(obj):
+    """Try to figure out the synapse ID of the given object. Accepted input
+    includes strings, entity objects, or entities represented by dictionaries"""
+    if isinstance(obj, basestring):
+        return obj
+    if isinstance(obj, Number):
+        return str(obj)
+    return _get_from_members_items_or_properties(obj, 'id')
+
+
+def entity_type(entity):
+    return _get_from_members_items_or_properties(entity, 'entityType')
 
 
 def is_url(s):

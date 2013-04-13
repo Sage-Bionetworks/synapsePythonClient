@@ -17,11 +17,9 @@ import webbrowser
 
 from version_check import version_check
 import utils
-from utils import id_of
 from copy import deepcopy
 from annotations import fromSynapseAnnotations, toSynapseAnnotations
 from activity import Activity
-from entity import Entity
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']

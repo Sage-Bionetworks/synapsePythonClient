@@ -183,3 +183,19 @@ def test_is_url():
     assert utils.is_url("http://xkcd.com/1193/")
     assert not utils.is_url("syn123445")    
     assert not utils.is_url("wasssuuuup???")
+
+def test_id_of():
+    assert utils.id_of(1) == '1'
+    assert utils.id_of('syn12345') == 'syn12345'
+    assert utils.id_of({'foo':1, 'id':123}) == 123
+    assert utils.id_of({'foo':1, 'idzz':123}) is None
+    assert utils.id_of({'properties':{'id':123}}) == 123
+    assert utils.id_of({'properties':{'qq':123}}) is None
+
+    class Foo:
+        def __init__(self, id):
+            self.properties = {'id':id}
+
+    foo = Foo(123)
+    assert utils.id_of(foo) == 123
+

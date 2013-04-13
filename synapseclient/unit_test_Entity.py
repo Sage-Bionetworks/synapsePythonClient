@@ -1,6 +1,6 @@
 from nose.tools import *
 import collections
-from entity import Entity
+from entity import Entity, Project, Folder, File
 
 
 def test_Entity():
@@ -52,10 +52,6 @@ def test_Entity():
     ## test creating a new annotation
     e['bar'] = 888
 
-    print '\n\n'
-    print '~' * 60
-    print e
-    print '~' * 60
     assert e.annotations['bar'] == 888
     e['bat'] = 7788
     assert e.annotations['bat'] == 7788
@@ -70,4 +66,74 @@ def test_Entity():
     assert e.properties.annotations == '/repo/v1/entity/syn1234/annotations'
 
 
+def test_subclassing():
+    """Test ability to subclass and add a member variable"""
+    
+    ## define a subclass of Entity to make sure subclassing and creating
+    ## a new member variable works
+    class FoobarEntity(Entity):
+        def __init__(self, x):
+            self.__dict__['x'] = x
+
+    foobar = FoobarEntity(123)
+    assert foobar.x == 123
+    assert 'x' in foobar.__dict__
+    assert foobar.__dict__['x'] == 123
+    foobar.id = 'syn999'
+    assert foobar.properties['id'] == 'syn999'
+    foobar.n00b = 'henry'
+    assert foobar.annotations['n00b'] == 'henry'
+
+    print foobar
+
+
+def test_entity_creation():
+    props = {
+        "id": "syn123456",
+        "entityType": "org.sagebionetworks.repo.model.Folder",
+        "parentId": "syn445566",
+        "name": "Testing123"
+    }
+    annos = {'testing':123}
+    folder = Entity.create(props, annos)
+
+    assert folder.entityType == 'org.sagebionetworks.repo.model.Folder'
+    assert folder.__class__ == Folder
+    assert folder.name == 'Testing123'
+    assert folder.testing == 123
+
+    props = {
+        "id": "syn123456",
+        "entityType": "org.sagebionetworks.repo.model.DoesntExist",
+        "name": "Whatsits"
+    }
+    whatsits = Entity.create(props)
+
+    assert whatsits.entityType == 'org.sagebionetworks.repo.model.DoesntExist'
+    assert whatsits.__class__ == Entity
+
+
+def test_entity_constructors():
+    project = Project(name=str(uuid.uuid4()), description='Testing 123')
+
+    folder = Folder(name='Musicians', parent=project, genre='Jazz', datatype='personnel')
+
+    personnel_file = File(fname, parentId=folder.id, group='Miles Davis Quintet', album='Stockholm 1960 Complete')
+
+
+def test_entity_constructors():
+    project = Project('TestProject', id='syn1001', foo='bar')
+    assert project.name == 'TestProject'
+    assert project['foo'] == 'bar'
+
+    folder = Folder('MyFolder', parent=project, foo='bat', id='syn1002')
+    assert folder.name == 'MyFolder'
+    assert folder['foo'] == 'bat'
+    assert folder.parentId == 'syn1001'
+
+    a_file = File('/path/to/fabulous_things.zzz', parent=folder, foo='biz')
+    #assert a_file.name == 'fabulous_things'
+    assert a_file.path == '/path/to/fabulous_things.zzz'
+    assert a_file['foo'] == 'biz'
+    assert a_file.parentId == 'syn1002'
 
