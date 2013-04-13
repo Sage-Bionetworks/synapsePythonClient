@@ -122,7 +122,7 @@ class Entity(collections.MutableMapping):
     def __repr__(self):
         from cStringIO import StringIO
         f = StringIO()
-        f.write('Entity: %s %s' % (self.properties.get('name', 'None'), entity_type(self),))
+        f.write('Entity: %s %s\n' % (self.properties.get('name', 'None'), entity_type(self),))
         f.write('properties:\n')
         for key in sorted(self.properties.keys()):
             f.write('  ')

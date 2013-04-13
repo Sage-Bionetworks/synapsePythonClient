@@ -8,13 +8,11 @@ from datetime import datetime as Datetime
 from datetime import date as Date
 from utils import _to_unix_epoch_time, _from_unix_epoch_time
 
-
 def _to_list(value):
     if isinstance(value, collections.Iterable) and not isinstance(value, str):
         return list(value)
     else:
         return [value]
-
 
 def _is_date(dt):
     """
@@ -51,7 +49,7 @@ def toSynapseAnnotations(annotations):
             elif all((isinstance(elem, float) for elem in elements)):
                 synapseAnnos.setdefault('doubleAnnotations', {})[key] = elements
             elif all((_is_date(elem) for elem in elements)):
-                synapseAnnos.setdefault('dateAnnotations', {})[key] = [_to_unix_epoch_time(elem) for elem in elements]
+                synapseAnnos.setdefault('dateAnnotations', {})[key] = [to_unix_epoch_time(elem) for elem in elements]
             # elif all((isinstance(elem, ???) for elem in elements)):
             #     synapseAnnos.setdefault('blobAnnotations', {})[key] = [???(elem) for elem in elements]
             else:
@@ -69,7 +67,7 @@ def fromSynapseAnnotations(annotations):
         if key=='dateAnnotations':
             for k,v in value.iteritems():
                 #debug: print "%s=>%s\n" % (k,v,)
-                annos.setdefault(k,[]).extend([_from_unix_epoch_time(float(t)) for t in v])
+                annos.setdefault(k,[]).extend([from_unix_epoch_time(float(t)) for t in v])
         elif key in ['stringAnnotations','longAnnotations','doubleAnnotations']:
             for k,v in value.iteritems():
                 annos.setdefault(k,[]).extend(v)

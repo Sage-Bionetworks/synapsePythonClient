@@ -132,6 +132,7 @@ def make_bogus_data_file(n=100, seed=12345):
     return f.name
 
 
+## turns a datetime object into a unix epoch time expressed as a float
 def _to_unix_epoch_time(dt):
     """
     Convert either datetime.date or datetime.datetime objects to unix times
@@ -140,6 +141,7 @@ def _to_unix_epoch_time(dt):
     if type(dt) == Date:
         dt = Datetime.combine(dt, datetime.time(0,0,0))
     return (dt - Datetime(1970, 1, 1)).total_seconds() * 1000
+
 
 def _from_unix_epoch_time(ms):
     """
