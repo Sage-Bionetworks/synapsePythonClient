@@ -21,6 +21,10 @@ PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name'
 DATA_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Data', u'parentId': ''}
 CODE_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Code', u'parentId': ''}
 
+## a place to cache the synapse client so we don't have to create it
+## for every test
+synapse = None
+
 
 class TestClient:
     """
@@ -35,25 +39,33 @@ class TestClient:
         - `repoEndpoint`:
         """
 
-        ## if testing endpoints are set in the config file, use them
-        ## this was created 'cause nosetests doesn't have a good means of
-        ## passing parameters to the tests
-        if os.path.exists(client.CONFIG_FILE):
-            try:
-                import ConfigParser
-                config = ConfigParser.ConfigParser()
-                config.read(client.CONFIG_FILE)
-                if config.has_section('testEndpoints'):
-                    repoEndpoint=config.get('testEndpoints', 'repo')
-                    authEndpoint=config.get('testEndpoints', 'auth')
-                    fileHandleEndpoint=config.get('testEndpoints', 'file')
-            except Exception as e:
-                print e
+        if synapse:
+            print "~~~~~~~~~~~ using cached synapse instance"
+            self.syn = synapse
+        else:
+            ## if testing endpoints are set in the config file, use them
+            ## this was created 'cause nosetests doesn't have a good means of
+            ## passing parameters to the tests
+            if os.path.exists(client.CONFIG_FILE):
+                try:
+                    import ConfigParser
+                    config = ConfigParser.ConfigParser()
+                    config.read(client.CONFIG_FILE)
+                    if config.has_section('testEndpoints'):
+                        repoEndpoint=config.get('testEndpoints', 'repo')
+                        authEndpoint=config.get('testEndpoints', 'auth')
+                        fileHandleEndpoint=config.get('testEndpoints', 'file')
+                except Exception as e:
+                    print e
 
-        self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, fileHandleEndpoint=fileHandleEndpoint, debug=False)
-        self.syn._skip_version_check = True
-        self.syn.login() #Assumes that a configuration file exists in the home directory with login information
-        self.toRemove=[]
+            self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, fileHandleEndpoint=fileHandleEndpoint, debug=False)
+            self.syn._skip_version_check = True
+
+            ## Assumes that a configuration file exists in the home directory with login information
+            self.syn.login()
+            ## cache the synapse client, so we don't have to keep creating it
+            #globals()['synapse'] = self.syn
+            self.toRemove=[]
 
 
     def setUp(self):
