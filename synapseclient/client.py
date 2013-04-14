@@ -229,12 +229,24 @@ class Synapse:
         filename = os.path.join(self.cacheDir, entity['id'] ,pathComponents[-1])
         if os.path.exists(filename):
             #print filename, "cached"
-            md5 = utils.computeMd5ForFile(filename)
-            if md5.hexdigest() != entity.get('md5', ''):
-                print filename, "changed, redownloading"
+            md5str = None
+            #see if the MD5 has previously been computed, and that the cached MD5 was done after the file was created
+            if os.path.exists( filename + ".md5" ) and os.path.getmtime(filename + ".md5") > os.path.getmtime(filename):
+                if self.debug: print "Using Cached MD5"
+                handle = open(filename + ".md5")
+                md5str = handle.readline().rstrip()
+                handle.close()
+            else:
+                md5str = utils.computeMd5ForFile(filename).hexdigest()
+                handle = open(filename + ".md5", "w")
+                handle.write(md5str)
+                handle.close()
+
+            if md5str != entity.get('md5', ''):
+                if self.debug: print filename, "changed, redownloading"
                 utils.downloadFile(url, filename)
         else:
-            print filename, 'downloading...',
+            if self.debug: print filename, 'downloading...',
             utils.downloadFile(url, filename)
 
         if entity['contentType']=='application/zip':
