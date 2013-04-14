@@ -125,9 +125,21 @@ class TestClient:
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
 
-        #Create entity with provenance record
         self.syn.deleteEntity(returnEntity['id'])
+
+
+    def test_createEntity_with_provenance(self):
+        #Create a project
+        entity = self.createProject()
+
+        #Add a data entity to project
+        DATA_JSON['parentId']= entity['id']
+
+        #Create entity with provenance record
         entity = self.syn.createEntity(DATA_JSON, used='syn123')
+
+        activity = self.syn.getProvenance(entity)
+        assert activity['used'][0]['reference']['targetId'] == 'syn123'
 
 
     def test_updateEntity(self):
@@ -138,6 +150,21 @@ class TestClient:
         entity = self.syn.updateEntity(entity)
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
+
+
+    def test_updateEntity_version(self):
+        entity = self.createProject()
+        DATA_JSON['parentId']= entity['id']
+        entity = self.syn.createEntity(DATA_JSON)
+        entity['name'] = 'foobarbat'
+        entity['description'] = 'This is a test entity...'
+        entity = self.syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
+        returnEntity = self.syn.getEntity(entity)
+        #self.syn.printEntity(returnEntity)
+        assert returnEntity['name'] == 'foobarbat'
+        assert returnEntity['description'] == 'This is a test entity...'
+        assert returnEntity['versionNumber'] == 2
+        assert returnEntity['versionLabel'] == 'Prada remix'
 
 
     def test_putEntity(self):
@@ -184,6 +211,45 @@ class TestClient:
         with open(fname, 'w') as f:
             f.write('foo\n')
         self.syn.uploadFile(entity, fname)
+
+        #Download and verify that it is the same filename
+        entity = self.syn.downloadEntity(entity)
+        assert entity['files'][0]==os.path.split(fname)[-1]
+        os.remove(fname)
+
+
+    def test_uploadFileEntity(self):
+        projectEntity = self.createProject()
+        entity = {'name':'foo', 'description':'A test file entity', 'parentId':projectEntity['id']}
+
+        #create a temporary file
+        (fp, fname) = tempfile.mkstemp()
+        with open(fname, 'w') as f:
+            f.write('foo bar bat!\n')
+
+        ## create new FileEntity
+        entity = self.syn.uploadFile(entity, fname)
+
+        #Download and verify that it is the same filename
+        entity = self.syn.downloadEntity(entity)
+        assert entity['files'][0]==os.path.split(fname)[-1]
+        os.remove(fname)
+
+        #create a different temporary file
+        (fp, fname) = tempfile.mkstemp()
+        with open(fname, 'w') as f:
+            f.write('blither blather bonk!\n')
+
+        ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
+        del entity['files']
+        del entity['cacheDir']
+
+        ## update existing FileEntity
+        try:
+            entity = self.syn.uploadFile(entity, fname)
+        except Exception as e:
+            print e
+            print e.response.text
 
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
@@ -279,12 +345,12 @@ class TestClient:
         ## create a new activity asserting that the code entity was used to
         ## make the data entity
         activity = Activity(name='random.gauss', description='Generate some random numbers')
-        activity.used(code_entity['id'], wasExecuted=True)
+        activity.used(code_entity, wasExecuted=True)
 
         activity = self.syn.setProvenance(data_entity, activity)
 
         ## retrieve the saved provenance record
-        retrieved_activity = self.syn.getProvenance(data_entity['id'])
+        retrieved_activity = self.syn.getProvenance(data_entity)
 
         ## does it match what we expect?
         assert retrieved_activity == activity
@@ -393,6 +459,24 @@ class TestClient:
         self.syn._deleteFileHandle(fileHandle)
 
 
+    def test_fileEntity_round_trip(self):
+        ## create a new project
+        project = self.createProject()
+
+        ## file the setup.py file to upload
+        original_path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+
+        entity = {'name':'Foobar', 'description':'A test file entity...', 'parentId':project['id']}
+        entity = self.syn._createFileEntity(entity, original_path)
+
+        entity_downloaded = self.syn.downloadEntity(entity['id'])
+
+        path = os.path.join(entity_downloaded['cacheDir'], entity_downloaded['files'][0])
+
+        assert os.path.exists(path)
+        assert filecmp.cmp(original_path, path)
+        shutil.rmtree(entity_downloaded['cacheDir'])
+
 
     def test_wikiAttachment(self):
         md = """
@@ -422,7 +506,7 @@ class TestClient:
 
         ## check and delete it
         assert os.path.exists(path)
-        filecmp.cmp(original_path, path)
+        assert filecmp.cmp(original_path, path)
         shutil.rmtree(tmpdir)
 
         ## try making an update

@@ -45,7 +45,7 @@ def get(args, syn):
                 os.mkdir(dst)
             shutil.copyfile(src, dst)
     else:
-        sys.stderr.write('WARNING: No files associated with entity %s\n' % (entity['id'],))
+        sys.stderr.write('WARNING: No files associated with entity %s\n' % (args.id,))
         syn.printEntity(ent)
     return ent
 
@@ -85,6 +85,7 @@ def upload(args, syn):
     Arguments:
     - `args`:
     """
+    if args.type == 'File': args.type = 'FileEntity'
     entity={'name': args.name, 
             'parentId': args.parentid, 
             'description':args.description, 
@@ -101,6 +102,7 @@ def create(args, syn):
     Arguments:
     - `args`:
     """
+    if args.type == 'File': args.type = 'FileEntity'
     entity={'name': args.name,
             'parentId': args.parentid,
             'description':args.description,
@@ -204,7 +206,7 @@ def main():
     parser_cat.set_defaults(func=cat)
 
     parser_add = subparsers.add_parser('add', help='uploads and adds a dataset to Synapse')
-    parser_add.add_argument('-parentid', metavar='syn123', type=str, required=True, 
+    parser_add.add_argument('-parentid', '-parentId', metavar='syn123', type=str, required=True, 
                          help='Synapse ID of project or folder where to upload data.')
     #TODO make so names can have white space
     parser_add.add_argument('-name', metavar='NAME', type=str, required=True,
@@ -212,8 +214,8 @@ def main():
     #TODO make sure that description can have whitespace
     parser_add.add_argument('-description', metavar='DESCRIPTION', type=str, 
                          help='Description of data object in Synapse.')
-    parser_add.add_argument('-type', type=str, default='Data',
-                         help='Type of object to create in synapse one of {Project, Folder}')
+    parser_add.add_argument('-type', type=str, default='File',
+                         help='Type of object to create in synapse. Defaults to "File". Deprecated object types include "Data" and "Code".')
     parser_add.add_argument('-used', metavar='TargetID', type=str, nargs='*',
                          help='ID of a target data entity from which the specified entity is derived')
     parser_add.add_argument('-executed', metavar='TargetID', type=str, nargs='*',
@@ -250,7 +252,7 @@ def main():
 
 
     parser_create = subparsers.add_parser('create', help='Creates folders or projects on Synapse')
-    parser_create.add_argument('-parentid', metavar='syn123', type=str, required=False, 
+    parser_create.add_argument('-parentid', '-parentId', metavar='syn123', type=str, required=False, 
                          help='Synapse ID of project or folder where to place folder [not used with project]')
     #TODO make so names can have white space
     parser_create.add_argument('-name', metavar='NAME', type=str, required=True,
