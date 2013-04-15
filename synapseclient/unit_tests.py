@@ -188,9 +188,9 @@ def test_id_of():
     assert utils.id_of(1) == '1'
     assert utils.id_of('syn12345') == 'syn12345'
     assert utils.id_of({'foo':1, 'id':123}) == 123
-    assert utils.id_of({'foo':1, 'idzz':123}) is None
+    assert_raises(Exception, utils.id_of, {'foo':1, 'idzz':123})
     assert utils.id_of({'properties':{'id':123}}) == 123
-    assert utils.id_of({'properties':{'qq':123}}) is None
+    assert_raises(Exception, utils.id_of, {'properties':{'qq':123}})
 
     class Foo:
         def __init__(self, id):

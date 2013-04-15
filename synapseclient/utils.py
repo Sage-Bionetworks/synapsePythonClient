@@ -80,7 +80,10 @@ def id_of(obj):
         return obj
     if isinstance(obj, Number):
         return str(obj)
-    return _get_from_members_items_or_properties(obj, 'id')
+    result = _get_from_members_items_or_properties(obj, 'id')
+    if result is None:
+        raise Exception('Invalid parameters: couldn\'t find id of ' + str(obj))
+    return result
 
 
 def entity_type(entity):
