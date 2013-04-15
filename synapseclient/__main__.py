@@ -90,8 +90,7 @@ def upload(args, syn):
             'parentId': args.parentid, 
             'description':args.description, 
             'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
-    entity = syn.createEntity(entity, args.used, args.executed)
-    entity = syn.uploadFile(entity, args.file)
+    entity = syn._createFileEntity(entity, args.file, used=args.used, executed=args.executed)
     sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file))
     return(entity)
 
