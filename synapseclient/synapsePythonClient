@@ -1,5 +1,5 @@
 {
 	"client":"synapsePythonClient",
-	"latestVersion":"0.2.0",
+	"latestVersion":"0.2.1",
 	"blacklist":["0.0.0"]
 }
