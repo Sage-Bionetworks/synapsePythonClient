@@ -11,9 +11,12 @@ import warnings
 import pkg_resources
 
 
-def version_check(current_version=None,
-                  version_url="http://versions.synapse.sagebase.org/synapsePythonClient",
-                  upgrade_url="https://github.com/Sage-Bionetworks/synapsePythonClient"):
+_VERSION_URL     = 'http://versions.synapse.sagebase.org/synapsePythonClient'
+_DEV_VERSION_URL = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient'
+_UPGRADE_URL     = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+
+
+def version_check(current_version=None, version_url=_VERSION_URL, upgrade_url=_UPGRADE_URL):
     """
     Get the latest version information from version_url and check against
     the current version. Recommend upgrade, if a newer version exists.
@@ -52,6 +55,16 @@ def version_check(current_version=None,
 ## if this file is run as a script, print current version
 ## then perform version check
 if __name__ == "__main__":
+    print "Version check"
+    print "============="
     print("Python Synapse Client version: %s" % json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion'])
+
+    print("Check against production version:")
     if version_check():
         print("ok")
+
+    print("Check against dev version:")
+    if version_check(version_url=_DEV_VERSION_URL):
+        print("ok")
+
+

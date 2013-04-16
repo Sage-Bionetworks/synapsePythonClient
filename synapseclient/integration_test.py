@@ -281,6 +281,9 @@ class TestClient:
         test the version checking and blacklisting functionality
         """
 
+        ## current version against dev synapsePythonClient version file
+        version_check(version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+
         ## should be higher than current version and return true
         assert version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
 
@@ -302,24 +305,14 @@ class TestClient:
         ## create a new project
         project = self.createProject()
 
-        # make some bogus data
-        import random
-        random.seed(12345)
-        data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
-
         ## create a data entity
         try:
-            try:
-                f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
-                f.write(", ".join((str(n) for n in data)))
-                f.write("\n")
-            finally:
-                f.close()
+            filename = utils.make_bogus_data_file()
             DATA_JSON['parentId']= project['id']
             data_entity = self.syn.createEntity(DATA_JSON)
-            data_entity = self.syn.uploadFile(data_entity, f.name)
+            data_entity = self.syn.uploadFile(data_entity, filename)
         finally:
-            os.remove(f.name)
+            os.remove(filename)
 
         ## create a code entity, source of the data above
         code = """
@@ -346,6 +339,11 @@ class TestClient:
         ## make the data entity
         activity = Activity(name='random.gauss', description='Generate some random numbers')
         activity.used(code_entity, wasExecuted=True)
+        activity.used({'name':'Superhack', 'url':'https://github.com/joe_coder/Superhack'}, wasExecuted=True)
+
+        print '~'*80
+        print activity
+        print '~'*80
 
         activity = self.syn.setProvenance(data_entity, activity)
 
@@ -379,13 +377,13 @@ class TestClient:
         DATA_JSON['parentId']= project['id']
         entity = self.syn.createEntity(DATA_JSON)
 
-        a = self.syn._getAnnotations(entity)
+        a = self.syn.getAnnotations(entity)
         assert 'etag' in a
 
         a['bogosity'] = 'total'
-        self.syn._setAnnotations(entity, a)
+        self.syn.setAnnotations(entity, a)
 
-        a2 = self.syn._getAnnotations(entity)
+        a2 = self.syn.getAnnotations(entity)
         assert a2['bogosity'] == ['total']
 
         a2['primes'] = [2,3,5,7,11,13,17,19,23,29]
@@ -393,13 +391,28 @@ class TestClient:
         a2['goobers'] = ['chris', 'jen', 'jane']
         a2['present_time'] = datetime.now()
 
-        self.syn._setAnnotations(entity, a2)
-        a3 = self.syn._getAnnotations(entity)
+        self.syn.setAnnotations(entity, a2)
+        a3 = self.syn.getAnnotations(entity)
         assert a3['primes'] == [2,3,5,7,11,13,17,19,23,29]
         assert a3['phat_numbers'] == [1234.5678, 8888.3333, 1212.3434, 6677.8899]
         assert a3['goobers'] == ['chris', 'jen', 'jane']
         ## only accurate to within a second 'cause synapse strips off the fractional part
         assert a3['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == a2['present_time'].strftime('%Y-%m-%d %H:%M:%S')
+
+    def test_keyword_annotations(self):
+        """
+        Test setting annotations using keyword arguments
+        """
+        ## create a new project
+        project = self.createProject()
+
+        DATA_JSON['parentId']= project['id']
+        entity = self.syn.createEntity(DATA_JSON)
+
+        annos = self.syn.setAnnotations(entity, wazoo='Frank', label='Barking Pumpkin', shark=16776960)
+        assert annos['wazoo'] == ['Frank']
+        assert annos['label'] == ['Barking Pumpkin']
+        assert annos['shark'] == [16776960]
 
 
     def test_ACL(self):
@@ -538,5 +551,6 @@ if __name__ == '__main__':
     test.test_provenance()
     test.test_annotations()
     test.test_fileHandle()
+    test.test_fileEntity_round_trip()
     test.test_wikiAttachment()
 
