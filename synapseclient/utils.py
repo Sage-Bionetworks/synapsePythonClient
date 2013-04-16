@@ -4,6 +4,7 @@
 
 import os, urllib, urlparse, hashlib, re
 import collections
+import tempfile
 
 
 def computeMd5ForFile(filename, block_size=2**20):
@@ -74,4 +75,32 @@ def is_synapse_entity(entity):
     if isinstance(entity, collections.Mapping):
         return 'entityType' in entity
     return False
+
+
+def is_synapse_id(obj):
+    """Returns a synapse ID, if the input is a synapse ID, otherwise returns None"""
+    if isinstance(obj, basestring):
+        m = re.match(r'(syn\d+)', obj)
+        if m:
+            return m.group(1)
+    return None
+
+
+def make_bogus_data_file(n=100, seed=12345):
+    """Make a bogus data file for testing. File will contain 'n'
+    random floating point numbers separated by commas. It is the
+    caller's responsibility to remove the file when finished.
+    """
+    import random
+    random.seed(seed)
+    data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
+
+    try:
+        f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+        f.write(", ".join((str(n) for n in data)))
+        f.write("\n")
+    finally:
+        f.close()
+
+    return f.name
 

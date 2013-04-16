@@ -76,7 +76,8 @@ def delete(args, syn):
     Arguments:
     - `args`:
     """
-    ent = syn.deleteEntity(args.id)
+    syn.deleteEntity(args.id)
+    sys.stderr.write('Deleted entity: %s' % args.id)
 
     
 def upload(args, syn):
@@ -90,8 +91,12 @@ def upload(args, syn):
             'parentId': args.parentid, 
             'description':args.description, 
             'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
-    entity = syn._createFileEntity(entity, args.file, used=args.used, executed=args.executed)
-    sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file))
+    if args.type == 'FileEntity':
+        entity = syn._createFileEntity(entity, args.file, used=args.used, executed=args.executed)
+    else:
+        entity = syn.createEntity(entity)
+        entity = syn.uploadFile(entity, args.file)
+    sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'], entity['name'], args.file))
     return(entity)
 
 

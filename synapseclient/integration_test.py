@@ -305,24 +305,14 @@ class TestClient:
         ## create a new project
         project = self.createProject()
 
-        # make some bogus data
-        import random
-        random.seed(12345)
-        data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
-
         ## create a data entity
         try:
-            try:
-                f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
-                f.write(", ".join((str(n) for n in data)))
-                f.write("\n")
-            finally:
-                f.close()
+            filename = utils.make_bogus_data_file()
             DATA_JSON['parentId']= project['id']
             data_entity = self.syn.createEntity(DATA_JSON)
-            data_entity = self.syn.uploadFile(data_entity, f.name)
+            data_entity = self.syn.uploadFile(data_entity, filename)
         finally:
-            os.remove(f.name)
+            os.remove(filename)
 
         ## create a code entity, source of the data above
         code = """
