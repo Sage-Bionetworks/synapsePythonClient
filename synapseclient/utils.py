@@ -58,9 +58,11 @@ def guess_object_type(obj):
 
 def id_of(obj):
     try:
-        obj['id'] if 'id' in obj else str(obj)
+        if 'id' in obj:
+            return obj['id']
     except:
-        return str(obj)
+        pass
+    return str(obj)
 
 
 def is_url(s):
