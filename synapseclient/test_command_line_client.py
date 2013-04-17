@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import utils
 import uuid
+import json
 
 
 # def run_command(command, **kwargs):
@@ -131,9 +132,32 @@ def test_command_line_client():
     assert filecmp.cmp(filename, downloaded_filename)
 
 
+    # query
+    output = run("synapse query 'select id, name from entity where parentId==\"%s\"'" % project_id)
+    assert 'BogusData' in output
+    assert data_entity_id in output
+    assert 'BogusFileEntity' in output
+    assert file_entity_id in output
+
+
+    # provenance
+    repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+    output = run("synapse set-provenance -id %s -name TestActivity -description 'A very excellent provenance' -used %s -executed '%s'" % (file_entity_id, data_entity_id, repo_url,))
+    activity_id = parse(r'Set provenance record (\d+) on entity syn\d+', output)
+
+    output = run("synapse get-provenance -id %s" % (file_entity_id,))
+    activity = json.loads(output)
+    assert activity['name'] == 'TestActivity'
+    assert activity['description'] == 'A very excellent provenance'
+    
+    used = utils._findUsed(activity, lambda used: 'reference' in used)
+    assert used['reference']['targetId'] == data_entity_id
+
+    used = utils._findUsed(activity, lambda used: 'url' in used)
+    assert used['url'] == repo_url
+    assert used['wasExecuted'] == True
+
+
     ## delete project
     output = run("synapse delete %s" % project_id)
     to_clean_up.remove(project_id)
-
-
-#TODO: test query, set and get provenance, show

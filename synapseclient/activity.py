@@ -144,35 +144,59 @@ class Activity(dict):
                 'http://mydomain.com/my/awesome/data.RData' ] )
         """
 
+        ## Check for allowed combinations of parameters and generate specific error message
+        ## based on the context. For example, if we specify a URL, it's illegal to specify
+        ## a version.
+        def check_for_invalid_parameters(context=None, params={}):
+            err_msg = 'Error in call to Activity.used()'
+            
+            if context == 'list':
+                illegal_params = ('targetVersion', 'url', 'name',)
+                context_msg = 'list of used resources'
+            elif context == 'dict':
+                illegal_params = ('targetVersion', 'url', 'name',)
+                context_msg = 'dictionary representing a used resource'
+            elif context == 'url_param':
+                illegal_params = ('target', 'targetVersion',)
+                context_msg = 'URL'
+            elif context == 'url_string':
+                illegal_params = ('targetVersion',)
+                context_msg = 'URL'
+            elif context == 'entity':
+                illegal_params = ('url', 'name',)
+                context_msg = 'Synapse entity'
+            else:
+                illegal_params = ()
+                context_msg = '?'
+
+            for param in illegal_params:
+                if param in params and params[param] is not None:
+                    raise Exception('%s: It is an error to specify the \'%s\' parameter in combination with a %s.' % (err_msg, str(args), context_msg))
+
         ## list
         if isinstance(target, list):
-            ## check for invalid parameters
-            for param in ('targetVersion', 'url', 'name',):
-                if locals()[param] is not None:
-                    raise Exception('Error in call to Activity.used(): It is an error to specify the \'%s\' parameter in combination with a list of Used resources.' % param)
-            for item in target: self.used(item, wasExecuted=wasExecuted)
+            check_for_invalid_parameters(context='list', params=locals())
+            for item in target:
+                self.used(item, wasExecuted=wasExecuted)
             return
 
         ## UsedEntity
         elif is_used_entity(target):
-            for param in ('targetVersion', 'url', 'name',):
-                if locals()[param] is not None:
-                    raise Exception('Error in call to Activity.used(): It is an error to specify the \'%s\' parameter in combination with a dictionary representing a used resource.' % param)
+            check_for_invalid_parameters(context='dict', params=locals())
             resource = target
             if 'concreteType' not in resource:
                 resource['concreteType'] = 'org.sagebionetworks.repo.model.provenance.UsedEntity'
 
         ## UsedURL
         elif is_used_url(target):
-            for param in ('targetVersion', 'url', 'name',):
-                if locals()[param] is not None:
-                    raise Exception('Error in call to Activity.used(): It is an error to specify the \'%s\' parameter in combination with a dictionary representing a used resource.' % param)
+            check_for_invalid_parameters(context='dict', params=locals())
             resource = target
             if 'concreteType' not in resource:
                 resource['concreteType'] = 'org.sagebionetworks.repo.model.provenance.UsedURL'
 
         ## synapse entity
         elif is_synapse_entity(target):
+            check_for_invalid_parameters(context='entity', params=locals())
             reference = {'targetId':target['id']}
             if 'versionNumber' in target:
                 reference['targetVersionNumber'] = target['versionNumber']
@@ -183,23 +207,17 @@ class Activity(dict):
 
         ## url parameter
         elif url:
-            for param in ('target', 'targetVersion',):
-                if locals()[param] is not None:
-                    raise Exception('Error in call to Activity.used(): It is an error to specify the \'%s\' parameter in combination with a URL.' % param)
+            check_for_invalid_parameters(context='url_param', params=locals())
             resource = {'url':url, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
         ## URL as a string
         elif is_url(target):
-            for param in ('targetVersion',):
-                if locals()[param] is not None:
-                    raise Exception('Error in call to Activity.used(): It is an error to specify the \'%s\' parameter in combination with a URL.' % param)
+            check_for_invalid_parameters(context='url_string', params=locals())
             resource = {'url':target, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
         ## if it's a string and isn't a URL, assume it's a synapse entity id
         elif isinstance(target, basestring):
-            for param in ('url', 'name',):
-                if locals()[param] is not None:
-                    raise Exception('Error in call to Activity.used(): It is an error to specify the \'%s\' parameter in combination with a Synapse entity.' % param)
+            check_for_invalid_parameters(context='entity', params=locals())
             reference = {'targetId':target}
             if targetVersion:
                 reference['targetVersionNumber'] = int(targetVersion)

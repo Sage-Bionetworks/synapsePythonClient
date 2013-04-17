@@ -4,9 +4,9 @@
 ############################################################
 import collections
 import re
-import datetime
 from datetime import datetime as Datetime
 from datetime import date as Date
+from utils import _to_unix_epoch_time, _from_unix_epoch_time
 
 
 def _to_list(value):
@@ -15,22 +15,6 @@ def _to_list(value):
     else:
         return [value]
 
-
-## turns a datetime object into a unix epoch time expressed as a float
-def _to_unix_epoch_time(dt):
-    """
-    Convert either datetime.date or datetime.datetime objects to unix times
-    (milliseconds since midnight Jan 1, 1970)
-    """
-    if type(dt) == Date:
-        dt = Datetime.combine(dt, datetime.time())
-    return (dt - Datetime(1970, 1, 1)).total_seconds() * 1000
-
-def _from_unix_epoch_time(ms):
-    """
-    Return a datetime object given milliseconds since midnight Jan 1, 1970
-    """
-    return Datetime.utcfromtimestamp(ms/1000.0)
 
 def _is_date(dt):
     """
@@ -69,7 +53,7 @@ def toSynapseAnnotations(annotations):
             elif all((_is_date(elem) for elem in elements)):
                 synapseAnnos.setdefault('dateAnnotations', {})[key] = [_to_unix_epoch_time(elem) for elem in elements]
             # elif all((isinstance(elem, ???) for elem in elements)):
-            #     synapseAnnos.setdefault('blobAnnotations', {})[key] = [_to_unix_epoch_time(elem) for elem in elements]
+            #     synapseAnnos.setdefault('blobAnnotations', {})[key] = [???(elem) for elem in elements]
             else:
                 synapseAnnos.setdefault('stringAnnotations', {})[key] = [str(elem) for elem in elements]
     return synapseAnnos

@@ -5,6 +5,9 @@
 import os, urllib, urlparse, hashlib, re
 import collections
 import tempfile
+import datetime
+from datetime import datetime as Datetime
+from datetime import date as Date
 
 
 def computeMd5ForFile(filename, block_size=2**20):
@@ -104,3 +107,27 @@ def make_bogus_data_file(n=100, seed=12345):
 
     return f.name
 
+
+def _to_unix_epoch_time(dt):
+    """
+    Convert either datetime.date or datetime.datetime objects to unix times
+    (milliseconds since midnight Jan 1, 1970)
+    """
+    if type(dt) == Date:
+        dt = Datetime.combine(dt, datetime.time(0,0,0))
+    return (dt - Datetime(1970, 1, 1)).total_seconds() * 1000
+
+def _from_unix_epoch_time(ms):
+    """
+    Return a datetime object given milliseconds since midnight Jan 1, 1970
+    """
+    return Datetime.utcfromtimestamp(ms/1000.0)
+
+
+## a helper method to find a particular used resource in an activity
+## that matches a predicate
+def _findUsed(activity, predicate):
+    for resource in activity['used']:
+        if predicate(resource):
+            return resource
+    return None

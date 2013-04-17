@@ -5,6 +5,7 @@ from annotations import toSynapseAnnotations, fromSynapseAnnotations
 from activity import Activity
 from datetime import datetime
 import utils
+from utils import _findUsed
 
 
 def test_annotations():
@@ -79,14 +80,6 @@ def test_activity_creation_from_dict():
     assert u['reference']['targetId'] == 'syn12345'
     assert u['reference']['versionNumber'] == 42
 
-
-## a helper method to find a particular used resource in an activity
-## that matches a predicate
-def _findUsed(activity, predicate):
-    for resource in activity['used']:
-        if predicate(resource):
-            return resource
-    return None
 
 def test_activity_used_execute_methods():
     """test activity creation and used and execute methods"""
@@ -173,6 +166,16 @@ def test_activity_used_url():
     assert u is not None
     assert u['url'] == 'http://earthquake.usgs.gov/earthquakes/feed/geojson/2.5/day'
     assert u['wasExecuted'] == False
+
+
+def test_activity_parameter_errors():
+    """Test error handling in Activity.used()"""
+    a = Activity(name='Foobarbat', description='Apply foo to a bar and a bat')
+    assert_raises(Exception, a.used, ['syn12345', 'http://google.com'], url='http://amazon.com')
+    assert_raises(Exception, a.used, 'syn12345', url='http://amazon.com')
+    assert_raises(Exception, a.used, 'http://amazon.com', targetVersion=1)
+
+
 
 def test_is_url():
     """test the ability to determine whether a string is a URL"""
