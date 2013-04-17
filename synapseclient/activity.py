@@ -73,7 +73,7 @@ class Activity(dict):
             self.executed(executed)
 
 
-    def usedEntity(self, target, targetVersion=None, wasExcecuted=False):
+    def usedEntity(self, target, targetVersion=None, wasExecuted=False):
         """
         target: either a synapse entity or entity id (as a string)
         targetVersion: optionally specify the version of the entity
@@ -92,7 +92,7 @@ class Activity(dict):
         self['used'].append({'reference':reference, 'wasExecuted':wasExecuted, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'})
 
 
-    def usedURL(self, url, name=None, wasExcecuted=False):
+    def usedURL(self, url, name=None, wasExecuted=False):
         """
         url: resource's URL as a string
         name: optionally name the indicated resource, defaults to the URL
