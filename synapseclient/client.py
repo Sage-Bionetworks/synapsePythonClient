@@ -19,7 +19,7 @@ import webbrowser
 from version_check import version_check
 import utils
 from copy import deepcopy
-from annotations import Annotations
+from annotations import fromSynapseAnnotations, toSynapseAnnotations
 from activity import Activity
 
 
@@ -57,15 +57,20 @@ class Synapse:
             if exception.errno != os.errno.EEXIST:
                 raise
 
+        ## update endpoints if we get redirected
         resp=requests.get(repoEndpoint, allow_redirects=False)
         if resp.status_code==301:
             repoEndpoint=resp.headers['location']
         resp=requests.get(authEndpoint, allow_redirects=False)
         if resp.status_code==301:
             authEndpoint=resp.headers['location']
+        resp=requests.get(fileHandleEndpoint, allow_redirects=False)
+        if resp.status_code==301:
+            fileHandleEndpoint=resp.headers['location']
 
         self.headers = {'content-type': 'application/json', 'Accept': 'application/json', 'request_profile':'False'}
 
+        ## TODO serviceTimeoutSeconds is never used. Either use it or delete it.
         self.serviceTimeoutSeconds = serviceTimeoutSeconds 
         self.debug = debug
         self.sessionToken = None
@@ -176,31 +181,42 @@ class Synapse:
         return response.json()
 
 
-    def _getAnnotations(self, entity):
-
+    def getAnnotations(self, entity):
+        """
+        Retrieve the annotations stored for an entity in the Synapse Repository
+        """
         entity_id = entity['id'] if 'id' in entity else str(entity)
         url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
 
         response = requests.get(url, headers=self.headers)
         response.raise_for_status()
-        
-        return Annotations.fromSynapseAnnotations(response.json())
+
+        return fromSynapseAnnotations(response.json())
 
 
-    def _setAnnotations(self, entity, annotations):
+    def setAnnotations(self, entity, annotations={}, **kwargs):
+        """
+        Store Annotations on an entity in the Synapse Repository.
+
+        Accepts a dictionary, either in the Synapse format or a plain
+        dictionary or key/value pairs.
+        """
         entity_id = entity['id'] if 'id' in entity else str(entity)
         url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
 
-        a = annotations.toSynapseAnnotations()
-        a['id'] = entity_id
-        if 'etag' in entity and 'etag' not in a:
-            a['etag'] = entity['etag']
+        ## update annotations with keyword args
+        annotations.update(kwargs)
 
-        response = requests.put(url, data=json.dumps(a), headers=self.headers)
+        synapseAnnos = toSynapseAnnotations(annotations)
+        synapseAnnos['id'] = entity_id
+        if 'etag' in entity and 'etag' not in synapseAnnos:
+            synapseAnnos['etag'] = entity['etag']
+
+        response = requests.put(url, data=json.dumps(synapseAnnos), headers=self.headers)
         response.raise_for_status()
-        
-        return Annotations.fromSynapseAnnotations(response.json())
 
+        return fromSynapseAnnotations(response.json())
+ 
 
     def downloadEntity(self, entity):
         """Download an entity and files associated with an entity to local cache
@@ -550,6 +566,8 @@ class Synapse:
 
     def uploadFileAsLocation(self, entity, filename):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
+
+        (deprecated in favor of FileEntities)
         
         Arguments:
         - `entity`:  an entity (dictionary) or Id of entity whose location you want to set 
@@ -590,9 +608,9 @@ class Synapse:
         response_json = response.json()
         location_path = response_json['path']
         # PUT file to S3
-        headers = { 'Content-MD5': base64.b64encode(md5.digest()),
-                  'Content-Type' : mimetype,
-                  'x-amz-acl' : 'bucket-owner-full-control' }
+        headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
+                    'Content-Type' : mimetype,
+                    'x-amz-acl' : 'bucket-owner-full-control' }
         response = requests.put(response_json['presignedUrl'], headers=headers, data=open(filename))
         response.raise_for_status()
 
@@ -821,6 +839,7 @@ class Synapse:
         owner -- the owner object (entity, competition, evaluation) with which the new wiki page will be associated
         markdown -- the contents of the wiki page in markdown
         attachmentFileHandleIds -- a list of file handles or file handle IDs
+        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
         """
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
@@ -835,7 +854,11 @@ class Synapse:
 
 
     def _getWiki(self, owner, wiki, owner_type=None):
-        """Get the specified wiki page"""
+        """Get the specified wiki page
+        owner -- the owner object (entity, competition, evaluation) or its ID
+        wiki -- the Wiki object or its ID
+        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+        """
         wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
@@ -848,7 +871,11 @@ class Synapse:
 
 
     def _updateWiki(self, owner, wiki, owner_type=None):
-        """Get the specified wiki page"""
+        """Update the specified wiki page
+        owner -- the owner object (entity, competition, evaluation) or its ID
+        wiki -- the Wiki object or its ID
+        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+        """
         wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
@@ -861,6 +888,11 @@ class Synapse:
 
 
     def _deleteWiki(self, owner, wiki, owner_type=None):
+        """Delete the specified wiki page
+        owner -- the owner object (entity, competition, evaluation) or its ID
+        wiki -- the Wiki object or its ID
+        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+        """
         wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
