@@ -6,7 +6,7 @@ import collections
 import re
 from datetime import datetime as Datetime
 from datetime import date as Date
-from utils import _to_unix_epoch_time, _from_unix_epoch_time
+from utils import to_unix_epoch_time, from_unix_epoch_time
 
 def _to_list(value):
     if isinstance(value, collections.Iterable) and not isinstance(value, str):

@@ -64,7 +64,7 @@ class TestClient:
             ## Assumes that a configuration file exists in the home directory with login information
             self.syn.login()
             ## cache the synapse client, so we don't have to keep creating it
-            #globals()['synapse'] = self.syn
+            globals()['synapse'] = self.syn
             self.toRemove=[]
 
 

@@ -136,7 +136,7 @@ def make_bogus_data_file(n=100, seed=12345):
 
 
 ## turns a datetime object into a unix epoch time expressed as a float
-def _to_unix_epoch_time(dt):
+def to_unix_epoch_time(dt):
     """
     Convert either datetime.date or datetime.datetime objects to unix times
     (milliseconds since midnight Jan 1, 1970)
@@ -146,7 +146,7 @@ def _to_unix_epoch_time(dt):
     return (dt - Datetime(1970, 1, 1)).total_seconds() * 1000
 
 
-def _from_unix_epoch_time(ms):
+def from_unix_epoch_time(ms):
     """
     Return a datetime object given milliseconds since midnight Jan 1, 1970
     """
