@@ -304,17 +304,19 @@ class Synapse:
 
     def _downloadFile(self, url, destDir):
         ## we expect to be redirected to a signed S3 URL
-        ## TODO how will external URLs be handled?
         response = requests.get(url, headers=self.headers, allow_redirects=False)
         if response.status_code in [301,302,303,307,308]:
           url = response.headers['location']
-          # print url
+          #print url
           headers = {'sessionToken':self.sessionToken}
           response = requests.get(url, headers=headers, stream=True)
           response.raise_for_status()
-
+        ##Extract filename from url or header, if it is a Signed S3 URL do...
+        if url.startswith('https://s3.amazonaws.com/proddata.sagebase.org'):
+            filename = utils.extract_filename(response.headers['content-disposition'])
+        else:
+            filename = url.split('/')[-1]
         ## stream file to disk
-        filename = utils.extract_filename(response.headers['content-disposition'])
         if destDir:
             filename = os.path.join(destDir, filename)
         with open(filename, "wb") as f:
