@@ -213,7 +213,12 @@ class Synapse:
             synapseAnnos['etag'] = entity['etag']
 
         response = requests.put(url, data=json.dumps(synapseAnnos), headers=self.headers)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except:
+            print response.content
+            raise 
+    
 
         return fromSynapseAnnotations(response.json())
  
@@ -345,8 +350,11 @@ class Synapse:
 
         url = self.repoEndpoint + '/entity'
         response = requests.post(url, data=json.dumps(entity), headers=self.headers)
-        response.raise_for_status()
-
+        try:
+            response.raise_for_status()
+        except:
+            print response.content
+            raise 
         entity = response.json()
 
         ## set provenance, if used or executed given
@@ -360,15 +368,16 @@ class Synapse:
 
 
     def _createFileEntity(self, entity, filename, used=None, executed=None):
-
-        fileHandle = self._uploadFileToFileHandleService(filename)
-
+        #Determine if we want to upload or store the url
+        #TODO this should be determined by a parameter not based on magic
+        if utils.is_url(filename):
+            fileHandle = self._addURLtoFileHandleService(filename)
+            entity['dataFileHandleId'] = fileHandle['id']
+        else:
+            fileHandle = self._uploadFileToFileHandleService(filename)
+            entity['dataFileHandleId'] = fileHandle['list'][0]['id']
         if 'entityType' not in entity:
             entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
-
-        # add fileHandle to entity
-        entity['dataFileHandleId'] = fileHandle['list'][0]['id']
-
         return self.createEntity(entity, used=used, executed=executed)
 
         
@@ -814,6 +823,20 @@ class Synapse:
         response.raise_for_status()
         return response.json()
 
+
+    def _addURLtoFileHandleService(self, externalURL):
+        url = "%s/externalFileHandle" % (self.fileHandleEndpoint,)
+        fileName = externalURL.split('/')[-1]
+        headers = {'Accept': 'application/json', 
+                   'sessionToken': self.sessionToken,  
+                   'Content-Type':'application/json'}
+        fileHandle={'concreteType':'org.sagebionetworks.repo.model.file.ExternalFileHandle',
+                    'fileName': fileName,
+                    'externalURL':externalURL}
+        response = requests.post(url, data=json.dumps(fileHandle), headers=headers)
+        response.raise_for_status()
+        return response.json()
+        
 
     def _getFileHandle(self, fileHandle):
         """Retrieve a fileHandle from the fileHandle service (experimental)"""
