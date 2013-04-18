@@ -22,7 +22,7 @@ from utils import id_of, get_properties
 from annotations import from_synapse_annotations, to_synapse_annotations
 from activity import Activity
 from entity import Entity, Project, Folder, File, Data, split_entity_namespaces, is_versionable, is_locationable
-
+from evaluation import Evaluation
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
@@ -970,25 +970,6 @@ class Synapse:
     # CRUD for Evaluations
     ############################################################
 
-    def _getFileHandle(self, fileHandle):
-        """Retrieve a fileHandle from the fileHandle service (experimental)"""
-        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
-        url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
-        headers = {'Accept': 'multipart/form-data, application/json', 'sessionToken': self.sessionToken}
-        response = requests.get(url, headers=headers, stream=True)
-        response.raise_for_status()
-        return response.json()
-
-
-    def _deleteFileHandle(self, fileHandle):
-        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
-        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
-        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
-        response = requests.delete(url, headers=headers, stream=True)
-        response.raise_for_status()
-        return fileHandle
-
-
     def getEvaluation(self, evaluation):
         evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
         url = '%s/evaluation/%s' % (self.repoEndpoint, evaluation_id,)
@@ -1005,19 +986,11 @@ class Synapse:
         - `description`: A string describing the evaluation in detail
         - `status`: A string describing the status: one of { PLANNED, OPEN, CLOSED, COMPLETED}
         """
-        #Prep variables for submission
-        url = self.repoEndpoint + '/evaluation'
-        args = {'name':name, 'description':description, 'status':status, 'contentSource':contentSource}
         request_profile=self.headers.pop('request_profile')
-        
-        response = requests.post(url, data=json.dumps(args), headers=self.headers)
-        response.raise_for_status()
-
-        #Reset the value of request_profile
-        self.headers['request_profile']=request_profile
-
-        return  response.json()
-
+        args = {'name':name, 'description':description, 'status':status, 'contentSource':'Synapse'}
+        val= self.restPOST('/evaluation', body=json.dumps(args))
+        #self.headers['request_profile']=request_profile
+        return val
 
     def deleteEvaluation(self, evaluation):
         """Removes a existing evaluation
@@ -1128,13 +1101,11 @@ class Synapse:
                 if status != None:
                     if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
                         raise Exception('status may be one of {OPEN, CLOSED, SCORED, INVALID}')
-                    url = "%s/evaluation/%s/submission/all?status=%s&limit=%d&offset=%d" %(self.repoEndpoint, evaluation_id, limitBy, offset, limit)
+                    uri = "/evaluation/%s/submission/all?status=%s&limit=%d&offset=%d" %(evaluation_id, limitBy, limit, offset)
                 else:
-                    url = "%s/evaluation/%s/submission/all?limit=%d&offset=%d" %(self.repoEndpoint, evaluation_id, offset, limit)
-
-                response = requests.get(url, headers=self.headers)
-                response.raise_for_status()
-                page_of_submissions = response.json()
+                    uri = "/evaluation/%s/submission/all?limit=%d&offset=%d" %(evaluation_id, limit, offset)
+                print uri
+                page_of_submissions = self.restGET(uri)
                 max_results = page_of_submissions['totalNumberOfResults']
                 submissions = page_of_submissions['results']
 
@@ -1306,8 +1277,7 @@ class Synapse:
     ############################################################
     # Low level Rest calls
     ############################################################
-
-    def restGET(self, uri, endpoint=None):
+    def restGET(self, uri, endpoint=None, **kwargs):
         """Performs a REST GET operation to the Synapse server.
         
         Arguments:
