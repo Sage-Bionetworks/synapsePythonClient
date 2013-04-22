@@ -87,8 +87,6 @@ def test_subclassing():
     foobar.n00b = 'henry'
     assert foobar.annotations['n00b'] == 'henry'
 
-    print foobar
-
 
 def test_entity_creation():
     props = {
@@ -148,9 +146,8 @@ def test_property_keys():
     assert 'dataFileHandleId' in File._property_keys
 
 
-def test_asdf():
+def test_keys():
     f = File('foo.xyz', parent='syn1234', foo='bar')
-    print f.keys()
 
     iter_keys = []
     for key in f:

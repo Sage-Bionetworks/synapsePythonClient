@@ -4,7 +4,7 @@
 ############################################################
 import collections
 from dict_object import DictObject
-from utils import id_of, entity_type
+from utils import id_of, entity_type, itersubclasses
 import os
 
 
@@ -240,7 +240,6 @@ class File(Entity, Versionable):
 
 
 
-
 ## Deprecated, but kept around for compatibility with
 ## old-style Data, Code, Study, etc. entities
 class Locationable(Versionable):
@@ -272,9 +271,10 @@ class Summary(Entity, Versionable):
     _property_keys = Entity._property_keys + Versionable._property_keys
 
 
-_entity_type_to_class = {'org.sagebionetworks.repo.model.Project':Project,
-                        'org.sagebionetworks.repo.model.Folder':Folder,
-                        'org.sagebionetworks.repo.model.FileEntity':File}
 
-_class_to_entity_type = {v:k for k,v in _entity_type_to_class.items()}
+## Create a mapping from Synapse class (as a string) to the equivalent
+## Python class.
+_entity_type_to_class = {}
+for cls in itersubclasses(Entity):
+    _entity_type_to_class[cls._synapse_class] = cls
 

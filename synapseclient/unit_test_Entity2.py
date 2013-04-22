@@ -12,8 +12,6 @@ def test_Entity():
                                parentId='syn1234'),
                 entityType='org.sagebionetworks.repo.model.Data')
 
-    print e
-
     assert e['parentId'] == 'syn1234'
     assert e['foo'] == 123
     assert e['nerds'] == ['chris','jen','janey']
@@ -128,7 +126,6 @@ def test_property_keys():
 
 def test_keys_and_iteration():
     f = File('foo.xyz', parent='syn1234', foo='bar')
-    print f.keys()
 
     iter_keys = []
     for key in f:
