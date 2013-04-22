@@ -14,9 +14,11 @@ import shutil
 import stat
 import pkg_resources
 import webbrowser
+import collections
 
 from version_check import version_check
 import utils
+from utils import id_of
 from copy import deepcopy
 from annotations import fromSynapseAnnotations, toSynapseAnnotations
 from activity import Activity
@@ -160,10 +162,8 @@ class Synapse:
         #process input arguments
         if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
             raise Exception("invalid parameters")
-        if isinstance(entity, dict):
-            entity = entity['id']
 
-        return self.restGET(uri='/entity/' + entity)
+        return self.restGET(uri='/entity/' + id_of(entity))
 
 
     def getAnnotations(self, entity):

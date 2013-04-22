@@ -1,3 +1,9 @@
+## integration tests for the Entity class
+############################################################
+
+## to run tests: nosetests -vs synapseclient/integration_test_Entity.py
+## to run single test: nosetests -vs synapseclient/integration_test_Entity.py:test_Entity
+
 from nose.tools import *
 import synapseclient
 from entity import Entity, Project, Folder, File
@@ -73,13 +79,21 @@ def test_Entity():
                 foo=123,
                 bar='bat')
 
-    ## save entity in Synapse
-    e1 = syn.createEntity(e.properties)
-    a = syn.setAnnotations(e1, e.annotations)
+    annos = e.annotations
 
-    assert e1['name'] == 'Test object'
+    ## save entity in Synapse
+    e = syn.createEntity(e.properties)
+    a = syn.setAnnotations(e, annos)
+
+    assert e['name'] == 'Test object'
     assert a['foo'] == [123]
     assert a['bar'] == ['bat']
+
+    e = syn.getEntity(e)
+    assert e['name'] == 'Test object'
+    assert e.annotations['foo'] == [123]
+    assert e.annotations['bar'] == ['bat']
+
 
 
 def test_entity_subclasses():

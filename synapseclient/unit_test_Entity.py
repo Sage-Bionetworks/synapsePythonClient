@@ -1,6 +1,6 @@
 from nose.tools import *
 import collections
-from entity import Entity, Project, Folder, File
+from entity import Entity, Project, Folder, File, Data
 
 
 def test_Entity():
@@ -22,12 +22,14 @@ def test_Entity():
     assert e.annotations['foo'] == 123
     assert e.annotations.foo == 123
 
-    ## annotations is a bit funny, because e['annotations'] != e.annotations. 
-    ## We want e.annotations to point to the annotations dictionary. But,
-    ## e['annotations'] points to the property 'annotations'
+    ## annotations is a bit funny, because there is a property call
+    ## 'annotations', which will be masked by a member of the object
+    ## called 'annotations'. Because annotations are open-ended, we
+    ## might even have an annotations called 'annotations', which gets
+    ## really confusing.
     assert isinstance(e.annotations, collections.Mapping)
+    assert isinstance(e['annotations'], collections.Mapping)
     assert e.properties['annotations'] == '/repo/v1/entity/syn1234/annotations'
-    assert e['annotations'] == '/repo/v1/entity/syn1234/annotations'
     assert e.properties.annotations == '/repo/v1/entity/syn1234/annotations'
     assert e.annotations.annotations == 'How confusing!'
     assert e.annotations['annotations'] == 'How confusing!'
@@ -60,9 +62,10 @@ def test_Entity():
     e.annotations = {'splat':'a totally new set of annotations', 'foo':456}
     assert e.foo == 456
     assert e['foo'] == 456
+    assert isinstance(e.annotations, collections.Mapping)
+    assert isinstance(e['annotations'], collections.Mapping)
     assert e.annotations.foo == 456
     assert e.properties['annotations'] == '/repo/v1/entity/syn1234/annotations'
-    assert e['annotations'] == '/repo/v1/entity/syn1234/annotations'
     assert e.properties.annotations == '/repo/v1/entity/syn1234/annotations'
 
 
@@ -128,12 +131,33 @@ def test_entity_constructors():
 
     folder = Folder('MyFolder', parent=project, foo='bat', id='syn1002')
     assert folder.name == 'MyFolder'
-    assert folder['foo'] == 'bat'
+    assert folder.foo == 'bat'
     assert folder.parentId == 'syn1001'
 
     a_file = File('/path/to/fabulous_things.zzz', parent=folder, foo='biz')
-    #assert a_file.name == 'fabulous_things'
+    #assert a_file.name == 'fabulous_things.zzz'
+    assert a_file.entityType == 'org.sagebionetworks.repo.model.FileEntity'
     assert a_file.path == '/path/to/fabulous_things.zzz'
-    assert a_file['foo'] == 'biz'
+    assert a_file.foo == 'biz'
     assert a_file.parentId == 'syn1002'
+
+
+def test_property_keys():
+    assert 'parentId' in File._property_keys
+    assert 'versionNumber' in File._property_keys
+    assert 'dataFileHandleId' in File._property_keys
+
+
+def test_asdf():
+    f = File('foo.xyz', parent='syn1234', foo='bar')
+    print f.keys()
+
+    iter_keys = []
+    for key in f:
+        iter_keys.append(key)
+    assert 'parentId' in iter_keys
+    assert 'name' in iter_keys
+    assert 'foo' in iter_keys
+    assert 'entityType' in iter_keys
+
 

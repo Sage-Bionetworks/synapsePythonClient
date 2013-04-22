@@ -135,11 +135,14 @@ class TestClient:
 
     def test_createEntity(self):
         #Create a project
-        entity = self.createProject()
+        project = self.createProject()
 
         #Add a data entity to project
-        DATA_JSON['parentId']= entity['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        entity = DATA_JSON
+        entity['parentId'] = project['id']
+        entity['name'] = 'foo'
+        entity['description'] = 'description of an entity'
+        entity = self.syn.createEntity(entity)
 
         #Get the data entity and assert that it is unchanged
         returnEntity = self.syn.getEntity(entity['id'])
