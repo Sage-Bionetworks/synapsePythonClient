@@ -3,6 +3,7 @@
 ## chris.bare@sagebase.org
 ############################################################
 import collections
+import itertools
 from dict_object import DictObject
 from utils import id_of, entity_type, itersubclasses
 import os
@@ -180,27 +181,17 @@ class Entity(collections.MutableMapping):
         """Is the given key a property or annotation?"""
         return key in self.properties or key in self.annotations
 
-    def __str__(self):
-        return self.__repr__()
 
     def __repr__(self):
+        """Returns an eval-able representation of the entity"""
         from cStringIO import StringIO
         f = StringIO()
-        f.write('Entity: %s %s\n' % (self.properties.get('name', 'None'), entity_type(self),))
-        f.write('properties:\n')
-        for key in sorted(self.properties.keys()):
-            f.write('  ')
-            f.write(key)
-            f.write('=')
-            f.write(str(self.properties[key]))
-            f.write('\n')
-        f.write('annotations:\n')
-        for key in sorted(self.annotations.keys()):
-            f.write('  ')
-            f.write(key)
-            f.write('=')
-            f.write(str(self.annotations[key]))
-            f.write('\n')
+        f.write(self.__class__.__name__)
+        f.write("(")
+        f.write(", ".join(
+            {"%s=%s" % (key.__repr__(), value.__repr__(),) for key, value in 
+                itertools.chain(self.properties.items(), self.annotations.items())}))
+        f.write(")")
         return f.getvalue()
 
 
