@@ -181,6 +181,29 @@ class Entity(collections.MutableMapping):
         """Is the given key a property or annotation?"""
         return key in self.properties or key in self.annotations
 
+    def __str__(self):            
+        from cStringIO import StringIO
+        f = StringIO()
+
+        def write_kvps(dictionary, key_filter=None):
+            for key in sorted(dictionary.keys()):
+                if (not key_filter) or key_filter(key):
+                    f.write('  ')
+                    f.write(key)
+                    f.write('=')
+                    f.write(str(dictionary[key]))
+                    f.write('\n')
+
+        f.write('Entity: %s %s\n' % (self.properties.get('name', 'None'), entity_type(self),))
+        write_kvps(self.__dict__, lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))
+
+        f.write('properties:\n')
+        write_kvps(self.properties)
+
+        f.write('annotations:\n')
+        write_kvps(self.annotations)
+
+        return f.getvalue()
 
     def __repr__(self):
         """Returns an eval-able representation of the entity"""
@@ -189,8 +212,11 @@ class Entity(collections.MutableMapping):
         f.write(self.__class__.__name__)
         f.write("(")
         f.write(", ".join(
-            {"%s=%s" % (key.__repr__(), value.__repr__(),) for key, value in 
-                itertools.chain(self.properties.items(), self.annotations.items())}))
+            {"%s=%s" % (str(key), value.__repr__(),) for key, value in 
+                itertools.chain(
+                    filter(lambda (k,v): not (k in ['properties', 'annotations'] or k.startswith('__')), self.__dict__.items()),
+                    self.properties.items(),
+                    self.annotations.items())}))
         f.write(")")
         return f.getvalue()
 
@@ -226,8 +252,7 @@ class File(Entity, Versionable):
         if 'name' in locals(): kwargs['name'] = name
         if parent: kwargs['parentId'] = id_of(parent)
         super(File, self).__init__(entityType=File._synapse_class, properties=properties, annotations=annotations, **kwargs)
-        if path:
-            self.__dict__['path'] = path
+        self.__dict__['path'] = path
 
 
 

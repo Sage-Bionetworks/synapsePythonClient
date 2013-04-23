@@ -40,7 +40,7 @@ class TestClient:
         """
 
         if synapse:
-            print "~~~~~~~~~~~ using cached synapse instance"
+            sys.stderr.write(',')
             self.syn = synapse
         else:
             ## if testing endpoints are set in the config file, use them
@@ -83,6 +83,13 @@ class TestClient:
         entity = self.syn.createEntity(PROJECT_JSON)
         self.toRemove.append(entity)
         return entity
+
+
+    def createDataEntity(self, parentId):
+        data = DATA_JSON.copy()
+        data['parentId']= parentId
+        return self.syn.createEntity(data)
+
 
 
     def test_printEntity(self):
@@ -138,8 +145,7 @@ class TestClient:
         project = self.createProject()
 
         #Add a data entity to project
-        entity = DATA_JSON
-        entity['parentId'] = project['id']
+        entity = self.createDataEntity(project['id'])
         entity['name'] = 'foo'
         entity['description'] = 'description of an entity'
         entity = self.syn.createEntity(entity)
@@ -156,29 +162,29 @@ class TestClient:
         entity = self.createProject()
 
         #Add a data entity to project
-        DATA_JSON['parentId']= entity['id']
+        data = DATA_JSON.copy()
+        data['parentId']= entity['id']
 
         #Create entity with provenance record
-        entity = self.syn.createEntity(DATA_JSON, used='syn123')
+        entity = self.syn.createEntity(data, used='syn123')
 
         activity = self.syn.getProvenance(entity)
         assert activity['used'][0]['reference']['targetId'] == 'syn123'
 
 
     def test_updateEntity(self):
-        entity = self.createProject()
-        DATA_JSON['parentId']= entity['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
         entity[u'tissueType']= 'yuuupp'
+
         entity = self.syn.updateEntity(entity)
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
 
 
     def test_updateEntity_version(self):
-        entity = self.createProject()
-        DATA_JSON['parentId']= entity['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
         entity['name'] = 'foobarbat'
         entity['description'] = 'This is a test entity...'
         entity = self.syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
@@ -197,25 +203,27 @@ class TestClient:
 
     def test_query(self):
         #Create a project then add entities and verify that I can find them with a query
-        projectEntity = self.createProject()
-        DATA_JSON['parentId'] = projectEntity['id']
+        project = self.createProject()
         for i in range(2):
-            entity = self.syn.createEntity(DATA_JSON)
-            qry= self.syn.query("select id, name from entity where entity.parentId=='%s'" %projectEntity['id'])
+            try:
+                entity = self.createDataEntity(project['id'])
+            except Exception as ex:
+                print ex
+                print ex.response.text
+            qry= self.syn.query("select id, name from entity where entity.parentId=='%s'" % project['id'])
             assert qry['totalNumberOfResults']==(i+1)
 
     
     def test_deleteEntity(self):
-        projectEntity = self.createProject()
-        DATA_JSON['parentId'] = projectEntity['id']
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
         
         #Check that we can delete an entity by dictionary
-        entity = self.syn.createEntity(DATA_JSON)
         self.syn.deleteEntity(entity)
         assert self.syn.getEntity(entity) == None
 
         #Check that we can delete an entity by synapse ID
-        entity = self.syn.createEntity(DATA_JSON)
+        entity = self.createDataEntity(project['id'])
         self.syn.deleteEntity(entity['id'])
         assert  self.syn.getEntity(entity) == None
 
@@ -225,9 +233,8 @@ class TestClient:
 
 
     def test_uploadFile(self):
-        projectEntity = self.createProject()
-        DATA_JSON['parentId'] = projectEntity['id']
-        entity = self.syn.createEntity(DATA_JSON)       
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
 
         #create a temporary file
         (fp, fname) = tempfile.mkstemp()
@@ -331,8 +338,9 @@ class TestClient:
         ## create a data entity
         try:
             filename = utils.make_bogus_data_file()
-            DATA_JSON['parentId']= project['id']
-            data_entity = self.syn.createEntity(DATA_JSON)
+
+            data_entity = self.createDataEntity(project['id'])
+
             data_entity = self.syn.uploadFile(data_entity, filename)
         finally:
             os.remove(filename)
@@ -392,8 +400,7 @@ class TestClient:
         ## create a new project
         project = self.createProject()
 
-        DATA_JSON['parentId']= project['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        entity = self.createDataEntity(project['id'])
 
         a = self.syn.getAnnotations(entity)
         assert 'etag' in a
@@ -421,11 +428,9 @@ class TestClient:
         """
         Test setting annotations using keyword arguments
         """
-        ## create a new project
+        ## create a new project and data entity
         project = self.createProject()
-
-        DATA_JSON['parentId']= project['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        entity = self.createDataEntity(project['id'])
 
         annos = self.syn.setAnnotations(entity, wazoo='Frank', label='Barking Pumpkin', shark=16776960)
         assert annos['wazoo'] == ['Frank']
