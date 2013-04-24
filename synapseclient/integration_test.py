@@ -146,7 +146,7 @@ class TestClient:
         entity = self.createProject()
         DATA_JSON['parentId']= entity['id']
         entity = self.syn.createEntity(DATA_JSON)
-        entity[u'tissueType']= u'yuuupp',
+        entity[u'tissueType']= 'yuuupp'
         entity = self.syn.updateEntity(entity)
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
@@ -189,12 +189,12 @@ class TestClient:
         #Check that we can delete an entity by dictionary
         entity = self.syn.createEntity(DATA_JSON)
         self.syn.deleteEntity(entity)
-        assert_raises(Exception, self.syn.getEntity, entity)
+        assert self.syn.getEntity(entity) == None
 
         #Check that we can delete an entity by synapse ID
         entity = self.syn.createEntity(DATA_JSON)
         self.syn.deleteEntity(entity['id'])
-        assert_raises(Exception, self.syn.getEntity, entity)
+        assert  self.syn.getEntity(entity) == None
 
 
     def test_createSnapshotSummary(self):
@@ -341,12 +341,7 @@ class TestClient:
         activity.used(code_entity, wasExecuted=True)
         activity.used({'name':'Superhack', 'url':'https://github.com/joe_coder/Superhack'}, wasExecuted=True)
 
-        print '~'*80
-        print activity
-        print '~'*80
-
         activity = self.syn.setProvenance(data_entity, activity)
-
         ## retrieve the saved provenance record
         retrieved_activity = self.syn.getProvenance(data_entity)
 
@@ -553,4 +548,6 @@ if __name__ == '__main__':
     test.test_fileHandle()
     test.test_fileEntity_round_trip()
     test.test_wikiAttachment()
+
+
 

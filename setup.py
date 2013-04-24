@@ -28,7 +28,7 @@ setup(name='synapseclient',
     license='Apache',
     packages=['synapseclient'],
     install_requires=[
-        'requests>=1.0',
+        'requests>=1.2',
     ],
     test_suite='nose.collector',
     tests_require=['nose'],
