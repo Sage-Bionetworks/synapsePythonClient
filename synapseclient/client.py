@@ -1,4 +1,3 @@
-# To debug this, python -m pdb myscript.py
 import os
 import string
 import json
@@ -128,13 +127,9 @@ class Synapse:
         # Disable profiling during login and proceed with authentication
         self.headers['request_profile'], orig_request_profile='False', self.headers['request_profile']
 
-        url = self.authEndpoint + "/session"
         req = {"email":email, "password":password}
+        session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint)
 
-        response = requests.post(url, data=json.dumps(req), headers=self.headers)
-        response.raise_for_status()
-
-        session = response.json()
         self.sessionToken = session["sessionToken"]
         self.headers["sessionToken"] = self.sessionToken
 
@@ -168,17 +163,7 @@ class Synapse:
         if isinstance(entity, dict):
             entity = entity['id']
 
-        url = self.repoEndpoint + '/entity/' + entity
-
-        if (self.debug):  print 'About to get %s' % (url)
-
-        response = requests.get(url, headers=self.headers)
-        self._storeTimingProfile(response)
-        response.raise_for_status()
-
-        if self.debug:  print response.text
-
-        return response.json()
+        return self.restGET(uri='/entity/' + entity)
 
 
     def getAnnotations(self, entity):
@@ -186,12 +171,7 @@ class Synapse:
         Retrieve the annotations stored for an entity in the Synapse Repository
         """
         entity_id = entity['id'] if 'id' in entity else str(entity)
-        url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
-
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-
-        return fromSynapseAnnotations(response.json())
+        return fromSynapseAnnotations(self.restGET(uri='/entity/%s/annotations' % entity_id))
 
 
     def setAnnotations(self, entity, annotations={}, **kwargs):
@@ -202,7 +182,7 @@ class Synapse:
         dictionary or key/value pairs.
         """
         entity_id = entity['id'] if 'id' in entity else str(entity)
-        url = '%s/entity/%s/annotations' % (self.repoEndpoint, entity_id,)
+        uri = '/entity/%s/annotations' % entity_id
 
         ## update annotations with keyword args
         annotations.update(kwargs)
@@ -212,10 +192,9 @@ class Synapse:
         if 'etag' in entity and 'etag' not in synapseAnnos:
             synapseAnnos['etag'] = entity['etag']
 
-        response = requests.put(url, data=json.dumps(synapseAnnos), headers=self.headers)
-        response.raise_for_status()
+        return fromSynapseAnnotations(self.restPUT(uri, json.dumps(synapseAnnos) ))
+    
 
-        return fromSynapseAnnotations(response.json())
  
 
     def downloadEntity(self, entity):
@@ -304,17 +283,19 @@ class Synapse:
 
     def _downloadFile(self, url, destDir):
         ## we expect to be redirected to a signed S3 URL
-        ## TODO how will external URLs be handled?
         response = requests.get(url, headers=self.headers, allow_redirects=False)
         if response.status_code in [301,302,303,307,308]:
           url = response.headers['location']
-          # print url
+          #print url
           headers = {'sessionToken':self.sessionToken}
           response = requests.get(url, headers=headers, stream=True)
           response.raise_for_status()
-
+        ##Extract filename from url or header, if it is a Signed S3 URL do...
+        if url.startswith('https://s3.amazonaws.com/proddata.sagebase.org'):
+            filename = utils.extract_filename(response.headers['content-disposition'])
+        else:
+            filename = url.split('/')[-1]
         ## stream file to disk
-        filename = utils.extract_filename(response.headers['content-disposition'])
         if destDir:
             filename = os.path.join(destDir, filename)
         with open(filename, "wb") as f:
@@ -341,11 +322,7 @@ class Synapse:
     def createEntity(self, entity, used=None, executed=None):
         """Create a new entity in the synapse Repository according to entity json object"""
 
-        url = self.repoEndpoint + '/entity'
-        response = requests.post(url, data=json.dumps(entity), headers=self.headers)
-        response.raise_for_status()
-
-        entity = response.json()
+        entity = self.restPOST('/entity', body=json.dumps(entity))
 
         ## set provenance, if used or executed given
         if used or executed:
@@ -358,15 +335,16 @@ class Synapse:
 
 
     def _createFileEntity(self, entity, filename, used=None, executed=None):
-
-        fileHandle = self._uploadFileToFileHandleService(filename)
-
+        #Determine if we want to upload or store the url
+        #TODO this should be determined by a parameter not based on magic
+        if utils.is_url(filename):
+            fileHandle = self._addURLtoFileHandleService(filename)
+            entity['dataFileHandleId'] = fileHandle['id']
+        else:
+            fileHandle = self._uploadFileToFileHandleService(filename)
+            entity['dataFileHandleId'] = fileHandle['list'][0]['id']
         if 'entityType' not in entity:
             entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
-
-        # add fileHandle to entity
-        entity['dataFileHandleId'] = fileHandle['list'][0]['id']
-
         return self.createEntity(entity, used=used, executed=executed)
 
         
@@ -377,27 +355,19 @@ class Synapse:
 
         if not entity:
             raise Exception("entity cannot be empty")
-
         if 'id' not in entity:
             raise Exception("A entity without an 'id' can't be updated")
 
-        url = '%s/entity/%s' % (self.repoEndpoint, entity['id'],)
+        uri = '/entity/%s' % entity['id']
 
         if incrementVersion:
             entity['versionNumber'] += 1
-            url += '/version'
+            uri += '/version'
             if versionLabel:
                 entity['versionLabel'] = str(versionLabel)
 
-        if(self.debug): print 'About to update %s with %s' % (url, json.dumps(entity))
+        entity = self.restPUT(uri, body=json.dumps(entity))
 
-        headers = deepcopy(self.headers)
-        if "etag" in entity:
-            headers['ETag'] = entity['etag']
-
-        response = requests.put(url, data=json.dumps(entity), headers=self.headers)
-        response.raise_for_status()
-        entity = response.json()
         if used or executed:
             activity = Activity()
             if used:
@@ -415,13 +385,8 @@ class Synapse:
         """Deletes a synapse entity"""
         
         entity_id = entity['id'] if 'id' in entity else str(entity)
+        self.restDELETE('/entity/%s' % entity_id)
 
-        url = '%s/entity/%s' % (self.repoEndpoint, entity_id,)
-
-        if (self.debug): print 'About to delete %s' % (url)
-
-        response = requests.delete(url, headers=self.headers)
-        response.raise_for_status()
 
 
     def query(self, queryStr):
@@ -431,16 +396,8 @@ class Synapse:
         Example:
         query("select id, name from entity where entity.parentId=='syn449742'")
         '''
-        url = self.repoEndpoint + '/query?query=' + urllib.quote(queryStr)
-
         if(self.debug): print 'About to query %s' % (queryStr)
-
-        response = requests.get(url, headers=self.headers)
-        if response.status_code in range(400,600):
-            raise Exception(response.text)
-        response.raise_for_status()
-
-        return response.json()
+        return self.restGET('/query?query=' + urllib.quote(queryStr))
 
 
     def _traverseTree(self, id, name=None, version=None):
@@ -576,7 +533,7 @@ class Synapse:
 
         ## check parameters
         if entity is None or not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
-           raise Exception('invalid entity parameter')
+            raise Exception('invalid entity parameter')
 
         ## if we got a synapse ID as a string, get the entity from synapse
         if isinstance(entity, basestring):
@@ -595,18 +552,13 @@ class Synapse:
                     'Content-Type': 'application/json',
                     'Accept': 'application/json' }
 
-        url = '%s/entity/%s/s3Token' % (
-            self.repoEndpoint,
-            entity['id'])
 
         (_, base_filename) = os.path.split(filename)
         data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
-
-        response = requests.post(url, headers=headers, data=json.dumps(data))
-        response.raise_for_status()
-
-        response_json = response.json()
+        uri = '/entity/%s/s3Token' % (entity['id'])
+        response_json = self.restPOST(uri, body=json.dumps(data))
         location_path = response_json['path']
+
         # PUT file to S3
         headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
                     'Content-Type' : mimetype,
@@ -625,50 +577,41 @@ class Synapse:
 
 
     def getUserProfile(self, ownerId=None):
-        url = '%s/userProfile/%s' % (self.repoEndpoint, '' if ownerId is None else str(ownerId),)
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        uri = '/userProfile/%s' % '' if ownerId is None else str(ownerId)
+        return self.restGET(uri)
 
 
     def _getACL(self, entity):
         entity_id = entity['id'] if 'id' in entity else str(entity)
         
         ## get benefactor. (An entity gets its ACL from its benefactor.)
-        url = '%s/entity/%s/benefactor' % (self.repoEndpoint, entity_id,)
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        benefactor = response.json()
+        uri = '/entity/%s/benefactor' % (entity_id)
+        benefactor = self.restGET(uri)
 
         ## get the ACL from the benefactor (which may be the entity itself)
-        url = '%s/entity/%s/acl' % (self.repoEndpoint, benefactor['id'],)        
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        uri = '/entity/%s/acl' % (benefactor['id'],)        
+        return self.restGET(uri)
+
 
     def _storeACL(self, entity, acl):
         entity_id = entity['id'] if 'id' in entity else str(entity)
 
         ## get benefactor. (An entity gets its ACL from its benefactor.)
-        url = '%s/entity/%s/benefactor' % (self.repoEndpoint, entity_id,)
-        response = requests.get(url, headers=self.headers)
-        response.raise_for_status()
-        benefactor = response.json()
+        uri = '/entity/%s/benefactor' % (entity_id,)
+        benefactor = self.restGET(uri)
 
         ## update or create new ACL
-        url = '%s/entity/%s/acl' % (self.repoEndpoint, entity_id,)
+        uri = '/entity/%s/acl' % entity_id
         if benefactor['id']==entity_id:
-            response = requests.put(url, data=json.dumps(acl), headers=self.headers)
+            return self.restPUT(uri, json.dumps(acl))
         else:
-            response = requests.post(url, data=json.dumps(acl), headers=self.headers)
-        response.raise_for_status()
+            return self.restPOST(uri,json.dumps(acl))
 
-        ## return the new/modified ACL
-        return response.json()
 
     def getPermissions(self, entity, user=None, group=None):
         """get permissions that a user or group has on an entity"""
         pass
+
 
     def setPermissions(self, entity, user=None, group=None):
         """set permission that a user or groups has on an entity"""
@@ -701,11 +644,9 @@ class Synapse:
             url = '%s/entity/%s/generatedBy' % (
                 self.repoEndpoint,
                 entity_id)
-
         response = requests.get(url, headers=self.headers)
         if response.status_code == 404: return None
         response.raise_for_status()
-
         return Activity(data=response.json())
 
 
@@ -714,32 +655,18 @@ class Synapse:
 
         if 'id' in activity:
             ## we're updating provenance
-            url = '%s/activity/%s' % (self.repoEndpoint, activity['id'],)
-            response = requests.put(url, data=json.dumps(activity), headers=self.headers)
-            response.raise_for_status()
-            activity = Activity(data=response.json())
+            uri = '/activity/%s' % activity['id']
+            activity = Activity(self.restPUT(uri, json.dumps(activity)))
         else:
-            # create the activity: post to <endpoint>/activity
-            url = '%s/activity' % (self.repoEndpoint)
-
-            response = requests.post(url, data=json.dumps(activity), headers=self.headers)
-            response.raise_for_status()
-
-            activity = response.json()
+            activity = self.restPOST('/activity', body=json.dumps(activity))
 
             ## can be either an entity or just a synapse ID
             entity_id = entity['id'] if 'id' in entity else str(entity)
 
             # assert that an entity is generated by an activity
             # put to <endpoint>/entity/{id}/generatedBy?generatedBy={activityId}
-            url = '%s/entity/%s/generatedBy?generatedBy=%s' % (
-                self.repoEndpoint,
-                entity_id,
-                activity['id'])
-
-            response = requests.put(url, headers=self.headers)
-            response.raise_for_status()
-            activity = Activity(data=response.json())
+            uri = '/entity/%s/generatedBy?generatedBy=%s' % (entity_id, activity['id'])
+            activity = Activity(data=self.restPUT(uri))
 
         return activity
 
@@ -754,35 +681,17 @@ class Synapse:
         ## can be either an entity or just a synapse ID
         entity_id = entity['id'] if 'id' in entity else str(entity)
 
-        # delete /entity/{id}/generatedBy
-        url = '%s/entity/%s/generatedBy' % (
-            self.repoEndpoint,
-            entity_id)
-
-        response = requests.delete(url, headers=self.headers)
-        response.raise_for_status()
+        uri = '/entity/%s/generatedBy' % entity_id
+        self.restDELETE(uri)
 
         # delete /activity/{activityId}
-        url = '%s/activity/%s' % (
-            self.repoEndpoint,
-            activity['id'])
-
-        response = requests.delete(url, headers=self.headers)
-        response.raise_for_status()
-
-        return activity
+        uri = '/activity/%s' % activity['id']
+        self.restDELETE(uri)
 
 
     def updateActivity(self, activity):
-        # put /activity/{activityId}
-        url = '%s/activity/%s' % (
-            self.repoEndpoint,
-            activity['id'])
-
-        response = requests.put(url, data=json.dumps(activity), headers=self.headers)
-        response.raise_for_status()
-
-        return Activity(data=response.json())
+        uri = '/activity/%s' % activity['id']
+        return Activity(data=self.restPUT(uri, json.dumps(activity)))
 
 
     def _loggedIn(self):
@@ -812,6 +721,13 @@ class Synapse:
         response.raise_for_status()
         return response.json()
 
+
+    def _addURLtoFileHandleService(self, externalURL):
+        fileName = externalURL.split('/')[-1]
+        fileHandle={'concreteType':'org.sagebionetworks.repo.model.file.ExternalFileHandle',
+                    'fileName': fileName,
+                    'externalURL':externalURL}
+        return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
 
     def _getFileHandle(self, fileHandle):
         """Retrieve a fileHandle from the fileHandle service (experimental)"""
@@ -844,13 +760,11 @@ class Synapse:
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        url = '%s/%s/%s/wiki' % (self.repoEndpoint, owner_type, owner_id,)
+        uri = '/%s/%s/wiki' % (owner_type, owner_id,)
         wiki = {'title':title, 'markdown':markdown}
         if attachmentFileHandleIds:
             wiki['attachmentFileHandleIds'] = attachmentFileHandleIds
-        response = requests.post(url, data=json.dumps(wiki), headers=self.headers)
-        response.raise_for_status()
-        return response.json()
+        return self.restPOST(uri, body=json.dumps(wiki))
 
 
     def _getWiki(self, owner, wiki, owner_type=None):
@@ -880,11 +794,8 @@ class Synapse:
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, owner_id, wiki_id,)
-        response = requests.put(url, data=json.dumps(wiki), headers=self.headers)
-        if response.status_code==404: return None
-        response.raise_for_status()
-        return response.json()
+        uri = '/%s/%s/wiki/%s' % (owner_type, owner_id, wiki_id,)
+        return self.restPUT(uri, json.dumps(wiki))
 
 
     def _deleteWiki(self, owner, wiki, owner_type=None):
@@ -897,10 +808,8 @@ class Synapse:
         owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, owner_id, wiki_id,)
-        response = requests.delete(url, headers=self.headers)
-        response.raise_for_status()
-        return wiki
+        uri = '/%s/%s/wiki/%s' % (owner_type, owner_id, wiki_id,)
+        self.restDELETE(uri)
 
 
     def _getWikiHeaderTree(self, owner, owner_type=None):
@@ -946,4 +855,96 @@ class Synapse:
             data = response.raw.read(1024)
 
         return os.path.abspath(filename)
+
+
+    ############################################################
+    # Low level Rest calls
+    ############################################################
+    def restGET(self, uri, endpoint=None):
+        """Performs a REST GET operation to the Synapse server.
+        
+        Arguments:
+        - `uri`: URI on which get is performed
+        - `endpoint`: Server endpoint, defaults to self.repoEndpoint
+
+        Returns: Body of 
+        """
+        if endpoint==None:
+            endpoint=self.repoEndpoint    
+        response = requests.get(endpoint+uri, headers=self.headers)
+        self._storeTimingProfile(response)
+        if response.status_code==404: return None
+        try:
+            response.raise_for_status()
+        except:
+            print response.content
+            raise 
+        return response.json()
+     
+    def restPOST(self, uri, body, endpoint=None):
+        """Performs a POST request toward the synapse repo
+        
+        Arguments:
+        - `uri`: URI on which get is performed
+        - `endpoint`: Server endpoint, defaults to self.repoEndpoint
+        - `body`: The payload to be delivered 
+
+        Returns: json encoding of response 
+
+        """
+        if endpoint==None:
+            endpoint=self.repoEndpoint    
+        response = requests.post(endpoint + uri, data=body, headers=self.headers)
+        if response.status_code==404: return None
+        try:
+            response.raise_for_status()
+        except:
+            print response.content
+            raise 
+        return response.json()
+
+
+    def restPUT(self, uri, body=None, endpoint=None):
+        """Performs a POST request toward the synapse repo
+        
+        Arguments:
+        - `uri`: URI on which get is performed
+        - `endpoint`: Server endpoint, defaults to self.repoEndpoint
+        - `body`: The payload to be delivered 
+
+        Returns: json encoding of response 
+
+        """
+        if endpoint==None:
+            endpoint=self.repoEndpoint    
+        response = requests.put(endpoint + uri, data=body, headers=self.headers)
+        if response.status_code==404: return None
+        try:
+            response.raise_for_status()
+        except:
+            print response.content
+            raise 
+
+        return response.json()
+
+
+    def restDELETE(self, uri, endpoint=None):
+        """Performs a REST DELETE operation to the Synapse server.
+        
+        Arguments:
+        - `uri`: URI on which get is performed
+        - `endpoint`: Server endpoint, defaults to self.repoEndpoint
+
+        Returns: Body of 
+        """
+        if endpoint==None:
+            endpoint=self.repoEndpoint    
+        response = requests.delete(endpoint+uri, headers=self.headers)
+        try:
+            response.raise_for_status()
+        except:
+            print response.content
+            raise 
+
+
 
