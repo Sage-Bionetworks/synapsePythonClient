@@ -75,10 +75,25 @@ class Entity(collections.MutableMapping):
 
         If entityType is defined in properties, we create the proper subclass
         of Entity. If not, give back the type asked for.
+
+        If passed an Entity as input, create a new Entity using the input
+        entity as a prototype.
         """
+        ## create a new Entity using an existing entity as a prototype?
+        if isinstance(properties, Entity):
+            annotations = properties.annotations + annotations
+            properties = properties.properties
+            del properties['id']
         if cls==Entity and 'entityType' in properties and properties['entityType'] in _entity_type_to_class:
             cls = _entity_type_to_class[properties['entityType']]
         return cls(properties=properties, annotations=annotations)
+
+    @classmethod
+    def to_entity(cls, entity):
+        """Coerse dictionary to Entity, but pass Entities through"""
+        if isinstance(entity, Entity):
+            return entity
+        return Entity.create(properties=entity)
 
 
     def __new__(typ, *args, **kwargs):
@@ -94,6 +109,9 @@ class Entity(collections.MutableMapping):
 
         if properties:
             if isinstance(properties, collections.Mapping):
+                if 'annotations' in properties and isinstance(properties['annotations'], collections.Mapping):
+                    annotations.update(properties['annotations'])
+                    del properties['annotations']
                 self.__dict__['properties'].update(properties)
             else:
                 raise Exception('Unknown argument type: properties is a %s' % str(type(properties)))
@@ -185,6 +203,8 @@ class Entity(collections.MutableMapping):
         from cStringIO import StringIO
         f = StringIO()
 
+        f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'), self['id'] if 'id' in self else '-',))
+
         def write_kvps(dictionary, key_filter=None):
             for key in sorted(dictionary.keys()):
                 if (not key_filter) or key_filter(key):
@@ -194,7 +214,6 @@ class Entity(collections.MutableMapping):
                     f.write(str(dictionary[key]))
                     f.write('\n')
 
-        f.write('Entity: %s %s\n' % (self.properties.get('name', 'None'), entity_type(self),))
         write_kvps(self.__dict__, lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))
 
         f.write('properties:\n')
@@ -245,11 +264,8 @@ class File(Entity, Versionable):
 
     ## File(path="/path/to/file", synapseStore=True, parentId="syn101")
     def __init__(self, path=None, parent=None, synapseStore=True, properties=None, annotations=None, **kwargs):
-        if 'name' in kwargs:
-            name = kwargs['name']
-        elif path:
-            name = os.path.basename(path)
-        if 'name' in locals(): kwargs['name'] = name
+        if path and 'name' not in kwargs:
+            kwargs['name'] = os.path.basename(path)
         if parent: kwargs['parentId'] = id_of(parent)
         super(File, self).__init__(entityType=File._synapse_class, properties=properties, annotations=annotations, **kwargs)
         self.__dict__['path'] = path

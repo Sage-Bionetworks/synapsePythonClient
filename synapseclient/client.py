@@ -19,9 +19,9 @@ import collections
 from version_check import version_check
 import utils
 from utils import id_of
-from copy import deepcopy
 from annotations import fromSynapseAnnotations, toSynapseAnnotations
 from activity import Activity
+from entity import Entity, Project, Folder, File
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
@@ -163,7 +163,11 @@ class Synapse:
         if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
             raise Exception("invalid parameters")
 
-        return self.restGET(uri='/entity/' + id_of(entity))
+        entity = self.restGET(uri='/entity/' + id_of(entity))
+
+        #TODO if input is an entity object, return a new Entity or modify it's state?
+        annotations = self.getAnnotations(entity)
+        return Entity.create(entity, annotations)
 
 
     def getAnnotations(self, entity):
@@ -328,15 +332,27 @@ class Synapse:
         executed: an entity, a synapse ID, a URL or a Used object or a List containing these        
         """
 
-        entity = self.restPOST('/entity', body=json.dumps(entity))
+        ## make sure the input is an Entity object
+        #TODO we should always either return a new entity object or the same one updated
+        entity = Entity.to_entity(entity)
+
+        entity.properties = self.restPOST('/entity', body=json.dumps(entity.properties))
+        needs_refresh = False
+
+        ## set annotations, if any given
+        if len(entity.annotations) > 0:
+            entity.annotations = self.setAnnotations(entity, entity.annotations)
+            needs_refresh = True
 
         ## set provenance, if used or executed given
         if used or executed:
             activity = Activity(used=used, executed=executed)
             activity = self.setProvenance(entity['id'], activity)
+            needs_refresh = True
+
+        if needs_refresh:
             entity = self.getEntity(entity)
 
-        #I need to update the entity
         return entity
 
 
@@ -364,6 +380,9 @@ class Synapse:
         if 'id' not in entity:
             raise Exception("A entity without an 'id' can't be updated")
 
+        ## make sure the input is an Entity object
+        entity = Entity.to_entity(entity)
+
         uri = '/entity/%s' % entity['id']
 
         if incrementVersion:
@@ -372,8 +391,17 @@ class Synapse:
             if versionLabel:
                 entity['versionLabel'] = str(versionLabel)
 
-        entity = self.restPUT(uri, body=json.dumps(entity))
+        if(self.debug): print 'About to update %s with %s' % (url, json.dumps(entity.properties))
 
+        entity.properties = self.restPUT(uri, body=json.dumps(entity))
+
+        entity.annotations['etag'] = entity['etag']
+
+        ## update annotations
+        entity.annotations = self.setAnnotations(entity, entity.annotations)
+        entity['etag'] = entity.annotations['etag']
+
+        ## record provenance
         if used or executed:
             activity = Activity()
             if used:
@@ -383,8 +411,8 @@ class Synapse:
                 for item in executed:
                     activity.used(item['id'] if 'id' in item else str(item), wasExecuted=True)
             activity = self.setProvenance(entity['id'], activity)
-            entity = self.getEntity(entity)
-        return entity
+        
+        return self.getEntity(entity)
 
 
     def deleteEntity(self, entity):
@@ -538,8 +566,8 @@ class Synapse:
         """
 
         ## check parameters
-        if entity is None or not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
-            raise Exception('invalid entity parameter')
+        if entity is None or not (isinstance(entity, Entity) or isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
+           raise Exception('invalid entity parameter')
 
         ## if we got a synapse ID as a string, get the entity from synapse
         if isinstance(entity, basestring):
@@ -720,6 +748,7 @@ class Synapse:
     def _uploadFileToFileHandleService(self, filepath):
         """Upload a file to the new fileHandle service (experimental)
            returns a fileHandle which can be used to create a FileEntity or attach to a wiki"""
+        print "_uploadFileToFileHandleService - filepath = " + str(filepath)
         url = "%s/fileHandle" % (self.fileHandleEndpoint,)
         headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
         with open(filepath, 'r') as file:

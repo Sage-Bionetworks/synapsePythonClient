@@ -129,10 +129,11 @@ class TestClient:
 
         #Get new entity and check that it is same
         returnEntity = self.syn.getEntity(entity)
-        assert entity == returnEntity
+        assert entity.properties == returnEntity.properties
+
         #Get entity by id
         returnEntity = self.syn.getEntity(entity['id'])
-        assert entity == returnEntity
+        assert entity.properties == returnEntity.properties
 
 
     def test_loadEntity(self):
@@ -152,7 +153,7 @@ class TestClient:
 
         #Get the data entity and assert that it is unchanged
         returnEntity = self.syn.getEntity(entity['id'])
-        assert entity == returnEntity
+        assert entity.properties == returnEntity.properties
 
         self.syn.deleteEntity(returnEntity['id'])
 
@@ -275,11 +276,7 @@ class TestClient:
         del entity['cacheDir']
 
         ## update existing FileEntity
-        try:
-            entity = self.syn.uploadFile(entity, fname)
-        except Exception as e:
-            print e
-            print e.response.text
+        entity = self.syn.uploadFile(entity, fname)
 
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
