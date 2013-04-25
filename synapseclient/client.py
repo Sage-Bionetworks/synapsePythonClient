@@ -908,7 +908,7 @@ class Synapse:
             endpoint=self.repoEndpoint    
         response = requests.get(endpoint+uri, headers=self.headers)
         self._storeTimingProfile(response)
-        if response.status_code==404: return None
+        #if response.status_code==404: return None
         try:
             response.raise_for_status()
         except:
@@ -930,7 +930,7 @@ class Synapse:
         if endpoint==None:
             endpoint=self.repoEndpoint    
         response = requests.post(endpoint + uri, data=body, headers=self.headers)
-        if response.status_code==404: return None
+        #if response.status_code==404: return None
         try:
             response.raise_for_status()
         except:
@@ -953,7 +953,7 @@ class Synapse:
         if endpoint==None:
             endpoint=self.repoEndpoint    
         response = requests.put(endpoint + uri, data=body, headers=self.headers)
-        if response.status_code==404: return None
+        #if response.status_code==404: return None
         try:
             response.raise_for_status()
         except:

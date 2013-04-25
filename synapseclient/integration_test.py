@@ -221,12 +221,12 @@ class TestClient:
         
         #Check that we can delete an entity by dictionary
         self.syn.deleteEntity(entity)
-        assert self.syn.getEntity(entity) == None
+        assert_raises(Exception, self.syn.getEntity, entity)
 
         #Check that we can delete an entity by synapse ID
         entity = self.createDataEntity(project['id'])
         self.syn.deleteEntity(entity['id'])
-        assert  self.syn.getEntity(entity) == None
+        assert_raises(Exception, self.syn.getEntity, entity)
 
 
     def test_createSnapshotSummary(self):
