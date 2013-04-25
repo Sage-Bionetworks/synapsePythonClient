@@ -160,7 +160,7 @@ class Synapse:
         - A dictionary representing an entity
         """
         #process input arguments
-        if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
+        if not (isinstance(entity, basestring) or (isinstance(entity, collections.Mapping) and entity.has_key('id'))):
             raise Exception("invalid parameters")
 
         entity = self.restGET(uri='/entity/' + id_of(entity))
@@ -393,7 +393,7 @@ class Synapse:
 
         if(self.debug): print 'About to update %s with %s' % (url, json.dumps(entity.properties))
 
-        entity.properties = self.restPUT(uri, body=json.dumps(entity))
+        entity.properties = self.restPUT(uri, body=json.dumps(entity.properties))
 
         entity.annotations['etag'] = entity['etag']
 
