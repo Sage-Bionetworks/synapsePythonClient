@@ -9,7 +9,7 @@ from datetime import date as Date
 from utils import to_unix_epoch_time, from_unix_epoch_time
 
 def _to_list(value):
-    if isinstance(value, collections.Iterable) and not isinstance(value, str):
+    if isinstance(value, collections.Iterable) and not isinstance(value, basestring):
         return list(value)
     else:
         return [value]
@@ -42,7 +42,7 @@ def toSynapseAnnotations(annotations):
             synapseAnnos.setdefault(key, {}).update({k:_to_list(v) for k,v in value.iteritems()})
         else:
             elements = _to_list(value)
-            if all((isinstance(elem, str) for elem in elements)):
+            if all((isinstance(elem, basestring) for elem in elements)):
                 synapseAnnos.setdefault('stringAnnotations', {})[key] = elements
             elif all((isinstance(elem, int) or isinstance(elem, long) for elem in elements)):
                 synapseAnnos.setdefault('longAnnotations', {})[key] = elements

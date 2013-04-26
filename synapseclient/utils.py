@@ -87,7 +87,7 @@ def id_of(obj):
 
 
 def properties(entity):
-    entity = entity.properties if hasattr(entity, 'properties') else entity
+    return entity.properties if hasattr(entity, 'properties') else entity
 
 
 def entity_type(entity):

@@ -30,6 +30,11 @@ def test_more_annotations():
     bdays = [datetime.utcfromtimestamp(float(t)/1000.0) for t in sa['dateAnnotations']['birthdays']]
     assert bdays == [datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3)]
 
+def test_annotations_unicode():
+    a = {'files': [u'tmp6y5tVr.txt'], 'cacheDir': u'/Users/chris/.synapseCache/python/syn1809087', u'foo': 1266}
+    sa = toSynapseAnnotations(a)
+    assert sa['stringAnnotations']['cacheDir'] == [u'/Users/chris/.synapseCache/python/syn1809087']
+
 def test_round_trip_annotations():
     """Test that annotations can make the round trip from a simple dictionary
     to the synapse format and back"""

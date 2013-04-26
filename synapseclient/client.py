@@ -208,11 +208,12 @@ class Synapse:
         Returns:
         - A dictionary representing an entity
         """
-        entity = self.getEntity(entity)
+        if utils.is_synapse_id(entity) or entity.has_key('locations'):
+            entity = self.getEntity(entity)
         if entity['entityType'] == 'org.sagebionetworks.repo.model.FileEntity':
-            return self._downloadFileEntity(entity)
+            entity = self._downloadFileEntity(entity)
         if entity.has_key('locations'):
-            return self._downloadLocations(entity)
+            entity = self._downloadLocations(entity)
         return entity
 
 
@@ -635,7 +636,7 @@ class Synapse:
         response = requests.put(response_json['presignedUrl'], headers=headers, data=open(filename))
         response.raise_for_status()
 
-        # add location to entity
+        # Add location to entity. Path will get converted to a signed S3 URL.
         entity['locations'] = [{
         'path': location_path,
         'type': 'awss3'
@@ -780,6 +781,20 @@ class Synapse:
         return False
 
 
+    ############################################################
+    # File handle service calls
+    ############################################################
+
+    def _uploadToFileHandleService(self, filename):
+        """
+        Create and return a fileHandle, by either uploading a local file or
+        linking to an external URL.
+        """
+        if utils.is_url(filename):
+            return self._addURLtoFileHandleService(filename)
+        else:
+            return self._uploadFileToFileHandleService(filename)
+
     def _uploadFileToFileHandleService(self, filepath):
         """Upload a file to the new fileHandle service (experimental)
            returns a fileHandle which can be used to create a FileEntity or attach to a wiki"""
@@ -790,7 +805,6 @@ class Synapse:
             response = requests.post(url, files={os.path.basename(filepath): file}, headers=headers)
         response.raise_for_status()
         return response.json()
-
 
     def _addURLtoFileHandleService(self, externalURL):
         fileName = externalURL.split('/')[-1]
@@ -808,7 +822,6 @@ class Synapse:
         response.raise_for_status()
         return response.json()
 
-
     def _deleteFileHandle(self, fileHandle):
         fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
         url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
@@ -817,6 +830,10 @@ class Synapse:
         response.raise_for_status()
         return fileHandle
 
+
+    ############################################################
+    # CRUD for Wikis
+    ############################################################
 
     def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None, owner_type=None):
         """Create a new wiki page for an Entity (experimental).
@@ -1015,4 +1032,115 @@ class Synapse:
         except:
             print response.content
             raise 
+
+
+
+
+    def _getEntity(self, entity):
+        """
+        Get an entity from Synapse.
+        entity: a Synapse ID, a dictionary representing an entity or a Synapse Entity object
+        returns a dictionary representing an entity, specifically it's properties
+        """
+        return self.restGET(uri='/entity/'+id_of(entity))
+
+    def _createEntity(self, entity):
+        """
+        Create a new entity in Synapse.
+        entity: a dictionary representing an entity or a Synapse Entity object
+        returns a dictionary representing an entity, specifically it's properties
+        """
+        print "\n\n~~~ creating ~~~\n" + json.dumps(properties(entity), indent=2)
+        return self.restPOST(uri='/entity', body=json.dumps(properties(entity)))
+
+    def _updateEntity(self, entity):
+        """
+        Update an existing entity in Synapse.
+        entity: a dictionary representing an entity or a Synapse Entity object
+        returns a dictionary representing an entity, specifically it's properties
+        """
+        print "\n\n~~~ updating ~~~\n" + json.dumps(properties(entity), indent=2)
+        return self.restPUT(uri='/entity/'+id_of(entity), body=json.dumps(properties(entity)))
+
+    def _deleteEntity(self, entity):
+        """
+        Remove an entity from Synapse.
+        entity: a Synapse ID, a dictionary representing an entity or a Synapse Entity object
+        """
+        self.restDELETE(uri='/entity/'+id_of(entity))
+
+
+
+
+    def get(self, entity, version=None, downloadFile=True, **kwargs):
+        """
+        entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
+        returns: A Synapse Entity object of the appropriate type
+
+        synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
+        """
+        entity = self._getEntity(entity)
+        annotations = self.getAnnotations(entity)
+
+        entity = Entity.create(entity, annotations)
+
+        if downloadFile:
+            entity = self.downloadEntity(entity)
+
+        return entity
+
+
+    ## ? does store return the same object that was passed to it, but modified?
+    ## ? do we always return a new object, leaving the existing object unchanged?
+    def store(self, entity, used=None, executed=None):
+        """
+        create new entity or update an existing entity, uploading any files in the process
+        entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
+        returns: A Synapse Entity object of the appropriate type
+
+        synapse.store(entity, used, executed, activityName=None, activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        synapse.store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        """
+
+        properties = entity.properties.copy()
+        annotations = entity.annotations.copy()
+
+        ## need to upload a FileEntity?
+        ##   create FileHandle first, then create or update entity
+        if isinstance(entity, File):
+            if 'dataFileHandleId' not in properties or True: #TODO: file_cache.local_file_has_changed(entity.path):
+                fileHandle = self._uploadToFileHandleService(entity.path)
+                properties['dataFileHandleId'] = fileHandle['list'][0]['id']
+
+        ## need to upload a Locationable?
+        ##   create the entity first, then upload file, then update entity, later
+        if self._isLocationable(entity):
+            if not 'id' in entity:
+                properties = self._createEntity(properties)
+            ## TODO upload locationable objects in synapse.store()
+
+        #TODO deal with access restrictions
+
+        ## create or update?
+        if not 'id' in entity:
+            properties = self._createEntity(properties)
+        else:
+            properties = self._updateEntity(properties)
+
+        annotations['etag'] = properties['etag']
+
+        ## update annotations
+        annotations = self.setAnnotations(properties, annotations)
+        properties['etag'] = annotations['etag']
+
+        ## set provenance, if used or executed given
+        if used or executed:
+            activity = Activity(used=used, executed=executed)
+            activity = self.setProvenance(properties, activity)
+
+            ## etag has changed, so get new entity
+            properties = self._getEntity(properties)
+
+        ## return a new Entity object
+        return Entity.create(properties, annotations)
 

@@ -62,6 +62,7 @@ def create_project(name=None):
     return project
 
 def schedule_for_cleanup(item):
+    """schedule a file of Synapse Entity to be deleted during teardown"""
     globals()['_to_cleanup'].append(item)
 
 def cleanup(items):
@@ -147,6 +148,7 @@ def test_Entity():
 
 
 def test_deprecated_entity_types():
+    """Test Data Entity object"""
     syn = get_cached_synapse_instance()
 
     project = create_project()
@@ -157,9 +159,66 @@ def test_deprecated_entity_types():
 
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    syn.uploadFile(data, path)
+    data = syn.uploadFile(data, path)
 
     ## make sure file comes back intact
     data = syn.downloadEntity(data)
     assert filecmp.cmp(path, os.path.join(data.cacheDir, data.files[0]))
+
+
+def test_get_and_store():
+    """Test synapse.get and synapse.store in Project, Folder and File"""
+    syn = get_cached_synapse_instance()
+ 
+    ## create project
+    project = Project(name=str(uuid.uuid4()), description='A bogus test project')
+    project = syn.store(project)
+
+    ## create folder
+    folder = Folder('Bad stuff', parent=project, description='The rejects from the other fauxldurr', pi=3)
+    folder = syn.store(folder)
+
+    ## get folder
+    folder = syn.get(folder.id)
+    assert folder.name == 'Bad stuff'
+    assert folder.parentId == project.id
+    assert folder.description == 'The rejects from the other fauxldurr'
+    assert folder.pi[0] == 3
+
+    ## update folder
+    folder.pi = 3.14159265359
+    folder.description = 'The rejects from the other folder'
+    syn.store(folder)
+
+    ## verify that the updates stuck
+    folder = syn.get(folder.id)
+    assert folder.name == 'Bad stuff'
+    assert folder.parentId == project.id
+    assert folder.description == 'The rejects from the other folder'
+    assert folder.pi[0] == 3.14159265359
+
+    ## upload a File
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    random_data = File(path, parent=folder, description='Random data', foo=9844)
+    random_data = syn.store(random_data)
+
+    ## make sure file comes back intact
+    random_data_2 = syn.downloadEntity(random_data)
+    assert filecmp.cmp(path, random_data_2.path)
+    assert random_data.foo[0] == 9844
+
+    ## update with a new File
+    new_file_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(new_file_path)
+    random_data.path = new_file_path
+    random_data.foo = 1266
+    random_data = syn.store(random_data)
+
+    ## make sure the updates stuck
+    random_data_2 = syn.get(random_data)
+    assert random_data_2.path is not None
+    assert filecmp.cmp(new_file_path, random_data_2.path)
+    assert random_data.foo[0] == 1266
+
 
