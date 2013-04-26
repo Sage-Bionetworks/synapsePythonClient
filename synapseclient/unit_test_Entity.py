@@ -158,3 +158,10 @@ def test_keys():
     assert 'entityType' in iter_keys
 
 
+def test_attrs():
+    f = File('foo.xyz', parent='syn1234', foo='bar')
+    assert hasattr(f, 'parentId')
+    assert hasattr(f, 'foo')
+    assert hasattr(f, 'path')
+
+

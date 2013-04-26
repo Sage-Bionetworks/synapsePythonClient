@@ -54,6 +54,8 @@ class Versionable(object):
 ##  * giving up on the dot notation (implemented in Entity2.py in commit e441fcf5a6963118bcf2b5286c67fc66c004f2b5 in the entity_object branch)
 ##  * giving up on hiding the difference between properties and annotations
 
+#TODO inherit from UserDict.DictMixin?
+# http://docs.python.org/2/library/userdict.html#UserDict.DictMixin
 class Entity(collections.MutableMapping):
     """
     A Synapse entity is an object that has metadata, access control, and
@@ -105,7 +107,7 @@ class Entity(collections.MutableMapping):
         return obj
 
 
-    def __init__(self, properties=None, annotations=None, **kwargs):
+    def __init__(self, properties=None, annotations=None, parent=None, **kwargs):
 
         if properties:
             if isinstance(properties, collections.Mapping):
@@ -124,8 +126,29 @@ class Entity(collections.MutableMapping):
             else:
                 raise Exception('Unknown argument type: annotations is a %s' % str(type(annotations)))
 
+        if parent: kwargs['parentId'] = id_of(parent)
+
+        ## note that this will work properly if derived classes declare their
+        ## internal state variable *before* invoking super(...).__init__(...)
         for key, value in kwargs.items():
             self.__setitem__(key, value)
+
+        if 'entityType' not in self:
+            self['entityType'] = self.__class__._synapse_class
+
+
+    def internal_state(self, state=None):
+        """
+        Update the object's internal state, but not properties or annotations.
+
+        state: a dictionary
+        """
+
+        if state:
+            for key,value in state.items():
+                if key not in ['annotations','properties']:
+                    self.__dict__[key] = value
+        return self.__dict__
 
 
     def __setattr__(self, key, value):
@@ -254,21 +277,19 @@ class Folder(Entity):
 
     def __init__(self, name=None, parent=None, properties=None, annotations=None, **kwargs):
         if name: kwargs['name'] = name
-        if parent: kwargs['parentId'] = id_of(parent)
-        super(Folder, self).__init__(entityType=Folder._synapse_class, properties=properties, annotations=annotations, **kwargs)
+        super(Folder, self).__init__(entityType=Folder._synapse_class, properties=properties, annotations=annotations, parent=parent, **kwargs)
 
 
 class File(Entity, Versionable):
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
     _synapse_class = 'org.sagebionetworks.repo.model.FileEntity'
 
-    ## File(path="/path/to/file", synapseStore=True, parentId="syn101")
+    #TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
     def __init__(self, path=None, parent=None, synapseStore=True, properties=None, annotations=None, **kwargs):
         if path and 'name' not in kwargs:
             kwargs['name'] = os.path.basename(path)
-        if parent: kwargs['parentId'] = id_of(parent)
-        super(File, self).__init__(entityType=File._synapse_class, properties=properties, annotations=annotations, **kwargs)
         self.__dict__['path'] = path
+        super(File, self).__init__(entityType=File._synapse_class, properties=properties, annotations=annotations, parent=parent, **kwargs)
 
 
 

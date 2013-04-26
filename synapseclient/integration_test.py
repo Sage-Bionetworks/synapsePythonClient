@@ -492,6 +492,12 @@ class TestClient:
         self.syn._deleteFileHandle(fileHandle)
 
 
+    def test_ExternalFileHandle(self):
+        #TODO test external file handle
+        #TODO test creation of external File object and download
+        pass
+
+
     def test_fileEntity_round_trip(self):
         ## create a new project
         project = self.createProject()

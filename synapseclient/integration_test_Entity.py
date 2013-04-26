@@ -7,8 +7,11 @@
 from nose.tools import *
 import synapseclient
 from entity import Entity, Project, Folder, File
+from entity import Data
+import utils
 import uuid
 import tempfile
+import filecmp
 import os
 from datetime import datetime as Datetime
 
@@ -39,81 +42,124 @@ def setup_module(module):
     syn = synapseclient.Synapse()
     syn.login()
     module.syn = syn
-    module.projects_to_cleanup = []
+    module._to_cleanup = []
 
 def teardown_module(module):
-    cleanup_projects(module.projects_to_cleanup)
+    cleanup(module._to_cleanup)
 
 
 def get_cached_synapse_instance():
+    """return a cached synapse instance, so we don't have to keep logging in"""
     return globals()['syn']
 
-
 def create_project(name=None):
+    """return a newly created project that will be cleaned up during teardown"""
     if name is None:
         name = str(uuid.uuid4())
     project = {'entityType':'org.sagebionetworks.repo.model.Project', 'name':name}
     project = syn.createEntity(project)
-    globals()['projects_to_cleanup'].append(project)
+    schedule_for_cleanup(project)
     return project
 
+def schedule_for_cleanup(item):
+    globals()['_to_cleanup'].append(item)
 
-def cleanup_projects(projects):
-    for project in projects:
-        try:
-            syn.deleteEntity(project)
-        except Exception as ex:
-            print "Error cleaning up project: " + str(ex)
-
+def cleanup(items):
+    """cleanup junk created during testing"""
+    for item in items:
+        if isinstance(item, Entity):
+            try:
+                syn.deleteEntity(item)
+            except Exception as ex:
+                print "Error cleaning up entity: " + str(ex)
+        elif isinstance(item, basestring) and os.path.exists(item):
+            try:
+                os.remove(item)
+            except Exception as ex:
+                print ex
+        else:
+            sys.stderr.write('Don\'t know how to clean: %s' % str(item))
 
 
 def test_Entity():
+    """test CRUD on Entity objects, Project, Folder, File with createEntity/getEntity/updateEntity"""
 
     syn = get_cached_synapse_instance()
 
-    project = create_project()
-    e  = Entity(name='Test object',
-                description='I hope this works',
-                parentId=project['id'],
-                entityType='org.sagebionetworks.repo.model.Data',
-                foo=123,
-                bar='bat')
+    project_name = str(uuid.uuid4())
+    project = Project(project_name, description='Bogus testing project')
+    project = syn.createEntity(project)
+    schedule_for_cleanup(project)
 
-    annos = e.annotations
+    folder = Folder('Test Folder', parent=project, description='A place to put my junk', foo=1000)
+    folder = syn.createEntity(folder)
 
-    ## save entity in Synapse
-    e = syn.createEntity(e.properties)
-    a = syn.setAnnotations(e, annos)
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    a_file = File(path, parent=folder, description='Random data for testing', foo='An arbitrary value', bar=[33,44,55], bday=Datetime(2013,3,15))
+    a_file = syn._createFileEntity(a_file)
 
-    assert e['name'] == 'Test object'
-    assert a['foo'] == [123]
-    assert a['bar'] == ['bat']
+    ## local object state should be preserved
+    assert a_file.path == path
 
-    e = syn.getEntity(e)
-    assert e['name'] == 'Test object'
-    assert e.annotations['foo'] == [123]
-    assert e.annotations['bar'] == ['bat']
+    ## check the project entity
+    project = syn.getEntity(project)
+    assert project.name == project_name
+
+    ## check the folder entity
+    folder = syn.getEntity(folder.id)
+    assert folder.name == 'Test Folder'
+    assert folder.parentId == project.id
+    assert folder.foo[0] == 1000
+
+    ## check the file entity
+    a_file = syn.getEntity(a_file)
+    assert a_file['foo'][0] == 'An arbitrary value'
+    assert a_file['bar'] == [33,44,55]
+    assert a_file['bday'][0] == Datetime(2013,3,15)
+
+    ## make sure file comes back intact
+    a_file = syn.downloadEntity(a_file)
+    assert filecmp.cmp(path, a_file.path)
+
+    #TODO We're forgotten the local file path
+    a_file.path = path
+
+    ## update the file entity
+    a_file['foo'] = 'Another arbitrary chunk of text data'
+    a_file['new_key'] = 'A newly created value'
+    a_file = syn.updateEntity(a_file)
+    assert a_file['foo'][0] == 'Another arbitrary chunk of text data'
+    assert a_file['bar'] == [33,44,55]
+    assert a_file['bday'][0] == Datetime(2013,3,15)
+    assert a_file.new_key[0] == 'A newly created value'
+    assert a_file.path == path
+
+    ## upload a new file
+    new_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(new_path)
+
+    a_file = syn.uploadFile(a_file, new_path)
+
+    ## make sure file comes back intact
+    a_file = syn.downloadEntity(a_file)
+    assert filecmp.cmp(new_path, a_file.path)
 
 
-
-def test_entity_subclasses():
-
+def test_deprecated_entity_types():
     syn = get_cached_synapse_instance()
 
-    ## create a test project in Synapse and annotate it
     project = create_project()
-    annos = {'foo':123, 'bar':'bat', 'date':Datetime.now()}
-    a = syn.setAnnotations(project, annos)
 
-    ## try creating a Project object from the stuff returned by Synapse
-    e = syn.getEntity(project)
-    a = syn.getAnnotations(e)
-    p = Project(properties=e, annotations=a)
+    data = Data(parent=project)
 
-    print 'project = ' + str(project)
-    print 'p = ' + str(p)
+    data = syn.createEntity(data)
 
-    assert p['name'] == project['name']
-    assert p['id'] == project['id']
-    assert 123 in p['foo']
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    syn.uploadFile(data, path)
+
+    ## make sure file comes back intact
+    data = syn.downloadEntity(data)
+    assert filecmp.cmp(path, os.path.join(data.cacheDir, data.files[0]))
 

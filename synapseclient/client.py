@@ -18,7 +18,7 @@ import collections
 
 from version_check import version_check
 import utils
-from utils import id_of
+from utils import id_of, properties
 from annotations import fromSynapseAnnotations, toSynapseAnnotations
 from activity import Activity
 from entity import Entity, Project, Folder, File
@@ -165,7 +165,6 @@ class Synapse:
 
         entity = self.restGET(uri='/entity/' + id_of(entity))
 
-        #TODO if input is an entity object, return a new Entity or modify it's state?
         annotations = self.getAnnotations(entity)
         return Entity.create(entity, annotations)
 
@@ -198,8 +197,6 @@ class Synapse:
 
         return fromSynapseAnnotations(self.restPUT(uri, json.dumps(synapseAnnos) ))
     
-
- 
 
     def downloadEntity(self, entity):
         """Download an entity and files associated with an entity to local cache
@@ -281,6 +278,7 @@ class Synapse:
         ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
         entity['cacheDir'] = destDir
         entity['files'] = [os.path.basename(filename)]
+        entity['path'] = filename
 
         return entity
 
@@ -332,33 +330,50 @@ class Synapse:
         executed: an entity, a synapse ID, a URL or a Used object or a List containing these        
         """
 
-        ## make sure the input is an Entity object
-        #TODO we should always either return a new entity object or the same one updated
-        entity = Entity.to_entity(entity)
+        annotations = None
 
-        entity.properties = self.restPOST('/entity', body=json.dumps(entity.properties))
-        needs_refresh = False
+        if isinstance(entity, Entity):
+            internal_state = entity.internal_state()
+            properties = self.restPOST('/entity', body=json.dumps(entity.properties))
 
-        ## set annotations, if any given
-        if len(entity.annotations) > 0:
-            entity.annotations = self.setAnnotations(entity, entity.annotations)
-            needs_refresh = True
+            ## set annotations, if any given
+            if len(entity.annotations) > 0:
+                annotations = self.setAnnotations(properties, entity.annotations)
+                properties['etag'] = annotations['etag']
+
+        ## we're passed a plain dictionary
+        elif isinstance(entity, dict):
+            properties = self.restPOST('/entity', body=json.dumps(entity))
+            internal_state = None
+
+        else:
+            raise Exception('Unrecognized input to createEntity: %s' % str(entity))
 
         ## set provenance, if used or executed given
         if used or executed:
             activity = Activity(used=used, executed=executed)
-            activity = self.setProvenance(entity['id'], activity)
-            needs_refresh = True
+            activity = self.setProvenance(properties, activity)
 
-        if needs_refresh:
-            entity = self.getEntity(entity)
+            ## etag has changed, so get new entity
+            new_entity = self.getEntity(properties)
+        else:
+            new_entity = Entity.create(properties, annotations)
 
-        return entity
+        ## copy the local internal state of the existing object
+        new_entity.internal_state(internal_state)
+
+        return new_entity
 
 
-    def _createFileEntity(self, entity, filename, used=None, executed=None):
+    def _createFileEntity(self, entity, filename=None, used=None, executed=None):
         #Determine if we want to upload or store the url
         #TODO this should be determined by a parameter not based on magic
+        #TODO _createFileEntity and uploadFile are kinda redundant - pick one or fold into createEntity
+        if filename is None:
+            if 'path' in entity:
+                filename = entity.path
+            else:
+                raise Exception('can\'t create a File entity without a file path or URL')
         if utils.is_url(filename):
             fileHandle = self._addURLtoFileHandleService(filename)
             entity['dataFileHandleId'] = fileHandle['id']
@@ -380,26 +395,35 @@ class Synapse:
         if 'id' not in entity:
             raise Exception("A entity without an 'id' can't be updated")
 
-        ## make sure the input is an Entity object
-        entity = Entity.to_entity(entity)
-
         uri = '/entity/%s' % entity['id']
 
+        ##TODO don't modify the input
         if incrementVersion:
             entity['versionNumber'] += 1
             uri += '/version'
             if versionLabel:
                 entity['versionLabel'] = str(versionLabel)
 
-        if(self.debug): print 'About to update %s with %s' % (url, json.dumps(entity.properties))
+        if(self.debug): print 'About to update %s with %s' % (url, str(entity))
 
-        entity.properties = self.restPUT(uri, body=json.dumps(entity.properties))
+        annotations = None
 
-        entity.annotations['etag'] = entity['etag']
+        if isinstance(entity, Entity):
+            internal_state = entity.internal_state()
+            properties = self.restPUT(uri, body=json.dumps(entity.properties))
 
-        ## update annotations
-        entity.annotations = self.setAnnotations(entity, entity.annotations)
-        entity['etag'] = entity.annotations['etag']
+            ## update annotations
+            annotations = entity.annotations.copy()
+            annotations['etag'] = properties['etag']
+            annotations = self.setAnnotations(properties, annotations)
+            properties['etag'] = annotations['etag']
+
+        elif isinstance(entity, dict):
+            properties = self.restPOST(uri, body=json.dumps(entity))
+            internal_state = None
+
+        else:
+            raise Exception('Unrecognized input to updateEntity: %s' % str(entity))
 
         ## record provenance
         if used or executed:
@@ -410,9 +434,17 @@ class Synapse:
             if executed:
                 for item in executed:
                     activity.used(item['id'] if 'id' in item else str(item), wasExecuted=True)
-            activity = self.setProvenance(entity['id'], activity)
-        
-        return self.getEntity(entity)
+            activity = self.setProvenance(properties['id'], activity)
+
+            ## etag has changed, so get new entity
+            new_entity = self.getEntity(properties)
+        else:
+            new_entity = Entity.create(properties, annotations)
+
+        ## copy the local internal state of the existing object
+        new_entity.internal_state(internal_state)
+
+        return new_entity
 
 
     def deleteEntity(self, entity):
@@ -526,7 +558,7 @@ class Synapse:
         return ('locations' in entity or ('entityType' in entity and entity['entityType'] in locationable_entity_types))
 
 
-    def uploadFile(self, entity, filename):
+    def uploadFile(self, entity, filename=None):
 
         ## if we got a synapse ID as a string, get the entity from synapse
         if isinstance(entity, basestring):
@@ -542,6 +574,9 @@ class Synapse:
 
         if entity['entityType'] != 'org.sagebionetworks.repo.model.FileEntity':
             raise Exception('Files can only be uploaded to FileEntity entities')
+
+        if filename is None:
+            filename = entity.path
 
         fileHandle = self._uploadFileToFileHandleService(filename)
 
@@ -566,7 +601,7 @@ class Synapse:
         """
 
         ## check parameters
-        if entity is None or not (isinstance(entity, Entity) or isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
+        if entity is None or not (isinstance(entity, basestring) or ((isinstance(entity, Entity) or isinstance(entity, dict)) and entity.has_key('id'))):
            raise Exception('invalid entity parameter')
 
         ## if we got a synapse ID as a string, get the entity from synapse
@@ -748,7 +783,7 @@ class Synapse:
     def _uploadFileToFileHandleService(self, filepath):
         """Upload a file to the new fileHandle service (experimental)
            returns a fileHandle which can be used to create a FileEntity or attach to a wiki"""
-        print "_uploadFileToFileHandleService - filepath = " + str(filepath)
+        #print "_uploadFileToFileHandleService - filepath = " + str(filepath)
         url = "%s/fileHandle" % (self.fileHandleEndpoint,)
         headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
         with open(filepath, 'r') as file:

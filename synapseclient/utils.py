@@ -72,7 +72,7 @@ def _get_from_members_items_or_properties(obj, key):
     except (KeyError, TypeError): pass
     return None
 
-
+#TODO: what does this do on an unsaved Synapse Entity object?
 def id_of(obj):
     """Try to figure out the synapse ID of the given object. Accepted input
     includes strings, entity objects, or entities represented by dictionaries"""
@@ -84,6 +84,10 @@ def id_of(obj):
     if result is None:
         raise Exception('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result
+
+
+def properties(entity):
+    entity = entity.properties if hasattr(entity, 'properties') else entity
 
 
 def entity_type(entity):
