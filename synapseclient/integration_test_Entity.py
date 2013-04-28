@@ -17,8 +17,10 @@ from datetime import datetime as Datetime
 
 
 def setup_module(module):
+    print '\n'
     print '~' * 60
-    print 'testing Entity'
+    print os.path.basename(__file__)
+    print '~' * 60
 
     ## if testing endpoints are set in the config file, use them
     ## this was created 'cause nosetests doesn't have a good means of
@@ -163,7 +165,8 @@ def test_deprecated_entity_types():
 
     ## make sure file comes back intact
     data = syn.downloadEntity(data)
-    assert filecmp.cmp(path, os.path.join(data.cacheDir, data.files[0]))
+
+    assert filecmp.cmp(path, os.path.join(data['cacheDir'], data['files'][0]))
 
 
 def test_get_and_store():
@@ -173,6 +176,7 @@ def test_get_and_store():
     ## create project
     project = Project(name=str(uuid.uuid4()), description='A bogus test project')
     project = syn.store(project)
+    schedule_for_cleanup(project)
 
     ## create folder
     folder = Folder('Bad stuff', parent=project, description='The rejects from the other fauxldurr', pi=3)
@@ -191,7 +195,7 @@ def test_get_and_store():
     syn.store(folder)
 
     ## verify that the updates stuck
-    folder = syn.get(folder.id)
+    folder = syn.get(folder)
     assert folder.name == 'Bad stuff'
     assert folder.parentId == project.id
     assert folder.description == 'The rejects from the other folder'
@@ -215,10 +219,64 @@ def test_get_and_store():
     random_data.foo = 1266
     random_data = syn.store(random_data)
 
+    ## should be version 2
+    assert random_data.versionNumber == 2
+
     ## make sure the updates stuck
     random_data_2 = syn.get(random_data)
     assert random_data_2.path is not None
     assert filecmp.cmp(new_file_path, random_data_2.path)
-    assert random_data.foo[0] == 1266
+    assert random_data_2.foo[0] == 1266
+    assert random_data_2.versionNumber == 2
+
+
+
+def test_store_dictionary():
+    syn = get_cached_synapse_instance()
+
+    project = { 'entityType': 'org.sagebionetworks.repo.model.Project',
+                'name':str(uuid.uuid4()),
+                'description':'Project from dictionary'}
+    project = syn.store(project)
+    schedule_for_cleanup(project)
+
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    entity = {  'entityType': 'org.sagebionetworks.repo.model.Data',
+                'name':'foo',
+                'parentId':project['id'],
+                'foo':334455,
+                'path':path }
+
+    data = syn.store(entity)
+
+    data = syn.get(data)
+
+    assert data.parentId == project.id
+    assert data.foo[0] == 334455
+    assert filecmp.cmp(path, os.path.join(data['cacheDir'], data['files'][0]))
+
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    entity = {}
+    entity.update(data.annotations)
+    entity.update(data.properties)
+    entity.update(data.local_state())
+    entity['path'] = path
+    entity['description'] = 'Updating with a plain dictionary should be rare.'
+
+    data = syn.store(entity)
+    assert data.description == entity['description']
+    assert data.name == 'foo'
+
+    data = syn.get(data['id'])
+    assert filecmp.cmp(path, os.path.join(data['cacheDir'], data['files'][0]))
+
+
+
+
+
 
 

@@ -34,7 +34,7 @@ def downloadFile(url, localFilepath=None):
         dir = os.path.dirname(localFilepath)
         if not os.path.exists(dir):
             os.makedirs(dir)
-    return urllib.urlretrieve (url, localFilepath)
+    return urllib.urlretrieve(url, localFilepath)
 
 
 # this could be made more robust
@@ -85,6 +85,14 @@ def id_of(obj):
         raise Exception('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result
 
+
+def class_of(obj):
+    """Return the class or type of the input object as a string"""
+    if obj is None:
+        return 'None'
+    if hasattr(obj,'__class__'):
+        return obj.__class__.__name__
+    return str(type(obj))
 
 def properties(entity):
     return entity.properties if hasattr(entity, 'properties') else entity

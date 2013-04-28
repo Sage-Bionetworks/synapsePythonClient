@@ -17,6 +17,13 @@ import shutil
 import uuid
 
 
+def setup_module(module):
+    print '\n'
+    print '~' * 60
+    print os.path.basename(__file__)
+    print '~' * 60
+
+
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
 DATA_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Data', u'parentId': ''}
 CODE_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Code', u'parentId': ''}
@@ -60,6 +67,7 @@ class TestClient:
 
             self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, fileHandleEndpoint=fileHandleEndpoint, debug=False)
             self.syn._skip_version_check = True
+            # self.syn.debug = True
 
             ## Assumes that a configuration file exists in the home directory with login information
             self.syn.login()
@@ -136,6 +144,33 @@ class TestClient:
         assert entity.properties == returnEntity.properties
 
 
+    def test_entity_version(self):
+        """Test the ability to get specific versions of Synapse Entities"""
+        #Create a new project
+        project = self.createProject()
+
+        entity = self.createDataEntity(project['id'])
+
+        #Get new entity and check that it is same
+        entity = self.syn.getEntity(entity)
+        assert entity.versionNumber == 1
+
+        entity.description = 'Changed something'
+        entity.foo = 998877
+        entity = self.syn.updateEntity(entity, incrementVersion=True)
+        assert entity.versionNumber == 2
+
+        returnEntity = self.syn.getEntity(entity, version=1)
+        assert returnEntity.versionNumber == 1
+        ## TODO get version specific annotations
+        ## assert 'foo' not in returnEntity
+
+        returnEntity = self.syn.getEntity(entity)
+        assert returnEntity.versionNumber == 2
+        assert returnEntity['description'] == 'Changed something'
+        assert returnEntity['foo'][0] == 998877
+
+
     def test_loadEntity(self):
         #loadEntity does the same thing as downloadEntity so nothing new to test
         pass
@@ -146,13 +181,15 @@ class TestClient:
         project = self.createProject()
 
         #Add a data entity to project
-        entity = self.createDataEntity(project['id'])
+        entity = DATA_JSON.copy()
+        entity['parentId']= project['id']
         entity['name'] = 'foo'
         entity['description'] = 'description of an entity'
         entity = self.syn.createEntity(entity)
 
         #Get the data entity and assert that it is unchanged
         returnEntity = self.syn.getEntity(entity['id'])
+
         assert entity.properties == returnEntity.properties
 
         self.syn.deleteEntity(returnEntity['id'])

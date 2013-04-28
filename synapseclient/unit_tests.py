@@ -6,7 +6,14 @@ from activity import Activity
 from datetime import datetime
 import utils
 from utils import _findUsed
+import os
 
+
+def setup_module(module):
+    print '\n'
+    print '~' * 60
+    print os.path.basename(__file__)
+    print '~' * 60
 
 def test_annotations():
     """Test string annotations"""
@@ -181,13 +188,13 @@ def test_activity_parameter_errors():
     assert_raises(Exception, a.used, 'http://amazon.com', targetVersion=1)
 
 
-
 def test_is_url():
     """test the ability to determine whether a string is a URL"""
     assert utils.is_url("http://mydomain.com/foo/bar/bat?asdf=1234&qewr=ooo")
     assert utils.is_url("http://xkcd.com/1193/")
     assert not utils.is_url("syn123445")    
     assert not utils.is_url("wasssuuuup???")
+
 
 def test_id_of():
     assert utils.id_of(1) == '1'
@@ -196,6 +203,7 @@ def test_id_of():
     assert_raises(Exception, utils.id_of, {'foo':1, 'idzz':123})
     assert utils.id_of({'properties':{'id':123}}) == 123
     assert_raises(Exception, utils.id_of, {'properties':{'qq':123}})
+    assert_raises(Exception, utils.id_of, object())
 
     class Foo:
         def __init__(self, id):

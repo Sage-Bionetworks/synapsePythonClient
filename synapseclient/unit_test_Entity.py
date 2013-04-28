@@ -1,6 +1,14 @@
 from nose.tools import *
 import collections
-from entity import Entity, Project, Folder, File, Data
+from entity import Entity, Project, Folder, File, Data, split_entity_namespaces
+import os
+
+
+def setup_module(module):
+    print '\n'
+    print '~' * 60
+    print os.path.basename(__file__)
+    print '~' * 60
 
 
 def test_Entity():
@@ -163,5 +171,48 @@ def test_attrs():
     assert hasattr(f, 'parentId')
     assert hasattr(f, 'foo')
     assert hasattr(f, 'path')
+
+
+def test_split_entity_namespaces():
+    """Test split_entity_namespaces"""
+
+    e = {'entityType':'org.sagebionetworks.repo.model.Folder',
+         'name':'Henry',
+         'color':'blue',
+         'foo':1234,
+         'parentId':'syn1234'}
+    (properties,annotations,local_state) = split_entity_namespaces(e)
+
+    assert set(properties.keys()) == set(['entityType', 'name', 'parentId'])
+    assert properties['name'] == 'Henry'
+    assert set(annotations.keys()) == set(['color', 'foo'])
+    assert annotations['foo'] == 1234
+    assert len(local_state) == 0
+
+    e = {'entityType':'org.sagebionetworks.repo.model.FileEntity',
+         'name':'Henry',
+         'color':'blue',
+         'foo':1234,
+         'parentId':'syn1234',
+         'dataFileHandleId':54321,
+         'cacheDir':'/foo/bar/bat',
+         'files':['foo.xyz'],
+         'path':'/foo/bar/bat/foo.xyz'}
+    (properties,annotations,local_state) = split_entity_namespaces(e)
+
+    assert set(properties.keys()) == set(['entityType', 'name', 'parentId', 'dataFileHandleId'])
+    assert properties['name'] == 'Henry'
+    assert properties['dataFileHandleId'] == 54321
+    assert set(annotations.keys()) == set(['color', 'foo'])
+    assert annotations['foo'] == 1234
+    assert set(local_state.keys()) == set(['cacheDir', 'files', 'path'])
+    assert local_state['cacheDir'] == '/foo/bar/bat'
+
+    f = Entity.create(properties,annotations,local_state)
+    assert f.properties.dataFileHandleId == 54321
+    assert f.properties.name == 'Henry'
+    assert f.annotations.foo == 1234
+    assert f.__dict__['cacheDir'] == '/foo/bar/bat'
+    assert f.__dict__['path'] == '/foo/bar/bat/foo.xyz'
 
 

@@ -5,13 +5,13 @@
 import collections
 import itertools
 from dict_object import DictObject
-from utils import id_of, entity_type, itersubclasses
+from utils import id_of, class_of, entity_type, itersubclasses
 import os
 
 
 ## File, Locationable and Summary are Versionable
 class Versionable(object):
-    _synapse_class = 'org.sagebionetworks.repo.model.Versionable'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Versionable'
     _property_keys = ['versionNumber', 'versionLabel', 'versionComment', 'versionUrl', 'versions']
 
 
@@ -63,51 +63,60 @@ class Entity(collections.MutableMapping):
     that contains other entities.
     """
 
-    _synapse_class = 'org.sagebionetworks.repo.model.Entity'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Entity'
     _property_keys = ['id', 'name', 'description', 'parentId',
                      'entityType', 'concreteType',
                      'uri', 'etag', 'annotations', 'accessControlList',
                      'createdOn', 'createdBy', 'modifiedOn', 'modifiedBy']
+    _local_keys = []
 
     @classmethod
-    def create(cls, properties=None, annotations=None):
+    def create(cls, properties=None, annotations=None, local_state=None):
         """
         Create an Entity or a subclass given dictionaries of properties
         and annotations, as might be received from the Synapse Repository.
 
+        Optionally, allow local state (not persisted in Synapse) to be
+        given as well.
+
         If entityType is defined in properties, we create the proper subclass
-        of Entity. If not, give back the type asked for.
+        of Entity. If not, give back the type whose constructor was called:
 
         If passed an Entity as input, create a new Entity using the input
         entity as a prototype.
         """
         ## create a new Entity using an existing entity as a prototype?
         if isinstance(properties, Entity):
-            annotations = properties.annotations + annotations
+            annotations = properties.annotations + (annotations if annotations else {})
+            local_state = properties.local_state() + (local_state if local_state else {})
             properties = properties.properties
             del properties['id']
         if cls==Entity and 'entityType' in properties and properties['entityType'] in _entity_type_to_class:
             cls = _entity_type_to_class[properties['entityType']]
-        return cls(properties=properties, annotations=annotations)
+        return cls(properties=properties, annotations=annotations, local_state=local_state)
 
     @classmethod
     def to_entity(cls, entity):
-        """Coerse dictionary to Entity, but pass Entities through"""
+        """Coerse a dictionary to an Entity, but pass Entities through"""
         if isinstance(entity, Entity):
             return entity
-        return Entity.create(properties=entity)
-
+        if isinstance(entity, collections.Mapping):
+            properties, annotations, local_state = split_entity_namespaces(entity)
+            return Entity.create(properties=properties, annotations=annotations, local_state=local_state)
+        raise Exception('Can\'t convert \'%s\' to an Entity.' % class_of(entity))
 
     def __new__(typ, *args, **kwargs):
         obj = object.__new__(typ, *args, **kwargs)
         ## make really sure that properties and annotations exist before
-        ## any object methods get invoked
+        ## any object methods get invoked. This is important because the
+        ## dot operator magic methods have been over-ridden and depend on
+        ## properties and annotations existing.
         obj.__dict__['properties'] = DictObject()
         obj.__dict__['annotations'] = DictObject()
         return obj
 
 
-    def __init__(self, properties=None, annotations=None, parent=None, **kwargs):
+    def __init__(self, properties=None, annotations=None, local_state=None, parent=None, **kwargs):
 
         if properties:
             if isinstance(properties, collections.Mapping):
@@ -126,6 +135,12 @@ class Entity(collections.MutableMapping):
             else:
                 raise Exception('Unknown argument type: annotations is a %s' % str(type(annotations)))
 
+        if local_state:
+            if isinstance(local_state, collections.Mapping):
+                self.local_state(local_state)
+            else:
+                raise Exception('Unknown argument type: local_state is a %s' % str(type(local_state)))
+
         if parent: kwargs['parentId'] = id_of(parent)
 
         ## note that this will work properly if derived classes declare their
@@ -134,21 +149,23 @@ class Entity(collections.MutableMapping):
             self.__setitem__(key, value)
 
         if 'entityType' not in self:
-            self['entityType'] = self.__class__._synapse_class
+            self['entityType'] = self.__class__._synapse_entity_type
 
 
-    def internal_state(self, state=None):
+    def local_state(self, state=None):
         """
-        Update the object's internal state, but not properties or annotations.
-
+        Set or get the object's internal state, excluding properties or annotations.
         state: a dictionary
         """
-
         if state:
             for key,value in state.items():
                 if key not in ['annotations','properties']:
                     self.__dict__[key] = value
-        return self.__dict__
+        result = {}
+        for key,value in self.__dict__.items():
+            if key not in ['annotations','properties'] and not key.startswith('__'):
+                result[key] = value
+        return result
 
 
     def __setattr__(self, key, value):
@@ -173,7 +190,7 @@ class Entity(collections.MutableMapping):
             ## wrap the dictionary in a DictObject so we can
             ## later do:
             ##   entity.annotations.foo = 'bar'
-            if key=='annotations' and not isinstance(value, DictObject):
+            if (key=='annotations' or key=='properties') and not isinstance(value, DictObject):
                 value = DictObject(value)
             self.__dict__[key] = value
         elif key in self.__class__._property_keys:
@@ -265,62 +282,71 @@ class Entity(collections.MutableMapping):
 
 
 class Project(Entity):
-    _synapse_class = 'org.sagebionetworks.repo.model.Project'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Project'
 
-    def __init__(self, name=None, properties=None, annotations=None, **kwargs):
+    def __init__(self, name=None, properties=None, annotations=None, local_state=None, **kwargs):
         if name: kwargs['name'] = name
-        super(Project, self).__init__(entityType=Project._synapse_class, properties=properties, annotations=annotations, **kwargs)
+        super(Project, self).__init__(entityType=Project._synapse_entity_type, properties=properties, annotations=annotations, local_state=local_state, **kwargs)
 
 
 class Folder(Entity):
-    _synapse_class = 'org.sagebionetworks.repo.model.Folder'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Folder'
 
-    def __init__(self, name=None, parent=None, properties=None, annotations=None, **kwargs):
+    def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
         if name: kwargs['name'] = name
-        super(Folder, self).__init__(entityType=Folder._synapse_class, properties=properties, annotations=annotations, parent=parent, **kwargs)
+        super(Folder, self).__init__(entityType=Folder._synapse_entity_type, properties=properties, annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
 class File(Entity, Versionable):
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
-    _synapse_class = 'org.sagebionetworks.repo.model.FileEntity'
+    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files']
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
     #TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
-    def __init__(self, path=None, parent=None, synapseStore=True, properties=None, annotations=None, **kwargs):
+    def __init__(self, path=None, parent=None, synapseStore=True, properties=None, annotations=None, local_state=None, **kwargs):
         if path and 'name' not in kwargs:
             kwargs['name'] = os.path.basename(path)
         self.__dict__['path'] = path
-        super(File, self).__init__(entityType=File._synapse_class, properties=properties, annotations=annotations, parent=parent, **kwargs)
+        if path:
+            cacheDir, basename = os.path.split(path)
+            self.__dict__['cacheDir'] = cacheDir
+            self.__dict__['files'] = [basename]
+        else:
+            self.__dict__['cacheDir'] = None
+            self.__dict__['files'] = []
+        super(File, self).__init__(entityType=File._synapse_entity_type, properties=properties, annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
 
 ## Deprecated, but kept around for compatibility with
 ## old-style Data, Code, Study, etc. entities
 class Locationable(Versionable):
-    _synapse_class = 'org.sagebionetworks.repo.model.Locationable'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Locationable'
+    _local_keys = Entity._local_keys + ['cacheDir', 'files']
     _property_keys = Versionable._property_keys + ['locations', 'md5', 'contentType', 's3Token']
 
 
 class Analysis(Entity):
-    _synapse_class = 'org.sagebionetworks.repo.model.Analysis'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Analysis'
 
 
 class Code(Entity, Locationable):
-    _synapse_class = 'org.sagebionetworks.repo.model.Code'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Code'
     _property_keys = Entity._property_keys + Locationable._property_keys
 
 
 class Data(Entity, Locationable):
-    _synapse_class = 'org.sagebionetworks.repo.model.Data'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Data'
     _property_keys = Entity._property_keys + Locationable._property_keys
 
 
 class Study(Entity, Locationable):
-    _synapse_class = 'org.sagebionetworks.repo.model.Study'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Study'
     _property_keys = Entity._property_keys + Locationable._property_keys
 
 
 class Summary(Entity, Versionable):
-    _synapse_class = 'org.sagebionetworks.repo.model.Summary'
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Summary'
     _property_keys = Entity._property_keys + Versionable._property_keys
 
 
@@ -329,5 +355,72 @@ class Summary(Entity, Versionable):
 ## Python class.
 _entity_type_to_class = {}
 for cls in itersubclasses(Entity):
-    _entity_type_to_class[cls._synapse_class] = cls
+    _entity_type_to_class[cls._synapse_entity_type] = cls
+
+
+def split_entity_namespaces(entity):
+    """
+    Given a plain dictionary or an Entity object,
+    split into properties, annotations and local state.
+    A dictionary will be processed as a specific type of Entity if its
+    entityType field is recognized and otherwise as a generic Entity.
+    Returns a 3-item tuple: (properties, annotations, local_state).
+    """
+    if isinstance(entity, Entity):
+        ## defensive programming: return copies
+        return (entity.properties.copy(), entity.annotations.copy(), entity.local_state())
+
+    if not isinstance(entity, collections.Mapping):
+        raise Exception("Can't call split_entity_namespaces on objects of type: %s" % class_of(entity))
+
+    if 'entityType' in entity and entity['entityType'] in _entity_type_to_class:
+        entity_class = _entity_type_to_class[entity['entityType']]
+    else:
+        entity_class = Entity
+
+    properties = DictObject()
+    annotations = DictObject()
+    local_state = DictObject()
+
+    property_keys = entity_class._property_keys
+    local_keys = entity_class._local_keys
+    for key, value in entity.items():
+        if key in property_keys:
+            properties[key] = value
+        elif key in local_keys:
+            local_state[key] = value
+        else:
+            annotations[key] = value
+
+    return (properties, annotations, local_state)
+
+
+def is_versionable(entity):
+    """Return True if the given entity's entityType is one that is Versionable"""
+    if 'entityType' in entity and entity['entityType'] in _entity_type_to_class:
+        entity_class = _entity_type_to_class[entity['entityType']]
+    else:
+        entity_class = Entity
+    return issubclass(entity_class, Versionable)
+
+
+def is_locationable(entity):
+    """Return True if the given entity is Locationable"""
+    if isinstance(entity, collections.Mapping):
+        if 'entityType' in entity:
+            return entity['entityType'] in ['org.sagebionetworks.repo.model.Data',
+                                            'org.sagebionetworks.repo.model.Code',
+                                            'org.sagebionetworks.repo.model.ExpressionData',
+                                            'org.sagebionetworks.repo.model.GenericData',
+                                            'org.sagebionetworks.repo.model.GenomicData',
+                                            'org.sagebionetworks.repo.model.GenotypeData',
+                                            'org.sagebionetworks.repo.model.Media',
+                                            'org.sagebionetworks.repo.model.PhenotypeData',
+                                            'org.sagebionetworks.repo.model.RObject',
+                                            'org.sagebionetworks.repo.model.Study',
+                                            'org.sagebionetworks.repo.model.ExampleEntity']
+        else:
+            return 'locations' in entity
+    else:
+        raise Exception('Can\'t determine if %s is Locationable' % str(entity))
 
