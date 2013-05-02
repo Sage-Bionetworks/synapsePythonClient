@@ -196,7 +196,7 @@ class Synapse:
         """
         local_state = entity.local_state() if isinstance(entity, Entity) else None
         properties = self._getEntity(entity, version=version)
-        annotations = self.getAnnotations(properties)
+        annotations = self.getAnnotations(properties, version=version)
 
         ## return a fresh copy of the entity
         entity = Entity.create(properties, annotations, local_state)
@@ -278,12 +278,13 @@ class Synapse:
         Returns:
         - A new :class:`synapseclient.entity.Entity` object
         """
-        local_state = entity.local_state() if isinstance(entity, Entity) else None
-        properties = self._getEntity(entity, version=version)
-        annotations = self.getAnnotations(properties)
+        return self.get(entity, version=version, downloadFile=False)
+        # local_state = entity.local_state() if isinstance(entity, Entity) else None
+        # properties = self._getEntity(entity, version=version)
+        # annotations = self.getAnnotations(properties, version=version)
 
-        ## return a fresh copy of the entity
-        return Entity.create(properties, annotations, local_state)
+        # ## return a fresh copy of the entity
+        # return Entity.create(properties, annotations, local_state)
 
 
     def loadEntity(self, entity):
@@ -463,11 +464,18 @@ class Synapse:
     # get/set Annotations
     ############################################################
 
-    def getAnnotations(self, entity):
+    def getAnnotations(self, entity, version=None):
         """
         Retrieve the annotations stored for an entity in the Synapse Repository
         """
-        return fromSynapseAnnotations(self.restGET(uri='/entity/%s/annotations' % id_of(entity)))
+        ## only use versioned URLs on request.
+        ## note that using the versioned URL results in a zero-ed out etag,
+        ## even if the version is the most recent. See: PLFM-1874
+        if version:
+            uri = '/entity/%s/version/%s/annotations' % (id_of(entity), str(version),)
+        else:
+            uri = '/entity/%s/annotations' % id_of(entity)
+        return fromSynapseAnnotations(self.restGET(uri))        
 
 
     def setAnnotations(self, entity, annotations={}, **kwargs):
@@ -703,6 +711,8 @@ class Synapse:
         the entity object passed to this method must have been recently acquired from Synapse.
         (**deprecated** in favor of FileEntities)
         """
+        if 'locations' not in entity or len(entity['locations'])==0:
+            return entity
         location = entity['locations'][0]  #TODO verify that this doesn't fail for unattached files
         url = location['path']
         parseResult = urlparse.urlparse(url)

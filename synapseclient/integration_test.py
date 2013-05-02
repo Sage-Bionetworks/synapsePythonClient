@@ -99,7 +99,6 @@ class TestClient:
         return self.syn.createEntity(data)
 
 
-
     def test_printEntity(self):
         self.syn.printEntity({'hello':'world', 'alist':[1,2,3,4]}) 
         #Nothing really to test
@@ -150,6 +149,7 @@ class TestClient:
         project = self.createProject()
 
         entity = self.createDataEntity(project['id'])
+        self.syn.setAnnotations(entity, {'fizzbuzz':111222})
 
         #Get new entity and check that it is same
         entity = self.syn.getEntity(entity)
@@ -160,15 +160,24 @@ class TestClient:
         entity = self.syn.updateEntity(entity, incrementVersion=True)
         assert entity.versionNumber == 2
 
+        annotations = self.syn.getAnnotations(entity, version=1)
+        assert annotations['fizzbuzz'][0] == 111222
+
         returnEntity = self.syn.getEntity(entity, version=1)
         assert returnEntity.versionNumber == 1
-        ## TODO get version specific annotations
-        ## assert 'foo' not in returnEntity
+        assert returnEntity['fizzbuzz'][0] == 111222
+        assert 'foo' not in returnEntity
 
         returnEntity = self.syn.getEntity(entity)
         assert returnEntity.versionNumber == 2
         assert returnEntity['description'] == 'Changed something'
         assert returnEntity['foo'][0] == 998877
+
+        returnEntity = self.syn.get(entity, version=1)
+        assert returnEntity.versionNumber == 1
+        assert returnEntity['fizzbuzz'][0] == 111222
+        assert 'foo' not in returnEntity
+
 
 
     def test_loadEntity(self):
@@ -268,6 +277,12 @@ class TestClient:
 
     def test_createSnapshotSummary(self):
         pass
+
+
+    def test_download_empty_entity(self):
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
+        entity = self.syn.downloadEntity(entity)
 
 
     def test_uploadFile(self):
@@ -439,7 +454,10 @@ class TestClient:
         a = self.syn.getAnnotations(entity)
         assert 'etag' in a
 
+        print a
+
         a['bogosity'] = 'total'
+        print a
         self.syn.setAnnotations(entity, a)
 
         a2 = self.syn.getAnnotations(entity)
