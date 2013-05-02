@@ -161,3 +161,17 @@ def test_command_line_client():
     ## delete project
     output = run("synapse delete %s" % project_id)
     to_clean_up.remove(project_id)
+
+
+    ## Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
+    singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
+
+    ## test external file handle
+    output = run("synapse add -name 'Singapore' -description 'A nice picture of Singapore' -type File -parentid %s %s" % (project_id, singapore_url,))
+    data_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+
+    output = run("synapse get %s" % data_entity_id)
+    downloaded_filename = parse(r'creating\s+(.*)', output)
+
+    to_clean_up.append(downloaded_filename)
+    assert os.path.exists(downloaded_filename)

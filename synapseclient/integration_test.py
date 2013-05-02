@@ -533,10 +533,7 @@ class TestClient:
         path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
 
         ## upload a file to the file handle service
-        fileHandleList = self.syn._uploadFileToFileHandleService(path)
-
-        ## extract the first file handle
-        fileHandle = fileHandleList['list'][0]
+        fileHandle = self.syn._uploadFileToFileHandleService(path)
 
         fileHandle2 = self.syn._getFileHandle(fileHandle)
 
@@ -545,12 +542,6 @@ class TestClient:
         assert fileHandle==fileHandle2
 
         self.syn._deleteFileHandle(fileHandle)
-
-
-    def test_ExternalFileHandle(self):
-        #TODO test external file handle
-        #TODO test creation of external File object and download
-        pass
 
 
     def test_fileEntity_round_trip(self):
@@ -587,10 +578,7 @@ class TestClient:
         original_path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
 
         ## upload a file to the file handle service
-        fileHandleList = self.syn._uploadFileToFileHandleService(original_path)
-
-        ## extract the first file handle
-        fileHandle = fileHandleList['list'][0]
+        fileHandle = self.syn._uploadFileToFileHandleService(original_path)
 
         wiki = self.syn._createWiki(project, 'A Test Wiki', md, [fileHandle['id']])
 

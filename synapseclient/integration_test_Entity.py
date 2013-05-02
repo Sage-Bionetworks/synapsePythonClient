@@ -275,6 +275,27 @@ def test_store_dictionary():
     assert filecmp.cmp(path, os.path.join(data['cacheDir'], data['files'][0]))
 
 
+def test_ExternalFileHandle():
+    syn = get_cached_synapse_instance()
+
+    project = create_project()
+
+    ## Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
+    singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
+
+    singapore = File(singapore_url, parent=project)
+    singapore = syn.store(singapore)
+
+    fileHandle = syn._getFileHandle(singapore.dataFileHandleId)
+
+    assert fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
+    assert fileHandle['externalURL']  == singapore_url
+
+    singapore = syn.get(singapore, downloadFile=True)
+    assert singapore.path is not None
+    assert os.path.exists(singapore.path)
+
+
 
 
 

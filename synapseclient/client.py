@@ -227,7 +227,7 @@ class Synapse:
         if entity['entityType'] == File._synapse_entity_type:
             if 'dataFileHandleId' not in properties or True: #TODO: file_cache.local_file_has_changed(entity.path):
                 fileHandle = self._uploadToFileHandleService(entity.path)
-                properties['dataFileHandleId'] = fileHandle['list'][0]['id']
+                properties['dataFileHandleId'] = fileHandle['id']
 
         ## need to upload a Locationable?
         ##   create the entity first, then upload file, then update entity, later
@@ -279,12 +279,6 @@ class Synapse:
         - A new :class:`synapseclient.entity.Entity` object
         """
         return self.get(entity, version=version, downloadFile=False)
-        # local_state = entity.local_state() if isinstance(entity, Entity) else None
-        # properties = self._getEntity(entity, version=version)
-        # annotations = self.getAnnotations(properties, version=version)
-
-        # ## return a fresh copy of the entity
-        # return Entity.create(properties, annotations, local_state)
 
 
     def loadEntity(self, entity):
@@ -349,7 +343,7 @@ class Synapse:
             entity['dataFileHandleId'] = fileHandle['id']
         else:
             fileHandle = self._uploadFileToFileHandleService(filename)
-            entity['dataFileHandleId'] = fileHandle['list'][0]['id']
+            entity['dataFileHandleId'] = fileHandle['id']
         if 'entityType' not in entity:
             entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
         return self.createEntity(entity, used=used, executed=executed)
@@ -421,10 +415,10 @@ class Synapse:
             if entity['entityType'] != 'org.sagebionetworks.repo.model.FileEntity':
                 raise Exception('Files can only be uploaded to FileEntity entities')
 
-            fileHandle = self._uploadFileToFileHandleService(filename)
+            fileHandle = self._uploadToFileHandleService(filename)
 
-            # add fileHandle to entity
-            entity['dataFileHandleId'] = fileHandle['list'][0]['id']
+            ## for some reason, posting
+            entity['dataFileHandleId'] = fileHandle['id']
 
         if 'id' in entity:
             return self.updateEntity(entity, used=used, executed=executed)
@@ -567,7 +561,7 @@ class Synapse:
         Note that provenance applies to a specific version of an entity. The
         returned Activity will represent the provenance of the entity version
         supplied with the versionNumber parameter OR if versionNumber is None,
-        and entity is an object, the versonNumber property of the given entity.
+        the versonNumber property of the given entity.
         """
 
         ## can be either an entity or just a synapse ID
@@ -619,12 +613,15 @@ class Synapse:
         uri = '/entity/%s/generatedBy' % id_of(entity)
         self.restDELETE(uri)
 
+        #TODO: what happens if the activity is shared by more than one entity?
+
         # delete /activity/{activityId}
         uri = '/activity/%s' % activity['id']
         self.restDELETE(uri)
 
 
     def updateActivity(self, activity):
+        """modify an existing activity"""
         uri = '/activity/%s' % activity['id']
         return Activity(data=self.restPUT(uri, json.dumps(activity)))
 
@@ -831,7 +828,10 @@ class Synapse:
         with open(filepath, 'r') as file:
             response = requests.post(url, files={os.path.basename(filepath): file}, headers=headers)
         response.raise_for_status()
-        return response.json()
+
+        ## we expect a list of FileHandles of length 1
+        fileHandleList = response.json()
+        return fileHandleList['list'][0]
 
     def _addURLtoFileHandleService(self, externalURL):
         """Create a new FileHandle representing an external URL"""
