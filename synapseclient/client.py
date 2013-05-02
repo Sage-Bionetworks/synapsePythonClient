@@ -209,7 +209,7 @@ class Synapse:
 
     ## ? does store return the same object that was passed to it, but modified?
     ## ? do we always return a new object, leaving the existing object unchanged?
-    def store(self, entity, used=None, executed=None):
+    def store(self, entity, used=None, executed=None, **kwargs):
         """
         create new entity or update an existing entity, uploading any files in the process
         entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
@@ -255,11 +255,18 @@ class Synapse:
             annotations = self.setAnnotations(properties, annotations)
             properties['etag'] = annotations['etag']
 
-        ## set provenance, if used or executed given
+        ## if used or executed given, create an Activity object
+        activity = kwargs['activity'] if 'activity' in kwargs else None
         if used or executed:
-            activity = Activity(used=used, executed=executed)
-            activity = self.setProvenance(properties, activity)
+            if activity is not None:
+                raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
+            activityName == kwargs['activityName'] if 'activityName' in kwargs else None
+            activityDescription == kwargs['activityDescription'] if 'activityDescription' in kwargs else None
+            activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
+        ## if we have an activity, set it as the entity's provenance record
+        if activity:
+            activity = self.setProvenance(properties, activity)
             ## etag has changed, so get new entity
             properties = self._getEntity(properties)
 
@@ -293,7 +300,7 @@ class Synapse:
         return self.downloadEntity(entity)
 
 
-    def createEntity(self, entity, used=None, executed=None):
+    def createEntity(self, entity, used=None, executed=None, **kwargs):
         """
         Create a new entity in the synapse Repository according to entity json object.
 
@@ -316,11 +323,23 @@ class Synapse:
         annotations = self.setAnnotations(properties, annotations)
         properties['etag'] = annotations['etag']
 
-        ## set provenance, if used or executed given
-        if used or executed:
-            activity = Activity(used=used, executed=executed)
-            activity = self.setProvenance(properties, activity)
+        ## update annotations, if any given
+        if len(annotations) > 0:
+            annotations = self.setAnnotations(properties, annotations)
+            properties['etag'] = annotations['etag']
 
+        ## if used or executed given, create an Activity object
+        activity = kwargs['activity'] if 'activity' in kwargs else None
+        if used or executed:
+            if activity is not None:
+                raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
+            activityName = kwargs['activityName'] if 'activityName' in kwargs else None
+            activityDescription = kwargs['activityDescription'] if 'activityDescription' in kwargs else None
+            activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
+
+        ## if we have an activity, set it as the entity's provenance record
+        if activity:
+            activity = self.setProvenance(properties, activity)
             ## etag has changed, so get new entity
             properties = self._getEntity(properties)
 
@@ -349,7 +368,7 @@ class Synapse:
         return self.createEntity(entity, used=used, executed=executed)
 
 
-    def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None):
+    def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
         """
         Update an entity stored in synapse with the properties in entity
         """
@@ -367,11 +386,23 @@ class Synapse:
         annotations = self.setAnnotations(properties, annotations)
         properties['etag'] = annotations['etag']
 
-        ## set provenance, if used or executed given
-        if used or executed:
-            activity = Activity(used=used, executed=executed)
-            activity = self.setProvenance(properties, activity)
+        ## update annotations, if any given
+        if len(annotations) > 0:
+            annotations = self.setAnnotations(properties, annotations)
+            properties['etag'] = annotations['etag']
 
+        ## if used or executed given, create an Activity object
+        activity = kwargs['activity'] if 'activity' in kwargs else None
+        if used or executed:
+            if activity is not None:
+                raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
+            activityName == kwargs['activityName'] if 'activityName' in kwargs else None
+            activityDescription == kwargs['activityDescription'] if 'activityDescription' in kwargs else None
+            activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
+
+        ## if we have an activity, set it as the entity's provenance record
+        if activity:
+            activity = self.setProvenance(properties, activity)
             ## etag has changed, so get new entity
             properties = self._getEntity(properties)
 
@@ -592,14 +623,13 @@ class Synapse:
         if 'id' in activity:
             ## we're updating provenance
             uri = '/activity/%s' % activity['id']
-            activity = Activity(self.restPUT(uri, json.dumps(activity)))
+            activity = Activity(data=self.restPUT(uri, json.dumps(activity)))
         else:
             activity = self.restPOST('/activity', body=json.dumps(activity))
 
-            # assert that an entity is generated by an activity
-            # put to <endpoint>/entity/{id}/generatedBy?generatedBy={activityId}
-            uri = '/entity/%s/generatedBy?generatedBy=%s' % (id_of(entity), activity['id'])
-            activity = Activity(data=self.restPUT(uri))
+        # assert that an entity is generated by an activity
+        uri = '/entity/%s/generatedBy?generatedBy=%s' % (id_of(entity), activity['id'])
+        activity = Activity(data=self.restPUT(uri))
 
         return activity
 

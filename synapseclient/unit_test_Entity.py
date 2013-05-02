@@ -215,4 +215,3 @@ def test_split_entity_namespaces():
     assert f.__dict__['cacheDir'] == '/foo/bar/bat'
     assert f.__dict__['path'] == '/foo/bar/bat/foo.xyz'
 
-

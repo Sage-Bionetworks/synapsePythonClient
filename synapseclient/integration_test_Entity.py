@@ -6,6 +6,7 @@
 
 from nose.tools import *
 import synapseclient
+from synapseclient import Activity
 from entity import Entity, Project, Folder, File
 from entity import Data
 import utils
@@ -296,8 +297,40 @@ def test_ExternalFileHandle():
     assert os.path.exists(singapore.path)
 
 
+def test_store_activity():
+    '''Test storing entities with Activities'''
+    syn = get_cached_synapse_instance()
 
+    project = create_project()
 
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
 
+    f = File(path, name='Hinkle horn honking holes', parent=project)
 
+    honking = Activity(name='Hinkle horn honking', description='Nettlebed Cave is a limestone cave located on the South Island of New Zealand.')
+    honking.used('http://www.flickr.com/photos/bevanbfree/3482259379/')
+    honking.used('http://www.flickr.com/photos/bevanbfree/3482185673/')
+
+    ## doesn't set the ID of the activity
+    f = syn.store(f, activity=honking)
+
+    honking = syn.getProvenance(f.id)
+    ## now, we have an activity ID
+
+    assert honking['name'] == 'Hinkle horn honking'
+    assert len(honking['used']) == 2
+    assert honking['used'][0]['concreteType'] == 'org.sagebionetworks.repo.model.provenance.UsedURL'
+    assert honking['used'][0]['wasExecuted'] == False
+    assert honking['used'][0]['url'].startswith('http://www.flickr.com/photos/bevanbfree/3482')
+    assert honking['used'][1]['concreteType'] == 'org.sagebionetworks.repo.model.provenance.UsedURL'
+    assert honking['used'][1]['wasExecuted'] == False
+
+    ## store another entity with the same activity
+    f2 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent=project)
+    f2 = syn.store(f2, activity=honking)
+
+    honking2 = syn.getProvenance(f2)
+
+    assert honking['id'] == honking2['id']
 

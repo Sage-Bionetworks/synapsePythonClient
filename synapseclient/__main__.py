@@ -79,7 +79,7 @@ def delete(args, syn):
     - `args`:
     """
     syn.deleteEntity(args.id)
-    sys.stderr.write('Deleted entity: %s' % args.id)
+    sys.stderr.write('Deleted entity: %s\n' % args.id)
 
     
 def upload(args, syn):
