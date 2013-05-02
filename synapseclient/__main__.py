@@ -4,9 +4,11 @@ import shutil
 import sys
 import synapseclient
 from synapseclient import Activity
+import utils
 import version_check
 import signal
 import json
+import traceback
 
 
 def query(args, syn):
@@ -87,15 +89,13 @@ def upload(args, syn):
     - `args`:
     """
     if args.type == 'File': args.type = 'FileEntity'
-    entity={'name': args.name, 
-            'parentId': args.parentid, 
-            'description':args.description, 
+    entity={'name': args.name,
+            'parentId': args.parentid,
+            'description':args.description,
             'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
-    if args.type == 'FileEntity':
-        entity = syn._createFileEntity(entity, args.file, used=args.used, executed=args.executed)
-    else:
-        entity = syn.createEntity(entity)
-        entity = syn.uploadFile(entity, args.file)
+
+    entity = syn.uploadFile(entity, args.file, used=args.used, executed=args.executed)
+
     sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'], entity['name'], args.file))
     return(entity)
 
@@ -179,6 +179,7 @@ def main():
     parser.add_argument('--version', action='version', version='Synapse Client %s' % synapseclient.__version__)
     parser.add_argument('-u', '--username', dest='synapseUser', help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword', help='Password used to connect to Synapse')
+    parser.add_argument('-v', '--verbose', action='store_true')
 
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
                                        help='additional help')
@@ -213,7 +214,7 @@ def main():
     parser_add.add_argument('-parentid', '-parentId', metavar='syn123', type=str, required=True, 
                          help='Synapse ID of project or folder where to upload data.')
     #TODO make so names can have white space
-    parser_add.add_argument('-name', metavar='NAME', type=str, required=True,
+    parser_add.add_argument('-name', metavar='NAME', type=str, required=False,
                          help='Name of data object in Synapse')
     #TODO make sure that description can have whitespace
     parser_add.add_argument('-description', metavar='DESCRIPTION', type=str, 
@@ -296,7 +297,16 @@ def main():
 
     #Perform the requested action
     if 'func' in args:
-        args.func(args, syn)
+        try:
+            args.func(args, syn)
+        except Exception as ex:
+            sys.stderr.write(utils.synapse_error_msg(ex))
+
+            if args.verbose:
+                sys.stderr.write('-'*60 + '\n')
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.write('-'*60 + '\n')
+
 
 
 ## call main method if this file is run as a script

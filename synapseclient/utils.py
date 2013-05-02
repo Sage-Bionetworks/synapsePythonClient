@@ -174,6 +174,26 @@ def _findUsed(activity, predicate):
     return None
 
 
+def synapse_error_msg(ex):
+    if isinstance(ex, basestring):
+        return ex
+
+    msg = '\n' + class_of(ex) + ': ' + str(ex) + '\n'
+
+    if hasattr(ex, 'response'):
+        response = ex.response
+        try:
+            synapse_error = response.json()
+            msg += str(synapse_error['reason'])
+        except:
+            msg += str(response.text)
+
+    msg += '\n\n'
+
+    return msg
+
+
+
 ## http://code.activestate.com/recipes/576949/ (r3)
 def itersubclasses(cls, _seen=None):
     """
