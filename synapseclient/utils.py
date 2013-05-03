@@ -113,6 +113,23 @@ def is_url(s):
     return False
 
 
+def as_url(s):
+    """Try to convert input to a proper URL"""
+    url_parts = urlparse.urlsplit(s)
+    if url_parts.scheme:
+        return url_parts.geturl()
+    else:
+        return 'file://%s' % str(s)
+
+
+def file_url_to_path(url):
+    parts = urlparse.urlsplit(url)
+    if parts.scheme=='file' or parts.scheme=='':
+        return parts.path
+    else:
+        return None
+
+
 def is_synapse_entity(entity):
     if isinstance(entity, collections.Mapping):
         return 'entityType' in entity

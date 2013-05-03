@@ -334,3 +334,23 @@ def test_store_activity():
 
     assert honking['id'] == honking2['id']
 
+
+def test_synapseStore_flag():
+    '''Test storing entities while setting the synapseStore flag to False'''
+    syn = get_cached_synapse_instance()
+    project = create_project()
+
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    f = File(path, name='Totally bogus data', parent=project, synapseStore=False)
+
+    f = syn.store(f)
+
+    f2 = syn.get(f.id, downloadFile=False)
+
+    print f2
+
+    assert f2.path == path
+    assert f2.synapseStore == False
+
+

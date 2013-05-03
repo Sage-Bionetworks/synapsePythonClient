@@ -141,6 +141,10 @@ class Entity(collections.MutableMapping):
             else:
                 raise Exception('Unknown argument type: local_state is a %s' % str(type(local_state)))
 
+        for key in self.__class__._local_keys:
+            if key not in self.__dict__:
+                self.__dict__[key] = None
+
         if parent: kwargs['parentId'] = id_of(parent)
 
         ## note that this will work properly if derived classes declare their
@@ -299,7 +303,7 @@ class Folder(Entity):
 
 class File(Entity, Versionable):
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
-    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files']
+    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
     #TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
@@ -314,6 +318,7 @@ class File(Entity, Versionable):
         else:
             self.__dict__['cacheDir'] = None
             self.__dict__['files'] = []
+        self.__dict__['synapseStore'] = synapseStore
         super(File, self).__init__(entityType=File._synapse_entity_type, properties=properties, annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 

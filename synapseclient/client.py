@@ -201,6 +201,15 @@ class Synapse:
         ## return a fresh copy of the entity
         entity = Entity.create(properties, annotations, local_state)
 
+        if isinstance(entity, File):
+            fh = self._getFileHandle(entity['dataFileHandleId'])
+            if 'concreteType' in fh and fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
+                entity['externalURL'] = fh['externalURL']
+                path = utils.file_url_to_path(entity['externalURL'])
+                if path:
+                    entity['path'] = path
+                entity['synapseStore'] = False
+
         if downloadFile:
             self._downloadEntity(entity)
 
@@ -226,7 +235,8 @@ class Synapse:
         ##   create FileHandle first, then create or update entity
         if entity['entityType'] == File._synapse_entity_type:
             if 'dataFileHandleId' not in properties or True: #TODO: file_cache.local_file_has_changed(entity.path):
-                fileHandle = self._uploadToFileHandleService(entity.path)
+                synapseStore = entity['synapseStore'] if 'synapseStore' in entity else None
+                fileHandle = self._uploadToFileHandleService(entity.path, synapseStore=synapseStore)
                 properties['dataFileHandleId'] = fileHandle['id']
 
         ## need to upload a Locationable?
@@ -426,7 +436,7 @@ class Synapse:
 
         if filename is None:
             if 'path' in entity:
-                filename = entity.path
+                filename = entity['path']
             else:
                 raise Exception('can\'t upload a file without a file path or URL')
 
@@ -446,7 +456,8 @@ class Synapse:
             if entity['entityType'] != 'org.sagebionetworks.repo.model.FileEntity':
                 raise Exception('Files can only be uploaded to FileEntity entities')
 
-            fileHandle = self._uploadToFileHandleService(filename)
+            synapseStore = entity['synapseStore'] if 'synapseStore' in entity else None
+            fileHandle = self._uploadToFileHandleService(filename, synapseStore=synapseStore)
 
             ## for some reason, posting
             entity['dataFileHandleId'] = fileHandle['id']
@@ -817,11 +828,21 @@ class Synapse:
         ## we expect to be redirected to a signed S3 URL
         response = requests.get(url, headers=self.headers, allow_redirects=False)
         if response.status_code in [301,302,303,307,308]:
-          url = response.headers['location']
-          #print url
-          headers = {'sessionToken':self.sessionToken}
-          response = requests.get(url, headers=headers, stream=True)
-        response.raise_for_status()
+            url = response.headers['location']
+
+            ## copy file, if we're given a file URL?
+            if url.startswith('file:'):
+                path = utils.file_url_to_path(url)
+                dst = os.path.join(destDir, os.path.basename(path))
+                shutil.copy2(path, dst)
+                return os.path.basename(path)
+
+            headers = {'sessionToken':self.sessionToken}
+            response = requests.get(url, headers=headers, stream=True)
+            response.raise_for_status()
+        else:
+            response.raise_for_status()
+
         ##Extract filename from url or header, if it is a Signed S3 URL do...
         if url.startswith('https://s3.amazonaws.com/proddata.sagebase.org'):
             filename = utils.extract_filename(response.headers['content-disposition'])
@@ -831,20 +852,29 @@ class Synapse:
         if destDir:
             filename = os.path.join(destDir, filename)
         with open(filename, "wb") as f:
-          data = response.raw.read(FILE_BUFFER_SIZE)
-          while data:
-            f.write(data)
             data = response.raw.read(FILE_BUFFER_SIZE)
+            while data:
+                f.write(data)
+                data = response.raw.read(FILE_BUFFER_SIZE)
 
         return filename
 
 
-    def _uploadToFileHandleService(self, filename):
+    def _uploadToFileHandleService(self, filename, synapseStore=None):
         """
         Create and return a fileHandle, by either uploading a local file or
         linking to an external URL.
+
+        synapseStore: store file in Synapse or just a URL
         """
         if utils.is_url(filename):
+            # if synapseStore==True:
+            #     ## download the file locally, then upload it and cache it?
+            #     raise Exception('not implemented, yet!')
+            # else:
+            #     return self._addURLtoFileHandleService(filename)
+            return self._addURLtoFileHandleService(filename)
+        elif synapseStore==False:
             return self._addURLtoFileHandleService(filename)
         else:
             return self._uploadFileToFileHandleService(filename)
@@ -866,9 +896,13 @@ class Synapse:
     def _addURLtoFileHandleService(self, externalURL):
         """Create a new FileHandle representing an external URL"""
         fileName = externalURL.split('/')[-1]
+        externalURL = utils.as_url(externalURL)
         fileHandle={'concreteType':'org.sagebionetworks.repo.model.file.ExternalFileHandle',
                     'fileName': fileName,
                     'externalURL':externalURL}
+        (mimetype, enc) = mimetypes.guess_type(externalURL)
+        if mimetype:
+            fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
 
     def _getFileHandle(self, fileHandle):
