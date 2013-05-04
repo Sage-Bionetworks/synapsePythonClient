@@ -348,8 +348,6 @@ def test_synapseStore_flag():
 
     f2 = syn.get(f.id, downloadFile=False)
 
-    print f2
-
     assert f2.path == path
     assert f2.synapseStore == False
 
