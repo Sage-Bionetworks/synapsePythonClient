@@ -145,7 +145,13 @@ class Entity(collections.MutableMapping):
             if key not in self.__dict__:
                 self.__dict__[key] = None
 
-        if parent: kwargs['parentId'] = id_of(parent)
+        try:
+            if parent: kwargs['parentId'] = id_of(parent)
+        except:
+            if parent and isinstance(parent, Entity) and 'id' not in parent:
+                raise Exception('Couldn\'t find \'id\' of parent. Has it been stored in Synapse?')
+            else:
+                raise Exception('Couldn\'t find \'id\' of parent.')
 
         ## note that this will work properly if derived classes declare their
         ## internal state variable *before* invoking super(...).__init__(...)
