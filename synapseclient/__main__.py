@@ -179,7 +179,8 @@ def main():
     parser.add_argument('--version', action='version', version='Synapse Client %s' % synapseclient.__version__)
     parser.add_argument('-u', '--username', dest='synapseUser', help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword', help='Password used to connect to Synapse')
-    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--debug', dest='debug', action='store_true')
+
 
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
                                        help='additional help')
@@ -292,7 +293,7 @@ def main():
 
     #TODO Perform proper login either prompt for info or use parameters
     ## if synapseUser and synapsePassword are not given, try to use cached session token
-    syn = synapseclient.Synapse(debug=False)
+    syn = synapseclient.Synapse(debug=args.debug)
     syn.login(args.synapseUser, args.synapsePassword)
 
     #Perform the requested action
@@ -302,7 +303,7 @@ def main():
         except Exception as ex:
             sys.stderr.write(utils.synapse_error_msg(ex))
 
-            if args.verbose:
+            if args.debug:
                 sys.stderr.write('-'*60 + '\n')
                 traceback.print_exc(file=sys.stderr)
                 sys.stderr.write('-'*60 + '\n')

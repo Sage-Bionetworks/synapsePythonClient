@@ -260,10 +260,9 @@ class Synapse:
 
         annotations['etag'] = properties['etag']
 
-        ## update annotations, if any given
-        if len(annotations) > 0:
-            annotations = self.setAnnotations(properties, annotations)
-            properties['etag'] = annotations['etag']
+        ## update annotations
+        annotations = self.setAnnotations(properties, annotations)
+        properties['etag'] = annotations['etag']
 
         ## if used or executed given, create an Activity object
         activity = kwargs['activity'] if 'activity' in kwargs else None
@@ -333,11 +332,6 @@ class Synapse:
         annotations = self.setAnnotations(properties, annotations)
         properties['etag'] = annotations['etag']
 
-        ## update annotations, if any given
-        if len(annotations) > 0:
-            annotations = self.setAnnotations(properties, annotations)
-            properties['etag'] = annotations['etag']
-
         ## if used or executed given, create an Activity object
         activity = kwargs['activity'] if 'activity' in kwargs else None
         if used or executed:
@@ -395,11 +389,6 @@ class Synapse:
 
         annotations = self.setAnnotations(properties, annotations)
         properties['etag'] = annotations['etag']
-
-        ## update annotations, if any given
-        if len(annotations) > 0:
-            annotations = self.setAnnotations(properties, annotations)
-            properties['etag'] = annotations['etag']
 
         ## if used or executed given, create an Activity object
         activity = kwargs['activity'] if 'activity' in kwargs else None
@@ -1172,6 +1161,8 @@ class Synapse:
             endpoint=self.repoEndpoint    
         response = requests.get(endpoint+uri, headers=self.headers)
         self._storeTimingProfile(response)
+        if self.debug:
+            debug_response(response)
         #if response.status_code==404: return None
         try:
             response.raise_for_status()
@@ -1194,6 +1185,8 @@ class Synapse:
         if endpoint==None:
             endpoint=self.repoEndpoint    
         response = requests.post(endpoint + uri, data=body, headers=self.headers)
+        if self.debug:
+            debug_response(response)
         #if response.status_code==404: return None
         try:
             response.raise_for_status()
@@ -1217,6 +1210,8 @@ class Synapse:
         if endpoint==None:
             endpoint=self.repoEndpoint    
         response = requests.put(endpoint + uri, data=body, headers=self.headers)
+        if self.debug:
+            debug_response(response)
         #if response.status_code==404: return None
         try:
             response.raise_for_status()
@@ -1238,9 +1233,33 @@ class Synapse:
         if endpoint==None:
             endpoint=self.repoEndpoint    
         response = requests.delete(endpoint+uri, headers=self.headers)
+        if self.debug:
+            debug_response(response)
         try:
             response.raise_for_status()
         except:
             print response.content
             raise 
+
+
+def debug_response(response):
+    try:
+        print '\n\n'
+        print '\nREQUEST ' + '>' * 52
+        print response.request.url, response.request.method
+        print '  headers: ' + str(response.request.headers)
+        if hasattr(response.request, 'body'):
+            print '  body: ' + str(response.request.body)
+        print '\nRESPONSE ' + '<' * 51
+        print response
+        print '  headers: ' + str(response.headers)
+        try:
+            print '  body: ' + str(response.json())
+        except:
+            print '  body: ' + str(response.text)
+        print '-' * 60
+        print '\n'
+    except Exception as ex:
+        print "Exception in debug_response: " + str(ex)
+        print str(response)
 
