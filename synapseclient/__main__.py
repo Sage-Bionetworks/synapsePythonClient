@@ -4,6 +4,7 @@ import shutil
 import sys
 import synapseclient
 from synapseclient import Activity
+import utils
 import version_check
 import signal
 import json
@@ -77,7 +78,7 @@ def delete(args, syn):
     - `args`:
     """
     syn.deleteEntity(args.id)
-    sys.stderr.write('Deleted entity: %s' % args.id)
+    sys.stderr.write('Deleted entity: %s\n' % args.id)
 
     
 def upload(args, syn):
@@ -87,15 +88,13 @@ def upload(args, syn):
     - `args`:
     """
     if args.type == 'File': args.type = 'FileEntity'
-    entity={'name': args.name, 
-            'parentId': args.parentid, 
-            'description':args.description, 
+    entity={'name': args.name,
+            'parentId': args.parentid,
+            'description':args.description,
             'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
-    if args.type == 'FileEntity':
-        entity = syn._createFileEntity(entity, args.file, used=args.used, executed=args.executed)
-    else:
-        entity = syn.createEntity(entity)
-        entity = syn.uploadFile(entity, args.file)
+
+    entity = syn.uploadFile(entity, args.file, used=args.used, executed=args.executed)
+
     sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'], entity['name'], args.file))
     return(entity)
 
@@ -179,6 +178,8 @@ def main():
     parser.add_argument('--version', action='version', version='Synapse Client %s' % synapseclient.__version__)
     parser.add_argument('-u', '--username', dest='synapseUser', help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword', help='Password used to connect to Synapse')
+    parser.add_argument('--debug', dest='debug', action='store_true')
+
 
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
                                        help='additional help')
@@ -213,7 +214,7 @@ def main():
     parser_add.add_argument('-parentid', '-parentId', metavar='syn123', type=str, required=True, 
                          help='Synapse ID of project or folder where to upload data.')
     #TODO make so names can have white space
-    parser_add.add_argument('-name', metavar='NAME', type=str, required=True,
+    parser_add.add_argument('-name', metavar='NAME', type=str, required=False,
                          help='Name of data object in Synapse')
     #TODO make sure that description can have whitespace
     parser_add.add_argument('-description', metavar='DESCRIPTION', type=str, 
@@ -291,12 +292,19 @@ def main():
 
     #TODO Perform proper login either prompt for info or use parameters
     ## if synapseUser and synapsePassword are not given, try to use cached session token
-    syn = synapseclient.Synapse(debug=False)
+    syn = synapseclient.Synapse(debug=args.debug)
     syn.login(args.synapseUser, args.synapsePassword)
 
     #Perform the requested action
     if 'func' in args:
-        args.func(args, syn)
+        try:
+            args.func(args, syn)
+        except Exception as ex:
+            sys.stderr.write(utils.synapse_error_msg(ex))
+
+            if args.debug:
+                raise
+
 
 
 ## call main method if this file is run as a script

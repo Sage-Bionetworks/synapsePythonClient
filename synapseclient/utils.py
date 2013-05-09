@@ -8,9 +8,10 @@ import tempfile
 import datetime
 from datetime import datetime as Datetime
 from datetime import date as Date
+from numbers import Number
 
 
-def computeMd5ForFile(filename, block_size=2**20):
+def md5_for_file(filename, block_size=2**20):
     '''
     lifted this function from
     http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python
@@ -28,12 +29,12 @@ def computeMd5ForFile(filename, block_size=2**20):
 ## download a remote file
 ## localFilePath can be None, in which case a temporary file is created
 ## returns a tuple (localFilePath, HTTPmsg), see urllib.urlretrieve
-def downloadFile(url, localFilepath=None):
+def download_file(url, localFilepath=None):
     if (localFilepath):
         dir = os.path.dirname(localFilepath)
         if not os.path.exists(dir):
             os.makedirs(dir)
-    return urllib.urlretrieve (url, localFilepath)
+    return urllib.urlretrieve(url, localFilepath)
 
 
 # this could be made more robust
@@ -56,13 +57,49 @@ def guess_object_type(obj):
         return 'entity'
 
 
-def id_of(obj):
+def _get_from_members_items_or_properties(obj, key):
     try:
-        if 'id' in obj:
-            return obj['id']
-    except:
-        pass
-    return str(obj)
+        if hasattr(obj, key):
+            return obj.id
+        if hasattr(obj, 'properties') and key in obj.properties:
+            return obj.properties[key]
+    except (KeyError, TypeError, AttributeError): pass
+    try:
+        if key in obj:
+            return obj[key]
+        elif 'properties' in obj and key in obj['properties']:
+            return obj['properties'][key]
+    except (KeyError, TypeError): pass
+    return None
+
+#TODO: what does this do on an unsaved Synapse Entity object?
+def id_of(obj):
+    """Try to figure out the synapse ID of the given object. Accepted input
+    includes strings, entity objects, or entities represented by dictionaries"""
+    if isinstance(obj, basestring):
+        return obj
+    if isinstance(obj, Number):
+        return str(obj)
+    result = _get_from_members_items_or_properties(obj, 'id')
+    if result is None:
+        raise Exception('Invalid parameters: couldn\'t find id of ' + str(obj))
+    return result
+
+
+def class_of(obj):
+    """Return the class or type of the input object as a string"""
+    if obj is None:
+        return 'None'
+    if hasattr(obj,'__class__'):
+        return obj.__class__.__name__
+    return str(type(obj))
+
+def get_properties(entity):
+    return entity.properties if hasattr(entity, 'properties') else entity
+
+
+def get_entity_type(entity):
+    return _get_from_members_items_or_properties(entity, 'entityType')
 
 
 def is_url(s):
@@ -74,6 +111,23 @@ def is_url(s):
         except Exception as e:
             return False
     return False
+
+
+def as_url(s):
+    """Try to convert input to a proper URL"""
+    url_parts = urlparse.urlsplit(s)
+    if url_parts.scheme:
+        return url_parts.geturl()
+    else:
+        return 'file://%s' % str(s)
+
+
+def file_url_to_path(url):
+    parts = urlparse.urlsplit(url)
+    if parts.scheme=='file' or parts.scheme=='':
+        return parts.path
+    else:
+        return None
 
 
 def is_synapse_entity(entity):
@@ -89,6 +143,22 @@ def is_synapse_id(obj):
         if m:
             return m.group(1)
     return None
+
+def _is_date(dt):
+    """
+    Objects of class datetime.date and datetime.datetime will be recognized as dates
+    """
+    return isinstance(dt,Date) or isinstance(dt,Datetime)
+
+
+def _to_list(value):
+    """
+    Convert the value (an iterable or a scalar value) to a list.
+    """
+    if isinstance(value, collections.Iterable) and not isinstance(value, basestring):
+        return list(value)
+    else:
+        return [value]
 
 
 def make_bogus_data_file(n=100, seed=12345):
@@ -110,7 +180,8 @@ def make_bogus_data_file(n=100, seed=12345):
     return f.name
 
 
-def _to_unix_epoch_time(dt):
+## turns a datetime object into a unix epoch time expressed as a float
+def to_unix_epoch_time(dt):
     """
     Convert either datetime.date or datetime.datetime objects to unix times
     (milliseconds since midnight Jan 1, 1970)
@@ -119,7 +190,8 @@ def _to_unix_epoch_time(dt):
         dt = Datetime.combine(dt, datetime.time(0,0,0))
     return (dt - Datetime(1970, 1, 1)).total_seconds() * 1000
 
-def _from_unix_epoch_time(ms):
+
+def from_unix_epoch_time(ms):
     """
     Return a datetime object given milliseconds since midnight Jan 1, 1970
     """
@@ -128,8 +200,96 @@ def _from_unix_epoch_time(ms):
 
 ## a helper method to find a particular used resource in an activity
 ## that matches a predicate
-def _findUsed(activity, predicate):
+def _find_used(activity, predicate):
     for resource in activity['used']:
         if predicate(resource):
             return resource
     return None
+
+
+def synapse_error_msg(ex):
+    if isinstance(ex, basestring):
+        return ex
+
+    msg = '\n' + class_of(ex) + ': ' + str(ex) + '\n'
+
+    if hasattr(ex, 'response'):
+        response = ex.response
+        try:
+            synapse_error = response.json()
+            msg += str(synapse_error['reason'])
+        except Exception:
+            msg += str(response.text)
+
+    msg += '\n\n'
+
+    return msg
+
+
+def debug_response(response):
+    """
+    Given a response object (from the requests library), print debugging information
+    """
+    try:
+        print '\n\n'
+        print '\nREQUEST ' + '>' * 52
+        print response.request.url, response.request.method
+        print '  headers: ' + str(response.request.headers)
+        if hasattr(response.request, 'body'):
+            print '  body: ' + str(response.request.body)
+        print '\nRESPONSE ' + '<' * 51
+        print response
+        print '  headers: ' + str(response.headers)
+        try:
+            print '  body: ' + str(response.json())
+        except:
+            print '  body: ' + str(response.text)
+        print '-' * 60
+        print '\n'
+    except Exception as ex:
+        print "Exception in debug_response: " + str(ex)
+        print str(response)
+
+
+
+## http://code.activestate.com/recipes/576949/ (r3)
+def itersubclasses(cls, _seen=None):
+    """
+    itersubclasses(cls)
+
+    Generator over all subclasses of a given class, in depth first order.
+
+    >>> list(itersubclasses(int)) == [bool]
+    True
+    >>> class A(object): pass
+    >>> class B(A): pass
+    >>> class C(A): pass
+    >>> class D(B,C): pass
+    >>> class E(D): pass
+    >>> 
+    >>> for cls in itersubclasses(A):
+    ...     print(cls.__name__)
+    B
+    D
+    E
+    C
+    >>> # get ALL (new-style) classes currently defined
+    >>> [cls.__name__ for cls in itersubclasses(object)] #doctest: +ELLIPSIS
+    ['type', ...'tuple', ...]
+    """
+    
+    if not isinstance(cls, type):
+        raise TypeError('itersubclasses must be called with '
+                        'new-style classes, not %.100r' % cls)
+    if _seen is None: _seen = set()
+    try:
+        subs = cls.__subclasses__()
+    except TypeError: # fails only when cls is type
+        subs = cls.__subclasses__(cls)
+    for sub in subs:
+        if sub not in _seen:
+            _seen.add(sub)
+            yield sub
+            for sub in itersubclasses(sub, _seen):
+                yield sub
+
