@@ -19,7 +19,7 @@ import collections
 from version_check import version_check
 import utils
 from utils import id_of, properties
-from annotations import fromSynapseAnnotations, toSynapseAnnotations
+from annotations import from_synapse_annotations, to_synapse_annotations
 from activity import Activity
 from entity import Entity, Project, Folder, File, Data, split_entity_namespaces, is_versionable, is_locationable
 
@@ -178,7 +178,7 @@ class Synapse:
             entity = self._getEntity(entity)
         try:
             print json.dumps(entity, sort_keys=True, indent=2)
-        except:
+        except TypeError:
             print str(entity)
 
 
@@ -187,13 +187,16 @@ class Synapse:
     # get / store methods
     ############################################################
 
-    def get(self, entity, version=None, downloadFile=True, **kwargs):
+    def get(self, entity, **kwargs):
         """
         entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
         returns: A new Synapse Entity object of the appropriate type
 
         synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
         """
+        version = kwargs.get('version', None)
+        downloadFile = kwargs.get('downloadFile', True)
+
         local_state = entity.local_state() if isinstance(entity, Entity) else None
         properties = self._getEntity(entity, version=version)
         annotations = self.getAnnotations(properties, version=version)
@@ -216,9 +219,8 @@ class Synapse:
         return entity
 
 
-    ## ? does store return the same object that was passed to it, but modified?
-    ## ? do we always return a new object, leaving the existing object unchanged?
-    def store(self, entity, used=None, executed=None, **kwargs):
+    ## TODO change name to object
+    def store(self, obj, **kwargs):
         """
         create new entity or update an existing entity, uploading any files in the process
         entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
@@ -228,6 +230,7 @@ class Synapse:
         synapse.store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
         """
 
+        entity = obj
         properties,annotations,local_state = split_entity_namespaces(entity)
 
         #TODO: can this be factored out?
@@ -235,7 +238,7 @@ class Synapse:
         ##   create FileHandle first, then create or update entity
         if entity['entityType'] == File._synapse_entity_type:
             if 'dataFileHandleId' not in properties or True: #TODO: file_cache.local_file_has_changed(entity.path):
-                synapseStore = entity['synapseStore'] if 'synapseStore' in entity else None
+                synapseStore = entity.get('synapseStore', None)
                 fileHandle = self._uploadToFileHandleService(entity.path, synapseStore=synapseStore)
                 properties['dataFileHandleId'] = fileHandle['id']
 
@@ -264,13 +267,16 @@ class Synapse:
         annotations = self.setAnnotations(properties, annotations)
         properties['etag'] = annotations['etag']
 
+
         ## if used or executed given, create an Activity object
-        activity = kwargs['activity'] if 'activity' in kwargs else None
+        activity = kwargs.get('activity', None)
+        used = kwargs.get('used', None)
+        executed = kwargs.get('executed', None)
         if used or executed:
             if activity is not None:
                 raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
-            activityName == kwargs['activityName'] if 'activityName' in kwargs else None
-            activityDescription == kwargs['activityDescription'] if 'activityDescription' in kwargs else None
+            activityName = kwargs.get('activityName', None)
+            activityDescription = kwargs.get('activityDescription', None)
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
         ## if we have an activity, set it as the entity's provenance record
@@ -457,7 +463,7 @@ class Synapse:
             return self.createEntity(entity, used=used, executed=executed)
 
 
-    def downloadEntity(self, entity):
+    def downloadEntity(self, entity, version=None):
         """Download an entity and file(s) associated with it to local cache.
         
         Arguments:
@@ -465,7 +471,7 @@ class Synapse:
         Returns:
         - A dictionary representing an entity
         """
-        return self.get(entity, downloadFile=True)
+        return self.get(entity, version=version, downloadFile=True)
 
 
     def _downloadEntity(self, entity):
@@ -500,7 +506,7 @@ class Synapse:
             uri = '/entity/%s/version/%s/annotations' % (id_of(entity), str(version),)
         else:
             uri = '/entity/%s/annotations' % id_of(entity)
-        return fromSynapseAnnotations(self.restGET(uri))        
+        return from_synapse_annotations(self.restGET(uri))        
 
 
     def setAnnotations(self, entity, annotations={}, **kwargs):
@@ -515,12 +521,12 @@ class Synapse:
         ## update annotations with keyword args
         annotations.update(kwargs)
 
-        synapseAnnos = toSynapseAnnotations(annotations)
+        synapseAnnos = to_synapse_annotations(annotations)
         synapseAnnos['id'] = id_of(entity)
         if 'etag' in entity and 'etag' not in synapseAnnos:
             synapseAnnos['etag'] = entity['etag']
 
-        return fromSynapseAnnotations(self.restPUT(uri, json.dumps(synapseAnnos) ))
+        return from_synapse_annotations(self.restPUT(uri, json.dumps(synapseAnnos) ))
 
 
 
@@ -584,10 +590,10 @@ class Synapse:
     # Provenance
     ############################################################
 
-    def getProvenance(self, entity, versionNumber=None):
+    def getProvenance(self, entity, version=None):
         """Retrieve provenance information for a synapse entity. Entity may be
         either an Entity object or a string holding a Synapse ID. Returns
-        an Activity object or None if no provenance record exists.
+        an Activity object or raises exception if no provenance record exists.
 
         Note that provenance applies to a specific version of an entity. The
         returned Activity will represent the provenance of the entity version
@@ -595,26 +601,15 @@ class Synapse:
         the versonNumber property of the given entity.
         """
 
-        ## can be either an entity or just a synapse ID
-        entity_id = id_of(entity)
-
         ## get versionNumber from entity, if it's there
-        if versionNumber is None and 'versionNumber' in entity:
-            versionNumber = entity['versionNumber']
+        if version is None and 'versionNumber' in entity:
+            version = entity['versionNumber']
 
-        if versionNumber:
-            url = '%s/entity/%s/version/%d/generatedBy' % (
-                self.repoEndpoint,
-                entity_id,
-                versionNumber)
+        if version:
+            uri = '/entity/%s/version/%d/generatedBy' % (id_of(entity), version)
         else:
-            url = '%s/entity/%s/generatedBy' % (
-                self.repoEndpoint,
-                entity_id)
-        response = requests.get(url, headers=self.headers)
-        if response.status_code == 404: return None
-        response.raise_for_status()
-        return Activity(data=response.json())
+            uri = '/entity/%s/generatedBy' % id_of(entity)
+        return Activity(data=self.restGET(uri))
 
 
     def setProvenance(self, entity, activity):
@@ -638,7 +633,7 @@ class Synapse:
         """remove provenance information from an entity and delete the activity"""
 
         activity = self.getProvenance(entity)
-        if not activity: return None
+        if not activity: return
 
         uri = '/entity/%s/generatedBy' % id_of(entity)
         self.restDELETE(uri)
@@ -695,7 +690,7 @@ class Synapse:
             entity = self._getEntity(entity)
 
         # compute hash of file to be uploaded
-        md5 = utils.computeMd5ForFile(filename)
+        md5 = utils.md5_for_file(filename)
 
         # guess mime-type - important for confirmation of MD5 sum by receiver
         (mimetype, enc) = mimetypes.guess_type(filename)
@@ -756,17 +751,17 @@ class Synapse:
                 md5str = handle.readline().rstrip()
                 handle.close()
             else:
-                md5str = utils.computeMd5ForFile(filename).hexdigest()
+                md5str = utils.md5_for_file(filename).hexdigest()
                 handle = open(filename + ".md5", "w")
                 handle.write(md5str)
                 handle.close()
 
             if md5str != entity.get('md5', ''):
                 if self.debug: print filename, "changed, redownloading"
-                utils.downloadFile(url, filename)
+                utils.download_file(url, filename)
         else:
             if self.debug: print filename, 'downloading...',
-            utils.downloadFile(url, filename)
+            utils.download_file(url, filename)
 
         if entity['contentType']=='application/zip':
             ## Unpack file
@@ -1010,19 +1005,19 @@ class Synapse:
         return self.restPOST(uri, body=json.dumps(wiki))
 
 
-    def _getWiki(self, owner, wiki, owner_type=None):
+    def _getWiki(self, owner, wiki=None, owner_type=None):
         """Get the specified wiki page
         owner -- the owner object (entity, competition, evaluation) or its ID
-        wiki -- the Wiki object or its ID
-        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+        wiki -- (optional) the Wiki object or its ID
+        owner_type -- (optional) entity, competition, evaluation, can usually be automatically inferred from the owner object
         """
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, id_of(owner), id_of(wiki),)
-        response = requests.get(url, headers=self.headers)
-        if response.status_code==404: return None
-        response.raise_for_status()
-        return response.json()
+        if wiki:
+            uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(wiki),)
+        else:
+            uri = '/%s/%s/wiki' % (owner_type, id_of(owner),)
+        return self.restGET(uri)
 
 
     def _updateWiki(self, owner, wiki, owner_type=None):
@@ -1053,20 +1048,18 @@ class Synapse:
         """Get the tree of wiki pages owned by the given object"""
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        url = '%s/%s/%s/wikiheadertree' % (self.repoEndpoint, owner_type, id_of(owner),)
-        response = requests.get(url, headers=self.headers)
-        if response.status_code==404: return None
-        response.raise_for_status()
-        return response.json()
+        uri = '/%s/%s/wikiheadertree' % (owner_type, id_of(owner),)
+        return self.restGET(uri)
 
 
-    def _downloadWikiAttachment(self, entity, wiki, filename, dest_dir=None):
-        """Download a file attached to a wiki page (experimental)"""
+    def _downloadWikiAttachment(self, owner, wiki, filename, dest_dir=None, owner_type=None):
+        """Download a file attached to a wiki page"""
 
-        # TODO can wiki pages exist without being associated with an Entity?
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
 
         ## build URL
-        url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(entity), id_of(wiki), filename,)
+        url = "%s/%s/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, owner_type, id_of(owner), id_of(wiki), filename,)
 
         ## we expect to be redirected to a signed S3 URL
         ## TODO how will external URLs be handled?
@@ -1163,7 +1156,6 @@ class Synapse:
         self._storeTimingProfile(response)
         if self.debug:
             debug_response(response)
-        #if response.status_code==404: return None
         try:
             response.raise_for_status()
         except:
@@ -1187,7 +1179,6 @@ class Synapse:
         response = requests.post(endpoint + uri, data=body, headers=self.headers)
         if self.debug:
             debug_response(response)
-        #if response.status_code==404: return None
         try:
             response.raise_for_status()
         except:
@@ -1212,7 +1203,6 @@ class Synapse:
         response = requests.put(endpoint + uri, data=body, headers=self.headers)
         if self.debug:
             debug_response(response)
-        #if response.status_code==404: return None
         try:
             response.raise_for_status()
         except:
@@ -1240,26 +1230,4 @@ class Synapse:
         except:
             print response.content
             raise 
-
-
-def debug_response(response):
-    try:
-        print '\n\n'
-        print '\nREQUEST ' + '>' * 52
-        print response.request.url, response.request.method
-        print '  headers: ' + str(response.request.headers)
-        if hasattr(response.request, 'body'):
-            print '  body: ' + str(response.request.body)
-        print '\nRESPONSE ' + '<' * 51
-        print response
-        print '  headers: ' + str(response.headers)
-        try:
-            print '  body: ' + str(response.json())
-        except:
-            print '  body: ' + str(response.text)
-        print '-' * 60
-        print '\n'
-    except Exception as ex:
-        print "Exception in debug_response: " + str(ex)
-        print str(response)
 

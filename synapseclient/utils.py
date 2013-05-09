@@ -11,7 +11,7 @@ from datetime import date as Date
 from numbers import Number
 
 
-def computeMd5ForFile(filename, block_size=2**20):
+def md5_for_file(filename, block_size=2**20):
     '''
     lifted this function from
     http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python
@@ -29,7 +29,7 @@ def computeMd5ForFile(filename, block_size=2**20):
 ## download a remote file
 ## localFilePath can be None, in which case a temporary file is created
 ## returns a tuple (localFilePath, HTTPmsg), see urllib.urlretrieve
-def downloadFile(url, localFilepath=None):
+def download_file(url, localFilepath=None):
     if (localFilepath):
         dir = os.path.dirname(localFilepath)
         if not os.path.exists(dir):
@@ -144,6 +144,22 @@ def is_synapse_id(obj):
             return m.group(1)
     return None
 
+def _is_date(dt):
+    """
+    Objects of class datetime.date and datetime.datetime will be recognized as dates
+    """
+    return isinstance(dt,Date) or isinstance(dt,Datetime)
+
+
+def _to_list(value):
+    """
+    Convert the value (an iterable or a scalar value) to a list.
+    """
+    if isinstance(value, collections.Iterable) and not isinstance(value, basestring):
+        return list(value)
+    else:
+        return [value]
+
 
 def make_bogus_data_file(n=100, seed=12345):
     """Make a bogus data file for testing. File will contain 'n'
@@ -184,7 +200,7 @@ def from_unix_epoch_time(ms):
 
 ## a helper method to find a particular used resource in an activity
 ## that matches a predicate
-def _findUsed(activity, predicate):
+def _find_used(activity, predicate):
     for resource in activity['used']:
         if predicate(resource):
             return resource
@@ -202,12 +218,37 @@ def synapse_error_msg(ex):
         try:
             synapse_error = response.json()
             msg += str(synapse_error['reason'])
-        except:
+        except Exception:
             msg += str(response.text)
 
     msg += '\n\n'
 
     return msg
+
+
+def debug_response(response):
+    """
+    Given a response object (from the requests library), print debugging information
+    """
+    try:
+        print '\n\n'
+        print '\nREQUEST ' + '>' * 52
+        print response.request.url, response.request.method
+        print '  headers: ' + str(response.request.headers)
+        if hasattr(response.request, 'body'):
+            print '  body: ' + str(response.request.body)
+        print '\nRESPONSE ' + '<' * 51
+        print response
+        print '  headers: ' + str(response.headers)
+        try:
+            print '  body: ' + str(response.json())
+        except:
+            print '  body: ' + str(response.text)
+        print '-' * 60
+        print '\n'
+    except Exception as ex:
+        print "Exception in debug_response: " + str(ex)
+        print str(response)
 
 
 

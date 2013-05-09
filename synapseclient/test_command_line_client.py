@@ -150,10 +150,10 @@ def test_command_line_client():
     assert activity['name'] == 'TestActivity'
     assert activity['description'] == 'A very excellent provenance'
     
-    used = utils._findUsed(activity, lambda used: 'reference' in used)
+    used = utils._find_used(activity, lambda used: 'reference' in used)
     assert used['reference']['targetId'] == data_entity_id
 
-    used = utils._findUsed(activity, lambda used: 'url' in used)
+    used = utils._find_used(activity, lambda used: 'url' in used)
     assert used['url'] == repo_url
     assert used['wasExecuted'] == True
 

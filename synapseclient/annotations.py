@@ -6,21 +6,10 @@ import collections
 import re
 from datetime import datetime as Datetime
 from datetime import date as Date
-from utils import to_unix_epoch_time, from_unix_epoch_time
+from utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
 
-def _to_list(value):
-    if isinstance(value, collections.Iterable) and not isinstance(value, basestring):
-        return list(value)
-    else:
-        return [value]
 
-def _is_date(dt):
-    """
-    Objects of class datetime.date and datetime.datetime will be recognized as date annotations
-    """
-    return isinstance(dt,Date) or isinstance(dt,Datetime)
-
-def isSynapseAnnotations(annotations):
+def is_synapse_annotations(annotations):
     """
     Test if the given object is a synapse-style annotations object,
     based on its keys
@@ -31,8 +20,8 @@ def isSynapseAnnotations(annotations):
 
 
 ## convert the given dictionary into synapse-style annotations
-def toSynapseAnnotations(annotations):
-    if isSynapseAnnotations(annotations):
+def to_synapse_annotations(annotations):
+    if is_synapse_annotations(annotations):
         return annotations
     synapseAnnos = {}
     for key, value in annotations.iteritems():
@@ -58,7 +47,7 @@ def toSynapseAnnotations(annotations):
 
 
 ## create Annotations object from synapse-style annotations
-def fromSynapseAnnotations(annotations):
+def from_synapse_annotations(annotations):
     """transform a dictionary in synapse annotations format to a simple flat dictionary"""
     ## flatten the raw annos to consolidate doubleAnnotations, longAnnotations,
     ## stringAnnotations and dateAnnotations into one dictionary

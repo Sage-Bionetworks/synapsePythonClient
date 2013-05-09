@@ -2,7 +2,7 @@
 ##
 ############################################################
 from distutils.version import StrictVersion
-from utils import downloadFile
+from utils import download_file
 import requests
 import json
 import sys

@@ -8,7 +8,6 @@ import utils
 import version_check
 import signal
 import json
-import traceback
 
 
 def query(args, syn):
@@ -304,9 +303,7 @@ def main():
             sys.stderr.write(utils.synapse_error_msg(ex))
 
             if args.debug:
-                sys.stderr.write('-'*60 + '\n')
-                traceback.print_exc(file=sys.stderr)
-                sys.stderr.write('-'*60 + '\n')
+                raise
 
 
 

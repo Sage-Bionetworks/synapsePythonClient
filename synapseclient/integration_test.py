@@ -338,7 +338,7 @@ class TestClient:
 
     def test_downloadFile(self):
         "test download file function in utils.py"
-        result = utils.downloadFile("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
+        result = utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
         if (result):
             # print("status: \"%s\"" % str(result[1].status))
             # print("filename: \"%s\"" % str(result[0]))
@@ -348,7 +348,7 @@ class TestClient:
             ## cleanup
             try:
                 os.remove(filename)
-            except:
+            except Exception:
                 print("warning: couldn't delete file: \"%s\"\n" % filename)
         else:
             print("failed to download file: \"%s\"" % filename)
@@ -440,9 +440,14 @@ class TestClient:
         ## test delete
         self.syn.deleteProvenance(data_entity)
 
-        ## should be gone now
-        deleted_activity = self.syn.getProvenance(data_entity['id'])
-        assert deleted_activity is None
+        try:
+            ## provenance should be gone now
+            ## decided this should throw exception with a 404
+            deleted_activity = self.syn.getProvenance(data_entity['id'])
+        except Exception as ex:
+            assert ex.response.status_code == 404
+        else:
+            assert False, 'Should throw 404 exception'
 
 
     def test_annotations(self):
@@ -582,6 +587,9 @@ class TestClient:
 
         wiki = self.syn._createWiki(project, 'A Test Wiki', md, [fileHandle['id']])
 
+        ## retrieve the entity from Synapse
+        wiki = self.syn._getWiki(project)
+
         ## retrieve the file we just uploaded
         tmpdir = tempfile.mkdtemp()
         path = self.syn._downloadWikiAttachment(project, wiki, os.path.basename(original_path), dest_dir=tmpdir)
@@ -602,6 +610,14 @@ class TestClient:
         ## cleanup
         self.syn._deleteFileHandle(fileHandle)
         self.syn._deleteWiki(project, wiki)
+
+        ## test that delete worked
+        try:
+            deleted_wiki = self.syn._getWiki(project)
+        except Exception as ex:
+            assert ex.response.status_code == 404
+        else:
+            assert False, 'Should raise 404 exception'
 
 
 
