@@ -94,11 +94,11 @@ def class_of(obj):
         return obj.__class__.__name__
     return str(type(obj))
 
-def properties(entity):
+def get_properties(entity):
     return entity.properties if hasattr(entity, 'properties') else entity
 
 
-def entity_type(entity):
+def get_entity_type(entity):
     return _get_from_members_items_or_properties(entity, 'entityType')
 
 

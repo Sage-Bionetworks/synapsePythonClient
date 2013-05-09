@@ -18,7 +18,7 @@ import collections
 
 from version_check import version_check
 import utils
-from utils import id_of, properties
+from utils import id_of, get_properties
 from annotations import from_synapse_annotations, to_synapse_annotations
 from activity import Activity
 from entity import Entity, Project, Folder, File, Data, split_entity_namespaces, is_versionable, is_locationable
@@ -204,6 +204,8 @@ class Synapse:
         ## return a fresh copy of the entity
         entity = Entity.create(properties, annotations, local_state)
 
+        ## for external URLs, we want to retrieve the URL from the fileHandle
+        #TODO version, here
         if isinstance(entity, File):
             fh = self._getFileHandle(entity['dataFileHandleId'])
             if 'concreteType' in fh and fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
@@ -213,13 +215,13 @@ class Synapse:
                     entity['path'] = path
                 entity['synapseStore'] = False
 
+        #TODO version, here
         if downloadFile:
             self._downloadEntity(entity)
 
         return entity
 
 
-    ## TODO change name to object
     def store(self, obj, **kwargs):
         """
         create new entity or update an existing entity, uploading any files in the process
@@ -250,7 +252,7 @@ class Synapse:
                 properties = self._createEntity(properties)
             if 'path' in entity:
                 path = annotations.pop('path')
-                properties = self._uploadFileAsLocation(properties, path)
+                properties.update(self._uploadFileAsLocation(properties, path))
         #--end--TODO: can this be factored out?
 
         #TODO deal with access restrictions
@@ -315,6 +317,8 @@ class Synapse:
         return self.downloadEntity(entity)
 
 
+    #TODO factor out common code with store? delegate to store? delegate store to createEntity?
+    #TODO should this method upload files?
     def createEntity(self, entity, used=None, executed=None, **kwargs):
         """
         Create a new entity in the synapse Repository according to entity json object.
@@ -378,6 +382,8 @@ class Synapse:
         return self.createEntity(entity, used=used, executed=executed)
 
 
+    #TODO factor out common code with store? delegate to store? delegate store to updateEntity?
+    #TODO should this method upload files?
     def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
         """
         Update an entity stored in synapse with the properties in entity
@@ -441,7 +447,7 @@ class Synapse:
 
         ## if we have an old location-able object use the deprecated file upload method
         if is_locationable(entity):
-            entity = self._uploadFileAsLocation(entity, filename)
+            entity.update(self._uploadFileAsLocation(entity, filename))
 
         else:
             ## if we haven't specified the entity type, make it a FileEntity
@@ -656,21 +662,6 @@ class Synapse:
     # locationable upload / download
     ############################################################
 
-    #deprecated, do we need to keep this for backward compatibility?
-    #TODO Return an Entity object?
-    def uploadFileAsLocation(self, entity, filename):
-        """Given an entity or the id of an entity, upload a filename as the location of that entity.
-
-        (deprecated in favor of FileEntities)
-        
-        Arguments:
-        - `entity`:  an entity (dictionary) or Id of entity whose location you want to set 
-        - `filename`: Name of file to upload
-        """
-        entity = self._uploadFileAsLocation(entity, filename)
-        return self._updateEntity(entity)
-
-
     def _uploadFileAsLocation(self, entity, filename):
         """Given an entity or the id of an entity, upload a filename as the location of that entity.
 
@@ -679,16 +670,10 @@ class Synapse:
         Arguments:
         - `entity`:  an entity (dictionary) or Id of entity whose location you want to set 
         - `filename`: Name of file to upload
+
+        Returns:
+        A dictionary with locations (a list of length 1) and the md5 of the file.
         """
-
-        ## check parameters
-        if entity is None or not (isinstance(entity, basestring) or ((isinstance(entity, Entity) or isinstance(entity, dict)) and entity.has_key('id'))):
-           raise Exception('invalid entity parameter')
-
-        ## if we got a synapse ID as a string, get the entity from synapse
-        if isinstance(entity, basestring):
-            entity = self._getEntity(entity)
-
         # compute hash of file to be uploaded
         md5 = utils.md5_for_file(filename)
 
@@ -702,10 +687,9 @@ class Synapse:
                     'Content-Type': 'application/json',
                     'Accept': 'application/json' }
 
-
         (_, base_filename) = os.path.split(filename)
         data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
-        uri = '/entity/%s/s3Token' % (entity['id'])
+        uri = '/entity/%s/s3Token' % id_of(entity)
         response_json = self.restPOST(uri, body=json.dumps(data))
         location_path = response_json['path']
 
@@ -717,13 +701,12 @@ class Synapse:
         response.raise_for_status()
 
         # Add location to entity. Path will get converted to a signed S3 URL.
-        entity['locations'] = [{
-        'path': location_path,
-        'type': 'awss3'
-        }]
-        entity['md5'] = md5.hexdigest()
+        locations = [{
+            'path': location_path,
+            'type': 'awss3'
+            }]
 
-        return entity
+        return {'locations':locations, 'md5':md5.hexdigest()}
 
 
     def _downloadLocations(self, entity):
@@ -841,7 +824,7 @@ class Synapse:
                 f.write(data)
                 data = response.raw.read(FILE_BUFFER_SIZE)
 
-        return filename
+        return os.path.abspath(filename)
 
 
     def _uploadToFileHandleService(self, filename, synapseStore=None):
@@ -1054,34 +1037,10 @@ class Synapse:
 
     def _downloadWikiAttachment(self, owner, wiki, filename, dest_dir=None, owner_type=None):
         """Download a file attached to a wiki page"""
-
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-
-        ## build URL
         url = "%s/%s/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, owner_type, id_of(owner), id_of(wiki), filename,)
-
-        ## we expect to be redirected to a signed S3 URL
-        ## TODO how will external URLs be handled?
-        response = requests.get(url, headers=self.headers, allow_redirects=False)
-        if response.status_code in [301,302,303,307,308]:
-          url = response.headers['location']
-          # print url
-          headers = {'sessionToken':self.sessionToken}
-          response = requests.get(url, headers=headers, stream=True)
-          response.raise_for_status()
-
-        ## stream file to disk
-        filename = utils.extract_filename(response.headers['content-disposition'])
-        if dest_dir:
-            filename = os.path.join(dest_dir, filename)
-        with open(filename, "wb") as f:
-          data = response.raw.read(1024)
-          while data:
-            f.write(data)
-            data = response.raw.read(1024)
-
-        return os.path.abspath(filename)
+        return self._downloadFile(url, dest_dir)
 
 
 
@@ -1106,8 +1065,8 @@ class Synapse:
         entity: a dictionary representing an entity or a Synapse Entity object
         returns a dictionary representing an entity, specifically it's properties
         """
-        if self.debug: print "\n\n~~~ creating ~~~\n" + json.dumps(properties(entity), indent=2)
-        return self.restPOST(uri='/entity', body=json.dumps(properties(entity)))
+        if self.debug: print "\n\n~~~ creating ~~~\n" + json.dumps(get_properties(entity), indent=2)
+        return self.restPOST(uri='/entity', body=json.dumps(get_properties(entity)))
 
     def _updateEntity(self, entity, incrementVersion=True, versionLabel=None):
         """
@@ -1125,8 +1084,8 @@ class Synapse:
             if versionLabel:
                 entity['versionLabel'] = str(versionLabel)
 
-        if self.debug: print "\n\n~~~ updating ~~~\n" + json.dumps(properties(entity), indent=2)
-        return self.restPUT(uri=uri, body=json.dumps(properties(entity)))
+        if self.debug: print "\n\n~~~ updating ~~~\n" + json.dumps(get_properties(entity), indent=2)
+        return self.restPUT(uri=uri, body=json.dumps(get_properties(entity)))
 
     def _deleteEntity(self, entity):
         """
@@ -1155,7 +1114,7 @@ class Synapse:
         response = requests.get(endpoint+uri, headers=self.headers)
         self._storeTimingProfile(response)
         if self.debug:
-            debug_response(response)
+            utils.debug_response(response)
         try:
             response.raise_for_status()
         except:
@@ -1178,7 +1137,7 @@ class Synapse:
             endpoint=self.repoEndpoint    
         response = requests.post(endpoint + uri, data=body, headers=self.headers)
         if self.debug:
-            debug_response(response)
+            utils.debug_response(response)
         try:
             response.raise_for_status()
         except:
@@ -1202,7 +1161,7 @@ class Synapse:
             endpoint=self.repoEndpoint    
         response = requests.put(endpoint + uri, data=body, headers=self.headers)
         if self.debug:
-            debug_response(response)
+            utils.debug_response(response)
         try:
             response.raise_for_status()
         except:
@@ -1224,7 +1183,7 @@ class Synapse:
             endpoint=self.repoEndpoint    
         response = requests.delete(endpoint+uri, headers=self.headers)
         if self.debug:
-            debug_response(response)
+            utils.debug_response(response)
         try:
             response.raise_for_status()
         except:
