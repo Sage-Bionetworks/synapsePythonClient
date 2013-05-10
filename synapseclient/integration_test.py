@@ -287,6 +287,8 @@ class TestClient:
 
     def test_uploadFile(self):
         project = self.createProject()
+
+        ## here, entity has been saved to Synapse and entity is an Entity object
         entity = self.createDataEntity(project['id'])
 
         #create a temporary file
@@ -299,6 +301,20 @@ class TestClient:
         entity = self.syn.downloadEntity(entity)
         assert entity['files'][0]==os.path.split(fname)[-1]
         os.remove(fname)
+
+
+    def test_uploadFile_given_dictionary(self):
+        project = self.createProject()
+
+        data = DATA_JSON.copy()
+        data['parentId']= project.id
+
+        filename = utils.make_bogus_data_file()
+        data = self.syn.uploadFile(data, filename)
+
+        entity = self.syn.downloadEntity(data['id'])
+        assert entity['files'][0]==os.path.basename(filename)
+        os.remove(filename)
 
 
     def test_uploadFileEntity(self):

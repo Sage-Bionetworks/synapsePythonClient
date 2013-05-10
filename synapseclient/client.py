@@ -447,6 +447,8 @@ class Synapse:
 
         ## if we have an old location-able object use the deprecated file upload method
         if is_locationable(entity):
+            if not 'id' in entity:
+                entity = self._createEntity(entity)
             entity.update(self._uploadFileAsLocation(entity, filename))
 
         else:
