@@ -14,12 +14,15 @@ import shutil
 import stat
 import pkg_resources
 import webbrowser
+import collections
 
 from version_check import version_check
 import utils
-from copy import deepcopy
-from annotations import fromSynapseAnnotations, toSynapseAnnotations
+from utils import id_of, get_properties
+from annotations import from_synapse_annotations, to_synapse_annotations
 from activity import Activity
+from entity import Entity, Project, Folder, File, Data, split_entity_namespaces, is_versionable, is_locationable
+
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
@@ -90,11 +93,6 @@ class Synapse:
             self.profile_data = json.loads(base64.b64decode(profile_data))
 
 
-    def printEntity(self, entity):
-        """Pretty prints an entity."""
-        print json.dumps(entity, sort_keys=True, indent=2)
-
-
     def login(self, email=None, password=None, sessionToken=None):
         """
         Authenticate and get session token by using (in order of preference):
@@ -140,38 +138,381 @@ class Synapse:
         self.headers['request_profile'] = orig_request_profile
 
 
+    def _loggedIn(self):
+        """Test whether the user is logged in to Synapse"""
+        if self.sessionToken is None:
+            return False
+        url = '%s/userProfile' % (self.repoEndpoint,)
+        response = requests.get(url, headers=self.headers)
+        if response.status_code==401:
+            ## bad or expired session token
+            return False
+        response.raise_for_status()
+        user = response.json()
+        if 'displayName' in user:
+            if user['displayName']=='Anonymous':
+                ## no session token, not logged in
+                return False
+            return user['displayName']
+        return False
+
+
+    def getUserProfile(self, ownerId=None):
+        """Get the details about a Synapse user"""
+        uri = '/userProfile/%s' % '' if ownerId is None else str(ownerId)
+        return self.restGET(uri)
+
+
     def onweb(self, entity):
         """Opens up a webbrowser window on the entity page.
         
         Arguments:
         - `entity`: Either an entity or a synapse id
         """
-        entity_id = entity['id'] if 'id' in entity else str(entity)
-        webbrowser.open("https://synapse.sagebase.org/#Synapse:%s" %entity_id)
+        webbrowser.open("https://synapse.sagebase.org/#Synapse:%s" % id_of(entity))
 
 
-    def getEntity(self, entity):
+    def printEntity(self, entity):
+        """Pretty prints an entity."""
+        if utils.is_synapse_id(entity):
+            entity = self._getEntity(entity)
+        try:
+            print json.dumps(entity, sort_keys=True, indent=2)
+        except TypeError:
+            print str(entity)
+
+
+
+    ############################################################
+    # get / store methods
+    ############################################################
+
+    def get(self, entity, **kwargs):
+        """
+        entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
+        returns: A new Synapse Entity object of the appropriate type
+
+        synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
+        """
+        version = kwargs.get('version', None)
+        downloadFile = kwargs.get('downloadFile', True)
+
+        local_state = entity.local_state() if isinstance(entity, Entity) else None
+        properties = self._getEntity(entity, version=version)
+        annotations = self.getAnnotations(properties, version=version)
+
+        ## return a fresh copy of the entity
+        entity = Entity.create(properties, annotations, local_state)
+
+        ## for external URLs, we want to retrieve the URL from the fileHandle
+        #TODO version, here
+        if isinstance(entity, File):
+            fh = self._getFileHandle(entity['dataFileHandleId'])
+            if 'concreteType' in fh and fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
+                entity['externalURL'] = fh['externalURL']
+                path = utils.file_url_to_path(entity['externalURL'])
+                if path:
+                    entity['path'] = path
+                entity['synapseStore'] = False
+
+        #TODO version, here
+        if downloadFile:
+            self._downloadEntity(entity)
+
+        return entity
+
+
+    def store(self, obj, **kwargs):
+        """
+        create new entity or update an existing entity, uploading any files in the process
+        entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
+        returns: A Synapse Entity object of the appropriate type
+
+        synapse.store(entity, used, executed, activityName=None, activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        synapse.store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        """
+
+        entity = obj
+        properties,annotations,local_state = split_entity_namespaces(entity)
+
+        #TODO: can this be factored out?
+        ## need to upload a FileEntity?
+        ##   create FileHandle first, then create or update entity
+        if entity['entityType'] == File._synapse_entity_type:
+            if 'dataFileHandleId' not in properties or True: #TODO: file_cache.local_file_has_changed(entity.path):
+                synapseStore = entity.get('synapseStore', None)
+                fileHandle = self._uploadToFileHandleService(entity.path, synapseStore=synapseStore)
+                properties['dataFileHandleId'] = fileHandle['id']
+
+        ## need to upload a Locationable?
+        ##   create the entity first, then upload file, then update entity, later
+        if is_locationable(entity):
+            ## for Locationables, entity must exist before upload
+            if not 'id' in entity:
+                properties = self._createEntity(properties)
+            if 'path' in entity:
+                path = annotations.pop('path')
+                properties.update(self._uploadFileAsLocation(properties, path))
+        #--end--TODO: can this be factored out?
+
+        #TODO deal with access restrictions
+
+        ## create or update entity in synapse
+        if 'id' in properties:
+            properties = self._updateEntity(properties)
+        else:
+            properties = self._createEntity(properties)
+
+        annotations['etag'] = properties['etag']
+
+        ## update annotations
+        annotations = self.setAnnotations(properties, annotations)
+        properties['etag'] = annotations['etag']
+
+
+        ## if used or executed given, create an Activity object
+        activity = kwargs.get('activity', None)
+        used = kwargs.get('used', None)
+        executed = kwargs.get('executed', None)
+        if used or executed:
+            if activity is not None:
+                raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
+            activityName = kwargs.get('activityName', None)
+            activityDescription = kwargs.get('activityDescription', None)
+            activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
+
+        ## if we have an activity, set it as the entity's provenance record
+        if activity:
+            activity = self.setProvenance(properties, activity)
+            ## etag has changed, so get new entity
+            properties = self._getEntity(properties)
+
+        ## return a new Entity object
+        return Entity.create(properties, annotations, local_state)
+
+
+    ############################################################
+    # older high level methods
+    ############################################################
+
+    def getEntity(self, entity, version=None):
         """Retrieves metainformation about an entity from a synapse Repository
+        Arguments:
+        - `entity`: A synapse ID or dictionary describing an entity
+        Returns:
+        - A new :class:`synapseclient.entity.Entity` object
+        """
+        return self.get(entity, version=version, downloadFile=False)
+
+
+    def loadEntity(self, entity):
+        """Downloads and attempts to load the contents of an entity into memory
+        TODO: Currently only performs downlaod.
+        Arguments:
+        r - `entity`: Either a string or dict representing an entity
+        """
+        #TODO: Try to load the entity into memory as well.
+        #This will be depenendent on the type of entity.
+        print 'WARNING!: THIS ONLY DOWNLOADS ENTITIES!'
+        return self.downloadEntity(entity)
+
+
+    #TODO factor out common code with store? delegate to store? delegate store to createEntity?
+    #TODO should this method upload files?
+    def createEntity(self, entity, used=None, executed=None, **kwargs):
+        """
+        Create a new entity in the synapse Repository according to entity json object.
+
+        entity: an Entity object or dictionary
+        used: an entity, a synapse ID, a URL or a Used object or a List containing these
+        executed: an entity, a synapse ID, a URL or a Used object or a List containing these        
+        """
+        ## make sure we're creating a new entity
+        if 'id' in entity:
+            raise Exception('Called createEntity on an entity with an ID (%s)' % str(id_of(entity)))
+
+        # TODO: delegate to store?
+        # return self.store(entity, used=used, executed=executed)
+        properties,annotations,local_state = split_entity_namespaces(entity)
+
+        properties = self._createEntity(properties)
+        annotations['etag'] = properties['etag']
+
+        ## set annotations
+        annotations = self.setAnnotations(properties, annotations)
+        properties['etag'] = annotations['etag']
+
+        ## if used or executed given, create an Activity object
+        activity = kwargs['activity'] if 'activity' in kwargs else None
+        if used or executed:
+            if activity is not None:
+                raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
+            activityName = kwargs['activityName'] if 'activityName' in kwargs else None
+            activityDescription = kwargs['activityDescription'] if 'activityDescription' in kwargs else None
+            activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
+
+        ## if we have an activity, set it as the entity's provenance record
+        if activity:
+            activity = self.setProvenance(properties, activity)
+            ## etag has changed, so get new entity
+            properties = self._getEntity(properties)
+
+        ## return a new Entity object
+        return Entity.create(properties, annotations, local_state)
+
+
+    #TODO delegate to store? createEntity?
+    def _createFileEntity(self, entity, filename=None, used=None, executed=None):
+        #Determine if we want to upload or store the url
+        #TODO this should be determined by a parameter not based on magic
+        #TODO _createFileEntity and uploadFile are kinda redundant - pick one or fold into createEntity
+        if filename is None:
+            if 'path' in entity:
+                filename = entity.path
+            else:
+                raise Exception('can\'t create a File entity without a file path or URL')
+        if utils.is_url(filename):
+            fileHandle = self._addURLtoFileHandleService(filename)
+            entity['dataFileHandleId'] = fileHandle['id']
+        else:
+            fileHandle = self._uploadFileToFileHandleService(filename)
+            entity['dataFileHandleId'] = fileHandle['id']
+        if 'entityType' not in entity:
+            entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
+        return self.createEntity(entity, used=used, executed=executed)
+
+
+    #TODO factor out common code with store? delegate to store? delegate store to updateEntity?
+    #TODO should this method upload files?
+    def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
+        """
+        Update an entity stored in synapse with the properties in entity
+        """
+
+        if not entity:
+            raise Exception("entity cannot be empty")
+        if 'id' not in entity:
+            raise Exception("A entity without an 'id' can't be updated")
+
+        properties,annotations,local_state = split_entity_namespaces(entity)
+
+        properties = self._updateEntity(properties, incrementVersion, versionLabel)
+        annotations['etag'] = properties['etag']
+
+        annotations = self.setAnnotations(properties, annotations)
+        properties['etag'] = annotations['etag']
+
+        ## if used or executed given, create an Activity object
+        activity = kwargs['activity'] if 'activity' in kwargs else None
+        if used or executed:
+            if activity is not None:
+                raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
+            activityName == kwargs['activityName'] if 'activityName' in kwargs else None
+            activityDescription == kwargs['activityDescription'] if 'activityDescription' in kwargs else None
+            activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
+
+        ## if we have an activity, set it as the entity's provenance record
+        if activity:
+            activity = self.setProvenance(properties, activity)
+            ## etag has changed, so get new entity
+            properties = self._getEntity(properties)
+
+        ## return a new Entity object
+        return Entity.create(properties, annotations, local_state)
+
+
+    def deleteEntity(self, entity):
+        """Deletes a synapse entity"""
+        self._deleteEntity(entity)
+
+
+    #TODO: delegate to store?
+    def uploadFile(self, entity, filename=None, used=None, executed=None):
+        """Upload a file to Synapse"""
+        ## if we got a synapse ID as a string, get the entity from synapse
+        if isinstance(entity, basestring):
+            if not filename:
+                raise Exception('No filename specified in call to uploadFile')
+            entity = self._getEntity(entity)
+
+        if filename is None:
+            if 'path' in entity:
+                filename = entity['path']
+            else:
+                raise Exception('can\'t upload a file without a file path or URL')
+
+        ## default name of entity to be the name of the file
+        if 'name' not in entity or entity['name'] is None:
+            entity['name'] = os.path.basename(filename)
+
+        ## if we have an old location-able object use the deprecated file upload method
+        if is_locationable(entity):
+            entity.update(self._uploadFileAsLocation(entity, filename))
+
+        else:
+            ## if we haven't specified the entity type, make it a FileEntity
+            if 'entityType' not in entity:
+                entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
+
+            if entity['entityType'] != 'org.sagebionetworks.repo.model.FileEntity':
+                raise Exception('Files can only be uploaded to FileEntity entities')
+
+            synapseStore = entity['synapseStore'] if 'synapseStore' in entity else None
+            fileHandle = self._uploadToFileHandleService(filename, synapseStore=synapseStore)
+
+            ## for some reason, posting
+            entity['dataFileHandleId'] = fileHandle['id']
+
+        if 'id' in entity:
+            return self.updateEntity(entity, used=used, executed=executed)
+        else:
+            return self.createEntity(entity, used=used, executed=executed)
+
+
+    def downloadEntity(self, entity, version=None):
+        """Download an entity and file(s) associated with it to local cache.
+        
         Arguments:
         - `entity`: A synapse ID of entity (i.e dictionary describing an entity)
         Returns:
         - A dictionary representing an entity
         """
-        #process input arguments
-        if not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
-            raise Exception("invalid parameters")
-        if isinstance(entity, dict):
-            entity = entity['id']
-
-        return self.restGET(uri='/entity/' + entity)
+        return self.get(entity, version=version, downloadFile=True)
 
 
-    def getAnnotations(self, entity):
+    def _downloadEntity(self, entity):
+        """Download file(s) associated with an entity to local cache
+        Arguments:
+        - `entity`: A Synapse Entity object or a dictionary of entity properties
+        see: _downloadFileEntity
+        see: _downloadLocations
+        """
+        if utils.is_synapse_id(entity):
+            entity = self._getEntity(entity)
+        if entity['entityType'] == 'org.sagebionetworks.repo.model.FileEntity':
+            entity = self._downloadFileEntity(entity)
+        if is_locationable(entity):
+            entity = self._downloadLocations(entity)
+        return entity
+
+
+
+    ############################################################
+    # get/set Annotations
+    ############################################################
+
+    def getAnnotations(self, entity, version=None):
         """
         Retrieve the annotations stored for an entity in the Synapse Repository
         """
-        entity_id = entity['id'] if 'id' in entity else str(entity)
-        return fromSynapseAnnotations(self.restGET(uri='/entity/%s/annotations' % entity_id))
+        ## only use versioned URLs on request.
+        ## note that using the versioned URL results in a zero-ed out etag,
+        ## even if the version is the most recent. See: PLFM-1874
+        if version:
+            uri = '/entity/%s/version/%s/annotations' % (id_of(entity), str(version),)
+        else:
+            uri = '/entity/%s/annotations' % id_of(entity)
+        return from_synapse_annotations(self.restGET(uri))        
 
 
     def setAnnotations(self, entity, annotations={}, **kwargs):
@@ -181,41 +522,202 @@ class Synapse:
         Accepts a dictionary, either in the Synapse format or a plain
         dictionary or key/value pairs.
         """
-        entity_id = entity['id'] if 'id' in entity else str(entity)
-        uri = '/entity/%s/annotations' % entity_id
+        uri = '/entity/%s/annotations' % id_of(entity)
 
         ## update annotations with keyword args
         annotations.update(kwargs)
 
-        synapseAnnos = toSynapseAnnotations(annotations)
-        synapseAnnos['id'] = entity_id
+        synapseAnnos = to_synapse_annotations(annotations)
+        synapseAnnos['id'] = id_of(entity)
         if 'etag' in entity and 'etag' not in synapseAnnos:
             synapseAnnos['etag'] = entity['etag']
 
-        return fromSynapseAnnotations(self.restPUT(uri, json.dumps(synapseAnnos) ))
-    
+        return from_synapse_annotations(self.restPUT(uri, json.dumps(synapseAnnos) ))
 
- 
 
-    def downloadEntity(self, entity):
-        """Download an entity and files associated with an entity to local cache
-        TODO: Add storing of files in cache
-        TODO: Add unpacking of files.
+
+    ############################################################
+    # Query
+    ############################################################
+
+    def query(self, queryStr):
+        '''
+        Query for datasets, layers, etc..
+
+        Example:
+        query("select id, name from entity where entity.parentId=='syn449742'")
+        '''
+        if(self.debug): print 'About to query %s' % (queryStr)
+        return self.restGET('/query?query=' + urllib.quote(queryStr))
+
+
+
+    ############################################################
+    # ACL manipulation
+    ############################################################
+
+    def _getACL(self, entity):
+        ## get benefactor. (An entity gets its ACL from its benefactor.)
+        uri = '/entity/%s/benefactor' % id_of(entity)
+        benefactor = self.restGET(uri)
+
+        ## get the ACL from the benefactor (which may be the entity itself)
+        uri = '/entity/%s/acl' % (benefactor['id'],)        
+        return self.restGET(uri)
+
+
+    def _storeACL(self, entity, acl):
+        entity_id = id_of(entity)
+
+        ## get benefactor. (An entity gets its ACL from its benefactor.)
+        uri = '/entity/%s/benefactor' % entity_id
+        benefactor = self.restGET(uri)
+
+        ## update or create new ACL
+        uri = '/entity/%s/acl' % entity_id
+        if benefactor['id']==entity_id:
+            return self.restPUT(uri, json.dumps(acl))
+        else:
+            return self.restPOST(uri,json.dumps(acl))
+
+
+    def getPermissions(self, entity, user=None, group=None):
+        """get permissions that a user or group has on an entity"""
+        pass
+
+
+    def setPermissions(self, entity, user=None, group=None):
+        """set permission that a user or groups has on an entity"""
+        pass
+
+
+
+    ############################################################
+    # Provenance
+    ############################################################
+
+    def getProvenance(self, entity, version=None):
+        """Retrieve provenance information for a synapse entity. Entity may be
+        either an Entity object or a string holding a Synapse ID. Returns
+        an Activity object or raises exception if no provenance record exists.
+
+        Note that provenance applies to a specific version of an entity. The
+        returned Activity will represent the provenance of the entity version
+        supplied with the versionNumber parameter OR if versionNumber is None,
+        the versonNumber property of the given entity.
+        """
+
+        ## get versionNumber from entity, if it's there
+        if version is None and 'versionNumber' in entity:
+            version = entity['versionNumber']
+
+        if version:
+            uri = '/entity/%s/version/%d/generatedBy' % (id_of(entity), version)
+        else:
+            uri = '/entity/%s/generatedBy' % id_of(entity)
+        return Activity(data=self.restGET(uri))
+
+
+    def setProvenance(self, entity, activity):
+        """assert that the entity was generated by a given activity"""
+
+        if 'id' in activity:
+            ## we're updating provenance
+            uri = '/activity/%s' % activity['id']
+            activity = Activity(data=self.restPUT(uri, json.dumps(activity)))
+        else:
+            activity = self.restPOST('/activity', body=json.dumps(activity))
+
+        # assert that an entity is generated by an activity
+        uri = '/entity/%s/generatedBy?generatedBy=%s' % (id_of(entity), activity['id'])
+        activity = Activity(data=self.restPUT(uri))
+
+        return activity
+
+
+    def deleteProvenance(self, entity):
+        """remove provenance information from an entity and delete the activity"""
+
+        activity = self.getProvenance(entity)
+        if not activity: return
+
+        uri = '/entity/%s/generatedBy' % id_of(entity)
+        self.restDELETE(uri)
+
+        #TODO: what happens if the activity is shared by more than one entity?
+
+        # delete /activity/{activityId}
+        uri = '/activity/%s' % activity['id']
+        self.restDELETE(uri)
+
+
+    def updateActivity(self, activity):
+        """modify an existing activity"""
+        uri = '/activity/%s' % activity['id']
+        return Activity(data=self.restPUT(uri, json.dumps(activity)))
+
+
+
+    ############################################################
+    # locationable upload / download
+    ############################################################
+
+    def _uploadFileAsLocation(self, entity, filename):
+        """Given an entity or the id of an entity, upload a filename as the location of that entity.
+
+        (deprecated in favor of FileEntities)
         
         Arguments:
-        - `entity`: A synapse ID of entity (i.e dictionary describing an entity)
+        - `entity`:  an entity (dictionary) or Id of entity whose location you want to set 
+        - `filename`: Name of file to upload
+
         Returns:
-        - A dictionary representing an entity
+        A dictionary with locations (a list of length 1) and the md5 of the file.
         """
-        entity = self.getEntity(entity)
-        if entity['entityType'] == 'org.sagebionetworks.repo.model.FileEntity':
-            return self._downloadFileEntity(entity)
-        if entity.has_key('locations'):
-            return self._downloadLocations(entity)
-        return entity
+        # compute hash of file to be uploaded
+        md5 = utils.md5_for_file(filename)
+
+        # guess mime-type - important for confirmation of MD5 sum by receiver
+        (mimetype, enc) = mimetypes.guess_type(filename)
+        if (mimetype is None):
+            mimetype = "application/octet-stream"
+
+        # ask synapse for a signed URL for S3 upload
+        headers = { 'sessionToken': self.sessionToken,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json' }
+
+        (_, base_filename) = os.path.split(filename)
+        data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
+        uri = '/entity/%s/s3Token' % id_of(entity)
+        response_json = self.restPOST(uri, body=json.dumps(data))
+        location_path = response_json['path']
+
+        # PUT file to S3
+        headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
+                    'Content-Type' : mimetype,
+                    'x-amz-acl' : 'bucket-owner-full-control' }
+        response = requests.put(response_json['presignedUrl'], headers=headers, data=open(filename))
+        response.raise_for_status()
+
+        # Add location to entity. Path will get converted to a signed S3 URL.
+        locations = [{
+            'path': location_path,
+            'type': 'awss3'
+            }]
+
+        return {'locations':locations, 'md5':md5.hexdigest()}
 
 
     def _downloadLocations(self, entity):
+        """
+        Download files from Locationable entities.
+        Locationable entities contain a signed S3 URL. These URLs expire after a time, so
+        the entity object passed to this method must have been recently acquired from Synapse.
+        (**deprecated** in favor of FileEntities)
+        """
+        if 'locations' not in entity or len(entity['locations'])==0:
+            return entity
         location = entity['locations'][0]  #TODO verify that this doesn't fail for unattached files
         url = location['path']
         parseResult = urlparse.urlparse(url)
@@ -232,17 +734,17 @@ class Synapse:
                 md5str = handle.readline().rstrip()
                 handle.close()
             else:
-                md5str = utils.computeMd5ForFile(filename).hexdigest()
+                md5str = utils.md5_for_file(filename).hexdigest()
                 handle = open(filename + ".md5", "w")
                 handle.write(md5str)
                 handle.close()
 
             if md5str != entity.get('md5', ''):
                 if self.debug: print filename, "changed, redownloading"
-                utils.downloadFile(url, filename)
+                utils.download_file(url, filename)
         else:
             if self.debug: print filename, 'downloading...',
-            utils.downloadFile(url, filename)
+            utils.download_file(url, filename)
 
         if entity['contentType']=='application/zip':
             ## Unpack file
@@ -260,10 +762,16 @@ class Synapse:
         return entity
 
 
-    def _downloadFileEntity(self, entity):
-        url = '%s/entity/%s/file' % (self.repoEndpoint, entity['id'],)
 
-        destDir = os.path.join(self.cacheDir, entity['id'])
+    ############################################################
+    # File handle service calls
+    ############################################################
+
+    def _downloadFileEntity(self, entity):
+        """Download the file associated with a FileEntity"""
+        url = '%s/entity/%s/file' % (self.repoEndpoint, id_of(entity),)
+
+        destDir = os.path.join(self.cacheDir, id_of(entity))
 
         #create destDir if it does not exist
         try:
@@ -277,19 +785,31 @@ class Synapse:
         ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
         entity['cacheDir'] = destDir
         entity['files'] = [os.path.basename(filename)]
+        entity['path'] = filename
 
         return entity
 
 
     def _downloadFile(self, url, destDir):
+        """Download a file from a URL to a local destination directory"""
         ## we expect to be redirected to a signed S3 URL
         response = requests.get(url, headers=self.headers, allow_redirects=False)
         if response.status_code in [301,302,303,307,308]:
-          url = response.headers['location']
-          #print url
-          headers = {'sessionToken':self.sessionToken}
-          response = requests.get(url, headers=headers, stream=True)
-          response.raise_for_status()
+            url = response.headers['location']
+
+            ## copy file, if we're given a file URL?
+            if url.startswith('file:'):
+                path = utils.file_url_to_path(url)
+                dst = os.path.join(destDir, os.path.basename(path))
+                shutil.copy2(path, dst)
+                return os.path.basename(path)
+
+            headers = {'sessionToken':self.sessionToken}
+            response = requests.get(url, headers=headers, stream=True)
+            response.raise_for_status()
+        else:
+            response.raise_for_status()
+
         ##Extract filename from url or header, if it is a Signed S3 URL do...
         if url.startswith('https://s3.amazonaws.com/proddata.sagebase.org'):
             filename = utils.extract_filename(response.headers['content-disposition'])
@@ -299,106 +819,79 @@ class Synapse:
         if destDir:
             filename = os.path.join(destDir, filename)
         with open(filename, "wb") as f:
-          data = response.raw.read(FILE_BUFFER_SIZE)
-          while data:
-            f.write(data)
             data = response.raw.read(FILE_BUFFER_SIZE)
+            while data:
+                f.write(data)
+                data = response.raw.read(FILE_BUFFER_SIZE)
 
-        return filename
+        return os.path.abspath(filename)
 
 
-    def loadEntity(self, entity):
-        """Downloads and attempts to load the contents of an entity into memory
-        TODO: Currently only performs downlaod.
-        Arguments:
-        r - `entity`: Either a string or dict representing an entity
+    def _uploadToFileHandleService(self, filename, synapseStore=None):
         """
-        #TODO: Try to load the entity into memory as well.
-        #This will be depenendent on the type of entity.
-        print 'WARNING!: THIS ONLY DOWNLOADS ENTITIES!'
-        return self.downloadEntity(entity)
+        Create and return a fileHandle, by either uploading a local file or
+        linking to an external URL.
 
-
-    def createEntity(self, entity, used=None, executed=None):
-        """Create a new entity in the synapse Repository according to entity json object"""
-
-        entity = self.restPOST('/entity', body=json.dumps(entity))
-
-        ## set provenance, if used or executed given
-        if used or executed:
-            activity = Activity(used=used, executed=executed)
-            activity = self.setProvenance(entity['id'], activity)
-            entity = self.getEntity(entity)
-
-        #I need to update the entity
-        return entity
-
-
-    def _createFileEntity(self, entity, filename, used=None, executed=None):
-        #Determine if we want to upload or store the url
-        #TODO this should be determined by a parameter not based on magic
+        synapseStore: store file in Synapse or just a URL
+        """
         if utils.is_url(filename):
-            fileHandle = self._addURLtoFileHandleService(filename)
-            entity['dataFileHandleId'] = fileHandle['id']
+            # if synapseStore==True:
+            #     ## download the file locally, then upload it and cache it?
+            #     raise Exception('not implemented, yet!')
+            # else:
+            #     return self._addURLtoFileHandleService(filename)
+            return self._addURLtoFileHandleService(filename)
+        elif synapseStore==False:
+            return self._addURLtoFileHandleService(filename)
         else:
-            fileHandle = self._uploadFileToFileHandleService(filename)
-            entity['dataFileHandleId'] = fileHandle['list'][0]['id']
-        if 'entityType' not in entity:
-            entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
-        return self.createEntity(entity, used=used, executed=executed)
+            return self._uploadFileToFileHandleService(filename)
 
-        
-    def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None):
-        """
-        Update an entity stored in synapse with the properties in entity
-        """
+    def _uploadFileToFileHandleService(self, filepath):
+        """Upload a file to the new fileHandle service (experimental)
+           returns a fileHandle which can be used to create a FileEntity or attach to a wiki"""
+        #print "_uploadFileToFileHandleService - filepath = " + str(filepath)
+        url = "%s/fileHandle" % (self.fileHandleEndpoint,)
+        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
+        with open(filepath, 'r') as file:
+            response = requests.post(url, files={os.path.basename(filepath): file}, headers=headers)
+        response.raise_for_status()
 
-        if not entity:
-            raise Exception("entity cannot be empty")
-        if 'id' not in entity:
-            raise Exception("A entity without an 'id' can't be updated")
+        ## we expect a list of FileHandles of length 1
+        fileHandleList = response.json()
+        return fileHandleList['list'][0]
 
-        uri = '/entity/%s' % entity['id']
+    def _addURLtoFileHandleService(self, externalURL):
+        """Create a new FileHandle representing an external URL"""
+        fileName = externalURL.split('/')[-1]
+        externalURL = utils.as_url(externalURL)
+        fileHandle={'concreteType':'org.sagebionetworks.repo.model.file.ExternalFileHandle',
+                    'fileName': fileName,
+                    'externalURL':externalURL}
+        (mimetype, enc) = mimetypes.guess_type(externalURL)
+        if mimetype:
+            fileHandle['contentType'] = mimetype
+        return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
 
-        if incrementVersion:
-            entity['versionNumber'] += 1
-            uri += '/version'
-            if versionLabel:
-                entity['versionLabel'] = str(versionLabel)
+    def _getFileHandle(self, fileHandle):
+        """Retrieve a fileHandle from the fileHandle service (experimental)"""
+        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, id_of(fileHandle),)
+        headers = {'Accept': 'multipart/form-data, application/json', 'sessionToken': self.sessionToken}
+        response = requests.get(url, headers=headers, stream=True)
+        response.raise_for_status()
+        return response.json()
 
-        entity = self.restPUT(uri, body=json.dumps(entity))
-
-        if used or executed:
-            activity = Activity()
-            if used:
-                for item in used:
-                    activity.used(item['id'] if 'id' in item else str(item))
-            if executed:
-                for item in executed:
-                    activity.used(item['id'] if 'id' in item else str(item), wasExecuted=True)
-            activity = self.setProvenance(entity['id'], activity)
-            entity = self.getEntity(entity)
-        return entity
-
-
-    def deleteEntity(self, entity):
-        """Deletes a synapse entity"""
-        
-        entity_id = entity['id'] if 'id' in entity else str(entity)
-        self.restDELETE('/entity/%s' % entity_id)
+    def _deleteFileHandle(self, fileHandle):
+        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, id_of(fileHandle),)
+        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
+        response = requests.delete(url, headers=headers, stream=True)
+        response.raise_for_status()
+        return fileHandle
 
 
 
-    def query(self, queryStr):
-        '''
-        Query for datasets, layers, etc..
-
-        Example:
-        query("select id, name from entity where entity.parentId=='syn449742'")
-        '''
-        if(self.debug): print 'About to query %s' % (queryStr)
-        return self.restGET('/query?query=' + urllib.quote(queryStr))
-
+    ############################################################
+    # Summary methods
+    ############################################################
 
     def _traverseTree(self, id, name=None, version=None):
         """Creates a tree of all 
@@ -472,281 +965,10 @@ class Synapse:
                            "parentId": id})
 
 
-    def _isLocationable(self, entity):
-        locationable_entity_types = ['org.sagebionetworks.repo.model.Data',
-                                     'org.sagebionetworks.repo.model.Code',
-                                     'org.sagebionetworks.repo.model.ExpressionData',
-                                     'org.sagebionetworks.repo.model.GenericData',
-                                     'org.sagebionetworks.repo.model.GenomicData',
-                                     'org.sagebionetworks.repo.model.GenotypeData',
-                                     'org.sagebionetworks.repo.model.Media',
-                                     'org.sagebionetworks.repo.model.PhenotypeData',
-                                     'org.sagebionetworks.repo.model.RObject',
-                                     'org.sagebionetworks.repo.model.Study',
-                                     'org.sagebionetworks.repo.model.ExampleEntity']
 
-        ## if we got a synapse ID as a string, get the entity from synapse
-        if isinstance(entity, basestring):
-            entity = self.getEntity(entity)
-
-        return ('locations' in entity or ('entityType' in entity and entity['entityType'] in locationable_entity_types))
-
-
-    def uploadFile(self, entity, filename):
-
-        ## if we got a synapse ID as a string, get the entity from synapse
-        if isinstance(entity, basestring):
-            entity = self.getEntity(entity)
-
-        ## if we have an old location-able object use the deprecated file upload method
-        if self._isLocationable(entity):
-            return self.uploadFileAsLocation(entity, filename)
-
-        ## if we haven't specified the entity type, make it a FileEntity
-        if 'entityType' not in entity:
-            entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
-
-        if entity['entityType'] != 'org.sagebionetworks.repo.model.FileEntity':
-            raise Exception('Files can only be uploaded to FileEntity entities')
-
-        fileHandle = self._uploadFileToFileHandleService(filename)
-
-        # add fileHandle to entity
-        entity['dataFileHandleId'] = fileHandle['list'][0]['id']
-
-        ## if we're creating a new entity
-        if not 'id' in entity:
-            return self.createEntity(entity)
-        else:
-            return self.updateEntity(entity)
-
-
-    def uploadFileAsLocation(self, entity, filename):
-        """Given an entity or the id of an entity, upload a filename as the location of that entity.
-
-        (deprecated in favor of FileEntities)
-        
-        Arguments:
-        - `entity`:  an entity (dictionary) or Id of entity whose location you want to set 
-        - `filename`: Name of file to upload
-        """
-
-        ## check parameters
-        if entity is None or not (isinstance(entity, basestring) or (isinstance(entity, dict) and entity.has_key('id'))):
-            raise Exception('invalid entity parameter')
-
-        ## if we got a synapse ID as a string, get the entity from synapse
-        if isinstance(entity, basestring):
-            entity = self.getEntity(entity)
-
-        # compute hash of file to be uploaded
-        md5 = utils.computeMd5ForFile(filename)
-
-        # guess mime-type - important for confirmation of MD5 sum by receiver
-        (mimetype, enc) = mimetypes.guess_type(filename)
-        if (mimetype is None):
-            mimetype = "application/octet-stream"
-
-        # ask synapse for a signed URL for S3 upload
-        headers = { 'sessionToken': self.sessionToken,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json' }
-
-
-        (_, base_filename) = os.path.split(filename)
-        data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
-        uri = '/entity/%s/s3Token' % (entity['id'])
-        response_json = self.restPOST(uri, body=json.dumps(data))
-        location_path = response_json['path']
-
-        # PUT file to S3
-        headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
-                    'Content-Type' : mimetype,
-                    'x-amz-acl' : 'bucket-owner-full-control' }
-        response = requests.put(response_json['presignedUrl'], headers=headers, data=open(filename))
-        response.raise_for_status()
-
-        # add location to entity
-        entity['locations'] = [{
-        'path': location_path,
-        'type': 'awss3'
-        }]
-        entity['md5'] = md5.hexdigest()
-
-        return self.updateEntity(entity)
-
-
-    def getUserProfile(self, ownerId=None):
-        uri = '/userProfile/%s' % '' if ownerId is None else str(ownerId)
-        return self.restGET(uri)
-
-
-    def _getACL(self, entity):
-        entity_id = entity['id'] if 'id' in entity else str(entity)
-        
-        ## get benefactor. (An entity gets its ACL from its benefactor.)
-        uri = '/entity/%s/benefactor' % (entity_id)
-        benefactor = self.restGET(uri)
-
-        ## get the ACL from the benefactor (which may be the entity itself)
-        uri = '/entity/%s/acl' % (benefactor['id'],)        
-        return self.restGET(uri)
-
-
-    def _storeACL(self, entity, acl):
-        entity_id = entity['id'] if 'id' in entity else str(entity)
-
-        ## get benefactor. (An entity gets its ACL from its benefactor.)
-        uri = '/entity/%s/benefactor' % (entity_id,)
-        benefactor = self.restGET(uri)
-
-        ## update or create new ACL
-        uri = '/entity/%s/acl' % entity_id
-        if benefactor['id']==entity_id:
-            return self.restPUT(uri, json.dumps(acl))
-        else:
-            return self.restPOST(uri,json.dumps(acl))
-
-
-    def getPermissions(self, entity, user=None, group=None):
-        """get permissions that a user or group has on an entity"""
-        pass
-
-
-    def setPermissions(self, entity, user=None, group=None):
-        """set permission that a user or groups has on an entity"""
-        pass
-
-    def getProvenance(self, entity, versionNumber=None):
-        """Retrieve provenance information for a synapse entity. Entity may be
-        either an Entity object or a string holding a Synapse ID. Returns
-        an Activity object or None if no provenance record exists.
-
-        Note that provenance applies to a specific version of an entity. The
-        returned Activity will represent the provenance of the entity version
-        supplied with the versionNumber parameter OR if versionNumber is None,
-        and entity is an object, the versonNumber property of the given entity.
-        """
-
-        ## can be either an entity or just a synapse ID
-        entity_id = entity['id'] if 'id' in entity else str(entity)
-
-        ## get versionNumber from entity, if it's there
-        if versionNumber is None and 'versionNumber' in entity:
-            versionNumber = entity['versionNumber']
-
-        if versionNumber:
-            url = '%s/entity/%s/version/%d/generatedBy' % (
-                self.repoEndpoint,
-                entity_id,
-                versionNumber)
-        else:
-            url = '%s/entity/%s/generatedBy' % (
-                self.repoEndpoint,
-                entity_id)
-        response = requests.get(url, headers=self.headers)
-        if response.status_code == 404: return None
-        response.raise_for_status()
-        return Activity(data=response.json())
-
-
-    def setProvenance(self, entity, activity):
-        """assert that the entity was generated by a given activity"""
-
-        if 'id' in activity:
-            ## we're updating provenance
-            uri = '/activity/%s' % activity['id']
-            activity = Activity(self.restPUT(uri, json.dumps(activity)))
-        else:
-            activity = self.restPOST('/activity', body=json.dumps(activity))
-
-            ## can be either an entity or just a synapse ID
-            entity_id = entity['id'] if 'id' in entity else str(entity)
-
-            # assert that an entity is generated by an activity
-            # put to <endpoint>/entity/{id}/generatedBy?generatedBy={activityId}
-            uri = '/entity/%s/generatedBy?generatedBy=%s' % (entity_id, activity['id'])
-            activity = Activity(data=self.restPUT(uri))
-
-        return activity
-
-
-
-    def deleteProvenance(self, entity):
-        """remove provenance information from an entity and delete the activity"""
-
-        activity = self.getProvenance(entity)
-        if not activity: return None
-
-        ## can be either an entity or just a synapse ID
-        entity_id = entity['id'] if 'id' in entity else str(entity)
-
-        uri = '/entity/%s/generatedBy' % entity_id
-        self.restDELETE(uri)
-
-        # delete /activity/{activityId}
-        uri = '/activity/%s' % activity['id']
-        self.restDELETE(uri)
-
-
-    def updateActivity(self, activity):
-        uri = '/activity/%s' % activity['id']
-        return Activity(data=self.restPUT(uri, json.dumps(activity)))
-
-
-    def _loggedIn(self):
-        """Test whether the user is logged in to Synapse"""
-        url = '%s/userProfile' % (self.repoEndpoint,)
-        response = requests.get(url, headers=self.headers)
-        if response.status_code==401:
-            ## bad or expired session token
-            return False
-        response.raise_for_status()
-        user = response.json()
-        if 'displayName' in user:
-            if user['displayName']=='Anonymous':
-                ## no session token, not logged in
-                return False
-            return user['displayName']
-        return False
-
-
-    def _uploadFileToFileHandleService(self, filepath):
-        """Upload a file to the new fileHandle service (experimental)
-           returns a fileHandle which can be used to create a FileEntity or attach to a wiki"""
-        url = "%s/fileHandle" % (self.fileHandleEndpoint,)
-        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
-        with open(filepath, 'r') as file:
-            response = requests.post(url, files={os.path.basename(filepath): file}, headers=headers)
-        response.raise_for_status()
-        return response.json()
-
-
-    def _addURLtoFileHandleService(self, externalURL):
-        fileName = externalURL.split('/')[-1]
-        fileHandle={'concreteType':'org.sagebionetworks.repo.model.file.ExternalFileHandle',
-                    'fileName': fileName,
-                    'externalURL':externalURL}
-        return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
-
-    def _getFileHandle(self, fileHandle):
-        """Retrieve a fileHandle from the fileHandle service (experimental)"""
-        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
-        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
-        headers = {'Accept': 'multipart/form-data, application/json', 'sessionToken': self.sessionToken}
-        response = requests.get(url, headers=headers, stream=True)
-        response.raise_for_status()
-        return response.json()
-
-
-    def _deleteFileHandle(self, fileHandle):
-        fileHandleId = fileHandle['id'] if 'id' in fileHandle else str(fileHandle)
-        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, str(fileHandleId),)
-        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
-        response = requests.delete(url, headers=headers, stream=True)
-        response.raise_for_status()
-        return fileHandle
-
+    ############################################################
+    # CRUD for Wikis
+    ############################################################
 
     def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None, owner_type=None):
         """Create a new wiki page for an Entity (experimental).
@@ -757,31 +979,28 @@ class Synapse:
         attachmentFileHandleIds -- a list of file handles or file handle IDs
         owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
         """
-        owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        uri = '/%s/%s/wiki' % (owner_type, owner_id,)
+        uri = '/%s/%s/wiki' % (owner_type, id_of(owner),)
         wiki = {'title':title, 'markdown':markdown}
         if attachmentFileHandleIds:
             wiki['attachmentFileHandleIds'] = attachmentFileHandleIds
         return self.restPOST(uri, body=json.dumps(wiki))
 
 
-    def _getWiki(self, owner, wiki, owner_type=None):
+    def _getWiki(self, owner, wiki=None, owner_type=None):
         """Get the specified wiki page
         owner -- the owner object (entity, competition, evaluation) or its ID
-        wiki -- the Wiki object or its ID
-        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+        wiki -- (optional) the Wiki object or its ID
+        owner_type -- (optional) entity, competition, evaluation, can usually be automatically inferred from the owner object
         """
-        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
-        owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        url = '%s/%s/%s/wiki/%s' % (self.repoEndpoint, owner_type, owner_id, wiki_id,)
-        response = requests.get(url, headers=self.headers)
-        if response.status_code==404: return None
-        response.raise_for_status()
-        return response.json()
+        if wiki:
+            uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(wiki),)
+        else:
+            uri = '/%s/%s/wiki' % (owner_type, id_of(owner),)
+        return self.restGET(uri)
 
 
     def _updateWiki(self, owner, wiki, owner_type=None):
@@ -790,11 +1009,9 @@ class Synapse:
         wiki -- the Wiki object or its ID
         owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
         """
-        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
-        owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        uri = '/%s/%s/wiki/%s' % (owner_type, owner_id, wiki_id,)
+        uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(wiki),)
         return self.restPUT(uri, json.dumps(wiki))
 
 
@@ -804,62 +1021,85 @@ class Synapse:
         wiki -- the Wiki object or its ID
         owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
         """
-        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
-        owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        uri = '/%s/%s/wiki/%s' % (owner_type, owner_id, wiki_id,)
+        uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(wiki),)
         self.restDELETE(uri)
 
 
     def _getWikiHeaderTree(self, owner, owner_type=None):
         """Get the tree of wiki pages owned by the given object"""
-        owner_id = owner['id'] if 'id' in owner else str(owner)
         if not owner_type:
             owner_type = utils.guess_object_type(owner)
-        url = '%s/%s/%s/wikiheadertree' % (self.repoEndpoint, owner_type, owner_id,)
-        response = requests.get(url, headers=self.headers)
-        if response.status_code==404: return None
-        response.raise_for_status()
-        return response.json()
+        uri = '/%s/%s/wikiheadertree' % (owner_type, id_of(owner),)
+        return self.restGET(uri)
 
 
-    def _downloadWikiAttachment(self, entity, wiki, filename, dest_dir=None):
-        """Download a file attached to a wiki page (experimental)"""
+    def _downloadWikiAttachment(self, owner, wiki, filename, dest_dir=None, owner_type=None):
+        """Download a file attached to a wiki page"""
+        if not owner_type:
+            owner_type = utils.guess_object_type(owner)
+        url = "%s/%s/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, owner_type, id_of(owner), id_of(wiki), filename,)
+        return self._downloadFile(url, dest_dir)
 
-        # TODO can wiki pages exist without being associated with an Entity?
 
-        ## build URL
-        wiki_id = wiki['id'] if 'id' in wiki else str(wiki)
-        entity_id = entity['id'] if 'id' in entity else str(entity)
-        url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, entity_id, wiki_id, filename,)
 
-        ## we expect to be redirected to a signed S3 URL
-        ## TODO how will external URLs be handled?
-        response = requests.get(url, headers=self.headers, allow_redirects=False)
-        if response.status_code in [301,302,303,307,308]:
-          url = response.headers['location']
-          # print url
-          headers = {'sessionToken':self.sessionToken}
-          response = requests.get(url, headers=headers, stream=True)
-          response.raise_for_status()
+    ############################################################
+    # CRUD for Entities (properties)
+    ############################################################
 
-        ## stream file to disk
-        filename = utils.extract_filename(response.headers['content-disposition'])
-        if dest_dir:
-            filename = os.path.join(dest_dir, filename)
-        with open(filename, "wb") as f:
-          data = response.raw.read(1024)
-          while data:
-            f.write(data)
-            data = response.raw.read(1024)
+    def _getEntity(self, entity, version=None):
+        """
+        Get an entity from Synapse.
+        entity: a Synapse ID, a dictionary representing an entity or a Synapse Entity object
+        returns a dictionary representing an entity, specifically it's properties
+        """
+        uri = '/entity/'+id_of(entity)
+        if version:
+            uri += '/version/%d' % version
+        return self.restGET(uri=uri)
 
-        return os.path.abspath(filename)
+    def _createEntity(self, entity):
+        """
+        Create a new entity in Synapse.
+        entity: a dictionary representing an entity or a Synapse Entity object
+        returns a dictionary representing an entity, specifically it's properties
+        """
+        if self.debug: print "\n\n~~~ creating ~~~\n" + json.dumps(get_properties(entity), indent=2)
+        return self.restPOST(uri='/entity', body=json.dumps(get_properties(entity)))
+
+    def _updateEntity(self, entity, incrementVersion=True, versionLabel=None):
+        """
+        Update an existing entity in Synapse.
+        entity: a dictionary representing an entity or a Synapse Entity object
+        returns a dictionary representing an entity, specifically it's properties
+        """
+        uri = '/entity/%s' % id_of(entity)
+
+        if is_versionable(entity):
+            if incrementVersion:
+                entity['versionNumber'] += 1
+                uri += '/version'
+                entity['versionLabel'] = str(entity['versionNumber'])
+            if versionLabel:
+                entity['versionLabel'] = str(versionLabel)
+
+        if self.debug: print "\n\n~~~ updating ~~~\n" + json.dumps(get_properties(entity), indent=2)
+        return self.restPUT(uri=uri, body=json.dumps(get_properties(entity)))
+
+    def _deleteEntity(self, entity):
+        """
+        Remove an entity from Synapse.
+        entity: a Synapse ID, a dictionary representing an entity or a Synapse Entity object
+        """
+        self.restDELETE(uri='/entity/'+id_of(entity))
+
 
 
     ############################################################
     # Low level Rest calls
     ############################################################
+
     def restGET(self, uri, endpoint=None):
         """Performs a REST GET operation to the Synapse server.
         
@@ -867,13 +1107,14 @@ class Synapse:
         - `uri`: URI on which get is performed
         - `endpoint`: Server endpoint, defaults to self.repoEndpoint
 
-        Returns: Body of 
+        Returns: json encoding of response
         """
         if endpoint==None:
             endpoint=self.repoEndpoint    
         response = requests.get(endpoint+uri, headers=self.headers)
         self._storeTimingProfile(response)
-        if response.status_code==404: return None
+        if self.debug:
+            utils.debug_response(response)
         try:
             response.raise_for_status()
         except:
@@ -889,13 +1130,14 @@ class Synapse:
         - `endpoint`: Server endpoint, defaults to self.repoEndpoint
         - `body`: The payload to be delivered 
 
-        Returns: json encoding of response 
+        Returns: json encoding of response
 
         """
         if endpoint==None:
             endpoint=self.repoEndpoint    
         response = requests.post(endpoint + uri, data=body, headers=self.headers)
-        if response.status_code==404: return None
+        if self.debug:
+            utils.debug_response(response)
         try:
             response.raise_for_status()
         except:
@@ -918,7 +1160,8 @@ class Synapse:
         if endpoint==None:
             endpoint=self.repoEndpoint    
         response = requests.put(endpoint + uri, data=body, headers=self.headers)
-        if response.status_code==404: return None
+        if self.debug:
+            utils.debug_response(response)
         try:
             response.raise_for_status()
         except:
@@ -932,19 +1175,18 @@ class Synapse:
         """Performs a REST DELETE operation to the Synapse server.
         
         Arguments:
-        - `uri`: URI on which get is performed
+        - `uri`: URI of resource to be deleted
         - `endpoint`: Server endpoint, defaults to self.repoEndpoint
 
-        Returns: Body of 
         """
         if endpoint==None:
             endpoint=self.repoEndpoint    
         response = requests.delete(endpoint+uri, headers=self.headers)
+        if self.debug:
+            utils.debug_response(response)
         try:
             response.raise_for_status()
         except:
             print response.content
             raise 
-
-
 

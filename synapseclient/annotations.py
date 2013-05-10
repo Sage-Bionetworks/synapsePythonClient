@@ -6,23 +6,10 @@ import collections
 import re
 from datetime import datetime as Datetime
 from datetime import date as Date
-from utils import _to_unix_epoch_time, _from_unix_epoch_time
+from utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
 
 
-def _to_list(value):
-    if isinstance(value, collections.Iterable) and not isinstance(value, str):
-        return list(value)
-    else:
-        return [value]
-
-
-def _is_date(dt):
-    """
-    Objects of class datetime.date and datetime.datetime will be recognized as date annotations
-    """
-    return isinstance(dt,Date) or isinstance(dt,Datetime)
-
-def isSynapseAnnotations(annotations):
+def is_synapse_annotations(annotations):
     """
     Test if the given object is a synapse-style annotations object,
     based on its keys
@@ -33,8 +20,8 @@ def isSynapseAnnotations(annotations):
 
 
 ## convert the given dictionary into synapse-style annotations
-def toSynapseAnnotations(annotations):
-    if isSynapseAnnotations(annotations):
+def to_synapse_annotations(annotations):
+    if is_synapse_annotations(annotations):
         return annotations
     synapseAnnos = {}
     for key, value in annotations.iteritems():
@@ -44,14 +31,14 @@ def toSynapseAnnotations(annotations):
             synapseAnnos.setdefault(key, {}).update({k:_to_list(v) for k,v in value.iteritems()})
         else:
             elements = _to_list(value)
-            if all((isinstance(elem, str) for elem in elements)):
+            if all((isinstance(elem, basestring) for elem in elements)):
                 synapseAnnos.setdefault('stringAnnotations', {})[key] = elements
             elif all((isinstance(elem, int) or isinstance(elem, long) for elem in elements)):
                 synapseAnnos.setdefault('longAnnotations', {})[key] = elements
             elif all((isinstance(elem, float) for elem in elements)):
                 synapseAnnos.setdefault('doubleAnnotations', {})[key] = elements
             elif all((_is_date(elem) for elem in elements)):
-                synapseAnnos.setdefault('dateAnnotations', {})[key] = [_to_unix_epoch_time(elem) for elem in elements]
+                synapseAnnos.setdefault('dateAnnotations', {})[key] = [to_unix_epoch_time(elem) for elem in elements]
             # elif all((isinstance(elem, ???) for elem in elements)):
             #     synapseAnnos.setdefault('blobAnnotations', {})[key] = [???(elem) for elem in elements]
             else:
@@ -60,7 +47,7 @@ def toSynapseAnnotations(annotations):
 
 
 ## create Annotations object from synapse-style annotations
-def fromSynapseAnnotations(annotations):
+def from_synapse_annotations(annotations):
     """transform a dictionary in synapse annotations format to a simple flat dictionary"""
     ## flatten the raw annos to consolidate doubleAnnotations, longAnnotations,
     ## stringAnnotations and dateAnnotations into one dictionary
@@ -69,7 +56,7 @@ def fromSynapseAnnotations(annotations):
         if key=='dateAnnotations':
             for k,v in value.iteritems():
                 #debug: print "%s=>%s\n" % (k,v,)
-                annos.setdefault(k,[]).extend([_from_unix_epoch_time(float(t)) for t in v])
+                annos.setdefault(k,[]).extend([from_unix_epoch_time(float(t)) for t in v])
         elif key in ['stringAnnotations','longAnnotations','doubleAnnotations']:
             for k,v in value.iteritems():
                 annos.setdefault(k,[]).extend(v)

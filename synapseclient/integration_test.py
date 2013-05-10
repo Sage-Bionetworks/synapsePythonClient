@@ -14,11 +14,23 @@ import ConfigParser
 from datetime import datetime
 import filecmp
 import shutil
+import uuid
+
+
+def setup_module(module):
+    print '\n'
+    print '~' * 60
+    print os.path.basename(__file__)
+    print '~' * 60
 
 
 PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
 DATA_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Data', u'parentId': ''}
 CODE_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Code', u'parentId': ''}
+
+## a place to cache the synapse client so we don't have to create it
+## for every test
+synapse = None
 
 
 class TestClient:
@@ -34,25 +46,34 @@ class TestClient:
         - `repoEndpoint`:
         """
 
-        ## if testing endpoints are set in the config file, use them
-        ## this was created 'cause nosetests doesn't have a good means of
-        ## passing parameters to the tests
-        if os.path.exists(client.CONFIG_FILE):
-            try:
-                import ConfigParser
-                config = ConfigParser.ConfigParser()
-                config.read(client.CONFIG_FILE)
-                if config.has_section('testEndpoints'):
-                    repoEndpoint=config.get('testEndpoints', 'repo')
-                    authEndpoint=config.get('testEndpoints', 'auth')
-                    fileHandleEndpoint=config.get('testEndpoints', 'file')
-            except Exception as e:
-                print e
+        if synapse:
+            sys.stderr.write(',')
+            self.syn = synapse
+        else:
+            ## if testing endpoints are set in the config file, use them
+            ## this was created 'cause nosetests doesn't have a good means of
+            ## passing parameters to the tests
+            if os.path.exists(client.CONFIG_FILE):
+                try:
+                    import ConfigParser
+                    config = ConfigParser.ConfigParser()
+                    config.read(client.CONFIG_FILE)
+                    if config.has_section('testEndpoints'):
+                        repoEndpoint=config.get('testEndpoints', 'repo')
+                        authEndpoint=config.get('testEndpoints', 'auth')
+                        fileHandleEndpoint=config.get('testEndpoints', 'file')
+                except Exception as e:
+                    print e
 
-        self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, fileHandleEndpoint=fileHandleEndpoint, debug=False)
-        self.syn._skip_version_check = True
-        self.syn.login() #Assumes that a configuration file exists in the home directory with login information
-        self.toRemove=[]
+            self.syn = client.Synapse(repoEndpoint=repoEndpoint, authEndpoint=authEndpoint, fileHandleEndpoint=fileHandleEndpoint, debug=False)
+            self.syn._skip_version_check = True
+            # self.syn.debug = True
+
+            ## Assumes that a configuration file exists in the home directory with login information
+            self.syn.login()
+            ## cache the synapse client, so we don't have to keep creating it
+            globals()['synapse'] = self.syn
+            self.toRemove=[]
 
 
     def setUp(self):
@@ -66,11 +87,16 @@ class TestClient:
 
 
     def createProject(self):
-        import uuid
         PROJECT_JSON['name'] = str(uuid.uuid4())
         entity = self.syn.createEntity(PROJECT_JSON)
         self.toRemove.append(entity)
         return entity
+
+
+    def createDataEntity(self, parentId):
+        data = DATA_JSON.copy()
+        data['parentId']= parentId
+        return self.syn.createEntity(data)
 
 
     def test_printEntity(self):
@@ -90,10 +116,18 @@ class TestClient:
         config.read(client.CONFIG_FILE)
         self.syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
 
-        # Test that we fail with the wrong config file
-        (fd, fname) = tempfile.mkstemp()
-        client.CONFIG_FILE=fname
-        assert_raises(Exception, self.syn.login)
+        #Test that it works with session token (created in previous passed step)
+        old_config_file = client.CONFIG_FILE
+
+        try:
+            (fd, fname) = tempfile.mkstemp()
+            client.CONFIG_FILE = fname
+
+            #Test that we fail with the wrong config file and no session token
+            os.remove(os.path.join(client.CACHE_DIR, '.session'))
+            assert_raises(Exception, self.syn.login)
+        finally:
+            client.CONFIG_FILE = old_config_file
 
 
     def test_getEntity(self):
@@ -102,10 +136,48 @@ class TestClient:
 
         #Get new entity and check that it is same
         returnEntity = self.syn.getEntity(entity)
-        assert entity == returnEntity
+        assert entity.properties == returnEntity.properties
+
         #Get entity by id
         returnEntity = self.syn.getEntity(entity['id'])
-        assert entity == returnEntity
+        assert entity.properties == returnEntity.properties
+
+
+    def test_entity_version(self):
+        """Test the ability to get specific versions of Synapse Entities"""
+        #Create a new project
+        project = self.createProject()
+
+        entity = self.createDataEntity(project['id'])
+        self.syn.setAnnotations(entity, {'fizzbuzz':111222})
+
+        #Get new entity and check that it is same
+        entity = self.syn.getEntity(entity)
+        assert entity.versionNumber == 1
+
+        entity.description = 'Changed something'
+        entity.foo = 998877
+        entity = self.syn.updateEntity(entity, incrementVersion=True)
+        assert entity.versionNumber == 2
+
+        annotations = self.syn.getAnnotations(entity, version=1)
+        assert annotations['fizzbuzz'][0] == 111222
+
+        returnEntity = self.syn.getEntity(entity, version=1)
+        assert returnEntity.versionNumber == 1
+        assert returnEntity['fizzbuzz'][0] == 111222
+        assert 'foo' not in returnEntity
+
+        returnEntity = self.syn.getEntity(entity)
+        assert returnEntity.versionNumber == 2
+        assert returnEntity['description'] == 'Changed something'
+        assert returnEntity['foo'][0] == 998877
+
+        returnEntity = self.syn.get(entity, version=1)
+        assert returnEntity.versionNumber == 1
+        assert returnEntity['fizzbuzz'][0] == 111222
+        assert 'foo' not in returnEntity
+
 
 
     def test_loadEntity(self):
@@ -115,15 +187,19 @@ class TestClient:
 
     def test_createEntity(self):
         #Create a project
-        entity = self.createProject()
+        project = self.createProject()
 
         #Add a data entity to project
-        DATA_JSON['parentId']= entity['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        entity = DATA_JSON.copy()
+        entity['parentId']= project['id']
+        entity['name'] = 'foo'
+        entity['description'] = 'description of an entity'
+        entity = self.syn.createEntity(entity)
 
         #Get the data entity and assert that it is unchanged
         returnEntity = self.syn.getEntity(entity['id'])
-        assert entity == returnEntity
+
+        assert entity.properties == returnEntity.properties
 
         self.syn.deleteEntity(returnEntity['id'])
 
@@ -133,29 +209,29 @@ class TestClient:
         entity = self.createProject()
 
         #Add a data entity to project
-        DATA_JSON['parentId']= entity['id']
+        data = DATA_JSON.copy()
+        data['parentId']= entity['id']
 
         #Create entity with provenance record
-        entity = self.syn.createEntity(DATA_JSON, used='syn123')
+        entity = self.syn.createEntity(data, used='syn123')
 
         activity = self.syn.getProvenance(entity)
         assert activity['used'][0]['reference']['targetId'] == 'syn123'
 
 
     def test_updateEntity(self):
-        entity = self.createProject()
-        DATA_JSON['parentId']= entity['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
         entity[u'tissueType']= 'yuuupp'
+
         entity = self.syn.updateEntity(entity)
         returnEntity = self.syn.getEntity(entity['id'])
         assert entity == returnEntity
 
 
     def test_updateEntity_version(self):
-        entity = self.createProject()
-        DATA_JSON['parentId']= entity['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
         entity['name'] = 'foobarbat'
         entity['description'] = 'This is a test entity...'
         entity = self.syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
@@ -174,37 +250,44 @@ class TestClient:
 
     def test_query(self):
         #Create a project then add entities and verify that I can find them with a query
-        projectEntity = self.createProject()
-        DATA_JSON['parentId'] = projectEntity['id']
+        project = self.createProject()
         for i in range(2):
-            entity = self.syn.createEntity(DATA_JSON)
-            qry= self.syn.query("select id, name from entity where entity.parentId=='%s'" %projectEntity['id'])
+            try:
+                entity = self.createDataEntity(project['id'])
+            except Exception as ex:
+                print ex
+                print ex.response.text
+            qry= self.syn.query("select id, name from entity where entity.parentId=='%s'" % project['id'])
             assert qry['totalNumberOfResults']==(i+1)
 
     
     def test_deleteEntity(self):
-        projectEntity = self.createProject()
-        DATA_JSON['parentId'] = projectEntity['id']
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
         
         #Check that we can delete an entity by dictionary
-        entity = self.syn.createEntity(DATA_JSON)
         self.syn.deleteEntity(entity)
-        assert self.syn.getEntity(entity) == None
+        assert_raises(Exception, self.syn.getEntity, entity)
 
         #Check that we can delete an entity by synapse ID
-        entity = self.syn.createEntity(DATA_JSON)
+        entity = self.createDataEntity(project['id'])
         self.syn.deleteEntity(entity['id'])
-        assert  self.syn.getEntity(entity) == None
+        assert_raises(Exception, self.syn.getEntity, entity)
 
 
     def test_createSnapshotSummary(self):
         pass
 
 
+    def test_download_empty_entity(self):
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
+        entity = self.syn.downloadEntity(entity)
+
+
     def test_uploadFile(self):
-        projectEntity = self.createProject()
-        DATA_JSON['parentId'] = projectEntity['id']
-        entity = self.syn.createEntity(DATA_JSON)       
+        project = self.createProject()
+        entity = self.createDataEntity(project['id'])
 
         #create a temporary file
         (fp, fname) = tempfile.mkstemp()
@@ -245,11 +328,7 @@ class TestClient:
         del entity['cacheDir']
 
         ## update existing FileEntity
-        try:
-            entity = self.syn.uploadFile(entity, fname)
-        except Exception as e:
-            print e
-            print e.response.text
+        entity = self.syn.uploadFile(entity, fname)
 
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
@@ -259,7 +338,7 @@ class TestClient:
 
     def test_downloadFile(self):
         "test download file function in utils.py"
-        result = utils.downloadFile("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
+        result = utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
         if (result):
             # print("status: \"%s\"" % str(result[1].status))
             # print("filename: \"%s\"" % str(result[0]))
@@ -269,7 +348,7 @@ class TestClient:
             ## cleanup
             try:
                 os.remove(filename)
-            except:
+            except Exception:
                 print("warning: couldn't delete file: \"%s\"\n" % filename)
         else:
             print("failed to download file: \"%s\"" % filename)
@@ -308,8 +387,9 @@ class TestClient:
         ## create a data entity
         try:
             filename = utils.make_bogus_data_file()
-            DATA_JSON['parentId']= project['id']
-            data_entity = self.syn.createEntity(DATA_JSON)
+
+            data_entity = self.createDataEntity(project['id'])
+
             data_entity = self.syn.uploadFile(data_entity, filename)
         finally:
             os.remove(filename)
@@ -360,22 +440,29 @@ class TestClient:
         ## test delete
         self.syn.deleteProvenance(data_entity)
 
-        ## should be gone now
-        deleted_activity = self.syn.getProvenance(data_entity['id'])
-        assert deleted_activity is None
+        try:
+            ## provenance should be gone now
+            ## decided this should throw exception with a 404
+            deleted_activity = self.syn.getProvenance(data_entity['id'])
+        except Exception as ex:
+            assert ex.response.status_code == 404
+        else:
+            assert False, 'Should throw 404 exception'
 
 
     def test_annotations(self):
         ## create a new project
         project = self.createProject()
 
-        DATA_JSON['parentId']= project['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        entity = self.createDataEntity(project['id'])
 
         a = self.syn.getAnnotations(entity)
         assert 'etag' in a
 
+        print a
+
         a['bogosity'] = 'total'
+        print a
         self.syn.setAnnotations(entity, a)
 
         a2 = self.syn.getAnnotations(entity)
@@ -398,11 +485,9 @@ class TestClient:
         """
         Test setting annotations using keyword arguments
         """
-        ## create a new project
+        ## create a new project and data entity
         project = self.createProject()
-
-        DATA_JSON['parentId']= project['id']
-        entity = self.syn.createEntity(DATA_JSON)
+        entity = self.createDataEntity(project['id'])
 
         annos = self.syn.setAnnotations(entity, wazoo='Frank', label='Barking Pumpkin', shark=16776960)
         assert annos['wazoo'] == ['Frank']
@@ -453,10 +538,7 @@ class TestClient:
         path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
 
         ## upload a file to the file handle service
-        fileHandleList = self.syn._uploadFileToFileHandleService(path)
-
-        ## extract the first file handle
-        fileHandle = fileHandleList['list'][0]
+        fileHandle = self.syn._uploadFileToFileHandleService(path)
 
         fileHandle2 = self.syn._getFileHandle(fileHandle)
 
@@ -501,12 +583,12 @@ class TestClient:
         original_path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
 
         ## upload a file to the file handle service
-        fileHandleList = self.syn._uploadFileToFileHandleService(original_path)
-
-        ## extract the first file handle
-        fileHandle = fileHandleList['list'][0]
+        fileHandle = self.syn._uploadFileToFileHandleService(original_path)
 
         wiki = self.syn._createWiki(project, 'A Test Wiki', md, [fileHandle['id']])
+
+        ## retrieve the entity from Synapse
+        wiki = self.syn._getWiki(project)
 
         ## retrieve the file we just uploaded
         tmpdir = tempfile.mkdtemp()
@@ -528,6 +610,14 @@ class TestClient:
         ## cleanup
         self.syn._deleteFileHandle(fileHandle)
         self.syn._deleteWiki(project, wiki)
+
+        ## test that delete worked
+        try:
+            deleted_wiki = self.syn._getWiki(project)
+        except Exception as ex:
+            assert ex.response.status_code == 404
+        else:
+            assert False, 'Should raise 404 exception'
 
 
 
