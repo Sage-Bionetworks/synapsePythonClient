@@ -276,27 +276,6 @@ def test_store_dictionary():
     assert filecmp.cmp(path, os.path.join(data['cacheDir'], data['files'][0]))
 
 
-def test_ExternalFileHandle():
-    syn = get_cached_synapse_instance()
-
-    project = create_project()
-
-    ## Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
-    singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
-
-    singapore = File(singapore_url, parent=project)
-    singapore = syn.store(singapore)
-
-    fileHandle = syn._getFileHandle(singapore.dataFileHandleId)
-
-    assert fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
-    assert fileHandle['externalURL']  == singapore_url
-
-    singapore = syn.get(singapore, downloadFile=True)
-    assert singapore.path is not None
-    assert os.path.exists(singapore.path)
-
-
 def test_store_activity():
     '''Test storing entities with Activities'''
     syn = get_cached_synapse_instance()
@@ -335,6 +314,28 @@ def test_store_activity():
     assert honking['id'] == honking2['id']
 
 
+def test_ExternalFileHandle():
+    syn = get_cached_synapse_instance()
+
+    project = create_project()
+
+    ## Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
+    singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
+
+    singapore = File(singapore_url, parent=project)
+    singapore = syn.store(singapore)
+
+    fileHandle = syn._getFileHandle(singapore.dataFileHandleId)
+
+    assert fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
+    assert fileHandle['externalURL']  == singapore_url
+
+    singapore = syn.get(singapore, downloadFile=True)
+    assert singapore.path is not None
+    assert singapore.externalURL == singapore_url
+    assert os.path.exists(singapore.path)
+
+
 def test_synapseStore_flag():
     '''Test storing entities while setting the synapseStore flag to False'''
     syn = get_cached_synapse_instance()
@@ -342,13 +343,32 @@ def test_synapseStore_flag():
 
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    f = File(path, name='Totally bogus data', parent=project, synapseStore=False)
+    f1 = File(path, name='Totally bogus data', parent=project, synapseStore=False)
 
-    f = syn.store(f)
+    f1 = syn.store(f1)
 
-    f2 = syn.get(f.id, downloadFile=False)
+    f1a = syn.get(f1.id, downloadFile=False)
 
-    assert f2.path == path
-    assert f2.synapseStore == False
+    assert f1a.name == 'Totally bogus data'
+    assert f1a.path == path, 'path='+str(f1a.path)+'; expected='+path
+    assert f1a.synapseStore == False
+    assert f1a.externalURL == 'file://' + path, 'unexpected externalURL: ' + f1a.externalURL
 
+    ## a file path that doesn't exist should still work
+    f2 = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)
+    f2 = syn.store(f2)
+    f2a = syn.get(f2)
+
+    assert f2a.name == 'file1.xyz'
+    assert f2a.path == '/path/to/local/file1.xyz'
+    assert f1a.synapseStore == False
+
+    ## Try a URL
+    f3 = File('http://dev-versions.synapse.sagebase.org/synapsePythonClient', parent=project, synapseStore=False)
+    f3 = syn.store(f3)
+    f3a = syn.get(f3)
+
+    assert f2a.name == 'file1.xyz'
+    assert f2a.path == '/path/to/local/file1.xyz'
+    assert f1a.synapseStore == False
 

@@ -194,6 +194,7 @@ class Synapse:
 
         synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
         """
+        ## optional parameters
         version = kwargs.get('version', None)
         downloadFile = kwargs.get('downloadFile', True)
 
@@ -208,20 +209,30 @@ class Synapse:
         #TODO version, here
         if isinstance(entity, File):
             fh = self._getFileHandle(entity['dataFileHandleId'])
-            if 'concreteType' in fh and fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
+            if fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                 entity['externalURL'] = fh['externalURL']
-                path = utils.file_url_to_path(entity['externalURL'])
-                if path:
-                    entity['path'] = path
                 entity['synapseStore'] = False
 
+                ## if it's a file URL, fill in the path whether downloadFile is True or not,
+                if fh['externalURL'].startswith('file:'):
+                    entity.update(utils.file_url_to_path(fh['externalURL']))
+
+                ## by default, we download external URLs
+                elif downloadFile:
+                    entity.update(self._downloadFileEntity(entity))
+
+            ## by default, we download files stored in Synapse
+            elif downloadFile:
+                entity.update(self._downloadFileEntity(entity))
+
         #TODO version, here
-        if downloadFile:
-            self._downloadEntity(entity)
+        if downloadFile and is_locationable(entity):
+            entity = self._downloadLocations(entity)
 
         return entity
 
 
+    #TODO implement createOrUpdate flag - new entity w/ same name as an existing entity turns into an update
     def store(self, obj, **kwargs):
         """
         create new entity or update an existing entity, uploading any files in the process
@@ -250,6 +261,8 @@ class Synapse:
             ## for Locationables, entity must exist before upload
             if not 'id' in entity:
                 properties = self._createEntity(properties)
+            ## TODO is this a bug??
+            ## TODO is this necessary?
             if 'path' in entity:
                 path = annotations.pop('path')
                 properties.update(self._uploadFileAsLocation(properties, path))
@@ -361,6 +374,7 @@ class Synapse:
         return Entity.create(properties, annotations, local_state)
 
 
+    #TODO remove?
     #TODO delegate to store? createEntity?
     def _createFileEntity(self, entity, filename=None, used=None, executed=None):
         #Determine if we want to upload or store the url
@@ -447,6 +461,8 @@ class Synapse:
 
         ## if we have an old location-able object use the deprecated file upload method
         if is_locationable(entity):
+            if not 'id' in entity:
+                entity = self._createEntity(entity)
             entity.update(self._uploadFileAsLocation(entity, filename))
 
         else:
@@ -478,22 +494,6 @@ class Synapse:
         - A dictionary representing an entity
         """
         return self.get(entity, version=version, downloadFile=True)
-
-
-    def _downloadEntity(self, entity):
-        """Download file(s) associated with an entity to local cache
-        Arguments:
-        - `entity`: A Synapse Entity object or a dictionary of entity properties
-        see: _downloadFileEntity
-        see: _downloadLocations
-        """
-        if utils.is_synapse_id(entity):
-            entity = self._getEntity(entity)
-        if entity['entityType'] == 'org.sagebionetworks.repo.model.FileEntity':
-            entity = self._downloadFileEntity(entity)
-        if is_locationable(entity):
-            entity = self._downloadLocations(entity)
-        return entity
 
 
 
@@ -596,6 +596,7 @@ class Synapse:
     # Provenance
     ############################################################
 
+    ## TODO rename these to Activity
     def getProvenance(self, entity, version=None):
         """Retrieve provenance information for a synapse entity. Entity may be
         either an Entity object or a string holding a Synapse ID. Returns
@@ -780,29 +781,23 @@ class Synapse:
             if exception.errno != os.errno.EEXIST:
                 raise
 
-        filename = self._downloadFile(url, destDir)
-
-        ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
-        entity['cacheDir'] = destDir
-        entity['files'] = [os.path.basename(filename)]
-        entity['path'] = filename
-
-        return entity
+        return self._downloadFile(url, destDir)
 
 
     def _downloadFile(self, url, destDir):
         """Download a file from a URL to a local destination directory"""
+
         ## we expect to be redirected to a signed S3 URL
         response = requests.get(url, headers=self.headers, allow_redirects=False)
         if response.status_code in [301,302,303,307,308]:
             url = response.headers['location']
 
-            ## copy file, if we're given a file URL?
+            if self.debug:
+                print "_downloadFile: redirect url=", url
+
+            ## if it's a file URL, turn it into a path and return it
             if url.startswith('file:'):
-                path = utils.file_url_to_path(url)
-                dst = os.path.join(destDir, os.path.basename(path))
-                shutil.copy2(path, dst)
-                return os.path.basename(path)
+                return utils.file_url_to_path(url)
 
             headers = {'sessionToken':self.sessionToken}
             response = requests.get(url, headers=headers, stream=True)
@@ -815,16 +810,21 @@ class Synapse:
             filename = utils.extract_filename(response.headers['content-disposition'])
         else:
             filename = url.split('/')[-1]
+
         ## stream file to disk
-        if destDir:
-            filename = os.path.join(destDir, filename)
-        with open(filename, "wb") as f:
+        path = os.path.abspath(os.path.join(destDir, filename))
+        with open(path, "wb") as f:
             data = response.raw.read(FILE_BUFFER_SIZE)
             while data:
                 f.write(data)
                 data = response.raw.read(FILE_BUFFER_SIZE)
 
-        return os.path.abspath(filename)
+        return {
+            'path': path,
+            'files': [os.path.basename(path)],
+            'cacheDir': destDir }
+
+
 
 
     def _uploadToFileHandleService(self, filename, synapseStore=None):
