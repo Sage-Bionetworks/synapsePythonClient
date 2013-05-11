@@ -299,7 +299,7 @@ class TestClient:
 
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
-        assert entity['files'][0]==os.path.split(fname)[-1]
+        assert entity['files'][0]==os.path.basename(fname)
         os.remove(fname)
 
 
@@ -319,6 +319,8 @@ class TestClient:
 
     def test_uploadFileEntity(self):
         projectEntity = self.createProject()
+
+        ## entityType will default to FileEntity
         entity = {'name':'foo', 'description':'A test file entity', 'parentId':projectEntity['id']}
 
         #create a temporary file
@@ -331,7 +333,7 @@ class TestClient:
 
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
-        assert entity['files'][0]==os.path.split(fname)[-1]
+        assert entity['files'][0]==os.path.basename(fname)
         os.remove(fname)
 
         #create a different temporary file
@@ -348,7 +350,7 @@ class TestClient:
 
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
-        assert entity['files'][0]==os.path.split(fname)[-1]
+        assert entity['files'][0]==os.path.basename(fname)
         os.remove(fname)
 
 
@@ -608,7 +610,10 @@ class TestClient:
 
         ## retrieve the file we just uploaded
         tmpdir = tempfile.mkdtemp()
-        path = self.syn._downloadWikiAttachment(project, wiki, os.path.basename(original_path), dest_dir=tmpdir)
+        file_props = self.syn._downloadWikiAttachment(project, wiki, os.path.basename(original_path), dest_dir=tmpdir)
+
+        ## we get back a dictionary with path, files and cacheDir
+        path = file_props['path']
 
         ## check and delete it
         assert os.path.exists(path)
