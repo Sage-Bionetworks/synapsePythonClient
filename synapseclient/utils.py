@@ -125,10 +125,13 @@ def as_url(s):
 def file_url_to_path(url):
     parts = urlparse.urlsplit(url)
     if parts.scheme=='file' or parts.scheme=='':
-        return parts.path
-    else:
-        return None
-
+        path = parts.path
+        if os.path.exists(path):
+            return {
+                'path': path,
+                'files': [os.path.basename(path)],
+                'cacheDir': os.path.dirname(path) }
+    return {}
 
 def is_synapse_entity(entity):
     if isinstance(entity, collections.Mapping):
