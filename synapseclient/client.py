@@ -15,6 +15,7 @@ import stat
 import pkg_resources
 import webbrowser
 import collections
+import sys
 
 from version_check import version_check
 import utils
@@ -22,7 +23,7 @@ from utils import id_of, get_properties
 from annotations import from_synapse_annotations, to_synapse_annotations
 from activity import Activity
 from entity import Entity, Project, Folder, File, Data, split_entity_namespaces, is_versionable, is_locationable
-
+from evaluation import Evaluation, Submission, SubmissionStatus
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
@@ -157,9 +158,9 @@ class Synapse:
         return False
 
 
-    def getUserProfile(self, ownerId=None):
+    def getUserProfile(self, id=None):
         """Get the details about a Synapse user"""
-        uri = '/userProfile/%s' % '' if ownerId is None else str(ownerId)
+        uri = '/userProfile/%s' % '' if id is None else str(id)
         return self.restGET(uri)
 
 
@@ -239,10 +240,29 @@ class Synapse:
         entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
         returns: A Synapse Entity object of the appropriate type
 
-        synapse.store(entity, used, executed, activityName=None, activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
-        synapse.store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        store(entity, used, executed, activityName=None, 
+                      activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
         """
+        createOrUpdate = kwargs.get('createOrUpdate', True)
 
+        #Handle all non entity objects
+        if not (isinstance(obj, Entity) or type(obj)==dict):
+            classType=obj.__class__
+            if 'id' in obj: #If Id present update 
+                return classType(**self.restPUT(obj.putURI(), json.dumps(obj)))
+            try: #if no id attempt to post the object
+                return classType(**self.restPOST(obj.postURI(), json.dumps(obj))) 
+            except requests.exceptions.HTTPError as err:
+                 #If already present and we want to update attempt to get the object content
+                if err.response.status_code==500 and  createOrUpdate: 
+                    newObj=self.restGET(obj.getByNameURI(obj.name))
+                    newObj.update(obj)
+                    obj=classType(**newObj)
+                    return classType(**self.restPUT(obj.putURI(), json.dumps(obj)))
+                raise
+
+        #If input object is an Entity...
         entity = obj
         properties,annotations,local_state = split_entity_namespaces(entity)
 
@@ -302,6 +322,18 @@ class Synapse:
 
         ## return a new Entity object
         return Entity.create(properties, annotations, local_state)
+
+
+    def delete(self, obj):
+        """Removes a existing object from Synapse
+        
+        Arguments:
+        - `obj`: An existing object stored on Synapse such as evaluation, File, Project, WikiPage etc.
+        """
+        if isinstance(obj, basestring): #Handle all strings as entity id for backward compatibility
+            self.restDELETE(uri='/entity/'+id_of(obj))
+        else:
+            self.restDELETE(obj.deleteURI())
 
 
     ############################################################
@@ -437,7 +469,7 @@ class Synapse:
 
     def deleteEntity(self, entity):
         """Deletes a synapse entity"""
-        self._deleteEntity(entity)
+        self.delete(entity)
 
 
     #TODO: delegate to store?
@@ -967,6 +999,118 @@ class Synapse:
 
 
     ############################################################
+    # CRUD for Evaluations
+    ############################################################
+
+    def getEvaluation(self, id):
+        "Returns the evaluation object from synapse"
+        evaluation_id = id_of(id)
+        uri=Evaluation.getURI(id)
+        return Evaluation(**self.restGET(uri))
+
+
+    def submit(self, evaluation, entity, name=''):
+        """submit an Entity for evaluation by evaluator
+        
+        Arguments:
+        - `entity`: The entity containing the submission
+        - `evaluation`: Evaluation board to submit to.
+        """
+
+        evaluation_id = id_of(evaluation)
+        if not 'versionNumber' in entity:
+            entity = self.get(entity)    
+        entity_version = entity['versionNumber']
+        entity_id = entity['id']
+
+        name = entity['name'] if (name == '' and 'name' in entity) else ''
+        submission =  {'evaluationId':evaluation_id, 'entityId':entity_id, 'name':name, 
+                       'versionNumber': entity_version}
+        return Submission(**self.restPOST('/evaluation/submission?etag=%s' %entity.etag, 
+                                        json.dumps(submission)))
+
+
+    def addEvaluationParticipant(self, evaluation, userId=None):
+        """Adds a participant to to a evaluation
+
+        Arguments:
+        - `evaluation`: an evaluation object or evaluation id
+        - `userId`: The prinicipal id of the participant, if not supplied uses your own
+        """
+        evaluation_id = id_of(evaluation)
+        userId=self.getUserProfile()['ownerId'] if userId==None else userId
+        self.restPOST('/evaluation/%s/participant/%s'  %(evaluation_id, userId), {})
+
+  
+
+    def getSubmissions(self, evaluation, status=None):
+        """Return a generator over all submissions for a evaluation, or optionally all
+           submissions with a specified status.
+
+        Arguments:
+        - `evaluation`: Evaluation board to get submissions from.
+        - `status` :   Get submissions that have specific status one of {OPEN, CLOSED, SCORED, INVALID}
+
+        Example:
+        for submission in syn.getEvaluationSubmissions(1234567):
+          print submission['entityId']
+        """
+        evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
+
+        result_count = 0
+        limit = 20
+        offset = 0 - limit
+        max_results = 1000 ## gets updated later
+        submissions = []
+
+        while result_count < max_results:
+            ## if we're out of results, do a(nother) REST call
+            if result_count >= offset + len(submissions):
+                offset += limit
+                if status != None:
+                    if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
+                        raise Exception('status may be one of {OPEN, CLOSED, SCORED, INVALID}')
+                    uri = "/evaluation/%s/submission/all?status=%s&limit=%d&offset=%d" %(evaluation_id, 
+                                                                                         limitBy, limit, 
+                                                                                         offset)
+                else:
+                    uri = "/evaluation/%s/submission/all?limit=%d&offset=%d" %(evaluation_id, limit, 
+                                                                               offset)
+                page_of_submissions = self.restGET(uri)
+                max_results = page_of_submissions['totalNumberOfResults']
+                submissions = page_of_submissions['results']
+
+            i = result_count - offset
+            result_count += 1
+            yield Submission(**submissions[i])
+
+
+    def getOwnSubmissions(evaluation):
+        #TODO implement this if this is really usefull?
+        pass
+
+
+    def getSubmission(self, id):
+        submission_id = id_of(id)
+        uri=Status.getURI(submission_id)
+        return Submission(**self.restGET(uri))
+
+
+    def getSubmissionStatus(self, id):
+        """Get the status of a submission
+        Arguments:
+        - `submission`: Downloads the status of a evaluations submission
+        
+        """
+        submission_id = id_of(id)
+        uri=SubmissionStatus.getURI(submission_id)
+        val=self.restGET(uri)
+        return SubmissionStatus(**val)
+
+
+            
+
+    ############################################################
     # CRUD for Wikis
     ############################################################
 
@@ -1087,20 +1231,12 @@ class Synapse:
         if self.debug: print "\n\n~~~ updating ~~~\n" + json.dumps(get_properties(entity), indent=2)
         return self.restPUT(uri=uri, body=json.dumps(get_properties(entity)))
 
-    def _deleteEntity(self, entity):
-        """
-        Remove an entity from Synapse.
-        entity: a Synapse ID, a dictionary representing an entity or a Synapse Entity object
-        """
-        self.restDELETE(uri='/entity/'+id_of(entity))
-
 
 
     ############################################################
     # Low level Rest calls
     ############################################################
-
-    def restGET(self, uri, endpoint=None):
+    def restGET(self, uri, endpoint=None, **kwargs):
         """Performs a REST GET operation to the Synapse server.
         
         Arguments:
@@ -1118,7 +1254,7 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            print response.content
+            sys.stderr.write(response.content)
             raise 
         return response.json()
      
@@ -1141,7 +1277,7 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            print response.content
+            sys.stderr.write(response.content)
             raise 
         return response.json()
 
@@ -1165,7 +1301,7 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            print response.content
+            sys.stderr.write(response.content)
             raise 
 
         return response.json()
@@ -1187,6 +1323,6 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            print response.content
+            sys.stderr.write(response.content)
             raise 
 

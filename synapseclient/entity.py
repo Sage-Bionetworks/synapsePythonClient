@@ -164,6 +164,19 @@ class Entity(collections.MutableMapping):
             self['entityType'] = self.__class__._synapse_entity_type
 
 
+    def postURI(self):
+        return '/entity'
+
+    def getURI(self):
+        return '/entity/%s' %self.id
+
+    def putURI(self):
+        return '/entity/%s' %self.id
+
+    def deleteURI(self):
+        return '/entity/%s' %self.id
+
+
     def local_state(self, state=None):
         """
         Set or get the object's internal state, excluding properties or annotations.

@@ -15,7 +15,10 @@ from datetime import datetime
 import filecmp
 import shutil
 import uuid
+import random
 
+from evaluation import Evaluation, Submission, SubmissionStatus
+from entity import File
 
 def setup_module(module):
     print '\n'
@@ -639,6 +642,84 @@ class TestClient:
             assert ex.response.status_code == 404
         else:
             assert False, 'Should raise 404 exception'
+
+
+            
+    def test_get_and_store_other_objects(self):
+        #Store something new
+        #ev= syn.store(evaluation, createOrUpdate=True) 
+
+        #Update it OK
+        #ev['status']='OPEN'
+        #ev= syn.store(ev, createOrUpdate=True)
+
+        #Update it with createOrUpdate==False  ERROR
+        #ev = Evaluation(name='foobar2', description='bar', status='OPEN')
+        #print syn.store(ev, createOrUpdate=False)  #Check that we fail with a HTTPError Exception
+
+        #Update evaluation without supplying all parameters - OK
+        #ev= syn.store(Evaluation(description='Testing update'), createOrUpdate=True)
+        pass
+
+    def test_evaluations(self):
+        ## create a new project
+        project = self.createProject()
+        name = 'Test Evaluation %s' % (str(uuid.uuid4()),)
+        try:
+        #Create evaluation
+            ev = Evaluation(name=name, description='Evaluation for testing', 
+                            contentSource=project['id'], status='CLOSED')
+            ev = self.syn.store(ev)
+            #Update evaluation
+            ev['status']='OPEN'
+            ev= self.syn.store(ev, createOrUpdate=True)
+            assert ev.status == 'OPEN'
+
+            ## add the current user as a participant
+            user = self.syn.getUserProfile()
+            self.syn.addEvaluationParticipant(ev, user['ownerId'])
+
+            ## increase this to fully test paging by getEvaluationSubmissions
+            num_of_submissions = 3
+            ## create a bunch of entities and submit them for evaluation
+            sys.stdout.write('\ncreating evaluation submissions')
+            for i in range(num_of_submissions):
+                try:
+                    (fd, filename) = tempfile.mkstemp()
+                    with os.fdopen(fd, 'w') as f:
+                        f.write(str(random.gauss(0,1)))
+                        f.write('\n')
+                    f=File(filename, parentId=project.id, name='entry-%02d'%i,
+                           description ='An entry for testing evaluation')
+                    entity=self.syn.store(f)
+                    self.syn.submit(ev, entity)
+                finally:
+                    os.remove(filename)
+                sys.stdout.write('.')
+                sys.stdout.flush()
+
+            ## score the submissions
+            submissions = self.syn.getSubmissions(ev)
+            sys.stdout.write('\nscoring submissions')
+            for submission in submissions:
+                status=self.syn.getSubmissionStatus(submission)
+                status.score = random.random()
+                status.status = 'SCORED'
+                status.report = 'a fabulous effort!'
+                self.syn.store(status)
+                sys.stdout.write('.')
+                sys.stdout.flush()
+            sys.stdout.write('\n')
+
+        finally:
+            self.syn.delete(ev)
+
+        ## make sure it's deleted
+        try:
+            ev = self.syn.getEvaluation(ev)
+        except Exception as e:
+            print e
+            assert e.response.status_code == 404
 
 
 

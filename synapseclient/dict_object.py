@@ -3,7 +3,7 @@
 ## chris.bare@sagebase.org
 ############################################################
 import collections
-
+import json
 
 class DictObject(dict):
     def __init__(self, *args, **kwargs):
@@ -12,3 +12,7 @@ class DictObject(dict):
             if isinstance(arg, collections.Mapping):
                 self.__dict__.update(arg)
         self.__dict__.update(kwargs)
+
+
+    def __str__(self):
+        return json.dumps(self, sort_keys=True, indent=2)
