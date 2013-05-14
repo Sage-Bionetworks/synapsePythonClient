@@ -4,7 +4,7 @@ from evaluation import *
 def test_Evaluation():
     """Test the construction and accessors of Evaluation objects."""
 
-    #Status can only be one of {'OPEN', 'PENDING', 'CLOSED'}
+    #Status can only be one of ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']
     assert_raises(ValueError, Evaluation, name='foo', description='bar', status='BAH')
 
     #Assert that the values are 

@@ -24,13 +24,13 @@ class Evaluation(DictObject):
         Arguments:
         - `name`: Name of evaluation
         - `description`: A short description describing the evaluation
-        - `status`: One of ['OPEN', 'PENDING', 'CLOSED'] default 'OPEN'
+        - `status`: One of ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED'] default 'OPEN'
         - `contentSource` : content Source 
         """
         kwargs['status'] = kwargs.get('status', 'OPEN')
         kwargs['contentSource'] = kwargs.get('contentSource', '')
-        if  kwargs['status'] not in ['OPEN', 'PENDING', 'CLOSED']:
-            sys.stderr.write('\nEvaluation Status must be one of [OPEN, PENDING, CLOSED]\n\n')
+        if  kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
+            sys.stderr.write('\nEvaluation Status must be one of [OPEN, PLANNED, CLOSED, COMPLETED]\n\n')
             raise ValueError
         super(Evaluation, self).__init__(kwargs)
 
