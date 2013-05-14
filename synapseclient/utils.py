@@ -106,10 +106,15 @@ def get_entity_type(entity):
 
 
 def is_url(s):
-    """Return True if a string is a valid URL"""
+    """Return True if a string appears to be a valid URL."""
     if isinstance(s, basestring):
         try:
             url_parts = urlparse.urlsplit(s)
+            ## looks like a Windows drive letter?
+            if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
+                return False
+            if url_parts.scheme == 'file' and bool(url_parts.path):
+                return True
             return bool(url_parts.scheme) and bool(url_parts.netloc)
         except Exception as e:
             return False
@@ -119,17 +124,26 @@ def is_url(s):
 def as_url(s):
     """Try to convert input to a proper URL"""
     url_parts = urlparse.urlsplit(s)
+    ## Windows drive letter?
+    if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
+        return 'file:///%s' % str(s)
     if url_parts.scheme:
         return url_parts.geturl()
     else:
         return 'file://%s' % str(s)
 
 
-def file_url_to_path(url):
+def file_url_to_path(url, verify_exists=False):
     parts = urlparse.urlsplit(url)
     if parts.scheme=='file' or parts.scheme=='':
         path = parts.path
-        if os.path.exists(path):
+        ## A windows file URL, for example file:///c:/WINDOWS/asdf.txt
+        ## will get back a path of: /c:/WINDOWS/asdf.txt, which we need to fix by
+        ## lopping off the leading slash character. Apparently, the Python developers
+        ## think this is not a bug: http://bugs.python.org/issue7965
+        if re.match(r'\/[A-Za-z]:', path):
+            path = path[1:]
+        if os.path.exists(path) or not verify_exists:
             return {
                 'path': path,
                 'files': [os.path.basename(path)],

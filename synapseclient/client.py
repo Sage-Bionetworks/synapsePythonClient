@@ -212,7 +212,7 @@ class Synapse:
 
                 ## if it's a file URL, fill in the path whether downloadFile is True or not,
                 if fh['externalURL'].startswith('file:'):
-                    entity.update(utils.file_url_to_path(fh['externalURL']))
+                    entity.update(utils.file_url_to_path(fh['externalURL'], verify_exists=True))
 
                 ## by default, we download external URLs
                 elif downloadFile:
@@ -824,7 +824,7 @@ class Synapse:
 
             ## if it's a file URL, turn it into a path and return it
             if url.startswith('file:'):
-                return utils.file_url_to_path(url)
+                return utils.file_url_to_path(url, verify_exists=True)
 
             headers = {'sessionToken':self.sessionToken}
             response = requests.get(url, headers=headers, stream=True)
@@ -852,8 +852,6 @@ class Synapse:
             'cacheDir': destDir }
 
 
-
-
     def _uploadToFileHandleService(self, filename, synapseStore=None):
         """
         Create and return a fileHandle, by either uploading a local file or
@@ -868,10 +866,10 @@ class Synapse:
             # else:
             #     return self._addURLtoFileHandleService(filename)
             return self._addURLtoFileHandleService(filename)
-        elif synapseStore==False:
-            return self._addURLtoFileHandleService(filename)
-        else:
+        elif synapseStore:
             return self._uploadFileToFileHandleService(filename)
+        else:
+            return self._addURLtoFileHandleService(filename)
 
     def _uploadFileToFileHandleService(self, filepath):
         """Upload a file to the new fileHandle service (experimental)

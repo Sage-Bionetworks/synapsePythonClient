@@ -353,7 +353,14 @@ def test_synapseStore_flag():
     assert f1a.name == 'Totally bogus data'
     assert f1a.path == path, 'path='+str(f1a.path)+'; expected='+path
     assert f1a.synapseStore == False
-    assert f1a.externalURL == 'file://' + path, 'unexpected externalURL: ' + f1a.externalURL
+
+    if path[0].isalpha() and path[1]==':':
+        ## a windows file URL looks like this: file:///c:/foo/bar/bat.txt
+        expected_url = 'file:///' + path
+    else:
+        expected_url = 'file://' + path
+
+    assert f1a.externalURL==expected_url, 'unexpected externalURL: ' + f1a.externalURL
 
     ## a file path that doesn't exist should still work
     f2 = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)

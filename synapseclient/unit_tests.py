@@ -194,7 +194,17 @@ def test_is_url():
     assert utils.is_url("http://xkcd.com/1193/")
     assert not utils.is_url("syn123445")    
     assert not utils.is_url("wasssuuuup???")
+    assert utils.is_url('file://foo.com/path/to/file.xyz')
+    assert utils.is_url('file:///path/to/file.xyz')
+    assert utils.is_url('file:/path/to/file.xyz')
+    assert utils.is_url('file:///c:/WINDOWS/clock.avi')
+    assert utils.is_url('file:c:/WINDOWS/clock.avi')
+    assert not utils.is_url('c:/WINDOWS/ugh/ugh.ugh')
 
+def test_windows_file_urls():
+    url = 'file:///c:/WINDOWS/clock.avi'
+    assert utils.is_url(url)
+    assert utils.file_url_to_path(url, verify_exists=False).get('path',None) == 'c:/WINDOWS/clock.avi', utils.file_url_to_path(url)
 
 def test_id_of():
     assert utils.id_of(1) == '1'
