@@ -1023,7 +1023,7 @@ class Synapse:
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
-        name = entity['name'] if (name == '' and 'id' in entity) else ''
+        name = entity['name'] if (name == '' and 'name' in entity) else ''
         submission =  {'evaluationId':evaluation_id, 'entityId':entity_id, 'name':name, 
                        'versionNumber': entity_version}
         return Submission(**self.restPOST('/evaluation/submission?etag=%s' %entity.etag, 

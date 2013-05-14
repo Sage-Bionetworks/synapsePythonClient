@@ -57,6 +57,12 @@ class Submission(DictObject):
 
         Arguments:
         """
+        if not ('evaluationId' in kwargs and 
+                'entityId' in kwargs and
+                'versionNumber' in kwargs):
+            raise KeyError
+    
+
         super(Submission, self).__init__(kwargs)
 
     def postURI(self):
