@@ -5,10 +5,13 @@
 import os, urllib, urlparse, hashlib, re
 import collections
 import tempfile
+import platform
 import datetime
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
+
+UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
 
 
 def md5_for_file(filename, block_size=2**20):
@@ -190,14 +193,20 @@ def to_unix_epoch_time(dt):
     (milliseconds since midnight Jan 1, 1970)
     """
     if type(dt) == Date:
-        dt = Datetime.combine(dt, datetime.time(0,0,0))
-    return (dt - Datetime(1970, 1, 1)).total_seconds() * 1000
+        return (dt - UNIX_EPOCH.date()).total_seconds() * 1000
+    return (dt - UNIX_EPOCH).total_seconds() * 1000
 
 
 def from_unix_epoch_time(ms):
     """
     Return a datetime object given milliseconds since midnight Jan 1, 1970
     """
+    ## utcfromtimestamp fails for negative values (dates before 1970-1-1) on windows
+    ## so, here's a hack that enables ancient events, such as Chris's birthday be
+    ## converted from ms since the unix epoch to higher level Datetime objects. Ha!
+    if platform.system()=='Windows' and ms < 0:
+        mirror_date = Datetime.utcfromtimestamp(abs(ms)/1000.0)
+        return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
     return Datetime.utcfromtimestamp(ms/1000.0)
 
 

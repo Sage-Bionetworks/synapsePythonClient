@@ -123,7 +123,7 @@ class TestClient:
         old_config_file = client.CONFIG_FILE
 
         try:
-            (fd, fname) = tempfile.mkstemp()
+            fname = utils.make_bogus_data_file()
             client.CONFIG_FILE = fname
 
             #Test that we fail with the wrong config file and no session token
@@ -131,6 +131,7 @@ class TestClient:
             assert_raises(Exception, self.syn.login)
         finally:
             client.CONFIG_FILE = old_config_file
+            os.remove(fname)
 
 
     def test_getEntity(self):
@@ -295,14 +296,13 @@ class TestClient:
         entity = self.createDataEntity(project['id'])
 
         #create a temporary file
-        (fp, fname) = tempfile.mkstemp()
-        with open(fname, 'w') as f:
-            f.write('foo\n')
+        fname = utils.make_bogus_data_file()
         self.syn.uploadFile(entity, fname)
 
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
         assert entity['files'][0]==os.path.basename(fname)
+        assert filecmp.cmp(fname, os.path.join(entity['cacheDir'],entity['files'][0]))
         os.remove(fname)
 
 
@@ -317,6 +317,7 @@ class TestClient:
 
         entity = self.syn.downloadEntity(data['id'])
         assert entity['files'][0]==os.path.basename(filename)
+        assert filecmp.cmp(filename, os.path.join(entity['cacheDir'],entity['files'][0]))
         os.remove(filename)
 
 
@@ -327,9 +328,7 @@ class TestClient:
         entity = {'name':'foo', 'description':'A test file entity', 'parentId':projectEntity['id']}
 
         #create a temporary file
-        (fp, fname) = tempfile.mkstemp()
-        with open(fname, 'w') as f:
-            f.write('foo bar bat!\n')
+        fname = utils.make_bogus_data_file()
 
         ## create new FileEntity
         entity = self.syn.uploadFile(entity, fname)
@@ -337,16 +336,11 @@ class TestClient:
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
         assert entity['files'][0]==os.path.basename(fname)
+        assert filecmp.cmp(fname, entity['path'])
         os.remove(fname)
 
         #create a different temporary file
-        (fp, fname) = tempfile.mkstemp()
-        with open(fname, 'w') as f:
-            f.write('blither blather bonk!\n')
-
-        ## TODO fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
-        del entity['files']
-        del entity['cacheDir']
+        fname = utils.make_bogus_data_file()
 
         ## update existing FileEntity
         entity = self.syn.uploadFile(entity, fname)
@@ -354,6 +348,7 @@ class TestClient:
         #Download and verify that it is the same filename
         entity = self.syn.downloadEntity(entity)
         assert entity['files'][0]==os.path.basename(fname)
+        assert filecmp.cmp(fname, entity['path'])
         os.remove(fname)
 
 

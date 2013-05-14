@@ -4,7 +4,6 @@ import filecmp
 import os
 import re
 import subprocess
-import tempfile
 import utils
 import uuid
 import json

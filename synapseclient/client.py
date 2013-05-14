@@ -879,7 +879,7 @@ class Synapse:
         #print "_uploadFileToFileHandleService - filepath = " + str(filepath)
         url = "%s/fileHandle" % (self.fileHandleEndpoint,)
         headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
-        with open(filepath, 'r') as file:
+        with open(filepath, 'rb') as file:
             response = requests.post(url, files={os.path.basename(filepath): file}, headers=headers)
         response.raise_for_status()
 
