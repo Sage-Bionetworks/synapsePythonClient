@@ -1,29 +1,24 @@
 import os
-import string
 import json
 import base64
 import urllib
 import urlparse
-import httplib
-import time
 import zipfile
 import requests
 import os.path
 import mimetypes
-import shutil
 import stat
 import pkg_resources
 import webbrowser
-import collections
 import sys
 
-from version_check import version_check
 import utils
-from utils import id_of, get_properties
-from annotations import from_synapse_annotations, to_synapse_annotations
-from activity import Activity
-from entity import Entity, Project, Folder, File, Data, split_entity_namespaces, is_versionable, is_locationable
-from evaluation import Evaluation, Submission, SubmissionStatus
+from synapseclient.version_check import version_check
+from synapseclient.utils import id_of, get_properties
+from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
+from synapseclient.activity import Activity
+from synapseclient.entity import Entity, File, split_entity_namespaces, is_versionable, is_locationable
+from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
@@ -751,7 +746,7 @@ class Synapse:
         location = entity['locations'][0]  #TODO verify that this doesn't fail for unattached files
         url = location['path']
         parseResult = urlparse.urlparse(url)
-        pathComponents = string.split(parseResult.path, '/')
+        pathComponents = parseResult.path.split('/')
 
         filename = os.path.join(self.cacheDir, entity['id'] ,pathComponents[-1])
         if os.path.exists(filename):

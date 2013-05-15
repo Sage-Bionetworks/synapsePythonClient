@@ -3,19 +3,17 @@
 
 ## to run tests: nosetests -vs synapseclient/integration_test_Entity.py
 ## to run single test: nosetests -vs synapseclient/integration_test_Entity.py:test_Entity
-
-from nose.tools import *
-import synapseclient
-from synapseclient import Activity
-from entity import Entity, Project, Folder, File
-from entity import Data
-import utils
 import uuid
-import tempfile
 import filecmp
 import os
 import sys
 from datetime import datetime as Datetime
+
+import utils
+from synapseclient import Activity, Entity, Project, Folder, File, Data
+import synapseclient
+
+
 
 
 def setup_module(module):

@@ -1,4 +1,3 @@
-from nose.tools import *
 from dict_object import DictObject
 
 def test_DictObject():

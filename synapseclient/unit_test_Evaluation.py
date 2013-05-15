@@ -1,5 +1,6 @@
-from nose.tools import *
-from evaluation import *
+from nose.tools import assert_raises
+
+from synapseclient.evaluation import Evaluation, Submission
 
 def test_Evaluation():
     """Test the construction and accessors of Evaluation objects."""

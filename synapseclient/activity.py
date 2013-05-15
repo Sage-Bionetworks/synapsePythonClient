@@ -1,9 +1,9 @@
 ##
 ## Provenance related functionality
 ############################################################
-
 import collections
-from utils import is_url, id_of, is_synapse_entity
+
+from synapseclient.utils import is_url, id_of, is_synapse_entity
 
 
 def is_used_entity(x):
