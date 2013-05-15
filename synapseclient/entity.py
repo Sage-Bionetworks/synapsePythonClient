@@ -96,14 +96,9 @@ class Entity(collections.MutableMapping):
         return cls(properties=properties, annotations=annotations, local_state=local_state)
 
     @classmethod
-    def to_entity(cls, entity):
-        """Coerse a dictionary to an Entity, but pass Entities through"""
-        if isinstance(entity, Entity):
-            return entity
-        if isinstance(entity, collections.Mapping):
-            properties, annotations, local_state = split_entity_namespaces(entity)
-            return Entity.create(properties=properties, annotations=annotations, local_state=local_state)
-        raise Exception('Can\'t convert \'%s\' to an Entity.' % class_of(entity))
+    def getURI(self, id):
+        return '/entity/%s' %id
+
 
     def __new__(typ, *args, **kwargs):
         obj = object.__new__(typ, *args, **kwargs)
@@ -167,9 +162,6 @@ class Entity(collections.MutableMapping):
     def postURI(self):
         return '/entity'
 
-    def getURI(self):
-        return '/entity/%s' %self.id
-
     def putURI(self):
         return '/entity/%s' %self.id
 
@@ -195,17 +187,6 @@ class Entity(collections.MutableMapping):
 
     def __setattr__(self, key, value):
         return self.__setitem__(key, value)
-        # if key in self.__dict__:
-        #     ## if we assign like so:
-        #     ##   entity.annotations = {'foo';123, 'bar':'bat'}
-        #     ## wrap the dictionary in a DictObject so we can
-        #     ## later do:
-        #     ##   entity.annotations.foo = 'bar'
-        #     if key=='annotations' and not isinstance(value, DictObject):
-        #         value = DictObject(value)
-        #     object.__setattr__(self, key, value)
-        # else:
-        #     self.__setitem__(key, value)
 
 
     def __setitem__(self, key, value):
@@ -298,7 +279,8 @@ class Entity(collections.MutableMapping):
         f.write(", ".join(
             {"%s=%s" % (str(key), value.__repr__(),) for key, value in 
                 itertools.chain(
-                    filter(lambda (k,v): not (k in ['properties', 'annotations'] or k.startswith('__')), self.__dict__.items()),
+                    filter(lambda (k,v): not (k in ['properties', 'annotations'] or k.startswith('__')), 
+                           self.__dict__.items()),
                     self.properties.items(),
                     self.annotations.items())}))
         f.write(")")
@@ -311,7 +293,8 @@ class Project(Entity):
 
     def __init__(self, name=None, properties=None, annotations=None, local_state=None, **kwargs):
         if name: kwargs['name'] = name
-        super(Project, self).__init__(entityType=Project._synapse_entity_type, properties=properties, annotations=annotations, local_state=local_state, **kwargs)
+        super(Project, self).__init__(entityType=Project._synapse_entity_type, properties=properties, 
+                                      annotations=annotations, local_state=local_state, **kwargs)
 
 
 class Folder(Entity):
@@ -319,7 +302,8 @@ class Folder(Entity):
 
     def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
         if name: kwargs['name'] = name
-        super(Folder, self).__init__(entityType=Folder._synapse_entity_type, properties=properties, annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        super(Folder, self).__init__(entityType=Folder._synapse_entity_type, properties=properties, 
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
 class File(Entity, Versionable):
@@ -328,7 +312,8 @@ class File(Entity, Versionable):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
     #TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
-    def __init__(self, path=None, parent=None, synapseStore=True, properties=None, annotations=None, local_state=None, **kwargs):
+    def __init__(self, path=None, parent=None, synapseStore=True, properties=None, 
+                 annotations=None, local_state=None, **kwargs):
         if path and 'name' not in kwargs:
             kwargs['name'] = os.path.basename(path)
         self.__dict__['path'] = path
@@ -340,7 +325,8 @@ class File(Entity, Versionable):
             self.__dict__['cacheDir'] = None
             self.__dict__['files'] = []
         self.__dict__['synapseStore'] = synapseStore
-        super(File, self).__init__(entityType=File._synapse_entity_type, properties=properties, annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        super(File, self).__init__(entityType=File._synapse_entity_type, properties=properties, 
+                                   annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
 

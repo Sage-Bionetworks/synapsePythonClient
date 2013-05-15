@@ -453,8 +453,8 @@ class Synapse:
         if used or executed:
             if activity is not None:
                 raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
-            activityName == kwargs['activityName'] if 'activityName' in kwargs else None
-            activityDescription == kwargs['activityDescription'] if 'activityDescription' in kwargs else None
+            activityName = kwargs['activityName'] if 'activityName' in kwargs else None
+            activityDescription = kwargs['activityDescription'] if 'activityDescription' in kwargs else None
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
         ## if we have an activity, set it as the entity's provenance record
@@ -734,10 +734,7 @@ class Synapse:
         response.raise_for_status()
 
         # Add location to entity. Path will get converted to a signed S3 URL.
-        locations = [{
-            'path': location_path,
-            'type': 'awss3'
-            }]
+        locations = [{'path': location_path, 'type': 'awss3'}]
 
         return {'locations':locations, 'md5':md5.hexdigest()}
 
@@ -1071,7 +1068,7 @@ class Synapse:
                     if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
                         raise Exception('status may be one of {OPEN, CLOSED, SCORED, INVALID}')
                     uri = "/evaluation/%s/submission/all?status=%s&limit=%d&offset=%d" %(evaluation_id, 
-                                                                                         limitBy, limit, 
+                                                                                         status, limit, 
                                                                                          offset)
                 else:
                     uri = "/evaluation/%s/submission/all?limit=%d&offset=%d" %(evaluation_id, limit, 
@@ -1085,14 +1082,14 @@ class Synapse:
             yield Submission(**submissions[i])
 
 
-    def getOwnSubmissions(evaluation):
+    def getOwnSubmissions(self, evaluation):
         #TODO implement this if this is really usefull?
         pass
 
 
     def getSubmission(self, id):
         submission_id = id_of(id)
-        uri=Status.getURI(submission_id)
+        uri=SubmissionStatus.getURI(submission_id)
         return Submission(**self.restGET(uri))
 
 
