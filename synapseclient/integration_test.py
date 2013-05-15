@@ -3,22 +3,21 @@
 ## to run single test: nosetests -vs synapseclient/integration_test.py:TestClient.test_downloadFile
 
 import client, utils
-from client import Activity
-from version_check import version_check
-import ConfigParser
-from nose.tools import *
+from nose.tools import assert_raises
 import tempfile
 import os
 import sys
-import ConfigParser
 from datetime import datetime
 import filecmp
 import shutil
 import uuid
 import random
+import ConfigParser
 
-from evaluation import Evaluation, Submission, SubmissionStatus
-from entity import File
+from synapseclient.evaluation import Evaluation
+from synapseclient.client import Activity
+from synapseclient.version_check import version_check
+from synapseclient.entity import File
 
 def setup_module(module):
     print '\n'

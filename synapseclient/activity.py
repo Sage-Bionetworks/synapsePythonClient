@@ -1,9 +1,9 @@
 ##
 ## Provenance related functionality
 ############################################################
-
 import collections
-from utils import is_url, id_of, is_synapse_entity
+
+from synapseclient.utils import is_url, id_of, is_synapse_entity
 
 
 def is_used_entity(x):
@@ -171,7 +171,7 @@ class Activity(dict):
 
             for param in illegal_params:
                 if param in params and params[param] is not None:
-                    raise Exception('%s: It is an error to specify the \'%s\' parameter in combination with a %s.' % (err_msg, str(args), context_msg))
+                    raise Exception('%s: It is an error to specify the \'%s\' parameter in combination with a %s.' % (err_msg, str(param), context_msg))
 
         ## list
         if isinstance(target, list):

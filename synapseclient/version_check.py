@@ -2,13 +2,11 @@
 ##
 ############################################################
 from distutils.version import StrictVersion
-from utils import download_file
 import requests
 import json
 import sys
-import traceback
-import warnings
 import pkg_resources
+
 
 
 _VERSION_URL     = 'http://versions.synapse.sagebase.org/synapsePythonClient'
