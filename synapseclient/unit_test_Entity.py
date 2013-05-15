@@ -1,6 +1,5 @@
-from nose.tools import *
 import collections
-from entity import Entity, Project, Folder, File, Data, split_entity_namespaces
+from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces
 import os
 
 

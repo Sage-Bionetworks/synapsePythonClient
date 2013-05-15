@@ -3,18 +3,17 @@
 
 ## to run tests: nosetests -vs synapseclient/integration_test_Entity.py
 ## to run single test: nosetests -vs synapseclient/integration_test_Entity.py:test_Entity
-
-from nose.tools import *
-import synapseclient
-from synapseclient import Activity
-from entity import Entity, Project, Folder, File
-from entity import Data
-import utils
 import uuid
-import tempfile
 import filecmp
 import os
+import sys
 from datetime import datetime as Datetime
+
+import utils
+from synapseclient import Activity, Entity, Project, Folder, File, Data
+import synapseclient
+
+
 
 
 def setup_module(module):
@@ -57,6 +56,7 @@ def get_cached_synapse_instance():
 
 def create_project(name=None):
     """return a newly created project that will be cleaned up during teardown"""
+    syn = get_cached_synapse_instance()
     if name is None:
         name = str(uuid.uuid4())
     project = {'entityType':'org.sagebionetworks.repo.model.Project', 'name':name}
@@ -70,6 +70,7 @@ def schedule_for_cleanup(item):
 
 def cleanup(items):
     """cleanup junk created during testing"""
+    syn = get_cached_synapse_instance()
     for item in items:
         if isinstance(item, Entity):
             try:

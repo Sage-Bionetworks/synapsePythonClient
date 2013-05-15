@@ -1,7 +1,7 @@
 import sys
 from exceptions import ValueError
 
-from dict_object import DictObject
+from synapseclient.dict_object import DictObject
 
 
 class Evaluation(DictObject):
