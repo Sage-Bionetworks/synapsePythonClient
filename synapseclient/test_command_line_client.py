@@ -7,14 +7,8 @@ import subprocess
 import utils
 import uuid
 import json
+import synapseclient
 
-
-# def run_command(command, **kwargs):
-#     p = subprocess.Popen(command, shell=True,
-#                          stdout=subprocess.PIPE,
-#                          stderr=subprocess.STDOUT,
-#                          **kwargs)
-#     return iter(p.stdout.readline, b'')
 
 def run(command, **kwargs):
     print command
@@ -38,11 +32,15 @@ def parse(regex, output):
         raise Exception("ERROR parsing output: " + str(output))
 
 
-def setup():
+def setup_module(module):
     ## collect stuff to clean up later
-    globals()['to_clean_up'] = []
+    module.to_clean_up = []
 
-def teardown():
+    syn = synapseclient.Synapse()
+    syn.login()
+    module.syn = syn
+
+def teardown_module():
     for item in to_clean_up:
         if utils.is_synapse_id(item):
             try:
@@ -71,6 +69,10 @@ def test_command_line_client():
     output = run("synapse add -name 'BogusFileEntity' -description 'Bogus data to test file upload' -parentid %s %s" % (project_id, filename,))
     file_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
 
+    ## verify that we stored the file in synapse
+    f1 = syn.get(file_entity_id)
+    fh = syn._getFileHandle(f1.dataFileHandleId)
+    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
 
     ## get file
     output = run("synapse get %s" % file_entity_id)
@@ -163,6 +165,11 @@ def test_command_line_client():
     ## test external file handle
     output = run("synapse add -name 'Singapore' -description 'A nice picture of Singapore' -type File -parentid %s %s" % (project_id, singapore_url,))
     data_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+
+    ## verify that we created an external file handle
+    f2 = syn.get(exteral_entity_id)
+    fh = syn._getFileHandle(f2.dataFileHandleId)
+    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
 
     output = run("synapse get %s" % data_entity_id)
     downloaded_filename = parse(r'creating\s+(.*)', output)

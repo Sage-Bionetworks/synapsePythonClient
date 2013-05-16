@@ -860,16 +860,20 @@ class Synapse:
         synapseStore: store file in Synapse or just a URL
         """
         if utils.is_url(filename):
+            ## implement downloading and storing remote files? by default??
             # if synapseStore==True:
             #     ## download the file locally, then upload it and cache it?
             #     raise Exception('not implemented, yet!')
             # else:
             #     return self._addURLtoFileHandleService(filename)
             return self._addURLtoFileHandleService(filename)
-        elif synapseStore:
-            return self._uploadFileToFileHandleService(filename)
+
+        ## for local files, we default to uploading the fill unless explicitly instructed otherwise
         else:
-            return self._addURLtoFileHandleService(filename)
+            if synapseStore==False:
+                return self._addURLtoFileHandleService(filename)
+            else:
+                return self._uploadFileToFileHandleService(filename)
 
     def _uploadFileToFileHandleService(self, filepath):
         """Upload a file to the new fileHandle service (experimental)

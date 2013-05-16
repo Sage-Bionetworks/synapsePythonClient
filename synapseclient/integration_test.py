@@ -333,10 +333,14 @@ class TestClient:
         ## create new FileEntity
         entity = self.syn.uploadFile(entity, fname)
 
-        #Download and verify that it is the same filename
+        #Download and verify
         entity = self.syn.downloadEntity(entity)
         assert entity['files'][0]==os.path.basename(fname)
         assert filecmp.cmp(fname, entity['path'])
+
+        ## check if we upload the wrong type of file handle
+        fh = self.syn._getFileHandle(entity['dataFileHandleId'])
+        assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
         os.remove(fname)
 
         #create a different temporary file
