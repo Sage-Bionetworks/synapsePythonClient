@@ -36,6 +36,7 @@ def to_synapse_annotations(annotations):
                 synapseAnnos.setdefault('doubleAnnotations', {})[key] = elements
             elif all((_is_date(elem) for elem in elements)):
                 synapseAnnos.setdefault('dateAnnotations', {})[key] = [to_unix_epoch_time(elem) for elem in elements]
+            #TODO support blob annotations
             # elif all((isinstance(elem, ???) for elem in elements)):
             #     synapseAnnos.setdefault('blobAnnotations', {})[key] = [???(elem) for elem in elements]
             else:
