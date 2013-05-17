@@ -1,3 +1,4 @@
+import ConfigParser
 import os
 import json
 import base64
@@ -22,6 +23,14 @@ from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
 
 
+PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
+                        'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
+                        'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1/'}
+
+STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/repo/v1',
+                        'authEndpoint':'https://auth-staging.prod.sagebase.org/auth/v1',
+                        'fileHandleEndpoint':'https://file-staging.prod.sagebase.org/file/v1'}
+
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TODO change to /data when storing files as md5
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
@@ -33,13 +42,8 @@ class Synapse:
     Python implementation for Synapse repository service client
     """
 
-    ## set this flag to true to skip version checking on login
-    _skip_version_check = False
-
-    def __init__(self, repoEndpoint='https://repo-prod.prod.sagebase.org/repo/v1', 
-                 authEndpoint='https://auth-prod.prod.sagebase.org/auth/v1',
-                 fileHandleEndpoint='https://file-prod.prod.sagebase.org/file/v1/',
-                 serviceTimeoutSeconds=30, debug=False):
+    def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None,
+                 serviceTimeoutSeconds=30, debug=False, skip_checks=False):
         '''Constructor of Synapse client
         params:
         - repoEndpoint: location of synapse repository
@@ -56,16 +60,41 @@ class Synapse:
             if exception.errno != os.errno.EEXIST:
                 raise
 
+        ## if endpoints aren't specified, look in config file
+        if any([ep is None for ep in (repoEndpoint, authEndpoint, fileHandleEndpoint)]):
+            try:
+                config = ConfigParser.ConfigParser()
+                config.read(CONFIG_FILE)
+                if config.has_section('endpoints'):
+                    if config.has_option('endpoints', 'repoEndpoint'):
+                        repoEndpoint=config.get('endpoints', 'repoEndpoint')
+                    if config.has_option('endpoints', 'authEndpoint'):
+                        authEndpoint=config.get('endpoints', 'authEndpoint')
+                    if config.has_option('endpoints', 'fileHandleEndpoint'):
+                        fileHandleEndpoint=config.get('endpoints', 'fileHandleEndpoint')
+            except ConfigParser.Error:
+                sys.stderr.write('Error parsing synapse config file: %s' % CONFIG_FILE)
+                raise
+
+        ## endpoints default to production
+        if repoEndpoint is None:
+            repoEndpoint = PRODUCTION_ENDPOINTS['repoEndpoint']
+        if authEndpoint is None:
+            authEndpoint = PRODUCTION_ENDPOINTS['authEndpoint']
+        if fileHandleEndpoint is None:
+            fileHandleEndpoint = PRODUCTION_ENDPOINTS['fileHandleEndpoint']
+
         ## update endpoints if we get redirected
-        resp=requests.get(repoEndpoint, allow_redirects=False)
-        if resp.status_code==301:
-            repoEndpoint=resp.headers['location']
-        resp=requests.get(authEndpoint, allow_redirects=False)
-        if resp.status_code==301:
-            authEndpoint=resp.headers['location']
-        resp=requests.get(fileHandleEndpoint, allow_redirects=False)
-        if resp.status_code==301:
-            fileHandleEndpoint=resp.headers['location']
+        if not skip_checks:
+            resp=requests.get(repoEndpoint, allow_redirects=False)
+            if resp.status_code==301:
+                repoEndpoint=resp.headers['location']
+            resp=requests.get(authEndpoint, allow_redirects=False)
+            if resp.status_code==301:
+                authEndpoint=resp.headers['location']
+            resp=requests.get(fileHandleEndpoint, allow_redirects=False)
+            if resp.status_code==301:
+                fileHandleEndpoint=resp.headers['location']
 
         self.headers = {'content-type': 'application/json', 'Accept': 'application/json', 'request_profile':'False'}
 
@@ -73,6 +102,7 @@ class Synapse:
         self.serviceTimeoutSeconds = serviceTimeoutSeconds 
         self.debug = debug
         self.sessionToken = None
+        self.skip_checks = skip_checks
 
         self.repoEndpoint = repoEndpoint
         self.authEndpoint = authEndpoint
@@ -98,19 +128,17 @@ class Synapse:
         3) Use already existing session token
         """
         ## check version before logging in
-        if not Synapse._skip_version_check: version_check()
+        if not self.skip_checks: version_check()
 
         session_file = os.path.join(self.cacheDir, ".session")
 
-        if (email==None or password==None): 
+        if (email==None or password==None):
             if sessionToken is not None:
                 self.headers["sessionToken"] = sessionToken
                 self.sessionToken = sessionToken
                 return sessionToken
             else:
-                #Try to use config then session token
                 try:
-                    import ConfigParser
                     config = ConfigParser.ConfigParser()
                     config.read(CONFIG_FILE)
                     email=config.get('authentication', 'username')

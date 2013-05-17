@@ -1,96 +1,32 @@
 ## integration tests for the Entity class
 ############################################################
 
-## to run tests: nosetests -vs synapseclient/integration_test_Entity.py
-## to run single test: nosetests -vs synapseclient/integration_test_Entity.py:test_Entity
+## to run tests: nosetests -vs tests/integration/integration_test_Entity.py
+## to run single test: nosetests -vs tests/integration/integration_test_Entity.py:test_Entity
 import uuid
 import filecmp
 import os
 import sys
 from datetime import datetime as Datetime
 
-import utils
-from synapseclient import Activity, Entity, Project, Folder, File, Data
 import synapseclient
+import synapseclient.utils as utils
+from synapseclient import Activity, Entity, Project, Folder, File, Data
+
+import integration
+from integration import create_project, schedule_for_cleanup
 
 
-
-
-def setup_module(module):
+def setup(module):
     print '\n'
     print '~' * 60
     print os.path.basename(__file__)
     print '~' * 60
-
-    ## if testing endpoints are set in the config file, use them
-    ## this was created 'cause nosetests doesn't have a good means of
-    ## passing parameters to the tests
-    if os.path.exists(synapseclient.client.CONFIG_FILE):
-        try:
-            import ConfigParser
-            config = ConfigParser.ConfigParser()
-            config.read(synapseclient.client.CONFIG_FILE)
-            if config.has_section('testEndpoints'):
-                repoEndpoint=config.get('testEndpoints', 'repo')
-                authEndpoint=config.get('testEndpoints', 'auth')
-                fileHandleEndpoint=config.get('testEndpoints', 'file')
-                print "Testing against endpoint:"
-                print "  " + repoEndpoint
-                print "  " + authEndpoint
-                print "  " + fileHandleEndpoint                    
-        except Exception as e:
-            print e
-
-    syn = synapseclient.Synapse()
-    syn.login()
-    module.syn = syn
-    module._to_cleanup = []
-
-def teardown_module(module):
-    cleanup(module._to_cleanup)
-
-
-def get_cached_synapse_instance():
-    """return a cached synapse instance, so we don't have to keep logging in"""
-    return globals()['syn']
-
-def create_project(name=None):
-    """return a newly created project that will be cleaned up during teardown"""
-    syn = get_cached_synapse_instance()
-    if name is None:
-        name = str(uuid.uuid4())
-    project = {'entityType':'org.sagebionetworks.repo.model.Project', 'name':name}
-    project = syn.createEntity(project)
-    schedule_for_cleanup(project)
-    return project
-
-def schedule_for_cleanup(item):
-    """schedule a file of Synapse Entity to be deleted during teardown"""
-    globals()['_to_cleanup'].append(item)
-
-def cleanup(items):
-    """cleanup junk created during testing"""
-    syn = get_cached_synapse_instance()
-    for item in items:
-        if isinstance(item, Entity):
-            try:
-                syn.deleteEntity(item)
-            except Exception as ex:
-                print "Error cleaning up entity: " + str(ex)
-        elif isinstance(item, basestring) and os.path.exists(item):
-            try:
-                os.remove(item)
-            except Exception as ex:
-                print ex
-        else:
-            sys.stderr.write('Don\'t know how to clean: %s' % str(item))
+    module.syn = integration.syn
 
 
 def test_Entity():
     """test CRUD on Entity objects, Project, Folder, File with createEntity/getEntity/updateEntity"""
-
-    syn = get_cached_synapse_instance()
-
     project_name = str(uuid.uuid4())
     project = Project(project_name, description='Bogus testing project')
     project = syn.createEntity(project)
@@ -153,8 +89,6 @@ def test_Entity():
 
 def test_deprecated_entity_types():
     """Test Data Entity object"""
-    syn = get_cached_synapse_instance()
-
     project = create_project()
 
     data = Data(parent=project)
@@ -173,8 +107,6 @@ def test_deprecated_entity_types():
 
 def test_get_and_store():
     """Test synapse.get and synapse.store in Project, Folder and File"""
-    syn = get_cached_synapse_instance()
- 
     ## create project
     project = Project(name=str(uuid.uuid4()), description='A bogus test project')
     project = syn.store(project)
@@ -234,8 +166,6 @@ def test_get_and_store():
 
 
 def test_store_dictionary():
-    syn = get_cached_synapse_instance()
-
     project = { 'entityType': 'org.sagebionetworks.repo.model.Project',
                 'name':str(uuid.uuid4()),
                 'description':'Project from dictionary'}
@@ -278,9 +208,7 @@ def test_store_dictionary():
 
 
 def test_store_activity():
-    '''Test storing entities with Activities'''
-    syn = get_cached_synapse_instance()
-
+    """Test storing entities with Activities"""
     project = create_project()
 
     path = utils.make_bogus_data_file()
@@ -316,8 +244,6 @@ def test_store_activity():
 
 
 def test_ExternalFileHandle():
-    syn = get_cached_synapse_instance()
-
     project = create_project()
 
     ## Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
@@ -338,8 +264,7 @@ def test_ExternalFileHandle():
 
 
 def test_synapseStore_flag():
-    '''Test storing entities while setting the synapseStore flag to False'''
-    syn = get_cached_synapse_instance()
+    """Test storing entities while setting the synapseStore flag to False"""
     project = create_project()
 
     path = utils.make_bogus_data_file()

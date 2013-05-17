@@ -1,15 +1,16 @@
 ## unit tests for python synapse client
 ############################################################
-from nose.tools import *
-from annotations import to_synapse_annotations, from_synapse_annotations
-from activity import Activity
 from datetime import datetime as Datetime
-import utils
-from utils import _find_used
+from nose.tools import assert_raises
 import os
 
+import synapseclient.utils as utils
+from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations
+from synapseclient.activity import Activity
+from synapseclient.utils import _find_used
 
-def setup_module(module):
+
+def setup():
     print '\n'
     print '~' * 60
     print os.path.basename(__file__)
