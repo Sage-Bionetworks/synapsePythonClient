@@ -15,6 +15,7 @@ import random
 import ConfigParser
 
 from synapseclient.evaluation import Evaluation
+from synapseclient.wiki import Wiki
 from synapseclient.client import Activity
 from synapseclient.version_check import version_check
 from synapseclient.entity import File
@@ -605,43 +606,60 @@ class TestClient:
         ## upload a file to the file handle service
         fileHandle = self.syn._uploadFileToFileHandleService(original_path)
 
-        wiki = self.syn._createWiki(project, 'A Test Wiki', md, [fileHandle['id']])
+        #Create and store the wiki 
+        wiki = Wiki(owner=project, title='A Test Wiki', markdown=md, 
+                    attachmentFileHandleIds=[fileHandle['id']])
+        wiki=self.syn.store(wiki)
+        
+        #Create a wiki subpage
+        subwiki = Wiki(owner=project, title='A sub-wiki', 
+                       markdown='nothing', parentWikiId=wiki.id)
+        subwiki=self.syn.store(subwiki)
+        
+        ## retrieve the root wiki from Synapse
+        wiki2 = self.syn.getWiki(project)
+        assert wiki==wiki2
 
-        ## retrieve the entity from Synapse
-        wiki = self.syn._getWiki(project)
-
-        ## retrieve the file we just uploaded
-        tmpdir = tempfile.mkdtemp()
-        file_props = self.syn._downloadWikiAttachment(project, wiki, os.path.basename(original_path), dest_dir=tmpdir)
-
-        ## we get back a dictionary with path, files and cacheDir
-        path = file_props['path']
-
-        ## check and delete it
-        assert os.path.exists(path)
-        assert filecmp.cmp(original_path, path)
-        shutil.rmtree(tmpdir)
+        ## retrieve the sub wiki from Synapse
+        wiki2 = self.syn.getWiki(project, subpageId=subwiki.id)
+        assert subwiki==wiki2
 
         ## try making an update
         wiki['title'] = 'A New Title'
         wiki['markdown'] = wiki['markdown'] + "\nNew stuff here!!!\n"
-        wiki = self.syn._updateWiki(project, wiki)
+        wiki = self.syn.store(wiki)
 
         assert wiki['title'] == 'A New Title'
         assert wiki['markdown'].endswith("\nNew stuff here!!!\n")
 
+        headers = self.syn.getWikiHeaders(project)
+        assert headers['totalNumberOfResults']==2
+        assert headers['results'][0]['title'] in (wiki['title'], subwiki['title'])
+
+        ## retrieve the file we just uploaded
+        #tmpdir = tempfile.mkdtemp()
+        # file_props = self.syn._downloadWikiAttachment(project, wiki, 
+        #            os.path.basename(original_path), dest_dir=tmpdir)
+        # ## we get back a dictionary with path, files and cacheDir
+        # path = file_props['path']
+        # ## check and delete it
+        # assert os.path.exists(path)
+        # assert filecmp.cmp(original_path, path)
+        # shutil.rmtree(tmpdir)
+
+
         ## cleanup
         self.syn._deleteFileHandle(fileHandle)
-        self.syn._deleteWiki(project, wiki)
+        self.syn.delete(wiki)
+        self.syn.delete(subwiki)
 
-        ## test that delete worked
+        # ## test that delete worked
         try:
-            deleted_wiki = self.syn._getWiki(project)
+            deleted_wiki = self.syn.getWiki(project)
         except Exception as ex:
             assert ex.response.status_code == 404
         else:
             assert False, 'Should raise 404 exception'
-
 
             
     def test_get_and_store_other_objects(self):
@@ -738,6 +756,7 @@ if __name__ == '__main__':
     test.test_annotations()
     test.test_fileHandle()
     test.test_fileEntity_round_trip()
+    test.test_Evaluations()
     test.test_wikiAttachment()
 
 

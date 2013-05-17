@@ -19,6 +19,7 @@ from synapseclient.annotations import from_synapse_annotations, to_synapse_annot
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, split_entity_namespaces, is_versionable, is_locationable
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
+from synapseclient.wiki import Wiki
 
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
@@ -243,18 +244,20 @@ class Synapse:
 
         #Handle all non entity objects
         if not (isinstance(obj, Entity) or type(obj)==dict):
-            classType=obj.__class__
             if 'id' in obj: #If Id present update 
-                return classType(**self.restPUT(obj.putURI(), json.dumps(obj)))
+                obj.update(self.restPUT(obj.putURI(), obj.json()))
+                return obj
             try: #if no id attempt to post the object
-                return classType(**self.restPOST(obj.postURI(), json.dumps(obj))) 
+                obj.update(self.restPOST(obj.postURI(), obj.json())) 
+                return obj
             except requests.exceptions.HTTPError as err:
                  #If already present and we want to update attempt to get the object content
                 if err.response.status_code==500 and  createOrUpdate: 
                     newObj=self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
-                    obj=classType(**newObj)
-                    return classType(**self.restPUT(obj.putURI(), json.dumps(obj)))
+                    obj=obj.__class__(**newObj)
+                    obj.update(self.restPUT(obj.putURI(), obj.json()))
+                    return obj
                 raise
 
         #If input object is an Entity...
@@ -1088,13 +1091,13 @@ class Synapse:
         return Submission(**self.restGET(uri))
 
 
-    def getSubmissionStatus(self, id):
+    def getSubmissionStatus(self, submission):
         """Get the status of a submission
         Arguments:
         - `submission`: Downloads the status of a evaluations submission
         
         """
-        submission_id = id_of(id)
+        submission_id = id_of(submission)
         uri=SubmissionStatus.getURI(submission_id)
         val=self.restGET(uri)
         return SubmissionStatus(**val)
@@ -1106,78 +1109,51 @@ class Synapse:
     # CRUD for Wikis
     ############################################################
 
-    def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None, owner_type=None):
-        """Create a new wiki page for an Entity (experimental).
-
-        parameters:
-        owner -- the owner object (entity, competition, evaluation) with which the new wiki page will be associated
-        markdown -- the contents of the wiki page in markdown
-        attachmentFileHandleIds -- a list of file handles or file handle IDs
-        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
-        """
-        if not owner_type:
-            owner_type = utils.guess_object_type(owner)
-        uri = '/%s/%s/wiki' % (owner_type, id_of(owner),)
-        wiki = {'title':title, 'markdown':markdown}
-        if attachmentFileHandleIds:
-            wiki['attachmentFileHandleIds'] = attachmentFileHandleIds
-        return self.restPOST(uri, body=json.dumps(wiki))
-
-
-    def _getWiki(self, owner, wiki=None, owner_type=None):
-        """Get the specified wiki page
-        owner -- the owner object (entity, competition, evaluation) or its ID
-        wiki -- (optional) the Wiki object or its ID
-        owner_type -- (optional) entity, competition, evaluation, can usually be automatically inferred from the owner object
-        """
-        if not owner_type:
-            owner_type = utils.guess_object_type(owner)
-        if wiki:
-            uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(wiki),)
+    def getWiki(self, owner, subpageId=None):
+        owner_type = utils.guess_object_type(owner)
+        if subpageId:
+            uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(subpageId))
         else:
-            uri = '/%s/%s/wiki' % (owner_type, id_of(owner),)
-        return self.restGET(uri)
+            uri = '/%s/%s/wiki' % (owner_type, id_of(owner))
+        wiki = self.restGET(uri)
+        wiki['owner'] = owner
+        return Wiki(**wiki)
+        
 
-
-    def _updateWiki(self, owner, wiki, owner_type=None):
-        """Update the specified wiki page
-        owner -- the owner object (entity, competition, evaluation) or its ID
-        wiki -- the Wiki object or its ID
-        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+    def getWikiHeaders(self, owner):
+        """Retrieves the the header of all wiki's belonging to owner"
+        Arguments:
+        - `owner`: an Evaluatin of Entity
         """
-        if not owner_type:
-            owner_type = utils.guess_object_type(owner)
-        uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(wiki),)
-        return self.restPUT(uri, json.dumps(wiki))
-
-
-    def _deleteWiki(self, owner, wiki, owner_type=None):
-        """Delete the specified wiki page
-        owner -- the owner object (entity, competition, evaluation) or its ID
-        wiki -- the Wiki object or its ID
-        owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
-        """
-        if not owner_type:
-            owner_type = utils.guess_object_type(owner)
-        uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(wiki),)
-        self.restDELETE(uri)
-
-
-    def _getWikiHeaderTree(self, owner, owner_type=None):
-        """Get the tree of wiki pages owned by the given object"""
-        if not owner_type:
-            owner_type = utils.guess_object_type(owner)
+        owner_type = utils.guess_object_type(owner)
         uri = '/%s/%s/wikiheadertree' % (owner_type, id_of(owner),)
         return self.restGET(uri)
 
+    #Need to test functionality of this
+    # def _downloadWikiAttachment(self, owner, wiki, filename, dest_dir=None, owner_type=None):
+    #     """Download a file attached to a wiki page"""
+    #     if not owner_type:
+    #         owner_type = utils.guess_object_type(owner)
+    #     url = "%s/%s/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, owner_type, id_of(owner), id_of(wiki), filename,)
+    #     return self._downloadFile(url, dest_dir)
 
-    def _downloadWikiAttachment(self, owner, wiki, filename, dest_dir=None, owner_type=None):
-        """Download a file attached to a wiki page"""
-        if not owner_type:
-            owner_type = utils.guess_object_type(owner)
-        url = "%s/%s/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, owner_type, id_of(owner), id_of(wiki), filename,)
-        return self._downloadFile(url, dest_dir)
+    ##Superseded by getWiki
+    # def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None, owner_type=None):
+    #     """Create a new wiki page for an Entity (experimental).
 
+    #     parameters:
+    #     owner -- the owner object (entity, competition, evaluation) with which the new wiki page will be associated
+    #     markdown -- the contents of the wiki page in markdown
+    #     attachmentFileHandleIds -- a list of file handles or file handle IDs
+    #     owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+    #     """
+    #     if not owner_type:
+    #         owner_type = utils.guess_object_type(owner)
+    #     uri = '/%s/%s/wiki' % (owner_type, id_of(owner),)
+    #     wiki = {'title':title, 'markdown':markdown}
+    #     if attachmentFileHandleIds:
+    #         wiki['attachmentFileHandleIds'] = attachmentFileHandleIds
+    #     return self.restPOST(uri, body=json.dumps(wiki))
 
 
     ############################################################
