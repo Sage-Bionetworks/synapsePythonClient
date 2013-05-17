@@ -255,7 +255,7 @@ class Synapse:
                 if err.response.status_code==500 and  createOrUpdate: 
                     newObj=self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
-                    obj=classType(**newObj)
+                    obj=obj.__class__(**newObj)
                     obj.update(self.restPUT(obj.putURI(), obj.json()))
                     return obj
                 raise
