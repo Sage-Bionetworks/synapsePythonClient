@@ -461,6 +461,14 @@ def test_ACL():
     ## other user: using chris's principalId, should be a test user
     other_user_id = 1421212
 
+    ## verify the validity of the other user
+    try:
+        profile = syn.getUserProfile(other_user_id)
+    except Exception as ex:
+        if hasattr(ex, 'response') and ex.response.status_code == 404:
+            raise Exception('Test invalid, test user doesn\'t exist.', ex)
+        raise
+
     ## create a new project
     project = create_project()
 

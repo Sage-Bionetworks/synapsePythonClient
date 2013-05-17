@@ -184,7 +184,7 @@ class Synapse:
 
     def getUserProfile(self, id=None):
         """Get the details about a Synapse user"""
-        uri = '/userProfile/%s' % '' if id is None else str(id)
+        uri = '/userProfile/%s' % ('' if id is None else str(id),)
         return self.restGET(uri)
 
 
