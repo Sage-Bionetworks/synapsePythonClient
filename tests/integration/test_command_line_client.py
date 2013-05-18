@@ -1,21 +1,24 @@
 ## test command line client
 ############################################################
+## to run tests: nosetests -vs tests/integration/test_command_line_client.py
 import filecmp
 import os
 import re
 import subprocess
-import tempfile
-import utils
 import uuid
 import json
 
+import synapseclient
+import synapseclient.utils as utils
 
-# def run_command(command, **kwargs):
-#     p = subprocess.Popen(command, shell=True,
-#                          stdout=subprocess.PIPE,
-#                          stderr=subprocess.STDOUT,
-#                          **kwargs)
-#     return iter(p.stdout.readline, b'')
+import integration
+from integration import schedule_for_cleanup
+
+
+
+def setup_module(module):
+    module.syn = integration.syn
+
 
 def run(command, **kwargs):
     print command
@@ -34,106 +37,97 @@ def parse(regex, output):
     m = re.match(regex, output)
     if m:
         if len(m.groups()) > 0:
-            return m.group(1)
+            return m.group(1).strip()
     else:
-        raise Exception("ERROR parsing output: " + str(output))
-
-
-def setup():
-    ## collect stuff to clean up later
-    globals()['to_clean_up'] = []
-
-def teardown():
-    for item in to_clean_up:
-        if utils.is_synapse_id(item):
-            try:
-                run("synapse delete %s" % item)
-            except Exception as ex:
-                print ex
-        else:
-            try:
-                os.remove(item)
-            except Exception as ex:
-                print ex
+        raise Exception('ERROR parsing output: ' + str(output))
 
 
 def test_command_line_client():
     """Test command line client"""
 
+    ## Note:
+    ## In Windows, quoting with single-quotes, as in -name 'My entity name'
+    ## seems to cause problems in the call to subprocess.check_output. Make
+    ## sure to use double-quotes.
+
     ## create project
-    output = run("synapse create -name '%s' -description 'test of command line client' Project" % str(str(uuid.uuid4())))
+    output = run('synapse create -name "%s" -description "test of command line client" Project' % str(str(uuid.uuid4())))
     project_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
-    to_clean_up.append(project_id)
+    schedule_for_cleanup(project_id)
 
 
     ## create file
     filename = utils.make_bogus_data_file()
-    to_clean_up.append(filename)
-    output = run("synapse add -name 'BogusFileEntity' -description 'Bogus data to test file upload' -parentid %s %s" % (project_id, filename,))
+    schedule_for_cleanup(filename)
+    output = run('synapse add -name "BogusFileEntity" -description "Bogus data to test file upload" -parentid %s %s' % (project_id, filename,))
     file_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
 
+    ## verify that we stored the file in synapse
+    f1 = syn.get(file_entity_id)
+    fh = syn._getFileHandle(f1.dataFileHandleId)
+    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
 
     ## get file
-    output = run("synapse get %s" % file_entity_id)
+    output = run('synapse get %s' % file_entity_id)
     downloaded_filename = parse(r'creating\s+(.*)', output)
 
-    to_clean_up.append(downloaded_filename)
+    schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
 
 
     ## update file
     filename = utils.make_bogus_data_file()
-    to_clean_up.append(filename)
-    output = run("synapse update -id %s %s" % (file_entity_id, filename,))
+    schedule_for_cleanup(filename)
+    output = run('synapse update -id %s %s' % (file_entity_id, filename,))
     updated_entity_id = parse(r'Updated entity:\s+(syn\d+)', output)
 
 
     ## get file
-    output = run("synapse get %s" % file_entity_id)
+    output = run('synapse get %s' % file_entity_id)
     downloaded_filename = parse(r'creating\s+(.*)', output)
 
-    to_clean_up.append(downloaded_filename)
+    schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
 
 
     ## create data
     filename = utils.make_bogus_data_file()
-    to_clean_up.append(filename)
+    schedule_for_cleanup(filename)
 
-    output = run("synapse add -name 'BogusData' -description 'Bogus data to test file upload' -type Data -parentid %s %s" % (project_id, filename,))
+    output = run('synapse add -name "BogusData" -description "Bogus data to test file upload" -type Data -parentid %s %s' % (project_id, filename,))
     data_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
 
 
     ## get data
-    output = run("synapse get %s" % data_entity_id)
+    output = run('synapse get %s' % data_entity_id)
     downloaded_filename = parse(r'creating\s+(.*)', output)
 
-    to_clean_up.append(downloaded_filename)
+    schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
 
 
     ## update data
     filename = utils.make_bogus_data_file()
-    to_clean_up.append(filename)
+    schedule_for_cleanup(filename)
 
-    output = run("synapse update -id %s %s" % (data_entity_id, filename,))
+    output = run('synapse update -id %s %s' % (data_entity_id, filename,))
     updated_entity_id = parse(r'Updated entity:\s+(syn\d+)', output)
 
 
     ## get data
-    output = run("synapse get %s" % data_entity_id)
+    output = run('synapse get %s' % data_entity_id)
     downloaded_filename = parse(r'creating\s+(.*)', output)
 
-    to_clean_up.append(downloaded_filename)
+    schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
 
 
     # query
-    output = run("synapse query 'select id, name from entity where parentId==\"%s\"'" % project_id)
+    output = run('synapse query "select id, name from entity where parentId==\\"%s\\""' % project_id)
     assert 'BogusData' in output
     assert data_entity_id in output
     assert 'BogusFileEntity' in output
@@ -142,10 +136,10 @@ def test_command_line_client():
 
     # provenance
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
-    output = run("synapse set-provenance -id %s -name TestActivity -description 'A very excellent provenance' -used %s -executed '%s'" % (file_entity_id, data_entity_id, repo_url,))
+    output = run('synapse set-provenance -id %s -name TestActivity -description "A very excellent provenance" -used %s -executed "%s"' % (file_entity_id, data_entity_id, repo_url,))
     activity_id = parse(r'Set provenance record (\d+) on entity syn\d+', output)
 
-    output = run("synapse get-provenance -id %s" % (file_entity_id,))
+    output = run('synapse get-provenance -id %s' % (file_entity_id,))
     activity = json.loads(output)
     assert activity['name'] == 'TestActivity'
     assert activity['description'] == 'A very excellent provenance'
@@ -162,16 +156,20 @@ def test_command_line_client():
     singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
 
     ## test external file handle
-    output = run("synapse add -name 'Singapore' -description 'A nice picture of Singapore' -type File -parentid %s %s" % (project_id, singapore_url,))
-    data_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    output = run('synapse add -name "Singapore" -description "A nice picture of Singapore" -type File -parentid %s %s' % (project_id, singapore_url,))
+    exteral_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
 
-    output = run("synapse get %s" % data_entity_id)
+    ## verify that we created an external file handle
+    f2 = syn.get(exteral_entity_id)
+    fh = syn._getFileHandle(f2.dataFileHandleId)
+    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
+
+    output = run('synapse get %s' % exteral_entity_id)
     downloaded_filename = parse(r'creating\s+(.*)', output)
 
-    to_clean_up.append(downloaded_filename)
+    schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
 
 
     ## delete project
-    output = run("synapse delete %s" % project_id)
-    to_clean_up.remove(project_id)
+    output = run('synapse delete %s' % project_id)

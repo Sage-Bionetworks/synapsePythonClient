@@ -1,15 +1,16 @@
 ## unit tests for python synapse client
 ############################################################
-from nose.tools import *
-from annotations import to_synapse_annotations, from_synapse_annotations
-from activity import Activity
-from datetime import datetime
-import utils
-from utils import _find_used
+from datetime import datetime as Datetime
+from nose.tools import assert_raises
 import os
 
+import synapseclient.utils as utils
+from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations
+from synapseclient.activity import Activity
+from synapseclient.utils import _find_used
 
-def setup_module(module):
+
+def setup():
     print '\n'
     print '~' * 60
     print os.path.basename(__file__)
@@ -26,7 +27,7 @@ def test_annotations():
 
 def test_more_annotations():
     """Test long, float and data annotations"""
-    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Platypus', birthdays=[datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3)])
+    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Platypus', birthdays=[Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3)])
     sa = to_synapse_annotations(a)
     # print sa
     assert sa['longAnnotations']['foo'] == [1234]
@@ -34,8 +35,8 @@ def test_more_annotations():
     assert sa['stringAnnotations']['species'] == ['Platypus']
 
     ## this part of the test is kinda fragile. It it breaks again, it should be removed
-    bdays = [datetime.utcfromtimestamp(float(t)/1000.0) for t in sa['dateAnnotations']['birthdays']]
-    assert bdays == [datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3)]
+    bdays = [utils.from_unix_epoch_time(t) for t in sa['dateAnnotations']['birthdays']]
+    assert all([t in bdays for t in [Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3)]])
 
 def test_annotations_unicode():
     a = {'files': [u'tmp6y5tVr.txt'], 'cacheDir': u'/Users/chris/.synapseCache/python/syn1809087', u'foo': 1266}
@@ -45,7 +46,7 @@ def test_annotations_unicode():
 def test_round_trip_annotations():
     """Test that annotations can make the round trip from a simple dictionary
     to the synapse format and back"""
-    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose', birthdays=[datetime(1969,4,28), datetime(1973,12,8), datetime(2008,1,3), datetime(2013,3,15)])
+    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose', birthdays=[Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3), Datetime(2013,3,15)])
     sa = to_synapse_annotations(a)
     # print sa
     a2 = from_synapse_annotations(sa)
@@ -54,7 +55,7 @@ def test_round_trip_annotations():
 
 def test_mixed_annotations():
     """test that to_synapse_annotations will coerce a list of mixed types to strings"""
-    a = dict(foo=[1, 'a', datetime(1969,4,28,11,47)])
+    a = dict(foo=[1, 'a', Datetime(1969,4,28,11,47)])
     sa = to_synapse_annotations(a)
     # print sa
     a2 = from_synapse_annotations(sa)
@@ -67,7 +68,7 @@ def test_mixed_annotations():
 def test_idempotent_annotations():
     """test that to_synapse_annotations won't mess up a dictionary that's already
     in the synapse format"""
-    a = dict(species='Moose', n=42, birthday=datetime(1969,4,28))
+    a = dict(species='Moose', n=42, birthday=Datetime(1969,4,28))
     sa = to_synapse_annotations(a)
     a2 = dict()
     a2.update(sa)
@@ -194,7 +195,17 @@ def test_is_url():
     assert utils.is_url("http://xkcd.com/1193/")
     assert not utils.is_url("syn123445")    
     assert not utils.is_url("wasssuuuup???")
+    assert utils.is_url('file://foo.com/path/to/file.xyz')
+    assert utils.is_url('file:///path/to/file.xyz')
+    assert utils.is_url('file:/path/to/file.xyz')
+    assert utils.is_url('file:///c:/WINDOWS/clock.avi')
+    assert utils.is_url('file:c:/WINDOWS/clock.avi')
+    assert not utils.is_url('c:/WINDOWS/ugh/ugh.ugh')
 
+def test_windows_file_urls():
+    url = 'file:///c:/WINDOWS/clock.avi'
+    assert utils.is_url(url)
+    assert utils.file_url_to_path(url, verify_exists=False).get('path',None) == 'c:/WINDOWS/clock.avi', utils.file_url_to_path(url)
 
 def test_id_of():
     assert utils.id_of(1) == '1'

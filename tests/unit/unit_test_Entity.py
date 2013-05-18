@@ -1,9 +1,9 @@
 import collections
-from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces
 import os
+from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces
 
 
-def setup_module(module):
+def setup():
     print '\n'
     print '~' * 60
     print os.path.basename(__file__)

@@ -5,10 +5,13 @@
 import os, urllib, urlparse, hashlib, re
 import collections
 import tempfile
+import platform
 import datetime
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
+
+UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
 
 
 def md5_for_file(filename, block_size=2**20):
@@ -103,10 +106,15 @@ def get_entity_type(entity):
 
 
 def is_url(s):
-    """Return True if a string is a valid URL"""
+    """Return True if a string appears to be a valid URL."""
     if isinstance(s, basestring):
         try:
             url_parts = urlparse.urlsplit(s)
+            ## looks like a Windows drive letter?
+            if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
+                return False
+            if url_parts.scheme == 'file' and bool(url_parts.path):
+                return True
             return bool(url_parts.scheme) and bool(url_parts.netloc)
         except Exception as e:
             return False
@@ -116,17 +124,26 @@ def is_url(s):
 def as_url(s):
     """Try to convert input to a proper URL"""
     url_parts = urlparse.urlsplit(s)
+    ## Windows drive letter?
+    if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
+        return 'file:///%s' % str(s)
     if url_parts.scheme:
         return url_parts.geturl()
     else:
         return 'file://%s' % str(s)
 
 
-def file_url_to_path(url):
+def file_url_to_path(url, verify_exists=False):
     parts = urlparse.urlsplit(url)
     if parts.scheme=='file' or parts.scheme=='':
         path = parts.path
-        if os.path.exists(path):
+        ## A windows file URL, for example file:///c:/WINDOWS/asdf.txt
+        ## will get back a path of: /c:/WINDOWS/asdf.txt, which we need to fix by
+        ## lopping off the leading slash character. Apparently, the Python developers
+        ## think this is not a bug: http://bugs.python.org/issue7965
+        if re.match(r'\/[A-Za-z]:', path):
+            path = path[1:]
+        if os.path.exists(path) or not verify_exists:
             return {
                 'path': path,
                 'files': [os.path.basename(path)],
@@ -190,14 +207,20 @@ def to_unix_epoch_time(dt):
     (milliseconds since midnight Jan 1, 1970)
     """
     if type(dt) == Date:
-        dt = Datetime.combine(dt, datetime.time(0,0,0))
-    return (dt - Datetime(1970, 1, 1)).total_seconds() * 1000
+        return (dt - UNIX_EPOCH.date()).total_seconds() * 1000
+    return (dt - UNIX_EPOCH).total_seconds() * 1000
 
 
 def from_unix_epoch_time(ms):
     """
     Return a datetime object given milliseconds since midnight Jan 1, 1970
     """
+    ## utcfromtimestamp fails for negative values (dates before 1970-1-1) on windows
+    ## so, here's a hack that enables ancient events, such as Chris's birthday be
+    ## converted from ms since the unix epoch to higher level Datetime objects. Ha!
+    if platform.system()=='Windows' and ms < 0:
+        mirror_date = Datetime.utcfromtimestamp(abs(ms)/1000.0)
+        return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
     return Datetime.utcfromtimestamp(ms/1000.0)
 
 
