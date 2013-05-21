@@ -277,7 +277,7 @@ def test_uploadFileEntity():
     assert filecmp.cmp(fname, entity['path'])
 
     ## check if we upload the wrong type of file handle
-    fh = syn._getFileHandle(entity['dataFileHandleId'])
+    fh = syn.restGET('/entity/%s/filehandles' % entity.id)['list'][0]
     assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
     os.remove(fname)
 
