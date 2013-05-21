@@ -233,7 +233,7 @@ class Synapse:
         ## for external URLs, we want to retrieve the URL from the fileHandle
         #TODO version, here
         if isinstance(entity, File):
-            fh = self._getFileHandle(entity['dataFileHandleId'])
+            fh = self.restGET('/entity/%s/filehandles' % entity.id)['list'][0]
             if fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                 entity['externalURL'] = fh['externalURL']
                 entity['synapseStore'] = False
