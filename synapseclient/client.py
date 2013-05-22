@@ -194,7 +194,10 @@ class Synapse:
         Arguments:
         - `entity`: Either an entity or a synapse id
         """
-        webbrowser.open("https://synapse.sagebase.org/#Synapse:%s" % id_of(entity))
+        if isinstance(entity, Evaluation):
+            webbrowser.open("https://synapse.org/#Evaluation:%s" % id_of(entity))
+        else:
+            webbrowser.open("https://synapse.org/#Synapse:%s" % id_of(entity))
 
 
     def printEntity(self, entity):
@@ -233,7 +236,8 @@ class Synapse:
         ## for external URLs, we want to retrieve the URL from the fileHandle
         #TODO version, here
         if isinstance(entity, File):
-            fh = self.restGET('/entity/%s/filehandles' % entity.id)['list'][0]
+            fh = self.restGET('/entity/%s/version/%s/filehandles' % (entity.id, entity.versionNumber))
+            fh = fh['list'][0]
             if fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                 entity['externalURL'] = fh['externalURL']
                 entity['synapseStore'] = False
@@ -825,8 +829,10 @@ class Synapse:
 
     def _downloadFileEntity(self, entity):
         """Download the file associated with a FileEntity"""
-        url = '%s/entity/%s/file' % (self.repoEndpoint, id_of(entity),)
-
+        if 'versionNumber' in entity:
+            url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity),entity.versionNumber)
+        else:
+            url = '%s/entity/%s/file' % (self.repoEndpoint, id_of(entity),)
         destDir = os.path.join(self.cacheDir, id_of(entity))
 
         #create destDir if it does not exist
@@ -835,7 +841,6 @@ class Synapse:
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
-
         return self._downloadFile(url, destDir)
 
 
