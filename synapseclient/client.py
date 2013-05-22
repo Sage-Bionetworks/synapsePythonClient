@@ -15,7 +15,7 @@ import sys
 
 import utils
 from synapseclient.version_check import version_check
-from synapseclient.utils import id_of, get_properties
+from synapseclient.utils import id_of, get_properties, chunks, retry_request, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, split_entity_namespaces, is_versionable, is_locationable
@@ -25,7 +25,7 @@ from synapseclient.wiki import Wiki
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
-                        'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1/'}
+                        'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1'}
 
 STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-staging.prod.sagebase.org/auth/v1',
@@ -34,7 +34,8 @@ STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/r
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TODO change to /data when storing files as md5
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
-FILE_BUFFER_SIZE = 1024
+FILE_BUFFER_SIZE = 4*2**10
+CHUNK_SIZE = 5*2**20
 
 
 class Synapse:
@@ -811,7 +812,8 @@ class Synapse:
         headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
                     'Content-Type' : mimetype,
                     'x-amz-acl' : 'bucket-owner-full-control' }
-        response = requests.put(response_json['presignedUrl'], headers=headers, data=open(filename))
+        with open(filename, 'rb') as f:
+            response = requests.put(response_json['presignedUrl'], headers=headers, data=f)
         response.raise_for_status()
 
         # Add location to entity. Path will get converted to a signed S3 URL.
@@ -965,8 +967,8 @@ class Synapse:
         #print "_uploadFileToFileHandleService - filepath = " + str(filepath)
         url = "%s/fileHandle" % (self.fileHandleEndpoint,)
         headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
-        with open(filepath, 'rb') as file:
-            response = requests.post(url, files={os.path.basename(filepath): file}, headers=headers)
+        with open(filepath, 'rb') as f:
+            response = requests.post(url, files={os.path.basename(filepath): f}, headers=headers)
         response.raise_for_status()
 
         ## we expect a list of FileHandles of length 1
@@ -994,6 +996,92 @@ class Synapse:
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
         self.restDELETE(uri, endpoint=self.fileHandleEndpoint)
         return fileHandle
+
+    def _createChunkedFileUploadToken(self, filepath, mimetype):
+        md5 = utils.md5_for_file(filepath)
+
+        chunkedFileTokenRequest = {
+            'fileName':os.path.basename(filepath),
+            'contentType':mimetype,
+            'contentMD5':md5.hexdigest()
+        }
+        return self.restPOST('/createChunkedFileUploadToken', json.dumps(chunkedFileTokenRequest), endpoint=self.fileHandleEndpoint)
+
+    def _createChunkedFileUploadChunkURL(self, chunkNumber, chunkedFileToken):
+        chunkRequest = {'chunkNumber':chunkNumber, 'chunkedFileToken':chunkedFileToken}
+        url = self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
+        return chunkRequest, url
+
+    def _addChunkToFile(self, chunkRequest):
+        return self.restPOST('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
+
+    def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
+        completeChunkedFileRequest = {'chunkedFileToken':chunkedFileToken,
+                                      'chunkResults':chunkResults}
+        return self.restPOST('/completeChunkFileUpload', json.dumps(completeChunkedFileRequest), endpoint=self.fileHandleEndpoint)
+
+    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, verbose=False):
+        """
+        Upload a file to be stored in Synapse, dividing large files into chunks.
+
+        filepath: the file to be uploaded
+        chunksize: chop the file into chunks of this many bytes. The default value is
+                   5MB, which is also the minimum value.
+        """
+        if chunksize < 5*MB:
+            raise Exception('Minimum chunksize is 5 MB.')
+        if not os.path.exists(filepath):
+            raise Exception('File not found: ' + str(filepath))
+        if verbose:
+            old_debug = self.debug
+            self.debug = True
+
+        i = 0
+        chunkResults = []
+
+        # guess mime-type - important for confirmation of MD5 sum by receiver
+        (mimetype, enc) = mimetypes.guess_type(filepath)
+        if (mimetype is None):
+            mimetype = "application/octet-stream"
+
+        ## S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
+        ## 'transfer-encoding': 'chunked', which requests will add for you, if it
+        ## can't figure out content length. The errors given by S3 are not very
+        ## informative:
+        ## If a request contains both 'content-length' and 'transfer-encoding':
+        ## 'chunked', it seems that you get [Errno 32] Broken pipe.
+        ## If you give S3 'transfer-encoding' and no 'content-length', you get:
+        ## 501 Server Error: Not Implemented
+        ## A header you provided implies functionality that is not implemented
+        headers = { 'Content-Type' : mimetype}
+
+        ## get token
+        token = self._createChunkedFileUploadToken(filepath, mimetype)
+        if verbose: sys.stderr.write('\n\ntoken= ' + str(token))
+
+        with open(filepath, 'rb') as f:
+            for chunk in utils.chunks(f, chunksize):
+                i += 1
+                if verbose: sys.stderr.write('\nChunk %d' % i)
+
+                ## get the signed S3 URL
+                chunkRequest, url = self._createChunkedFileUploadChunkURL(i, token)
+                if verbose: sys.stderr.write('url= ' + str(url))
+
+                ## PUT the chunk to S3
+                #TODO retry
+                response = requests.put(url, data=chunk, headers=headers)
+                response.raise_for_status()
+
+                ## We occasionally get an error on addChunkToFile:
+                ##   500 Server Error: Internal Server Error
+                ##   {u'reason': u'The specified key does not exist.'}
+                ## This might be because S3 hasn't yet finished propagating the
+                ## addition of the new chunk. So, retry_request will wait and retry.
+                chunkResults.append(
+                    retry_request(f=self._addChunkToFile, args=[chunkRequest], sleep_seconds=2, retries=4, retry_status_codes=[500], verbose=verbose))
+
+        return self._completeChunkFileUpload(token, chunkResults)
 
 
 
@@ -1306,7 +1394,7 @@ class Synapse:
             response.raise_for_status()
         except:
             sys.stderr.write(response.content)
-            raise 
+            raise
         return response.json()
      
     def restPOST(self, uri, body, endpoint=None):
@@ -1329,9 +1417,12 @@ class Synapse:
             response.raise_for_status()
         except:
             sys.stderr.write(response.content)
-            raise 
-        return response.json()
+            raise
 
+        if response.headers.get('content-type',None) == 'application/json':
+            return response.json()
+        # 'content-type': 'text/plain;charset=ISO-8859-1'
+        return response.text
 
     def restPUT(self, uri, body=None, endpoint=None):
         """Performs a POST request toward the synapse repo
@@ -1353,10 +1444,8 @@ class Synapse:
             response.raise_for_status()
         except:
             sys.stderr.write(response.content)
-            raise 
-
+            raise
         return response.json()
-
 
     def restDELETE(self, uri, endpoint=None):
         """Performs a REST DELETE operation to the Synapse server.
@@ -1375,6 +1464,6 @@ class Synapse:
             response.raise_for_status()
         except:
             sys.stderr.write(response.content)
-            raise 
+            raise
 
 

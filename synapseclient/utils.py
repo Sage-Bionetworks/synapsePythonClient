@@ -2,9 +2,10 @@
 
 # To debug this, python -m pdb myscript.py
 
-import os, urllib, urlparse, hashlib, re
+import os, sys, urllib, urlparse, hashlib, re
 import collections
 import tempfile
+import time
 import platform
 import datetime
 from datetime import datetime as Datetime
@@ -12,6 +13,8 @@ from datetime import date as Date
 from numbers import Number
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
+MB = 2**20
+KB = 2**10
 
 
 def md5_for_file(filename, block_size=2**20):
@@ -181,6 +184,17 @@ def _to_list(value):
         return [value]
 
 
+def _to_iterable(value):
+    """
+    Convert the value (an iterable or a scalar value) to a list.
+    """
+    if isinstance(value, basestring):
+        return (value,)
+    if isinstance(value, collections.Iterable):
+        return value
+    return (value,)
+
+
 def make_bogus_data_file(n=100, seed=12345):
     """Make a bogus data file for testing. File will contain 'n'
     random floating point numbers separated by commas. It is the
@@ -188,15 +202,33 @@ def make_bogus_data_file(n=100, seed=12345):
     """
     import random
     random.seed(seed)
-    data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
+    data = [random.gauss(mu=0.0, sigma=1.0) for i in range(n)]
 
+    f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
     try:
-        f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
         f.write(", ".join((str(n) for n in data)))
         f.write("\n")
     finally:
         f.close()
 
+    return f.name
+
+
+def make_bogus_binary_file(n=1*MB, verbose=False):
+    """Make a bogus binary data file for testing. It is the
+    caller's responsibility to remove the file when finished.
+    """
+    if verbose:
+        sys.stdout.write('writing bogus file')
+    junk = os.urandom(min(n, 1*MB))
+    with tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+        while n > 0:
+            f.write(junk[0:min(n, 1*MB)])
+            n -= min(n, 1*MB)
+            if verbose:
+                sys.stdout.write('.')
+    if verbose:
+        sys.stdout.write('\n')
     return f.name
 
 
@@ -276,6 +308,78 @@ def debug_response(response):
         print "Exception in debug_response: " + str(ex)
         print str(response)
 
+
+BUFFER_SIZE = 8*KB
+
+class Chunk(object):
+    """
+    """
+    ## TODO implement seek and tell?
+
+    def __init__(self, fileobj, size):
+        self.fileobj = fileobj
+        self.size = size
+        self.position = 0
+        self.closed = False
+
+    def read(self, size=None):
+        if size is None or size <= 0:
+            size = self.size - self.position
+        else:
+            size = min(size, self.size - self.position)
+
+        if self.closed or size <=0:
+            return None
+
+        self.position += size
+        return self.fileobj.read(size)
+
+    def mode(self):
+        return self.fileobj.mode()
+
+    def __len__(self):
+        return self.size
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self.closed:
+            raise StopIteration
+        data = self.read(BUFFER_SIZE)
+        if not data:
+           raise StopIteration
+        return data
+
+    def close(self):
+        self.closed = True
+
+
+def chunks(fileobj, chunksize=5*MB):
+    remaining = os.stat(fileobj.name).st_size
+    print 'file size is: ', remaining
+    while remaining > 0:
+        chunk = Chunk(fileobj, size=min(remaining, chunksize))
+        remaining -= len(chunk)
+        yield chunk
+
+
+def retry_request(f, args=[], kwargs={}, retry_status_codes=[500], retries=3, sleep_seconds=1, back_off=True, verbose=False):
+    retry_status_codes = _to_iterable(retry_status_codes)
+    while True:
+        try:
+            return f(*args, **kwargs)
+        except Exception as ex:
+            if hasattr(ex, 'response') and ex.response.status_code in retry_status_codes:
+                retries -= 1
+                if retries >= 0:
+                    if verbose:
+                        sys.stdout.write('\n...retrying in %d seconds...\n' % sleep_seconds)
+                    time.sleep(sleep_seconds)
+                    if back_off:
+                        sleep_seconds *= 2
+                    continue
+            raise
 
 
 ## http://code.activestate.com/recipes/576949/ (r3)
