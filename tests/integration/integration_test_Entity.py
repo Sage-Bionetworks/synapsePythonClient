@@ -163,6 +163,9 @@ def test_get_and_store():
     assert random_data_2.foo[0] == 1266
     assert random_data_2.versionNumber == 2
 
+    ## make sure we can still get the older version of file
+    old_random_data=syn.get(random_data.id, version=random_data.versionNumber)
+    assert filecmp.cmp(old_random_data.path, path)
 
 
 def test_store_dictionary():
