@@ -223,21 +223,28 @@ class Synapse:
         synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
         """
         ## optional parameters
-        version = kwargs.get('version', None)
+        version = kwargs.get('version', None)   #This ignores the version of entity if it is mappable
         downloadFile = kwargs.get('downloadFile', True)
 
+        #Get the entity bundle
+        if version:
+            uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), version, (2048+1+2))
+        else:
+            uri = '/entity/%s/bundle?mask=%d' %(id_of(entity), (2048+1+2))
+        bundle=self.restGET(uri)
+
         local_state = entity.local_state() if isinstance(entity, Entity) else None
-        properties = self._getEntity(entity, version=version)
-        annotations = self.getAnnotations(properties, version=version)
+        properties = bundle['entity']
+        annotations = from_synapse_annotations(bundle['annotations'])
 
         ## return a fresh copy of the entity
         entity = Entity.create(properties, annotations, local_state)
 
         ## for external URLs, we want to retrieve the URL from the fileHandle
-        #TODO version, here
         if isinstance(entity, File):
-            fh = self.restGET('/entity/%s/version/%s/filehandles' % (entity.id, entity.versionNumber))
-            fh = fh['list'][0]
+            fh = bundle['fileHandles'][0]
+            entity.md5=fh.get('contentMd5', '')
+            entity.fileSize=fh.get('contentSize', float('NaN'))
             if fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                 entity['externalURL'] = fh['externalURL']
                 entity['synapseStore'] = False
@@ -782,7 +789,6 @@ class Synapse:
         url = location['path']
         parseResult = urlparse.urlparse(url)
         pathComponents = parseResult.path.split('/')
-
         filename = os.path.join(self.cacheDir, entity['id'] ,pathComponents[-1])
         if os.path.exists(filename):
             #print filename, "cached"
@@ -1328,4 +1334,5 @@ class Synapse:
         except:
             sys.stderr.write(response.content)
             raise 
+
 
