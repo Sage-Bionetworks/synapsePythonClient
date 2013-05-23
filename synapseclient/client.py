@@ -625,10 +625,12 @@ class Synapse:
     # ACL manipulation
     ############################################################
 
+    def _getBenefactor(self, entity):
+        """get benefactor. (An entity gets its ACL from its benefactor.)"""
+        return self.restGET('/entity/%s/benefactor' % id_of(entity))
+
     def _getACL(self, entity):
-        ## get benefactor. (An entity gets its ACL from its benefactor.)
-        uri = '/entity/%s/benefactor' % id_of(entity)
-        benefactor = self.restGET(uri)
+        benefactor = self._getBenefactor(entity)
 
         ## get the ACL from the benefactor (which may be the entity itself)
         uri = '/entity/%s/acl' % (benefactor['id'],)        
@@ -650,14 +652,56 @@ class Synapse:
             return self.restPOST(uri,json.dumps(acl))
 
 
-    def getPermissions(self, entity, user=None, group=None):
+    def getPermissions(self, entity, principalId):
         """get permissions that a user or group has on an entity"""
-        pass
+        #TODO look up user by email?
+        #TODO what if user has permissions by membership in a group?
+        acl = self._getACL(entity)
+        for permissions in acl['resourceAccess']:
+            if 'principalId' in permissions and permissions['principalId'] == int(principalId):
+                return permissions['accessType']
+        return []
 
 
-    def setPermissions(self, entity, user=None, group=None):
-        """set permission that a user or groups has on an entity"""
-        pass
+    def setPermissions(self, entity, principalId, accessType=['READ'], warn_if_inherits=True, modify_benefactor=False):
+        """
+        Set permission that a user or group has on an entity.
+
+        An entity may have its own ACL or inherit its ACL from a benefactor.
+        Trying to modify the ACL of an entity that inherits its ACL will result
+        in a warning. To go ahead and create a new ACL on the entity, call
+        setPermissions with warn_if_inherits=False. To modify the benefactors
+        ACL, which will effect other entities, set modify_benefactor=True.
+
+        accessType: READ, CREATE, UPDATE, DELETE, CHANGE_PERMISSIONS
+        """
+        benefactor = self._getBenefactor(entity)
+        if warn_if_inherits and benefactor['id'] != id_of(entity):
+            sys.stderr.write(
+                '''Warning: You tried to update an ACL on an entity that inherits its
+                   access control from another entity, "%s" (%s). To create
+                   a new ACL list for the entity (%s) call setPermissions again with
+                   warn_if_inherits=False. To update the benefactor's ACL, call
+                   setPermissions again with modify_benefactor=True.''' % 
+                   (benefactor['name'], benefactor['id'], entity['id'],))
+            return
+
+        principalId = int(principalId)
+
+        acl = self._getACL(entity)
+
+        ## find existing permissions
+        existing_permissions = None
+        for permissions in acl['resourceAccess']:
+            if 'principalId' in permissions and permissions['principalId'] == principalId:
+                existing_permissions = permissions
+        if existing_permissions:
+            existing_permission['accessType'] = accessType
+        else:
+            acl['resourceAccess'].append({u'accessType': accessType, u'principalId': principalId})
+        acl = self._storeACL(entity, acl)
+
+        return acl
 
 
 
@@ -943,17 +987,12 @@ class Synapse:
 
     def _getFileHandle(self, fileHandle):
         """Retrieve a fileHandle from the fileHandle service (experimental)"""
-        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, id_of(fileHandle),)
-        headers = {'Accept': 'multipart/form-data, application/json', 'sessionToken': self.sessionToken}
-        response = requests.get(url, headers=headers, stream=True)
-        response.raise_for_status()
-        return response.json()
+        uri = "/fileHandle/%s" % (id_of(fileHandle),)
+        return self.restGET(uri, endpoint=self.fileHandleEndpoint)
 
     def _deleteFileHandle(self, fileHandle):
-        url = url = "%s/fileHandle/%s" % (self.fileHandleEndpoint, id_of(fileHandle),)
-        headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
-        response = requests.delete(url, headers=headers, stream=True)
-        response.raise_for_status()
+        uri = "/fileHandle/%s" % (id_of(fileHandle),)
+        self.restDELETE(uri, endpoint=self.fileHandleEndpoint)
         return fileHandle
 
 
