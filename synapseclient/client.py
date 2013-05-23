@@ -812,6 +812,7 @@ class Synapse:
             if self.debug: print filename, 'downloading...',
             utils.download_file(url, filename)
 
+        entity.path=filename
         if entity['contentType']=='application/zip':
             ## Unpack file
             filepath=os.path.join(os.path.dirname(filename), os.path.basename(filename)+'_unpacked')
