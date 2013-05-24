@@ -319,3 +319,11 @@ def itersubclasses(cls, _seen=None):
             for sub in itersubclasses(sub, _seen):
                 yield sub
 
+
+def normalize_whitespace(s):
+    """Strip the string and replace all whitespace sequences and other
+    non-printable characters with a single space."""
+    assert isinstance(s, str) or isinstance(s, unicode)
+    return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
+
+
