@@ -78,25 +78,20 @@ def test_get_entity_owned_by_another_user():
     project = syn_other.store(project)
 
     filepath = utils.make_bogus_data_file()
-    my_file = File(filepath, parent=project, description='asdf qwer', foo=1234)
-    my_file = syn_other.store(my_file)
+    a_file = File(filepath, parent=project, description='asdf qwer', foo=1234)
+    a_file = syn_other.store(a_file)
 
     current_user_id = int(syn.getUserProfile()['ownerId'])
 
     ## update the acl to give the current user read permissions
-    acl = syn_other._getACL(project)
-    assert('resourceAccess' in acl)
-    acl['resourceAccess'].append({u'accessType': [u'READ'], u'principalId': current_user_id})
-    acl = syn_other._storeACL(project, acl)
+    syn_other.setPermissions(a_file, current_user_id, accessType=['READ'], modify_benefactor=True)
 
-    other_users_file = syn.get(my_file.id)
+    ## test whether the benefactor's ACL was modified
+    assert syn_other.getPermissions(project, current_user_id) == ['READ']
 
-    assert other_users_file == my_file
+    other_users_file = syn.get(a_file.id)
+    a_file = syn_other.get(a_file.id)
 
-
-
-
-
-
+    assert other_users_file == a_file
 
 

@@ -663,7 +663,7 @@ class Synapse:
         return []
 
 
-    def setPermissions(self, entity, principalId, accessType=['READ'], warn_if_inherits=True, modify_benefactor=False):
+    def setPermissions(self, entity, principalId, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True):
         """
         Set permission that a user or group has on an entity.
 
@@ -676,15 +676,15 @@ class Synapse:
         accessType: READ, CREATE, UPDATE, DELETE, CHANGE_PERMISSIONS
         """
         benefactor = self._getBenefactor(entity)
-        if warn_if_inherits and benefactor['id'] != id_of(entity):
-            sys.stderr.write(
-                '''Warning: You tried to update an ACL on an entity that inherits its
-                   access control from another entity, "%s" (%s). To create
-                   a new ACL list for the entity (%s) call setPermissions again with
-                   warn_if_inherits=False. To update the benefactor's ACL, call
-                   setPermissions again with modify_benefactor=True.''' % 
-                   (benefactor['name'], benefactor['id'], entity['id'],))
-            return
+
+        if benefactor['id'] != id_of(entity):
+            if modify_benefactor:
+                entity = benefactor
+            elif warn_if_inherits:
+                sys.stderr.write(utils.normalize_whitespace(
+                    '''Warning: Creating an ACL for entity %s, which formerly inherited
+                       access control from a benefactor entity, "%s" (%s).''' % 
+                       (id_of(entity), benefactor['name'], benefactor['id'],))+'\n')
 
         principalId = int(principalId)
 
