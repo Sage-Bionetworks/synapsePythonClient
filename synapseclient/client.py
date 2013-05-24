@@ -244,7 +244,7 @@ class Synapse:
         if isinstance(entity, File):
             fh = bundle['fileHandles'][0]
             entity.md5=fh.get('contentMd5', '')
-            entity.fileSize=fh.get('contentSize', float('NaN'))
+            entity.fileSize=fh.get('contentSize', None)
             if fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                 entity['externalURL'] = fh['externalURL']
                 entity['synapseStore'] = False
@@ -1155,6 +1155,8 @@ class Synapse:
                 page_of_submissions = self.restGET(uri)
                 max_results = page_of_submissions['totalNumberOfResults']
                 submissions = page_of_submissions['results']
+                if len(submissions)==0:
+                    return
 
             i = result_count - offset
             result_count += 1
