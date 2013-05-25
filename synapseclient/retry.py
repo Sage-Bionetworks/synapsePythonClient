@@ -29,7 +29,7 @@ class RetryRequest(object):
             retries = self.retries
             wait = self.wait
 
-            if self.verbose:
+            if self.verbose=='debug':
                 tags = []
                 a = with_retry
                 while a:
@@ -39,7 +39,6 @@ class RetryRequest(object):
                         a = a.__wrapped__
                     else:
                         a = None
-
                 print 'tag chain=',tags
 
             ## retry 'til we succeed or run out of tries
@@ -54,30 +53,26 @@ class RetryRequest(object):
                     response = fn(*args, **kwargs)
                 except Exception as ex:
                     exc_info = sys.exc_info()
-                    if self.verbose:
+                    if self.verbose=='debug':
                         print '[%s] exception=' % with_retry.tag, str(exc_info[1])
                     if hasattr(ex,'response'):
                         response = ex.response
-                        print '[%s] exception.response=' % with_retry.tag, str(response)
 
                 ## check if we got a retryable error
                 if response is not None:
-                    if self.verbose:
+                    if self.verbose=='debug':
                         print '[%s] response=' % with_retry.tag, response
+                        print '[%s] response=' % with_retry.tag, response.content
                     if hasattr(response, 'status_code') and response.status_code in self.retry_status_codes:
                         retry = True
                     else:
                         try:
-                            print '[%s] trying to get JSON' % with_retry.tag
                             json = response.json()
-                            print '[%s] got JSON: ' % with_retry.tag,  json
                         except (AttributeError, ValueError) as ex:
                             pass
                         else:
                             if 'reason' in json and json['reason'] in self.retryable_errors:
                                 retry = True
-                                if self.verbose:
-                                    print '[%s] json=' % with_retry.tag, json['reason']
 
                 ## wait then retry
                 retries -= 1
@@ -97,7 +92,6 @@ class RetryRequest(object):
         ## Provide a hook to get back the wrapped function
         ## functools.wraps does this in Python 3.x
         with_retry.__wrapped__ = fn
-
         with_retry.tag = self.tag
 
         ## return the wrapper function

@@ -1030,7 +1030,7 @@ class Synapse:
         ##  64     7 
         with_retry = RetryRequest(retry_status_codes=[],
                                   retryable_errors=['The specified key does not exist.'],
-                                  retries=7, wait=2, back_off=2, verbose=verbose, tag='key does not exist')
+                                  retries=6, wait=2, back_off=2, verbose=verbose, tag='key does not exist')
         return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
 
     def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
@@ -1050,8 +1050,9 @@ class Synapse:
             raise Exception('Minimum chunksize is 5 MB.')
         if not os.path.exists(filepath):
             raise Exception('File not found: ' + str(filepath))
-        if verbose:
-            old_debug = self.debug
+    
+        old_debug = self.debug
+        if verbose=='debug':
             self.debug = True
 
         try:
@@ -1076,7 +1077,7 @@ class Synapse:
 
             ## get token
             token = self._createChunkedFileUploadToken(filepath, mimetype)
-            if verbose: sys.stderr.write('\n\ntoken= ' + str(token))
+            if verbose: sys.stderr.write('\n\ntoken= ' + str(token) + '\n')
 
             ## define the retry policy for uploading chunks
             with_retry = RetryRequest(retry_status_codes=[502,503], retries=4, wait=1, back_off=2, verbose=verbose)
@@ -1084,7 +1085,7 @@ class Synapse:
             with open(filepath, 'rb') as f:
                 for chunk in utils.chunks(f, chunksize):
                     i += 1
-                    if verbose: sys.stderr.write('\nChunk %d' % i)
+                    if verbose: sys.stderr.write('\nChunk %d\n' % i)
 
                     ## get the signed S3 URL
                     chunkRequest, url = self._createChunkedFileUploadChunkURL(i, token)

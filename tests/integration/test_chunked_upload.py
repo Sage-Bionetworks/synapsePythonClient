@@ -1,3 +1,4 @@
+import filecmp
 import os
 import sys
 
@@ -19,7 +20,7 @@ def setup(module):
 
 def test_chunked_file_upload():
     fh = None
-    filepath = utils.make_bogus_binary_file(64*MB, verbose=True)
+    filepath = utils.make_bogus_binary_file(6*MB, verbose=True)
     print 'Made bogus file: ', filepath
     try:
         fh = syn._chunkedUploadFile(filepath, verbose=True)
@@ -36,8 +37,44 @@ def test_chunked_file_upload():
             print 'Deleting fileHandle', fh['id']
             syn._deleteFileHandle(fh)
 
+def test_round_trip():
+    fh = None
+    filepath = utils.make_bogus_binary_file(6619777, verbose=True)
+    print 'Made bogus file: ', filepath
+    try:
+        fh = syn._chunkedUploadFile(filepath, verbose=True)
 
-def test_key_does_not_exist():
+        print "=" * 60
+        print "FileHandle:"
+        syn.printEntity(fh)
+
+        project = create_project()
+        junk = File(filepath, parent=project, dataFileHandleId=fh['id'])
+        junk.properties.update(syn._createEntity(junk.properties))
+
+        junk.update(syn._downloadFileEntity(junk))
+
+        assert filecmp.cmp(filepath, junk.path)
+
+    finally:
+        try:
+            syn.delete(junk)
+        except Exception as ex:
+            print ex
+        try:
+            os.remove(filepath)
+        except Exception as ex:
+            print ex
+        if fh:
+            print 'Deleting fileHandle', fh['id']
+            syn._deleteFileHandle(fh)
+
+def manually_check_retry_on_key_does_not_exist():
+    ## This is a manual test -- don't know how to automate this one.
+    ## We're testing the retrying of key-does-not-exist errors from S3.
+
+    ## Expected behavior: Retries several times, getting a error message:
+    ## "The specified key does not exist.", then fails with a stack trace.
     i = 1
     filepath = utils.make_bogus_binary_file(6*MB, verbose=True)
 
