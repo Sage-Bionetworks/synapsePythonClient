@@ -364,22 +364,32 @@ def chunks(fileobj, chunksize=5*MB):
         yield chunk
 
 
-def retry_request(f, args=[], kwargs={}, retry_status_codes=[500], retries=3, sleep_seconds=1, back_off=True, verbose=False):
-    retry_status_codes = _to_iterable(retry_status_codes)
-    while True:
-        try:
-            return f(*args, **kwargs)
-        except Exception as ex:
-            if hasattr(ex, 'response') and ex.response.status_code in retry_status_codes:
-                retries -= 1
-                if retries >= 0:
-                    if verbose:
-                        sys.stdout.write('\n...retrying in %d seconds...\n' % sleep_seconds)
-                    time.sleep(sleep_seconds)
-                    if back_off:
-                        sleep_seconds *= 2
+class RetryRequest(object):
+    def __init__(self, function, retry_status_codes=[500], retries=3, sleep_seconds=1, back_off=True, verbose=False):
+        self.retry_status_codes = _to_iterable(retry_status_codes)
+        self.retries = retries
+        self.sleep_seconds = sleep_seconds
+        self.back_off = back_off
+        self.verbose = verbose
+        self.function = function
+
+    def __call__(self, args=[], kwargs={}):
+        while True:
+            response = self.function(*args, **kwargs)
+            if response.status_code in self.retry_status_codes:
+                self.retries -= 1
+                if self.retries >= 0:
+                    if self.verbose:
+                        sys.stdout.write('\n...retrying in %d seconds...\n' % self.sleep_seconds)
+                    time.sleep(self.sleep_seconds)
+                    if self.back_off:
+                        self.sleep_seconds *= 2
                     continue
-            raise
+            return response
+
+class NoRetry(RetryRequest):
+    def __call__(self, f, args=[], kwargs={}):
+        return f(*args, **kwargs)
 
 
 ## http://code.activestate.com/recipes/576949/ (r3)

@@ -15,11 +15,12 @@ import sys
 
 import utils
 from synapseclient.version_check import version_check
-from synapseclient.utils import id_of, get_properties, chunks, retry_request, MB
+from synapseclient.utils import id_of, get_properties, chunks, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, split_entity_namespaces, is_versionable, is_locationable
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
+from synapseclient.retry import RetryRequest
 from synapseclient.wiki import Wiki
 
 
@@ -1012,8 +1013,25 @@ class Synapse:
         url = self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
         return chunkRequest, url
 
-    def _addChunkToFile(self, chunkRequest):
-        return self.restPOST('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
+    def _addChunkToFile(self, chunkRequest, verbose=False):
+        ## We occasionally get an error on addChunkToFile:
+        ##   500 Server Error: Internal Server Error
+        ##   {u'reason': u'The specified key does not exist.'}
+        ## This might be because S3 hasn't yet finished propagating the
+        ## addition of the new chunk. So, retry_request will wait and retry.
+
+        ## wait attempt#
+        ##   0     1
+        ##   2     2
+        ##   4     3
+        ##   8     4
+        ##  16     5
+        ##  32     6
+        ##  64     7 
+        with_retry = RetryRequest(retry_status_codes=[],
+                                  retryable_errors=['The specified key does not exist.'],
+                                  retries=7, wait=2, back_off=2, verbose=verbose, tag='key does not exist')
+        return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
 
     def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
         completeChunkedFileRequest = {'chunkedFileToken':chunkedFileToken,
@@ -1036,53 +1054,51 @@ class Synapse:
             old_debug = self.debug
             self.debug = True
 
-        i = 0
-        chunkResults = []
+        try:
+            i = 0
+            chunkResults = []
 
-        # guess mime-type - important for confirmation of MD5 sum by receiver
-        (mimetype, enc) = mimetypes.guess_type(filepath)
-        if (mimetype is None):
-            mimetype = "application/octet-stream"
+            # guess mime-type - important for confirmation of MD5 sum by receiver
+            (mimetype, enc) = mimetypes.guess_type(filepath)
+            if (mimetype is None):
+                mimetype = "application/octet-stream"
 
-        ## S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
-        ## 'transfer-encoding': 'chunked', which requests will add for you, if it
-        ## can't figure out content length. The errors given by S3 are not very
-        ## informative:
-        ## If a request contains both 'content-length' and 'transfer-encoding':
-        ## 'chunked', it seems that you get [Errno 32] Broken pipe.
-        ## If you give S3 'transfer-encoding' and no 'content-length', you get:
-        ## 501 Server Error: Not Implemented
-        ## A header you provided implies functionality that is not implemented
-        headers = { 'Content-Type' : mimetype}
+            ## S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
+            ## 'transfer-encoding': 'chunked', which requests will add for you, if it
+            ## can't figure out content length. The errors given by S3 are not very
+            ## informative:
+            ## If a request mistakenly contains both 'content-length' and
+            ## 'transfer-encoding':'chunked', you get [Errno 32] Broken pipe.
+            ## If you give S3 'transfer-encoding' and no 'content-length', you get:
+            ##   501 Server Error: Not Implemented
+            ##   A header you provided implies functionality that is not implemented
+            headers = { 'Content-Type' : mimetype}
 
-        ## get token
-        token = self._createChunkedFileUploadToken(filepath, mimetype)
-        if verbose: sys.stderr.write('\n\ntoken= ' + str(token))
+            ## get token
+            token = self._createChunkedFileUploadToken(filepath, mimetype)
+            if verbose: sys.stderr.write('\n\ntoken= ' + str(token))
 
-        with open(filepath, 'rb') as f:
-            for chunk in utils.chunks(f, chunksize):
-                i += 1
-                if verbose: sys.stderr.write('\nChunk %d' % i)
+            ## define the retry policy for uploading chunks
+            with_retry = RetryRequest(retry_status_codes=[502,503], retries=4, wait=1, back_off=2, verbose=verbose)
 
-                ## get the signed S3 URL
-                chunkRequest, url = self._createChunkedFileUploadChunkURL(i, token)
-                if verbose: sys.stderr.write('url= ' + str(url))
+            with open(filepath, 'rb') as f:
+                for chunk in utils.chunks(f, chunksize):
+                    i += 1
+                    if verbose: sys.stderr.write('\nChunk %d' % i)
 
-                ## PUT the chunk to S3
-                #TODO retry
-                response = requests.put(url, data=chunk, headers=headers)
-                response.raise_for_status()
+                    ## get the signed S3 URL
+                    chunkRequest, url = self._createChunkedFileUploadChunkURL(i, token)
+                    if verbose: sys.stderr.write('url= ' + str(url) + '\n')
 
-                ## We occasionally get an error on addChunkToFile:
-                ##   500 Server Error: Internal Server Error
-                ##   {u'reason': u'The specified key does not exist.'}
-                ## This might be because S3 hasn't yet finished propagating the
-                ## addition of the new chunk. So, retry_request will wait and retry.
-                chunkResults.append(
-                    retry_request(f=self._addChunkToFile, args=[chunkRequest], sleep_seconds=2, retries=4, retry_status_codes=[500], verbose=verbose))
+                    ## PUT the chunk to S3
+                    response = with_retry(requests.put)(url, data=chunk, headers=headers)
+                    response.raise_for_status()
 
-        return self._completeChunkFileUpload(token, chunkResults)
+                    chunkResults.append(self._addChunkToFile(chunkRequest, verbose=verbose))
 
+            return self._completeChunkFileUpload(token, chunkResults)
+        finally:
+            self.debug = old_debug
 
 
     ############################################################
@@ -1375,6 +1391,7 @@ class Synapse:
     ############################################################
     # Low level Rest calls
     ############################################################
+    @RetryRequest(retry_status_codes=[502,503], retryable_errors=[], retries=3, wait=1, back_off=2, verbose=False)
     def restGET(self, uri, endpoint=None, **kwargs):
         """Performs a REST GET operation to the Synapse server.
         
@@ -1397,6 +1414,7 @@ class Synapse:
             raise
         return response.json()
      
+    @RetryRequest(retry_status_codes=[502,503], retryable_errors=[], retries=3, wait=1, back_off=2, verbose=False)
     def restPOST(self, uri, body, endpoint=None):
         """Performs a POST request toward the synapse repo
         
@@ -1424,6 +1442,7 @@ class Synapse:
         # 'content-type': 'text/plain;charset=ISO-8859-1'
         return response.text
 
+    @RetryRequest(retry_status_codes=[502,503], retryable_errors=[], retries=3, wait=1, back_off=2, verbose=False)
     def restPUT(self, uri, body=None, endpoint=None):
         """Performs a POST request toward the synapse repo
         
@@ -1447,6 +1466,7 @@ class Synapse:
             raise
         return response.json()
 
+    @RetryRequest(retry_status_codes=[502,503], retryable_errors=[], retries=3, wait=1, back_off=2, verbose=False)
     def restDELETE(self, uri, endpoint=None):
         """Performs a REST DELETE operation to the Synapse server.
         

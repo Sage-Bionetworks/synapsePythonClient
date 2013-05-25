@@ -225,45 +225,6 @@ def test_id_of():
     assert utils.id_of(foo) == 123
 
 
-def test_retry_request():
-
-    class MyException(Exception):
-        def __init__(self, message, **kwargs):
-            self.message = message
-            self.__dict__.update(kwargs)
-        def __str__(self):
-            return 'MyException: ' + str(self.__dict__)
-
-    class Foo(object):
-        def __init__(self):
-            self.counter = 0
-        def fail_on_greater_than_ten(self,a,b,c):
-            s = a+b+c
-            if s > 10:
-                raise MyException('FooException!!', response=DictObject(status_code=500))
-            return s
-        def fail_n_times(self, n):
-            if self.counter < n:
-                self.counter += 1
-                raise MyException('Fail n times exception: ' + str(self.counter), response=DictObject(status_code=500))
-            return n
-
-    foo = Foo()
-    
-    ## test something that doesn't fail
-    utils.retry_request(foo.fail_on_greater_than_ten, DictObject(a=2,b=3,c=1), sleep_seconds=0, verbose=True)
-
-    ## test something that keeps failing
-    try:
-        utils.retry_request(foo.fail_on_greater_than_ten, DictObject(a=10,b=11,c=12), sleep_seconds=0, verbose=True)
-        assert False, 'Should have raised exception'
-    except Exception as ex:
-        print ex
-
-    ## fail n times then succeed
-    utils.retry_request(foo.fail_n_times, {'n':4}, retries=5, sleep_seconds=0, verbose=True)
-
-
 
 
 
