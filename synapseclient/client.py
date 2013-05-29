@@ -8,6 +8,7 @@ import zipfile
 import requests
 import os.path
 import mimetypes
+import socket
 import stat
 import pkg_resources
 import webbrowser
@@ -37,6 +38,12 @@ CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TOD
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 FILE_BUFFER_SIZE = 4*2**10
 CHUNK_SIZE = 5*2**20
+
+## defines the standard retry policy applied to the rest methods
+STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
+                                      retryable_errors=[],
+                                      retryable_exceptions=[requests.exceptions.Timeout, socket.timeout],
+                                      retries=3, wait=1, back_off=2, verbose=False)
 
 
 class Synapse:
@@ -1395,7 +1402,7 @@ class Synapse:
     ############################################################
     # Low level Rest calls
     ############################################################
-    @RetryRequest(retry_status_codes=[502,503], retryable_errors=[], retries=3, wait=1, back_off=2, verbose=False)
+    @STANDARD_RETRY_REQUEST
     def restGET(self, uri, endpoint=None, **kwargs):
         """Performs a REST GET operation to the Synapse server.
         
@@ -1418,7 +1425,7 @@ class Synapse:
             raise
         return response.json()
      
-    @RetryRequest(retry_status_codes=[502,503], retryable_errors=[], retries=3, wait=1, back_off=2, verbose=False)
+    @STANDARD_RETRY_REQUEST
     def restPOST(self, uri, body, endpoint=None):
         """Performs a POST request toward the synapse repo
         
@@ -1446,7 +1453,7 @@ class Synapse:
         # 'content-type': 'text/plain;charset=ISO-8859-1'
         return response.text
 
-    @RetryRequest(retry_status_codes=[502,503], retryable_errors=[], retries=3, wait=1, back_off=2, verbose=False)
+    @STANDARD_RETRY_REQUEST
     def restPUT(self, uri, body=None, endpoint=None):
         """Performs a POST request toward the synapse repo
         
@@ -1470,7 +1477,7 @@ class Synapse:
             raise
         return response.json()
 
-    @RetryRequest(retry_status_codes=[502,503], retryable_errors=[], retries=3, wait=1, back_off=2, verbose=False)
+    @STANDARD_RETRY_REQUEST
     def restDELETE(self, uri, endpoint=None):
         """Performs a REST DELETE operation to the Synapse server.
         
