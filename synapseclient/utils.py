@@ -5,9 +5,7 @@
 import os, sys, urllib, urlparse, hashlib, re
 import collections
 import tempfile
-import time
 import platform
-import datetime
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
@@ -362,34 +360,6 @@ def chunks(fileobj, chunksize=5*MB):
         chunk = Chunk(fileobj, size=min(remaining, chunksize))
         remaining -= len(chunk)
         yield chunk
-
-
-class RetryRequest(object):
-    def __init__(self, function, retry_status_codes=[500], retries=3, sleep_seconds=1, back_off=True, verbose=False):
-        self.retry_status_codes = _to_iterable(retry_status_codes)
-        self.retries = retries
-        self.sleep_seconds = sleep_seconds
-        self.back_off = back_off
-        self.verbose = verbose
-        self.function = function
-
-    def __call__(self, args=[], kwargs={}):
-        while True:
-            response = self.function(*args, **kwargs)
-            if response.status_code in self.retry_status_codes:
-                self.retries -= 1
-                if self.retries >= 0:
-                    if self.verbose:
-                        sys.stdout.write('\n...retrying in %d seconds...\n' % self.sleep_seconds)
-                    time.sleep(self.sleep_seconds)
-                    if self.back_off:
-                        self.sleep_seconds *= 2
-                    continue
-            return response
-
-class NoRetry(RetryRequest):
-    def __call__(self, f, args=[], kwargs={}):
-        return f(*args, **kwargs)
 
 
 ## http://code.activestate.com/recipes/576949/ (r3)

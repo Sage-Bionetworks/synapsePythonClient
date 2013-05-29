@@ -8,7 +8,6 @@ import synapseclient.utils as utils
 from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations
 from synapseclient.activity import Activity
 from synapseclient.utils import _find_used
-from synapseclient.dict_object import DictObject
 
 
 def setup():
@@ -223,8 +222,4 @@ def test_id_of():
 
     foo = Foo(123)
     assert utils.id_of(foo) == 123
-
-
-
-
 

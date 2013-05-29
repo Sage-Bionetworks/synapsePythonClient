@@ -5,7 +5,6 @@ import sys
 import synapseclient
 from synapseclient import Activity
 import utils
-import version_check
 import signal
 import json
 

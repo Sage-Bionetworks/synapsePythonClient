@@ -14,9 +14,9 @@ import pkg_resources
 import webbrowser
 import sys
 
-import utils
+import synapseclient.utils as utils
 from synapseclient.version_check import version_check
-from synapseclient.utils import id_of, get_properties, chunks, MB
+from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, split_entity_namespaces, is_versionable, is_locationable
@@ -36,8 +36,8 @@ STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/r
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TODO change to /data when storing files as md5
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
-FILE_BUFFER_SIZE = 4*2**10
-CHUNK_SIZE = 5*2**20
+FILE_BUFFER_SIZE = 4*KB
+CHUNK_SIZE = 5*MB
 
 ## defines the standard retry policy applied to the rest methods
 STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
