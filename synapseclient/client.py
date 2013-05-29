@@ -460,7 +460,7 @@ class Synapse:
             fileHandle = self._addURLtoFileHandleService(filename)
             entity['dataFileHandleId'] = fileHandle['id']
         else:
-            fileHandle = self._uploadFileToFileHandleService(filename)
+            fileHandle = self._chunkedUploadFile(filename)
             entity['dataFileHandleId'] = fileHandle['id']
         if 'entityType' not in entity:
             entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
@@ -960,7 +960,7 @@ class Synapse:
             if synapseStore==False:
                 return self._addURLtoFileHandleService(filename)
             else:
-                return self._uploadFileToFileHandleService(filename)
+                return self._chunkedUploadFile(filename)
 
     def _uploadFileToFileHandleService(self, filepath):
         """Upload a file to the new fileHandle service (experimental)
@@ -1045,6 +1045,8 @@ class Synapse:
         filepath: the file to be uploaded
         chunksize: chop the file into chunks of this many bytes. The default value is
                    5MB, which is also the minimum value.
+
+        returns an S3FileHandle
         """
         if chunksize < 5*MB:
             raise Exception('Minimum chunksize is 5 MB.')
@@ -1097,6 +1099,7 @@ class Synapse:
 
                     chunkResults.append(self._addChunkToFile(chunkRequest, verbose=verbose))
 
+            ## finalize the upload and return a fileHandle
             return self._completeChunkFileUpload(token, chunkResults)
         finally:
             self.debug = old_debug
