@@ -355,7 +355,6 @@ class Chunk(object):
 
 def chunks(fileobj, chunksize=5*MB):
     remaining = os.stat(fileobj.name).st_size
-    print 'file size is: ', remaining
     while remaining > 0:
         chunk = Chunk(fileobj, size=min(remaining, chunksize))
         remaining -= len(chunk)
