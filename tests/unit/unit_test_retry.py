@@ -16,6 +16,9 @@ class MyException(Exception):
         return 'MyException: ' + str(self.__dict__)
 
 class MockResponse(DictObject):
+    def __init__(self, *args, **kwargs):
+        super(MockResponse, self).__init__(*args, **kwargs)
+        self.headers={'content-type':'application/json'}
     def json(self):
         if self.status_code >= 500:
             return {'reason':self.get('reason', 'Darnit!')}

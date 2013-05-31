@@ -71,6 +71,7 @@ def test_round_trip():
 
 def manually_check_retry_on_key_does_not_exist():
     ## This is a manual test -- don't know how to automate this one.
+    ## To run: nosetests -vs tests/integration/test_chunked_upload.py:manually_check_retry_on_key_does_not_exist
     ## We're testing the retrying of key-does-not-exist errors from S3.
 
     ## Expected behavior: Retries several times, getting a error message:

@@ -595,6 +595,10 @@ def test_evaluations():
         user = syn.getUserProfile()
         syn.addEvaluationParticipant(ev, user['ownerId'])
 
+        ## test getSubmissions with no submissions (SYNR-453)
+        submissions = syn.getSubmissions(ev)
+        assert len(list(submissions))==0
+
         ## increase this to fully test paging by getEvaluationSubmissions
         num_of_submissions = 3
         ## create a bunch of entities and submit them for evaluation

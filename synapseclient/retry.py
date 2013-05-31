@@ -63,17 +63,25 @@ class RetryRequest(object):
                 if response is not None:
                     if self.verbose=='debug':
                         print '[%s] response=' % with_retry.tag, response
-                        print '[%s] response=' % with_retry.tag, response.content
-                    if hasattr(response, 'status_code') and response.status_code in self.retry_status_codes:
-                        retry = True
-                    else:
-                        try:
-                            json = response.json()
-                        except (AttributeError, ValueError) as ex:
-                            pass
+                        if hasattr(response, 'reason'):
+                            print '[%s] reason=' % with_retry.tag, response.reason
+                        if hasattr(response, 'content'):
+                            print '[%s] response.content=' % with_retry.tag, response.content
+                    if hasattr(response, 'status_code') and response.status_code not in range(200,299):
+                        if response.status_code in self.retry_status_codes:
+                            retry = True
+                        elif hasattr(response, 'headers') and response.headers['content-type'].lower().startswith('application/json'):
+                            try:
+                                json = response.json()
+                            except (AttributeError, ValueError) as ex:
+                                pass
+                            else:
+                                if 'reason' in json and json['reason'] in self.retryable_errors:
+                                    retry = True
                         else:
-                            if 'reason' in json and json['reason'] in self.retryable_errors:
-                                retry = True
+                            if hasattr(response, 'content'):
+                                if any([msg in response.content for msg in self.retryable_errors]):
+                                    retry = True
                 else:
                     if any( [isinstance(exc_info, retryable_exception) for retryable_exception in self.retryable_exceptions] ):
                         if self.verbose=='debug':
