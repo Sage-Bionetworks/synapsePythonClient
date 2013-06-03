@@ -91,8 +91,7 @@ class RetryRequest(object):
                 ## wait then retry
                 retries -= 1
                 if retries > 0 and retry:
-                    if self.verbose:
-                        sys.stdout.write('\n...retrying in %d seconds...\n' % wait)
+                    sys.stderr.write('\n...retrying in %d seconds...\n' % wait)
                     time.sleep(wait)
                     wait *= self.back_off
                     continue

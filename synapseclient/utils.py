@@ -354,6 +354,9 @@ class Chunk(object):
 
 
 def chunks(fileobj, chunksize=5*MB):
+    """
+    Generate file-like objects from which chunksize bytes can be streamed.
+    """
     remaining = os.stat(fileobj.name).st_size
     while remaining > 0:
         chunk = Chunk(fileobj, size=min(remaining, chunksize))

@@ -7,6 +7,12 @@ from synapseclient.retry import RetryRequest
 from synapseclient.dict_object import DictObject
 
 
+def setup():
+    print '\n'
+    print '~' * 60
+    print os.path.basename(__file__)
+    print '~' * 60
+
 class MyException(Exception):
     """Mock HTTP Exceptions"""
     def __init__(self, message, **kwargs):
@@ -123,7 +129,6 @@ def test_as_decorator():
 
 def test_double_wrapped():
 
-    print '\n', '^v' * 30
     failer = Failer()
 
     with_retry = RetryRequest(retries=3, wait=0,

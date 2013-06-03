@@ -20,7 +20,7 @@ def setup(module):
 
 def test_chunked_file_upload():
     fh = None
-    filepath = utils.make_bogus_binary_file(6*MB, verbose=True)
+    filepath = utils.make_bogus_binary_file(60*MB + 54321, verbose=True)
     print 'Made bogus file: ', filepath
     try:
         fh = syn._chunkedUploadFile(filepath, verbose=True)

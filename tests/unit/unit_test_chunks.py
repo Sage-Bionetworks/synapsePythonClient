@@ -5,6 +5,12 @@ import os
 
 KB = 2**10
 
+def setup():
+    print '\n'
+    print '~' * 60
+    print os.path.basename(__file__)
+    print '~' * 60
+
 def test_chunks():
     return True
     ### read a file in chunks, write the chunks out, and compare to the original

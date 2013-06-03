@@ -48,19 +48,21 @@ STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
 
 class Synapse:
     """
-    Python implementation for Synapse repository service client
+    Synapse repository service.
     """
 
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None,
                  serviceTimeoutSeconds=30, debug=False, skip_checks=False):
-        '''Constructor of Synapse client
+        """
+        Construct a Synapse client object
         params:
         - repoEndpoint: location of synapse repository
         - authEndpoint: location of authentication service
-        - serviceTimeoutSeconds : wait time before timeout
-        - debug: Boolean weather to print debugging messages.
-        '''
-
+        - fileHandleEndpoint: location of file service
+        - serviceTimeoutSeconds: (unused) wait time before timeout
+        - debug: print debugging messages if True
+        - skip_checks: skip version and endpoint checks
+        """
         self.cacheDir = os.path.expanduser(CACHE_DIR)
         #create cacheDir if it does not exist
         try:
@@ -192,16 +194,17 @@ class Synapse:
 
 
     def getUserProfile(self, id=None):
-        """Get the details about a Synapse user"""
+        """Get the details about a Synapse user, the current user if id is omitted"""
         uri = '/userProfile/%s' % ('' if id is None else str(id),)
         return self.restGET(uri)
 
 
     def onweb(self, entity):
-        """Opens up a webbrowser window on the entity page.
+        """
+        Opens up a browser window to the entity page.
         
         Arguments:
-        - `entity`: Either an entity or a synapse id
+           entity: Either an entity or a synapse id
         """
         if isinstance(entity, Evaluation):
             webbrowser.open("https://synapse.org/#Evaluation:%s" % id_of(entity))
@@ -226,11 +229,18 @@ class Synapse:
 
     def get(self, entity, **kwargs):
         """
-        entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
-        returns: A new Synapse Entity object of the appropriate type
+        Get a Synapse entity from the repo service.
+        Arguments:
+           entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
 
-        synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
+        Kwargs:
+           version: get a specific version, gets most recent if omitted
+           downloadFile: download associated files(s), if any
+
+        Returns:
+           A new Synapse Entity object of the appropriate type
         """
+        ##synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
         ## optional parameters
         version = kwargs.get('version', None)   #This ignores the version of entity if it is mappable
         downloadFile = kwargs.get('downloadFile', True)
@@ -281,13 +291,21 @@ class Synapse:
     def store(self, obj, **kwargs):
         """
         create new entity or update an existing entity, uploading any files in the process
-        entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
-        returns: A Synapse Entity object of the appropriate type
 
-        store(entity, used, executed, activityName=None, 
-                      activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
-        store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        Arguments:
+           obj: a Synapse Entity object or Evaluation, Wiki
+
+        Kwargs:
+           used: Entity object, Synapse ID, or URL to be part of the entity's provenance record
+           executed: Same as used, representing code executed as part of the entity's provenance record
+           activity: Activity object specifying the user's provenance
+
+        Returns:
+           A Synapse Entity object, Evaluation or Wiki
         """
+        # store(entity, used, executed, activityName=None, 
+        #               activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        # store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
         createOrUpdate = kwargs.get('createOrUpdate', True)
 
         #Handle all non entity objects
@@ -371,10 +389,11 @@ class Synapse:
 
 
     def delete(self, obj):
-        """Removes a existing object from Synapse
+        """
+        Removes an object from Synapse
         
         Arguments:
-        - `obj`: An existing object stored on Synapse such as evaluation, File, Project, WikiPage etc.
+           obj: An existing object stored on Synapse such as Evaluation, File, Project, WikiPage etc.
         """
         if isinstance(obj, basestring): #Handle all strings as entity id for backward compatibility
             self.restDELETE(uri='/entity/'+id_of(obj))
@@ -387,11 +406,13 @@ class Synapse:
     ############################################################
 
     def getEntity(self, entity, version=None):
-        """Retrieves metainformation about an entity from a synapse Repository
+        """
+        Retrieves metainformation about an entity from a synapse Repository
+        
         Arguments:
-        - `entity`: A synapse ID or dictionary describing an entity
+           entity: A synapse ID or dictionary describing an entity
         Returns:
-        - A new :class:`synapseclient.entity.Entity` object
+           A new :class:`synapseclient.entity.Entity` object
         """
         return self.get(entity, version=version, downloadFile=False)
 
@@ -400,7 +421,7 @@ class Synapse:
         """Downloads and attempts to load the contents of an entity into memory
         TODO: Currently only performs downlaod.
         Arguments:
-        r - `entity`: Either a string or dict representing an entity
+        - `entity`: Either a string or dict representing an entity
         """
         #TODO: Try to load the entity into memory as well.
         #This will be depenendent on the type of entity.
@@ -478,7 +499,8 @@ class Synapse:
     #TODO should this method upload files?
     def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
         """
-        Update an entity stored in synapse with the properties in entity
+        Update an entity stored in synapse with the properties in entity.
+        Using Synapse.store is preferred.
         """
 
         if not entity:
@@ -514,13 +536,13 @@ class Synapse:
 
 
     def deleteEntity(self, entity):
-        """Deletes a synapse entity"""
+        """Deletes a synapse entity. Synapse.delete is preferred."""
         self.delete(entity)
 
 
     #TODO: delegate to store?
     def uploadFile(self, entity, filename=None, used=None, executed=None):
-        """Upload a file to Synapse"""
+        """Upload a file to Synapse. Synapse.store is preferred."""
         ## if we got a synapse ID as a string, get the entity from synapse
         if isinstance(entity, basestring):
             if not filename:
@@ -565,6 +587,7 @@ class Synapse:
 
     def downloadEntity(self, entity, version=None):
         """Download an entity and file(s) associated with it to local cache.
+        Synapse.get is preferred.
         
         Arguments:
         - `entity`: A synapse ID of entity (i.e dictionary describing an entity)
@@ -620,10 +643,10 @@ class Synapse:
 
     def query(self, queryStr):
         '''
-        Query for datasets, layers, etc..
+        Query for Synapse entities.
 
         Example:
-        query("select id, name from entity where entity.parentId=='syn449742'")
+        >>> query("select id, name from entity where entity.parentId=='syn449742'")
         '''
         if(self.debug): print 'About to query %s' % (queryStr)
         return self.restGET('/query?query=' + urllib.quote(queryStr))
@@ -662,7 +685,11 @@ class Synapse:
 
 
     def getPermissions(self, entity, principalId):
-        """get permissions that a user or group has on an entity"""
+        """
+        Get permissions that a user or group has on an entity.
+
+        accessTypes: 'READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS'
+        """
         #TODO look up user by email?
         #TODO what if user has permissions by membership in a group?
         acl = self._getACL(entity)
@@ -682,7 +709,7 @@ class Synapse:
         setPermissions with warn_if_inherits=False. To modify the benefactors
         ACL, which will effect other entities, set modify_benefactor=True.
 
-        accessType: READ, CREATE, UPDATE, DELETE, CHANGE_PERMISSIONS
+        accessTypes: 'READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS'
         """
         benefactor = self._getBenefactor(entity)
 
@@ -742,7 +769,7 @@ class Synapse:
 
 
     def setProvenance(self, entity, activity):
-        """assert that the entity was generated by a given activity"""
+        """Assert that the entity was generated by a given activity"""
 
         if 'id' in activity:
             ## we're updating provenance
@@ -759,7 +786,7 @@ class Synapse:
 
 
     def deleteProvenance(self, entity):
-        """remove provenance information from an entity and delete the activity"""
+        """Remove provenance information from an entity and delete the activity"""
 
         activity = self.getProvenance(entity)
         if not activity: return
@@ -775,7 +802,7 @@ class Synapse:
 
 
     def updateActivity(self, activity):
-        """modify an existing activity"""
+        """Modify an existing activity"""
         uri = '/activity/%s' % activity['id']
         return Activity(data=self.restPUT(uri, json.dumps(activity)))
 
@@ -1037,7 +1064,7 @@ class Synapse:
         ##  64     7 
         with_retry = RetryRequest(retry_status_codes=[],
                                   retryable_errors=['The specified key does not exist.'],
-                                  retries=6, wait=2, back_off=2, verbose=verbose, tag='key does not exist')
+                                  retries=6, wait=3, back_off=2, verbose=verbose, tag='key does not exist')
         return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
 
     def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
@@ -1063,6 +1090,9 @@ class Synapse:
         old_debug = self.debug
         if verbose=='debug':
             self.debug = True
+
+        ## start timing
+        start_time = 
 
         try:
             i = 0
@@ -1308,6 +1338,7 @@ class Synapse:
     ############################################################
 
     def getWiki(self, owner, subpageId=None):
+        """Get a wiki page object from Synapse"""
         owner_type = utils.guess_object_type(owner)
         if subpageId:
             uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(subpageId))
@@ -1321,7 +1352,7 @@ class Synapse:
     def getWikiHeaders(self, owner):
         """Retrieves the the header of all wiki's belonging to owner"
         Arguments:
-        - `owner`: an Evaluatin of Entity
+        - `owner`: an Evaluation or Entity
         """
         owner_type = utils.guess_object_type(owner)
         uri = '/%s/%s/wikiheadertree' % (owner_type, id_of(owner),)
@@ -1421,7 +1452,7 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            sys.stderr.write(response.content)
+            sys.stderr.write(response.content+'\n')
             raise
         return response.json()
      
@@ -1445,7 +1476,7 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            sys.stderr.write(response.content)
+            sys.stderr.write(response.content+'\n')
             raise
 
         if response.headers.get('content-type',None) == 'application/json':
@@ -1473,7 +1504,7 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            sys.stderr.write(response.content)
+            sys.stderr.write(response.content+'\n')
             raise
         return response.json()
 
@@ -1494,7 +1525,7 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            sys.stderr.write(response.content)
+            sys.stderr.write(response.content+'\n')
             raise
 
 

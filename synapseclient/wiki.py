@@ -8,8 +8,33 @@ from synapseclient.utils import guess_object_type, id_of
 
 
 class Wiki(DictObject):
-    """Keeps track of an evaluation in Synapse.  Allowing for
-    submissions, retrieval and scoring.
+    """
+    Represent a wiki page in Synapse with content specified in markdown.
+
+    A wiki page requires a title, markdown and an owner object.
+
+        entity = syn.get('syn123456')
+
+        content = \"\"\"
+        My Wiki Page
+        ============
+
+        A **bold** statement in markdown!
+
+        An attached image:
+        ${image?fileName=foo.png&align=none}
+        \"\"\"
+
+        wiki = Wiki(title='My Wiki Page', owner=entity, markdown=content)
+
+        ## temporary work-around
+        fileHandle = syn._uploadFileToFileHandleService('/path/to/foo.png')
+        wiki.attachmentFileHandleIds = [fileHandle['id']]
+
+        wiki = syn.store(wiki)
+
+
+
     """
     __PROPERTIES = ('title', 'markdown', 'attachmentFileHandleIds', 'id', 'etag', 'createdBy', 'createdOn', 'modifiedBy', 'modifiedOn', 'parentWikiId')
 
