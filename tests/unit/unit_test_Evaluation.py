@@ -7,9 +7,11 @@ def test_Evaluation():
 
     #Status can only be one of ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']
     assert_raises(ValueError, Evaluation, name='foo', description='bar', status='BAH')
+    assert_raises(ValueError, Evaluation, name='foo', description='bar', status='OPEN', contentSource='a')
+
 
     #Assert that the values are 
-    ev = Evaluation(name='foobar2', description='bar', status='OPEN')
+    ev = Evaluation(name='foobar2', description='bar', status='OPEN', contentSource='syn1234')
     assert(ev['name']==ev.name)
     assert(ev['description']==ev.description)
     assert(ev['status']==ev.status)

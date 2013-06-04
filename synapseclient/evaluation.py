@@ -32,6 +32,8 @@ class Evaluation(DictObject):
         if  kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
             sys.stderr.write('\nEvaluation Status must be one of [OPEN, PLANNED, CLOSED, COMPLETED]\n\n')
             raise ValueError
+        if not kwargs['contentSource'].startswith('syn'):   #Verify that synapse Id given
+            raise ValueError
         super(Evaluation, self).__init__(kwargs)
 
 
