@@ -1,25 +1,29 @@
 Python Synapse Client
 =====================
 
-A python client for [Sage Synapse](https://synapse.sagebase.org/), a collaborative compute space that allows scientists to share and analyze data together. Please visit the [Getting Started Guide to Synapse](https://sagebionetworks.jira.com/wiki/x/R4B3AQ) page for more information.
+A python client for [Sage Synapse](https://synapse.sagebase.org/), a collaborative compute space that allows scientists to share and analyze data together. Please visit these pages for more information: [Getting Started Guide to Synapse](https://www.synapse.org/#!Wiki:syn1669771/ENTITY/54546) and [Getting started with the Synapse python client](https://www.synapse.org/#!Synapse:syn1768504).
 
 The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility. See also the [Synapse R client](https://sagebionetworks.jira.com/wiki/display/SYNR/Home).
 
 Upgrade Python Client
 ---------------------
-**Note**: This version of the Python client is necessary for compatibility with the January 25th, 2013 release of the Synapse platform. This platform update includes back-end changes and requires upgrading to the latest versions of the clients.
+**Note**: The January 25th, 2013 release of the Synapse platform made changes that are incompatible with older versions of the Python Client. If you have a version prior to 0.2.1, you'll need to upgrade to use the latest features of the Synapse platform.
 
 
 Installation
 ------------
 
-The python synapse client has been tested on python 2.7.
+The python synapse client has been tested on python 2.7 on Mac OS X, Ubuntu Linux and Windows 2008.
 
 ### Install using pip
 
 The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclient) and can be installed with pip:
 
     pip install synapseclient
+
+...or to upgrade an existing installation of the Synapse client:
+
+    pip install --upgrade synapseclient
 
 ### Install from source
 
@@ -74,27 +78,34 @@ The synapse client can be used to write software that interacts with the Sage Sy
     ## in which case you can do:
     # syn.login()
 
-    ## retrieve metadata about an entity
-    e = syn.getEntity('syn1528299')
+    ## retrieve a 100 by 4 matrix
+    matrix = syn.get('syn1899495')
 
     ## inspect its properties
-    print e['name']
-    print e['description']
+    print matrix.name
+    print matrix.description
+    print matrix.path
 
-    ## download a data file associated with the entity
-    e = syn.downloadEntity(e)
+    ## load the data matrix into a dictionary with an entry for each column
+    with open(matrix.path, 'r') as f:
+        labels = f.readline().strip().split('\t')
+        data = {label: [] for label in labels}
+        for line in f:
+            values = [float(x) for x in line.strip().split('\t')]
+            for i in range(len(labels)):
+                data[labels[i]].append(values[i])
 
-    print e['files']
+    ## load the data matrix into a numpy array
+    import numpy as np
+    np.loadtxt(fname=matrix.path, skiprows=1)
 
-    ## get full path to the downloaded file
-    import os.path
-    path = os.path.join(e['cacheDir'], e['files'][0])
-
+### querying for my projects
+    profile = syn.getUserProfile()
+    query_results = syn.query('select id,name from projects where project.createdByPrincipleId==%s' % profile['ownerId'])
 
 ### querying for entities that are part of the [Synapse Commons Repository](https://synapse.sagebase.org/Portal.html#Synapse:syn150935)
 
     syn.query('select id, name from entity where parentId=="syn150935"')
-
 
 ### querying for entities that are part of [TCGA pancancer](https://synapse.sagebase.org/Portal.html#Synapse:syn300013) that are also RNA-Seq data
     syn.query('select id, name from entity where freeze=="tcga_pancancer_v4" and platform=="IlluminaHiSeq_RNASeqV2"')
@@ -123,6 +134,6 @@ Authentication toward [synapse](https://synapse.sagebase.org/#RegisterAccount:0)
 License and Copyright
 ---------------------
 
-&copy; Copyright 2012 Sage Bionetworks
+&copy; Copyright 2013 Sage Bionetworks
 
 This software is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).

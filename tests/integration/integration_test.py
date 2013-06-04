@@ -453,52 +453,6 @@ def test_keyword_annotations():
     assert annos['shark'] == [16776960]
 
 
-def test_ACL():
-    ## get the user's principalId, which is called ownerId and is
-    ## returned as a string, while in the ACL, it's an integer
-    current_user_id = int(syn.getUserProfile()['ownerId'])
-
-    ## other user: using chris's principalId, should be a test user
-    other_user_id = 1421212
-
-    ## verify the validity of the other user
-    try:
-        profile = syn.getUserProfile(other_user_id)
-    except Exception as ex:
-        if hasattr(ex, 'response') and ex.response.status_code == 404:
-            raise Exception('Test invalid, test user doesn\'t exist.', ex)
-        raise
-
-    ## create a new project
-    project = create_project()
-
-    acl = syn._getACL(project)
-    #syn.printEntity(acl)
-    assert('resourceAccess' in acl)
-    assert current_user_id in [access['principalId'] for access in acl['resourceAccess']]
-
-    acl['resourceAccess'].append({u'accessType': [u'READ', u'CREATE', u'UPDATE'], u'principalId': other_user_id})
-
-    acl = syn._storeACL(project, acl)
-
-    acl = syn._getACL(project)
-    #syn.printEntity(acl)
-    
-    permissions = [access for access in acl['resourceAccess'] if access['principalId'] == current_user_id]
-    assert len(permissions) == 1
-    assert u'DELETE' in permissions[0]['accessType']
-    assert u'CHANGE_PERMISSIONS' in permissions[0]['accessType']
-    assert u'READ' in permissions[0]['accessType']
-    assert u'CREATE' in permissions[0]['accessType']
-    assert u'UPDATE' in permissions[0]['accessType']
-
-    permissions = [access for access in acl['resourceAccess'] if access['principalId'] == other_user_id]
-    assert len(permissions) == 1
-    assert u'READ' in permissions[0]['accessType']
-    assert u'CREATE' in permissions[0]['accessType']
-    assert u'UPDATE' in permissions[0]['accessType']
-
-
 def test_fileHandle():
     ## file the setup.py file to upload
     path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
@@ -640,6 +594,10 @@ def test_evaluations():
         ## add the current user as a participant
         user = syn.getUserProfile()
         syn.addEvaluationParticipant(ev, user['ownerId'])
+
+        ## test getSubmissions with no submissions (SYNR-453)
+        submissions = syn.getSubmissions(ev)
+        assert len(list(submissions))==0
 
         ## increase this to fully test paging by getEvaluationSubmissions
         num_of_submissions = 3

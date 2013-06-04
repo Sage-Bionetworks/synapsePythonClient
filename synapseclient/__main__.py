@@ -1,3 +1,11 @@
+"""
+***************************
+Synapse command line client
+***************************
+
+For help, type synapse -h.
+
+"""
 import argparse
 import os
 import shutil
@@ -5,7 +13,6 @@ import sys
 import synapseclient
 from synapseclient import Activity
 import utils
-import version_check
 import signal
 import json
 
