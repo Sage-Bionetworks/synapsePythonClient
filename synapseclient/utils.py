@@ -2,16 +2,18 @@
 
 # To debug this, python -m pdb myscript.py
 
-import os, urllib, urlparse, hashlib, re
+import os, sys, urllib, urlparse, hashlib, re
 import collections
 import tempfile
 import platform
-import datetime
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
+GB = 2**30
+MB = 2**20
+KB = 2**10
 
 
 def md5_for_file(filename, block_size=2**20):
@@ -181,6 +183,17 @@ def _to_list(value):
         return [value]
 
 
+def _to_iterable(value):
+    """
+    Convert the value (an iterable or a scalar value) to a list.
+    """
+    if isinstance(value, basestring):
+        return (value,)
+    if isinstance(value, collections.Iterable):
+        return value
+    return (value,)
+
+
 def make_bogus_data_file(n=100, seed=12345):
     """Make a bogus data file for testing. File will contain 'n'
     random floating point numbers separated by commas. It is the
@@ -188,15 +201,33 @@ def make_bogus_data_file(n=100, seed=12345):
     """
     import random
     random.seed(seed)
-    data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
+    data = [random.gauss(mu=0.0, sigma=1.0) for i in range(n)]
 
+    f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
     try:
-        f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
         f.write(", ".join((str(n) for n in data)))
         f.write("\n")
     finally:
         f.close()
 
+    return f.name
+
+
+def make_bogus_binary_file(n=1*MB, verbose=False):
+    """Make a bogus binary data file for testing. It is the
+    caller's responsibility to remove the file when finished.
+    """
+    if verbose:
+        sys.stdout.write('writing bogus file')
+    junk = os.urandom(min(n, 1*MB))
+    with tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+        while n > 0:
+            f.write(junk[0:min(n, 1*MB)])
+            n -= min(n, 1*MB)
+            if verbose:
+                sys.stdout.write('.')
+    if verbose:
+        sys.stdout.write('\n')
     return f.name
 
 
@@ -222,6 +253,27 @@ def from_unix_epoch_time(ms):
         mirror_date = Datetime.utcfromtimestamp(abs(ms)/1000.0)
         return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
     return Datetime.utcfromtimestamp(ms/1000.0)
+
+
+def format_time_interval(seconds):
+    periods = (
+        ('year',        60*60*24*365),
+        ('month',       60*60*24*30),
+        ('day',         60*60*24),
+        ('hour',        60*60),
+        ('minute',      60),
+        ('second',      1),)
+
+    result=[]
+    for period_name,period_seconds in periods:
+        if seconds > period_seconds or period_name=='second':
+            period_value, seconds = divmod(seconds, period_seconds)
+            if period_value > 0 or period_name=='second':
+                if period_value == 1:
+                    result.append("%d %s" % (period_value, period_name))
+                else:
+                    result.append("%d %ss" % (period_value, period_name))
+    return ", ".join(result)
 
 
 ## a helper method to find a particular used resource in an activity
@@ -276,6 +328,62 @@ def debug_response(response):
         print "Exception in debug_response: " + str(ex)
         print str(response)
 
+
+BUFFER_SIZE = 8*KB
+
+class Chunk(object):
+    """
+    """
+    ## TODO implement seek and tell?
+
+    def __init__(self, fileobj, size):
+        self.fileobj = fileobj
+        self.size = size
+        self.position = 0
+        self.closed = False
+
+    def read(self, size=None):
+        if size is None or size <= 0:
+            size = self.size - self.position
+        else:
+            size = min(size, self.size - self.position)
+
+        if self.closed or size <=0:
+            return None
+
+        self.position += size
+        return self.fileobj.read(size)
+
+    def mode(self):
+        return self.fileobj.mode()
+
+    def __len__(self):
+        return self.size
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        if self.closed:
+            raise StopIteration
+        data = self.read(BUFFER_SIZE)
+        if not data:
+           raise StopIteration
+        return data
+
+    def close(self):
+        self.closed = True
+
+
+def chunks(fileobj, chunksize=5*MB):
+    """
+    Generate file-like objects from which chunksize bytes can be streamed.
+    """
+    remaining = os.stat(fileobj.name).st_size
+    while remaining > 0:
+        chunk = Chunk(fileobj, size=min(remaining, chunksize))
+        remaining -= len(chunk)
+        yield chunk
 
 
 ## http://code.activestate.com/recipes/576949/ (r3)

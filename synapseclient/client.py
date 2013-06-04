@@ -12,20 +12,22 @@ import stat
 import pkg_resources
 import webbrowser
 import sys
+from time import time
 
-import utils
+import synapseclient.utils as utils
 from synapseclient.version_check import version_check
-from synapseclient.utils import id_of, get_properties
+from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, split_entity_namespaces, is_versionable, is_locationable
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
+from synapseclient.retry import RetryRequest
 from synapseclient.wiki import Wiki
 
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
-                        'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1/'}
+                        'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1'}
 
 STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-staging.prod.sagebase.org/auth/v1',
@@ -34,24 +36,33 @@ STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/r
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TODO change to /data when storing files as md5
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
-FILE_BUFFER_SIZE = 1024
+FILE_BUFFER_SIZE = 4*KB
+CHUNK_SIZE = 5*MB
+
+## defines the standard retry policy applied to the rest methods
+STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
+                                      retry_errors=[],
+                                      retry_exceptions=['Timeout', 'timeout'],
+                                      retries=3, wait=1, back_off=2, verbose=False)
 
 
 class Synapse:
     """
-    Python implementation for Synapse repository service client
+    Synapse repository service.
     """
 
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None,
                  serviceTimeoutSeconds=30, debug=False, skip_checks=False):
-        '''Constructor of Synapse client
+        """
+        Construct a Synapse client object
         params:
         - repoEndpoint: location of synapse repository
         - authEndpoint: location of authentication service
-        - serviceTimeoutSeconds : wait time before timeout
-        - debug: Boolean weather to print debugging messages.
-        '''
-
+        - fileHandleEndpoint: location of file service
+        - serviceTimeoutSeconds: (unused) wait time before timeout
+        - debug: print debugging messages if True
+        - skip_checks: skip version and endpoint checks
+        """
         self.cacheDir = os.path.expanduser(CACHE_DIR)
         #create cacheDir if it does not exist
         try:
@@ -183,16 +194,17 @@ class Synapse:
 
 
     def getUserProfile(self, id=None):
-        """Get the details about a Synapse user"""
+        """Get the details about a Synapse user, the current user if id is omitted"""
         uri = '/userProfile/%s' % ('' if id is None else str(id),)
         return self.restGET(uri)
 
 
     def onweb(self, entity):
-        """Opens up a webbrowser window on the entity page.
+        """
+        Opens up a browser window to the entity page.
         
         Arguments:
-        - `entity`: Either an entity or a synapse id
+           entity: Either an entity or a synapse id
         """
         if isinstance(entity, Evaluation):
             webbrowser.open("https://synapse.org/#Evaluation:%s" % id_of(entity))
@@ -217,11 +229,18 @@ class Synapse:
 
     def get(self, entity, **kwargs):
         """
-        entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
-        returns: A new Synapse Entity object of the appropriate type
+        Get a Synapse entity from the repo service.
+        Arguments:
+           entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
 
-        synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
+        Kwargs:
+           version: get a specific version, gets most recent if omitted
+           downloadFile: download associated files(s), if any
+
+        Returns:
+           A new Synapse Entity object of the appropriate type
         """
+        ##synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
         ## optional parameters
         version = kwargs.get('version', None)   #This ignores the version of entity if it is mappable
         downloadFile = kwargs.get('downloadFile', True)
@@ -272,13 +291,21 @@ class Synapse:
     def store(self, obj, **kwargs):
         """
         create new entity or update an existing entity, uploading any files in the process
-        entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
-        returns: A Synapse Entity object of the appropriate type
 
-        store(entity, used, executed, activityName=None, 
-                      activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
-        store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        Arguments:
+           obj: a Synapse Entity object or Evaluation, Wiki
+
+        Kwargs:
+           used: Entity object, Synapse ID, or URL to be part of the entity's provenance record
+           executed: Same as used, representing code executed as part of the entity's provenance record
+           activity: Activity object specifying the user's provenance
+
+        Returns:
+           A Synapse Entity object, Evaluation or Wiki
         """
+        # store(entity, used, executed, activityName=None, 
+        #               activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        # store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
         createOrUpdate = kwargs.get('createOrUpdate', True)
 
         #Handle all non entity objects
@@ -362,10 +389,11 @@ class Synapse:
 
 
     def delete(self, obj):
-        """Removes a existing object from Synapse
+        """
+        Removes an object from Synapse
         
         Arguments:
-        - `obj`: An existing object stored on Synapse such as evaluation, File, Project, WikiPage etc.
+           obj: An existing object stored on Synapse such as Evaluation, File, Project, WikiPage etc.
         """
         if isinstance(obj, basestring): #Handle all strings as entity id for backward compatibility
             self.restDELETE(uri='/entity/'+id_of(obj))
@@ -378,11 +406,13 @@ class Synapse:
     ############################################################
 
     def getEntity(self, entity, version=None):
-        """Retrieves metainformation about an entity from a synapse Repository
+        """
+        Retrieves metainformation about an entity from a synapse Repository
+        
         Arguments:
-        - `entity`: A synapse ID or dictionary describing an entity
+           entity: A synapse ID or dictionary describing an entity
         Returns:
-        - A new :class:`synapseclient.entity.Entity` object
+           A new :class:`synapseclient.entity.Entity` object
         """
         return self.get(entity, version=version, downloadFile=False)
 
@@ -391,7 +421,7 @@ class Synapse:
         """Downloads and attempts to load the contents of an entity into memory
         TODO: Currently only performs downlaod.
         Arguments:
-        r - `entity`: Either a string or dict representing an entity
+        - `entity`: Either a string or dict representing an entity
         """
         #TODO: Try to load the entity into memory as well.
         #This will be depenendent on the type of entity.
@@ -458,7 +488,7 @@ class Synapse:
             fileHandle = self._addURLtoFileHandleService(filename)
             entity['dataFileHandleId'] = fileHandle['id']
         else:
-            fileHandle = self._uploadFileToFileHandleService(filename)
+            fileHandle = self._chunkedUploadFile(filename)
             entity['dataFileHandleId'] = fileHandle['id']
         if 'entityType' not in entity:
             entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
@@ -469,7 +499,8 @@ class Synapse:
     #TODO should this method upload files?
     def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
         """
-        Update an entity stored in synapse with the properties in entity
+        Update an entity stored in synapse with the properties in entity.
+        Using Synapse.store is preferred.
         """
 
         if not entity:
@@ -505,13 +536,13 @@ class Synapse:
 
 
     def deleteEntity(self, entity):
-        """Deletes a synapse entity"""
+        """Deletes a synapse entity. Synapse.delete is preferred."""
         self.delete(entity)
 
 
     #TODO: delegate to store?
     def uploadFile(self, entity, filename=None, used=None, executed=None):
-        """Upload a file to Synapse"""
+        """Upload a file to Synapse. Synapse.store is preferred."""
         ## if we got a synapse ID as a string, get the entity from synapse
         if isinstance(entity, basestring):
             if not filename:
@@ -556,6 +587,7 @@ class Synapse:
 
     def downloadEntity(self, entity, version=None):
         """Download an entity and file(s) associated with it to local cache.
+        Synapse.get is preferred.
         
         Arguments:
         - `entity`: A synapse ID of entity (i.e dictionary describing an entity)
@@ -611,10 +643,10 @@ class Synapse:
 
     def query(self, queryStr):
         '''
-        Query for datasets, layers, etc..
+        Query for Synapse entities.
 
         Example:
-        query("select id, name from entity where entity.parentId=='syn449742'")
+        >>> query("select id, name from entity where entity.parentId=='syn449742'")
         '''
         if(self.debug): print 'About to query %s' % (queryStr)
         return self.restGET('/query?query=' + urllib.quote(queryStr))
@@ -653,7 +685,11 @@ class Synapse:
 
 
     def getPermissions(self, entity, principalId):
-        """get permissions that a user or group has on an entity"""
+        """
+        Get permissions that a user or group has on an entity.
+
+        accessTypes: 'READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS'
+        """
         #TODO look up user by email?
         #TODO what if user has permissions by membership in a group?
         acl = self._getACL(entity)
@@ -673,7 +709,7 @@ class Synapse:
         setPermissions with warn_if_inherits=False. To modify the benefactors
         ACL, which will effect other entities, set modify_benefactor=True.
 
-        accessType: READ, CREATE, UPDATE, DELETE, CHANGE_PERMISSIONS
+        accessTypes: 'READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS'
         """
         benefactor = self._getBenefactor(entity)
 
@@ -733,7 +769,7 @@ class Synapse:
 
 
     def setProvenance(self, entity, activity):
-        """assert that the entity was generated by a given activity"""
+        """Assert that the entity was generated by a given activity"""
 
         if 'id' in activity:
             ## we're updating provenance
@@ -750,7 +786,7 @@ class Synapse:
 
 
     def deleteProvenance(self, entity):
-        """remove provenance information from an entity and delete the activity"""
+        """Remove provenance information from an entity and delete the activity"""
 
         activity = self.getProvenance(entity)
         if not activity: return
@@ -766,7 +802,7 @@ class Synapse:
 
 
     def updateActivity(self, activity):
-        """modify an existing activity"""
+        """Modify an existing activity"""
         uri = '/activity/%s' % activity['id']
         return Activity(data=self.restPUT(uri, json.dumps(activity)))
 
@@ -811,7 +847,8 @@ class Synapse:
         headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
                     'Content-Type' : mimetype,
                     'x-amz-acl' : 'bucket-owner-full-control' }
-        response = requests.put(response_json['presignedUrl'], headers=headers, data=open(filename))
+        with open(filename, 'rb') as f:
+            response = requests.put(response_json['presignedUrl'], headers=headers, data=f)
         response.raise_for_status()
 
         # Add location to entity. Path will get converted to a signed S3 URL.
@@ -957,7 +994,7 @@ class Synapse:
             if synapseStore==False:
                 return self._addURLtoFileHandleService(filename)
             else:
-                return self._uploadFileToFileHandleService(filename)
+                return self._chunkedUploadFile(filename)
 
     def _uploadFileToFileHandleService(self, filepath):
         """Upload a file to the new fileHandle service (experimental)
@@ -965,8 +1002,8 @@ class Synapse:
         #print "_uploadFileToFileHandleService - filepath = " + str(filepath)
         url = "%s/fileHandle" % (self.fileHandleEndpoint,)
         headers = {'Accept': 'application/json', 'sessionToken': self.sessionToken}
-        with open(filepath, 'rb') as file:
-            response = requests.post(url, files={os.path.basename(filepath): file}, headers=headers)
+        with open(filepath, 'rb') as f:
+            response = requests.post(url, files={os.path.basename(filepath): f}, headers=headers)
         response.raise_for_status()
 
         ## we expect a list of FileHandles of length 1
@@ -995,6 +1032,140 @@ class Synapse:
         self.restDELETE(uri, endpoint=self.fileHandleEndpoint)
         return fileHandle
 
+    def _createChunkedFileUploadToken(self, filepath, mimetype):
+        md5 = utils.md5_for_file(filepath)
+
+        chunkedFileTokenRequest = {
+            'fileName':os.path.basename(filepath),
+            'contentType':mimetype,
+            'contentMD5':md5.hexdigest()
+        }
+        return self.restPOST('/createChunkedFileUploadToken', json.dumps(chunkedFileTokenRequest), endpoint=self.fileHandleEndpoint)
+
+    def _createChunkedFileUploadChunkURL(self, chunkNumber, chunkedFileToken):
+        chunkRequest = {'chunkNumber':chunkNumber, 'chunkedFileToken':chunkedFileToken}
+        url = self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
+        return chunkRequest, url
+
+    def _addChunkToFile(self, chunkRequest, verbose=False):
+        ## We occasionally get an error on addChunkToFile:
+        ##   500 Server Error: Internal Server Error
+        ##   {u'reason': u'The specified key does not exist.'}
+        ## This might be because S3 hasn't yet finished propagating the
+        ## addition of the new chunk. So, retry_request will wait and retry.
+        ## Note: These errors may have been caused by failing to read the content
+        ## of the PUT to S3, and therefore failing to close the stream, causing a
+        ## delay in S3 finalizing the upload and making the file visible to the
+        ## repo.
+
+        ## wait attempt#
+        ##   0     1
+        ##   2     2
+        ##   4     3
+        ##   8     4
+        ##  16     5
+        ##  32     6
+        ##  64     7 
+        with_retry = RetryRequest(retry_status_codes=[],
+                                  retry_exceptions=['HTTPSConnectionPool'],
+                                  retry_errors=['The specified key does not exist.'],
+                                  retries=4, wait=2, back_off=2, verbose=verbose, tag='addChunkToFile RetryRequest')
+        return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
+
+    def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
+        completeChunkedFileRequest = {'chunkedFileToken':chunkedFileToken,
+                                      'chunkResults':chunkResults}
+        return self.restPOST('/completeChunkFileUpload', json.dumps(completeChunkedFileRequest), endpoint=self.fileHandleEndpoint)
+
+    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, verbose=False):
+        """
+        Upload a file to be stored in Synapse, dividing large files into chunks.
+
+        filepath: the file to be uploaded
+        chunksize: chop the file into chunks of this many bytes. The default value is
+                   5MB, which is also the minimum value.
+
+        returns an S3FileHandle
+        """
+        if chunksize < 5*MB:
+            raise Exception('Minimum chunksize is 5 MB.')
+        if not os.path.exists(filepath):
+            raise Exception('File not found: ' + str(filepath))
+    
+        old_debug = self.debug
+        if verbose=='debug':
+            self.debug = True
+
+        ## start timing
+        start_time = time()
+
+        try:
+            i = 0
+            chunkResults = []
+
+            # guess mime-type - important for confirmation of MD5 sum by receiver
+            (mimetype, enc) = mimetypes.guess_type(filepath)
+            if (mimetype is None):
+                mimetype = "application/octet-stream"
+
+            ## S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
+            ## 'transfer-encoding': 'chunked', which requests will add for you, if it
+            ## can't figure out content length. The errors given by S3 are not very
+            ## informative:
+            ## If a request mistakenly contains both 'content-length' and
+            ## 'transfer-encoding':'chunked', you get [Errno 32] Broken pipe.
+            ## If you give S3 'transfer-encoding' and no 'content-length', you get:
+            ##   501 Server Error: Not Implemented
+            ##   A header you provided implies functionality that is not implemented
+            headers = { 'Content-Type' : mimetype}
+
+            ## get token
+            token = self._createChunkedFileUploadToken(filepath, mimetype)
+            if verbose: sys.stderr.write('\n\ntoken= ' + str(token) + '\n')
+
+            ## define the retry policy for uploading chunks
+            with_retry = RetryRequest(
+                retry_status_codes=[502,503],
+                retry_errors=['We encountered an internal error. Please try again.'],
+                retries=4, wait=1, back_off=2, verbose=verbose,
+                tag='S3 put RetryRequest')
+
+            with open(filepath, 'rb') as f:
+                for chunk in utils.chunks(f, chunksize):
+                    i += 1
+                    if verbose: sys.stderr.write('\nChunk %d\n' % i)
+
+                    ## get the signed S3 URL
+                    chunkRequest, url = self._createChunkedFileUploadChunkURL(i, token)
+                    if verbose: sys.stderr.write('url= ' + str(url) + '\n')
+
+                    ## PUT the chunk to S3
+                    response = with_retry(requests.put)(url, data=chunk, headers=headers)
+                    response.raise_for_status()
+
+                    ## Is requests closing response stream? Let's make sure:
+                    ## "Note that connections are only released back to
+                    ##  the pool for reuse once all body data has been
+                    ##  read; be sure to either set stream to False or
+                    ##  read the content property of the Response object."
+                    ## see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
+                    try:
+                        if response:
+                            response.content
+                    except Exception as ex:
+                        sys.stderr.write('error reading response: '+str(ex))
+
+                    chunkResults.append(self._addChunkToFile(chunkRequest, verbose=verbose))
+
+            ## finalize the upload and return a fileHandle
+            fileHandle = self._completeChunkFileUpload(token, chunkResults)
+
+            ## print timing information
+            print "Upload completed in %s." % utils.format_time_interval(time()-start_time)
+
+            return fileHandle
+        finally:
+            self.debug = old_debug
 
 
     ############################################################
@@ -1193,6 +1364,7 @@ class Synapse:
     ############################################################
 
     def getWiki(self, owner, subpageId=None):
+        """Get a wiki page object from Synapse"""
         owner_type = utils.guess_object_type(owner)
         if subpageId:
             uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(subpageId))
@@ -1206,7 +1378,7 @@ class Synapse:
     def getWikiHeaders(self, owner):
         """Retrieves the the header of all wiki's belonging to owner"
         Arguments:
-        - `owner`: an Evaluatin of Entity
+        - `owner`: an Evaluation or Entity
         """
         owner_type = utils.guess_object_type(owner)
         uri = '/%s/%s/wikiheadertree' % (owner_type, id_of(owner),)
@@ -1287,6 +1459,7 @@ class Synapse:
     ############################################################
     # Low level Rest calls
     ############################################################
+    @STANDARD_RETRY_REQUEST
     def restGET(self, uri, endpoint=None, **kwargs):
         """Performs a REST GET operation to the Synapse server.
         
@@ -1305,10 +1478,11 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            sys.stderr.write(response.content)
-            raise 
+            sys.stderr.write(response.content+'\n')
+            raise
         return response.json()
      
+    @STANDARD_RETRY_REQUEST
     def restPOST(self, uri, body, endpoint=None):
         """Performs a POST request toward the synapse repo
         
@@ -1328,11 +1502,15 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            sys.stderr.write(response.content)
-            raise 
-        return response.json()
+            sys.stderr.write(response.content+'\n')
+            raise
 
+        if response.headers.get('content-type',None) == 'application/json':
+            return response.json()
+        # 'content-type': 'text/plain;charset=ISO-8859-1'
+        return response.text
 
+    @STANDARD_RETRY_REQUEST
     def restPUT(self, uri, body=None, endpoint=None):
         """Performs a POST request toward the synapse repo
         
@@ -1352,12 +1530,11 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            sys.stderr.write(response.content)
-            raise 
-
+            sys.stderr.write(response.content+'\n')
+            raise
         return response.json()
 
-
+    @STANDARD_RETRY_REQUEST
     def restDELETE(self, uri, endpoint=None):
         """Performs a REST DELETE operation to the Synapse server.
         
@@ -1374,7 +1551,7 @@ class Synapse:
         try:
             response.raise_for_status()
         except:
-            sys.stderr.write(response.content)
-            raise 
+            sys.stderr.write(response.content+'\n')
+            raise
 
 

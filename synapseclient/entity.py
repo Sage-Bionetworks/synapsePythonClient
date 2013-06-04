@@ -290,6 +290,15 @@ class Entity(collections.MutableMapping):
 
 
 class Project(Entity):
+    """
+    Represent a project in Synapse.
+
+    Projects in Synapse must be uniquely named. Trying to create a project with
+    a name that's already taken, say 'My project', will result in an error.
+
+        project = Project('Foobarbat project')
+        project = syn.store(project)
+    """
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Project'
 
     def __init__(self, name=None, properties=None, annotations=None, local_state=None, **kwargs):
@@ -299,6 +308,14 @@ class Project(Entity):
 
 
 class Folder(Entity):
+    """
+    Represent a folder in Synapse.
+
+    Folders must have a name and a parent and can optionally have annotations.
+
+        folder = Folder('my data', parent=project)
+        folder = syn.store(Folder)
+    """
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Folder'
 
     def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
@@ -308,6 +325,15 @@ class Folder(Entity):
 
 
 class File(Entity, Versionable):
+    """
+    Represent a file in Synapse.
+
+    When a File object is stored, the associated local file or its URL will be
+    stored in Synapse. A File must have a path (or URL) and a parent.
+
+        data = File('/path/to/file/data.xyz', parent=folder)
+        data = syn.store(data)
+    """
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
     _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
