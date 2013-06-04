@@ -11,6 +11,7 @@ from datetime import date as Date
 from numbers import Number
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
+GB = 2**30
 MB = 2**20
 KB = 2**10
 
@@ -252,6 +253,27 @@ def from_unix_epoch_time(ms):
         mirror_date = Datetime.utcfromtimestamp(abs(ms)/1000.0)
         return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
     return Datetime.utcfromtimestamp(ms/1000.0)
+
+
+def format_time_interval(seconds):
+    periods = (
+        ('year',        60*60*24*365),
+        ('month',       60*60*24*30),
+        ('day',         60*60*24),
+        ('hour',        60*60),
+        ('minute',      60),
+        ('second',      1),)
+
+    result=[]
+    for period_name,period_seconds in periods:
+        if seconds > period_seconds or period_name=='second':
+            period_value, seconds = divmod(seconds, period_seconds)
+            if period_value > 0 or period_name=='second':
+                if period_value == 1:
+                    result.append("%d %s" % (period_value, period_name))
+                else:
+                    result.append("%d %ss" % (period_value, period_name))
+    return ", ".join(result)
 
 
 ## a helper method to find a particular used resource in an activity

@@ -107,7 +107,7 @@ def test_retry_request():
 
     print 'errmsg', '-' * 60
     failer.reset()
-    with_retry = RetryRequest(retries=3, wait=0, retryable_errors=['The specified key does not exist.'], verbose=True)
+    with_retry = RetryRequest(retries=3, wait=0, retry_errors=['The specified key does not exist.'], verbose=True)
     response = with_retry(failer.fail_n_times_exception)(2, 500, 'The specified key does not exist.')
     assert response.status_code==200
 
@@ -133,7 +133,7 @@ def test_double_wrapped():
 
     with_retry = RetryRequest(retries=3, wait=0,
                               retry_status_codes=[],
-                              retryable_errors=['The specified key does not exist.'],
+                              retry_errors=['The specified key does not exist.'],
                               verbose=True, tag='key does not exist')
 
     response = with_retry(failer.fail_n_times_decorated)(2, 500, 'The specified key does not exist.')

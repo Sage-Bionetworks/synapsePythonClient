@@ -4,7 +4,7 @@ import sys
 
 import synapseclient
 import synapseclient.utils as utils
-from synapseclient.utils import MB
+from synapseclient.utils import MB, GB
 from synapseclient import Activity, Entity, Project, Folder, File, Data
 
 import integration
@@ -18,28 +18,9 @@ def setup(module):
     print '~' * 60
     module.syn = integration.syn
 
-def test_chunked_file_upload():
-    fh = None
-    filepath = utils.make_bogus_binary_file(60*MB + 54321, verbose=True)
-    print 'Made bogus file: ', filepath
-    try:
-        fh = syn._chunkedUploadFile(filepath, verbose=True)
-
-        print "=" * 60
-        print "FileHandle:"
-        syn.printEntity(fh)
-    finally:
-        try:
-            os.remove(filepath)
-        except Exception as ex:
-            print ex
-        if fh:
-            print 'Deleting fileHandle', fh['id']
-            syn._deleteFileHandle(fh)
-
 def test_round_trip():
     fh = None
-    filepath = utils.make_bogus_binary_file(6619777, verbose=True)
+    filepath = utils.make_bogus_binary_file(6*MB + 777771, verbose=True)
     print 'Made bogus file: ', filepath
     try:
         fh = syn._chunkedUploadFile(filepath, verbose=True)
@@ -58,7 +39,8 @@ def test_round_trip():
 
     finally:
         try:
-            syn.delete(junk)
+            if 'junk' in locals():
+                syn.delete(junk)
         except Exception as ex:
             print ex
         try:

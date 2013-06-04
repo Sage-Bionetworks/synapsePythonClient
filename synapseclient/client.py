@@ -8,11 +8,11 @@ import zipfile
 import requests
 import os.path
 import mimetypes
-import socket
 import stat
 import pkg_resources
 import webbrowser
 import sys
+from time import time
 
 import synapseclient.utils as utils
 from synapseclient.version_check import version_check
@@ -41,8 +41,8 @@ CHUNK_SIZE = 5*MB
 
 ## defines the standard retry policy applied to the rest methods
 STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
-                                      retryable_errors=[],
-                                      retryable_exceptions=[requests.exceptions.Timeout, socket.timeout],
+                                      retry_errors=[],
+                                      retry_exceptions=['Timeout', 'timeout'],
                                       retries=3, wait=1, back_off=2, verbose=False)
 
 
@@ -1053,6 +1053,10 @@ class Synapse:
         ##   {u'reason': u'The specified key does not exist.'}
         ## This might be because S3 hasn't yet finished propagating the
         ## addition of the new chunk. So, retry_request will wait and retry.
+        ## Note: These errors may have been caused by failing to read the content
+        ## of the PUT to S3, and therefore failing to close the stream, causing a
+        ## delay in S3 finalizing the upload and making the file visible to the
+        ## repo.
 
         ## wait attempt#
         ##   0     1
@@ -1063,8 +1067,9 @@ class Synapse:
         ##  32     6
         ##  64     7 
         with_retry = RetryRequest(retry_status_codes=[],
-                                  retryable_errors=['The specified key does not exist.'],
-                                  retries=6, wait=3, back_off=2, verbose=verbose, tag='key does not exist')
+                                  retry_exceptions=['HTTPSConnectionPool'],
+                                  retry_errors=['The specified key does not exist.'],
+                                  retries=4, wait=2, back_off=2, verbose=verbose, tag='addChunkToFile RetryRequest')
         return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
 
     def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
@@ -1092,7 +1097,7 @@ class Synapse:
             self.debug = True
 
         ## start timing
-        start_time = 
+        start_time = time()
 
         try:
             i = 0
@@ -1119,7 +1124,11 @@ class Synapse:
             if verbose: sys.stderr.write('\n\ntoken= ' + str(token) + '\n')
 
             ## define the retry policy for uploading chunks
-            with_retry = RetryRequest(retry_status_codes=[502,503], retries=4, wait=1, back_off=2, verbose=verbose)
+            with_retry = RetryRequest(
+                retry_status_codes=[502,503],
+                retry_errors=['We encountered an internal error. Please try again.'],
+                retries=4, wait=1, back_off=2, verbose=verbose,
+                tag='S3 put RetryRequest')
 
             with open(filepath, 'rb') as f:
                 for chunk in utils.chunks(f, chunksize):
@@ -1134,10 +1143,27 @@ class Synapse:
                     response = with_retry(requests.put)(url, data=chunk, headers=headers)
                     response.raise_for_status()
 
+                    ## Is requests closing response stream? Let's make sure:
+                    ## "Note that connections are only released back to
+                    ##  the pool for reuse once all body data has been
+                    ##  read; be sure to either set stream to False or
+                    ##  read the content property of the Response object."
+                    ## see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
+                    try:
+                        if response:
+                            response.content
+                    except Exception as ex:
+                        sys.stderr.write('error reading response: '+str(ex))
+
                     chunkResults.append(self._addChunkToFile(chunkRequest, verbose=verbose))
 
             ## finalize the upload and return a fileHandle
-            return self._completeChunkFileUpload(token, chunkResults)
+            fileHandle = self._completeChunkFileUpload(token, chunkResults)
+
+            ## print timing information
+            print "Upload completed in %s." % utils.format_time_interval(time()-start_time)
+
+            return fileHandle
         finally:
             self.debug = old_debug
 
