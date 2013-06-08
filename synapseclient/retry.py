@@ -40,7 +40,7 @@ class RetryRequest(object):
                         a = a.__wrapped__
                     else:
                         a = None
-                print 'tag chain=',tags
+                print 'RetryRequest wrappers=',tags
 
             ## retry 'til we succeed or run out of tries
             while True:
@@ -86,9 +86,9 @@ class RetryRequest(object):
                 ## check if we got a retryable exception
                 if exc_info is not None:
                     ## might need fully qualified names? ex.__class__.__module__ + "." + ex.__class__.__name__
-                    if any([exc_info.__class__.__name__==retryable_exception for retryable_exception in self.retry_exceptions]):
+                    if exc_info[1].__class__.__name__ in self.retry_exceptions:
                         if self.verbose=='debug':
-                            print '[%s] exception=' % with_retry.tag, exc_info.__class__.__name__
+                            print '[%s] exception=' % with_retry.tag, exc_info[1].__class__.__name__
                         retry = True
 
                 ## wait then retry
