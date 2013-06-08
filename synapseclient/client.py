@@ -245,12 +245,29 @@ class Synapse:
         version = kwargs.get('version', None)   #This ignores the version of entity if it is mappable
         downloadFile = kwargs.get('downloadFile', True)
 
+        ## EntityBundle bit-flags
+        ## see: the Java class org.sagebionetworks.repo.model.EntityBundle
+        ## ENTITY                    = 0x1
+        ## ANNOTATIONS               = 0x2
+        ## PERMISSIONS               = 0x4
+        ## ENTITY_PATH               = 0x8
+        ## ENTITY_REFERENCEDBY       = 0x10
+        ## HAS_CHILDREN              = 0x20
+        ## ACL                       = 0x40
+        ## ACCESS_REQUIREMENTS       = 0x200
+        ## UNMET_ACCESS_REQUIREMENTS = 0x400
+        ## FILE_HANDLES              = 0x800
+
         #Get the entity bundle
         if version:
-            uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), version, (2048+1+2))
+            uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), version, (0x800 + 0x400 + 2 + 1))
         else:
-            uri = '/entity/%s/bundle?mask=%d' %(id_of(entity), (2048+1+2))
+            uri = '/entity/%s/bundle?mask=%d' %(id_of(entity), (0x800 + 0x400 + 2 + 1))
         bundle=self.restGET(uri)
+
+        ## check for unmet access requirements
+        if len(bundle['unmetAccessRequirements']) > 0:
+            sys.stderr.write("\nWARNING: This entity has access restrictions. Please visit the web page for this entity (syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to review and fulfill its download requirement(s).\n" % id_of(entity))
 
         local_state = entity.local_state() if isinstance(entity, Entity) else None
         properties = bundle['entity']
@@ -260,7 +277,8 @@ class Synapse:
         entity = Entity.create(properties, annotations, local_state)
 
         ## for external URLs, we want to retrieve the URL from the fileHandle
-        if isinstance(entity, File):
+        ## Note: fileHandles will be empty if there are unmet access requirements
+        if isinstance(entity, File) and len(bundle['fileHandles']) > 0:
             fh = bundle['fileHandles'][0]
             entity.md5=fh.get('contentMd5', '')
             entity.fileSize=fh.get('contentSize', None)
@@ -732,7 +750,7 @@ class Synapse:
             if 'principalId' in permissions and permissions['principalId'] == principalId:
                 existing_permissions = permissions
         if existing_permissions:
-            existing_permission['accessType'] = accessType
+            existing_permissions['accessType'] = accessType
         else:
             acl['resourceAccess'].append({u'accessType': accessType, u'principalId': principalId})
         acl = self._storeACL(entity, acl)
@@ -1058,6 +1076,11 @@ class Synapse:
         ## delay in S3 finalizing the upload and making the file visible to the
         ## repo.
 
+        ## Also saw ConnectionError/httplib.BadStatusLine here, especially when
+        ## using ridiculously large chunk sizes ~100MB. Adding a long timeout
+        ## didn't seem to help, and retry resulted in a the same error as
+        ## above: 'The specified key does not exist.'
+
         ## wait attempt#
         ##   0     1
         ##   2     2
@@ -1067,17 +1090,23 @@ class Synapse:
         ##  32     6
         ##  64     7 
         with_retry = RetryRequest(retry_status_codes=[],
-                                  retry_exceptions=['HTTPSConnectionPool'],
+                                  retry_exceptions=[],
                                   retry_errors=['The specified key does not exist.'],
                                   retries=4, wait=2, back_off=2, verbose=verbose, tag='addChunkToFile RetryRequest')
-        return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
+        #t = time()
+        try:
+            return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
+        except Exception as ex:
+            raise
+        #finally:
+        #    print time() - t
 
     def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
         completeChunkedFileRequest = {'chunkedFileToken':chunkedFileToken,
                                       'chunkResults':chunkResults}
         return self.restPOST('/completeChunkFileUpload', json.dumps(completeChunkedFileRequest), endpoint=self.fileHandleEndpoint)
 
-    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, verbose=False):
+    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, verbose=False, progress=True):
         """
         Upload a file to be stored in Synapse, dividing large files into chunks.
 
@@ -1123,6 +1152,10 @@ class Synapse:
             token = self._createChunkedFileUploadToken(filepath, mimetype)
             if verbose: sys.stderr.write('\n\ntoken= ' + str(token) + '\n')
 
+            if progress:
+                sys.stdout.write('.')
+                sys.stdout.flush()
+
             ## define the retry policy for uploading chunks
             with_retry = RetryRequest(
                 retry_status_codes=[502,503],
@@ -1138,10 +1171,16 @@ class Synapse:
                     ## get the signed S3 URL
                     chunkRequest, url = self._createChunkedFileUploadChunkURL(i, token)
                     if verbose: sys.stderr.write('url= ' + str(url) + '\n')
+                    if progress:
+                        sys.stdout.write('.')
+                        sys.stdout.flush()
 
                     ## PUT the chunk to S3
                     response = with_retry(requests.put)(url, data=chunk, headers=headers)
                     response.raise_for_status()
+                    if progress:
+                        sys.stdout.write('.')
+                        sys.stdout.flush()
 
                     ## Is requests closing response stream? Let's make sure:
                     ## "Note that connections are only released back to
@@ -1151,17 +1190,24 @@ class Synapse:
                     ## see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
                     try:
                         if response:
-                            response.content
+                            throw_away = response.content
                     except Exception as ex:
                         sys.stderr.write('error reading response: '+str(ex))
 
                     chunkResults.append(self._addChunkToFile(chunkRequest, verbose=verbose))
+                    if progress:
+                        sys.stdout.write(',')
+                        sys.stdout.flush()
+
+            if progress:
+                sys.stdout.write('!\n')
+                sys.stdout.flush()
 
             ## finalize the upload and return a fileHandle
             fileHandle = self._completeChunkFileUpload(token, chunkResults)
 
             ## print timing information
-            print "Upload completed in %s." % utils.format_time_interval(time()-start_time)
+            if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time()-start_time))
 
             return fileHandle
         finally:
@@ -1471,7 +1517,7 @@ class Synapse:
         """
         if endpoint==None:
             endpoint=self.repoEndpoint    
-        response = requests.get(endpoint+uri, headers=self.headers)
+        response = requests.get(endpoint+uri, headers=self.headers, **kwargs)
         self._storeTimingProfile(response)
         if self.debug:
             utils.debug_response(response)
@@ -1483,7 +1529,7 @@ class Synapse:
         return response.json()
      
     @STANDARD_RETRY_REQUEST
-    def restPOST(self, uri, body, endpoint=None):
+    def restPOST(self, uri, body, endpoint=None, **kwargs):
         """Performs a POST request toward the synapse repo
         
         Arguments:
@@ -1496,7 +1542,7 @@ class Synapse:
         """
         if endpoint==None:
             endpoint=self.repoEndpoint    
-        response = requests.post(endpoint + uri, data=body, headers=self.headers)
+        response = requests.post(endpoint + uri, data=body, headers=self.headers, **kwargs)
         if self.debug:
             utils.debug_response(response)
         try:
@@ -1511,7 +1557,7 @@ class Synapse:
         return response.text
 
     @STANDARD_RETRY_REQUEST
-    def restPUT(self, uri, body=None, endpoint=None):
+    def restPUT(self, uri, body=None, endpoint=None, **kwargs):
         """Performs a POST request toward the synapse repo
         
         Arguments:
@@ -1524,7 +1570,7 @@ class Synapse:
         """
         if endpoint==None:
             endpoint=self.repoEndpoint    
-        response = requests.put(endpoint + uri, data=body, headers=self.headers)
+        response = requests.put(endpoint + uri, data=body, headers=self.headers, **kwargs)
         if self.debug:
             utils.debug_response(response)
         try:
@@ -1535,7 +1581,7 @@ class Synapse:
         return response.json()
 
     @STANDARD_RETRY_REQUEST
-    def restDELETE(self, uri, endpoint=None):
+    def restDELETE(self, uri, endpoint=None, **kwargs):
         """Performs a REST DELETE operation to the Synapse server.
         
         Arguments:
@@ -1545,7 +1591,7 @@ class Synapse:
         """
         if endpoint==None:
             endpoint=self.repoEndpoint    
-        response = requests.delete(endpoint+uri, headers=self.headers)
+        response = requests.delete(endpoint+uri, headers=self.headers, **kwargs)
         if self.debug:
             utils.debug_response(response)
         try:
