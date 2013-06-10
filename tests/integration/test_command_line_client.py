@@ -38,7 +38,7 @@ def run(command, **kwargs):
         raise
 
 def parse(regex, output):
-    m = re.match(regex, output)
+    m = re.search(regex, output)
     if m:
         if len(m.groups()) > 0:
             return m.group(1).strip()
