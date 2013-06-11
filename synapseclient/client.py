@@ -351,7 +351,7 @@ class Synapse:
         #TODO: can this be factored out?
         ## need to upload a FileEntity?
         ##   create FileHandle first, then create or update entity
-        if entity['entityType'] == File._synapse_entity_type:
+        if entity['entityType'] == File._synapse_entity_type and entity.get('path',False):
             if 'dataFileHandleId' not in properties or True: #TODO: file_cache.local_file_has_changed(entity.path):
                 synapseStore = entity.get('synapseStore', None)
                 fileHandle = self._uploadToFileHandleService(entity.path, synapseStore=synapseStore)
@@ -998,7 +998,10 @@ class Synapse:
 
         synapseStore: store file in Synapse or just a URL
         """
-        if utils.is_url(filename):
+        if not filename:
+            raise ValueError('No filename given')
+
+        elif utils.is_url(filename):
             ## implement downloading and storing remote files? by default??
             # if synapseStore==True:
             #     ## download the file locally, then upload it and cache it?
@@ -1117,9 +1120,9 @@ class Synapse:
         returns an S3FileHandle
         """
         if chunksize < 5*MB:
-            raise Exception('Minimum chunksize is 5 MB.')
-        if not os.path.exists(filepath):
-            raise Exception('File not found: ' + str(filepath))
+            raise ValueError('Minimum chunksize is 5 MB.')
+        if filepath is None or not os.path.exists(filepath):
+            raise ValueError('File not found: ' + str(filepath))
     
         old_debug = self.debug
         if verbose=='debug':
