@@ -167,7 +167,6 @@ def test_get_and_store():
     old_random_data=syn.get(random_data.id, version=random_data.versionNumber)
     assert filecmp.cmp(old_random_data.path, path)
 
-
 def test_store_dictionary():
     project = { 'entityType': 'org.sagebionetworks.repo.model.Project',
                 'name':str(uuid.uuid4()),
@@ -208,6 +207,29 @@ def test_store_dictionary():
 
     data = syn.get(data['id'])
     assert filecmp.cmp(path, os.path.join(data['cacheDir'], data['files'][0]))
+
+
+def test_get_store_download_file_equals_false():
+    """
+    Test for SYNR-474:
+    Python client crashes when storing syn.store(syn.get(..., downloadFile=False))
+    """
+    project = create_project()
+
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    f = File(path, name='Foobarbat', parent=project)
+    f = syn.store(f)
+
+    f1 = syn.get(f.id, downloadFile=False)
+    f1.description = 'Snorklewacker'
+    f1.shoe_size = 11.5
+    f1 = syn.store(f1)
+
+    f2 = syn.get(f.id, downloadFile=False)
+    assert f2.description == f1.description
+    assert f2.shoe_size == [11.5]
 
 
 def test_store_activity():
