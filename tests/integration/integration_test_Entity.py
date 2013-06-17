@@ -167,6 +167,7 @@ def test_get_and_store():
     old_random_data=syn.get(random_data.id, version=random_data.versionNumber)
     assert filecmp.cmp(old_random_data.path, path)
 
+
 def test_store_dictionary():
     project = { 'entityType': 'org.sagebionetworks.repo.model.Project',
                 'name':str(uuid.uuid4()),
@@ -232,6 +233,60 @@ def test_get_store_download_file_equals_false():
     assert f2.shoe_size == [11.5]
 
 
+def test_get_and_store_by_name_and_parent_id():
+    project = create_project()
+
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    f = File(path, name='Foobarbat', parent=project)
+    f2 = syn.store(f)
+    f = syn.get(f)
+
+    assert f.id == f2.id
+    assert f.name == f2.name
+    assert f.parentId == f2.parentId
+
+    ## new file
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    ## should create a new version of the previous File entity
+    f3 = File(path, name='Foobarbat', parent=project, description='banana', junk=1234)
+    f3 = syn.store(f3)
+
+    ## should be an update of the existing entity with the same name and parent
+    assert f3.id == f.id
+    assert f3.description == 'banana'
+    assert f3.junk == [1234]
+    assert filecmp.cmp(path, f3.path)
+
+
+def test_update_and_increment_version():
+    project = create_project()
+
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    f = File(path, parent=project)
+    f = syn.store(f)
+
+    newversion = {
+        'id':f.id,
+        'name':f.name,
+        'description':'This is a totally new description',
+        'entityType':File._synapse_entity_type,
+        'dataFileHandleId':f.dataFileHandleId,
+        'etag':f.etag,
+        'parentId':f.parentId}
+
+    updated_f = syn.store(newversion)
+
+    assert updated_f.id == f.id
+    assert updated_f.description == 'This is a totally new description'
+    assert updated_f.versionNumber == 2
+
+
 def test_store_activity():
     """Test storing entities with Activities"""
     project = create_project()
@@ -292,6 +347,7 @@ def test_synapseStore_flag():
     """Test storing entities while setting the synapseStore flag to False"""
     project = create_project()
 
+    ## store a path to a local file (synapseStore=False)
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     f1 = File(path, name='Totally bogus data', parent=project, synapseStore=False)
@@ -304,6 +360,7 @@ def test_synapseStore_flag():
     assert f1a.path == path, 'path='+str(f1a.path)+'; expected='+path
     assert f1a.synapseStore == False
 
+    ## make sure the test runs on Windows and other OS's
     if path[0].isalpha() and path[1]==':':
         ## a windows file URL looks like this: file:///c:/foo/bar/bat.txt
         expected_url = 'file:///' + path
