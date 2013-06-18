@@ -36,6 +36,7 @@ STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/r
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TODO change to /data when storing files as md5
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
+SESSION_FILE=os.path.join(CACHE_DIR, '.session')
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
 
@@ -135,20 +136,40 @@ class Synapse:
         """
         Authenticate and get session token by using (in order of preference):
         1) supplied email and password
-        2) check for configuraton file
-        3) Use already existing session token
+        2) supplied session token
+        3) check for saved session token
+        4) check for configuraton file
         """
         ## check version before logging in
         if not self.skip_checks: version_check()
 
-        session_file = os.path.join(self.cacheDir, ".session")
-
         if (email==None or password==None):
-            if sessionToken is not None:
-                self.headers["sessionToken"] = sessionToken
-                self.sessionToken = sessionToken
-                return sessionToken
-            else:
+            if sessionToken is not None or os.path.isfile(SESSION_FILE):
+                token = {}
+                
+                # Try to grab an existing session token
+                if sessionToken is None:
+                    try:
+                        token["sessionToken"] = open(SESSION_FILE, 'r').read()
+                    except IOError:
+                        raise("LOGIN FAILED: could not retrieve session token from file")
+                else: 
+                    token["sessionToken"] = sessionToken
+                    
+                # Validate the session token
+                response = requests.put(self.authEndpoint + '/session', headers=self.headers, data=json.dumps(token))
+                
+                # Success!
+                if response.status_code == 204:
+                    self.headers["sessionToken"] = token["sessionToken"]
+                    self.sessionToken = token["sessionToken"]
+                    return
+                else:
+                    if (sessionToken is not None):
+                        raise Exception("LOGIN FAILED: supplied session token (%s) is invalid" % token["sessionToken"])
+                    # Otherwise, assume the saved session token is expired and try the config file
+            
+            if os.path.isfile(CONFIG_FILE):
                 try:
                     config = ConfigParser.ConfigParser()
                     config.read(CONFIG_FILE)
@@ -157,6 +178,8 @@ class Synapse:
                 except ConfigParser.NoSectionError:
                     #Authentication not defined in config
                     raise Exception("LOGIN FAILED: no username/password provided or found in config file (%s)" % (CONFIG_FILE,))
+            else:
+                raise Exception("LOGIN FAILED: no credentials provided")
 
         # Disable profiling during login and proceed with authentication
         self.headers['request_profile'], orig_request_profile='False', self.headers['request_profile']
@@ -168,9 +191,9 @@ class Synapse:
         self.headers["sessionToken"] = self.sessionToken
 
         ## cache session token
-        with open(session_file, "w") as f:
+        with open(SESSION_FILE, "w") as f:
             f.write(self.sessionToken)
-        os.chmod(session_file, stat.S_IRUSR | stat.S_IWUSR)
+        os.chmod(SESSION_FILE, stat.S_IRUSR | stat.S_IWUSR)
         self.headers['request_profile'] = orig_request_profile
 
 
