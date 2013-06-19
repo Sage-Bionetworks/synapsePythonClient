@@ -89,6 +89,17 @@ def test_get_entity_owned_by_another_user():
     ## test whether the benefactor's ACL was modified
     assert syn_other.getPermissions(project, current_user_id) == ['READ']
 
+    ## add a new permission to a user with existing permissions
+    ## make this change on the entity itself, not its benefactor
+    syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'UPDATE'], modify_benefactor=False, warn_if_inherits=False)
+    permissions = syn_other.getPermissions(a_file, current_user_id)
+    assert 'READ' in permissions
+    assert 'UPDATE' in permissions
+    assert len(permissions) == 2
+
+    syn_other.setPermissions(a_file, current_user_id, accessType=['READ'])
+    assert syn_other.getPermissions(a_file, current_user_id) == ['READ']
+
     other_users_file = syn.get(a_file.id)
     a_file = syn_other.get(a_file.id)
 
