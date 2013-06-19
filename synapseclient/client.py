@@ -738,10 +738,11 @@ class Synapse:
         >>> query("select id, name from entity where entity.parentId=='syn449742'")
         '''
         if(self.debug): print 'About to query %s' % (queryStr)
-        response = self.restGET('/query?query=' + urllib.quote(queryStr))
-        
-        for res in response['results']:
-            yield res
+        return self.restGET('/query?query=' + urllib.quote(queryStr))
+        # response = self.restGET('/query?query=' + urllib.quote(queryStr))
+        # 
+        # for res in response['results']:
+        #     yield res
 
 
     ############################################################
