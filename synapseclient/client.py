@@ -28,11 +28,13 @@ from synapseclient.wiki import Wiki
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
-                        'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1'}
+                        'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1', 
+                        'portalEndpoint':'https://synapse.org/'}
 
 STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-staging.prod.sagebase.org/auth/v1',
-                        'fileHandleEndpoint':'https://file-staging.prod.sagebase.org/file/v1'}
+                        'fileHandleEndpoint':'https://file-staging.prod.sagebase.org/file/v1', 
+                        'portalEndpoint':'https://staging.synapse.org/'}
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TODO change to /data when storing files as md5
@@ -53,7 +55,7 @@ class Synapse:
     Synapse repository service.
     """
 
-    def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None,
+    def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, 
                  serviceTimeoutSeconds=30, debug=False, skip_checks=False):
         """
         Construct a Synapse client object
@@ -61,33 +63,57 @@ class Synapse:
         - repoEndpoint: location of synapse repository
         - authEndpoint: location of authentication service
         - fileHandleEndpoint: location of file service
+        - portalEndpoint: location of the website
         - serviceTimeoutSeconds: (unused) wait time before timeout
         - debug: print debugging messages if True
         - skip_checks: skip version and endpoint checks
         """
         self.cacheDir = os.path.expanduser(CACHE_DIR)
-        #create cacheDir if it does not exist
+        # Create the cache directory if it does not exist
         try:
             os.makedirs(self.cacheDir)
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
 
-        ## if endpoints aren't specified, look in config file
-        if any([ep is None for ep in (repoEndpoint, authEndpoint, fileHandleEndpoint)]):
-            try:
-                config = ConfigParser.ConfigParser()
-                config.read(CONFIG_FILE)
-                if config.has_section('endpoints'):
-                    if config.has_option('endpoints', 'repoEndpoint'):
-                        repoEndpoint=config.get('endpoints', 'repoEndpoint')
-                    if config.has_option('endpoints', 'authEndpoint'):
-                        authEndpoint=config.get('endpoints', 'authEndpoint')
-                    if config.has_option('endpoints', 'fileHandleEndpoint'):
-                        fileHandleEndpoint=config.get('endpoints', 'fileHandleEndpoint')
-            except ConfigParser.Error:
-                sys.stderr.write('Error parsing synapse config file: %s' % CONFIG_FILE)
-                raise
+        # Create the ~/.synapseconfig file if it does not exist
+        if not os.path.isfile(CONFIG_FILE):
+            config = ConfigParser.ConfigParser()
+            config.add_section('authentication')
+            with open(CONFIG_FILE, 'w') as configfile:
+                config.write(configfile)
+                
+        self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
+        self.headers = {'content-type': 'application/json', 'Accept': 'application/json', 'request_profile':'False'}
+
+        ## TODO serviceTimeoutSeconds is never used. Either use it or delete it.
+        self.serviceTimeoutSeconds = serviceTimeoutSeconds 
+        self.debug = debug
+        self.sessionToken = None
+        self.skip_checks = skip_checks
+        
+    
+    def setEndpoints(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, skip_checks=False):
+        
+        # If endpoints aren't specified, look in the config file
+        try:
+            config = ConfigParser.ConfigParser()
+            config.read(CONFIG_FILE)
+            if config.has_section('endpoints'):
+                if repoEndpoint is None and config.has_option('endpoints', 'repoEndpoint'):
+                    repoEndpoint = config.get('endpoints', 'repoEndpoint')
+                         
+                if authEndpoint is None and config.has_option('endpoints', 'authEndpoint'):
+                    authEndpoint = config.get('endpoints', 'authEndpoint')
+                         
+                if fileHandleEndpoint is None and config.has_option('endpoints', 'fileHandleEndpoint'):
+                    fileHandleEndpoint = config.get('endpoints', 'fileHandleEndpoint')
+                   
+                if portalEndpoint is None and config.has_option('endpoints', 'portalEndpoint'):
+                    portalEndpoint = config.get('endpoints', 'portalEndpoint')
+        except ConfigParser.Error:
+            sys.stderr.write('Error parsing synapse config file: %s' % CONFIG_FILE)
+            raise
 
         ## endpoints default to production
         if repoEndpoint is None:
@@ -96,30 +122,31 @@ class Synapse:
             authEndpoint = PRODUCTION_ENDPOINTS['authEndpoint']
         if fileHandleEndpoint is None:
             fileHandleEndpoint = PRODUCTION_ENDPOINTS['fileHandleEndpoint']
+        if portalEndpoint is None:
+            portalEndpoint = PRODUCTION_ENDPOINTS['portalEndpoint']
 
         ## update endpoints if we get redirected
         if not skip_checks:
             resp=requests.get(repoEndpoint, allow_redirects=False)
             if resp.status_code==301:
                 repoEndpoint=resp.headers['location']
+                
             resp=requests.get(authEndpoint, allow_redirects=False)
             if resp.status_code==301:
                 authEndpoint=resp.headers['location']
+                
             resp=requests.get(fileHandleEndpoint, allow_redirects=False)
             if resp.status_code==301:
                 fileHandleEndpoint=resp.headers['location']
-
-        self.headers = {'content-type': 'application/json', 'Accept': 'application/json', 'request_profile':'False'}
-
-        ## TODO serviceTimeoutSeconds is never used. Either use it or delete it.
-        self.serviceTimeoutSeconds = serviceTimeoutSeconds 
-        self.debug = debug
-        self.sessionToken = None
-        self.skip_checks = skip_checks
+                
+            resp=requests.get(portalEndpoint, allow_redirects=False)
+            if resp.status_code==301:
+                portalEndpoint=resp.headers['location']
 
         self.repoEndpoint = repoEndpoint
         self.authEndpoint = authEndpoint
         self.fileHandleEndpoint = fileHandleEndpoint
+        self.portalEndpoint = portalEndpoint
 
 
     def _storeTimingProfile(self, resp):
@@ -137,42 +164,85 @@ class Synapse:
         """
         Authenticate and get session token by using (in order of preference):
         1) supplied email and password
-        2) check for configuraton file
-        3) Use already existing session token
+        2) supplied session token
+        3) check for saved session token
+        4) check for configuraton file
         """
         ## check version before logging in
         if not self.skip_checks: version_check()
-
-        session_file = os.path.join(self.cacheDir, ".session")
+        
+        # Open up the config file
+        config = ConfigParser.ConfigParser()
+        config.read(CONFIG_FILE)
 
         if (email==None or password==None):
-            if sessionToken is not None:
-                self.headers["sessionToken"] = sessionToken
-                self.sessionToken = sessionToken
-                return sessionToken
-            else:
+            if sessionToken is not None or config.has_option('authentication', 'sessiontoken'):
+                token = {}
+                
+                # Try to grab an existing session token
+                if sessionToken is None:
+                    token["sessionToken"] = config.get('authentication', 'sessiontoken')
+                else: 
+                    token["sessionToken"] = sessionToken
+                    
+                # Validate the session token
                 try:
-                    config = ConfigParser.ConfigParser()
-                    config.read(CONFIG_FILE)
-                    email=config.get('authentication', 'username')
-                    password=config.get('authentication', 'password')
-                except ConfigParser.NoSectionError:
-                    #Authentication not defined in config
-                    raise Exception("LOGIN FAILED: no username/password provided or found in config file (%s)" % (CONFIG_FILE,))
+                    response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint)
+                    
+                    # Success!
+                    self.headers["sessionToken"] = token["sessionToken"]
+                    self.sessionToken = token["sessionToken"]
+                    
+                    # Save the session token if the user supplied it
+                    if sessionToken is not None:
+                        if not config.has_section('authentication'):
+                            config.add_section('authentication')
+                        config.set('authentication', 'sessionToken', token["sessionToken"])
+                        with open(CONFIG_FILE, 'w') as configfile:
+                            config.write(configfile)
+                    return
+                except requests.exceptions.HTTPError as err:
+                    # Bad session token
+                    if err.response.status_code == 404 and sessionToken is not None:
+                        raise Exception("LOGIN FAILED: supplied session token (%s) is invalid" % token["sessionToken"])
+                    
+                    # Re-raise the exception if the error is something else
+                    elif sessionToken is not None:
+                        raise err
+                        
+                    else:
+                        sys.stderr.write('Note: stored session token is invalid\n')
+                # Assume the stored session token is expired and try the other parts of the config 
+            
+            if (config.has_option('authentication', 'username') and config.has_option('authentication', 'password')):
+                email = config.get('authentication', 'username')
+                password = config.get('authentication', 'password')
+            else:
+                raise Exception("LOGIN FAILED: no credentials provided")
 
         # Disable profiling during login and proceed with authentication
         self.headers['request_profile'], orig_request_profile='False', self.headers['request_profile']
 
-        req = {"email":email, "password":password}
-        session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint)
+        try:
+            req = {"email":email, "password":password}
+            session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint)
+        except requests.exceptions.HTTPError as err:
+            if err.response.status_code == 400:
+                raise Exception("LOGIN FAILED: invalid username or password")
+            else:
+                raise err
 
         self.sessionToken = session["sessionToken"]
-        self.headers["sessionToken"] = self.sessionToken
-
-        ## cache session token
-        with open(session_file, "w") as f:
-            f.write(self.sessionToken)
-        os.chmod(session_file, stat.S_IRUSR | stat.S_IWUSR)
+        self.headers["sessionToken"] = session["sessionToken"]
+                    
+        # Save the session token
+        if not config.has_section('authentication'):
+            config.add_section('authentication')
+        config.set('authentication', 'sessionToken', session["sessionToken"])
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
+        return
+        
         self.headers['request_profile'] = orig_request_profile
 
 
@@ -201,17 +271,18 @@ class Synapse:
         return self.restGET(uri)
 
 
-    def onweb(self, entity):
+    def onweb(self, entity, subpageId=None):
         """
-        Opens up a browser window to the entity page.
+        Opens up a browser window to the entity page or wiki-subpage.
         
         Arguments:
            entity: Either an entity or a synapse id
+           subpageId: 
         """
-        if isinstance(entity, Evaluation):
-            webbrowser.open("https://synapse.org/#Evaluation:%s" % id_of(entity))
-        else:
-            webbrowser.open("https://synapse.org/#Synapse:%s" % id_of(entity))
+        if subpageId is None:
+            webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
+        else: 
+            webbrowser.open("%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, id_of(entity), subpageId))
 
 
     def printEntity(self, entity):
@@ -693,7 +764,10 @@ class Synapse:
         '''
         if(self.debug): print 'About to query %s' % (queryStr)
         return self.restGET('/query?query=' + urllib.quote(queryStr))
-
+        # response = self.restGET('/query?query=' + urllib.quote(queryStr))
+        # 
+        # for res in response['results']:
+        #     yield res
 
 
     ############################################################
@@ -1605,7 +1679,8 @@ class Synapse:
         - `endpoint`: Server endpoint, defaults to self.repoEndpoint
         - `body`: The payload to be delivered 
 
-        Returns: json encoding of response 
+        Returns: If the response content is JSON, json encoding of response
+                 Else the text of the response
 
         """
         if endpoint==None:
@@ -1618,7 +1693,10 @@ class Synapse:
         except:
             sys.stderr.write(response.content+'\n')
             raise
-        return response.json()
+            
+        if response.headers.get('content-type',None) == 'application/json':
+            return response.json()
+        return response.text
 
     @STANDARD_RETRY_REQUEST
     def restDELETE(self, uri, endpoint=None, **kwargs):
