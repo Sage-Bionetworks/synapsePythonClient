@@ -269,14 +269,18 @@ class Synapse:
         return self.restGET(uri)
 
 
-    def onweb(self, entity):
+    def onweb(self, entity, subpageId=None):
         """
-        Opens up a browser window to the entity page.
+        Opens up a browser window to the entity page or wiki-subpage.
         
         Arguments:
            entity: Either an entity or a synapse id
+           subpageId: 
         """
-        webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
+        if subpageId is None:
+            webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
+        else: 
+            webbrowser.open("%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, id_of(entity), subpageId))
 
 
     def printEntity(self, entity):
@@ -736,8 +740,8 @@ class Synapse:
         if(self.debug): print 'About to query %s' % (queryStr)
         response = self.restGET('/query?query=' + urllib.quote(queryStr))
         
-        for i in range(response['totalNumberOfResults']):
-            yield response['results'][i]
+        for res in response['results']:
+            yield res
 
 
     ############################################################
