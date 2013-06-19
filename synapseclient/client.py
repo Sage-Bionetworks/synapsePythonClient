@@ -28,17 +28,16 @@ from synapseclient.wiki import Wiki
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
                         'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1', 
-                        'portalEndpoint':'https://synapse.org/#'}
+                        'portalEndpoint':'https://synapse.org/'}
 
 STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-staging.prod.sagebase.org/auth/v1',
                         'fileHandleEndpoint':'https://file-staging.prod.sagebase.org/file/v1', 
-                        'portalEndpoint':'https://staging.synapse.org/#'}
+                        'portalEndpoint':'https://staging.synapse.org/'}
 
 __version__=json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TODO change to /data when storing files as md5
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
-SESSION_FILE=os.path.join(CACHE_DIR, '.session')
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
 
@@ -68,15 +67,21 @@ class Synapse:
         - skip_checks: skip version and endpoint checks
         """
         self.cacheDir = os.path.expanduser(CACHE_DIR)
-        #create cacheDir if it does not exist
+        # Create the cache directory if it does not exist
         try:
             os.makedirs(self.cacheDir)
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
 
+        # Create the ~/.synapseconfig file if it does not exist
+        if not os.path.isfile(CONFIG_FILE):
+            config = ConfigParser.ConfigParser()
+            config.add_section('authentication')
+            with open(CONFIG_FILE, 'w') as configfile:
+                config.write(configfile)
+                
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
-
         self.headers = {'content-type': 'application/json', 'Accept': 'application/json', 'request_profile':'False'}
 
         ## TODO serviceTimeoutSeconds is never used. Either use it or delete it.
@@ -163,27 +168,36 @@ class Synapse:
         """
         ## check version before logging in
         if not self.skip_checks: version_check()
+        
+        # Open up the config file
+        config = ConfigParser.ConfigParser()
+        config.read(CONFIG_FILE)
 
         if (email==None or password==None):
-            if sessionToken is not None or os.path.isfile(SESSION_FILE):
+            if sessionToken is not None or config.has_option('authentication', 'sessiontoken'):
                 token = {}
                 
                 # Try to grab an existing session token
                 if sessionToken is None:
-                    try:
-                        token["sessionToken"] = open(SESSION_FILE, 'r').read()
-                    except IOError:
-                        raise("LOGIN FAILED: could not retrieve session token from file")
+                    token["sessionToken"] = config.get('authentication', 'sessiontoken')
                 else: 
                     token["sessionToken"] = sessionToken
                     
                 # Validate the session token
-                try: 
+                try:
                     response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint)
                     
                     # Success!
                     self.headers["sessionToken"] = token["sessionToken"]
                     self.sessionToken = token["sessionToken"]
+                    
+                    # Save the session token if the user supplied it
+                    if sessionToken is not None:
+                        if not config.has_section('authentication'):
+                            config.add_section('authentication')
+                        config.set('authentication', 'sessionToken', token["sessionToken"])
+                        with open(CONFIG_FILE, 'w') as configfile:
+                            config.write(configfile)
                     return
                 except requests.exceptions.HTTPError as err:
                     # Bad session token
@@ -193,17 +207,14 @@ class Synapse:
                     # Re-raise the exception if the error is something else
                     elif sessionToken is not None:
                         raise err
-                # Otherwise, assume the saved session token is expired and try the config 
+                        
+                    else:
+                        sys.stderr.write('Note: stored session token is invalid\n')
+                # Assume the stored session token is expired and try the other parts of the config 
             
-            if os.path.isfile(CONFIG_FILE):
-                try:
-                    config = ConfigParser.ConfigParser()
-                    config.read(CONFIG_FILE)
-                    email=config.get('authentication', 'username')
-                    password=config.get('authentication', 'password')
-                except ConfigParser.NoSectionError:
-                    #Authentication not defined in config
-                    raise Exception("LOGIN FAILED: no username/password provided or found in config file (%s)" % CONFIG_FILE)
+            if (config.has_option('authentication', 'username') and config.has_option('authentication', 'password')):
+                email = config.get('authentication', 'username')
+                password = config.get('authentication', 'password')
             else:
                 raise Exception("LOGIN FAILED: no credentials provided")
 
@@ -220,12 +231,16 @@ class Synapse:
                 raise err
 
         self.sessionToken = session["sessionToken"]
-        self.headers["sessionToken"] = self.sessionToken
-
-        ## cache session token
-        with open(SESSION_FILE, "w") as f:
-            f.write(self.sessionToken)
-        os.chmod(SESSION_FILE, stat.S_IRUSR | stat.S_IWUSR)
+        self.headers["sessionToken"] = session["sessionToken"]
+                    
+        # Save the session token
+        if not config.has_section('authentication'):
+            config.add_section('authentication')
+        config.set('authentication', 'sessionToken', session["sessionToken"])
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
+        return
+        
         self.headers['request_profile'] = orig_request_profile
 
 
@@ -261,10 +276,7 @@ class Synapse:
         Arguments:
            entity: Either an entity or a synapse id
         """
-        if isinstance(entity, Evaluation):
-            webbrowser.open("https://synapse.org/#Evaluation:%s" % id_of(entity))
-        else:
-            webbrowser.open("https://synapse.org/#Synapse:%s" % id_of(entity))
+        webbrowser.open("%s#!Synapse:%s" % self.portalEndpoint, id_of(entity))
 
 
     def printEntity(self, entity):
