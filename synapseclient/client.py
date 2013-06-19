@@ -276,7 +276,7 @@ class Synapse:
         Arguments:
            entity: Either an entity or a synapse id
         """
-        webbrowser.open("%s#!Synapse:%s" % self.portalEndpoint, id_of(entity))
+        webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
 
 
     def printEntity(self, entity):
@@ -734,8 +734,10 @@ class Synapse:
         >>> query("select id, name from entity where entity.parentId=='syn449742'")
         '''
         if(self.debug): print 'About to query %s' % (queryStr)
-        return self.restGET('/query?query=' + urllib.quote(queryStr))
-
+        response = self.restGET('/query?query=' + urllib.quote(queryStr))
+        
+        for i in range(response['totalNumberOfResults']):
+            yield response['results'][i]
 
 
     ############################################################
