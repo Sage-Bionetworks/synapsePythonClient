@@ -13,7 +13,7 @@ import stat
 import pkg_resources
 import webbrowser
 import sys
-from time import time
+import time
 
 import synapseclient.utils as utils
 from synapseclient.version_check import version_check
@@ -41,7 +41,9 @@ CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TOD
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
+CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
+
 
 ## defines the standard retry policy applied to the rest methods
 STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
@@ -1174,49 +1176,15 @@ class Synapse:
 
     def _createChunkedFileUploadChunkURL(self, chunkNumber, chunkedFileToken):
         chunkRequest = {'chunkNumber':chunkNumber, 'chunkedFileToken':chunkedFileToken}
-        url = self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
-        return chunkRequest, url
+        return self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
 
-    def _addChunkToFile(self, chunkRequest, verbose=False):
-        ## We occasionally get an error on addChunkToFile:
-        ##   500 Server Error: Internal Server Error
-        ##   {u'reason': u'The specified key does not exist.'}
-        ## This might be because S3 hasn't yet finished propagating the
-        ## addition of the new chunk. So, retry_request will wait and retry.
-        ## Note: These errors may have been caused by failing to read the content
-        ## of the PUT to S3, and therefore failing to close the stream, causing a
-        ## delay in S3 finalizing the upload and making the file visible to the
-        ## repo.
+    def _startCompleteUploadDaemon(self, chunkedFileToken, chunkNumbers):
+        completeAllChunksRequest = {'chunkNumbers': chunkNumbers,
+                                    'chunkedFileToken': chunkedFileToken}
+        return self.restPOST('/startCompleteUploadDaemon', json.dumps(completeAllChunksRequest), endpoint=self.fileHandleEndpoint)
 
-        ## Also saw ConnectionError/httplib.BadStatusLine here, especially when
-        ## using ridiculously large chunk sizes ~100MB. Adding a long timeout
-        ## didn't seem to help, and retry resulted in a the same error as
-        ## above: 'The specified key does not exist.'
-
-        ## wait attempt#
-        ##   0     1
-        ##   2     2
-        ##   4     3
-        ##   8     4
-        ##  16     5
-        ##  32     6
-        ##  64     7 
-        with_retry = RetryRequest(retry_status_codes=[],
-                                  retry_exceptions=[],
-                                  retry_errors=['The specified key does not exist.'],
-                                  retries=4, wait=2, back_off=2, verbose=verbose, tag='addChunkToFile RetryRequest')
-        #t = time()
-        try:
-            return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
-        except Exception as ex:
-            raise
-        #finally:
-        #    print time() - t
-
-    def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
-        completeChunkedFileRequest = {'chunkedFileToken':chunkedFileToken,
-                                      'chunkResults':chunkResults}
-        return self.restPOST('/completeChunkFileUpload', json.dumps(completeChunkedFileRequest), endpoint=self.fileHandleEndpoint)
+    def _completeUploadDaemonStatus(self, status):
+        return self.restGET('/completeUploadDaemonStatus/%s' % status['daemonId'], endpoint=self.fileHandleEndpoint)
 
     def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, verbose=False, progress=True):
         """
@@ -1238,7 +1206,7 @@ class Synapse:
             self.debug = True
 
         ## start timing
-        start_time = time()
+        start_time = time.time()
 
         try:
             i = 0
@@ -1281,7 +1249,7 @@ class Synapse:
                     if verbose: sys.stderr.write('\nChunk %d\n' % i)
 
                     ## get the signed S3 URL
-                    chunkRequest, url = self._createChunkedFileUploadChunkURL(i, token)
+                    url = self._createChunkedFileUploadChunkURL(i, token)
                     if verbose: sys.stderr.write('url= ' + str(url) + '\n')
                     if progress:
                         sys.stdout.write('.')
@@ -1291,7 +1259,7 @@ class Synapse:
                     response = with_retry(requests.put)(url, data=chunk, headers=headers)
                     response.raise_for_status()
                     if progress:
-                        sys.stdout.write('.')
+                        sys.stdout.write(',')
                         sys.stdout.flush()
 
                     ## Is requests closing response stream? Let's make sure:
@@ -1306,20 +1274,30 @@ class Synapse:
                     except Exception as ex:
                         sys.stderr.write('error reading response: '+str(ex))
 
-                    chunkResults.append(self._addChunkToFile(chunkRequest, verbose=verbose))
-                    if progress:
-                        sys.stdout.write(',')
-                        sys.stdout.flush()
+            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+
+            ## poll until concatenating chunks is complete
+            while (status['state']=='PROCESSING'):
+                if progress:
+                    sys.stdout.write('!')
+                    sys.stdout.flush()
+                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+                status = self._completeUploadDaemonStatus(status)
+                if verbose: sys.stderr.write('status= ' + str(status) + '\n')
+                #sys.stderr.write(str(status['runTimeMS']) + '\t' + str(status['percentComplete']) + '\n')
 
             if progress:
                 sys.stdout.write('!\n')
                 sys.stdout.flush()
 
-            ## finalize the upload and return a fileHandle
-            fileHandle = self._completeChunkFileUpload(token, chunkResults)
+            if status['state']=='FAILED':
+                raise Exception(status['errorMessage'])
+
+            ## return a fileHandle
+            fileHandle = self._getFileHandle(status['fileHandleId'])
 
             ## print timing information
-            if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time()-start_time))
+            if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-start_time))
 
             return fileHandle
         finally:
