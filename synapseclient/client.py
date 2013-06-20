@@ -760,13 +760,12 @@ class Synapse:
 
     def query(self, queryStr):
         '''
-        Query for Synapse entities.
+        Query for Synapse entities.  
+        Returns an iterator that will try to break up large queries into managable pieces.
 
         Example:
         >>> query("select id, name from entity where entity.parentId=='syn449742'")
-        '''
-        # return self.restGET('/query?query=' + urllib.quote(queryStr))
-        
+        '''        
         # Since query limits and offsets are managed by this method
         # First separate the user's limits and offsets from the main query
         queryStr = queryStr.lower()
@@ -787,9 +786,8 @@ class Synapse:
             # Build the sub-query
             remaining = options['limit'] + options['offset'] - offset + 1
             subqueryStr = "%s limit %d offset %d" %(queryStr, limit if limit < remaining else remaining, offset)
-            # if(self.debug): print 'About to query: %s' % (subqueryStr)
+            if(self.debug): print 'About to query: %s' % (subqueryStr)
             try: 
-                print 'About to query: %s' % (subqueryStr)
                 response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
                 for res in response['results']:
                     yield res
