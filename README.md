@@ -1,7 +1,7 @@
 Python Synapse Client
 =====================
 
-A python client for [Sage Synapse](https://synapse.sagebase.org/), a collaborative compute space that allows scientists to share and analyze data together. Please visit these pages for more information: [Getting Started Guide to Synapse](https://www.synapse.org/#!Wiki:syn1669771/ENTITY/54546) and [Getting started with the Synapse python client](https://www.synapse.org/#!Synapse:syn1768504).
+A python client for [Sage Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. Please visit these pages for more information: [Getting Started Guide to Synapse](https://www.synapse.org/#!Wiki:syn1669771/ENTITY/54546) and [Getting started with the Synapse python client](https://www.synapse.org/#!Synapse:syn1768504).
 
 The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility. See also the [Synapse R client](https://sagebionetworks.jira.com/wiki/display/SYNR/Home).
 
@@ -41,11 +41,11 @@ The synapse client can be used from the shell command prompt. Valid commands
 include: query, get, cat, add, update, delete, and onweb. A few examples are
 shown.
 
-### querying for entities that are part of the [Synapse Commons Repository](https://synapse.sagebase.org/Portal.html#Synapse:syn150935)
+### querying for entities that are part of the [Synapse Commons Repository](https://www.synapse.org/#!Synapse:syn150935)
 
     synapse -u me@nowhere.com -p secret query 'select id, name from entity where parentId=="syn150935"'
 
-### querying for a test [entity](https://synapse.sagebase.org/Portal.html#Synapse:syn1528299)
+### querying for a test [entity](https://www.synapse.org/#!Synapse:syn1528299)
 The test entity is tagged with an attribute *test_data* whose value is "bogus". We'll use the ID
 of this entity in the next example.
 
@@ -59,7 +59,7 @@ of this entity in the next example.
 
     synapse -h
 
-Note that a [synapse account](https://synapse.sagebase.org/#RegisterAccount:0) is required.
+Note that a [synapse account](https://www.synapse.org/#RegisterAccount:0) is required.
 
 
 Usage as a library
@@ -103,11 +103,11 @@ The synapse client can be used to write software that interacts with the Sage Sy
     profile = syn.getUserProfile()
     query_results = syn.query('select id,name from projects where project.createdByPrincipleId==%s' % profile['ownerId'])
 
-### querying for entities that are part of the [Synapse Commons Repository](https://synapse.sagebase.org/Portal.html#Synapse:syn150935)
+### querying for entities that are part of the [Synapse Commons Repository](https://www.synapse.org/#!Synapse:syn150935)
 
     syn.query('select id, name from entity where parentId=="syn150935"')
 
-### querying for entities that are part of [TCGA pancancer](https://synapse.sagebase.org/Portal.html#Synapse:syn300013) that are also RNA-Seq data
+### querying for entities that are part of [TCGA pancancer](https://www.synapse.org/#!Synapse:syn300013) that are also RNA-Seq data
     syn.query('select id, name from entity where freeze=="tcga_pancancer_v4" and platform=="IlluminaHiSeq_RNASeqV2"')
 
 
@@ -115,7 +115,7 @@ The synapse client can be used to write software that interacts with the Sage Sy
 
 Authentication
 --------------
-Authentication toward [synapse](https://synapse.sagebase.org/#RegisterAccount:0) can be specified in three ways:
+Authentication toward [synapse](https://www.synapse.org/#RegisterAccount:0) can be specified in three ways:
 
 1. By passing username and password to the login function (or using the -u and -p parameters on the command line)
 
