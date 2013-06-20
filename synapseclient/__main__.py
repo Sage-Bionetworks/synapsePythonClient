@@ -39,6 +39,7 @@ def query(args, syn):
             out.append(str(res.get(key, "")))
         print "\t".join(out)
 
+        
 def get(args, syn):
     """
     
@@ -58,7 +59,17 @@ def get(args, syn):
         sys.stderr.write('WARNING: No files associated with entity %s\n' % (args.id,))
         syn.printEntity(ent)
     return ent
+    
+    
+def store(args, syn):
+    """
+    
+    Arguments: 
+    - `args`:
+    """
+    ## TODO ###################################################################
 
+    
 def cat(args, syn):
     """
     
@@ -73,6 +84,7 @@ def cat(args, syn):
                 for l in fp:
                     sys.stdout.write(l)
 
+                    
 def show(args, syn):
     """
     show metadata for an entity
@@ -80,6 +92,7 @@ def show(args, syn):
     ent = syn.getEntity(args.id)
     syn.printEntity(ent)
 
+    
 def delete(args, syn):
     """
     
@@ -180,6 +193,15 @@ def getProvenance(args, syn):
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
             f.write('\n')
+    
+    
+def submit(args, syn):
+    """
+    
+    Arguments: 
+    - `args`:
+    """
+    ## TODO ###################################################################
 
 
 def main():
@@ -208,6 +230,16 @@ def main():
     parser_get.add_argument('id', metavar='syn123', type=str, 
                          help='Synapse ID of form syn123 of desired data object')
     parser_get.set_defaults(func=get)
+
+    # parser_store = subparsers.add_parser('store', help='create or update an entity')
+    # parser_store.add_argument('id', metavar='syn123', type=str, 
+    #                      help='Synapse ID of form syn123 of desired data object')
+    # parser_store.set_defaults(func=store)
+    # 
+    # parser_submit = subparsers.add_parser('submit', help='submit an entity for evaluation')
+    # parser_submit.add_argument('id', metavar='syn123', type=str, 
+    #                      help='Synapse ID of form syn123 of desired data object')
+    # parser_submit.set_defaults(func=submit)
 
     parser_get = subparsers.add_parser('show', help='show metadata for an entity')
     parser_get.add_argument('id', metavar='syn123', type=str, 
