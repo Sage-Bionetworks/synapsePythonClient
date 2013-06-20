@@ -62,12 +62,31 @@ def get(args, syn):
     
     
 def store(args, syn):
-    """
-    
-    Arguments: 
-    - `args`:
-    """
-    ## TODO ###################################################################
+    # --id indicates intention to update()
+    if args.id is not None:
+        if args.file is not None:
+            update(args, syn)
+        else:
+            print 'Update requires --file'
+        return
+        
+    # --file, --used, and --executed indicates intention to upload()
+    if args.file is not None or args.used is not None or args.executed is not None:
+        if args.parentid is not None:
+            upload(args, syn)
+        else: 
+            print 'Add requires --parentid'
+        return
+       
+    # --name indicates intention to create()
+    if args.name is not None:
+        if args.type is not None:
+            create(args, syn)
+        else:
+            print 'Create requires --type'
+        return
+        
+    print 'Could not interpret arguments.  Try using synapse create, add, or update.'
 
     
 def cat(args, syn):
@@ -231,10 +250,26 @@ def main():
                          help='Synapse ID of form syn123 of desired data object')
     parser_get.set_defaults(func=get)
 
-    # parser_store = subparsers.add_parser('store', help='create or update an entity')
-    # parser_store.add_argument('id', metavar='syn123', type=str, 
-    #                      help='Synapse ID of form syn123 of desired data object')
-    # parser_store.set_defaults(func=store)
+    parser_store = subparsers.add_parser('store', help='create or update an entity')
+    group = parser_store.add_mutually_exclusive_group()
+    group.add_argument('--id', metavar='syn123', type=str, 
+                         help='Synapse ID of form syn123 of desired synapse object')
+    group.add_argument('--parentid', metavar='syn123', type=str,  
+                         help='Synapse ID of project or folder where to upload data.')
+    parser_store.add_argument('--name', type=str, nargs="+", 
+                         help='Name of data object in Synapse')
+    #TODO make sure that description can have whitespace
+    parser_store.add_argument('--description', type=str, nargs="+", 
+                         help='Description of data object in Synapse.')
+    parser_store.add_argument('--type', type=str, default='File',
+                         help='Type of object to create in synapse. Defaults to "File". Deprecated object types include "Data" and "Code".')
+    parser_store.add_argument('--used', metavar='TargetID', type=str, nargs='*',
+                         help='ID of a target data entity from which the specified entity is derived')
+    parser_store.add_argument('--executed', metavar='TargetID', type=str, nargs='*',
+                         help='ID of a code entity from which the specified entity is derived')
+    parser_store.add_argument('--file', type=str,
+                         help='file to be added to synapse.')
+    parser_store.set_defaults(func=store)
     # 
     # parser_submit = subparsers.add_parser('submit', help='submit an entity for evaluation')
     # parser_submit.add_argument('id', metavar='syn123', type=str, 
