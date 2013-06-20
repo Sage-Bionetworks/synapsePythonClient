@@ -1,4 +1,5 @@
 import ConfigParser
+import collections
 import os
 import json
 import re
@@ -42,6 +43,7 @@ CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
 QUERY_LIMIT = 5000
+ROOT_ENTITY = 'syn4489'
 
 ## defines the standard retry policy applied to the rest methods
 STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
@@ -344,6 +346,12 @@ class Synapse:
         version = kwargs.get('version', None)   #This ignores the version of entity if it is mappable
         downloadFile = kwargs.get('downloadFile', True)
 
+        ## If an entity is given without an ID, try to find it by parentId and name.
+        ## If the user forgets to catch the return value of a syn.store(e), this allows
+        ## them to recover by doing: e = syn.get(e).
+        if isinstance(entity, collections.Mapping) and (not entity.get('id',None)) and entity.get('name',None):
+            entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId',ROOT_ENTITY))
+
         ## EntityBundle bit-flags
         ## see: the Java class org.sagebionetworks.repo.model.EntityBundle
         ## ENTITY                    = 0x1
@@ -377,25 +385,26 @@ class Synapse:
 
         ## for external URLs, we want to retrieve the URL from the fileHandle
         ## Note: fileHandles will be empty if there are unmet access requirements
-        if isinstance(entity, File) and len(bundle['fileHandles']) > 0:
-            fh = bundle['fileHandles'][0]
-            entity.md5=fh.get('contentMd5', '')
-            entity.fileSize=fh.get('contentSize', None)
-            if fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
-                entity['externalURL'] = fh['externalURL']
-                entity['synapseStore'] = False
+        if isinstance(entity, File):
+            for fh in bundle['fileHandles']:
+                if fh['id']==bundle['entity']['dataFileHandleId']:
+                    entity.md5=fh.get('contentMd5', '')
+                    entity.fileSize=fh.get('contentSize', None)
+                    if fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
+                        entity['externalURL'] = fh['externalURL']
+                        entity['synapseStore'] = False
 
-                ## if it's a file URL, fill in the path whether downloadFile is True or not,
-                if fh['externalURL'].startswith('file:'):
-                    entity.update(utils.file_url_to_path(fh['externalURL'], verify_exists=True))
+                        ## if it's a file URL, fill in the path whether downloadFile is True or not,
+                        if fh['externalURL'].startswith('file:'):
+                            entity.update(utils.file_url_to_path(fh['externalURL'], verify_exists=True))
 
-                ## by default, we download external URLs
-                elif downloadFile:
-                    entity.update(self._downloadFileEntity(entity))
+                        ## by default, we download external URLs
+                        elif downloadFile:
+                            entity.update(self._downloadFileEntity(entity))
 
-            ## by default, we download files stored in Synapse
-            elif downloadFile:
-                entity.update(self._downloadFileEntity(entity))
+                    ## by default, we download files stored in Synapse
+                    elif downloadFile:
+                        entity.update(self._downloadFileEntity(entity))
 
         #TODO version, here
         if downloadFile and is_locationable(entity):
@@ -475,7 +484,23 @@ class Synapse:
         if 'id' in properties:
             properties = self._updateEntity(properties)
         else:
-            properties = self._createEntity(properties)
+            try:
+                properties = self._createEntity(properties)
+            except requests.exceptions.HTTPError as ex:
+                ## if "409 Client Error: Conflict", update the existing entity
+                ## with same name and parent
+                if hasattr(ex, 'response') and ex.response.status_code==409:
+                    existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
+                    if existing_entity_id:
+                        existing_entity = self._getEntity(existing_entity_id)
+                        ## Need some fields from the existing entity: id, etag
+                        ## and version info.
+                        existing_entity.update(properties)
+                        properties = self._updateEntity(existing_entity)
+                    else:
+                        raise
+                else:
+                    raise
 
         annotations['etag'] = properties['etag']
 
@@ -1645,15 +1670,27 @@ class Synapse:
 
         if is_versionable(entity):
             if incrementVersion:
-                entity['versionNumber'] += 1
                 uri += '/version'
-                entity['versionLabel'] = str(entity['versionNumber'])
-            if versionLabel:
-                entity['versionLabel'] = str(versionLabel)
+                if 'versionNumber' in entity:
+                    entity['versionNumber'] += 1
+                    if 'versionLabel' in entity:
+                        entity['versionLabel'] = str(entity['versionNumber'])
+
+        if versionLabel:
+            entity['versionLabel'] = str(versionLabel)
 
         if self.debug: print "\n\n~~~ updating ~~~\n" + json.dumps(get_properties(entity), indent=2)
         return self.restPUT(uri=uri, body=json.dumps(get_properties(entity)))
 
+    def _findEntityIdByNameAndParent(self, name, parent=ROOT_ENTITY):
+        """
+        find an entity given its name and parent or parentId
+        """
+        qr = self.query('select * from entity where name=="%s" and parentId=="%s"' % (name, id_of(parent),))
+        if qr.get('totalNumberOfResults',None) == 1:
+            return qr['results'][0]['entity.id']
+        else:
+            return None
 
 
     ############################################################
