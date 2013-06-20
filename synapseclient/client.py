@@ -1,6 +1,7 @@
 import ConfigParser
 import os
 import json
+import re
 import base64
 import urllib
 import urlparse
@@ -40,6 +41,7 @@ CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TOD
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
+QUERY_LIMIT = 5000
 
 ## defines the standard retry policy applied to the rest methods
 STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
@@ -737,13 +739,53 @@ class Synapse:
         Example:
         >>> query("select id, name from entity where entity.parentId=='syn449742'")
         '''
-        if(self.debug): print 'About to query %s' % (queryStr)
-        return self.restGET('/query?query=' + urllib.quote(queryStr))
-        # response = self.restGET('/query?query=' + urllib.quote(queryStr))
-        # 
-        # for res in response['results']:
-        #     yield res
-
+        # return self.restGET('/query?query=' + urllib.quote(queryStr))
+        
+        # Since query limits and offsets are managed by this method
+        # First separate the user's limits and offsets from the main query
+        queryStr = queryStr.lower()
+        regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+        match = re.search(regex, queryStr)
+        options = {'limit':None, 'offset':None}
+        while match is not None:
+            options[match.group(2)] = match.group(3)
+            queryStr = match.group(1);
+            match = re.search(regex, queryStr)
+        options['limit'] = int(options['limit']) if options['limit'] is not None else float('inf')
+        options['offset'] = int(options['offset']) if options['offset'] is not None else 1
+            
+        # Begin querying until the entire query has been fetched (or crash out)
+        limit = options['limit'] if options['limit'] < QUERY_LIMIT else QUERY_LIMIT
+        offset = options['offset']
+        while True:
+            # Build the sub-query
+            remaining = options['limit'] + options['offset'] - offset + 1
+            subqueryStr = "%s limit %d offset %d" %(queryStr, limit if limit < remaining else remaining, offset)
+            # if(self.debug): print 'About to query: %s' % (subqueryStr)
+            try: 
+                print 'About to query: %s' % (subqueryStr)
+                response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
+                for res in response['results']:
+                    yield res
+                    
+                # Exit when no more results can be pulled
+                if len(response['results']) > 0:
+                    offset += len(response['results'])
+                else:
+                    break
+                    
+                # Exit when all requests results have been pulled
+                if offset > options['offset'] + options['limit']:
+                    break
+            except requests.exceptions.HTTPError as err:
+                # Shrink the query size when appropriate
+                if err.response.status_code == 400 and err.response.json()['reason'].startswith('java.lang.IllegalArgumentException: The results of this query exceeded the maximumn number'):
+                    if (limit == 1):
+                        raise Exception("A single row of this query exceeds the maximum size")
+                    limit /= 2
+                else:
+                    raise err
+                    
 
     ############################################################
     # ACL manipulation
