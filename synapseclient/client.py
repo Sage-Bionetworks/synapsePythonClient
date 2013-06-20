@@ -62,7 +62,8 @@ class Synapse:
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, 
                  serviceTimeoutSeconds=30, debug=False, skip_checks=False):
         """
-        Construct a Synapse client object
+        Construct a Synapse client object.
+
         params:
         - repoEndpoint: location of synapse repository
         - authEndpoint: location of authentication service
@@ -98,7 +99,12 @@ class Synapse:
         
     
     def setEndpoints(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, skip_checks=False):
-        
+        """
+        Set Synapse API endpoints. (Mostly useful for testing.)
+
+        Example:
+            synapse.setEndpoints(**synapseclient.client.PRODUCTION_ENDPOINTS)
+        """        
         # If endpoints aren't specified, look in the config file
         try:
             config = ConfigParser.ConfigParser()
@@ -281,7 +287,7 @@ class Synapse:
         
         Arguments:
            entity: Either an entity or a synapse id
-           subpageId: 
+           subpageId: (optional) A wiki subpage ID
         """
         if subpageId is None:
             webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
@@ -1039,7 +1045,7 @@ class Synapse:
     def _downloadFileEntity(self, entity):
         """Download the file associated with a FileEntity"""
         if 'versionNumber' in entity:
-            url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity),entity.versionNumber)
+            url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity), entity['versionNumber'])
         else:
             url = '%s/entity/%s/file' % (self.repoEndpoint, id_of(entity),)
         destDir = os.path.join(self.cacheDir, id_of(entity))
