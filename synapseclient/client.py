@@ -49,6 +49,10 @@ STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
                                       retry_exceptions=['Timeout', 'timeout'],
                                       retries=3, wait=1, back_off=2, verbose=False)
 
+## add additional mimetypes
+mimetypes.add_type('text/x-r', '.R', strict=False)
+mimetypes.add_type('text/x-r', '.r', strict=False)
+
 
 class Synapse:
     """
@@ -945,7 +949,7 @@ class Synapse:
         md5 = utils.md5_for_file(filename)
 
         # guess mime-type - important for confirmation of MD5 sum by receiver
-        (mimetype, enc) = mimetypes.guess_type(filename)
+        (mimetype, enc) = mimetypes.guess_type(filename, strict=False)
         if (mimetype is None):
             mimetype = "application/octet-stream"
 
@@ -1137,7 +1141,7 @@ class Synapse:
         fileHandle={'concreteType':'org.sagebionetworks.repo.model.file.ExternalFileHandle',
                     'fileName': fileName,
                     'externalURL':externalURL}
-        (mimetype, enc) = mimetypes.guess_type(externalURL)
+        (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
         if mimetype:
             fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
@@ -1235,7 +1239,7 @@ class Synapse:
             chunkResults = []
 
             # guess mime-type - important for confirmation of MD5 sum by receiver
-            (mimetype, enc) = mimetypes.guess_type(filepath)
+            (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
             if (mimetype is None):
                 mimetype = "application/octet-stream"
 
@@ -1436,7 +1440,6 @@ class Synapse:
         userId=self.getUserProfile()['ownerId'] if userId==None else userId
         self.restPOST('/evaluation/%s/participant/%s'  %(evaluation_id, userId), {})
 
-  
 
     def getSubmissions(self, evaluation, status=None):
         """Return a generator over all submissions for a evaluation, or optionally all
