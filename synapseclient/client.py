@@ -768,16 +768,17 @@ class Synapse:
         '''        
         # Since query limits and offsets are managed by this method
         # First separate the user's limits and offsets from the main query
-        queryStr = queryStr.lower()
+        tempQueryStr = queryStr.lower() # Regex a lowercase string to simplify matters
         regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
-        match = re.search(regex, queryStr)
+        match = re.search(regex, tempQueryStr)
         options = {'limit':None, 'offset':None}
         while match is not None:
             options[match.group(2)] = match.group(3)
-            queryStr = match.group(1);
-            match = re.search(regex, queryStr)
+            tempQueryStr = match.group(1);
+            match = re.search(regex, tempQueryStr)
         options['limit'] = int(options['limit']) if options['limit'] is not None else float('inf')
         options['offset'] = int(options['offset']) if options['offset'] is not None else 1
+        queryStr = queryStr[:len(tempQueryStr)]
             
         # Begin querying until the entire query has been fetched (or crash out)
         limit = options['limit'] if options['limit'] < QUERY_LIMIT else QUERY_LIMIT
@@ -1366,22 +1367,28 @@ class Synapse:
     ############################################################
 
     def _traverseTree(self, id, name=None, version=None):
-        """Creates a tree of all 
+        """Creates a tree of id's, versions, and names contained by the given entity of id
         
         Arguments:
-        - `id`:
+            id: Entity to query for
         """
-        children =  self.query("select id, versionNumber, name from entity where entity.parentId=='%s'" %id)
-        count=children['totalNumberOfResults']
+        children = self.query("select id, versionNumber, name from entity where entity.parentId=='%s'" % id)
+        output = []
+        output.append({               'name' : name, \
+                       'targetVersionNumber' : version, \
+                                  'targetId' : id, \
+                                   'records' : [] })
+        count = 0
+        for entity in children:
+            count += 1
+            output[-1]['records'].extend( \
+                    self._traverseTree(entity['entity.id'], \
+                                       entity['entity.name'], \
+                                       entity['entity.versionNumber']))
         print id, count, name
-        children=children['results']
-        output=[]
-        if count>0:
-            output.append({'name':name, 'targetVersionNumber':version, 'targetId':id, 'records':[]})
-            for ent in children:
-                output[-1]['records'].extend(self._traverseTree(ent['entity.id'], ent['entity.name'], ent['entity.versionNumber']))
-        else:
-            output.append({'targetId':id, 'targetVersionNumber':version})
+        if count == 0:
+            del output[-1]['records']
+            del output[-1]['name'] 
         return output
 
     def _flattenTree2Groups(self,tree, level=0, out=[]):
