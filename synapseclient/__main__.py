@@ -215,12 +215,7 @@ def getProvenance(args, syn):
     
     
 def submit(args, syn):
-    """
-    
-    Arguments: 
-    - `args`:
-    """
-    ## TODO ###################################################################
+    syn.submit(args.evaluation, args.entity, args.name)
 
 
 def main():
@@ -258,7 +253,6 @@ def main():
                          help='Synapse ID of project or folder where to upload data.')
     parser_store.add_argument('--name', type=str, nargs="+", 
                          help='Name of data object in Synapse')
-    #TODO make sure that description can have whitespace
     parser_store.add_argument('--description', type=str, nargs="+", 
                          help='Description of data object in Synapse.')
     parser_store.add_argument('--type', type=str, default='File',
@@ -270,11 +264,15 @@ def main():
     parser_store.add_argument('--file', type=str,
                          help='file to be added to synapse.')
     parser_store.set_defaults(func=store)
-    # 
-    # parser_submit = subparsers.add_parser('submit', help='submit an entity for evaluation')
-    # parser_submit.add_argument('id', metavar='syn123', type=str, 
-    #                      help='Synapse ID of form syn123 of desired data object')
-    # parser_submit.set_defaults(func=submit)
+    
+    parser_submit = subparsers.add_parser('submit', help='submit an entity for evaluation')
+    parser_submit.add_argument('--evaluation', type=str, required=True, 
+                         help='Evaluation ID where the entity will be submitted')
+    parser_submit.add_argument('--entity', type=str, required=True, 
+                         help='Synapse ID of the entity to be submitted')
+    parser_submit.add_argument('--name', type=str, nargs="+", 
+                         help='Name of the submission')
+    parser_submit.set_defaults(func=submit)
 
     parser_get = subparsers.add_parser('show', help='show metadata for an entity')
     parser_get.add_argument('id', metavar='syn123', type=str, 

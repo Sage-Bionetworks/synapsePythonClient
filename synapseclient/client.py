@@ -1481,7 +1481,7 @@ class Synapse:
         return Evaluation(**self.restGET(uri))
 
 
-    def submit(self, evaluation, entity, name=''):
+    def submit(self, evaluation, entity, name=None):
         """submit an Entity for evaluation by evaluator
         
         Arguments:
@@ -1495,7 +1495,7 @@ class Synapse:
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
-        name = entity['name'] if (name == '' and 'name' in entity) else ''
+        name = entity['name'] if (name is None and 'name' in entity) else None
         submission =  {'evaluationId':evaluation_id, 'entityId':entity_id, 'name':name, 
                        'versionNumber': entity_version}
         return Submission(**self.restPOST('/evaluation/submission?etag=%s' %entity.etag, 
