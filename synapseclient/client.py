@@ -177,7 +177,8 @@ class Synapse:
 
 
     def _storeTimingProfile(self, resp):
-        """Stores timing information for the last call if request_profile was set"""
+        # Stores timing information for the last call if request_profile was set
+        
         if self.headers.get('request_profile', 'False')=='True':
             profile_data = None
             for k,v in resp.getheaders():
@@ -275,7 +276,8 @@ class Synapse:
 
 
     def _loggedIn(self):
-        """Test whether the user is logged in to Synapse."""
+        # Test whether the user is logged in to Synapse.
+        
         if self.sessionToken is None:
             return False
         url = '%s/userProfile' % (self.repoEndpoint,)
