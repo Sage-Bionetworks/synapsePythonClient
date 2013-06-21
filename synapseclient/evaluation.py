@@ -5,8 +5,14 @@ from synapseclient.dict_object import DictObject
 
 
 class Evaluation(DictObject):
-    """Keeps track of an evaluation in Synapse.  Allowing for
+    """
+    Keeps track of an evaluation in Synapse.  Allowing for
     submissions, retrieval and scoring.
+    
+    :param name:          Name of the evaluation
+    :param description:   A short description describing the evaluation
+    :param status:        One of {'OPEN', 'PLANNED', 'CLOSED', 'COMPLETED'}.  Defaults to 'OPEN'
+    :param contentSource: Source of the evaluation's content
     """
 
     @classmethod
@@ -19,14 +25,6 @@ class Evaluation(DictObject):
 
 
     def __init__(self, **kwargs):
-        """Builds an Synapse evaluation object based on information of:
-
-        Arguments:
-        - `name`: Name of evaluation
-        - `description`: A short description describing the evaluation
-        - `status`: One of ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED'] default 'OPEN'
-        - `contentSource` : content Source 
-        """
         kwargs['status'] = kwargs.get('status', 'OPEN')
         kwargs['contentSource'] = kwargs.get('contentSource', '')
         if  kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
@@ -46,6 +44,11 @@ class Evaluation(DictObject):
 
 
 class Submission(DictObject):
+    """
+    Builds an Synapse submission object
+
+    TODO
+    """
 
     @classmethod
     def getURI(cls, id):
@@ -53,10 +56,6 @@ class Submission(DictObject):
 
 
     def __init__(self, **kwargs):
-        """Builds an Synapse submission object based on information of:
-
-        Arguments:
-        """
         if not ('evaluationId' in kwargs and 
                 'entityId' in kwargs and
                 'versionNumber' in kwargs):
@@ -76,6 +75,11 @@ class Submission(DictObject):
 
 
 class SubmissionStatus(DictObject):
+    """
+    Builds an Synapse submission status object
+
+    TODO
+    """
 
     @classmethod
     def getURI(cls, id):
@@ -83,10 +87,6 @@ class SubmissionStatus(DictObject):
 
 
     def __init__(self, **kwargs):
-        """Builds an Synapse submission object based on information of:
-
-        Arguments:
-        """
         super(SubmissionStatus, self).__init__(kwargs)
 
     def postURI(self):
@@ -97,6 +97,3 @@ class SubmissionStatus(DictObject):
 
     def deleteURI(self):
         return '/evaluation/submission/%s/status' %self.id
-
-
-            

@@ -4,3 +4,6 @@ pypi.info.txt
 /dist/
 *.egg-info
 
+/make.bat
+_build
+/Makefile
