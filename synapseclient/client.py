@@ -2,6 +2,7 @@ import ConfigParser
 import collections
 import os
 import json
+import re
 import base64
 import urllib
 import urlparse
@@ -41,6 +42,7 @@ CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TOD
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
+QUERY_LIMIT = 5000
 ROOT_ENTITY = 'syn4489'
 
 ## defines the standard retry policy applied to the rest methods
@@ -263,6 +265,32 @@ class Synapse:
                 return False
             return user['displayName']
         return False
+        
+        
+    def logout(self, local=False):
+        """
+        Invalidates authentication
+        
+        Argument:
+            local: True to only logout locally, otherwise all sessions are logged out
+        """
+        # Logout globally
+        # Note: If self.headers['sessionToken'] is deleted or changed, 
+        #       global logout will not actually logout (i.e. session token will still be valid)
+        if not local: self.restDELETE('/session', endpoint=self.authEndpoint)
+            
+        # Remove the in-memory session tokens
+        del self.sessionToken
+        del self.headers["sessionToken"]
+        
+        # Remove the session token from the config file
+        config = ConfigParser.ConfigParser()
+        config.read(CONFIG_FILE)
+        if config.has_option('authentication', 'sessionToken'):
+            config.remove_option('authentication', 'sessionToken')
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
+            
 
 
     def getUserProfile(self, id=None):
@@ -757,18 +785,61 @@ class Synapse:
 
     def query(self, queryStr):
         '''
-        Query for Synapse entities.
+        Query for Synapse entities.  
+        Returns an iterator that will try to break up large queries into managable pieces.
 
         Example:
         >>> query("select id, name from entity where entity.parentId=='syn449742'")
-        '''
-        if(self.debug): print 'About to query %s' % (queryStr)
-        return self.restGET('/query?query=' + urllib.quote(queryStr))
-        # response = self.restGET('/query?query=' + urllib.quote(queryStr))
-        # 
-        # for res in response['results']:
-        #     yield res
-
+        '''        
+        # Since query limits and offsets are managed by this method
+        # First separate the user's limits and offsets from the main query
+        tempQueryStr = queryStr.lower() # Regex a lowercase string to simplify matters
+        regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+        match = re.search(regex, tempQueryStr)
+        options = {'limit':None, 'offset':None}
+        while match is not None:
+            options[match.group(2)] = match.group(3)
+            tempQueryStr = match.group(1);
+            match = re.search(regex, tempQueryStr)
+        options['limit'] = int(options['limit']) if options['limit'] is not None else float('inf')
+        options['offset'] = int(options['offset']) if options['offset'] is not None else 1
+        queryStr = queryStr[:len(tempQueryStr)]
+            
+        # Begin querying until the entire query has been fetched (or crash out)
+        limit = options['limit'] if options['limit'] < QUERY_LIMIT else QUERY_LIMIT
+        offset = options['offset']
+        while True:
+            # Build the sub-query
+            remaining = options['limit'] + options['offset'] - offset + 1
+            subqueryStr = "%s limit %d offset %d" %(queryStr, limit if limit < remaining else remaining, offset)
+            if(self.debug): print 'About to query: %s' % (subqueryStr)
+            try: 
+                response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
+                for res in response['results']:
+                    yield res
+                    
+                # Increase the size of the limit slowly 
+                if limit < QUERY_LIMIT / 2: 
+                    limit = int(limit * 1.5 + 1)
+                    
+                # Exit when no more results can be pulled
+                if len(response['results']) > 0:
+                    offset += len(response['results'])
+                else:
+                    break
+                    
+                # Exit when all requests results have been pulled
+                if offset > options['offset'] + options['limit']:
+                    break
+            except requests.exceptions.HTTPError as err:
+                # Shrink the query size when appropriate
+                if err.response.status_code == 400 and err.response.json()['reason'].startswith('java.lang.IllegalArgumentException: The results of this query exceeded the maximum'):
+                    if (limit == 1):
+                        raise Exception("A single row (offset %s) of this query exceeds the maximum size.  Consider limiting the columns returned in the select clause." % offset)
+                    limit /= 2
+                else:
+                    raise err
+                    
 
     ############################################################
     # ACL manipulation
@@ -1321,22 +1392,28 @@ class Synapse:
     ############################################################
 
     def _traverseTree(self, id, name=None, version=None):
-        """Creates a tree of all 
+        """Creates a tree of id's, versions, and names contained by the given entity of id
         
         Arguments:
-        - `id`:
+            id: Entity to query for
         """
-        children =  self.query("select id, versionNumber, name from entity where entity.parentId=='%s'" %id)
-        count=children['totalNumberOfResults']
+        children = self.query("select id, versionNumber, name from entity where entity.parentId=='%s'" % id)
+        output = []
+        output.append({               'name' : name, \
+                       'targetVersionNumber' : version, \
+                                  'targetId' : id, \
+                                   'records' : [] })
+        count = 0
+        for entity in children:
+            count += 1
+            output[-1]['records'].extend( \
+                    self._traverseTree(entity['entity.id'], \
+                                       entity['entity.name'], \
+                                       entity['entity.versionNumber']))
         print id, count, name
-        children=children['results']
-        output=[]
-        if count>0:
-            output.append({'name':name, 'targetVersionNumber':version, 'targetId':id, 'records':[]})
-            for ent in children:
-                output[-1]['records'].extend(self._traverseTree(ent['entity.id'], ent['entity.name'], ent['entity.versionNumber']))
-        else:
-            output.append({'targetId':id, 'targetVersionNumber':version})
+        if count == 0:
+            del output[-1]['records']
+            del output[-1]['name'] 
         return output
 
     def _flattenTree2Groups(self,tree, level=0, out=[]):
@@ -1404,7 +1481,7 @@ class Synapse:
         return Evaluation(**self.restGET(uri))
 
 
-    def submit(self, evaluation, entity, name=''):
+    def submit(self, evaluation, entity, name=None):
         """submit an Entity for evaluation by evaluator
         
         Arguments:
@@ -1418,7 +1495,7 @@ class Synapse:
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
-        name = entity['name'] if (name == '' and 'name' in entity) else ''
+        name = entity['name'] if (name is None and 'name' in entity) else None
         submission =  {'evaluationId':evaluation_id, 'entityId':entity_id, 'name':name, 
                        'versionNumber': entity_version}
         return Submission(**self.restPOST('/evaluation/submission?etag=%s' %entity.etag, 
