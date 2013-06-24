@@ -473,7 +473,7 @@ class Synapse:
             except requests.exceptions.HTTPError as ex:
                 ## if "409 Client Error: Conflict", update the existing entity
                 ## with same name and parent
-                if hasattr(ex, 'response') and ex.response.status_code==409:
+                if createOrUpdate and hasattr(ex, 'response') and ex.response.status_code==409:
                     existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
                     if existing_entity_id:
                         existing_entity = self._getEntity(existing_entity_id)
@@ -1210,7 +1210,6 @@ class Synapse:
 
         try:
             i = 0
-            chunkResults = []
 
             # guess mime-type - important for confirmation of MD5 sum by receiver
             (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
