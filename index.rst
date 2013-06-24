@@ -8,6 +8,9 @@ Synapse Python Client documentation
    _static/Entity
    _static/Evaluation
    _static/Activity
+   _static/Annotations
+   _static/Wiki
+   _static/Utilities
    
 .. automodule:: synapseclient
    :members:

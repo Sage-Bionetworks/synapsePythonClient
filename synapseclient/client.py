@@ -62,13 +62,10 @@ class Synapse:
     :param debug:                 Print debugging messages if True
     :param skip_checks:           Skip version and endpoint checks
     
-    Typically, no parameters are needed:
-    
-    .. code-block:: python
+    Typically, no parameters are needed::
     
         import synapseclient
         syn = synapseclient.Synapse()
-        syn.login()
         
     See: 
     
@@ -113,9 +110,7 @@ class Synapse:
         :param portalEndpoint:        Location of the website
         :param skip_checks:           Skip version and endpoint checks
         
-        Switch between staging and production endpoints:
-        
-        .. code-block:: python
+        To switch between staging and production endpoints::
             
             syn.setEndpoints(**synapseclient.client.STAGING_ENDPOINTS)
             syn.setEndpoints(**synapseclient.client.PRODUCTION_ENDPOINTS)
@@ -301,6 +296,8 @@ class Synapse:
         Retrieves information on the current user if 'id' is omitted.
         
         :param id: The 'ownerId' of a user
+        
+        :returns: JSON-object
         """
         uri = '/userProfile/%s' % ('' if id is None else str(id),)
         return self.restGET(uri)
@@ -320,7 +317,7 @@ class Synapse:
 
 
     def printEntity(self, entity):
-        """Pretty prints an entity."""
+        """Pretty prints an Entity."""
         if utils.is_synapse_id(entity):
             entity = self._getEntity(entity)
         try:
@@ -558,7 +555,7 @@ class Synapse:
         
         :param entity: A Synapse ID or dictionary describing an Entity
         
-        :returns: A new Entity object
+        :returns: An Entity object
         """
         return self.get(entity, version=version, downloadFile=False)
 
@@ -566,11 +563,11 @@ class Synapse:
     def loadEntity(self, entity):
         """
         Downloads and attempts to load the contents of an entity into memory.
-        TODO: Currently only performs download.
+        TODO_Sphinx: Currently only performs download.
         
         :param entity: Either a string or dictionary representing an Entity
         
-        :returns: TODO
+        :returns: An Entity object
         """
         #TODO: Try to load the entity into memory as well.
         #This will be depenendent on the type of entity.
@@ -585,10 +582,12 @@ class Synapse:
         Create a new entity in the Synapse Repository according to entity JSON object.
 
         :param entity:   An Entity object or dictionary
-        :param used:     An Entity, Synapse ID, URL, or object/list containing these
-        :param executed: An Entity, Synapse ID, URL, or object/list containing these
+        :param used:     An Entity, Synapse ID, URL, or object/list 
+                         representing data used to create this Entity
+        :param executed: An Entity, Synapse ID, URL, or object/list 
+                         representing code executed to create this Entity
         
-        :returns: TODO
+        :returns: An updated Entity object
         """
         ## make sure we're creating a new entity
         if 'id' in entity:
@@ -630,6 +629,7 @@ class Synapse:
         #Determine if we want to upload or store the url
         #TODO this should be determined by a parameter not based on magic
         #TODO _createFileEntity and uploadFile are kinda redundant - pick one or fold into createEntity
+        
         if filename is None:
             if 'path' in entity:
                 filename = entity.path
@@ -763,10 +763,10 @@ class Synapse:
         """
         Retrieve annotations for an Entity in the Synapse Repository.
         
-        :param entity:  TODO
-        :param version: TODO
+        :param entity:  An Entity or Synapse ID to lookup
+        :param version: The version of the Entity to retrieve
         
-        :returns: TODO
+        :returns: A dictionary
         """
         ## only use versioned URLs on request.
         ## note that using the versioned URL results in a zero-ed out etag,
@@ -782,10 +782,11 @@ class Synapse:
         """
         Store annotations for an Entity in the Synapse Repository.
 
-        :param entity:      TODO
+        :param entity:      An Entity or Synapse ID to updatae
         :param annotations: A dictionary in Synapse format or a default Python format
+        :param kwargs:      TODO_Sphinx
         
-        :returns: TODO
+        :returns: A dictionary
         """
         uri = '/entity/%s/annotations' % id_of(entity)
 
@@ -810,9 +811,7 @@ class Synapse:
         Query for Synapse entities.  
         See `in-depth documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
-        Example:
-        
-        .. code-block:: python
+        Example::
         
             syn.query("select id, name from entity where entity.parentId=='syn449742'")
         '''
@@ -859,11 +858,12 @@ class Synapse:
         """
         Get the permissions that a user or group has on an Entity.
 
-        :param entity:      TODO
-        :param principalId: TODO
+        :param entity:      An Entity or Synapse ID to lookup
+        :param principalId: TODO_Sphinx
         
         :returns: An array containing some combination of 
                   ['READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS']
+                  or an empty array
         """
         #TODO look up user by email?
         #TODO what if user has permissions by membership in a group?
@@ -879,18 +879,16 @@ class Synapse:
         Sets permission that a user or group has on an Entity.
 
         An Entity may have its own ACL or inherit its ACL from a benefactor.  
-        Trying to modify the ACL of an Entity that inherits its ACL will result
-        in a warning.  To create a new ACL on the Entity, call ``setPermissions`` 
-        with ``warn_if_inherits=False``. To modify the benefactor's ACL, 
-        which will effect other Entities, set ``modify_benefactor=True``.
 
-        :param entity:            TODO
-        :param principalId:       TODO
-        :param accessType:        TODO
-        :param modify_benefactor: TODO
-        :param warn_if_inherits:  TODO
+        :param entity:            An Entity or Synapse ID to modify
+        :param principalId:       TODO_Sphinx
+        :param accessType:        TODO_Sphinx
+        :param modify_benefactor: Set as True when modifying a benefactor's ACL
+        :param warn_if_inherits:  Set as False, when creating a new ACL. 
+                                  Trying to modify the ACL of an Entity that 
+                                  inherits its ACL will result in a warning
         
-        :returns: TODO
+        :returns: TODO_Sphinx
         """
         benefactor = self._getBenefactor(entity)
 
@@ -929,19 +927,14 @@ class Synapse:
     ## TODO rename these to Activity
     def getProvenance(self, entity, version=None):
         """
-        Retrieve provenance information for a Synapse Entity.  The Entity may be
-        either an Entity object or a string holding a Synapse ID. Returns
-        an Activity object or raises exception if no provenance record exists.
-
-        Note that provenance applies to a specific version of an Entity. The
-        returned Activity will represent the provenance of the Entity version
-        supplied with the ``versionNumber`` parameter of the given entity 
-        OR if ``versionNumber`` is None.
+        Retrieve provenance information for a Synapse Entity.
         
-        :param entity:  TODO
-        :param version: TODO
+        :param entity:  An Entity or Synapse ID to lookup
+        :param version: The version of the Entity to retrieve.  
+                        Gets the most recent version if omitted
         
-        :returns: TODO
+        :returns: An Activity object or 
+                  raises exception if no provenance record exists
         """
 
         ## get versionNumber from entity, if it's there
@@ -956,8 +949,16 @@ class Synapse:
 
 
     def setProvenance(self, entity, activity):
-        """Assert that the entity was generated by a given Activity."""
-
+        """
+        TODO_Sphinx
+        
+        :param entity:   An Entity or Synapse ID to modify
+        :param activity: TODO_Sphinx
+        
+        :returns: An updated Activity object
+        """
+        
+        # Assert that the entity was generated by a given Activity.
         if 'id' in activity:
             ## we're updating provenance
             uri = '/activity/%s' % activity['id']
@@ -973,7 +974,10 @@ class Synapse:
 
 
     def deleteProvenance(self, entity):
-        """Remove provenance information from an Entity and delete the Activity."""
+        """
+        Removes provenance information from an Entity 
+        and deletes the associated Activity.
+        """
 
         activity = self.getProvenance(entity)
         if not activity: return
@@ -989,7 +993,11 @@ class Synapse:
 
 
     def updateActivity(self, activity):
-        """Modify an existing Activity."""
+        """
+        Modifies an existing Activity.
+        
+        :returns: An updated Activity object
+        """
         uri = '/activity/%s' % activity['id']
         return Activity(data=self.restPUT(uri, json.dumps(activity)))
 
@@ -1000,6 +1008,7 @@ class Synapse:
     ############################################################
 
     def _uploadFileAsLocation(self, entity, filename):
+        # TODO - Change this to internal comment style
         # Given an entity or the id of an entity, upload a filename as the location of that entity.
         # 
         # (deprecated in favor of FileEntities)
@@ -1438,11 +1447,9 @@ class Synapse:
         Traverses all sub-Entities of the given Entity 
         and creates a summary object within the given Entity.
         
-        :param id:          Id of entity to traverse to create entity 
-        :param name:        Name of created summary entity
-        :param description: Description of created entity
-        
-        :returns: TODO
+        :param id:          Id of Entity to traverse to create Entity 
+        :param name:        Name of created summary Entity
+        :param description: Description of created Entity
         """
         print "hello"
         tree=self._traverseTree(id)[0]['records']
@@ -1466,7 +1473,8 @@ class Synapse:
     ############################################################
 
     def getEvaluation(self, id):
-        "Returns the evaluation object from synapse"
+        """Gets an Evaluation object from Synapse."""
+        
         evaluation_id = id_of(id)
         uri=Evaluation.getURI(id)
         return Evaluation(**self.restGET(uri))
@@ -1474,10 +1482,12 @@ class Synapse:
 
     def submit(self, evaluation, entity, name=''):
         """
-        Submit an Entity for evaluation by an evaluator
+        Submit an Entity for evaluation by an evaluator.
         
-        :param entity:     The Entity containing the submission
+        :param entity:     The Entity containing the Submission
         :param evaluation: Evaluation board to submit to
+        
+        :returns: A Submission object
         """
 
         evaluation_id = id_of(evaluation)
@@ -1495,12 +1505,13 @@ class Synapse:
 
     def addEvaluationParticipant(self, evaluation, userId=None):
         """
-        Adds a participant to to an Evaluation
+        Adds a participant to an Evaluation.
 
-        :param evaluation: An evaluation object or evaluation ID
+        :param evaluation: An Evaluation object or Evaluation ID
         :param userId:     The prinicipal ID of the participant.
-                           If not supplied uses your own
+                           If not supplied, uses your ID
         """
+        
         evaluation_id = id_of(evaluation)
         userId=self.getUserProfile()['ownerId'] if userId==None else userId
         self.restPOST('/evaluation/%s/participant/%s'  %(evaluation_id, userId), {})
@@ -1509,19 +1520,21 @@ class Synapse:
 
     def getSubmissions(self, evaluation, status=None):
         """
-        Returns a generator over all submissions for an Evaluation, 
-        or optionally all submissions with a specified status.
-
-        :param evaluation: Evaluation board to get submissions from.
-        :param status:     Get submissions that have specific status one of {OPEN, CLOSED, SCORED, INVALID}
-
-        Example:
+        TODO_Sphinx
         
-        .. code-block:: python
+        :param evaluation: Evaluation board to get submissions from.
+        :param status:     Get submissions that have specific status 
+                           one of {OPEN, CLOSED, SCORED, INVALID}
+                           
+        :returns: A generator over all Submissions for an Evaluation, 
+                  optionally filters Submissions for a specified status.
+
+        Example::
         
             for submission in syn.getEvaluationSubmissions(1234567):
                 print submission['entityId']
         """
+        
         evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
 
         result_count = 0
@@ -1555,11 +1568,17 @@ class Synapse:
 
 
     def getOwnSubmissions(self, evaluation):
+        """
+        TODO_Sphinx - Not implemented yet
+        """
+        
         #TODO implement this if this is really usefull?
         pass
 
 
     def getSubmission(self, id):
+        """Gets a Submission object."""
+        
         submission_id = id_of(id)
         uri=SubmissionStatus.getURI(submission_id)
         return Submission(**self.restGET(uri))
@@ -1567,11 +1586,11 @@ class Synapse:
 
     def getSubmissionStatus(self, submission):
         """
-        Gets the status of a Submission
+        Downloads the status of a Submission.
         
-        :param submission: Downloads the status of an Evaluation's Submission
+        :param submission: The Submission to lookup
         
-        :returns: TODO
+        :returns: A SubmissionStatus object
         """
         submission_id = id_of(submission)
         uri=SubmissionStatus.getURI(submission_id)
@@ -1586,7 +1605,7 @@ class Synapse:
     ############################################################
 
     def getWiki(self, owner, subpageId=None):
-        """Gets a wiki page object from Synapse."""
+        """Gets a Wiki object from Synapse."""
         owner_type = utils.guess_object_type(owner)
         if subpageId:
             uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(subpageId))
@@ -1598,11 +1617,11 @@ class Synapse:
         
 
     def getWikiHeaders(self, owner):
-        """Retrieves the the header of all wiki's belonging to the owner"
+        """Retrieves the the header of all Wiki's belonging to the owner."
         
-        :param owner: an Evaluation or Entity
+        :param owner: An Evaluation or Entity
         
-        :returns: TODO
+        :returns: TODO_Sphinx
         """
         owner_type = utils.guess_object_type(owner)
         uri = '/%s/%s/wikiheadertree' % (owner_type, id_of(owner),)
@@ -1610,7 +1629,7 @@ class Synapse:
 
     #Need to test functionality of this
     # def _downloadWikiAttachment(self, owner, wiki, filename, dest_dir=None, owner_type=None):
-    #     """Download a file attached to a wiki page"""
+    #     # Download a file attached to a wiki page
     #     if not owner_type:
     #         owner_type = utils.guess_object_type(owner)
     #     url = "%s/%s/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, owner_type, id_of(owner), id_of(wiki), filename,)
@@ -1618,14 +1637,13 @@ class Synapse:
 
     ##Superseded by getWiki
     # def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None, owner_type=None):
-    #     """Create a new wiki page for an Entity (experimental).
-
-    #     parameters:
-    #     owner -- the owner object (entity, competition, evaluation) with which the new wiki page will be associated
-    #     markdown -- the contents of the wiki page in markdown
-    #     attachmentFileHandleIds -- a list of file handles or file handle IDs
-    #     owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
-    #     """
+    #     # Create a new wiki page for an Entity (experimental).
+    #     # parameters:
+    #     # owner -- the owner object (entity, competition, evaluation) with which the new wiki page will be associated
+    #     # markdown -- the contents of the wiki page in markdown
+    #     # attachmentFileHandleIds -- a list of file handles or file handle IDs
+    #     # owner_type -- entity, competition, evaluation, can usually be automatically inferred from the owner object
+    # 
     #     if not owner_type:
     #         owner_type = utils.guess_object_type(owner)
     #     uri = '/%s/%s/wiki' % (owner_type, id_of(owner),)
