@@ -79,7 +79,7 @@ The synapse client can be used to write software that interacts with the Sage Sy
     # syn.login()
 
     ## retrieve a 100 by 4 matrix
-    matrix = syn.get('syn1899495')
+    matrix = syn.get('syn1901033')
 
     ## inspect its properties
     print matrix.name

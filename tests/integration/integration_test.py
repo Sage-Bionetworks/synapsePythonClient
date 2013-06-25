@@ -64,8 +64,6 @@ def test_login():
         fname = utils.make_bogus_data_file()
         client.CONFIG_FILE = fname
 
-        #Test that we fail with the wrong config file and no session token
-        os.remove(os.path.join(client.CACHE_DIR, '.session'))
         assert_raises(Exception, syn.login)
     finally:
         client.CONFIG_FILE = old_config_file
