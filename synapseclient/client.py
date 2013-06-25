@@ -275,6 +275,32 @@ class Synapse:
                 return False
             return user['displayName']
         return False
+        
+        
+    def logout(self, local=False):
+        """
+        Invalidates authentication
+        
+        Argument:
+            local: True to only logout locally, otherwise all sessions are logged out
+        """
+        # Logout globally
+        # Note: If self.headers['sessionToken'] is deleted or changed, 
+        #       global logout will not actually logout (i.e. session token will still be valid)
+        if not local: self.restDELETE('/session', endpoint=self.authEndpoint)
+            
+        # Remove the in-memory session tokens
+        del self.sessionToken
+        del self.headers["sessionToken"]
+        
+        # Remove the session token from the config file
+        config = ConfigParser.ConfigParser()
+        config.read(CONFIG_FILE)
+        if config.has_option('authentication', 'sessionToken'):
+            config.remove_option('authentication', 'sessionToken')
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
+            
 
 
     def getUserProfile(self, id=None):
