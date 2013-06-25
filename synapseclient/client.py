@@ -13,7 +13,7 @@ import stat
 import pkg_resources
 import webbrowser
 import sys
-from time import time
+import time
 
 import synapseclient.utils as utils
 from synapseclient.version_check import version_check
@@ -41,13 +41,19 @@ CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TOD
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
+CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
+
 
 ## defines the standard retry policy applied to the rest methods
 STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
                                       retry_errors=[],
                                       retry_exceptions=['Timeout', 'timeout'],
                                       retries=3, wait=1, back_off=2, verbose=False)
+
+## add additional mimetypes
+mimetypes.add_type('text/x-r', '.R', strict=False)
+mimetypes.add_type('text/x-r', '.r', strict=False)
 
 
 class Synapse:
@@ -58,7 +64,8 @@ class Synapse:
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, 
                  serviceTimeoutSeconds=30, debug=False, skip_checks=False):
         """
-        Construct a Synapse client object
+        Construct a Synapse client object.
+
         params:
         - repoEndpoint: location of synapse repository
         - authEndpoint: location of authentication service
@@ -94,7 +101,12 @@ class Synapse:
         
     
     def setEndpoints(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, skip_checks=False):
-        
+        """
+        Set Synapse API endpoints. (Mostly useful for testing.)
+
+        Example:
+            synapse.setEndpoints(**synapseclient.client.PRODUCTION_ENDPOINTS)
+        """        
         # If endpoints aren't specified, look in the config file
         try:
             config = ConfigParser.ConfigParser()
@@ -277,7 +289,7 @@ class Synapse:
         
         Arguments:
            entity: Either an entity or a synapse id
-           subpageId: 
+           subpageId: (optional) A wiki subpage ID
         """
         if subpageId is None:
             webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
@@ -415,8 +427,9 @@ class Synapse:
                 obj.update(self.restPOST(obj.postURI(), obj.json())) 
                 return obj
             except requests.exceptions.HTTPError as err:
-                 #If already present and we want to update attempt to get the object content
-                if err.response.status_code==500 and  createOrUpdate: 
+                #If already present and we want to update attempt to get the object content
+                #TODO remove status code 500 after PLFM-1905 goes in to production
+                if createOrUpdate and (err.response.status_code==500 or err.response.status_code==409):
                     newObj=self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
                     obj=obj.__class__(**newObj)
@@ -461,7 +474,7 @@ class Synapse:
             except requests.exceptions.HTTPError as ex:
                 ## if "409 Client Error: Conflict", update the existing entity
                 ## with same name and parent
-                if hasattr(ex, 'response') and ex.response.status_code==409:
+                if createOrUpdate and hasattr(ex, 'response') and ex.response.status_code==409:
                     existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
                     if existing_entity_id:
                         existing_entity = self._getEntity(existing_entity_id)
@@ -945,7 +958,7 @@ class Synapse:
         md5 = utils.md5_for_file(filename)
 
         # guess mime-type - important for confirmation of MD5 sum by receiver
-        (mimetype, enc) = mimetypes.guess_type(filename)
+        (mimetype, enc) = mimetypes.guess_type(filename, strict=False)
         if (mimetype is None):
             mimetype = "application/octet-stream"
 
@@ -1035,7 +1048,7 @@ class Synapse:
     def _downloadFileEntity(self, entity):
         """Download the file associated with a FileEntity"""
         if 'versionNumber' in entity:
-            url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity),entity.versionNumber)
+            url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity), entity['versionNumber'])
         else:
             url = '%s/entity/%s/file' % (self.repoEndpoint, id_of(entity),)
         destDir = os.path.join(self.cacheDir, id_of(entity))
@@ -1137,7 +1150,7 @@ class Synapse:
         fileHandle={'concreteType':'org.sagebionetworks.repo.model.file.ExternalFileHandle',
                     'fileName': fileName,
                     'externalURL':externalURL}
-        (mimetype, enc) = mimetypes.guess_type(externalURL)
+        (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
         if mimetype:
             fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
@@ -1164,49 +1177,15 @@ class Synapse:
 
     def _createChunkedFileUploadChunkURL(self, chunkNumber, chunkedFileToken):
         chunkRequest = {'chunkNumber':chunkNumber, 'chunkedFileToken':chunkedFileToken}
-        url = self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
-        return chunkRequest, url
+        return self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
 
-    def _addChunkToFile(self, chunkRequest, verbose=False):
-        ## We occasionally get an error on addChunkToFile:
-        ##   500 Server Error: Internal Server Error
-        ##   {u'reason': u'The specified key does not exist.'}
-        ## This might be because S3 hasn't yet finished propagating the
-        ## addition of the new chunk. So, retry_request will wait and retry.
-        ## Note: These errors may have been caused by failing to read the content
-        ## of the PUT to S3, and therefore failing to close the stream, causing a
-        ## delay in S3 finalizing the upload and making the file visible to the
-        ## repo.
+    def _startCompleteUploadDaemon(self, chunkedFileToken, chunkNumbers):
+        completeAllChunksRequest = {'chunkNumbers': chunkNumbers,
+                                    'chunkedFileToken': chunkedFileToken}
+        return self.restPOST('/startCompleteUploadDaemon', json.dumps(completeAllChunksRequest), endpoint=self.fileHandleEndpoint)
 
-        ## Also saw ConnectionError/httplib.BadStatusLine here, especially when
-        ## using ridiculously large chunk sizes ~100MB. Adding a long timeout
-        ## didn't seem to help, and retry resulted in a the same error as
-        ## above: 'The specified key does not exist.'
-
-        ## wait attempt#
-        ##   0     1
-        ##   2     2
-        ##   4     3
-        ##   8     4
-        ##  16     5
-        ##  32     6
-        ##  64     7 
-        with_retry = RetryRequest(retry_status_codes=[],
-                                  retry_exceptions=[],
-                                  retry_errors=['The specified key does not exist.'],
-                                  retries=4, wait=2, back_off=2, verbose=verbose, tag='addChunkToFile RetryRequest')
-        #t = time()
-        try:
-            return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
-        except Exception as ex:
-            raise
-        #finally:
-        #    print time() - t
-
-    def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
-        completeChunkedFileRequest = {'chunkedFileToken':chunkedFileToken,
-                                      'chunkResults':chunkResults}
-        return self.restPOST('/completeChunkFileUpload', json.dumps(completeChunkedFileRequest), endpoint=self.fileHandleEndpoint)
+    def _completeUploadDaemonStatus(self, status):
+        return self.restGET('/completeUploadDaemonStatus/%s' % status['daemonId'], endpoint=self.fileHandleEndpoint)
 
     def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, verbose=False, progress=True):
         """
@@ -1228,14 +1207,13 @@ class Synapse:
             self.debug = True
 
         ## start timing
-        start_time = time()
+        start_time = time.time()
 
         try:
             i = 0
-            chunkResults = []
 
             # guess mime-type - important for confirmation of MD5 sum by receiver
-            (mimetype, enc) = mimetypes.guess_type(filepath)
+            (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
             if (mimetype is None):
                 mimetype = "application/octet-stream"
 
@@ -1271,7 +1249,7 @@ class Synapse:
                     if verbose: sys.stderr.write('\nChunk %d\n' % i)
 
                     ## get the signed S3 URL
-                    chunkRequest, url = self._createChunkedFileUploadChunkURL(i, token)
+                    url = self._createChunkedFileUploadChunkURL(i, token)
                     if verbose: sys.stderr.write('url= ' + str(url) + '\n')
                     if progress:
                         sys.stdout.write('.')
@@ -1281,7 +1259,7 @@ class Synapse:
                     response = with_retry(requests.put)(url, data=chunk, headers=headers)
                     response.raise_for_status()
                     if progress:
-                        sys.stdout.write('.')
+                        sys.stdout.write(',')
                         sys.stdout.flush()
 
                     ## Is requests closing response stream? Let's make sure:
@@ -1296,20 +1274,30 @@ class Synapse:
                     except Exception as ex:
                         sys.stderr.write('error reading response: '+str(ex))
 
-                    chunkResults.append(self._addChunkToFile(chunkRequest, verbose=verbose))
-                    if progress:
-                        sys.stdout.write(',')
-                        sys.stdout.flush()
+            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+
+            ## poll until concatenating chunks is complete
+            while (status['state']=='PROCESSING'):
+                if progress:
+                    sys.stdout.write('!')
+                    sys.stdout.flush()
+                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+                status = self._completeUploadDaemonStatus(status)
+                if verbose: sys.stderr.write('status= ' + str(status) + '\n')
+                #sys.stderr.write(str(status['runTimeMS']) + '\t' + str(status['percentComplete']) + '\n')
 
             if progress:
                 sys.stdout.write('!\n')
                 sys.stdout.flush()
 
-            ## finalize the upload and return a fileHandle
-            fileHandle = self._completeChunkFileUpload(token, chunkResults)
+            if status['state']=='FAILED':
+                raise Exception(status['errorMessage'])
+
+            ## return a fileHandle
+            fileHandle = self._getFileHandle(status['fileHandleId'])
 
             ## print timing information
-            if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time()-start_time))
+            if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-start_time))
 
             return fileHandle
         finally:
@@ -1436,7 +1424,6 @@ class Synapse:
         userId=self.getUserProfile()['ownerId'] if userId==None else userId
         self.restPOST('/evaluation/%s/participant/%s'  %(evaluation_id, userId), {})
 
-  
 
     def getSubmissions(self, evaluation, status=None):
         """Return a generator over all submissions for a evaluation, or optionally all

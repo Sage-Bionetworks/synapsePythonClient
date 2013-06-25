@@ -83,6 +83,9 @@ class Activity(dict):
 
             data: a dictionary representation of an Activity, with fields 'name', 'description'
                 and 'used' (a list of reference objects)
+
+        see:
+            synapseclient.activity
         """
         ## initialize from a dictionary, as in Activity(data=response.json())
         if data:

@@ -7,6 +7,7 @@ import uuid
 import filecmp
 import os
 import sys
+import requests
 from datetime import datetime as Datetime
 
 import synapseclient
@@ -15,6 +16,8 @@ from synapseclient import Activity, Entity, Project, Folder, File, Data
 
 import integration
 from integration import create_project, schedule_for_cleanup
+
+from nose.tools import assert_raises
 
 
 def setup(module):
@@ -166,6 +169,37 @@ def test_get_and_store():
     ## make sure we can still get the older version of file
     old_random_data=syn.get(random_data.id, version=random_data.versionNumber)
     assert filecmp.cmp(old_random_data.path, path)
+
+
+def test_store_with_create_or_update_flag():
+    project = create_project()
+
+    filepath = utils.make_bogus_binary_file()
+    bogus1 = File(filepath, name='Bogus Test File', parent=project)
+
+    bogus1 = syn.store(bogus1, createOrUpdate=True)
+
+    ## create a different file with the same name and parent
+    new_filepath = utils.make_bogus_binary_file()
+    bogus2 = File(new_filepath, name='Bogus Test File', parent=project)
+
+    ## expected behavior is that a new version of the first File will be created
+    bogus2 = syn.store(bogus2, createOrUpdate=True)
+
+    assert bogus2.id == bogus1.id
+    assert bogus2.versionNumber == 2
+    assert not filecmp.cmp(bogus2.path, bogus1.path)
+
+    bogus2a = syn.get(bogus2.id)
+    assert bogus2a.id == bogus1.id
+    assert bogus2a.versionNumber == 2
+    assert filecmp.cmp(bogus2.path, bogus2a.path)
+
+    ## create a different file with the same name and parent
+    del bogus2.properties.id
+
+    ## expected behavior is raising an exception with a 409 error
+    assert_raises(requests.exceptions.HTTPError, syn.store, bogus2, createOrUpdate=False)
 
 
 def test_store_dictionary():
