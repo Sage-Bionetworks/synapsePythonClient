@@ -427,8 +427,9 @@ class Synapse:
                 obj.update(self.restPOST(obj.postURI(), obj.json())) 
                 return obj
             except requests.exceptions.HTTPError as err:
-                 #If already present and we want to update attempt to get the object content
-                if err.response.status_code==500 and  createOrUpdate: 
+                #If already present and we want to update attempt to get the object content
+                #TODO remove status code 500 after PLFM-1905 goes in to production
+                if createOrUpdate and (err.response.status_code==500 or err.response.status_code==409):
                     newObj=self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
                     obj=obj.__class__(**newObj)
