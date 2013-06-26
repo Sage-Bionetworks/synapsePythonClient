@@ -218,7 +218,10 @@ def getProvenance(args, syn):
     
     
 def submit(args, syn):
-    syn.submit(args.evaluation, args.entity, args.name)
+    if args.name is not None: args.name = ' '.join(args.name)
+    
+    submission = syn.submit(args.evaluation, args.entity, args.name)
+    sys.stderr.write('Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' %(submission['id'], submission['entityId'], submission['name'], submission['evaluationId']))
 
 
 def main():

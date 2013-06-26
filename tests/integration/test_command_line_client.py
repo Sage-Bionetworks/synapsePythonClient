@@ -179,7 +179,7 @@ def test_command_line_client():
     output = run('synapse delete %s' % project_id)
 
     
-def test_command_line_store():
+def test_command_line_store_and_submit():
     """Test command line client store command."""
 
     ## Create a project
@@ -199,7 +199,18 @@ def test_command_line_store():
     f1 = syn.get(file_entity_id)
     fh = syn._getFileHandle(f1.dataFileHandleId)
     assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
+    
+    
+    ## Create an Evaluation to submit to
+    eval = synapseclient.evaluation.Evaluation(name=str(str(uuid.uuid4())), contentSource=project_id)
+    eval = syn.store(eval)
+    syn.addEvaluationParticipant(eval)
 
+    
+    ## Submit a bogus file
+    output = run('synapse submit --evaluation %s --name Some random name --entity %s' %(eval.id, file_entity_id))
+    submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
+    
 
     ## Update the file
     filename = utils.make_bogus_data_file()
