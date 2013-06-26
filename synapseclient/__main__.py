@@ -60,6 +60,11 @@ def get(args, syn):
     
     
 def store(args, syn):
+    # Concatenate the multi-part arguments "name" and "description" 
+    # so that the other functions can accept them
+    if args.name is not None: args.name = ' '.join(args.name)
+    if args.description is not None: args.description = ' '.join(args.description)
+    
     # --id indicates intention to update()
     if args.id is not None:
         if args.file is not None:
@@ -243,18 +248,18 @@ def main():
                          help='Synapse ID of form syn123 of desired data object')
     parser_get.set_defaults(func=get)
 
-    parser_store = subparsers.add_parser('store', help='create or update an entity')
+    parser_store = subparsers.add_parser('store', help='depending on the arguments supplied, store will either create, add, or update')
     group = parser_store.add_mutually_exclusive_group()
     group.add_argument('--id', metavar='syn123', type=str, 
-                         help='Synapse ID of form syn123 of desired synapse object')
+                         help='Synapse ID of form syn123 of the Synapse object to update')
     group.add_argument('--parentid', metavar='syn123', type=str,  
-                         help='Synapse ID of project or folder where to upload data.')
+                         help='Synapse ID of project or folder where to upload new data.')
     parser_store.add_argument('--name', type=str, nargs="+", 
                          help='Name of data object in Synapse')
     parser_store.add_argument('--description', type=str, nargs="+", 
                          help='Description of data object in Synapse.')
     parser_store.add_argument('--type', type=str, default='File',
-                         help='Type of object to create in synapse. Defaults to "File". Deprecated object types include "Data" and "Code".')
+                         help='Type of object, such as "File", "Folder", or "Project", to create in Synapse. Defaults to "File"')
     parser_store.add_argument('--used', metavar='TargetID', type=str, nargs='*',
                          help='ID of a target data entity from which the specified entity is derived')
     parser_store.add_argument('--executed', metavar='TargetID', type=str, nargs='*',
