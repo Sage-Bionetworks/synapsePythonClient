@@ -177,3 +177,61 @@ def test_command_line_client():
 
     ## delete project
     output = run('synapse delete %s' % project_id)
+
+    
+def test_command_line_store_and_submit():
+    """Test command line client store command."""
+
+    ## Create a project
+    output = run('synapse store --name "%s" --description "test of store command" --type Project' % str(str(uuid.uuid4())))
+    project_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    schedule_for_cleanup(project_id)
+
+
+    ## Create and upload a file
+    filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    output = run('synapse store --name "BogusFileEntity" --description "Bogus data to test file upload" --parentid %s --file %s' % (project_id, filename))
+    file_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+
+    
+    ## Verify that we stored the file in Synapse
+    f1 = syn.get(file_entity_id)
+    fh = syn._getFileHandle(f1.dataFileHandleId)
+    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
+    
+    
+    ## Create an Evaluation to submit to
+    eval = synapseclient.evaluation.Evaluation(name=str(str(uuid.uuid4())), contentSource=project_id)
+    eval = syn.store(eval)
+    syn.addEvaluationParticipant(eval)
+
+    
+    ## Submit a bogus file
+    output = run('synapse submit --evaluation %s --name Some random name --entity %s' %(eval.id, file_entity_id))
+    submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
+    
+
+    ## Update the file
+    filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    output = run('synapse store --id %s --file %s' % (file_entity_id, filename,))
+    updated_entity_id = parse(r'Updated entity:\s+(syn\d+)', output)
+
+
+    ## Tests shouldn't have external dependencies, but here it's required
+    ducky_url = 'http://upload.wikimedia.org/wikipedia/commons/9/93/Rubber_Duck.jpg'
+
+    ## Test external file handle
+    ## This time, omit the quotation marks
+    output = run('synapse store --name Rubber Ducky --description I like rubber duckies --parentid %s --file %s' % (project_id, ducky_url))
+    exteral_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+
+    ## Verify that we created an external file handle
+    f2 = syn.get(exteral_entity_id)
+    fh = syn._getFileHandle(f2.dataFileHandleId)
+    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
+
+
+    ## Delete project
+    output = run('synapse delete %s' % project_id)
