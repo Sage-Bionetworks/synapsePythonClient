@@ -8,6 +8,10 @@ class Evaluation(DictObject):
     """
     Keeps track of an evaluation in Synapse.  Allowing for
     submissions, retrieval and scoring.
+
+    Evaluations can be retrieved from Synapse by ID::
+
+        evaluation = syn.getEvaluation(1901877)
     
     :param name:          Name of the evaluation
     :param description:   A short description describing the evaluation
@@ -47,7 +51,9 @@ class Submission(DictObject):
     """
     Builds an Synapse submission object
 
-    TODO
+    :param entityId:      Synapse ID of the Entity to submit
+    :param evaluationId:  ID of the Evaluation to which the Entity is to be submitted
+    :param versionNumber: Version number of the submitted Entity
     """
 
     @classmethod
@@ -60,7 +66,6 @@ class Submission(DictObject):
                 'entityId' in kwargs and
                 'versionNumber' in kwargs):
             raise KeyError
-    
 
         super(Submission, self).__init__(kwargs)
 
@@ -78,7 +83,12 @@ class SubmissionStatus(DictObject):
     """
     Builds an Synapse submission status object
 
-    TODO
+    :param etag:       TODO_Sphinx
+    :param id:         TODO_Sphinx
+    :param modifiedOn: TODO_Sphinx
+    :param score:      TODO_Sphinx
+    :param status:     TODO_Sphinx
+                       Status can be one of {'OPEN', 'CLOSED', 'SCORED', 'INVALID'}.
     """
 
     @classmethod

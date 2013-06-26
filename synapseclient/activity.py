@@ -40,8 +40,8 @@ class Activity(dict):
     """
     Represents the provenance of a Synapse entity.
     
-    :param name:        TODO
-    :param description: TODO
+    :param name:        TODO_Sphinx
+    :param description: TODO_Sphinx
     :param used:        Either a list of reference objects 
                         (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``) 
                         or a list of Synapse Entities or Entity IDs
@@ -52,6 +52,7 @@ class Activity(dict):
     See also: `Provenance in Synapse <https://sagebionetworks.jira.com/wiki/display/PLFM/Analysis+Provenance+in+Synapse>`_ 
         and the `W3C's provenance ontology <http://www.w3.org/TR/prov-o/>`_
     """
+
     #TODO: make constructors from JSON consistent across objects
     def __init__(self, name=None, description=None, used=None, executed=None, data=None):
         ## initialize from a dictionary, as in Activity(data=response.json())
@@ -71,7 +72,7 @@ class Activity(dict):
 
     def usedEntity(self, target, targetVersion=None, wasExecuted=False):
         """
-        TODO
+        TODO_Sphinx
         
         :param target:        either a synapse entity or entity id (as a string)
         :param targetVersion: optionally specify the version of the entity
@@ -92,7 +93,7 @@ class Activity(dict):
 
     def usedURL(self, url, name=None, wasExecuted=False):
         """
-        TODO
+        TODO_Sphinx
         
         :param url:         resource's URL as a string
         :param name:        optionally name the indicated resource, defaults to the URL
@@ -121,15 +122,11 @@ class Activity(dict):
 
         In case of conflicting settings for wasExecuted both inside an object and with a
         parameter, the parameter wins. For example, this UsedURL will have wasExecuted set
-        to False:
-        
-        .. code-block:: python
+        to False::
             
             activity.used({'url':'http://google.com', 'name':'Goog', 'wasExecuted':True}, wasExecuted=False)
 
-        Entity examples:
-        
-        .. code-block:: python
+        Entity examples::
         
             activity.used('syn12345')
             activity.used(entity)
@@ -137,18 +134,14 @@ class Activity(dict):
             activity.used(codeEntity, wasExecuted=True)
             activity.used({'reference':{'target':'syn12345', 'targetVersion':1}, 'wasExecuted':False})
 
-        URL examples:
-        
-        .. code-block:: python
+        URL examples::
         
             activity.used('http://mydomain.com/my/awesome/data.RData')
             activity.used(url='http://mydomain.com/my/awesome/data.RData', name='Awesome Data')
             activity.used(url='https://github.com/joe_hacker/code_repo', name='Gnarly hacks', wasExecuted=True)
             activity.used({'url':'https://github.com/joe_hacker/code_repo', 'name':'Gnarly hacks'}, wasExecuted=True)
 
-        List example:
-        
-        .. code-block:: python
+        List example::
         
             used( [ 'syn12345', 'syn23456', entity,
                     {'reference':{'target':'syn100009', 'targetVersion':2}, 'wasExecuted':True},
