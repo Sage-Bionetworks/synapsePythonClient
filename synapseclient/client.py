@@ -797,13 +797,36 @@ class Synapse:
     ############################################################
 
     def query(self, queryStr):
-        '''
+        """
         Query for Synapse entities.  
-        Returns an iterator that will try to break up large queries into managable pieces.
+        **To be replaced with :py:func:`synapseclient.Synapse.chunkedQuery`**
+        See `in-depth documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        
+        :returns: A JSON object containing an array of query results
 
-        Example:
-        >>> query("select id, name from entity where entity.parentId=='syn449742'")
-        '''        
+        Example::
+        
+            syn.query("select id, name from entity where entity.parentId=='syn449742'")
+        """
+        if(self.debug): print 'About to query %s' % (queryStr)
+        return self.restGET('/query?query=' + urllib.quote(queryStr))
+        
+        
+        
+    def chunkedQuery(self, queryStr):
+        """
+        Query for Synapse Entities.  
+        More robust than :py:func:`synapseclient.Synapse.query`.
+        See `in-depth documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        
+        :returns: An iterator that will break up large queries into managable pieces.  
+        
+        Example::
+        
+            syn.query("select id, name from entity where entity.parentId=='syn449742'")
+        
+        """
+        
         # Since query limits and offsets are managed by this method
         # First separate the user's limits and offsets from the main query
         tempQueryStr = queryStr.lower() # Regex a lowercase string to simplify matters

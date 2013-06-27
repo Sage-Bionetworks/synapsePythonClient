@@ -18,10 +18,8 @@ import json
 
 
 def query(args, syn):
-    """
-    """
     #TODO: Should use loop over multiple returned values if return is too long
-    results = syn.query(' '.join(args.queryString))
+    results = syn.chunkedQuery(' '.join(args.queryString))
 
     headings = {}
     temp = [] # Since query returns a generator, the results must be stored locally
