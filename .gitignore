@@ -4,4 +4,4 @@ pypi.info.txt
 /dist/
 *.egg-info
 
-_build
+doc/_build
