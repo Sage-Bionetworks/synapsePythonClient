@@ -1409,7 +1409,7 @@ class Synapse:
         Arguments:
             id: Entity to query for
         """
-        children = self.query("select id, versionNumber, name from entity where entity.parentId=='%s'" % id)
+        children = self.chunkedQuery("select id, versionNumber, name from entity where entity.parentId=='%s'" % id)
         output = []
         output.append({               'name' : name, \
                        'targetVersionNumber' : version, \

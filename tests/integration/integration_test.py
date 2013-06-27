@@ -200,6 +200,23 @@ def test_query():
         qry= syn.query("select id, name from entity where entity.parentId=='%s'" % project['id'])
         assert qry['totalNumberOfResults']==(i+1)
 
+        
+# def test_chunked_query():
+#     # Create a project to dump a whole ton (literally?) of Entities into
+#     project = create_project()
+#     for i in range(synapseclient.client.QUERY_LIMIT * 5):
+#         try:
+#             entity = create_data_entity(project['id'])
+#         except Exception as ex:
+#             print ex
+#             print ex.response.text
+#             
+#     iter = syn.chunkedQuery("select id, name from entity where entity.parentId=='%s'" % project['id'])
+#     count = 0
+#     for res in iter:
+#         count += 1
+#     assert count == (synapseclient.client.QUERY_LIMIT * 5)
+
 
 def test_deleteEntity():
     project = create_project()
