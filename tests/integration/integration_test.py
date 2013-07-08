@@ -71,16 +71,33 @@ def test_login():
 
 
 def test_getEntity():
-    #Create a new project
+    # Create a new project
     entity = create_project()
 
-    #Get new entity and check that it is same
+    # Get new entity and check that it is same
     returnEntity = syn.getEntity(entity)
     assert entity.properties == returnEntity.properties
 
-    #Get entity by id
+    # Get entity by id
     returnEntity = syn.getEntity(entity['id'])
     assert entity.properties == returnEntity.properties
+    
+    # Upload a File
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    random_data = File(path, parent=entity, description='Random data', foo=9844)
+    random_data = syn.store(random_data)
+
+    # Get the file via MD5
+    md5 = utils.md5_for_file(path).hexdigest()
+    random_data_check = syn.get(md5)
+    assert filecmp.cmp(path, random_data_check.path)
+    assert random_data.foo[0] == 9844
+    
+    # Get the file again, using a different call
+    random_data_check = syn.get(None, md5 = md5)
+    assert filecmp.cmp(path, random_data_check.path)
+    assert random_data.foo[0] == 9844
 
 
 def test_entity_version():

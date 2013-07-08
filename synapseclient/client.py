@@ -340,27 +340,38 @@ class Synapse:
 
     def get(self, entity, **kwargs):
         """
-        Get a Synapse entity from the repo service.
-        Arguments:
-           entity: Synapse ID, a Synapse Entity object or a plain dictionary in which 'id' maps to a Synapse ID
+        Gets a Synapse entity from the repository service.
+        
+        :param entity:       A Synapse ID, 
+                             MD5 of a file (may also be given as an optional parameter 'md5'), 
+                             Synapse Entity object, 
+                             or a plain dictionary in which 'id' maps to a Synapse ID
+        :param version:      The specific version to get.
+                             Defaults to the most recent version.
+        :param downloadFile: Whether associated files(s) should be downloaded.  
+                             Defaults to True
 
-        Kwargs:
-           version: get a specific version, gets most recent if omitted
-           downloadFile: download associated files(s), if any
-
-        Returns:
-           A new Synapse Entity object of the appropriate type
+        :returns: A new Synapse Entity object of the appropriate type
         """
-        ##synapse.get(id, version, downloadFile=True, downloadLocation=None, ifcollision="keep.both", load=False)
-        ## optional parameters
-        version = kwargs.get('version', None)   #This ignores the version of entity if it is mappable
+        # Optional parameters
+        version = kwargs.get('version', None)   # This ignores the version of entity if it is mappable
         downloadFile = kwargs.get('downloadFile', True)
 
-        ## If an entity is given without an ID, try to find it by parentId and name.
-        ## If the user forgets to catch the return value of a syn.store(e), this allows
-        ## them to recover by doing: e = syn.get(e).
+        # If an entity is given without an ID, try to find it by 'parentId' and 'name'.
+        # Use case: 
+        #     If the user forgets to catch the return value of a syn.store(e),
+        #     this allows them to recover by doing: e = syn.get(e)
         if isinstance(entity, collections.Mapping) and (not entity.get('id',None)) and entity.get('name',None):
             entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId',ROOT_ENTITY))
+            
+        # Check to see if an MD5 is given
+        md5 = kwargs.get('md5', entity)
+        if md5 and isinstance(md5, str) and len(md5) == 32:
+            res = self.restGET('/entity/md5/%s' % md5)
+            
+            # Retrieve the 'id' and use that to get the rest of the Entity
+            if res['totalNumberOfResults'] == 1:
+                entity = res['results'][0]['id']
 
         ## EntityBundle bit-flags
         ## see: the Java class org.sagebionetworks.repo.model.EntityBundle
