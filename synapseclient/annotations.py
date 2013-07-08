@@ -1,7 +1,21 @@
-##
-## Represent user-defined annotations on a synapse entity
-## chris.bare@sagebase.org
-############################################################
+"""
+***********
+Annotations
+***********
+TODO_Sphinx (I'm not sure about this comment block)
+
+Annotations are standard dictionary objects
+   
+~~~~~~~~~~~~~~
+Helper Methods
+~~~~~~~~~~~~~~
+
+.. automethod:: synapseclient.annotations.is_synapse_annotations
+.. automethod:: synapseclient.annotations.to_synapse_annotations
+.. automethod:: synapseclient.annotations.from_synapse_annotations
+
+"""
+
 import collections
 from utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
 

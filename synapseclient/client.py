@@ -1,6 +1,23 @@
+"""
+******
+Client
+******
+
+.. autoclass:: synapseclient.Synapse
+   :members:
+   
+~~~~~~~~~~~~~~~~
+More information
+~~~~~~~~~~~~~~~~
+
+`Synapse API's <https://sagebionetworks.jira.com/wiki/display/PLFM/Synapse+REST+APIs>`_
+
+"""
+
 import ConfigParser
 import collections
 import os
+import re
 import json
 import base64
 import urllib
@@ -20,7 +37,7 @@ from synapseclient.version_check import version_check
 from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, split_entity_namespaces, is_versionable, is_locationable
+from synapseclient.entity import Entity, File, Project, split_entity_namespaces, is_versionable, is_locationable
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.retry import RetryRequest
 from synapseclient.wiki import Wiki
@@ -41,6 +58,7 @@ CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TOD
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
+QUERY_LIMIT = 5000
 CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
 
@@ -455,84 +473,100 @@ class Synapse:
         Creates a new Entity or updates an existing Entity, 
         uploading any files in the process.
 
-        :params obj:      A Synapse Entity, Evaluation, or Wiki
-        :params used:     The Entity, Synapse ID, or URL 
-                          used to create the object
-        :params executed: The Entity, Synapse ID, or URL 
-                          representing code executed to create the object
-        :params activity: Activity object specifying the user's provenance
+        :param obj:                 A Synapse Entity, Evaluation, or Wiki
+        :param used:                The Entity, Synapse ID, or URL 
+                                    used to create the object
+        :param executed:            The Entity, Synapse ID, or URL 
+                                    representing code executed to create the object
+        :param activity:            Activity object specifying the user's provenance
+        :param activityName:        TODO_Sphinx. 
+        :param activityDescription: TODO_Sphinx. 
+        :param createOrUpdate:      TODO_Sphinx.  Defaults to True. 
 
         :returns: A Synapse Entity, Evaluation, or Wiki
         """
 
-        # store(entity, used, executed, activityName=None, 
-        #               activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
-        # store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        
         createOrUpdate = kwargs.get('createOrUpdate', True)
+        forceVersion = kwargs.get('forceVersion', True)
+        isRestricted = kwargs.get('isRestricted', False)
 
-        #Handle all non entity objects
-        if not (isinstance(obj, Entity) or type(obj)==dict):
-            if 'id' in obj: #If Id present update 
+        # Handle all non entity objects
+        if not (isinstance(obj, Entity) or type(obj) == dict):
+            if 'id' in obj: # If ID is present, update 
                 obj.update(self.restPUT(obj.putURI(), obj.json()))
                 return obj
-            try: #if no id attempt to post the object
+                
+            try: # If no ID is present, attempt to POST the object
                 obj.update(self.restPOST(obj.postURI(), obj.json())) 
                 return obj
+                
             except requests.exceptions.HTTPError as err:
-                # If already present and we want to update attempt to get the object content
                 # If already present and we want to update attempt to get the object content
                 # TODO remove status code 500 after PLFM-1905 goes in to production
                 if createOrUpdate and (err.response.status_code==500 or err.response.status_code==409):
-                    newObj=self.restGET(obj.getByNameURI(obj.name))
+                    newObj = self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
-                    obj=obj.__class__(**newObj)
+                    obj = obj.__class__(**newObj)
                     obj.update(self.restPUT(obj.putURI(), obj.json()))
                     return obj
                 raise
 
-        #If input object is an Entity...
+        # If the input object is an Entity or a dictionary
         entity = obj
-        properties,annotations,local_state = split_entity_namespaces(entity)
+        properties, annotations, local_state = split_entity_namespaces(entity)
 
-        #TODO: can this be factored out?
-        ## need to upload a FileEntity?
-        ##   create FileHandle first, then create or update entity
+## TODO_start: can this be factored out?
+        # For a FileEntity, first create a FileHandle, then create/update the Entity
         if entity['entityType'] == File._synapse_entity_type and entity.get('path',False):
-            if 'dataFileHandleId' not in properties or True: #TODO: file_cache.local_file_has_changed(entity.path):
+            if 'dataFileHandleId' not in properties or True: 
+                ## TODO: file_cache.local_file_has_changed(entity.path):
                 synapseStore = entity.get('synapseStore', None)
                 fileHandle = self._uploadToFileHandleService(entity.path, synapseStore=synapseStore)
                 properties['dataFileHandleId'] = fileHandle['id']
 
-        ## need to upload a Locationable?
-        ##   create the entity first, then upload file, then update entity, later
+        # For a Locationable, first create the Entity first, then upload the file
         if is_locationable(entity):
-            ## for Locationables, entity must exist before upload
+            # The Entity must exist before upload
+            ## TODO: is this a bug??
+            ## TODO: is this necessary?
             if not 'id' in entity:
                 properties = self._createEntity(properties)
-            ## TODO is this a bug??
-            ## TODO is this necessary?
+                
             if 'path' in entity:
                 path = annotations.pop('path')
                 properties.update(self._uploadFileAsLocation(properties, path))
-        #--end--TODO: can this be factored out?
+## TODO_end: can this be factored out?
 
-        #TODO deal with access restrictions
+        ## TODO: deal with access restrictions
 
-        ## create or update entity in synapse
+        # Create or update Entity in Synapse
         if 'id' in properties:
             properties = self._updateEntity(properties)
         else:
             try:
                 properties = self._createEntity(properties)
             except requests.exceptions.HTTPError as ex:
-                ## if "409 Client Error: Conflict", update the existing entity
-                ## with same name and parent
+                # If "409 Client Error: Conflict"
                 if createOrUpdate and hasattr(ex, 'response') and ex.response.status_code==409:
+                
+                    existing_entity_id = None
+                    
+                    # The conflict is between projects
+                    if properties['entityType'] == Project._synapse_entity_type:
+                        properties['parentId'] = ROOT_ENTITY
+                        
+                        # Below is a roundabout, but not-hard-coded way to find the ROOT_ENTITY
+                        # errText = ex.response.json()['reason']
+                        # properties['parentId'] = re.findall('syn\d+', errText)[-1]
+                        
+                    # Get the existing Entity's ID via the name and parent
                     existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
+                        
+                    # Update the conflicting Entity
                     if existing_entity_id:
                         existing_entity = self._getEntity(existing_entity_id)
-                        ## Need some fields from the existing entity: id, etag
-                        ## and version info.
+                        # Need some fields from the existing entity: id, etag, and version info.
                         existing_entity.update(properties)
                         properties = self._updateEntity(existing_entity)
                     else:
@@ -540,31 +574,34 @@ class Synapse:
                 else:
                     raise
 
-        annotations['etag'] = properties['etag']
 
-        ## update annotations
+        # Update annotations
+        annotations['etag'] = properties['etag']
         annotations = self.setAnnotations(properties, annotations)
         properties['etag'] = annotations['etag']
 
 
-        ## if used or executed given, create an Activity object
+        # If the parameters 'used' or 'executed' are given, create an Activity object
         activity = kwargs.get('activity', None)
         used = kwargs.get('used', None)
         executed = kwargs.get('executed', None)
+        
         if used or executed:
             if activity is not None:
+                ## TODO: move this argument check closer to the front of the method
                 raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
             activityName = kwargs.get('activityName', None)
             activityDescription = kwargs.get('activityDescription', None)
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
-        ## if we have an activity, set it as the entity's provenance record
+        # If we have an Activity, set it as the Entity's provenance record
         if activity:
             activity = self.setProvenance(properties, activity)
-            ## etag has changed, so get new entity
+            
+            # 'etag' has changed, so get the new Entity
             properties = self._getEntity(properties)
 
-        ## return a new Entity object
+        # Return the updated Entity object
         return Entity.create(properties, annotations, local_state)
 
 
@@ -848,7 +885,10 @@ class Synapse:
     def query(self, queryStr):
         """
         Query for Synapse entities.  
+        **To be replaced with :py:func:`synapseclient.Synapse.chunkedQuery`**
         See `in-depth documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        
+        :returns: A JSON object containing an array of query results
 
         Example::
         
@@ -856,10 +896,72 @@ class Synapse:
         """
         if(self.debug): print 'About to query %s' % (queryStr)
         return self.restGET('/query?query=' + urllib.quote(queryStr))
-        # response = self.restGET('/query?query=' + urllib.quote(queryStr))
-        # 
-        # for res in response['results']:
-        #     yield res
+        
+        
+        
+    def chunkedQuery(self, queryStr):
+        """
+        Query for Synapse Entities.  
+        More robust than :py:func:`synapseclient.Synapse.query`.
+        See `in-depth documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        
+        :returns: An iterator that will break up large queries into managable pieces.  
+        
+        Example::
+        
+            syn.query("select id, name from entity where entity.parentId=='syn449742'")
+        
+        """
+        
+        # Since query limits and offsets are managed by this method
+        # First separate the user's limits and offsets from the main query
+        tempQueryStr = queryStr.lower() # Regex a lowercase string to simplify matters
+        regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+        match = re.search(regex, tempQueryStr)
+        options = {'limit':None, 'offset':None}
+        while match is not None:
+            options[match.group(2)] = match.group(3)
+            tempQueryStr = match.group(1);
+            match = re.search(regex, tempQueryStr)
+        options['limit'] = int(options['limit']) if options['limit'] is not None else float('inf')
+        options['offset'] = int(options['offset']) if options['offset'] is not None else 1
+        queryStr = queryStr[:len(tempQueryStr)]
+            
+        # Begin querying until the entire query has been fetched (or crash out)
+        limit = options['limit'] if options['limit'] < QUERY_LIMIT else QUERY_LIMIT
+        offset = options['offset']
+        while True:
+            # Build the sub-query
+            remaining = options['limit'] + options['offset'] - offset + 1
+            subqueryStr = "%s limit %d offset %d" %(queryStr, limit if limit < remaining else remaining, offset)
+            if(self.debug): print 'About to query: %s' % (subqueryStr)
+            try: 
+                response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
+                for res in response['results']:
+                    yield res
+                    
+                # Increase the size of the limit slowly 
+                if limit < QUERY_LIMIT / 2: 
+                    limit = int(limit * 1.5 + 1)
+                    
+                # Exit when no more results can be pulled
+                if len(response['results']) > 0:
+                    offset += len(response['results'])
+                else:
+                    break
+                    
+                # Exit when all requests results have been pulled
+                if offset > options['offset'] + options['limit']:
+                    break
+            except requests.exceptions.HTTPError as err:
+                # Shrink the query size when appropriate
+                if err.response.status_code == 400 and err.response.json()['reason'].startswith('java.lang.IllegalArgumentException: The results of this query exceeded the maximum'):
+                    if (limit == 1):
+                        raise Exception("A single row (offset %s) of this query exceeds the maximum size.  Consider limiting the columns returned in the select clause." % offset)
+                    limit /= 2
+                else:
+                    raise err
+                    
 
 
     ############################################################
@@ -1218,17 +1320,17 @@ class Synapse:
             raise ValueError('No filename given')
 
         elif utils.is_url(filename):
-            ## implement downloading and storing remote files? by default??
+            ## TODO: implement downloading and storing remote files?  by default??
             # if synapseStore==True:
-            #     ## download the file locally, then upload it and cache it?
+            #     # download the file locally, then upload it and cache it?
             #     raise Exception('not implemented, yet!')
             # else:
             #     return self._addURLtoFileHandleService(filename)
             return self._addURLtoFileHandleService(filename)
 
-        ## for local files, we default to uploading the fill unless explicitly instructed otherwise
+        # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
-            if synapseStore==False:
+            if synapseStore == False:
                 return self._addURLtoFileHandleService(filename)
             else:
                 return self._chunkedUploadFile(filename)
@@ -1415,17 +1517,28 @@ class Synapse:
     ############################################################
 
     def _traverseTree(self, id, name=None, version=None):
-        children =  self.query("select id, versionNumber, name from entity where entity.parentId=='%s'" %id)
-        count=children['totalNumberOfResults']
+        """Creates a tree of id's, versions, and names contained by the given entity of id
+        
+        Arguments:
+            id: Entity to query for
+        """
+        children = self.chunkedQuery("select id, versionNumber, name from entity where entity.parentId=='%s'" % id)
+        output = []
+        output.append({               'name' : name, \
+                       'targetVersionNumber' : version, \
+                                  'targetId' : id, \
+                                   'records' : [] })
+        count = 0
+        for entity in children:
+            count += 1
+            output[-1]['records'].extend( \
+                    self._traverseTree(entity['entity.id'], \
+                                       entity['entity.name'], \
+                                       entity['entity.versionNumber']))
         print id, count, name
-        children=children['results']
-        output=[]
-        if count>0:
-            output.append({'name':name, 'targetVersionNumber':version, 'targetId':id, 'records':[]})
-            for ent in children:
-                output[-1]['records'].extend(self._traverseTree(ent['entity.id'], ent['entity.name'], ent['entity.versionNumber']))
-        else:
-            output.append({'targetId':id, 'targetVersionNumber':version})
+        if count == 0:
+            del output[-1]['records']
+            del output[-1]['name'] 
         return output
 
     def _flattenTree2Groups(self,tree, level=0, out=[]):
@@ -1492,7 +1605,7 @@ class Synapse:
         return Evaluation(**self.restGET(uri))
 
 
-    def submit(self, evaluation, entity, name=''):
+    def submit(self, evaluation, entity, name=None):
         """
         Submit an Entity for evaluation by an evaluator.
         
@@ -1508,7 +1621,7 @@ class Synapse:
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
-        name = entity['name'] if (name == '' and 'name' in entity) else ''
+        name = entity['name'] if (name is None and 'name' in entity) else None
         submission =  {'evaluationId':evaluation_id, 'entityId':entity_id, 'name':name, 
                        'versionNumber': entity_version}
         return Submission(**self.restPOST('/evaluation/submission?etag=%s' %entity.etag, 

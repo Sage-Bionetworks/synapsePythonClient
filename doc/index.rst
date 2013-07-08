@@ -2,7 +2,7 @@
 Synapse Python Client documentation
 ===================================
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    
    _static/Client
    _static/Entity
