@@ -1,7 +1,78 @@
-##
-## Represent a synapse entity
-## chris.bare@sagebase.org
-############################################################
+"""
+******
+Entity
+******
+
+The Entity class is the base class for all entities. It has a few
+special characteristics. It is a dictionary-like object in which
+both object and dictionary notation (entity.foo or entity['foo'])
+can be used interchangeably.
+
+In Synapse, entities have both properties and annotations. This has
+come to be viewed as awkward, so we try to hide it. Furthermore,
+because we're getting tricky with the dot notation, there are three
+distinct namespaces to consider when accessing variables that are
+part of the entity: the members of the object, properties defined by
+Synapse, and Synapse annotations, which are open-ended and user-
+defined.
+
+The rule, for either getting or setting is: first look in the object
+then look in properties, then look in annotations. If the key is not
+found in any of these three, a get results in a ``KeyError`` and a set
+results in a new annotation being created. Thus, the following results
+in a new annotation that will be persisted in Synapse::
+
+    entity.foo = 'bar'
+
+To create an object member variable, which will *not* be persisted in
+Synapse, this unfortunate notation is required::
+
+    entity.__dict__['foo'] = 'bar'
+
+Between the three namespaces, name collisions are entirely possible.
+Keys in the three namespaces can be referred to unambiguously like so::
+
+    entity.__dict__['key']
+    
+    entity.properties.key
+    entity.properties['key']
+    
+    entity.annotations.key
+    entity.annotations['key']
+
+Alternate implementations include:
+- a naming convention to tag object members
+- keeping a list of 'transient' variables (the object members)
+- giving up on the dot notation (implemented in Entity2.py in commit e441fcf5a6963118bcf2b5286c67fc66c004f2b5 in the entity_object branch)
+- giving up on hiding the difference between properties and annotations
+
+.. autoclass:: synapseclient.entity.Entity
+   :members:
+   
+.. automethod:: synapseclient.entity.is_locationable
+.. automethod:: synapseclient.entity.is_versionable
+.. automethod:: synapseclient.entity.split_entity_namespaces
+   
+~~~~~~~
+Project
+~~~~~~~
+
+.. autoclass:: synapseclient.entity.Project
+
+~~~~~~
+Folder
+~~~~~~
+
+.. autoclass:: synapseclient.entity.Folder
+
+~~~~
+File
+~~~~
+
+.. autoclass:: synapseclient.entity.File
+
+"""
+
 import collections
 import itertools
 
@@ -14,46 +85,6 @@ import os
 class Versionable(object):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Versionable'
     _property_keys = ['versionNumber', 'versionLabel', 'versionComment', 'versionUrl', 'versions']
-
-
-## The Entity class is the base class for all entities. It has a few
-## special characteristics. It is a dictionary-like object in which
-## either object or dictionary notation (entity.foo or entity['foo'])
-## can be used interchangeably.
-
-## In Synapse, entities have both properties and annotations. This has
-## come to be viewed as awkward, so we try to hide it. Furthermore,
-## because we're getting tricky with the dot notation, there are three
-## distinct namespaces to consider when accessing variables that are
-## part of the entity: the members of the object, properties defined by
-## Synapse, and Synapse annotations, which are open-ended and user-
-## defined.
-
-## The rule, for either getting or setting is: first look in the object
-## then look in properties, then look in annotations. If the key is not
-## found in any of these three, a get results in a KeyError and a set
-## results in a new annotation being created. Thus, the following results
-## in a new annotation that will be persisted in Synapse:
-##   entity.foo = 'bar'
-
-## To create an object member variable, which will *not* be persisted in
-## Synapse, this unfortunate notation is required:
-##   entity.__dict__['foo'] = 'bar'
-
-## Between the three namespaces, name collisions are entirely possible,
-## and already present in at least one instance - the 'annoations'
-## property and the 'annotations' member variable that refers to the
-## annotations dictionary. Keys in the three namespaces can be referred
-## to unambiguously like so:
-##   entity.__dict__['key']
-##   entity.properties.key / entity.properties['key']
-##   entity.annotations.key / entity.annotations['key']
-
-## Alternate implementations include:
-##  * a naming convention to tag object members
-##  * keeping a list of 'transient' variables (the object members)
-##  * giving up on the dot notation (implemented in Entity2.py in commit e441fcf5a6963118bcf2b5286c67fc66c004f2b5 in the entity_object branch)
-##  * giving up on hiding the difference between properties and annotations
 
 #TODO inherit from UserDict.DictMixin?
 # http://docs.python.org/2/library/userdict.html#UserDict.DictMixin
@@ -77,14 +108,18 @@ class Entity(collections.MutableMapping):
         Create an Entity or a subclass given dictionaries of properties
         and annotations, as might be received from the Synapse Repository.
 
-        Optionally, allow local state (not persisted in Synapse) to be
-        given as well.
-
-        If entityType is defined in properties, we create the proper subclass
-        of Entity. If not, give back the type whose constructor was called:
-
-        If passed an Entity as input, create a new Entity using the input
-        entity as a prototype.
+        :param properties:  TODO
+        
+            If 'entityType' is defined in properties, we create the proper subclass
+            of Entity. If not, give back the type whose constructor was called:
+            
+            If passed an Entity as input, create a new Entity using the input
+            entity as a prototype.
+            
+        :param annotations: TODO
+        :param local_state: Allow local state to be given.  
+                            This state information is not persisted 
+                            in the Synapse Repository.
         """
         ## create a new Entity using an existing entity as a prototype?
         if isinstance(properties, Entity):
@@ -173,7 +208,8 @@ class Entity(collections.MutableMapping):
     def local_state(self, state=None):
         """
         Set or get the object's internal state, excluding properties or annotations.
-        state: a dictionary
+        
+        :param state: A dictionary
         """
         if state:
             for key,value in state.items():
@@ -239,7 +275,7 @@ class Entity(collections.MutableMapping):
 
 
     def keys(self):
-        """return a set of property and annotation keys"""
+        """Returns a set of property and annotation keys"""
         return set(self.properties.keys() + self.annotations.keys())
 
     def has_key(self, key):
@@ -291,10 +327,12 @@ class Entity(collections.MutableMapping):
 
 class Project(Entity):
     """
-    Represent a project in Synapse.
+    Represents a project in Synapse.
 
     Projects in Synapse must be uniquely named. Trying to create a project with
-    a name that's already taken, say 'My project', will result in an error.
+    a name that's already taken, say 'My project', will result in an error
+    
+    ::
 
         project = Project('Foobarbat project')
         project = syn.store(project)
@@ -309,10 +347,12 @@ class Project(Entity):
 
 class Folder(Entity):
     """
-    Represent a folder in Synapse.
+    Represents a folder in Synapse.
 
     Folders must have a name and a parent and can optionally have annotations.
 
+    ::
+    
         folder = Folder('my data', parent=project)
         folder = syn.store(Folder)
     """
@@ -326,11 +366,13 @@ class Folder(Entity):
 
 class File(Entity, Versionable):
     """
-    Represent a file in Synapse.
+    Represents a file in Synapse.
 
     When a File object is stored, the associated local file or its URL will be
     stored in Synapse. A File must have a path (or URL) and a parent.
 
+    ::
+    
         data = File('/path/to/file/data.xyz', parent=folder)
         data = syn.store(data)
     """

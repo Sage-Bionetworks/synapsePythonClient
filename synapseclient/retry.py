@@ -6,10 +6,9 @@ from synapseclient.utils import _to_iterable
 
 
 class RetryRequest(object):
-    """
-    A decorator that wraps calls to HTTP methods in the requests library in a
-    retry function, with various settings.
-    """
+    # A decorator that wraps calls to HTTP methods in the requests library in a
+    # retry function, with various settings.
+    
     ## This class is a decorator factory, described here:
     ## Python Class Based Decorator with parameters that can decorate a method or a function
     ## http://stackoverflow.com/a/9417088/199166
