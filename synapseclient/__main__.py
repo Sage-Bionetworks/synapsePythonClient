@@ -18,23 +18,23 @@ import json
 
 
 def query(args, syn):
-    """
-    """
     #TODO: Should use loop over multiple returned values if return is too long
-    results = syn.query(' '.join(args.queryString))
+    results = syn.chunkedQuery(' '.join(args.queryString))
 
-    results = results['results']
-    if len(results)==0:  #No results found
-        return
     headings = {}
-    for r in results:
-        for c in r:
-            headings[c] = True
+    temp = [] # Since query returns a generator, the results must be stored locally
+    for res in results:
+        temp.append(res)
+        for head in res:
+            headings[head] = True
+    if len(headings) == 0: # No results found
+        return 
     print '\t'.join(headings)
-    for result in results:
+    
+    for res in temp:
         out = []
-        for k in headings:
-            out.append(str(result.get(k, "")))
+        for key in headings:
+            out.append(str(res.get(key, "")))
         print "\t".join(out)
 
         
