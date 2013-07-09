@@ -22,7 +22,8 @@ def setup_module(module):
     print "Testing against endpoints:"
     print "  " + syn.repoEndpoint
     print "  " + syn.authEndpoint
-    print "  " + syn.fileHandleEndpoint + "\n"
+    print "  " + syn.fileHandleEndpoint
+    print "  " + syn.portalEndpoint + "\n"
 
 
 def teardown_module(module):

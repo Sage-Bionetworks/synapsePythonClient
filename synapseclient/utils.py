@@ -17,10 +17,10 @@ KB = 2**10
 
 
 def md5_for_file(filename, block_size=2**20):
-    '''
+    """
     lifted this function from
     http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python
-    '''
+    """
     md5 = hashlib.md5()
     f = open(filename,'rb')
     while True:

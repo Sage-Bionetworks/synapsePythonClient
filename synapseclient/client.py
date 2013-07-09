@@ -1,7 +1,9 @@
 import ConfigParser
 import collections
 import os
+import re
 import json
+import re
 import base64
 import urllib
 import urlparse
@@ -13,14 +15,14 @@ import stat
 import pkg_resources
 import webbrowser
 import sys
-from time import time
+import time
 
 import synapseclient.utils as utils
 from synapseclient.version_check import version_check
 from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, split_entity_namespaces, is_versionable, is_locationable
+from synapseclient.entity import Entity, File, Project, split_entity_namespaces, is_versionable, is_locationable
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.retry import RetryRequest
 from synapseclient.wiki import Wiki
@@ -41,13 +43,20 @@ CACHE_DIR=os.path.join(os.path.expanduser('~'), '.synapseCache', 'python')  #TOD
 CONFIG_FILE=os.path.join(os.path.expanduser('~'), '.synapseConfig')
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
+QUERY_LIMIT = 5000
+CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
+
 
 ## defines the standard retry policy applied to the rest methods
 STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
                                       retry_errors=[],
                                       retry_exceptions=['Timeout', 'timeout'],
                                       retries=3, wait=1, back_off=2, verbose=False)
+
+## add additional mimetypes
+mimetypes.add_type('text/x-r', '.R', strict=False)
+mimetypes.add_type('text/x-r', '.r', strict=False)
 
 
 class Synapse:
@@ -58,7 +67,8 @@ class Synapse:
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, 
                  serviceTimeoutSeconds=30, debug=False, skip_checks=False):
         """
-        Construct a Synapse client object
+        Construct a Synapse client object.
+
         params:
         - repoEndpoint: location of synapse repository
         - authEndpoint: location of authentication service
@@ -94,7 +104,12 @@ class Synapse:
         
     
     def setEndpoints(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, skip_checks=False):
-        
+        """
+        Set Synapse API endpoints. (Mostly useful for testing.)
+
+        Example:
+            synapse.setEndpoints(**synapseclient.client.PRODUCTION_ENDPOINTS)
+        """        
         # If endpoints aren't specified, look in the config file
         try:
             config = ConfigParser.ConfigParser()
@@ -263,6 +278,32 @@ class Synapse:
                 return False
             return user['displayName']
         return False
+        
+        
+    def logout(self, local=False):
+        """
+        Invalidates authentication
+        
+        Argument:
+            local: True to only logout locally, otherwise all sessions are logged out
+        """
+        # Logout globally
+        # Note: If self.headers['sessionToken'] is deleted or changed, 
+        #       global logout will not actually logout (i.e. session token will still be valid)
+        if not local: self.restDELETE('/session', endpoint=self.authEndpoint)
+            
+        # Remove the in-memory session tokens
+        del self.sessionToken
+        del self.headers["sessionToken"]
+        
+        # Remove the session token from the config file
+        config = ConfigParser.ConfigParser()
+        config.read(CONFIG_FILE)
+        if config.has_option('authentication', 'sessionToken'):
+            config.remove_option('authentication', 'sessionToken')
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
+            
 
 
     def getUserProfile(self, id=None):
@@ -277,7 +318,7 @@ class Synapse:
         
         Arguments:
            entity: Either an entity or a synapse id
-           subpageId: 
+           subpageId: (optional) A wiki subpage ID
         """
         if subpageId is None:
             webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
@@ -388,85 +429,104 @@ class Synapse:
     #TODO implement createOrUpdate flag - new entity w/ same name as an existing entity turns into an update
     def store(self, obj, **kwargs):
         """
-        create new entity or update an existing entity, uploading any files in the process
+        Creates a new Entity or updates an existing Entity, 
+        uploading any files in the process.
 
-        Arguments:
-           obj: a Synapse Entity object or Evaluation, Wiki
+        :param obj:                 A Synapse Entity, Evaluation, or Wiki
+        :param used:                The Entity, Synapse ID, or URL 
+                                    used to create the object
+        :param executed:            The Entity, Synapse ID, or URL 
+                                    representing code executed to create the object
+        :param activity:            Activity object specifying the user's provenance
+        :param activityName:        TODO_Sphinx. 
+        :param activityDescription: TODO_Sphinx. 
+        :param createOrUpdate:      TODO_Sphinx.  Defaults to True. 
+        :param forceVersion:        Not used, but defaults to True. 
+        :param isRestricted:        Not used, but defaults to False. 
 
-        Kwargs:
-           used: Entity object, Synapse ID, or URL to be part of the entity's provenance record
-           executed: Same as used, representing code executed as part of the entity's provenance record
-           activity: Activity object specifying the user's provenance
-
-        Returns:
-           A Synapse Entity object, Evaluation or Wiki
+        :returns: A Synapse Entity, Evaluation, or Wiki
         """
-        # store(entity, used, executed, activityName=None, 
-        #               activityDescription=None, createOrUpdate=T, forceVersion=T, isRestricted=F)
-        # store(entity, activity, createOrUpdate=T, forceVersion=T, isRestricted=F)
+        
         createOrUpdate = kwargs.get('createOrUpdate', True)
+        forceVersion = kwargs.get('forceVersion', True)
+        isRestricted = kwargs.get('isRestricted', False)
 
-        #Handle all non entity objects
-        if not (isinstance(obj, Entity) or type(obj)==dict):
-            if 'id' in obj: #If Id present update 
+        # Handle all non entity objects
+        if not (isinstance(obj, Entity) or type(obj) == dict):
+            if 'id' in obj: # If ID is present, update 
                 obj.update(self.restPUT(obj.putURI(), obj.json()))
                 return obj
-            try: #if no id attempt to post the object
+                
+            try: # If no ID is present, attempt to POST the object
                 obj.update(self.restPOST(obj.postURI(), obj.json())) 
                 return obj
+                
             except requests.exceptions.HTTPError as err:
-                 #If already present and we want to update attempt to get the object content
-                if err.response.status_code==500 and  createOrUpdate: 
-                    newObj=self.restGET(obj.getByNameURI(obj.name))
+                # If already present and we want to update attempt to get the object content
+                # TODO remove status code 500 after PLFM-1905 goes in to production
+                if createOrUpdate and (err.response.status_code==500 or err.response.status_code==409):
+                    newObj = self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
-                    obj=obj.__class__(**newObj)
+                    obj = obj.__class__(**newObj)
                     obj.update(self.restPUT(obj.putURI(), obj.json()))
                     return obj
                 raise
 
-        #If input object is an Entity...
+        # If the input object is an Entity or a dictionary
         entity = obj
-        properties,annotations,local_state = split_entity_namespaces(entity)
+        properties, annotations, local_state = split_entity_namespaces(entity)
 
-        #TODO: can this be factored out?
-        ## need to upload a FileEntity?
-        ##   create FileHandle first, then create or update entity
+## TODO_start: can this be factored out?
+        # For a FileEntity, first create a FileHandle, then create/update the Entity
         if entity['entityType'] == File._synapse_entity_type and entity.get('path',False):
-            if 'dataFileHandleId' not in properties or True: #TODO: file_cache.local_file_has_changed(entity.path):
+            if 'dataFileHandleId' not in properties or True: 
+                ## TODO: file_cache.local_file_has_changed(entity.path):
                 synapseStore = entity.get('synapseStore', None)
                 fileHandle = self._uploadToFileHandleService(entity.path, synapseStore=synapseStore)
                 properties['dataFileHandleId'] = fileHandle['id']
 
-        ## need to upload a Locationable?
-        ##   create the entity first, then upload file, then update entity, later
+        # For a Locationable, first create the Entity first, then upload the file
         if is_locationable(entity):
-            ## for Locationables, entity must exist before upload
+            # The Entity must exist before upload
+            ## TODO: is this a bug??
+            ## TODO: is this necessary?
             if not 'id' in entity:
                 properties = self._createEntity(properties)
-            ## TODO is this a bug??
-            ## TODO is this necessary?
+                
             if 'path' in entity:
                 path = annotations.pop('path')
                 properties.update(self._uploadFileAsLocation(properties, path))
-        #--end--TODO: can this be factored out?
+## TODO_end: can this be factored out?
 
-        #TODO deal with access restrictions
+        ## TODO: deal with access restrictions
 
-        ## create or update entity in synapse
+        # Create or update Entity in Synapse
         if 'id' in properties:
             properties = self._updateEntity(properties)
         else:
             try:
                 properties = self._createEntity(properties)
             except requests.exceptions.HTTPError as ex:
-                ## if "409 Client Error: Conflict", update the existing entity
-                ## with same name and parent
-                if hasattr(ex, 'response') and ex.response.status_code==409:
+                # If "409 Client Error: Conflict"
+                if createOrUpdate and hasattr(ex, 'response') and ex.response.status_code==409:
+                
+                    existing_entity_id = None
+                    
+                    # The conflict is between projects
+                    if properties['entityType'] == Project._synapse_entity_type:
+                        properties['parentId'] = ROOT_ENTITY
+                        
+                        # Below is a roundabout, but not-hard-coded way to find the ROOT_ENTITY
+                        # errText = ex.response.json()['reason']
+                        # properties['parentId'] = re.findall('syn\d+', errText)[-1]
+                        
+                    # Get the existing Entity's ID via the name and parent
                     existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
+                        
+                    # Update the conflicting Entity
                     if existing_entity_id:
                         existing_entity = self._getEntity(existing_entity_id)
-                        ## Need some fields from the existing entity: id, etag
-                        ## and version info.
+                        # Need some fields from the existing entity: id, etag, and version info.
                         existing_entity.update(properties)
                         properties = self._updateEntity(existing_entity)
                     else:
@@ -474,31 +534,34 @@ class Synapse:
                 else:
                     raise
 
-        annotations['etag'] = properties['etag']
 
-        ## update annotations
+        # Update annotations
+        annotations['etag'] = properties['etag']
         annotations = self.setAnnotations(properties, annotations)
         properties['etag'] = annotations['etag']
 
 
-        ## if used or executed given, create an Activity object
+        # If the parameters 'used' or 'executed' are given, create an Activity object
         activity = kwargs.get('activity', None)
         used = kwargs.get('used', None)
         executed = kwargs.get('executed', None)
+        
         if used or executed:
             if activity is not None:
+                ## TODO: move this argument check closer to the front of the method
                 raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
             activityName = kwargs.get('activityName', None)
             activityDescription = kwargs.get('activityDescription', None)
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
-        ## if we have an activity, set it as the entity's provenance record
+        # If we have an Activity, set it as the Entity's provenance record
         if activity:
             activity = self.setProvenance(properties, activity)
-            ## etag has changed, so get new entity
+            
+            # 'etag' has changed, so get the new Entity
             properties = self._getEntity(properties)
 
-        ## return a new Entity object
+        # Return the updated Entity object
         return Entity.create(properties, annotations, local_state)
 
 
@@ -756,18 +819,85 @@ class Synapse:
     ############################################################
 
     def query(self, queryStr):
-        '''
-        Query for Synapse entities.
+        """
+        Query for Synapse entities.  
+        **To be replaced with :py:func:`synapseclient.Synapse.chunkedQuery`**
+        See `in-depth documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        
+        :returns: A JSON object containing an array of query results
 
-        Example:
-        >>> query("select id, name from entity where entity.parentId=='syn449742'")
-        '''
+        Example::
+        
+            syn.query("select id, name from entity where entity.parentId=='syn449742'")
+        """
         if(self.debug): print 'About to query %s' % (queryStr)
         return self.restGET('/query?query=' + urllib.quote(queryStr))
-        # response = self.restGET('/query?query=' + urllib.quote(queryStr))
-        # 
-        # for res in response['results']:
-        #     yield res
+        
+        
+        
+    def chunkedQuery(self, queryStr):
+        """
+        Query for Synapse Entities.  
+        More robust than :py:func:`synapseclient.Synapse.query`.
+        See `in-depth documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        
+        :returns: An iterator that will break up large queries into managable pieces.  
+        
+        Example::
+        
+            syn.query("select id, name from entity where entity.parentId=='syn449742'")
+        
+        """
+        
+        # Since query limits and offsets are managed by this method
+        # First separate the user's limits and offsets from the main query
+        tempQueryStr = queryStr.lower() # Regex a lowercase string to simplify matters
+        regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+        match = re.search(regex, tempQueryStr)
+        options = {'limit':None, 'offset':None}
+        while match is not None:
+            options[match.group(2)] = match.group(3)
+            tempQueryStr = match.group(1);
+            match = re.search(regex, tempQueryStr)
+        options['limit'] = int(options['limit']) if options['limit'] is not None else float('inf')
+        options['offset'] = int(options['offset']) if options['offset'] is not None else 1
+        queryStr = queryStr[:len(tempQueryStr)]
+            
+        # Begin querying until the entire query has been fetched (or crash out)
+        limit = options['limit'] if options['limit'] < QUERY_LIMIT else QUERY_LIMIT
+        offset = options['offset']
+        while True:
+            # Build the sub-query
+            remaining = options['limit'] + options['offset'] - offset + 1
+            subqueryStr = "%s limit %d offset %d" %(queryStr, limit if limit < remaining else remaining, offset)
+            if(self.debug): print 'About to query: %s' % (subqueryStr)
+            try: 
+                response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
+                for res in response['results']:
+                    yield res
+                    
+                # Increase the size of the limit slowly 
+                if limit < QUERY_LIMIT / 2: 
+                    limit = int(limit * 1.5 + 1)
+                    
+                # Exit when no more results can be pulled
+                if len(response['results']) > 0:
+                    offset += len(response['results'])
+                else:
+                    break
+                    
+                # Exit when all requests results have been pulled
+                if offset > options['offset'] + options['limit']:
+                    break
+            except requests.exceptions.HTTPError as err:
+                # Shrink the query size when appropriate
+                if err.response.status_code == 400 and err.response.json()['reason'].startswith('java.lang.IllegalArgumentException: The results of this query exceeded the maximum'):
+                    if (limit == 1):
+                        raise Exception("A single row (offset %s) of this query exceeds the maximum size.  Consider limiting the columns returned in the select clause." % offset)
+                    limit /= 2
+                else:
+                    raise err
+                    
 
 
     ############################################################
@@ -945,7 +1075,7 @@ class Synapse:
         md5 = utils.md5_for_file(filename)
 
         # guess mime-type - important for confirmation of MD5 sum by receiver
-        (mimetype, enc) = mimetypes.guess_type(filename)
+        (mimetype, enc) = mimetypes.guess_type(filename, strict=False)
         if (mimetype is None):
             mimetype = "application/octet-stream"
 
@@ -1035,7 +1165,7 @@ class Synapse:
     def _downloadFileEntity(self, entity):
         """Download the file associated with a FileEntity"""
         if 'versionNumber' in entity:
-            url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity),entity.versionNumber)
+            url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity), entity['versionNumber'])
         else:
             url = '%s/entity/%s/file' % (self.repoEndpoint, id_of(entity),)
         destDir = os.path.join(self.cacheDir, id_of(entity))
@@ -1101,17 +1231,17 @@ class Synapse:
             raise ValueError('No filename given')
 
         elif utils.is_url(filename):
-            ## implement downloading and storing remote files? by default??
+            ## TODO: implement downloading and storing remote files?  by default??
             # if synapseStore==True:
-            #     ## download the file locally, then upload it and cache it?
+            #     # download the file locally, then upload it and cache it?
             #     raise Exception('not implemented, yet!')
             # else:
             #     return self._addURLtoFileHandleService(filename)
             return self._addURLtoFileHandleService(filename)
 
-        ## for local files, we default to uploading the fill unless explicitly instructed otherwise
+        # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
-            if synapseStore==False:
+            if synapseStore == False:
                 return self._addURLtoFileHandleService(filename)
             else:
                 return self._chunkedUploadFile(filename)
@@ -1137,7 +1267,7 @@ class Synapse:
         fileHandle={'concreteType':'org.sagebionetworks.repo.model.file.ExternalFileHandle',
                     'fileName': fileName,
                     'externalURL':externalURL}
-        (mimetype, enc) = mimetypes.guess_type(externalURL)
+        (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
         if mimetype:
             fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
@@ -1164,49 +1294,15 @@ class Synapse:
 
     def _createChunkedFileUploadChunkURL(self, chunkNumber, chunkedFileToken):
         chunkRequest = {'chunkNumber':chunkNumber, 'chunkedFileToken':chunkedFileToken}
-        url = self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
-        return chunkRequest, url
+        return self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
 
-    def _addChunkToFile(self, chunkRequest, verbose=False):
-        ## We occasionally get an error on addChunkToFile:
-        ##   500 Server Error: Internal Server Error
-        ##   {u'reason': u'The specified key does not exist.'}
-        ## This might be because S3 hasn't yet finished propagating the
-        ## addition of the new chunk. So, retry_request will wait and retry.
-        ## Note: These errors may have been caused by failing to read the content
-        ## of the PUT to S3, and therefore failing to close the stream, causing a
-        ## delay in S3 finalizing the upload and making the file visible to the
-        ## repo.
+    def _startCompleteUploadDaemon(self, chunkedFileToken, chunkNumbers):
+        completeAllChunksRequest = {'chunkNumbers': chunkNumbers,
+                                    'chunkedFileToken': chunkedFileToken}
+        return self.restPOST('/startCompleteUploadDaemon', json.dumps(completeAllChunksRequest), endpoint=self.fileHandleEndpoint)
 
-        ## Also saw ConnectionError/httplib.BadStatusLine here, especially when
-        ## using ridiculously large chunk sizes ~100MB. Adding a long timeout
-        ## didn't seem to help, and retry resulted in a the same error as
-        ## above: 'The specified key does not exist.'
-
-        ## wait attempt#
-        ##   0     1
-        ##   2     2
-        ##   4     3
-        ##   8     4
-        ##  16     5
-        ##  32     6
-        ##  64     7 
-        with_retry = RetryRequest(retry_status_codes=[],
-                                  retry_exceptions=[],
-                                  retry_errors=['The specified key does not exist.'],
-                                  retries=4, wait=2, back_off=2, verbose=verbose, tag='addChunkToFile RetryRequest')
-        #t = time()
-        try:
-            return with_retry(self.restPOST)('/addChunkToFile', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
-        except Exception as ex:
-            raise
-        #finally:
-        #    print time() - t
-
-    def _completeChunkFileUpload(self, chunkedFileToken, chunkResults):
-        completeChunkedFileRequest = {'chunkedFileToken':chunkedFileToken,
-                                      'chunkResults':chunkResults}
-        return self.restPOST('/completeChunkFileUpload', json.dumps(completeChunkedFileRequest), endpoint=self.fileHandleEndpoint)
+    def _completeUploadDaemonStatus(self, status):
+        return self.restGET('/completeUploadDaemonStatus/%s' % status['daemonId'], endpoint=self.fileHandleEndpoint)
 
     def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, verbose=False, progress=True):
         """
@@ -1228,14 +1324,13 @@ class Synapse:
             self.debug = True
 
         ## start timing
-        start_time = time()
+        start_time = time.time()
 
         try:
             i = 0
-            chunkResults = []
 
             # guess mime-type - important for confirmation of MD5 sum by receiver
-            (mimetype, enc) = mimetypes.guess_type(filepath)
+            (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
             if (mimetype is None):
                 mimetype = "application/octet-stream"
 
@@ -1271,7 +1366,7 @@ class Synapse:
                     if verbose: sys.stderr.write('\nChunk %d\n' % i)
 
                     ## get the signed S3 URL
-                    chunkRequest, url = self._createChunkedFileUploadChunkURL(i, token)
+                    url = self._createChunkedFileUploadChunkURL(i, token)
                     if verbose: sys.stderr.write('url= ' + str(url) + '\n')
                     if progress:
                         sys.stdout.write('.')
@@ -1281,7 +1376,7 @@ class Synapse:
                     response = with_retry(requests.put)(url, data=chunk, headers=headers)
                     response.raise_for_status()
                     if progress:
-                        sys.stdout.write('.')
+                        sys.stdout.write(',')
                         sys.stdout.flush()
 
                     ## Is requests closing response stream? Let's make sure:
@@ -1296,20 +1391,30 @@ class Synapse:
                     except Exception as ex:
                         sys.stderr.write('error reading response: '+str(ex))
 
-                    chunkResults.append(self._addChunkToFile(chunkRequest, verbose=verbose))
-                    if progress:
-                        sys.stdout.write(',')
-                        sys.stdout.flush()
+            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+
+            ## poll until concatenating chunks is complete
+            while (status['state']=='PROCESSING'):
+                if progress:
+                    sys.stdout.write('!')
+                    sys.stdout.flush()
+                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+                status = self._completeUploadDaemonStatus(status)
+                if verbose: sys.stderr.write('status= ' + str(status) + '\n')
+                #sys.stderr.write(str(status['runTimeMS']) + '\t' + str(status['percentComplete']) + '\n')
 
             if progress:
                 sys.stdout.write('!\n')
                 sys.stdout.flush()
 
-            ## finalize the upload and return a fileHandle
-            fileHandle = self._completeChunkFileUpload(token, chunkResults)
+            if status['state']=='FAILED':
+                raise Exception(status['errorMessage'])
+
+            ## return a fileHandle
+            fileHandle = self._getFileHandle(status['fileHandleId'])
 
             ## print timing information
-            if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time()-start_time))
+            if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-start_time))
 
             return fileHandle
         finally:
@@ -1321,22 +1426,28 @@ class Synapse:
     ############################################################
 
     def _traverseTree(self, id, name=None, version=None):
-        """Creates a tree of all 
+        """Creates a tree of id's, versions, and names contained by the given entity of id
         
         Arguments:
-        - `id`:
+            id: Entity to query for
         """
-        children =  self.query("select id, versionNumber, name from entity where entity.parentId=='%s'" %id)
-        count=children['totalNumberOfResults']
+        children = self.chunkedQuery("select id, versionNumber, name from entity where entity.parentId=='%s'" % id)
+        output = []
+        output.append({               'name' : name, \
+                       'targetVersionNumber' : version, \
+                                  'targetId' : id, \
+                                   'records' : [] })
+        count = 0
+        for entity in children:
+            count += 1
+            output[-1]['records'].extend( \
+                    self._traverseTree(entity['entity.id'], \
+                                       entity['entity.name'], \
+                                       entity['entity.versionNumber']))
         print id, count, name
-        children=children['results']
-        output=[]
-        if count>0:
-            output.append({'name':name, 'targetVersionNumber':version, 'targetId':id, 'records':[]})
-            for ent in children:
-                output[-1]['records'].extend(self._traverseTree(ent['entity.id'], ent['entity.name'], ent['entity.versionNumber']))
-        else:
-            output.append({'targetId':id, 'targetVersionNumber':version})
+        if count == 0:
+            del output[-1]['records']
+            del output[-1]['name'] 
         return output
 
     def _flattenTree2Groups(self,tree, level=0, out=[]):
@@ -1404,7 +1515,7 @@ class Synapse:
         return Evaluation(**self.restGET(uri))
 
 
-    def submit(self, evaluation, entity, name=''):
+    def submit(self, evaluation, entity, name=None):
         """submit an Entity for evaluation by evaluator
         
         Arguments:
@@ -1418,7 +1529,7 @@ class Synapse:
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
-        name = entity['name'] if (name == '' and 'name' in entity) else ''
+        name = entity['name'] if (name is None and 'name' in entity) else None
         submission =  {'evaluationId':evaluation_id, 'entityId':entity_id, 'name':name, 
                        'versionNumber': entity_version}
         return Submission(**self.restPOST('/evaluation/submission?etag=%s' %entity.etag, 
@@ -1436,7 +1547,6 @@ class Synapse:
         userId=self.getUserProfile()['ownerId'] if userId==None else userId
         self.restPOST('/evaluation/%s/participant/%s'  %(evaluation_id, userId), {})
 
-  
 
     def getSubmissions(self, evaluation, status=None):
         """Return a generator over all submissions for a evaluation, or optionally all
