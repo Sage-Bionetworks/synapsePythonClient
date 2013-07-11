@@ -898,7 +898,6 @@ class Synapse:
         return self.restGET('/query?query=' + urllib.quote(queryStr))
         
         
-        
     def chunkedQuery(self, queryStr):
         """
         Query for Synapse Entities.  
@@ -961,7 +960,18 @@ class Synapse:
                     limit /= 2
                 else:
                     raise err
-                    
+                  
+                  
+    def md5Query(self, md5):
+        """
+        Find the Entities with attached file(s) with the given MD5 hash.
+        
+        :param md5: The MD5 to query for (hexadecimal string)
+        
+        :returns: A list of Entity headers
+        """
+        return self.restGET('/entity/md5/%s' % md5)['results']
+        
 
 
     ############################################################
