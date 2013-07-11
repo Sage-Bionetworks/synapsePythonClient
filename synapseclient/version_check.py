@@ -16,8 +16,8 @@ _UPGRADE_URL     = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
 
 def version_check(current_version=None, version_url=_VERSION_URL, upgrade_url=_UPGRADE_URL):
     """
-    Get the latest version information from version_url and check against
-    the current version. Recommend upgrade, if a newer version exists.
+    Gets the latest version information from version_url and check against
+    the current version.  Recommends upgrade, if a newer version exists.
     """
 
     try:

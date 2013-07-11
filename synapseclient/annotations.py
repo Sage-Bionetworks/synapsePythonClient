@@ -1,23 +1,36 @@
-##
-## Represent user-defined annotations on a synapse entity
-## chris.bare@sagebase.org
-############################################################
+"""
+***********
+Annotations
+***********
+TODO_Sphinx (I'm not sure about this comment block)
+
+Annotations are standard dictionary objects
+   
+~~~~~~~~~~~~~~
+Helper Methods
+~~~~~~~~~~~~~~
+
+.. automethod:: synapseclient.annotations.is_synapse_annotations
+.. automethod:: synapseclient.annotations.to_synapse_annotations
+.. automethod:: synapseclient.annotations.from_synapse_annotations
+
+"""
+
 import collections
 from utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
 
 
 def is_synapse_annotations(annotations):
-    """
-    Test if the given object is a synapse-style annotations object,
-    based on its keys
-    """
+    """Tests if the given object is a Synapse-style Annotations object."""
+    
     if not isinstance(annotations, collections.Mapping): return False
     annotations_keys = ['id', 'etag', 'creationDate', 'uri', 'stringAnnotations','longAnnotations','doubleAnnotations','dateAnnotations', 'blobAnnotations']
     return all([key in annotations_keys for key in annotations.keys()])
 
 
-## convert the given dictionary into synapse-style annotations
 def to_synapse_annotations(annotations):
+    """Transforms a simple flat dictionary to a Synapse-style Annotation object."""
+    
     if is_synapse_annotations(annotations):
         return annotations
     synapseAnnos = {}
@@ -44,9 +57,9 @@ def to_synapse_annotations(annotations):
     return synapseAnnos
 
 
-## create Annotations object from synapse-style annotations
 def from_synapse_annotations(annotations):
-    """transform a dictionary in synapse annotations format to a simple flat dictionary"""
+    """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
+    
     ## flatten the raw annos to consolidate doubleAnnotations, longAnnotations,
     ## stringAnnotations and dateAnnotations into one dictionary
     annos = dict()

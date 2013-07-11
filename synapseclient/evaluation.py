@@ -1,34 +1,55 @@
 """
-***********
-Evaluations
-***********
+**********
+Evaluation
+**********
 
-An evaluation object represents a collection of Synapse entities that will be
-processed in a particular way. This could mean scoring entries in a challenge
+An evaluation object represents a collection of Synapse Entities that will be
+processed in a particular way.  This could mean scoring Entries in a challenge
 or executing a processing pipeline.
 
 Evaluations can be retrieved by ID::
 
     evaluation = syn.getEvaluation(1901877)
 
-Entities may be submitted for evaluation. The `syn.submit` method returns a
-`Submission` object::
+Entities may be submitted for evaluation. 
+The :py:func:`synapseclient.Synapse.submit` method returns a
+:py:class:`synapseclient.evaluation.Submission` object::
 
     entity = syn.get(synapse_id)
     submission = syn.submit(evaluation, entity)
 
-The submission has a `Status`::
+The Submission has a :py:class:`synapseclient.evaluation.SubmissionStatus`::
 
     status = syn.getSubmissionStatus(submission)
 
 See:
-    Synapse.getEvaluation
-    Synapse.submit
-    Synapse.addEvaluationParticipant
-    Synapse.getSubmissions
-    Synapse.getSubmission
-    Synapse.getSubmissionStatus
+
+- :py:func:`synapseclient.Synapse.getEvaluation`
+- :py:func:`synapseclient.Synapse.submit`
+- :py:func:`synapseclient.Synapse.addEvaluationParticipant`
+- :py:func:`synapseclient.Synapse.getSubmissions`
+- :py:func:`synapseclient.Synapse.getSubmission`
+- :py:func:`synapseclient.Synapse.getSubmissionStatus`
+    
+.. autoclass:: synapseclient.evaluation.Evaluation
+   :members:
+   
+~~~~~~~~~~
+Submission
+~~~~~~~~~~
+
+.. autoclass:: synapseclient.evaluation.Submission
+   :members:
+   
+~~~~~~~~~~~~~~~~~
+Submission Status
+~~~~~~~~~~~~~~~~~
+
+.. autoclass:: synapseclient.evaluation.SubmissionStatus
+   :members:
+
 """
+
 import sys
 from exceptions import ValueError
 
@@ -36,15 +57,18 @@ from synapseclient.dict_object import DictObject
 
 
 class Evaluation(DictObject):
-    """Keeps track of an evaluation in Synapse.  Allowing for
+    """
+    Keeps track of an evaluation in Synapse.  Allowing for
     submissions, retrieval and scoring.
 
     Evaluations can be retrieved from Synapse by ID::
 
         evaluation = syn.getEvaluation(1901877)
-
-    see:
-        synapseclient.evaluation
+    
+    :param name:          Name of the evaluation
+    :param description:   A short description describing the evaluation
+    :param status:        One of {'OPEN', 'PLANNED', 'CLOSED', 'COMPLETED'}.  Defaults to 'OPEN'
+    :param contentSource: Source of the evaluation's content
     """
 
     @classmethod
@@ -57,14 +81,6 @@ class Evaluation(DictObject):
 
 
     def __init__(self, **kwargs):
-        """Builds an Synapse evaluation object based on information of:
-
-        Arguments:
-        - `name`: Name of evaluation
-        - `description`: A short description describing the evaluation
-        - `status`: One of ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED'] default 'OPEN'
-        - `contentSource` : content Source 
-        """
         kwargs['status'] = kwargs.get('status', 'OPEN')
         kwargs['contentSource'] = kwargs.get('contentSource', '')
         if  kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
@@ -85,9 +101,11 @@ class Evaluation(DictObject):
 
 class Submission(DictObject):
     """
-    A Submission object is returned from the `Synapse.submit` method.
+    Builds an Synapse submission object
 
-    Fields: createdOn, entityBundleJSON, entityId, evaluationId, id, name, userId, versionNumber
+    :param entityId:      Synapse ID of the Entity to submit
+    :param evaluationId:  ID of the Evaluation to which the Entity is to be submitted
+    :param versionNumber: Version number of the submitted Entity
     """
 
     @classmethod
@@ -96,14 +114,6 @@ class Submission(DictObject):
 
 
     def __init__(self, **kwargs):
-        """Builds an Synapse submission object. These objects will be returned
-        from the `Synapse.submit` method, rather than created by end users.
-
-        Arguments:
-        - `entityId`: Synapse ID of the entity to submit
-        - `evaluationId`: ID of the evaluation to which the entity is to be submitted
-        - `versionNumber`: Version number of the submitted entity
-        """
         if not ('evaluationId' in kwargs and 
                 'entityId' in kwargs and
                 'versionNumber' in kwargs):
@@ -123,12 +133,14 @@ class Submission(DictObject):
 
 class SubmissionStatus(DictObject):
     """
-    A SubmissionStatus object is returned from the `Synapse.getSubmissionStatus`
-    method.
+    Builds an Synapse submission status object
 
-    Fields: etag, id, modifiedOn, score, status
-
-    Status can be one of {'OPEN', 'CLOSED', 'SCORED', 'INVALID'}.
+    :param etag:       TODO_Sphinx
+    :param id:         TODO_Sphinx
+    :param modifiedOn: TODO_Sphinx
+    :param score:      TODO_Sphinx
+    :param status:     TODO_Sphinx
+                       Status can be one of {'OPEN', 'CLOSED', 'SCORED', 'INVALID'}.
     """
 
     @classmethod
@@ -137,8 +149,6 @@ class SubmissionStatus(DictObject):
 
 
     def __init__(self, **kwargs):
-        """Builds an Synapse submission object.
-        """
         super(SubmissionStatus, self).__init__(kwargs)
 
     def postURI(self):
@@ -149,6 +159,3 @@ class SubmissionStatus(DictObject):
 
     def deleteURI(self):
         return '/evaluation/submission/%s/status' %self.id
-
-
-            
