@@ -345,12 +345,17 @@ class Synapse:
         """
         Gets a Synapse entity from the repository service.
         
-        :param entity:       A Synapse ID, a Synapse Entity object, 
-                             or a plain dictionary in which 'id' maps to a Synapse ID
-        :param version:      The specific version to get.
-                             Defaults to the most recent version.
-        :param downloadFile: Whether associated files(s) should be downloaded.  
-                             Defaults to True
+        :param entity:           A Synapse ID, a Synapse Entity object, 
+                                 or a plain dictionary in which 'id' maps to a Synapse ID
+        :param version:          The specific version to get.
+                                 Defaults to the most recent version.
+        :param downloadFile:     Whether associated files(s) should be downloaded.  
+                                 Defaults to True
+        :param downloadLocation: Where to download the Synapse File Entity.
+                                 Defaults to the local cache.
+        :param ifcollision:      Determines how to handle file collisions.
+                                 May be "overwriteLocal", "keepLocal", or "keepBoth".
+                                 Defaults to "keepBoth".
 
         :returns: A new Synapse Entity object of the appropriate type
         """
@@ -359,7 +364,7 @@ class Synapse:
         version = kwargs.get('version', None)
         downloadFile = kwargs.get('downloadFile', True)
         downloadLocation = kwargs.get('downloadLocation', None)
-        ifcollision = kwargs.get('ifcollision', 'keep.both')
+        ifcollision = kwargs.get('ifcollision', 'keepBoth')
         load = kwargs.get('load', False)
 
         # Retrieve metadata
@@ -373,6 +378,34 @@ class Synapse:
 
         # For external URLs, we want to retrieve the URL from the 'fileHandle'
         if isinstance(entity, File):
+        
+            # Determine if the file should be downloaded
+            if downloadFile: 
+                downloadFile = cache.local_file_has_changed(bundle, downloadLocation)
+                
+            # Determine where the file should be downloaded to
+            if downloadFile:
+                _, localLocation = cache.determine_local_file_location(bundle)
+                
+                # By default, download to the local cache
+                if downloadLocation is None:
+                    downloadLocation = localLocation
+                    
+                # If the file already exists...
+                if os.path.exists(downloadLocation):
+                    if ifcollision == "overwriteLocal":
+                        pass
+                        
+                    elif ifcollision == "keepLocal":
+                        downloadFile = False
+                        
+                    elif ifcollision == "keepBoth":
+                        downloadLocation = cache.get_alternate_file_name(downloadLocation)
+                        
+                    else:
+                        raise Exception('Invalid parameter: "%s" is not a valid value for "ifcollision"' % ifcollision)
+                    
+            
             # Note: fileHandles will be empty if there are unmet access requirements
             for fh in bundle['fileHandles']:
                 if fh['id'] == bundle['entity']['dataFileHandleId']:
@@ -388,11 +421,13 @@ class Synapse:
 
                         # By default, we download external URLs
                         elif downloadFile:
-                            entity.update(self._downloadFileEntity(entity))
+                            entity.update(self._downloadFileEntity(entity, downloadLocation))
+                            cache.add_local_file_to_cache(entity.path, fh['id'])
 
                     # By default, we download files stored in Synapse
                     elif downloadFile:
-                        entity.update(self._downloadFileEntity(entity))
+                        entity.update(self._downloadFileEntity(entity, downloadLocation))
+                        cache.add_local_file_to_cache(entity.path, fh['id'])
 
         ## TODO: version, here
         if downloadFile and is_locationable(entity):
@@ -452,26 +487,30 @@ class Synapse:
         # For FileEntities
         if entity['entityType'] == File._synapse_entity_type and entity.get('path',False):
 
-            # Check if the File already exists in Synapse
-            # If so, do nothing
-            try: 
+            # Check if the File already exists in Synapse by fetching metadata on it
+            bundle = None
+            try:
                 bundle = self._getEntityBundle(entity)
-                if not cache.local_file_has_changed(entity.path, bundle):
-                    return entity
-            except requests.exceptions.HTTPError as err:
-                # Getting an HTTPError suggests that the 'entity' is badly formed
-                # We can let the method fail later on in that case
-                pass
             except Exception as err:
-                if not err.message.startswith("Invalid parameters"):
+                if not err.message.startswith("Invalid parameters: couldn't find id"):
                     raise err
+            
+            # Populate the Entity with info from the EntityBundle
+            if bundle is not None:
+                properties.update(bundle['entity'])
                 
-            # The Entity is (probably) not in Synapse
-            if 'dataFileHandleId' not in properties:
-                synapseStore = entity.get('synapseStore', True)
-                fileHandle = self._uploadToFileHandleService(entity.path, synapseStore=synapseStore)
-                cache.add_local_file_to_cache(entity.path, fileHandle['id'])
-                properties['dataFileHandleId'] = fileHandle['id']
+                ## Should the annotations be appended as well?
+                # annotations.update(from_synapse_annotations(bundle['annotations']))
+                    
+            # Check if the file should be uploaded
+            if bundle is None or cache.local_file_has_changed(bundle, entity.path):
+            
+                # The Entity is (probably) not in Synapse
+                if 'dataFileHandleId' not in properties:
+                    synapseStore = entity.get('synapseStore', True)
+                    fileHandle = self._uploadToFileHandleService(entity.path, synapseStore=synapseStore)
+                    cache.add_local_file_to_cache(entity.path, fileHandle['id'])
+                    properties['dataFileHandleId'] = fileHandle['id']
 
         # For a Locationable, first create the Entity first, then upload the file
         if is_locationable(entity):
@@ -1187,24 +1226,23 @@ class Synapse:
     # File handle service calls
     ############################################################
 
-    def _downloadFileEntity(self, entity):
-        """Download the file associated with a FileEntity"""
+    def _downloadFileEntity(self, entity, destination):
+        """Download the file associated with a FileEntity to the given location."""
         if 'versionNumber' in entity:
             url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity), entity['versionNumber'])
         else:
             url = '%s/entity/%s/file' % (self.repoEndpoint, id_of(entity),)
-        destDir = os.path.join(self.cacheDir, id_of(entity))
 
-        #create destDir if it does not exist
+        # Create the necessary directories
         try:
-            os.makedirs(destDir, mode=0700)
+            os.makedirs(os.path.dirname(destination))
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
-        return self._downloadFile(url, destDir)
+        return self._downloadFile(url, destination)
 
 
-    def _downloadFile(self, url, destDir):
+    def _downloadFile(self, url, destination):
         """Download a file from a URL to a local destination directory"""
 
         ## we expect to be redirected to a signed S3 URL
@@ -1225,24 +1263,17 @@ class Synapse:
         else:
             response.raise_for_status()
 
-        ##Extract filename from url or header, if it is a Signed S3 URL do...
-        if url.startswith('https://s3.amazonaws.com/proddata.sagebase.org'):
-            filename = utils.extract_filename(response.headers['content-disposition'])
-        else:
-            filename = url.split('/')[-1]
-
-        ## stream file to disk
-        path = os.path.abspath(os.path.join(destDir, filename))
-        with open(path, "wb") as f:
+        # Stream the file to disk
+        with open(destination, "wb") as f:
             data = response.raw.read(FILE_BUFFER_SIZE)
             while data:
                 f.write(data)
                 data = response.raw.read(FILE_BUFFER_SIZE)
 
         return {
-            'path': path,
-            'files': [os.path.basename(path)],
-            'cacheDir': destDir }
+            'path': destination,
+            'files': [os.path.basename(destination)],
+            'cacheDir': os.path.dirname(destination) }
 
 
     def _uploadToFileHandleService(self, filename, synapseStore=True):
@@ -1667,12 +1698,12 @@ class Synapse:
         return self.restGET(uri)
 
     #Need to test functionality of this
-    # def _downloadWikiAttachment(self, owner, wiki, filename, dest_dir=None, owner_type=None):
+    # def _downloadWikiAttachment(self, owner, wiki, filename, destination=None, owner_type=None):
     #     """Download a file attached to a wiki page"""
     #     if not owner_type:
     #         owner_type = utils.guess_object_type(owner)
     #     url = "%s/%s/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, owner_type, id_of(owner), id_of(wiki), filename,)
-    #     return self._downloadFile(url, dest_dir)
+    #     return self._downloadFile(url, destination)
 
     ##Superseded by getWiki
     # def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None, owner_type=None):
