@@ -444,7 +444,11 @@ class Synapse:
                         
                     else:
                         raise Exception('Invalid parameter: "%s" is not a valid value for "ifcollision"' % ifcollision)
-                    
+                
+            # The local state of the FileEntity is normally updated by the _downloadFileEntity method
+            # Use the EntityBundle to fill in the path information
+            if not downloadFile:
+                entity.update(cache.retrieve_local_file_info(bundle, downloadLocation))
             
             # Note: fileHandles will be empty if there are unmet access requirements
             for fh in bundle['fileHandles']:
@@ -494,7 +498,6 @@ class Synapse:
 
         :returns: A Synapse Entity, Evaluation, or Wiki
         """
-
         
         createOrUpdate = kwargs.get('createOrUpdate', True)
         forceVersion = kwargs.get('forceVersion', True)
@@ -535,22 +538,13 @@ class Synapse:
             except Exception as err:
                 if not err.message.startswith("Invalid parameters: couldn't find id"):
                     raise err
-            
-            # Populate the Entity with info from the EntityBundle
-            if bundle is not None:
-                properties.update(bundle['entity'])
-                
-                ## Should the annotations be appended as well?
-                # annotations.update(from_synapse_annotations(bundle['annotations']))
                     
             # Check if the file should be uploaded
-            if bundle is None or cache.local_file_has_changed(bundle, entity.path):
-            
-                # The Entity is (probably) not in Synapse
+            if bundle is None or cache.local_file_has_changed(bundle, entity['path']):
                 if 'dataFileHandleId' not in properties:
-                    synapseStore = entity.get('synapseStore', True)
-                    fileHandle = self._uploadToFileHandleService(entity.path, synapseStore=synapseStore)
-                    cache.add_local_file_to_cache(entity.path, fileHandle['id'])
+                    fileHandle = self._uploadToFileHandleService(entity['path'], \
+                                            synapseStore=entity.get('synapseStore', True))
+                    cache.add_local_file_to_cache(entity['path'], fileHandle['id'])
                     properties['dataFileHandleId'] = fileHandle['id']
 
         # For a Locationable, first create the Entity first, then upload the file

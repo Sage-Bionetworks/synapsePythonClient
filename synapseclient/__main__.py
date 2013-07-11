@@ -39,24 +39,22 @@ def query(args, syn):
 
         
 def get(args, syn):
-    """
+    entity = syn.get(args.id)
     
-    Arguments:
-    - `args`:
-    """
-    ent = syn.downloadEntity(args.id)
-    if 'files' in ent:
-        for f in ent['files']:
-            src = os.path.join(ent['cacheDir'], f)
-            dst = os.path.join('.', f.replace(".R_OBJECTS/",""))
-            sys.stderr.write('creating %s\n' %dst)
+    ## Is this part even necessary?
+    ## (Other than the print statements)
+    if 'files' in entity:
+        for file in entity['files']:
+            src = os.path.join(entity['cacheDir'], file)
+            dst = os.path.join('.', file.replace(".R_OBJECTS/",""))
+            print 'creating %s' % dst
             if not os.path.exists(os.path.dirname(dst)):
                 os.mkdir(dst)
             shutil.copyfile(src, dst)
     else:
         sys.stderr.write('WARNING: No files associated with entity %s\n' % (args.id,))
-        syn.printEntity(ent)
-    return ent
+        syn.printEntity(entity)
+    return entity
     
     
 def store(args, syn):
@@ -93,91 +91,60 @@ def store(args, syn):
 
 
 def cat(args, syn):
-    """
-    
-    Arguments:
-    - `args`:
-    """
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    ent = syn.downloadEntity(args.id)
-    if 'files' in ent:
-        for f in ent['files']:
-            with open(os.path.join(ent['cacheDir'], f)) as fp:
-                for l in fp:
-                    sys.stdout.write(l)
+    entity = syn.get(args.id)
+    if 'files' in entity:
+        for file in entity['files']:
+            with open(os.path.join(entity['cacheDir'], file)) as input:
+                for line in input:
+                    print line
 
                     
 def show(args, syn):
-    """
-    show metadata for an entity
-    """
+    """Show metadata for an entity."""
     ent = syn.getEntity(args.id)
     syn.printEntity(ent)
 
     
 def delete(args, syn):
-    """
-    
-    Arguments:
-    - `args`:
-    """
-    syn.deleteEntity(args.id)
-    sys.stderr.write('Deleted entity: %s\n' % args.id)
+    syn.delete(args.id)
+    print 'Deleted entity: %s' % args.id
 
     
 def upload(args, syn):
-    """
-    
-    Arguments:
-    - `args`:
-    """
     if args.type == 'File': args.type = 'FileEntity'
-    entity={'name': args.name,
-            'parentId': args.parentid,
-            'description':args.description,
-            'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
+    entity = {'name': args.name,
+              'parentId': args.parentid,
+              'description':args.description,
+              'entityType': u'org.sagebionetworks.repo.model.%s' % args.type, 
+              'path': args.file}
 
-    entity = syn.uploadFile(entity, args.file, used=args.used, executed=args.executed)
+    entity = syn.store(entity, used=args.used, executed=args.executed)
 
-    sys.stderr.write('Created entity: %s\t%s from file: %s\n' %(entity['id'], entity['name'], args.file))
+    print 'Created entity: %s\t%s from file: %s' %(entity['id'], entity['name'], args.file)
     return(entity)
 
 
 def create(args, syn):
-    """
-
-    Arguments:
-    - `args`:
-    """
     if args.type == 'File': args.type = 'FileEntity'
     entity={'name': args.name,
             'parentId': args.parentid,
             'description':args.description,
             'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
-    sys.stderr.write('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
+    print 'Created entity: %s\t%s\n' %(entity['id'],entity['name'])
     return(entity)
 
 
 def update(args, syn):
-    """
-    
-    Arguments:
-    - `args`:
-    """
-    entity=syn.getEntity(args.id)
-    entity = syn.uploadFile(entity, args.file)
-    sys.stderr.write('Updated entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file))
+    entity = syn.get(args.id)
+    entity.path = args.file
+    entity = syn.store(entity)
+    print 'Updated entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file)
 
 
 def onweb(args, syn):
-    """
-    
-    Arguments:
-    - `args`:
-    """
     syn.onweb(args.id)
-
 
 def setProvenance(args, syn):
     """
@@ -202,15 +169,14 @@ def setProvenance(args, syn):
                 f.write(json.dumps(activity))
                 f.write('\n')
     else:
-        sys.stdout.write('Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id),))
+        print 'Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id))
 
 
 def getProvenance(args, syn):
     activity = syn.getProvenance(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        sys.stdout.write(json.dumps(activity))
-        sys.stdout.write('\n')
+        print json.dumps(activity)
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
@@ -221,7 +187,7 @@ def submit(args, syn):
     if args.name is not None: args.name = ' '.join(args.name)
     
     submission = syn.submit(args.evaluation, args.entity, args.name)
-    sys.stderr.write('Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' %(submission['id'], submission['entityId'], submission['name'], submission['evaluationId']))
+    print 'Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' %(submission['id'], submission['entityId'], submission['name'], submission['evaluationId'])
 
 
 def main():

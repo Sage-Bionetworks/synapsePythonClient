@@ -7,6 +7,7 @@ File Caching
 
 .. automethod:: synapseclient.cache.local_file_has_changed
 .. automethod:: synapseclient.cache.add_local_file_to_cache
+.. automethod:: synapseclient.cache.retrieve_local_file_info
 .. automethod:: synapseclient.cache.get_alternate_file_name
 
 ~~~~~~~
@@ -21,8 +22,10 @@ Helpers
 """
 
 import os, sys, re, json, time, errno, shutil
+import synapseclient.utils as utils
 
 CACHE_DIR = os.path.join(os.path.expanduser('~'), '.synapseCache')
+CACHE_FANOUT = 1000
 CACHE_LOCK_TIME = 10
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
 
@@ -48,6 +51,10 @@ def local_file_has_changed(entityBundle, path=None):
     cacheDir, filepath = determine_local_file_location(entityBundle)
     if path is None:
         path = filepath
+        
+    # External URLs will be ignored
+    if utils.is_url(path):
+        return True
         
     # Read the '.cacheMap'
     cache = obtain_lock(cacheDir)
@@ -78,20 +85,40 @@ def add_local_file_to_cache(path, fileHandle):
     :param fileHandle: An S3 file handle used to identify the file.
     
     """
+        
+    # External URLs will be ignored
+    if utils.is_url(path):
+        return True
     
-    cacheDir = os.path.join(CACHE_DIR, fileHandle)
+    # Get the '.cacheMap'
+    cacheDir = determine_cache_directory(fileHandle)
     path = normalize_path(path)
-    
     cache = obtain_lock(cacheDir)
     
-    # Cached files should never be overwritten by the cacher
+    # Write the new entry
     if path in cache:
+        # Cached files should never be overwritten by the cacher
         raise Exception("Invalid parameters: %s is already in the cache" % path)
-    
-    cache[path] = time.strftime(ISO_FORMAT, time.gmtime(os.path.getmtime(path)))
         
+    # Update the cache only if the file actually exists
+    if os.path.exists(path):
+        cache[path] = time.strftime(ISO_FORMAT, time.gmtime(os.path.getmtime(path)))
     release_lock(cacheDir, cache)
     
+    
+def retrieve_local_file_info(entityBundle, path=None):
+    """
+    Returns a JSON dictionary with 'path', 'files', and 'cacheDir'
+    that can be used to update the local state of a FileEntity.
+    """
+    cacheDir, filepath = determine_local_file_location(entityBundle)
+    if path is None:
+        path = filepath
+    
+    return {
+        'path': path,
+        'files': [os.path.basename(path)],
+        'cacheDir': os.path.dirname(path) }
 
 def get_alternate_file_name(path):
     """Returns a non-colliding path by appending (%d) to the end of the file name."""
@@ -183,6 +210,9 @@ def normalize_path(path):
     
     return re.sub(r'\\', '/', os.path.abspath(path))
 
+    
+def determine_cache_directory(fileHandle):
+    return os.path.join(CACHE_DIR, str(int(fileHandle) % CACHE_FANOUT), fileHandle)
 
 def determine_local_file_location(entityBundle):
     """
@@ -199,7 +229,7 @@ def determine_local_file_location(entityBundle):
     
     for handle in entityBundle['fileHandles']:
         if handle['id'] == entityBundle['entity']['dataFileHandleId']:
-            cacheDir = os.path.join(CACHE_DIR, handle['id'])
+            cacheDir = determine_cache_directory(handle['id'])
             path = os.path.join(cacheDir, handle['fileName'])
             return cacheDir, path
                 

@@ -179,11 +179,11 @@ def test_store_with_create_or_update_flag():
 
     bogus1 = syn.store(bogus1, createOrUpdate=True)
 
-    ## create a different file with the same name and parent
+    # Create a different file with the same name and parent
     new_filepath = utils.make_bogus_binary_file()
     bogus2 = File(new_filepath, name='Bogus Test File', parent=project)
 
-    ## expected behavior is that a new version of the first File will be created
+    # Expected behavior is that a new version of the first File will be created
     bogus2 = syn.store(bogus2, createOrUpdate=True)
 
     assert bogus2.id == bogus1.id
@@ -195,11 +195,12 @@ def test_store_with_create_or_update_flag():
     assert bogus2a.versionNumber == 2
     assert filecmp.cmp(bogus2.path, bogus2a.path)
 
-    ## create a different file with the same name and parent
-    del bogus2.properties.id
+    # Create yet another file with the same name and parent
+    newer_filepath = utils.make_bogus_binary_file()
+    bogus3 = File(newer_filepath, name='Bogus Test File', parent=project)
 
-    ## expected behavior is raising an exception with a 409 error
-    assert_raises(requests.exceptions.HTTPError, syn.store, bogus2, createOrUpdate=False)
+    # Expected behavior is raising an exception with a 409 error
+    assert_raises(requests.exceptions.HTTPError, syn.store, bogus3, createOrUpdate=False)
 
 
 def test_store_dictionary():
