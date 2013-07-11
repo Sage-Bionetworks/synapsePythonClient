@@ -17,6 +17,7 @@ Helpers
 .. automethod:: synapseclient.cache.obtain_lock
 .. automethod:: synapseclient.cache.release_lock
 .. automethod:: synapseclient.cache.normalize_path
+.. automethod:: synapseclient.cache.determine_cache_directory
 .. automethod:: synapseclient.cache.determine_local_file_location
 
 """
@@ -212,8 +213,11 @@ def normalize_path(path):
 
     
 def determine_cache_directory(fileHandle):
+    """Uses a file handle to determine the cache folder."""
+    
     return os.path.join(CACHE_DIR, str(int(fileHandle) % CACHE_FANOUT), fileHandle)
 
+    
 def determine_local_file_location(entityBundle):
     """
     Uses information from an Entity bundle to derive the cache directory and cached file location

@@ -223,6 +223,27 @@ def test_chunked_query():
     
     # Restore the size of the query limit
     client.QUERY_LIMIT = oldLimit
+    
+
+def test_md5_query():
+    # Create a project then add the same entity several times and retrieve them via MD5
+    project = create_project()
+    
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    repeated = File(path, parent=project['id'], description='Same data over and over again')
+    
+    num = 5
+    for i in range(num):
+        try:
+            repeated.name = 'Repeated data %d.dat' % i
+            syn.store(repeated)
+        except Exception as ex:
+            print ex
+            print ex.response.text
+    results = syn.md5Query(utils.md5_for_file(path).hexdigest())
+    print results
+    assert len(results) == num
 
 
 def test_deleteEntity():
