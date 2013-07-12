@@ -63,18 +63,21 @@ def local_file_has_changed(entityBundle, path=None):
     
     # Compare the modification times
     path = normalize_path(path)
-    if path in cache and os.path.exists(path):
-        # Note: Due to the way Python parses time via strptime()
-        #   it may randomly append an incorrect Daylight Savings Time 
-        #   to the resulting time_struct, which must be corrected
-        cacheTime = time.strptime(cache[path], ISO_FORMAT)
-        cacheTime = time.mktime(cacheTime) - 3600 * cacheTime.tm_isdst
+    fileMTime = time.mktime(time.gmtime(os.path.getmtime(path))) if os.path.exists(path) else None
+    unmodifiedFileExists = False
+    for file in cache.keys():
+        cacheTime = read_cache_entry(cache[file])
         
-        fileMTime = time.mktime(time.gmtime(os.path.getmtime(path)))
-        return not fileMTime == cacheTime
+        # When there is a direct match, return if it is modified
+        if path == file and os.path.exists(path):
+            return not fileMTime == cacheTime
+            
+        # If there is no direct match, but a pristine copy exists, return False (after checking all entries)
+        if fileMTime == cacheTime and os.path.exists(file):
+            unmodifiedFileExists = True
             
     # The file is not cached or has been changed
-    return True
+    return not unmodifiedFileExists
         
         
 def add_local_file_to_cache(path, fileHandle):
@@ -96,12 +99,16 @@ def add_local_file_to_cache(path, fileHandle):
     path = normalize_path(path)
     cache = obtain_lock(cacheDir)
     
-    # Write the new entry
-    if path in cache:
-        # Cached files should never be overwritten by the cacher
-        raise Exception("Invalid parameters: %s is already in the cache" % path)
-        
-    # Update the cache only if the file actually exists
+    # If the file to-be-added does not exist, search the cache for a pristine copy
+    if not os.path.exists(path):
+        for file in cache.keys():
+            fileMTime = time.mktime(time.gmtime(os.path.getmtime(file)))
+            cacheTime = read_cache_entry(cache[file])
+            if fileMTime == cacheTime and os.path.exists(file):
+                shutil.copyfile(file, path)
+                break
+                
+    # Update the cache
     if os.path.exists(path):
         cache[path] = time.strftime(ISO_FORMAT, time.gmtime(os.path.getmtime(path)))
     release_lock(cacheDir, cache)
@@ -238,3 +245,14 @@ def determine_local_file_location(entityBundle):
             return cacheDir, path
                 
     raise Exception("Invalid parameters: the entityBundle does not contain matching file handle IDs")
+    
+
+def read_cache_entry(isoTime):
+    """
+    Note: Due to the way Python parses time via strptime()
+        it may randomly append an incorrect Daylight Savings Time 
+        to the resulting time_struct, which must be corrected
+    """
+    cacheTime = time.strptime(isoTime, ISO_FORMAT)
+    return time.mktime(cacheTime) - 3600 * cacheTime.tm_isdst
+    

@@ -102,7 +102,7 @@ def cat(args, syn):
                     
 def show(args, syn):
     """Show metadata for an entity."""
-    ent = syn.getEntity(args.id)
+    ent = syn.get(args.id, downloadFile=False)
     syn.printEntity(ent)
 
     

@@ -546,6 +546,8 @@ class Synapse:
                                             synapseStore=entity.get('synapseStore', True))
                     cache.add_local_file_to_cache(entity['path'], fileHandle['id'])
                     properties['dataFileHandleId'] = fileHandle['id']
+            elif 'dataFileHandleId' not in properties:
+                properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
 
         # For a Locationable, first create the Entity first, then upload the file
         if is_locationable(entity):
