@@ -407,18 +407,16 @@ def test_synapseStore_flag():
     ## a file path that doesn't exist should still work
     f2 = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)
     f2 = syn.store(f2)
-    f2a = syn.get(f2)
-
-    assert f2a.name == 'file1.xyz'
-    assert f2a.path == '/path/to/local/file1.xyz'
+    try:
+        syn.get(f2)
+        assert False
+    except Exception as err:
+        assert err.message.startswith("Could not download non-existent file")
     assert f1a.synapseStore == False
 
     ## Try a URL
     f3 = File('http://dev-versions.synapse.sagebase.org/synapsePythonClient', parent=project, synapseStore=False)
     f3 = syn.store(f3)
     f3a = syn.get(f3)
-
-    assert f2a.name == 'file1.xyz'
-    assert f2a.path == '/path/to/local/file1.xyz'
     assert f1a.synapseStore == False
 

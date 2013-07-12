@@ -242,8 +242,11 @@ def test_md5_query():
             print ex
             print ex.response.text
     results = syn.md5Query(utils.md5_for_file(path).hexdigest())
-    print results
-    assert len(results) == num
+    print [res['id'] for res in results]
+    
+    ## Not sure how to make this assertion more accurate
+    ## Although we expect num results, it is possible for the MD5 to be non-unique
+    assert len(results) >= num
 
 
 def test_deleteEntity():

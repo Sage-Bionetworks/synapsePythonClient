@@ -7,6 +7,7 @@ File Caching
 
 .. automethod:: synapseclient.cache.local_file_has_changed
 .. automethod:: synapseclient.cache.add_local_file_to_cache
+.. automethod:: synapseclient.cache.remove_local_file_from_cache
 .. automethod:: synapseclient.cache.retrieve_local_file_info
 .. automethod:: synapseclient.cache.get_alternate_file_name
 
@@ -24,6 +25,7 @@ Helpers
 
 import os, sys, re, json, time, errno, shutil
 import synapseclient.utils as utils
+from threading import Lock
 
 CACHE_DIR = os.path.join(os.path.expanduser('~'), '.synapseCache')
 CACHE_FANOUT = 1000
@@ -83,7 +85,6 @@ def local_file_has_changed(entityBundle, path=None):
 def add_local_file_to_cache(path, fileHandle):
     """
     Makes a '.cacheMap' entry in the cache.  
-    The 'path' should not collide with any existing entries.
     
     :param path:       Path to the local file.  May be in any format.  
     :param fileHandle: An S3 file handle used to identify the file.
@@ -112,6 +113,10 @@ def add_local_file_to_cache(path, fileHandle):
     if os.path.exists(path):
         cache[path] = time.strftime(ISO_FORMAT, time.gmtime(os.path.getmtime(path)))
     release_lock(cacheDir, cache)
+    
+
+def remove_local_file_from_cache(path, fileHandle):
+    raise NotImplementedError("Behavior or usage of this method has not been decided yet")
     
     
 def retrieve_local_file_info(entityBundle, path=None):
@@ -159,22 +164,25 @@ def obtain_lock(cacheDir):
             os.makedirs(cacheLock)
             break
         except OSError as err:
+            # Still locked...
             if err.errno != errno.EEXIST:
-                raise err # Something bad happened
+                raise err
         
-        sys.stdout.write("Waiting for cache to unlock")
-        while os.path.exists(cacheLock):
+        print "Waiting for cache to unlock"
+        try:
             lockAge = time.time() - os.path.getmtime(cacheLock)
             
             # Sleep for a bit and check again
             if lockAge < CACHE_LOCK_TIME and lockAge > 0:
-                sys.stdout.write(".")
                 time.sleep((CACHE_LOCK_TIME - lockAge) / CACHE_LOCK_TIME)
                 continue
                 
             # Lock expired, so delete and try to lock again
             release_lock(cacheDir)
-        sys.stdout.write("\n")
+        except OSError as err:
+            # Something else deleted the lock first
+            if err.errno != errno.ENOENT:
+                raise err
         
     # Make sure the '.cacheMap' exists
     if not os.path.exists(cacheMap):
@@ -247,12 +255,16 @@ def determine_local_file_location(entityBundle):
     raise Exception("Invalid parameters: the entityBundle does not contain matching file handle IDs")
     
 
+strptimeLock = Lock()
 def read_cache_entry(isoTime):
     """
     Note: Due to the way Python parses time via strptime()
         it may randomly append an incorrect Daylight Savings Time 
         to the resulting time_struct, which must be corrected
+    Note: The `strptime() method is not thread-safe <http://bugs.python.org/issue7980>`_
     """
+    strptimeLock.acquire()
     cacheTime = time.strptime(isoTime, ISO_FORMAT)
+    strptimeLock.release()
     return time.mktime(cacheTime) - 3600 * cacheTime.tm_isdst
     

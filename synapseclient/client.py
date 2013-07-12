@@ -459,12 +459,8 @@ class Synapse:
                         entity['externalURL'] = fh['externalURL']
                         entity['synapseStore'] = False
 
-                        # If it's a file URL, fill in the path whether downloadFile is True or not,
-                        if fh['externalURL'].startswith('file:'):
-                            entity.update(utils.file_url_to_path(fh['externalURL'], verify_exists=True))
-
                         # By default, we download external URLs
-                        elif downloadFile:
+                        if downloadFile:
                             entity.update(self._downloadFileEntity(entity, downloadLocation))
                             cache.add_local_file_to_cache(entity.path, fh['id'])
 
@@ -495,6 +491,7 @@ class Synapse:
         :param activityName:        TODO_Sphinx. 
         :param activityDescription: TODO_Sphinx. 
         :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj' conflicts with an existing Synapse object.  Defaults to True. 
+        :param forceVersion:        Indicates whether the method should increment the version of the object even if nothing has changed.  Defaults to True.
 
         :returns: A Synapse Entity, Evaluation, or Wiki
         """
@@ -502,6 +499,7 @@ class Synapse:
         createOrUpdate = kwargs.get('createOrUpdate', True)
         forceVersion = kwargs.get('forceVersion', True)
         isRestricted = kwargs.get('isRestricted', False)
+        forceVersion = kwargs.get('forceVersion', True)
 
         # Handle all non entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
@@ -548,6 +546,13 @@ class Synapse:
                     properties['dataFileHandleId'] = fileHandle['id']
             elif 'dataFileHandleId' not in properties:
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
+                
+                # If the version does not need to be updated, we can return here
+                if not forceVersion:
+                    # The file is cached and the properties/annotations can be derived from the bundle
+                    bundle['entity'].update(properties)
+                    bundle['annotations'].update(annotations)
+                    return Entity.create(bundle['entity'], bundle['annotations'], local_state)
 
         # For a Locationable, first create the Entity first, then upload the file
         if is_locationable(entity):
@@ -1351,7 +1356,9 @@ class Synapse:
 
             ## if it's a file URL, turn it into a path and return it
             if url.startswith('file:'):
-                return utils.file_url_to_path(url, verify_exists=True)
+                pathinfo = utils.file_url_to_path(url, verify_exists=True)
+                if 'path' not in pathinfo:
+                    raise Exception("Could not download non-existent file (%s)." % url)
 
             headers = {'sessionToken':self.sessionToken}
             response = requests.get(url, headers=headers, stream=True)
@@ -1366,6 +1373,7 @@ class Synapse:
                 f.write(data)
                 data = response.raw.read(FILE_BUFFER_SIZE)
 
+        destination = os.path.abspath(destination)
         return {
             'path': destination,
             'files': [os.path.basename(destination)],
