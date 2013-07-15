@@ -15,21 +15,25 @@ File Caching
 Helpers
 ~~~~~~~
 
-.. automethod:: synapseclient.cache.obtain_lock
-.. automethod:: synapseclient.cache.release_lock
+.. automethod:: synapseclient.cache.obtain_lock_and_read_cache
+.. automethod:: synapseclient.cache.write_cache_then_release_lock
+.. automethod:: synapseclient.cache.is_lock_valid
 .. automethod:: synapseclient.cache.normalize_path
 .. automethod:: synapseclient.cache.determine_cache_directory
 .. automethod:: synapseclient.cache.determine_local_file_location
+.. automethod:: synapseclient.cache.read_cache_entry
 
 """
 
-import os, sys, re, json, time, errno, shutil
+import os, sys, re, json, time, errno, shutil, filecmp
 import synapseclient.utils as utils
 from threading import Lock
 
 CACHE_DIR = os.path.join(os.path.expanduser('~'), '.synapseCache')
 CACHE_FANOUT = 1000
+CACHE_MAX_LOCK_TRY_TIME = 70
 CACHE_LOCK_TIME = 10
+CACHE_UNLOCK_WAIT_TIME = 0.5
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
 
 
@@ -60,8 +64,8 @@ def local_file_has_changed(entityBundle, path=None):
         return True
         
     # Read the '.cacheMap'
-    cache = obtain_lock(cacheDir)
-    release_lock(cacheDir)
+    cache = obtain_lock_and_read_cache(cacheDir)
+    write_cache_then_release_lock(cacheDir)
     
     # Compare the modification times
     path = normalize_path(path)
@@ -75,7 +79,9 @@ def local_file_has_changed(entityBundle, path=None):
             return not fileMTime == cacheTime
             
         # If there is no direct match, but a pristine copy exists, return False (after checking all entries)
-        if fileMTime == cacheTime and os.path.exists(file):
+        # The filecmp is necessary for Windows machines since their clocks do not keep millisecond information
+        # i.e. Two files created quickly may have the same timestamp
+        if fileMTime == cacheTime and os.path.exists(file) and filecmp.cmp(path, file):
             unmodifiedFileExists = True
             
     # The file is not cached or has been changed
@@ -98,7 +104,7 @@ def add_local_file_to_cache(path, fileHandle):
     # Get the '.cacheMap'
     cacheDir = determine_cache_directory(fileHandle)
     path = normalize_path(path)
-    cache = obtain_lock(cacheDir)
+    cache = obtain_lock_and_read_cache(cacheDir)
     
     # If the file to-be-added does not exist, search the cache for a pristine copy
     if not os.path.exists(path):
@@ -112,7 +118,7 @@ def add_local_file_to_cache(path, fileHandle):
     # Update the cache
     if os.path.exists(path):
         cache[path] = time.strftime(ISO_FORMAT, time.gmtime(os.path.getmtime(path)))
-    release_lock(cacheDir, cache)
+    write_cache_then_release_lock(cacheDir, cache)
     
 
 def remove_local_file_from_cache(path, fileHandle):
@@ -144,8 +150,11 @@ def get_alternate_file_name(path):
         
     return path
     
+######################
+## Helper functions ##
+######################
     
-def obtain_lock(cacheDir):
+def obtain_lock_and_read_cache(cacheDir):
     """
     Blocks until a '.lock' folder can be made in the given directory.
     See `Cache Map Design <https://sagebionetworks.jira.com/wiki/pages/viewpage.action?pageId=34373660#CommonClientCommandsetandCache%28%22C4%22%29-CacheMapDesign>`_.
@@ -159,7 +168,8 @@ def obtain_lock(cacheDir):
     cacheMap = os.path.join(cacheDir, '.cacheMap')
     
     # Make and thereby obtain the '.lock'
-    while True:
+    tryLockStartTime = time.time()
+    while time.time() - tryLockStartTime < CACHE_MAX_LOCK_TRY_TIME:
         try:
             os.makedirs(cacheLock)
             break
@@ -169,26 +179,20 @@ def obtain_lock(cacheDir):
                 raise err
         
         print "Waiting for cache to unlock"
-        try:
-            lockAge = time.time() - os.path.getmtime(cacheLock)
-            
-            # Sleep for a bit and check again
-            if lockAge < CACHE_LOCK_TIME and lockAge > 0:
-                time.sleep((CACHE_LOCK_TIME - lockAge) / CACHE_LOCK_TIME)
-                continue
+        if is_lock_valid(cacheLock):
+            time.sleep(CACHE_UNLOCK_WAIT_TIME)
+            continue
                 
-            # Lock expired, so delete and try to lock again
-            release_lock(cacheDir)
-        except OSError as err:
-            # Something else deleted the lock first
-            if err.errno != errno.ENOENT:
-                raise err
+        # Lock expired, so delete and try to lock again (in the next loop)
+        write_cache_then_release_lock(cacheDir)
+    
+    # Did it time out?
+    if time.time() - tryLockStartTime >= CACHE_MAX_LOCK_TRY_TIME:
+        raise Exception("Could not obtain a lock on the CacheMap within %d seconds.  Please try again later" % CACHE_MAX_LOCK_TRY_TIME)
         
-    # Make sure the '.cacheMap' exists
+    # Make sure the '.cacheMap' exists, otherwise just return a blank dictionary
     if not os.path.exists(cacheMap):
-        empty = open(cacheMap, 'w')
-        empty.write("{}")
-        empty.close()
+        return {}
         
     # Read and parse the '.cacheMap'
     cacheMap = open(cacheMap, 'r')
@@ -198,27 +202,50 @@ def obtain_lock(cacheDir):
     return cache
     
     
-def release_lock(cacheDir, cacheMapBody=None):
+def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
     """
     Removes the '.lock' folder in the given directory.
     
     :param cacheMapBody: JSON object to write in the '.cacheMap' before releasing the lock.
     """
     
+    cacheLock = os.path.join(cacheDir, '.lock')
+    
     # Update the '.cacheMap'
     if cacheMapBody is not None:
-        cacheMap = os.path.join(cacheDir, '.cacheMap')
-        json.dump(cacheMapBody, open(cacheMap, 'w'))
+        # Make sure the lock is still valid
+        if not is_lock_valid(cacheLock):
+            print "Lock has expired, reaquiring..."
+            relockedCacheMap = obtain_lock_and_read_cache(cacheDir)
+            # We assume that the rest of this operation can be completed within CACHE_LOCK_TIME seconds
+            relockedCacheMap.update(cacheMapBody)
+            cacheMapBody = relockedCacheMap
         
-    # Delete the '.lock'
-    cacheLock = os.path.join(cacheDir, '.lock')
+        cacheMap = os.path.join(cacheDir, '.cacheMap')
+        f = open(cacheMap, 'w')
+        json.dump(cacheMapBody, f)
+        f.close()
+        
+    # Delete the '.lock' (and anything that might have been put into it)
     try:
-        os.rmdir(cacheLock)
+        shutil.rmtree(cacheLock)
     except OSError as err:
-        if err.errno == errno.ENOTEMPTY:
-            raise Exception("Invalid lock state: %s is not empty" % cacheLock)
-        else: 
+        if err.errno != errno.ENOENT:
             raise err
+
+
+def is_lock_valid(cacheLock):
+    """Returns True if the lock has not expired yet."""
+    
+    try:
+        # The lock may sometimes have a slightly negative age (> -1 ms)
+        lockAge = time.time() - os.path.getmtime(cacheLock)
+        return abs(lockAge) < CACHE_LOCK_TIME
+    except OSError as err:
+        if err.errno == errno.ENOENT:
+            # Something else deleted the lock first, so lock is not valid
+            return False
+        raise err
     
     
 def normalize_path(path):

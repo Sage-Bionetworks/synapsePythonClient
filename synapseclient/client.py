@@ -391,11 +391,11 @@ class Synapse:
                                  Defaults to the most recent version.
         :param downloadFile:     Whether associated files(s) should be downloaded.  
                                  Defaults to True
-        :param downloadLocation: Where to download the Synapse File Entity.
+        :param downloadLocation: Directory where to download the Synapse File Entity.
                                  Defaults to the local cache.
         :param ifcollision:      Determines how to handle file collisions.
-                                 May be "overwriteLocal", "keepLocal", or "keepBoth".
-                                 Defaults to "keepBoth".
+                                 May be "overwrite.local", "keep.local", or "keep.both".
+                                 Defaults to "keep.both".
 
         :returns: A new Synapse Entity object of the appropriate type
         """
@@ -404,70 +404,72 @@ class Synapse:
         version = kwargs.get('version', None)
         downloadFile = kwargs.get('downloadFile', True)
         downloadLocation = kwargs.get('downloadLocation', None)
-        ifcollision = kwargs.get('ifcollision', 'keepBoth')
+        ifcollision = kwargs.get('ifcollision', 'keep.both')
         load = kwargs.get('load', False)
 
         # Retrieve metadata
         bundle = self._getEntityBundle(entity, version)
+        if bundle is None:
+            raise Exception("Could not determine the Synapse ID to fetch")
+            
+        # Make a fresh copy of the Entity
         local_state = entity.local_state() if isinstance(entity, Entity) else None
         properties = bundle['entity']
         annotations = from_synapse_annotations(bundle['annotations'])
-
-        # Make a fresh copy of the Entity
         entity = Entity.create(properties, annotations, local_state)
 
-        # For external URLs, we want to retrieve the URL from the 'fileHandle'
         if isinstance(entity, File):
+            fileName = entity['name']
+            
+            # Fill in some information about the file
+            # Note: fileHandles will be empty if there are unmet access requirements
+            for handle in bundle['fileHandles']:
+                if handle['id'] == bundle['entity']['dataFileHandleId']:
+                    entity.md5 = handle.get('contentMd5', '')
+                    entity.fileSize = handle.get('contentSize', None)
+                    fileName = handle['fileName']
+                    if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
+                        entity['externalURL'] = handle['externalURL']
+                        entity['synapseStore'] = False
         
             # Determine if the file should be downloaded
+            downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
             if downloadFile: 
-                downloadFile = cache.local_file_has_changed(bundle, downloadLocation)
+                downloadFile = cache.local_file_has_changed(bundle, downloadPath)
                 
             # Determine where the file should be downloaded to
             if downloadFile:
-                _, localLocation = cache.determine_local_file_location(bundle)
+                _, localPath = cache.determine_local_file_location(bundle)
                 
                 # By default, download to the local cache
-                if downloadLocation is None:
-                    downloadLocation = localLocation
+                if downloadPath is None:
+                    downloadPath = localPath
                     
                 # If the file already exists...
-                if os.path.exists(downloadLocation):
-                    if ifcollision == "overwriteLocal":
+                if os.path.exists(downloadPath):
+                    if ifcollision == "overwrite.local":
                         pass
                         
-                    elif ifcollision == "keepLocal":
+                    elif ifcollision == "keep.local":
                         downloadFile = False
                         
-                    elif ifcollision == "keepBoth":
-                        downloadLocation = cache.get_alternate_file_name(downloadLocation)
+                    elif ifcollision == "keep.both":
+                        downloadPath = cache.get_alternate_file_name(downloadPath)
                         
                     else:
                         raise Exception('Invalid parameter: "%s" is not a valid value for "ifcollision"' % ifcollision)
+
+            if downloadFile:
+                entity.update(self._downloadFileEntity(entity, downloadPath))
+                cache.add_local_file_to_cache(entity.path, bundle['entity']['dataFileHandleId'])
+            else:
+                # The local state of the FileEntity is normally updated by the _downloadFileEntity method
+                # Use the EntityBundle to fill in the path information
+                entity.update(cache.retrieve_local_file_info(bundle, downloadPath))
                 
-            # The local state of the FileEntity is normally updated by the _downloadFileEntity method
-            # Use the EntityBundle to fill in the path information
-            if not downloadFile:
-                entity.update(cache.retrieve_local_file_info(bundle, downloadLocation))
-            
-            # Note: fileHandles will be empty if there are unmet access requirements
-            for fh in bundle['fileHandles']:
-                if fh['id'] == bundle['entity']['dataFileHandleId']:
-                    entity.md5 = fh.get('contentMd5', '')
-                    entity.fileSize = fh.get('contentSize', None)
-                    if fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
-                        entity['externalURL'] = fh['externalURL']
-                        entity['synapseStore'] = False
-
-                        # By default, we download external URLs
-                        if downloadFile:
-                            entity.update(self._downloadFileEntity(entity, downloadLocation))
-                            cache.add_local_file_to_cache(entity.path, fh['id'])
-
-                    # By default, we download files stored in Synapse
-                    elif downloadFile:
-                        entity.update(self._downloadFileEntity(entity, downloadLocation))
-                        cache.add_local_file_to_cache(entity.path, fh['id'])
+                # If the file was not downloaded and does not exist, set the synapseStore flag appropriately
+                if not os.path.exists(entity['path']):
+                    entity['synapseStore'] = False
 
         ## TODO: version, here
         if downloadFile and is_locationable(entity):
@@ -499,7 +501,6 @@ class Synapse:
         createOrUpdate = kwargs.get('createOrUpdate', True)
         forceVersion = kwargs.get('forceVersion', True)
         isRestricted = kwargs.get('isRestricted', False)
-        forceVersion = kwargs.get('forceVersion', True)
 
         # Handle all non entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
@@ -526,33 +527,28 @@ class Synapse:
         entity = obj
         properties, annotations, local_state = split_entity_namespaces(entity)
 
-        # For FileEntities
-        if entity['entityType'] == File._synapse_entity_type and entity.get('path',False):
-
+        # Anything with a path, that is not locationable, is treated as a FileEntity
+        if entity.get('path', False) and not is_locationable(entity):
+            if 'entityType' not in properties:
+                properties['entityType'] = File._synapse_entity_type
+            
             # Check if the File already exists in Synapse by fetching metadata on it
-            bundle = None
-            try:
-                bundle = self._getEntityBundle(entity)
-            except Exception as err:
-                if not err.message.startswith("Invalid parameters: couldn't find id"):
-                    raise err
+            bundle = self._getEntityBundle(entity)
                     
             # Check if the file should be uploaded
             if bundle is None or cache.local_file_has_changed(bundle, entity['path']):
-                if 'dataFileHandleId' not in properties:
-                    fileHandle = self._uploadToFileHandleService(entity['path'], \
-                                            synapseStore=entity.get('synapseStore', True))
-                    cache.add_local_file_to_cache(entity['path'], fileHandle['id'])
-                    properties['dataFileHandleId'] = fileHandle['id']
-            elif 'dataFileHandleId' not in properties:
-                properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
+                fileHandle = self._uploadToFileHandleService(entity['path'], \
+                                        synapseStore=entity.get('synapseStore', True))
+                cache.add_local_file_to_cache(entity['path'], fileHandle['id'])
+                properties['dataFileHandleId'] = fileHandle['id']
                 
-                # If the version does not need to be updated, we can return here
-                if not forceVersion:
-                    # The file is cached and the properties/annotations can be derived from the bundle
-                    bundle['entity'].update(properties)
-                    bundle['annotations'].update(annotations)
-                    return Entity.create(bundle['entity'], bundle['annotations'], local_state)
+                # A file has been uploaded, so version must be updated
+                forceVersion = True
+                    
+            elif 'dataFileHandleId' not in properties:
+                # Handle the case where the Entity lacks an ID 
+                # But becomes an update() due to conflict
+                properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
 
         # For a Locationable, first create the Entity first, then upload the file
         if is_locationable(entity):
@@ -570,7 +566,7 @@ class Synapse:
 
         # Create or update Entity in Synapse
         if 'id' in properties:
-            properties = self._updateEntity(properties)
+            properties = self._updateEntity(properties, forceVersion)
         else:
             try:
                 properties = self._createEntity(properties)
@@ -658,6 +654,10 @@ class Synapse:
         #     this allows them to recover by doing: e = syn.get(e)
         if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
             entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId',ROOT_ENTITY))
+        
+        # Avoid an exception from finding an ID from a NoneType
+        try: id_of(entity) 
+        except: return None
         
         if version is not None:
             uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), version, bitFlags)
@@ -1328,7 +1328,7 @@ class Synapse:
     ############################################################
 
     def _downloadFileEntity(self, entity, destination):
-        # Download the file associated with a FileEntity to the given location.
+        # Download the file associated with a FileEntity to the given file path.
         if 'versionNumber' in entity:
             url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity), entity['versionNumber'])
         else:
@@ -1359,6 +1359,8 @@ class Synapse:
                 pathinfo = utils.file_url_to_path(url, verify_exists=True)
                 if 'path' not in pathinfo:
                     raise Exception("Could not download non-existent file (%s)." % url)
+                else:
+                    raise NotImplementedError("Files across a local network should be downloaded to the local cache")
 
             headers = {'sessionToken':self.sessionToken}
             response = requests.get(url, headers=headers, stream=True)

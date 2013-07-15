@@ -12,7 +12,6 @@ from synapseclient import Activity, Entity, Project, Folder, File, Data
 import integration
 from integration import create_project, schedule_for_cleanup
 
-
 def setup(module):
     print '\n'
     print '~' * 60
@@ -42,15 +41,14 @@ def test_slow_unlocker():
     """Manually grabs a lock and makes sure the get/store methods are blocked."""
     
     # Make a file to manually lock
-    project = create_project()
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    contention = File(path, parent=project)
+    contention = File(path, parent=syn.test_parent)
     contention = syn.store(contention)
     
     # Lock the Cache Map
     cacheDir = cache.determine_cache_directory(contention['dataFileHandleId'])
-    cache.obtain_lock(cacheDir)
+    cache.obtain_lock_and_read_cache(cacheDir)
     
     # Start a few calls to get/store that should not complete yet
     thread.start_new_thread(start_thread, (lambda: store_catch_412_HTTPError(contention), ))
@@ -59,7 +57,7 @@ def test_slow_unlocker():
     
     # Make sure the threads did not finish
     assert syn.test_threadsRunning > 0
-    cache.release_lock(cacheDir)
+    cache.write_cache_then_release_lock(cacheDir)
     
     # Let the threads go
     while syn.test_threadsRunning > 0:
@@ -91,7 +89,7 @@ def test_threaded_access():
     thread.start_new_thread(start_thread, (thread_get_and_update_file_from_Project, ))
     
     # Give the threads some time to wreak havoc on the cache
-    time.sleep(cache.CACHE_LOCK_TIME * 2)
+    time.sleep(30)
     
     print "Terminating threads"
     syn.test_keepRunning = False
