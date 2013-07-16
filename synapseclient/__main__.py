@@ -6,6 +6,7 @@ Synapse command line client
 For help, type synapse -h.
 
 """
+
 import argparse
 import os
 import shutil
@@ -18,7 +19,9 @@ import json
 
 
 def query(args, syn):
-    #TODO: Should use loop over multiple returned values if return is too long
+    """TODO_Sphinx."""
+    
+    ## TODO: Should use loop over multiple returned values if return is too long
     results = syn.chunkedQuery(' '.join(args.queryString))
 
     headings = {}
@@ -39,9 +42,11 @@ def query(args, syn):
 
         
 def get(args, syn):
+    """TODO_Sphinx."""
+    
     entity = syn.get(args.id)
     
-    ## Is this part even necessary?
+    ## TODO: Is this part even necessary?
     ## (Other than the print statements)
     if 'files' in entity:
         for file in entity['files']:
@@ -58,6 +63,8 @@ def get(args, syn):
     
     
 def store(args, syn):
+    """TODO_Sphinx."""
+    
     # Concatenate the multi-part arguments "name" and "description" 
     # so that the other functions can accept them
     if args.name is not None: args.name = ' '.join(args.name)
@@ -91,6 +98,8 @@ def store(args, syn):
 
 
 def cat(args, syn):
+    """TODO_Sphinx."""
+    
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     entity = syn.get(args.id)
     if 'files' in entity:
@@ -107,11 +116,15 @@ def show(args, syn):
 
     
 def delete(args, syn):
+    """TODO_Sphinx."""
+    
     syn.delete(args.id)
     print 'Deleted entity: %s' % args.id
 
     
 def upload(args, syn):
+    """TODO_Sphinx."""
+    
     if args.type == 'File': args.type = 'FileEntity'
     entity = {'name': args.name,
               'parentId': args.parentid,
@@ -126,6 +139,8 @@ def upload(args, syn):
 
 
 def create(args, syn):
+    """TODO_Sphinx."""
+    
     if args.type == 'File': args.type = 'FileEntity'
     entity={'name': args.name,
             'parentId': args.parentid,
@@ -137,6 +152,8 @@ def create(args, syn):
 
 
 def update(args, syn):
+    """TODO_Sphinx."""
+    
     entity = syn.get(args.id)
     entity.path = args.file
     entity = syn.store(entity)
@@ -144,12 +161,13 @@ def update(args, syn):
 
 
 def onweb(args, syn):
+    """TODO_Sphinx."""
+    
     syn.onweb(args.id)
 
 def setProvenance(args, syn):
-    """
-    set provenance information on a synapse entity
-    """
+    """Set provenance information on a synapse entity."""
+    
     activity = Activity(name=args.name, description=args.description)
     if args.used:
         for item in args.used:
@@ -159,7 +177,7 @@ def setProvenance(args, syn):
             activity.used(item, wasExecuted=True)
     activity = syn.setProvenance(args.id, activity)
 
-    ## display the activity record, if -o or -output specified
+    # Display the activity record, if -o or -output specified
     if args.output:
         if args.output=='STDOUT':
             sys.stdout.write(json.dumps(activity))
@@ -173,6 +191,8 @@ def setProvenance(args, syn):
 
 
 def getProvenance(args, syn):
+    """TODO_Sphinx."""
+    
     activity = syn.getProvenance(args.id)
 
     if args.output is None or args.output=='STDOUT':
@@ -184,6 +204,8 @@ def getProvenance(args, syn):
     
     
 def submit(args, syn):
+    """TODO_Sphinx."""
+    
     if args.name is not None: args.name = ' '.join(args.name)
     
     submission = syn.submit(args.evaluation, args.entity, args.name)

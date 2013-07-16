@@ -84,7 +84,8 @@ def test_getEntity():
 
 
 def test_entity_version():
-    """Test the ability to get specific versions of Synapse Entities"""
+    # Test the ability to get specific versions of Synapse Entities
+    
     #Create a new project
     project = create_project()
 
@@ -93,11 +94,13 @@ def test_entity_version():
 
     #Get new entity and check that it is same
     entity = syn.getEntity(entity)
+    syn.printEntity(entity)
     assert entity.versionNumber == 1
 
     entity.description = 'Changed something'
     entity.foo = 998877
     entity = syn.updateEntity(entity, incrementVersion=True)
+    syn.printEntity(entity)
     assert entity.versionNumber == 2
 
     annotations = syn.getAnnotations(entity, version=1)

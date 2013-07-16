@@ -122,6 +122,8 @@ def add_local_file_to_cache(path, fileHandle):
     
 
 def remove_local_file_from_cache(path, fileHandle):
+    """TODO_Sphinx"""
+    
     raise NotImplementedError("Behavior or usage of this method has not been decided yet")
     
     

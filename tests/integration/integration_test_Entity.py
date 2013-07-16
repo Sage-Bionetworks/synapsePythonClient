@@ -30,7 +30,7 @@ def setup(module):
 
 
 def test_Entity():
-    """test CRUD on Entity objects, Project, Folder, File with createEntity/getEntity/updateEntity"""
+    # Test CRUD on Entity objects, Project, Folder, File with createEntity/getEntity/updateEntity
     project_name = str(uuid.uuid4())
     project = Project(project_name, description='Bogus testing project')
     project = syn.createEntity(project)
@@ -86,8 +86,9 @@ def test_Entity():
 
     a_file = syn.uploadFile(a_file, new_path)
 
-    # This is a deprecated function anyway
-    assert_raises(NotImplementedError, syn.downloadEntity, a_file)
+    ## make sure file comes back intact
+    a_file = syn.downloadEntity(a_file)
+    assert filecmp.cmp(new_path, a_file.path)
 
 
 def test_deprecated_entity_types():

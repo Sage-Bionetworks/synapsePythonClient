@@ -81,13 +81,15 @@ from synapseclient.utils import id_of, class_of, itersubclasses
 import os
 
 
-## File, Locationable and Summary are Versionable
+# File, Locationable and Summary are Versionable
 class Versionable(object):
+    """TODO_Sphinx."""
+    
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Versionable'
     _property_keys = ['versionNumber', 'versionLabel', 'versionComment', 'versionUrl', 'versions']
 
-#TODO inherit from UserDict.DictMixin?
-# http://docs.python.org/2/library/userdict.html#UserDict.DictMixin
+## TODO: inherit from UserDict.DictMixin?
+##       http://docs.python.org/2/library/userdict.html#UserDict.DictMixin
 class Entity(collections.MutableMapping):
     """
     A Synapse entity is an object that has metadata, access control, and
@@ -108,7 +110,7 @@ class Entity(collections.MutableMapping):
         Create an Entity or a subclass given dictionaries of properties
         and annotations, as might be received from the Synapse Repository.
 
-        :param properties:  TODO
+        :param properties:  TODO_Sphinx
         
             If 'entityType' is defined in properties, we create the proper subclass
             of Entity. If not, give back the type whose constructor was called:
@@ -116,12 +118,13 @@ class Entity(collections.MutableMapping):
             If passed an Entity as input, create a new Entity using the input
             entity as a prototype.
             
-        :param annotations: TODO
+        :param annotations: TODO_Sphinx
         :param local_state: Allow local state to be given.  
                             This state information is not persisted 
                             in the Synapse Repository.
         """
-        ## create a new Entity using an existing entity as a prototype?
+        
+        # Create a new Entity using an existing Entity as a prototype
         if isinstance(properties, Entity):
             annotations = properties.annotations + (annotations if annotations else {})
             local_state = properties.local_state() + (local_state if local_state else {})
@@ -133,15 +136,18 @@ class Entity(collections.MutableMapping):
 
     @classmethod
     def getURI(self, id):
+        """TODO_Sphinx."""
+        
         return '/entity/%s' %id
 
 
     def __new__(typ, *args, **kwargs):
         obj = object.__new__(typ, *args, **kwargs)
-        ## make really sure that properties and annotations exist before
-        ## any object methods get invoked. This is important because the
-        ## dot operator magic methods have been over-ridden and depend on
-        ## properties and annotations existing.
+        
+        # Make really sure that properties and annotations exist before
+        # any object methods get invoked. This is important because the
+        # dot operator magic methods have been overridden and depend on
+        # properties and annotations existing.
         obj.__dict__['properties'] = DictObject()
         obj.__dict__['annotations'] = DictObject()
         return obj
@@ -176,7 +182,7 @@ class Entity(collections.MutableMapping):
             if key not in self.__dict__:
                 self.__dict__[key] = None
 
-        ## extract parentId from parent
+        # Extract parentId from parent
         if 'parentId' not in kwargs:
             try:
                 if parent: kwargs['parentId'] = id_of(parent)
@@ -186,8 +192,8 @@ class Entity(collections.MutableMapping):
                 else:
                     raise Exception('Couldn\'t find \'id\' of parent.')
 
-        ## note that this will work properly if derived classes declare their
-        ## internal state variable *before* invoking super(...).__init__(...)
+        # Note: that this will work properly if derived classes declare their
+        # internal state variable *before* invoking super(...).__init__(...)
         for key, value in kwargs.items():
             self.__setitem__(key, value)
 
@@ -196,18 +202,24 @@ class Entity(collections.MutableMapping):
 
 
     def postURI(self):
+        """TODO_Sphinx."""
+        
         return '/entity'
 
     def putURI(self):
+        """TODO_Sphinx."""
+        
         return '/entity/%s' %self.id
 
     def deleteURI(self):
+        """TODO_Sphinx."""
+        
         return '/entity/%s' %self.id
 
 
     def local_state(self, state=None):
         """
-        Set or get the object's internal state, excluding properties or annotations.
+        Set or get the object's internal state, excluding properties, or annotations.
         
         :param state: A dictionary
         """
@@ -223,16 +235,20 @@ class Entity(collections.MutableMapping):
 
 
     def __setattr__(self, key, value):
+        """TODO_Sphinx."""
+        
         return self.__setitem__(key, value)
 
 
     def __setitem__(self, key, value):
+        """TODO_Sphinx."""
+        
         if key in self.__dict__:
-            ## if we assign like so:
-            ##   entity.annotations = {'foo';123, 'bar':'bat'}
-            ## wrap the dictionary in a DictObject so we can
-            ## later do:
-            ##   entity.annotations.foo = 'bar'
+            # If we assign like so:
+            #   entity.annotations = {'foo';123, 'bar':'bat'}
+            # Wrap the dictionary in a DictObject so we can
+            # later do:
+            #   entity.annotations.foo = 'bar'
             if (key=='annotations' or key=='properties') and not isinstance(value, DictObject):
                 value = DictObject(value)
             self.__dict__[key] = value
@@ -241,15 +257,19 @@ class Entity(collections.MutableMapping):
         else:
             self.annotations[key] = value
 
-    #TODO def __delattr__
+    ## TODO: def __delattr__
 
     def __getattr__(self, key):
-        ## note that __getattr__ is only called after an attempt to
-        ## look the key up in the object's dictionary has failed.
+        """TODO_Sphinx."""
+        
+        # Note: that __getattr__ is only called after an attempt to
+        # look the key up in the object's dictionary has failed.
         return self.__getitem__(key)
 
 
     def __getitem__(self, key):
+        """TODO_Sphinx."""
+        
         if key in self.__dict__:
             return self.__dict__[key]
         elif key in self.properties:
@@ -260,6 +280,8 @@ class Entity(collections.MutableMapping):
             raise KeyError(key)
 
     def __delitem__(self, key):
+        """TODO_Sphinx."""
+        
         if key in self.properties:
             del self.properties[key]
         elif key in self.annotations:
@@ -267,22 +289,30 @@ class Entity(collections.MutableMapping):
 
 
     def __iter__(self):
+        """TODO_Sphinx."""
+        
         return iter(self.keys())
 
 
     def __len__(self):
+        """TODO_Sphinx."""
+        
         return len(self.keys())
 
 
     def keys(self):
         """Returns a set of property and annotation keys"""
+        
         return set(self.properties.keys() + self.annotations.keys())
 
     def has_key(self, key):
         """Is the given key a property or annotation?"""
+        
         return key in self.properties or key in self.annotations
 
-    def __str__(self):            
+    def __str__(self):
+        """TODO_Sphinx."""
+        
         from cStringIO import StringIO
         f = StringIO()
 
@@ -308,7 +338,8 @@ class Entity(collections.MutableMapping):
         return f.getvalue()
 
     def __repr__(self):
-        """Returns an eval-able representation of the entity"""
+        """Returns an eval-able representation of the Entity."""
+        
         from cStringIO import StringIO
         f = StringIO()
         f.write(self.__class__.__name__)
@@ -324,7 +355,6 @@ class Entity(collections.MutableMapping):
         return f.getvalue()
 
 
-
 class Project(Entity):
     """
     Represents a project in Synapse.
@@ -337,6 +367,7 @@ class Project(Entity):
         project = Project('Foobarbat project')
         project = syn.store(project)
     """
+    
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Project'
 
     def __init__(self, name=None, properties=None, annotations=None, local_state=None, **kwargs):
@@ -356,6 +387,7 @@ class Folder(Entity):
         folder = Folder('my data', parent=project)
         folder = syn.store(Folder)
     """
+    
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Folder'
 
     def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
@@ -376,11 +408,12 @@ class File(Entity, Versionable):
         data = File('/path/to/file/data.xyz', parent=folder)
         data = syn.store(data)
     """
+    
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
     _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
-    #TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
+    ## TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
     def __init__(self, path=None, parent=None, synapseStore=True, properties=None, 
                  annotations=None, local_state=None, **kwargs):
         if path and 'name' not in kwargs:
@@ -399,8 +432,8 @@ class File(Entity, Versionable):
 
 
 
-## Deprecated, but kept around for compatibility with
-## old-style Data, Code, Study, etc. entities
+# Deprecated, but kept around for compatibility with
+# old-style Data, Code, Study, etc. entities
 class Locationable(Versionable):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Locationable'
     _local_keys = Entity._local_keys + ['cacheDir', 'files', 'path']
@@ -432,8 +465,7 @@ class Summary(Entity, Versionable):
 
 
 
-## Create a mapping from Synapse class (as a string) to the equivalent
-## Python class.
+# Create a mapping from Synapse class (as a string) to the equivalent Python class.
 _entity_type_to_class = {}
 for cls in itersubclasses(Entity):
     _entity_type_to_class[cls._synapse_entity_type] = cls
@@ -442,13 +474,15 @@ for cls in itersubclasses(Entity):
 def split_entity_namespaces(entity):
     """
     Given a plain dictionary or an Entity object,
-    split into properties, annotations and local state.
-    A dictionary will be processed as a specific type of Entity if its
-    entityType field is recognized and otherwise as a generic Entity.
-    Returns a 3-item tuple: (properties, annotations, local_state).
+    splits the object into properties, annotations and local state.
+    A dictionary will be processed as a specific type of Entity 
+    if it has a valid 'entityType' field, 
+    otherwise it is treated as a generic Entity.
+    
+    :returns: a 3-tuple (properties, annotations, local_state).
     """
     if isinstance(entity, Entity):
-        ## defensive programming: return copies
+        # Defensive programming: return copies
         return (entity.properties.copy(), entity.annotations.copy(), entity.local_state())
 
     if not isinstance(entity, collections.Mapping):
@@ -477,7 +511,8 @@ def split_entity_namespaces(entity):
 
 
 def is_versionable(entity):
-    """Return True if the given entity's entityType is one that is Versionable"""
+    """Return True if the given entity's entityType is one that is Versionable."""
+    
     if 'entityType' in entity and entity['entityType'] in _entity_type_to_class:
         entity_class = _entity_type_to_class[entity['entityType']]
     else:
@@ -486,7 +521,8 @@ def is_versionable(entity):
 
 
 def is_locationable(entity):
-    """Return True if the given entity is Locationable"""
+    """Return True if the given entity is Locationable."""
+    
     if isinstance(entity, collections.Mapping):
         if 'entityType' in entity:
             return entity['entityType'] in ['org.sagebionetworks.repo.model.Data',
