@@ -8,6 +8,7 @@ import filecmp
 import os
 import sys
 import requests
+import time
 from datetime import datetime as Datetime
 
 import synapseclient
@@ -29,7 +30,7 @@ def setup(module):
 
 
 def test_Entity():
-    """test CRUD on Entity objects, Project, Folder, File with createEntity/getEntity/updateEntity"""
+    # Test CRUD on Entity objects, Project, Folder, File with createEntity/getEntity/updateEntity
     project_name = str(uuid.uuid4())
     project = Project(project_name, description='Bogus testing project')
     project = syn.createEntity(project)
@@ -167,7 +168,7 @@ def test_get_and_store():
     assert random_data_2.versionNumber == 2
 
     ## make sure we can still get the older version of file
-    old_random_data=syn.get(random_data.id, version=random_data.versionNumber)
+    old_random_data = syn.get(random_data.id, version=1)
     assert filecmp.cmp(old_random_data.path, path)
 
 
@@ -179,27 +180,96 @@ def test_store_with_create_or_update_flag():
 
     bogus1 = syn.store(bogus1, createOrUpdate=True)
 
-    ## create a different file with the same name and parent
+    # Create a different file with the same name and parent
     new_filepath = utils.make_bogus_binary_file()
-    bogus2 = File(new_filepath, name='Bogus Test File', parent=project)
+    bogus1.path = new_filepath
 
-    ## expected behavior is that a new version of the first File will be created
-    bogus2 = syn.store(bogus2, createOrUpdate=True)
+    # Expected behavior is that a new version of the first File will be created
+    bogus2 = syn.store(bogus1, createOrUpdate=True)
 
     assert bogus2.id == bogus1.id
     assert bogus2.versionNumber == 2
-    assert not filecmp.cmp(bogus2.path, bogus1.path)
+    assert not filecmp.cmp(bogus2.path, filepath)
 
     bogus2a = syn.get(bogus2.id)
     assert bogus2a.id == bogus1.id
     assert bogus2a.versionNumber == 2
     assert filecmp.cmp(bogus2.path, bogus2a.path)
 
-    ## create a different file with the same name and parent
-    del bogus2.properties.id
+    # Create yet another file with the same name and parent
+    newer_filepath = utils.make_bogus_binary_file()
+    bogus3 = File(newer_filepath, name='Bogus Test File', parent=project)
 
-    ## expected behavior is raising an exception with a 409 error
-    assert_raises(requests.exceptions.HTTPError, syn.store, bogus2, createOrUpdate=False)
+    # Expected behavior is raising an exception with a 409 error
+    assert_raises(requests.exceptions.HTTPError, syn.store, bogus3, createOrUpdate=False)
+
+
+def test_store_with_force_version_flag():
+    project = create_project()
+
+    filepath = utils.make_bogus_binary_file()
+    bogus1 = File(filepath, name='Bogus Test File', parent=project)
+
+    # Expect to get version 1 back
+    bogus1 = syn.store(bogus1, forceVersion=False)
+    assert bogus1.versionNumber == 1
+
+    # Re-store the same thing and don't up the version
+    bogus2 = syn.store(bogus1, forceVersion=False)
+    assert bogus1.versionNumber == 1
+    
+    # Create a different file with the same name and parent
+    new_filepath = utils.make_bogus_binary_file()
+    bogus2.path = new_filepath
+
+    # Expected behavior is that a new version of the first File will be created
+    bogus2 = syn.store(bogus2, forceVersion=False)
+    assert bogus2.id == bogus1.id
+    assert bogus2.versionNumber == 2
+    assert not filecmp.cmp(bogus2.path, filepath)
+
+
+def test_get_with_downloadLocation_and_ifcollision():
+    project = create_project()
+
+    # Make the file to get then delete it
+    filepath = utils.make_bogus_binary_file()
+    bogus = File(filepath, name='Bogus Test File', parent=project)
+    bogus = syn.store(bogus)
+    os.remove(filepath)
+
+    # Compare stuff to this one
+    normalBogus = syn.get(bogus)
+    
+    # Download to the temp folder, should be the same
+    otherBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath))
+    assert otherBogus.id == normalBogus.id
+    assert filecmp.cmp(otherBogus.path, normalBogus.path)
+    
+    # Invalidate the downloaded file's timestamps
+    os.utime(otherBogus.path, (0, 0))
+    badtimestamps = os.path.getmtime(otherBogus.path)
+    
+    # Download again, should change the modification time
+    overwriteBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath), ifcollision="overwrite.local")
+    overwriteModTime = os.path.getmtime(overwriteBogus.path)
+    assert badtimestamps != overwriteModTime
+    
+    # Download again, should not change the modification time
+    otherBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath), ifcollision="keep.local")
+    assert overwriteModTime == os.path.getmtime(otherBogus.path)
+    
+    # Invalidate the timestamps again
+    os.utime(otherBogus.path, (0, 0))
+    badtimestamps = os.path.getmtime(otherBogus.path)
+    
+    # Download once more, but rename
+    renamedBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath), ifcollision="keep.both")
+    assert otherBogus.path != renamedBogus.path
+    assert filecmp.cmp(otherBogus.path, renamedBogus.path)
+    
+    os.remove(otherBogus.path)
+    os.remove(renamedBogus.path)
 
 
 def test_store_dictionary():
@@ -406,18 +476,16 @@ def test_synapseStore_flag():
     ## a file path that doesn't exist should still work
     f2 = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)
     f2 = syn.store(f2)
-    f2a = syn.get(f2)
-
-    assert f2a.name == 'file1.xyz'
-    assert f2a.path == '/path/to/local/file1.xyz'
+    try:
+        syn.get(f2)
+        assert False
+    except Exception as err:
+        assert err.message.startswith("Could not download non-existent file")
     assert f1a.synapseStore == False
 
     ## Try a URL
     f3 = File('http://dev-versions.synapse.sagebase.org/synapsePythonClient', parent=project, synapseStore=False)
     f3 = syn.store(f3)
     f3a = syn.get(f3)
-
-    assert f2a.name == 'file1.xyz'
-    assert f2a.path == '/path/to/local/file1.xyz'
     assert f1a.synapseStore == False
 

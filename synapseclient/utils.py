@@ -47,12 +47,6 @@ Testing
 .. automethod:: synapseclient.utils.synapse_error_msg
 .. automethod:: synapseclient.utils.debug_response
 .. automethod:: synapseclient.version_check.version_check
-   
-~~~~~~~~~~~~~~
-I have no idea
-~~~~~~~~~~~~~~
-
-.. automethod:: synapseclient.utils.itersubclasses
 
 """
 
@@ -140,6 +134,8 @@ def guess_object_type(obj):
 
 
 def _get_from_members_items_or_properties(obj, key):
+    """TODO_Sphinx."""
+    
     try:
         if hasattr(obj, key):
             return obj.id
@@ -154,7 +150,7 @@ def _get_from_members_items_or_properties(obj, key):
     except (KeyError, TypeError): pass
     return None
 
-#TODO: what does this do on an unsaved Synapse Entity object?
+## TODO: what does this do on an unsaved Synapse Entity object?
 def id_of(obj):
     """
     Try to figure out the Synapse ID of the given object.  
@@ -262,11 +258,15 @@ def is_synapse_id(obj):
     return None
 
 def _is_date(dt):
+    """TODO_Sphinx."""
+    
     # Objects of class datetime.date and datetime.datetime will be recognized as dates
     return isinstance(dt,Date) or isinstance(dt,Datetime)
 
 
 def _to_list(value):
+    """TODO_Sphinx."""
+    
     # Convert the value (an iterable or a scalar value) to a list.
     if isinstance(value, collections.Iterable) and not isinstance(value, basestring):
         return list(value)
@@ -275,6 +275,8 @@ def _to_list(value):
 
 
 def _to_iterable(value):
+    """TODO_Sphinx."""
+    
     # Convert the value (an iterable or a scalar value) to a list.
     if isinstance(value, basestring):
         return (value,)
@@ -283,7 +285,7 @@ def _to_iterable(value):
     return (value,)
 
 
-def make_bogus_data_file(n=100, seed=12345):
+def make_bogus_data_file(n=100, seed=None):
     """
     Makes a bogus data file for testing.  
     It is the caller's responsibility to clean up the file when finished.
@@ -293,8 +295,10 @@ def make_bogus_data_file(n=100, seed=12345):
     
     :returns: The name of the file
     """
+    
     import random
-    random.seed(seed)
+    if seed is not None:
+        random.seed(seed)
     data = [random.gauss(mu=0.0, sigma=1.0) for i in range(n)]
 
     f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
@@ -317,6 +321,7 @@ def make_bogus_binary_file(n=1*MB, verbose=False):
     
     :returns: The name of the file
     """
+    
     if verbose:
         sys.stdout.write('writing bogus file')
     junk = os.urandom(min(n, 1*MB))
@@ -331,7 +336,6 @@ def make_bogus_binary_file(n=1*MB, verbose=False):
     return f.name
 
 
-## turns a datetime object into a unix epoch time expressed as a float
 def to_unix_epoch_time(dt):
     """
     Convert either `datetime.date or datetime.datetime objects 
@@ -346,9 +350,9 @@ def to_unix_epoch_time(dt):
 def from_unix_epoch_time(ms):
     """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
     
-    ## utcfromtimestamp fails for negative values (dates before 1970-1-1) on windows
-    ## so, here's a hack that enables ancient events, such as Chris's birthday be
-    ## converted from ms since the unix epoch to higher level Datetime objects. Ha!
+    # utcfromtimestamp() fails for negative values (dates before 1970-1-1) on Windows
+    # so, here's a hack that enables ancient events, such as Chris's birthday to be
+    # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!
     if platform.system()=='Windows' and ms < 0:
         mirror_date = Datetime.utcfromtimestamp(abs(ms)/1000.0)
         return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
@@ -356,9 +360,7 @@ def from_unix_epoch_time(ms):
 
 
 def format_time_interval(seconds):
-    """
-    TODO_Sphinx
-    """
+    """TODO_Sphinx."""
     
     periods = (
         ('year',        60*60*24*365),
@@ -380,9 +382,9 @@ def format_time_interval(seconds):
     return ", ".join(result)
 
 
-## a helper method to find a particular used resource in an activity
-## that matches a predicate
 def _find_used(activity, predicate):
+    """Finds a particular used resource in an activity that matches a predicate."""
+    
     for resource in activity['used']:
         if predicate(resource):
             return resource
@@ -390,9 +392,8 @@ def _find_used(activity, predicate):
 
 
 def synapse_error_msg(ex):
-    """
-    TODO_Sphinx
-    """
+    """TODO_Sphinx."""
+    
     
     if isinstance(ex, basestring):
         return ex
@@ -415,7 +416,7 @@ def synapse_error_msg(ex):
 def debug_response(response):
     """
     Given a `requests.Response object <http://www.python-requests.org/en/latest/api/#requests.Response>`_, 
-    print debugging information.
+    prints debugging information.
     """
     
     try:
@@ -442,11 +443,10 @@ def debug_response(response):
 BUFFER_SIZE = 8*KB
 
 class Chunk(object):
-    """
-    TODO_Sphinx
-    """
+    """TODO_Sphinx."""
     
-    ## TODO implement seek and tell?
+    
+    ## TODO: implement seek and tell?
 
     def __init__(self, fileobj, size):
         self.fileobj = fileobj
@@ -455,9 +455,8 @@ class Chunk(object):
         self.closed = False
 
     def read(self, size=None):
-        """
-        TODO_Sphinx
-        """
+        """TODO_Sphinx."""
+    
         
         if size is None or size <= 0:
             size = self.size - self.position
@@ -471,23 +470,23 @@ class Chunk(object):
         return self.fileobj.read(size)
 
     def mode(self):
-        """
-        TODO_Sphinx
-        """
-        
+        """TODO_Sphinx."""
+    
         return self.fileobj.mode()
 
     def __len__(self):
+        """TODO_Sphinx."""
+    
         return self.size
 
     def __iter__(self):
+        """TODO_Sphinx."""
+    
         return self
 
     def next(self):
-        """
-        TODO_Sphinx
-        """
-        
+        """TODO_Sphinx."""
+    
         if self.closed:
             raise StopIteration
         data = self.read(BUFFER_SIZE)
@@ -496,15 +495,14 @@ class Chunk(object):
         return data
 
     def close(self):
-        """
-        TODO_Sphinx
-        """
-        
+        """TODO_Sphinx."""
+    
         self.closed = True
 
 
 def chunks(fileobj, chunksize=5*MB):
     """Generate file-like objects from which chunksize bytes can be streamed."""
+    
     remaining = os.stat(fileobj.name).st_size
     while remaining > 0:
         chunk = Chunk(fileobj, size=min(remaining, chunksize))
@@ -512,10 +510,10 @@ def chunks(fileobj, chunksize=5*MB):
         yield chunk
 
 
-## http://code.activestate.com/recipes/576949/ (r3)
 def itersubclasses(cls, _seen=None):
     """
     TODO_Sphinx - Clean up this comment
+    http://code.activestate.com/recipes/576949/ (r3)
     
     itersubclasses(cls)
 
@@ -561,6 +559,7 @@ def normalize_whitespace(s):
     Strips the string and replace all whitespace sequences and other
     non-printable characters with a single space.
     """
+    
     assert isinstance(s, str) or isinstance(s, unicode)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
 

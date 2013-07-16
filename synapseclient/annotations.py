@@ -49,7 +49,7 @@ def to_synapse_annotations(annotations):
                 synapseAnnos.setdefault('doubleAnnotations', {})[key] = elements
             elif all((_is_date(elem) for elem in elements)):
                 synapseAnnos.setdefault('dateAnnotations', {})[key] = [to_unix_epoch_time(elem) for elem in elements]
-            #TODO support blob annotations
+            ## TODO: support blob annotations
             # elif all((isinstance(elem, ???) for elem in elements)):
             #     synapseAnnos.setdefault('blobAnnotations', {})[key] = [???(elem) for elem in elements]
             else:
@@ -60,8 +60,8 @@ def to_synapse_annotations(annotations):
 def from_synapse_annotations(annotations):
     """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
     
-    ## flatten the raw annos to consolidate doubleAnnotations, longAnnotations,
-    ## stringAnnotations and dateAnnotations into one dictionary
+    # Flatten the raw annotations to consolidate doubleAnnotations, longAnnotations,
+    # stringAnnotations and dateAnnotations into one dictionary
     annos = dict()
     for key, value in annotations.iteritems():
         if key=='dateAnnotations':
@@ -72,7 +72,7 @@ def from_synapse_annotations(annotations):
             for k,v in value.iteritems():
                 annos.setdefault(k,[]).extend(v)
         elif key=='blobAnnotations':
-            pass ## TODO? blob annotations not supported
+            pass ## TODO: blob annotations not supported
         else:
             annos[key] = value
     return annos

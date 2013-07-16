@@ -75,16 +75,17 @@ def test_getEntity():
     entity = create_project()
 
     #Get new entity and check that it is same
-    returnEntity = syn.getEntity(entity)
+    returnEntity = syn.get(entity)
     assert entity.properties == returnEntity.properties
 
     #Get entity by id
-    returnEntity = syn.getEntity(entity['id'])
+    returnEntity = syn.get(entity['id'])
     assert entity.properties == returnEntity.properties
 
 
 def test_entity_version():
-    """Test the ability to get specific versions of Synapse Entities"""
+    # Test the ability to get specific versions of Synapse Entities
+    
     #Create a new project
     project = create_project()
 
@@ -176,7 +177,8 @@ def test_updateEntity_version():
     entity['description'] = 'This is a test entity...'
     entity = syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
     returnEntity = syn.getEntity(entity)
-    #syn.printEntity(returnEntity)
+    
+    # syn.printEntity(returnEntity)
     assert returnEntity['name'] == 'foobarbat'
     assert returnEntity['description'] == 'This is a test entity...'
     assert returnEntity['versionNumber'] == 2
@@ -223,6 +225,30 @@ def test_chunked_query():
     
     # Restore the size of the query limit
     client.QUERY_LIMIT = oldLimit
+    
+
+def test_md5_query():
+    # Create a project then add the same entity several times and retrieve them via MD5
+    project = create_project()
+    
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    repeated = File(path, parent=project['id'], description='Same data over and over again')
+    
+    num = 5
+    for i in range(num):
+        try:
+            repeated.name = 'Repeated data %d.dat' % i
+            syn.store(repeated)
+        except Exception as ex:
+            print ex
+            print ex.response.text
+    results = syn.md5Query(utils.md5_for_file(path).hexdigest())
+    print [res['id'] for res in results]
+    
+    ## Not sure how to make this assertion more accurate
+    ## Although we expect num results, it is possible for the MD5 to be non-unique
+    assert len(results) == num
 
 
 def test_deleteEntity():
@@ -284,34 +310,38 @@ def test_uploadFile_given_dictionary():
 def test_uploadFileEntity():
     projectEntity = create_project()
 
-    ## entityType will default to FileEntity
-    entity = {'name':'foo', 'description':'A test file entity', 'parentId':projectEntity['id']}
-
-    #create a temporary file
+    # Defaults to FileEntity
     fname = utils.make_bogus_data_file()
+    entity = {'name'        : 'foo', \
+              'description' : 'A test file entity', \
+              'parentId'    : projectEntity['id'], \
+              'path'        : fname}
 
-    ## create new FileEntity
-    entity = syn.uploadFile(entity, fname)
+    # Create new FileEntity
+    entity = syn.store(entity)
 
-    #Download and verify
-    entity = syn.downloadEntity(entity)
-    assert entity['files'][0]==os.path.basename(fname)
+    # Download and verify
+    entity = syn.get(entity)
+    assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
-    ## check if we upload the wrong type of file handle
+    # Check if we upload the wrong type of file handle
     fh = syn.restGET('/entity/%s/filehandles' % entity.id)['list'][0]
     assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
     os.remove(fname)
 
-    #create a different temporary file
+    # Create a different temporary file
     fname = utils.make_bogus_data_file()
+    entity['path'] = fname
 
-    ## update existing FileEntity
-    entity = syn.uploadFile(entity, fname)
+    # Update existing FileEntity
+    entity = syn.store(entity)
 
-    #Download and verify that it is the same filename
-    entity = syn.downloadEntity(entity)
-    assert entity['files'][0]==os.path.basename(fname)
+    # Download and verify that it is the same filename
+    entity = syn.get(entity)
+    print entity['files'][0]
+    print os.path.basename(fname)
+    assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
     os.remove(fname)
 
@@ -476,19 +506,26 @@ def test_keyword_annotations():
 
 
 def test_fileHandle():
-    ## file the setup.py file to upload
-    path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+    syn.debug = True
+    
+    try:
+        ## file the setup.py file to upload
+        path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
 
-    ## upload a file to the file handle service
-    fileHandle = syn._uploadFileToFileHandleService(path)
+        ## upload a file to the file handle service
+        fileHandle = syn._uploadFileToFileHandleService(path)
 
-    fileHandle2 = syn._getFileHandle(fileHandle)
+        fileHandle2 = syn._getFileHandle(fileHandle)
 
-    # print fileHandle
-    # print fileHandle2
-    assert fileHandle==fileHandle2
+        # print fileHandle
+        # print fileHandle2
+        assert fileHandle==fileHandle2
 
-    syn._deleteFileHandle(fileHandle)
+        syn._deleteFileHandle(fileHandle)
+    except:
+        syn.debug = False
+        raise
+    syn.debug = False
 
 
 def test_fileEntity_round_trip():
