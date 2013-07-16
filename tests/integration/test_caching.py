@@ -47,7 +47,7 @@ def test_slow_unlocker():
     contention = syn.store(contention)
     
     # Lock the Cache Map
-    cacheDir = cache.determine_cache_directory(contention['dataFileHandleId'])
+    cacheDir = cache.determine_cache_directory(contention)
     cache.obtain_lock_and_read_cache(cacheDir)
     
     # Start a few calls to get/store that should not complete yet

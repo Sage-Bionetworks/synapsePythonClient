@@ -25,8 +25,9 @@ Helpers
 
 """
 
-import os, sys, re, json, time, errno, shutil, filecmp
+import os, sys, re, json, time, errno, shutil, filecmp, urlparse
 import synapseclient.utils as utils
+from synapseclient.entity import is_locationable
 from threading import Lock
 
 CACHE_DIR = os.path.join(os.path.expanduser('~'), '.synapseCache')
@@ -88,36 +89,36 @@ def local_file_has_changed(entityBundle, path=None):
     return not unmodifiedFileExists
         
         
-def add_local_file_to_cache(path, fileHandle):
+def add_local_file_to_cache(entity):
     """
     Makes a '.cacheMap' entry in the cache.  
     
-    :param path:       Path to the local file.  May be in any format.  
-    :param fileHandle: An S3 file handle used to identify the file.
-    
+    :param entity: A Synapse Entity object or dictionary with a 'path'.
+                   FileEntities require a 'dataFileHandleID'.
+                   Locationables require a 'id' and 'versionNumber'.
     """
         
     # External URLs will be ignored
-    if utils.is_url(path):
+    if utils.is_url(entity['path']):
         return True
     
     # Get the '.cacheMap'
-    cacheDir = determine_cache_directory(fileHandle)
-    path = normalize_path(path)
+    cacheDir = determine_cache_directory(entity)
+    entity['path'] = normalize_path(entity['path'])
     cache = obtain_lock_and_read_cache(cacheDir)
     
     # If the file to-be-added does not exist, search the cache for a pristine copy
-    if not os.path.exists(path):
+    if not os.path.exists(entity['path']):
         for file in cache.keys():
             fileMTime = time.mktime(time.gmtime(os.path.getmtime(file)))
             cacheTime = read_cache_entry(cache[file])
             if fileMTime == cacheTime and os.path.exists(file):
-                shutil.copyfile(file, path)
+                shutil.copyfile(file, entity['path'])
                 break
                 
     # Update the cache
-    if os.path.exists(path):
-        cache[path] = time.strftime(ISO_FORMAT, time.gmtime(os.path.getmtime(path)))
+    if os.path.exists(entity['path']):
+        cache[entity['path']] = time.strftime(ISO_FORMAT, time.gmtime(os.path.getmtime(entity['path'])))
     write_cache_then_release_lock(cacheDir, cache)
     
 
@@ -135,11 +136,49 @@ def retrieve_local_file_info(entityBundle, path=None):
     cacheDir, filepath = determine_local_file_location(entityBundle)
     if path is None:
         path = filepath
+        
+    # No file info to retrieve
+    if path is None:
+        return {}
     
     return {
         'path': path,
         'files': [os.path.basename(path)],
         'cacheDir': os.path.dirname(path) }
+
+    
+def determine_local_file_location(entityBundle):
+    """
+    Uses information from an Entity bundle to derive the cache directory and cached file location
+    
+    :param entityBundle: A dictionary with 'fileHandles' and 'entity'.
+                         Typically created via::
+
+        syn._getEntityBundle()
+    
+    :returns: A 2-tuple (cache directory, file location)
+              File location may be None if there is no file associated with the Entity
+    """
+    
+    cacheDir = determine_cache_directory(entityBundle['entity'])
+    if is_locationable(entityBundle['entity']):
+        if 'locations' not in entityBundle['entity']:
+            # This Locationable does not have an associated file
+            return cacheDir, None
+            
+        url = entityBundle['entity']['locations'][0]['path']
+        filename = urlparse.urlparse(url).path.split('/')[-1]
+        path = os.path.join(cacheDir, filename)
+        return cacheDir, path
+        
+    else:
+        for handle in entityBundle['fileHandles']:
+            if handle['id'] == entityBundle['entity']['dataFileHandleId']:
+                path = os.path.join(cacheDir, handle['fileName'])
+                return cacheDir, path
+                    
+        raise Exception("Invalid parameters: the entityBundle does not contain matching file handle IDs")
+    
 
 def get_alternate_file_name(path):
     """Returns a non-colliding path by appending (%d) to the end of the file name."""
@@ -256,34 +295,16 @@ def normalize_path(path):
     return re.sub(r'\\', '/', os.path.abspath(path))
 
     
-def determine_cache_directory(fileHandle):
+def determine_cache_directory(entity):
     """Uses a file handle to determine the cache folder."""
     
+    if is_locationable(entity):
+        return os.path.join(CACHE_DIR, entity['id'], str(entity['versionNumber']))
+        
+    fileHandle = entity['dataFileHandleId']
     return os.path.join(CACHE_DIR, str(int(fileHandle) % CACHE_FANOUT), fileHandle)
-
-    
-def determine_local_file_location(entityBundle):
-    """
-    Uses information from an Entity bundle to derive the cache directory and cached file location
-    
-    :param entityBundle: A dictionary with 'fileHandles' and 'entity'.
-                         Typically created via::
-
-        syn._getEntityBundle()
-    
-    :returns: The cache directory, the file location
-    
-    """
-    
-    for handle in entityBundle['fileHandles']:
-        if handle['id'] == entityBundle['entity']['dataFileHandleId']:
-            cacheDir = determine_cache_directory(handle['id'])
-            path = os.path.join(cacheDir, handle['fileName'])
-            return cacheDir, path
-                
-    raise Exception("Invalid parameters: the entityBundle does not contain matching file handle IDs")
-    
-
+        
+        
 strptimeLock = Lock()
 def read_cache_entry(isoTime):
     """

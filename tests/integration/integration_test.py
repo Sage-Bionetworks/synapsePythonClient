@@ -94,13 +94,11 @@ def test_entity_version():
 
     #Get new entity and check that it is same
     entity = syn.getEntity(entity)
-    syn.printEntity(entity)
     assert entity.versionNumber == 1
 
     entity.description = 'Changed something'
     entity.foo = 998877
     entity = syn.updateEntity(entity, incrementVersion=True)
-    syn.printEntity(entity)
     assert entity.versionNumber == 2
 
     annotations = syn.getAnnotations(entity, version=1)
@@ -179,7 +177,8 @@ def test_updateEntity_version():
     entity['description'] = 'This is a test entity...'
     entity = syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
     returnEntity = syn.getEntity(entity)
-    #syn.printEntity(returnEntity)
+    
+    # syn.printEntity(returnEntity)
     assert returnEntity['name'] == 'foobarbat'
     assert returnEntity['description'] == 'This is a test entity...'
     assert returnEntity['versionNumber'] == 2
@@ -509,20 +508,23 @@ def test_keyword_annotations():
 def test_fileHandle():
     syn.debug = True
     
-    ## file the setup.py file to upload
-    path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+    try:
+        ## file the setup.py file to upload
+        path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
 
-    ## upload a file to the file handle service
-    fileHandle = syn._uploadFileToFileHandleService(path)
+        ## upload a file to the file handle service
+        fileHandle = syn._uploadFileToFileHandleService(path)
 
-    fileHandle2 = syn._getFileHandle(fileHandle)
+        fileHandle2 = syn._getFileHandle(fileHandle)
 
-    # print fileHandle
-    # print fileHandle2
-    assert fileHandle==fileHandle2
+        # print fileHandle
+        # print fileHandle2
+        assert fileHandle==fileHandle2
 
-    syn._deleteFileHandle(fileHandle)
-    
+        syn._deleteFileHandle(fileHandle)
+    except:
+        syn.debug = False
+        raise
     syn.debug = False
 
 
