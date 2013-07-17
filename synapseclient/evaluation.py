@@ -73,10 +73,15 @@ class Evaluation(DictObject):
 
     @classmethod
     def getByNameURI(cls, name):
+        """TODO_Sphinx."""
+        
         return '/evaluation/name/%s' %name
+    
     
     @classmethod
     def getURI(cls, id):
+        """TODO_Sphinx."""
+        
         return '/evaluation/%s' %id
 
 
@@ -90,12 +95,20 @@ class Evaluation(DictObject):
 
 
     def postURI(self):
+        """TODO_Sphinx."""
+        
         return '/evaluation'
 
+        
     def putURI(self):
+        """TODO_Sphinx."""
+        
         return '/evaluation/%s' %self.id
 
+        
     def deleteURI(self):
+        """TODO_Sphinx."""
+        
         return '/evaluation/%s' %self.id
 
 
@@ -110,6 +123,8 @@ class Submission(DictObject):
 
     @classmethod
     def getURI(cls, id):
+        """TODO_Sphinx."""
+        
         return '/evaluation/submission/%s' %id
 
 
@@ -121,13 +136,22 @@ class Submission(DictObject):
 
         super(Submission, self).__init__(kwargs)
 
+        
     def postURI(self):
+        """TODO_Sphinx."""
+        
         return '/evaluation/submission?etag=%s' %self.etag
 
+        
     def putURI(self):
+        """TODO_Sphinx."""
+        
         return '/evaluation/submission/%s' %self.id
 
+        
     def deleteURI(self):
+        """TODO_Sphinx."""
+        
         return '/evaluation/submission/%s' %self.id
 
 
@@ -145,17 +169,30 @@ class SubmissionStatus(DictObject):
 
     @classmethod
     def getURI(cls, id):
+        """TODO_Sphinx."""
+        
         return '/evaluation/submission/%s/status' %id
 
 
     def __init__(self, **kwargs):
         super(SubmissionStatus, self).__init__(kwargs)
 
+        
     def postURI(self):
+        """TODO_Sphinx."""
+        
         return '/evaluation/submission/%s/status' %self.id
 
+        
     def putURI(self):
+        """TODO_Sphinx."""
+        
         return '/evaluation/submission/%s/status' %self.id
 
+        
     def deleteURI(self):
+        """TODO_Sphinx."""
+        
         return '/evaluation/submission/%s/status' %self.id
+        
+        

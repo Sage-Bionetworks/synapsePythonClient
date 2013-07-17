@@ -90,9 +90,9 @@ class Activity(dict):
         and the `W3C's provenance ontology <http://www.w3.org/TR/prov-o/>`_
     """
 
-    #TODO: make constructors from JSON consistent across objects
+    ## TODO: make constructors from JSON consistent across objects
     def __init__(self, name=None, description=None, used=None, executed=None, data=None):
-        ## initialize from a dictionary, as in Activity(data=response.json())
+        # Initialize from a dictionary, as in Activity(data=response.json())
         if data:
             super(Activity, self).__init__(data)
         if name:
@@ -115,15 +115,16 @@ class Activity(dict):
         :param targetVersion: optionally specify the version of the entity
         :param wasExecuted:   boolean indicating whether the entity represents code that was executed to produce the result
         """
+        
         reference = {'targetId':id_of(target)}
         if targetVersion:
             reference['targetVersionNumber'] = int(targetVersion)
         else:
             try:
-                ## if we have an entity, get it's version number
+                # If we have an Entity, get it's version number
                 reference['targetVersionNumber'] = target['versionNumber']
             except (KeyError, TypeError):
-                ## count on platform to get the current version of the entity from synapse
+                # Count on platform to get the current version of the entity from Synapse
                 pass
         self['used'].append({'reference':reference, 'wasExecuted':wasExecuted, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'})
 
@@ -136,6 +137,7 @@ class Activity(dict):
         :param name:        optionally name the indicated resource, defaults to the URL
         :param wasExecuted: boolean indicating whether the entity represents code that was executed to produce the result
         """
+        
         if name is None:
             name = url
         self['used'].append({'url':url, 'name':name, 'wasExecuted':wasExecuted, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'})
@@ -185,9 +187,9 @@ class Activity(dict):
                     'http://mydomain.com/my/awesome/data.RData' ] )
         """
 
-        ## Check for allowed combinations of parameters and generate specific error message
-        ## based on the context. For example, if we specify a URL, it's illegal to specify
-        ## a version.
+        # Check for allowed combinations of parameters and generate specific error message
+        # based on the context. For example, if we specify a URL, it's illegal to specify
+        # a version.
         def check_for_invalid_parameters(context=None, params={}):
             err_msg = 'Error in call to Activity.used()'
             
@@ -214,28 +216,28 @@ class Activity(dict):
                 if param in params and params[param] is not None:
                     raise Exception('%s: It is an error to specify the \'%s\' parameter in combination with a %s.' % (err_msg, str(param), context_msg))
 
-        ## list
+        # List
         if isinstance(target, list):
             check_for_invalid_parameters(context='list', params=locals())
             for item in target:
                 self.used(item, wasExecuted=wasExecuted)
             return
 
-        ## UsedEntity
+        # Used Entity
         elif is_used_entity(target):
             check_for_invalid_parameters(context='dict', params=locals())
             resource = target
             if 'concreteType' not in resource:
                 resource['concreteType'] = 'org.sagebionetworks.repo.model.provenance.UsedEntity'
 
-        ## UsedURL
+        # Used URL
         elif is_used_url(target):
             check_for_invalid_parameters(context='dict', params=locals())
             resource = target
             if 'concreteType' not in resource:
                 resource['concreteType'] = 'org.sagebionetworks.repo.model.provenance.UsedURL'
 
-        ## synapse entity
+        #  Synapse Entity
         elif is_synapse_entity(target):
             check_for_invalid_parameters(context='entity', params=locals())
             reference = {'targetId':target['id']}
@@ -246,17 +248,17 @@ class Activity(dict):
                 reference['targetVersionNumber'] = int(targetVersion)
             resource = {'reference':reference, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
 
-        ## url parameter
+        # URL parameter
         elif url:
             check_for_invalid_parameters(context='url_param', params=locals())
             resource = {'url':url, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
-        ## URL as a string
+        # URL as a string
         elif is_url(target):
             check_for_invalid_parameters(context='url_string', params=locals())
             resource = {'url':target, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
-        ## if it's a string and isn't a URL, assume it's a synapse entity id
+        # If it's a string and isn't a URL, assume it's a Synapse Entity ID
         elif isinstance(target, basestring):
             check_for_invalid_parameters(context='entity', params=locals())
             reference = {'targetId':target}
@@ -267,16 +269,16 @@ class Activity(dict):
         else:
             raise Exception('Unexpected parameters in call to Activity.used().')
 
-        ## set wasExecuted
+        # Set wasExecuted
         if wasExecuted is None:
-            ## default to False
+            # Default to False
             if 'wasExecuted' not in resource:
                 resource['wasExecuted'] = False
         else:
-            ## wasExecuted parameter overrides setting in an object
+            # wasExecuted parameter overrides setting in an object
             resource['wasExecuted'] = wasExecuted
 
-        ## add the used resource to the activity
+        # Add the used resource to the activity
         self['used'].append(resource)
 
 
@@ -285,4 +287,5 @@ class Activity(dict):
         Add a code resource that was executed during the activity.
         See :py:func:`synapseclient.activity.Activity.used`
         """
+        
         self.used(target=target, targetVersion=targetVersion, url=url, name=name, wasExecuted=True)
