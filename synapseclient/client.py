@@ -16,7 +16,7 @@ More information
 
 import ConfigParser
 import collections
-import os, sys, stat, re, json, time
+import os, sys, stat, re, json, time, copy
 import os.path
 import base64, hashlib, hmac
 import urllib, urlparse, requests, webbrowser
@@ -1565,7 +1565,7 @@ class Synapse:
                         sys.stdout.flush()
 
                     # PUT the chunk to S3
-                    response = with_retry(requests.put)(url, data=chunk, headers=headers)
+                    response = with_retry(requests.put)(url, data=chunk, headers=self._generateHeaders(url, headers))
                     response.raise_for_status()
                     if progress:
                         sys.stdout.write(',')
@@ -1980,7 +1980,7 @@ class Synapse:
             raise Exception("Please login")
             
         if headers is None:
-            headers = self.headers
+            headers = copy.deepcopy(self.headers)
             
         sig_timestamp = time.strftime(cache.ISO_FORMAT, time.gmtime())
         url = urlparse.urlparse(url).path

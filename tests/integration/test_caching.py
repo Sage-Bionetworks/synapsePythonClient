@@ -89,7 +89,7 @@ def test_threaded_access():
     thread.start_new_thread(start_thread, (thread_get_and_update_file_from_Project, ))
     
     # Give the threads some time to wreak havoc on the cache
-    time.sleep(30)
+    time.sleep(20)
     
     print "Terminating threads"
     syn.test_keepRunning = False
@@ -145,10 +145,10 @@ def thread_keep_storing_one_File():
         stored = store_catch_412_HTTPError(myPrecious)
         if stored is not None:
             myPrecious = stored
-            print "I've stored %s" % myPrecious.id
+            # print "I've stored %s" % myPrecious.id
         else: 
             myPrecious = syn.get(myPrecious)
-            print "Grrr... Someone modified my %s" % myPrecious.id
+            # print "Grrr... Someone modified my %s" % myPrecious.id
                 
         sleep_for_a_bit()
 
@@ -158,7 +158,8 @@ def thread_get_files_from_Project():
     
     while syn.test_keepRunning:
         for id in get_all_ids_from_Project():
-            print "I got %s" % id
+            # print "I got %s" % id
+            pass
             
         sleep_for_a_bit()
         
@@ -179,7 +180,7 @@ def thread_get_and_update_file_from_Project():
         entity.path = path
         entity = store_catch_412_HTTPError(entity)
         if entity is not None:
-            print "I updated %s" % entity.id
+            # print "I updated %s" % entity.id
             assert os.stat(entity.path) == os.stat(path)
             
         sleep_for_a_bit()
@@ -197,10 +198,7 @@ def get_all_ids_from_Project():
     """Fetches all currently available Synapse IDs from the parent Project."""
     
     others = syn.chunkedQuery('select id from entity where parentId=="%s"' % syn.test_parent.id)
-    ids = []
-    for result in others:
-        ids.append(result['entity.id'])
-    return ids
+    return [result['entity.id'] for result in others]
     
 def store_catch_412_HTTPError(entity):
     """Returns the stored Entity if the function succeeds or None if the 412 is caught."""
@@ -210,5 +208,4 @@ def store_catch_412_HTTPError(entity):
         # Some other thread modified the Entity, so try again
         if err.response.status_code == 412:
             return None
-        else:
-            raise err
+        raise
