@@ -46,28 +46,20 @@ def test_printEntity():
 
 
 def test_login():
-    #Test that we fail gracefully with wrong user
+    # Test that we fail gracefully with wrong user
     assert_raises(Exception, syn.login, 'asdf', 'notarealpassword')
 
-    #Test that it work with assumed existing config file
+    # Test that it work with assumed existing config file
     syn.login()
 
-    #Test that it works with username and password
     config = ConfigParser.ConfigParser()
     config.read(client.CONFIG_FILE)
-    syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
-
-    #Test that it works with session token (created in previous passed step)
-    old_config_file = client.CONFIG_FILE
-
-    try:
-        fname = utils.make_bogus_data_file()
-        client.CONFIG_FILE = fname
-
-        assert_raises(Exception, syn.login)
-    finally:
-        client.CONFIG_FILE = old_config_file
-        os.remove(fname)
+    
+    # Test three valid login combinations
+    password = config.get('authentication', 'password')
+    syn.login(config.get('authentication', 'username'), password)
+    syn.login(email=syn.username, apiKey=syn.apiKey)
+    syn.login(sessionToken=syn._getSessionToken(syn.username, password))
 
 
 def test_getEntity():
