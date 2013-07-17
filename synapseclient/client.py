@@ -379,6 +379,9 @@ class Synapse:
         downloadLocation = kwargs.get('downloadLocation', None)
         ifcollision = kwargs.get('ifcollision', 'keep.both')
         load = kwargs.get('load', False)
+        
+        # Make sure the download location is fully resolved
+        downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
 
         # Retrieve metadata
         bundle = self._getEntityBundle(entity, version)
@@ -513,6 +516,9 @@ class Synapse:
         if entity.get('path', False):
             if 'entityType' not in properties:
                 properties['entityType'] = File._synapse_entity_type
+                
+            # Make sure the path is fully resolved
+            entity['path'] = os.path.expanduser(entity['path'])
             
             # Check if the File already exists in Synapse by fetching metadata on it
             bundle = self._getEntityBundle(entity)
@@ -921,7 +927,7 @@ class Synapse:
         if 'etag' in entity and 'etag' not in synapseAnnos:
             synapseAnnos['etag'] = entity['etag']
 
-        return from_synapse_annotations(self.restPUT(uri, json.dumps(synapseAnnos)))
+        return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
 
 
     ############################################################
@@ -1018,7 +1024,7 @@ class Synapse:
                         raise Exception("A single row (offset %s) of this query exceeds the maximum size.  Consider limiting the columns returned in the select clause." % offset)
                     limit /= 2
                 else:
-                    raise err
+                    raise
                   
                   
     def md5Query(self, md5):
@@ -1426,7 +1432,7 @@ class Synapse:
            
         # print "_uploadFileToFileHandleService - filepath = " + str(filepath)
         url = "%s/fileHandle" % (self.fileHandleEndpoint,)
-        headers = self.generateHeaders(url, {'Accept': 'application/json'})
+        headers = self._generateHeaders(url, {'Accept': 'application/json'})
         with open(filepath, 'rb') as f:
             response = requests.post(url, files={os.path.basename(filepath): f}, headers=headers)
         response.raise_for_status()
@@ -1710,7 +1716,7 @@ class Synapse:
         """Gets an Evaluation object from Synapse."""
         
         evaluation_id = id_of(id)
-        uri=Evaluation.getURI(id)
+        uri = Evaluation.getURI(evaluation_id)
         return Evaluation(**self.restGET(uri))
 
 
@@ -1966,6 +1972,7 @@ class Synapse:
     ############################################################
     ##                  Low level Rest calls                  ##
     ############################################################
+    
     def _generateHeaders(self, url, headers=None):
         """Generate headers signed with the API key."""
         
@@ -1976,7 +1983,7 @@ class Synapse:
             headers = self.headers
             
         sig_timestamp = time.strftime(cache.ISO_FORMAT, time.gmtime())
-        url = urlparse.urlparse(url).path # URL may not include terms after the '?'
+        url = urlparse.urlparse(url).path
         sig_data = self.username + url + sig_timestamp
         signature = base64.b64encode(hmac.new(self.apiKey, sig_data, hashlib.sha1).digest())
 

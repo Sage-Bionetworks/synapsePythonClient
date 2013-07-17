@@ -71,6 +71,11 @@ class RetryRequest(object):
                     if hasattr(response, 'status_code') and response.status_code not in range(200,299):
                         if response.status_code in self.retry_status_codes:
                             retry = True
+                        elif response.status_code == 401:
+                            # Sometimes authorization fails randomly (?) a retry fixes that
+                            # However, if the authorization is actually bad, we don't want to retry too much
+                            retry = True
+                            retries = 1 if retries > 0 else 0
                         elif hasattr(response, 'headers') and response.headers['content-type'].lower().startswith('application/json'):
                             try:
                                 json = response.json()
