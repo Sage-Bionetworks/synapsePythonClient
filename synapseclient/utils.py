@@ -283,7 +283,7 @@ def _to_iterable(value):
     return (value,)
 
 
-def make_bogus_data_file(n=100, seed=12345):
+def make_bogus_data_file(n=100, seed=None):
     """
     Makes a bogus data file for testing.  
     It is the caller's responsibility to clean up the file when finished.
@@ -294,7 +294,8 @@ def make_bogus_data_file(n=100, seed=12345):
     :returns: The name of the file
     """
     import random
-    random.seed(seed)
+    if seed:
+        random.seed(seed)
     data = [random.gauss(mu=0.0, sigma=1.0) for i in range(n)]
 
     f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)

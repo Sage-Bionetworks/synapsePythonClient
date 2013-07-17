@@ -167,7 +167,7 @@ def test_get_and_store():
     assert random_data_2.versionNumber == 2
 
     ## make sure we can still get the older version of file
-    old_random_data=syn.get(random_data.id, version=random_data.versionNumber)
+    old_random_data=syn.get(random_data.id, version=1)
     assert filecmp.cmp(old_random_data.path, path)
 
 
