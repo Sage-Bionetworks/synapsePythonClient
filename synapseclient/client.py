@@ -1714,7 +1714,7 @@ class Synapse:
         """Gets a Submission object."""
         
         submission_id = id_of(id)
-        uri=SubmissionStatus.getURI(submission_id)
+        uri=Submission.getURI(submission_id)
         return Submission(**self.restGET(uri))
 
 
