@@ -1714,7 +1714,7 @@ class Synapse:
         """Gets a Submission object."""
         
         submission_id = id_of(id)
-        uri=SubmissionStatus.getURI(submission_id)
+        uri=Submission.getURI(submission_id)
         return Submission(**self.restGET(uri))
 
 
@@ -1832,7 +1832,8 @@ class Synapse:
 
     def _findEntityIdByNameAndParent(self, name, parent=ROOT_ENTITY):
         # Find an entity given its name and parent or parentId
-        
+        if parent is None:
+            parent = ROOT_ENTITY
         qr = self.query('select * from entity where name=="%s" and parentId=="%s"' % (name, id_of(parent),))
         if qr.get('totalNumberOfResults',None) == 1:
             return qr['results'][0]['entity.id']

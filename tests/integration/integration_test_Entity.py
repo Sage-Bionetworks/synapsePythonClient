@@ -167,7 +167,7 @@ def test_get_and_store():
     assert random_data_2.versionNumber == 2
 
     ## make sure we can still get the older version of file
-    old_random_data=syn.get(random_data.id, version=random_data.versionNumber)
+    old_random_data=syn.get(random_data.id, version=1)
     assert filecmp.cmp(old_random_data.path, path)
 
 
@@ -200,6 +200,19 @@ def test_store_with_create_or_update_flag():
 
     ## expected behavior is raising an exception with a 409 error
     assert_raises(requests.exceptions.HTTPError, syn.store, bogus2, createOrUpdate=False)
+
+
+def test_store_redundantly_named_projects():
+    p1 = create_project()
+
+    ## if we store a project with the same name, and createOrUpdate==True,
+    ## it should become an update
+    p2 = Project(p1.name)
+    p2.updatedThing = 'Yep, sho\'nuf it\'s updated!'
+    p2 = syn.store(p2, createOrUpdate=True)
+
+    assert p1.id == p2.id
+    assert p2.updatedThing == ['Yep, sho\'nuf it\'s updated!']
 
 
 def test_store_dictionary():
