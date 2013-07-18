@@ -1611,7 +1611,7 @@ class Synapse:
         """Gets an Evaluation object from Synapse."""
         
         evaluation_id = id_of(id)
-        uri=Evaluation.getURI(id)
+        uri = Evaluation.getURI(evaluation_id)
         return Evaluation(**self.restGET(uri))
 
 
@@ -1619,23 +1619,39 @@ class Synapse:
         """
         Submit an Entity for evaluation by an evaluator.
         
-        :param entity:     The Entity containing the Submission
         :param evaluation: Evaluation board to submit to
+        :param entity:     The Entity containing the Submission
         
         :returns: A Submission object
         """
 
         evaluation_id = id_of(evaluation)
+        
+        # Check for access rights
+        unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
+        if unmetRights['totalNumberOfResults'] > 0:
+            raise Exception('You have unmet access requirements: %s' % ', '.join(unmetRights[results]))
+        
         if not 'versionNumber' in entity:
             entity = self.get(entity)    
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
         name = entity['name'] if (name is None and 'name' in entity) else None
-        submission =  {'evaluationId':evaluation_id, 'entityId':entity_id, 'name':name, 
-                       'versionNumber': entity_version}
-        return Submission(**self.restPOST('/evaluation/submission?etag=%s' %entity.etag, 
-                                        json.dumps(submission)))
+        submission = {'evaluationId' : evaluation_id, 
+                      'entityId'     : entity_id, 
+                      'name'         : name, 
+                      'versionNumber': entity_version}
+        submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity.etag, 
+                                               json.dumps(submission)))
+        
+        # Show the confirmation/success message
+        print "Thank you for your submission."
+        if 'submissionReceiptMessage' in evaluation:
+            print evaluation['submissionReceiptMessage']
+        else:
+            print "Your submission will be scored and results posted to the challenge leaderboard."
+        return submitted
 
 
     def addEvaluationParticipant(self, evaluation, userId=None):
@@ -1714,7 +1730,7 @@ class Synapse:
         """Gets a Submission object."""
         
         submission_id = id_of(id)
-        uri=SubmissionStatus.getURI(submission_id)
+        uri=Submission.getURI(submission_id)
         return Submission(**self.restGET(uri))
 
 
