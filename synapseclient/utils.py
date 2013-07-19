@@ -63,6 +63,7 @@ from datetime import date as Date
 from numbers import Number
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
+ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
 GB = 2**30
 MB = 2**20
 KB = 2**10

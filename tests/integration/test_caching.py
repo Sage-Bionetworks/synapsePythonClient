@@ -51,8 +51,10 @@ def test_slow_unlocker():
     cache.obtain_lock_and_read_cache(cacheDir)
     
     # Start a few calls to get/store that should not complete yet
-    thread.start_new_thread(start_thread, (lambda: store_catch_412_HTTPError(contention), ))
-    thread.start_new_thread(start_thread, (lambda: syn.get(contention), ))
+    store_thread = wrap_function_as_child_thread(lambda: store_catch_412_HTTPError(contention))
+    get_thread = wrap_function_as_child_thread(lambda: lambda: syn.get(contention))
+    thread.start_new_thread(store_thread, ())
+    thread.start_new_thread(get_thread, ())
     time.sleep(cache.CACHE_LOCK_TIME / 2)
     
     # Make sure the threads did not finish
@@ -77,16 +79,19 @@ def test_threaded_access():
     requests_log.setLevel(logging.WARNING)
     
     print "Starting threads"
-    thread.start_new_thread(start_thread, (thread_keep_storing_one_File, ))
-    thread.start_new_thread(start_thread, (thread_keep_storing_one_File, ))
-    thread.start_new_thread(start_thread, (thread_keep_storing_one_File, ))
-    thread.start_new_thread(start_thread, (thread_keep_storing_one_File, ))
-    thread.start_new_thread(start_thread, (thread_get_files_from_Project, ))
-    thread.start_new_thread(start_thread, (thread_get_files_from_Project, ))
-    thread.start_new_thread(start_thread, (thread_get_files_from_Project, ))
-    thread.start_new_thread(start_thread, (thread_get_files_from_Project, ))
-    thread.start_new_thread(start_thread, (thread_get_and_update_file_from_Project, ))
-    thread.start_new_thread(start_thread, (thread_get_and_update_file_from_Project, ))
+    store_thread = wrap_function_as_child_thread(thread_keep_storing_one_File)
+    get_thread = wrap_function_as_child_thread(thread_get_files_from_Project)
+    update_thread = wrap_function_as_child_thread(thread_get_and_update_file_from_Project)
+    thread.start_new_thread(store_thread, ())
+    thread.start_new_thread(store_thread, ())
+    thread.start_new_thread(store_thread, ())
+    thread.start_new_thread(store_thread, ())
+    thread.start_new_thread(get_thread, ())
+    thread.start_new_thread(get_thread, ())
+    thread.start_new_thread(get_thread, ())
+    thread.start_new_thread(update_thread, ())
+    thread.start_new_thread(update_thread, ())
+    thread.start_new_thread(update_thread, ())
     
     # Give the threads some time to wreak havoc on the cache
     time.sleep(20)
@@ -105,21 +110,24 @@ def test_threaded_access():
 ## Helpers ##
 #############
 
-def start_thread(function):
-    """Runs the given function after tying into the main thread."""
+def wrap_function_as_child_thread(function):
+    """Wraps the given function so that it ties into the main thread."""
     
-    syn.test_runCountMutex.acquire()
-    syn.test_threadsRunning += 1
-    syn.test_runCountMutex.release()
-    
-    try:
-        function()
-    except Exception:
-        syn.test_errors.put(traceback.format_exc())
+    def child_thread():
+        syn.test_runCountMutex.acquire()
+        syn.test_threadsRunning += 1
+        syn.test_runCountMutex.release()
         
-    syn.test_runCountMutex.acquire()
-    syn.test_threadsRunning -= 1
-    syn.test_runCountMutex.release()
+        try:
+            function()
+        except Exception:
+            syn.test_errors.put(traceback.format_exc())
+            
+        syn.test_runCountMutex.acquire()
+        syn.test_threadsRunning -= 1
+        syn.test_runCountMutex.release()
+        
+    return child_thread
     
 def collect_errors_and_fail():
     """Pulls error traces from the error queue and fails if the queue is not empty."""

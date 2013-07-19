@@ -62,19 +62,6 @@ def test_login():
     syn.login(sessionToken=syn._getSessionToken(syn.username, password))
 
 
-def test_getEntity():
-    #Create a new project
-    entity = create_project()
-
-    #Get new entity and check that it is same
-    returnEntity = syn.get(entity)
-    assert entity.properties == returnEntity.properties
-
-    #Get entity by id
-    returnEntity = syn.get(entity['id'])
-    assert entity.properties == returnEntity.properties
-
-
 def test_entity_version():
     # Test the ability to get specific versions of Synapse Entities
     
@@ -112,31 +99,6 @@ def test_entity_version():
     assert 'foo' not in returnEntity
 
 
-
-def test_loadEntity():
-    #loadEntity does the same thing as downloadEntity so nothing new to test
-    pass
-
-
-def test_createEntity():
-    #Create a project
-    project = create_project()
-
-    #Add a data entity to project
-    entity = DATA_JSON.copy()
-    entity['parentId']= project['id']
-    entity['name'] = 'foo'
-    entity['description'] = 'description of an entity'
-    entity = syn.createEntity(entity)
-
-    #Get the data entity and assert that it is unchanged
-    returnEntity = syn.getEntity(entity['id'])
-
-    assert entity.properties == returnEntity.properties
-
-    syn.deleteEntity(returnEntity['id'])
-
-
 def test_createEntity_with_provenance():
     #Create a project
     entity = create_project()
@@ -152,16 +114,6 @@ def test_createEntity_with_provenance():
     assert activity['used'][0]['reference']['targetId'] == 'syn123'
 
 
-def test_updateEntity():
-    project = create_project()
-    entity = create_data_entity(project['id'])
-    entity[u'tissueType']= 'yuuupp'
-
-    entity = syn.updateEntity(entity)
-    returnEntity = syn.getEntity(entity['id'])
-    assert entity == returnEntity
-
-
 def test_updateEntity_version():
     project = create_project()
     entity = create_data_entity(project['id'])
@@ -175,11 +127,6 @@ def test_updateEntity_version():
     assert returnEntity['description'] == 'This is a test entity...'
     assert returnEntity['versionNumber'] == 2
     assert returnEntity['versionLabel'] == 'Prada remix'
-
-
-def test_putEntity():
-    #Does the same thing as updateEntity
-    pass
 
 
 def test_query():
@@ -243,24 +190,6 @@ def test_md5_query():
     assert len(results) == num
 
 
-def test_deleteEntity():
-    project = create_project()
-    entity = create_data_entity(project['id'])
-    
-    #Check that we can delete an entity by dictionary
-    syn.deleteEntity(entity)
-    assert_raises(Exception, syn.getEntity, entity)
-
-    #Check that we can delete an entity by synapse ID
-    entity = create_data_entity(project['id'])
-    syn.deleteEntity(entity['id'])
-    assert_raises(Exception, syn.getEntity, entity)
-
-
-def test_createSnapshotSummary():
-    pass
-
-
 def test_download_empty_entity():
     project = create_project()
     entity = create_data_entity(project['id'])
@@ -306,14 +235,13 @@ def test_uploadFileEntity():
     fname = utils.make_bogus_data_file()
     entity = {'name'        : 'foo', \
               'description' : 'A test file entity', \
-              'parentId'    : projectEntity['id'], \
-              'path'        : fname}
+              'parentId'    : projectEntity['id']}
 
     # Create new FileEntity
-    entity = syn.store(entity)
+    entity = syn.uploadFile(entity, fname)
 
     # Download and verify
-    entity = syn.get(entity)
+    entity = syn.downloadEntity(entity)
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
@@ -324,13 +252,12 @@ def test_uploadFileEntity():
 
     # Create a different temporary file
     fname = utils.make_bogus_data_file()
-    entity['path'] = fname
 
     # Update existing FileEntity
-    entity = syn.store(entity)
+    entity = syn.uploadFile(entity, fname)
 
     # Download and verify that it is the same filename
-    entity = syn.get(entity)
+    entity = syn.downloadEntity(entity)
     print entity['files'][0]
     print os.path.basename(fname)
     assert entity['files'][0] == os.path.basename(fname)

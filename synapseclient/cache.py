@@ -35,7 +35,6 @@ CACHE_FANOUT = 1000
 CACHE_MAX_LOCK_TRY_TIME = 70
 CACHE_LOCK_TIME = 10
 CACHE_UNLOCK_WAIT_TIME = 0.5
-ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
 
 
 def local_file_has_changed(entityBundle, path=None):
@@ -89,13 +88,23 @@ def local_file_has_changed(entityBundle, path=None):
     return not unmodifiedFileExists
         
         
-def add_local_file_to_cache(entity):
+def add_local_file_to_cache(**entity):
     """
     Makes a '.cacheMap' entry in the cache.  
     
     :param entity: A Synapse Entity object or dictionary with a 'path'.
                    FileEntities require a 'dataFileHandleID'.
                    Locationables require a 'id' and 'versionNumber'.
+                   
+    Example::
+        
+        foo = File('/path/to/file/xyz.txt')
+        cache.add_local_file_to_cache(bar="Something to include in dict", **foo)
+        
+    Note: Since neither FileEntities nor Locationables have a 'path' in their properties,
+          calls to this method should look like::
+          
+        cache.add_local_file_to_cache(path=entity['path'], **entity)
     """
         
     # External URLs will be ignored
@@ -118,7 +127,7 @@ def add_local_file_to_cache(entity):
                 
     # Update the cache
     if os.path.exists(entity['path']):
-        cache[entity['path']] = time.strftime(ISO_FORMAT, time.gmtime(os.path.getmtime(entity['path'])))
+        cache[entity['path']] = time.strftime(utils.ISO_FORMAT, time.gmtime(os.path.getmtime(entity['path'])))
     write_cache_then_release_lock(cacheDir, cache)
     
 
@@ -263,9 +272,8 @@ def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
             cacheMapBody = relockedCacheMap
         
         cacheMap = os.path.join(cacheDir, '.cacheMap')
-        f = open(cacheMap, 'w')
-        json.dump(cacheMapBody, f)
-        f.close()
+        with open(cacheMap, 'w') as f:
+            json.dump(cacheMapBody, f)
         
     # Delete the '.lock' (and anything that might have been put into it)
     try:
@@ -314,7 +322,7 @@ def read_cache_entry(isoTime):
     Note: The `strptime() method is not thread-safe <http://bugs.python.org/issue7980>`_
     """
     strptimeLock.acquire()
-    cacheTime = time.strptime(isoTime, ISO_FORMAT)
+    cacheTime = time.strptime(isoTime, utils.ISO_FORMAT)
     strptimeLock.release()
     return time.mktime(cacheTime) - 3600 * cacheTime.tm_isdst
     
