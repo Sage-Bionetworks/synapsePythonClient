@@ -46,45 +46,25 @@ def test_printEntity():
 
 
 def test_login():
-    #Test that we fail gracefully with wrong user
+    # Test that we fail gracefully with wrong user
     assert_raises(Exception, syn.login, 'asdf', 'notarealpassword')
 
-    #Test that it work with assumed existing config file
+    # Test that it work with assumed existing config file
     syn.login()
 
-    #Test that it works with username and password
     config = ConfigParser.ConfigParser()
     config.read(client.CONFIG_FILE)
-    syn.login(config.get('authentication', 'username'), config.get('authentication', 'password'))
-
-    #Test that it works with session token (created in previous passed step)
-    old_config_file = client.CONFIG_FILE
-
-    try:
-        fname = utils.make_bogus_data_file()
-        client.CONFIG_FILE = fname
-
-        assert_raises(Exception, syn.login)
-    finally:
-        client.CONFIG_FILE = old_config_file
-        os.remove(fname)
-
-
-def test_getEntity():
-    #Create a new project
-    entity = create_project()
-
-    #Get new entity and check that it is same
-    returnEntity = syn.getEntity(entity)
-    assert entity.properties == returnEntity.properties
-
-    #Get entity by id
-    returnEntity = syn.getEntity(entity['id'])
-    assert entity.properties == returnEntity.properties
+    
+    # Test three valid login combinations
+    password = config.get('authentication', 'password')
+    syn.login(config.get('authentication', 'username'), password)
+    syn.login(email=syn.username, apiKey=syn.apiKey)
+    syn.login(sessionToken=syn._getSessionToken(syn.username, password))
 
 
 def test_entity_version():
-    """Test the ability to get specific versions of Synapse Entities"""
+    # Test the ability to get specific versions of Synapse Entities
+    
     #Create a new project
     project = create_project()
 
@@ -119,31 +99,6 @@ def test_entity_version():
     assert 'foo' not in returnEntity
 
 
-
-def test_loadEntity():
-    #loadEntity does the same thing as downloadEntity so nothing new to test
-    pass
-
-
-def test_createEntity():
-    #Create a project
-    project = create_project()
-
-    #Add a data entity to project
-    entity = DATA_JSON.copy()
-    entity['parentId']= project['id']
-    entity['name'] = 'foo'
-    entity['description'] = 'description of an entity'
-    entity = syn.createEntity(entity)
-
-    #Get the data entity and assert that it is unchanged
-    returnEntity = syn.getEntity(entity['id'])
-
-    assert entity.properties == returnEntity.properties
-
-    syn.deleteEntity(returnEntity['id'])
-
-
 def test_createEntity_with_provenance():
     #Create a project
     entity = create_project()
@@ -159,16 +114,6 @@ def test_createEntity_with_provenance():
     assert activity['used'][0]['reference']['targetId'] == 'syn123'
 
 
-def test_updateEntity():
-    project = create_project()
-    entity = create_data_entity(project['id'])
-    entity[u'tissueType']= 'yuuupp'
-
-    entity = syn.updateEntity(entity)
-    returnEntity = syn.getEntity(entity['id'])
-    assert entity == returnEntity
-
-
 def test_updateEntity_version():
     project = create_project()
     entity = create_data_entity(project['id'])
@@ -176,16 +121,12 @@ def test_updateEntity_version():
     entity['description'] = 'This is a test entity...'
     entity = syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
     returnEntity = syn.getEntity(entity)
-    #syn.printEntity(returnEntity)
+    
+    # syn.printEntity(returnEntity)
     assert returnEntity['name'] == 'foobarbat'
     assert returnEntity['description'] == 'This is a test entity...'
     assert returnEntity['versionNumber'] == 2
     assert returnEntity['versionLabel'] == 'Prada remix'
-
-
-def test_putEntity():
-    #Does the same thing as updateEntity
-    pass
 
 
 def test_query():
@@ -223,24 +164,30 @@ def test_chunked_query():
     
     # Restore the size of the query limit
     client.QUERY_LIMIT = oldLimit
-
-
-def test_deleteEntity():
-    project = create_project()
-    entity = create_data_entity(project['id'])
     
-    #Check that we can delete an entity by dictionary
-    syn.deleteEntity(entity)
-    assert_raises(Exception, syn.getEntity, entity)
 
-    #Check that we can delete an entity by synapse ID
-    entity = create_data_entity(project['id'])
-    syn.deleteEntity(entity['id'])
-    assert_raises(Exception, syn.getEntity, entity)
-
-
-def test_createSnapshotSummary():
-    pass
+def test_md5_query():
+    # Create a project then add the same entity several times and retrieve them via MD5
+    project = create_project()
+    
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    repeated = File(path, parent=project['id'], description='Same data over and over again')
+    
+    num = 5
+    for i in range(num):
+        try:
+            repeated.name = 'Repeated data %d.dat' % i
+            syn.store(repeated)
+        except Exception as ex:
+            print ex
+            print ex.response.text
+    results = syn.md5Query(utils.md5_for_file(path).hexdigest())
+    print [res['id'] for res in results]
+    
+    ## Not sure how to make this assertion more accurate
+    ## Although we expect num results, it is possible for the MD5 to be non-unique
+    assert len(results) == num
 
 
 def test_download_empty_entity():
@@ -284,34 +231,36 @@ def test_uploadFile_given_dictionary():
 def test_uploadFileEntity():
     projectEntity = create_project()
 
-    ## entityType will default to FileEntity
-    entity = {'name':'foo', 'description':'A test file entity', 'parentId':projectEntity['id']}
-
-    #create a temporary file
+    # Defaults to FileEntity
     fname = utils.make_bogus_data_file()
+    entity = {'name'        : 'foo', \
+              'description' : 'A test file entity', \
+              'parentId'    : projectEntity['id']}
 
-    ## create new FileEntity
+    # Create new FileEntity
     entity = syn.uploadFile(entity, fname)
 
-    #Download and verify
+    # Download and verify
     entity = syn.downloadEntity(entity)
-    assert entity['files'][0]==os.path.basename(fname)
+    assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
-    ## check if we upload the wrong type of file handle
+    # Check if we upload the wrong type of file handle
     fh = syn.restGET('/entity/%s/filehandles' % entity.id)['list'][0]
     assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
     os.remove(fname)
 
-    #create a different temporary file
+    # Create a different temporary file
     fname = utils.make_bogus_data_file()
 
-    ## update existing FileEntity
+    # Update existing FileEntity
     entity = syn.uploadFile(entity, fname)
 
-    #Download and verify that it is the same filename
+    # Download and verify that it is the same filename
     entity = syn.downloadEntity(entity)
-    assert entity['files'][0]==os.path.basename(fname)
+    print entity['files'][0]
+    print os.path.basename(fname)
+    assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
     os.remove(fname)
 
@@ -476,19 +425,26 @@ def test_keyword_annotations():
 
 
 def test_fileHandle():
-    ## file the setup.py file to upload
-    path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+    syn.debug = True
+    
+    try:
+        ## file the setup.py file to upload
+        path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
 
-    ## upload a file to the file handle service
-    fileHandle = syn._uploadFileToFileHandleService(path)
+        ## upload a file to the file handle service
+        fileHandle = syn._uploadFileToFileHandleService(path)
 
-    fileHandle2 = syn._getFileHandle(fileHandle)
+        fileHandle2 = syn._getFileHandle(fileHandle)
 
-    # print fileHandle
-    # print fileHandle2
-    assert fileHandle==fileHandle2
+        # print fileHandle
+        # print fileHandle2
+        assert fileHandle==fileHandle2
 
-    syn._deleteFileHandle(fileHandle)
+        syn._deleteFileHandle(fileHandle)
+    except:
+        syn.debug = False
+        raise
+    syn.debug = False
 
 
 def test_fileEntity_round_trip():

@@ -73,19 +73,22 @@ class Wiki(DictObject):
 
     def getURI(self):
         """TODO_Sphinx"""
+        
         return '/%s/%s/wiki/%s' % (self.ownerType, self.ownerId, self.id)
 
     def postURI(self):
         """TODO_Sphinx"""
+        
         return '/%s/%s/wiki' % (self.ownerType, self.ownerId)
 
     def putURI(self):
         """TODO_Sphinx"""
+        
         return '/%s/%s/wiki/%s' % (self.ownerType, self.ownerId, self.id)
 
     def deleteURI(self):
         """TODO_Sphinx"""
+        
         return '/%s/%s/wiki/%s' % (self.ownerType, self.ownerId, self.id)
 
-        
 

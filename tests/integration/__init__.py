@@ -52,7 +52,7 @@ def cleanup(items):
     for item in items:
         if isinstance(item, Entity) or utils.is_synapse_id(item):
             try:
-                syn.deleteEntity(item)
+                syn.delete(item)
             except Exception as ex:
                 if hasattr(ex, 'response') and ex.response.status_code==404:
                     pass
