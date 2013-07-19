@@ -384,6 +384,9 @@ class Synapse:
 
         :returns: A new Synapse Entity object of the appropriate type
         """
+        """Private parameter
+        :param _entityBundle: Uses the given dictionary as the meta information of the Entity to get
+        """
         
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
         version = kwargs.get('version', None)
@@ -396,7 +399,7 @@ class Synapse:
         downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
 
         # Retrieve metadata
-        bundle = self._getEntityBundle(entity, version)
+        bundle = kwargs.get('_entityBundle', self._getEntityBundle(entity, version))
         if bundle is None:
             raise Exception("Could not determine the Synapse ID to fetch")
             
@@ -1744,8 +1747,13 @@ class Synapse:
         pass
 
 
-    def getSubmission(self, id):
-        """Gets a Submission object."""
+    def getSubmission(self, id, **kwargs):
+        """
+        Gets a Submission object.
+        
+        See: :py:func:`synapseclient.Synapse.get` for information 
+             on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
+        """
         
         submission_id = id_of(id)
         uri = Submission.getURI(submission_id)
@@ -1753,7 +1761,8 @@ class Synapse:
         
         # Pre-fetch the Entity tied to the Submission, if there is one
         if 'entityId' in submission and submission['entityId'] is not None:
-            self.get(submission['entityId'])
+            related = self.get(submission['entityId'], _entityBundle=json.loads(submission['entityBundleJSON']), **kwargs)
+            submission['filePath'] = related['path']
             
         return submission
 
