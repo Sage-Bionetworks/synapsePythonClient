@@ -1613,6 +1613,14 @@ class Synapse:
         evaluation_id = id_of(id)
         uri = Evaluation.getURI(evaluation_id)
         return Evaluation(**self.restGET(uri))
+        
+        
+    ## TODO: Should this be combined with getEvaluation?
+    def getEvaluationByName(self, name):
+        """Gets an Evaluation object from Synapse."""
+        
+        uri = Evaluation.getByNameURI(urllib.quote(name))
+        return Evaluation(**self.restGET(uri))
 
 
     def submit(self, evaluation, entity, name=None):
@@ -1730,8 +1738,14 @@ class Synapse:
         """Gets a Submission object."""
         
         submission_id = id_of(id)
-        uri=Submission.getURI(submission_id)
-        return Submission(**self.restGET(uri))
+        uri = Submission.getURI(submission_id)
+        submission = Submission(**self.restGET(uri))
+        
+        # Pre-fetch the Entity tied to the Submission, if there is one
+        if 'entityId' in submission and submission['entityId'] is not None:
+            self.get(submission['entityId'])
+            
+        return submission
 
 
     def getSubmissionStatus(self, submission):
