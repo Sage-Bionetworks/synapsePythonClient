@@ -430,7 +430,7 @@ class Synapse:
                 
             # Determine where the file should be downloaded to
             if downloadFile:
-                _, localPath = cache.determine_local_file_location(bundle)
+                _, localPath, _ = cache.determine_local_file_location(bundle)
                 
                 # By default, download to the local cache
                 if downloadPath is None:
