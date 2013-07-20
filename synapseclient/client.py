@@ -385,6 +385,17 @@ class Synapse:
         :returns: A new Synapse Entity object of the appropriate type
         """
         
+        version = kwargs.get('version', None)
+        return self._getWithEntityBundle(entity, entityBundle=self._getEntityBundle(entity, version), **kwargs)
+        
+    def _getWithEntityBundle(self, entity, **kwargs):
+        """
+        Gets a Synapse entity from the repository service.
+        See :py:func:`synapseclient.Synapse.get`.
+        
+        :param entityBundle: Uses the given dictionary as the meta information of the Entity to get
+        """
+        
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
         version = kwargs.get('version', None)
         downloadFile = kwargs.get('downloadFile', True)
@@ -396,7 +407,7 @@ class Synapse:
         downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
 
         # Retrieve metadata
-        bundle = self._getEntityBundle(entity, version)
+        bundle = kwargs.get('entityBundle', None)
         if bundle is None:
             raise Exception("Could not determine the Synapse ID to fetch")
             
@@ -1623,29 +1634,53 @@ class Synapse:
         evaluation_id = id_of(id)
         uri = Evaluation.getURI(evaluation_id)
         return Evaluation(**self.restGET(uri))
+        
+        
+    ## TODO: Should this be combined with getEvaluation?
+    def getEvaluationByName(self, name):
+        """Gets an Evaluation object from Synapse."""
+        
+        uri = Evaluation.getByNameURI(urllib.quote(name))
+        return Evaluation(**self.restGET(uri))
 
 
     def submit(self, evaluation, entity, name=None):
         """
         Submit an Entity for evaluation by an evaluator.
         
-        :param entity:     The Entity containing the Submission
         :param evaluation: Evaluation board to submit to
+        :param entity:     The Entity containing the Submission
         
         :returns: A Submission object
         """
 
         evaluation_id = id_of(evaluation)
+        
+        # Check for access rights
+        unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
+        if unmetRights['totalNumberOfResults'] > 0:
+            raise Exception('You have unmet access requirements: %s' % ', '.join(unmetRights[results]))
+        
         if not 'versionNumber' in entity:
             entity = self.get(entity)    
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
         name = entity['name'] if (name is None and 'name' in entity) else None
-        submission =  {'evaluationId':evaluation_id, 'entityId':entity_id, 'name':name, 
-                       'versionNumber': entity_version}
-        return Submission(**self.restPOST('/evaluation/submission?etag=%s' %entity.etag, 
-                                        json.dumps(submission)))
+        submission = {'evaluationId' : evaluation_id, 
+                      'entityId'     : entity_id, 
+                      'name'         : name, 
+                      'versionNumber': entity_version}
+        submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity.etag, 
+                                               json.dumps(submission)))
+        
+        ## TODO: Decide whether to show the confirmation/success message
+        # print "Thank you for your submission."
+        # if 'submissionReceiptMessage' in evaluation:
+        #     print evaluation['submissionReceiptMessage']
+        # else:
+        #     print "Your submission will be scored and results posted to the challenge leaderboard."
+        return submitted
 
 
     def addEvaluationParticipant(self, evaluation, userId=None):
@@ -1720,12 +1755,25 @@ class Synapse:
         pass
 
 
-    def getSubmission(self, id):
-        """Gets a Submission object."""
+    def getSubmission(self, id, **kwargs):
+        """
+        Gets a Submission object.
+        
+        See: :py:func:`synapseclient.Synapse.get` for information 
+             on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
+        """
         
         submission_id = id_of(id)
-        uri=SubmissionStatus.getURI(submission_id)
-        return Submission(**self.restGET(uri))
+        uri = Submission.getURI(submission_id)
+        submission = Submission(**self.restGET(uri))
+        
+        # Pre-fetch the Entity tied to the Submission, if there is one
+        if 'entityId' in submission and submission['entityId'] is not None:
+            related = self._getWithEntityBundle(submission['entityId'], \
+                                entityBundle=json.loads(submission['entityBundleJSON']), **kwargs)
+            submission['filePath'] = related['path']
+            
+        return submission
 
 
     def getSubmissionStatus(self, submission):
