@@ -52,10 +52,10 @@ def test_slow_unlocker():
     
     # Start a few calls to get/store that should not complete yet
     store_thread = wrap_function_as_child_thread(lambda: store_catch_412_HTTPError(contention))
-    get_thread = wrap_function_as_child_thread(lambda: lambda: syn.get(contention))
+    get_thread = wrap_function_as_child_thread(lambda: syn.get(contention))
     thread.start_new_thread(store_thread, ())
     thread.start_new_thread(get_thread, ())
-    time.sleep(cache.CACHE_LOCK_TIME / 2)
+    time.sleep(min(5, cache.CACHE_LOCK_TIME / 2))
     
     # Make sure the threads did not finish
     assert syn.test_threadsRunning > 0

@@ -234,6 +234,10 @@ def obtain_lock_and_read_cache(cacheDir):
     while time.time() - tryLockStartTime < CACHE_MAX_LOCK_TRY_TIME:
         try:
             os.makedirs(cacheLock)
+            
+            # Make sure the modification times are correct
+            # On some machines, the modification time could be seconds off
+            os.utime(cacheLock, (0, time.time()))
             break
         except OSError as err:
             # Still locked...
