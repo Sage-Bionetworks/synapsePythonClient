@@ -21,7 +21,7 @@ Helpers
 .. automethod:: synapseclient.cache.normalize_path
 .. automethod:: synapseclient.cache.determine_cache_directory
 .. automethod:: synapseclient.cache.determine_local_file_location
-.. automethod:: synapseclient.cache.read_cache_entry
+.. automethod:: synapseclient.cache.parse_cache_entry_into_seconds
 
 """
 
@@ -33,7 +33,7 @@ from threading import Lock
 CACHE_DIR = os.path.join(os.path.expanduser('~'), '.synapseCache')
 CACHE_FANOUT = 1000
 CACHE_MAX_LOCK_TRY_TIME = 70
-CACHE_LOCK_TIME = 10
+CACHE_LOCK_TIME = 60
 CACHE_UNLOCK_WAIT_TIME = 0.5
 
 
@@ -55,25 +55,23 @@ def local_file_has_changed(entityBundle, path=None):
     """
     
     # Find the directory of the '.cacheMap' for the file
-    cacheDir, filepath = determine_local_file_location(entityBundle)
+    cacheDir, filepath, _ = determine_local_file_location(entityBundle)
     if path is None:
         path = filepath
+        
+    # If there is no file path, there is nothing to download
+    if path is None:
+        return False
         
     # External URLs will be ignored
     if utils.is_url(path):
         return True
-        
-    # Read the '.cacheMap'
-    cache = obtain_lock_and_read_cache(cacheDir)
-    write_cache_then_release_lock(cacheDir)
     
     # Compare the modification times
     path = normalize_path(path)
     fileMTime = time.mktime(time.gmtime(os.path.getmtime(path))) if os.path.exists(path) else None
     unmodifiedFileExists = False
-    for file in cache.keys():
-        cacheTime = read_cache_entry(cache[file])
-        
+    for file, cacheTime, _ in iterator_over_cache_map(cacheDir):
         # When there is a direct match, return if it is modified
         if path == file and os.path.exists(path):
             return not fileMTime == cacheTime
@@ -114,18 +112,16 @@ def add_local_file_to_cache(**entity):
     # Get the '.cacheMap'
     cacheDir = determine_cache_directory(entity)
     entity['path'] = normalize_path(entity['path'])
-    cache = obtain_lock_and_read_cache(cacheDir)
     
     # If the file to-be-added does not exist, search the cache for a pristine copy
     if not os.path.exists(entity['path']):
-        for file in cache.keys():
-            fileMTime = time.mktime(time.gmtime(os.path.getmtime(file)))
-            cacheTime = read_cache_entry(cache[file])
-            if fileMTime == cacheTime and os.path.exists(file):
+        for file, cacheTime, fileMTime in iterator_over_cache_map(cacheDir):
+            if fileMTime == cacheTime:
                 shutil.copyfile(file, entity['path'])
                 break
                 
     # Update the cache
+    cache = obtain_lock_and_read_cache(cacheDir)
     if os.path.exists(entity['path']):
         cache[entity['path']] = time.strftime(utils.ISO_FORMAT, time.gmtime(os.path.getmtime(entity['path'])))
     write_cache_then_release_lock(cacheDir, cache)
@@ -142,9 +138,15 @@ def retrieve_local_file_info(entityBundle, path=None):
     Returns a JSON dictionary with 'path', 'files', and 'cacheDir'
     that can be used to update the local state of a FileEntity.
     """
-    cacheDir, filepath = determine_local_file_location(entityBundle)
+    cacheDir, filepath, unmodifiedFile = determine_local_file_location(entityBundle)        
     if path is None:
-        path = filepath
+    
+        # When an unmodified file exists while the default cached file does not, use the unmodified file
+        if file is not None and unmodifiedFile is not None \
+                and not os.path.exists(filepath) and os.path.exists(unmodifiedFile):
+            path = unmodifiedFile
+        else:
+            path = filepath
         
     # No file info to retrieve
     if path is None:
@@ -158,7 +160,8 @@ def retrieve_local_file_info(entityBundle, path=None):
     
 def determine_local_file_location(entityBundle):
     """
-    Uses information from an Entity bundle to derive the cache directory and cached file location
+    Uses information from an Entity bundle to derive the cache directory and cached file location.
+    Also returns the first unmodified file in the cache (or None)
     
     :param entityBundle: A dictionary with 'fileHandles' and 'entity'.
                          Typically created via::
@@ -170,21 +173,30 @@ def determine_local_file_location(entityBundle):
     """
     
     cacheDir = determine_cache_directory(entityBundle['entity'])
+    
+    # Find the first unmodified file if any
+    unmodifiedFile = None
+    for file, cacheTime, fileMTime in iterator_over_cache_map(cacheDir):
+        if fileMTime == cacheTime:
+            unmodifiedFile = file
+            break
+    
+    # Generate and return the default location of the cached file
     if is_locationable(entityBundle['entity']):
         if 'locations' not in entityBundle['entity']:
             # This Locationable does not have an associated file
-            return cacheDir, None
+            return cacheDir, None, unmodifiedFile
             
         url = entityBundle['entity']['locations'][0]['path']
         filename = urlparse.urlparse(url).path.split('/')[-1]
         path = os.path.join(cacheDir, filename)
-        return cacheDir, path
+        return cacheDir, path, unmodifiedFile
         
     else:
         for handle in entityBundle['fileHandles']:
             if handle['id'] == entityBundle['entity']['dataFileHandleId']:
                 path = os.path.join(cacheDir, handle['fileName'])
-                return cacheDir, path
+                return cacheDir, path, unmodifiedFile
                     
         raise Exception("Invalid parameters: the entityBundle does not contain matching file handle IDs")
     
@@ -222,6 +234,10 @@ def obtain_lock_and_read_cache(cacheDir):
     while time.time() - tryLockStartTime < CACHE_MAX_LOCK_TRY_TIME:
         try:
             os.makedirs(cacheLock)
+            
+            # Make sure the modification times are correct
+            # On some machines, the modification time could be seconds off
+            os.utime(cacheLock, (0, time.time()))
             break
         except OSError as err:
             # Still locked...
@@ -281,6 +297,23 @@ def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
     except OSError as err:
         if err.errno != errno.ENOENT:
             raise err
+            
+            
+def iterator_over_cache_map(cacheDir):
+    """
+    Returns an iterator over the paths, timestamps, and modified times of the cache map.
+    Values are only returned for paths that exist
+    """
+    
+    # Read the '.cacheMap'
+    cache = obtain_lock_and_read_cache(cacheDir)
+    write_cache_then_release_lock(cacheDir)
+    
+    for file in cache.keys():
+        cacheTime = parse_cache_entry_into_seconds(cache[file])
+        if os.path.exists(file):
+            fileMTime = time.mktime(time.gmtime(os.path.getmtime(file)))
+            yield file, cacheTime, fileMTime
 
 
 def is_lock_valid(cacheLock):
@@ -314,7 +347,7 @@ def determine_cache_directory(entity):
         
         
 strptimeLock = Lock()
-def read_cache_entry(isoTime):
+def parse_cache_entry_into_seconds(isoTime):
     """
     Note: Due to the way Python parses time via strptime()
         it may randomly append an incorrect Daylight Savings Time 
