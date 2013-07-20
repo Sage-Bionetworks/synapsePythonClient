@@ -384,8 +384,16 @@ class Synapse:
 
         :returns: A new Synapse Entity object of the appropriate type
         """
-        """Private parameter
-        :param _entityBundle: Uses the given dictionary as the meta information of the Entity to get
+        
+        version = kwargs.get('version', None)
+        return _getWithEntityBundle(entity, entityBundle=self._getEntityBundle(entity, version), **kwargs)
+        
+    def _getWithEntityBundle(self, entity, **kwargs):
+        """
+        Gets a Synapse entity from the repository service.
+        See :py:func:`synapseclient.Synapse.get`.
+        
+        :param entityBundle: Uses the given dictionary as the meta information of the Entity to get
         """
         
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
@@ -399,7 +407,7 @@ class Synapse:
         downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
 
         # Retrieve metadata
-        bundle = kwargs.get('_entityBundle', self._getEntityBundle(entity, version))
+        bundle = kwargs.get('entityBundle', None)
         if bundle is None:
             raise Exception("Could not determine the Synapse ID to fetch")
             
@@ -1666,12 +1674,12 @@ class Synapse:
         submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity.etag, 
                                                json.dumps(submission)))
         
-        # Show the confirmation/success message
-        print "Thank you for your submission."
-        if 'submissionReceiptMessage' in evaluation:
-            print evaluation['submissionReceiptMessage']
-        else:
-            print "Your submission will be scored and results posted to the challenge leaderboard."
+        ## TODO: Decide whether to show the confirmation/success message
+        # print "Thank you for your submission."
+        # if 'submissionReceiptMessage' in evaluation:
+        #     print evaluation['submissionReceiptMessage']
+        # else:
+        #     print "Your submission will be scored and results posted to the challenge leaderboard."
         return submitted
 
 
@@ -1761,7 +1769,8 @@ class Synapse:
         
         # Pre-fetch the Entity tied to the Submission, if there is one
         if 'entityId' in submission and submission['entityId'] is not None:
-            related = self.get(submission['entityId'], _entityBundle=json.loads(submission['entityBundleJSON']), **kwargs)
+            related = self._getWithEntityBundle(submission['entityId'], \
+                                entityBundle=json.loads(submission['entityBundleJSON']), **kwargs)
             submission['filePath'] = related['path']
             
         return submission
