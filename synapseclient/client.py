@@ -1913,13 +1913,15 @@ class Synapse:
         return self.restPUT(uri, body=json.dumps(get_properties(entity)))
 
         
-    def _findEntityIdByNameAndParent(self, name, parent=ROOT_ENTITY):
+    def _findEntityIdByNameAndParent(self, name, parent=None):
         """
         Find an Entity given its name and parent ID.
         
         :returns: the Entity ID or None if not found
         """
         
+        if parent is None:
+            parent = ROOT_ENTITY
         qr = self.query('select id from entity where name=="%s" and parentId=="%s"' % (name, id_of(parent)))
         if qr.get('totalNumberOfResults', 0) == 1:
             return qr['results'][0]['entity.id']

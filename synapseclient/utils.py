@@ -55,6 +55,7 @@ Testing
 # To debug this, python -m pdb myscript.py
 
 import os, sys, urllib, urlparse, hashlib, re
+import random
 import collections
 import tempfile
 import platform
@@ -297,7 +298,6 @@ def make_bogus_data_file(n=100, seed=None):
     :returns: The name of the file
     """
     
-    import random
     if seed is not None:
         random.seed(seed)
     data = [random.gauss(mu=0.0, sigma=1.0) for i in range(n)]
