@@ -171,6 +171,19 @@ def test_get_and_store():
     old_random_data = syn.get(random_data.id, version=1)
     assert filecmp.cmp(old_random_data.path, path)
 
+    
+def test_store_redundantly_named_projects():
+    p1 = create_project()
+
+    # If we store a project with the same name, and createOrUpdate==True,
+    # it should become an update
+    p2 = Project(p1.name)
+    p2.updatedThing = 'Yep, sho\'nuf it\'s updated!'
+    p2 = syn.store(p2, createOrUpdate=True)
+
+    assert p1.id == p2.id
+    assert p2.updatedThing == ['Yep, sho\'nuf it\'s updated!']
+
 
 def test_store_with_create_or_update_flag():
     project = create_project()
