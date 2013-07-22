@@ -51,7 +51,6 @@ Submission Status
 """
 
 import sys
-from exceptions import ValueError
 
 from synapseclient.dict_object import DictObject
 

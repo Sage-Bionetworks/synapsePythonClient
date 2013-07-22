@@ -26,6 +26,8 @@ import pkg_resources
 
 import synapseclient.utils as utils
 import synapseclient.cache as cache
+import synapseclient.exceptions as exceptions
+from synapseclient.exceptions import *
 from synapseclient.version_check import version_check
 from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
@@ -250,7 +252,7 @@ class Synapse:
         
         # Final check on login success
         if self.username is not None and self.apiKey is None:
-            raise Exception("LOGIN FAILED: no credentials provided")
+            raise SynapseAuthenticationError("No credentials provided.")
         
         
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
@@ -261,10 +263,10 @@ class Synapse:
                 req = {'email' : email, 'password' : password}
                 session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.headers)
                 return session['sessionToken']
-            except requests.exceptions.HTTPError as err:
+            except SynapseHTTPError as err:
                 if err.response.status_code == 400:
-                    raise Exception("LOGIN FAILED: invalid username or password")
-                raise err
+                    raise SynapseAuthenticationError("Invalid username or password.")
+                raise
                     
         elif sessionToken is not None:
             # Validate the session token
@@ -275,12 +277,12 @@ class Synapse:
                 # Success!
                 return sessionToken
                 
-            except requests.exceptions.HTTPError as err:
+            except SynapseHTTPError as err:
                 if err.response.status_code == 404:
-                    raise Exception("LOGIN FAILED: supplied session token (%s) is invalid" % token["sessionToken"])
-                raise err
+                    raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
+                raise
         else:
-            raise Exception("LOGIN FAILED: no credentials provided")
+            raise SynapseAuthenticationError("No credentials provided.")
             
     def _getAPIKey(self, sessionToken):
         """Uses a session token to fetch an API key."""
@@ -302,10 +304,10 @@ class Synapse:
                     # No session token, not logged in
                     return False
                 return user['displayName']
-        except requests.exceptions.HTTPError as err:
+        except SynapseHTTPError as err:
             if err.response.status_code == 401:
                 return False
-            raise err
+            raise
         
         
     def logout(self, local=False):
@@ -417,7 +419,7 @@ class Synapse:
         # Retrieve metadata
         bundle = kwargs.get('entityBundle', None)
         if bundle is None:
-            raise Exception("Could not determine the Synapse ID to fetch")
+            raise SynapseMalformedEntityError("Could not determine the Synapse ID to fetch")
             
         # Make a fresh copy of the Entity
         local_state = entity.local_state() if isinstance(entity, Entity) else None
@@ -471,7 +473,7 @@ class Synapse:
                         downloadPath = cache.get_alternate_file_name(downloadPath)
                         
                     else:
-                        raise Exception('Invalid parameter: "%s" is not a valid value for "ifcollision"' % ifcollision)
+                        raise ValueError('Invalid parameter: "%s" is not a valid value for "ifcollision"' % ifcollision)
 
             if downloadFile:
                 if isLocationable:
@@ -534,10 +536,9 @@ class Synapse:
                 obj.update(self.restPOST(obj.postURI(), obj.json()))
                 return obj
                 
-            except requests.exceptions.HTTPError as err:
+            except SynapseHTTPError as err:
                 # If already present and we want to update attempt to get the object content
-                ## TODO: remove status code 500 after PLFM-1905 goes in to production
-                if createOrUpdate and (err.response.status_code==500 or err.response.status_code==409):
+                if createOrUpdate and err.response.status_code == 409:
                     newObj = self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
                     obj = obj.__class__(**newObj)
@@ -597,12 +598,11 @@ class Synapse:
         else:
             try:
                 properties = self._createEntity(properties)
-            except requests.exceptions.HTTPError as ex:
-                # If "409 Client Error: Conflict"
-                if createOrUpdate and hasattr(ex, 'response') and ex.response.status_code==409:
-                
+            except SynapseHTTPError as ex:
+                if createOrUpdate and ex.response.status_code == 409:
                     existing_entity_id = None
                     
+                    ## TODO: no longer necessary?
                     # The conflict is between projects
                     if properties['entityType'] == Project._synapse_entity_type:
                         properties['parentId'] = ROOT_ENTITY
@@ -613,15 +613,13 @@ class Synapse:
                         
                     # Get the existing Entity's ID via the name and parent
                     existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
-                        
+                    if existing_entity_id is None: raise
+
                     # Update the conflicting Entity
-                    if existing_entity_id:
-                        existing_entity = self._getEntity(existing_entity_id)
-                        # Need some fields from the existing entity: id, etag, and version info.
-                        existing_entity.update(properties)
-                        properties = self._updateEntity(existing_entity, forceVersion, versionLabel)
-                    else:
-                        raise
+                    existing_entity = self._getEntity(existing_entity_id)
+                    # Need some fields from the existing entity: id, etag, and version info.
+                    existing_entity.update(properties)
+                    properties = self._updateEntity(existing_entity, forceVersion, versionLabel)
                 else:
                     raise
 
@@ -631,7 +629,6 @@ class Synapse:
         annotations = self.setAnnotations(properties, annotations)
         properties['etag'] = annotations['etag']
 
-
         # If the parameters 'used' or 'executed' are given, create an Activity object
         activity = kwargs.get('activity', None)
         used = kwargs.get('used', None)
@@ -640,7 +637,7 @@ class Synapse:
         if used or executed:
             if activity is not None:
                 ## TODO: move this argument check closer to the front of the method
-                raise Exception('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
+                raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
             activityName = kwargs.get('activityName', None)
             activityDescription = kwargs.get('activityDescription', None)
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
@@ -656,6 +653,7 @@ class Synapse:
         return Entity.create(properties, annotations, local_state)
 
     
+    ## TODO: add bitFlag parameter?
     def _getEntityBundle(self, entity, version=None):
         """
         Gets some information about the Entity.
@@ -685,13 +683,8 @@ class Synapse:
         
         # Avoid an exception from finding an ID from a NoneType
         try: id_of(entity) 
-        except Exception as err:
-            ## TODO: wrap and replace with a SynapseException
-            if err.message.startswith("Invalid parameters: couldn't find id of"):
-                return None
-            raise
-        except: 
-            raise
+        except SynapseMalformedEntityError:
+            return None
         
         if version is not None:
             uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), version, bitFlags)
@@ -713,8 +706,9 @@ class Synapse:
                     such as Evaluation, File, Project, WikiPage etc
         """
         
-        if isinstance(obj, basestring): #Handle all strings as entity id for backward compatibility
-            self.restDELETE(uri='/entity/'+id_of(obj))
+        # Handle all strings as the Entity ID for backward compatibility
+        if isinstance(obj, basestring):
+            self.restDELETE(uri='/entity/%s' % id_of(obj))
         else:
             self.restDELETE(obj.deleteURI())
 
@@ -765,7 +759,7 @@ class Synapse:
             if 'path' in entity:
                 filename = entity.path
             else:
-                raise Exception('can\'t create a File entity without a file path or URL')
+                raise SynapseMalformedEntityError('can\'t create a File entity without a file path or URL')
         if utils.is_url(filename):
             fileHandle = self._addURLtoFileHandleService(filename)
             entity['dataFileHandleId'] = fileHandle['id']
@@ -900,7 +894,9 @@ class Synapse:
         
         Example::
         
-            syn.query("select id, name from entity where entity.parentId=='syn449742'")
+            results = syn.query("select id, name from entity where entity.parentId=='syn449742'")
+            for res in results:
+                print res['entity.id']
         
         """
         
@@ -955,12 +951,12 @@ class Synapse:
                 # Exit when all requests results have been pulled
                 if offset > options['offset'] + options['limit']:
                     break
-            except requests.exceptions.HTTPError as err:
+            except SynapseHTTPError as err:
                 # Shrink the query size when appropriate
                 ## TODO: Change the error check when PLFM-1990 is resolved
                 if err.response.status_code == 400 and err.response.json()['reason'].startswith('java.lang.IllegalArgumentException: The results of this query exceeded the maximum'):
                     if (limit == 1):
-                        raise Exception("A single row (offset %s) of this query exceeds the maximum size.  Consider limiting the columns returned in the select clause." % offset)
+                        raise SynapseMalformedEntityError("A single row (offset %s) of this query exceeds the maximum size.  Consider limiting the columns returned in the select clause." % offset)
                     limit /= 2
                 else:
                     raise
@@ -1203,7 +1199,7 @@ class Synapse:
                     'x-amz-acl' : 'bucket-owner-full-control' }
         with open(filename, 'rb') as f:
             response = requests.put(response_json['presignedUrl'], headers=headers, data=f)
-        response.raise_for_status()
+        exceptions._raise_for_status(response)
 
         # Add location to entity. Path will get converted to a signed S3 URL.
         locations = [{'path': location_path, 'type': 'awss3'}]
@@ -1287,7 +1283,7 @@ class Synapse:
             if url.startswith('file:'):
                 pathinfo = utils.file_url_to_path(url, verify_exists=True)
                 if 'path' not in pathinfo:
-                    raise Exception("Could not download non-existent file (%s)." % url)
+                    raise IOError("Could not download non-existent file (%s)." % url)
                 else:
                     raise NotImplementedError("File can already be accessed.  Consider setting downloadFile to False")
 
@@ -1295,9 +1291,9 @@ class Synapse:
         
         try:
             response.raise_for_status()
-        except requests.exceptions.HTTPError as err:
+        except SynapseHTTPError as err:
             if err.response.status_code == 404:
-                raise Exception("Could not download the file at %s" % url)
+                raise SynapseError("Could not download the file at %s" % url)
             raise
 
         # Stream the file to disk
@@ -1351,7 +1347,7 @@ class Synapse:
         headers = self._generateSignedHeaders(url, {'Accept': 'application/json'})
         with open(filepath, 'rb') as f:
             response = requests.post(url, files={os.path.basename(filepath): f}, headers=headers)
-        response.raise_for_status()
+        exceptions._raise_for_status(response)
 
         # We expect a list of FileHandles of length one
         fileHandleList = response.json()
@@ -1490,7 +1486,7 @@ class Synapse:
 
                     # PUT the chunk to S3
                     response = with_retry(requests.put)(url, data=chunk, headers=self._generateSignedHeaders(url, headers))
-                    response.raise_for_status()
+                    exceptions._raise_for_status(response)
                     if progress:
                         sys.stdout.write(',')
                         sys.stdout.flush()
@@ -1523,8 +1519,8 @@ class Synapse:
                 sys.stdout.write('!\n')
                 sys.stdout.flush()
 
-            if status['state']=='FAILED':
-                raise Exception(status['errorMessage'])
+            if status['state'] == 'FAILED':
+                raise SynapseError(status['errorMessage'])
 
             # Return a fileHandle
             fileHandle = self._getFileHandle(status['fileHandleId'])
@@ -1586,7 +1582,7 @@ class Synapse:
         """
         
         # Move direct entities to subgroup "Content"
-        if level==0: 
+        if level == 0: 
             ## TODO: I am so sorry!  This is incredibly inefficient but I had no time to think through it.
             contents = [group for group in tree if not group.has_key('records')]
             tree.append({'name':'Content', 'records':contents, 'targetId':'', 'targetVersionNumber':''})
@@ -1682,7 +1678,7 @@ class Synapse:
         unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
         if unmetRights['totalNumberOfResults'] > 0:
             accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
-            raise Exception('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
+            raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
         
         if not 'versionNumber' in entity:
             entity = self.get(entity)
@@ -1739,7 +1735,7 @@ class Synapse:
         result_count = 0
         limit = 20
         offset = 0 - limit
-        max_results = 1000 ## gets updated later
+        max_results = 1000 # Gets updated later
         submissions = []
 
         while result_count < max_results:
@@ -1748,7 +1744,7 @@ class Synapse:
                 offset += limit
                 if status != None:
                     if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
-                        raise Exception('status may be one of {OPEN, CLOSED, SCORED, INVALID}')
+                        raise SynapseError('status may be one of {OPEN, CLOSED, SCORED, INVALID}')
                     uri = "/evaluation/%s/submission/all?status=%s&limit=%d&offset=%d" %(evaluation_id, 
                                                                                          status, limit, 
                                                                                          offset)
@@ -1807,8 +1803,8 @@ class Synapse:
         """
         
         submission_id = id_of(submission)
-        uri=SubmissionStatus.getURI(submission_id)
-        val=self.restGET(uri)
+        uri = SubmissionStatus.getURI(submission_id)
+        val = self.restGET(uri)
         return SubmissionStatus(**val)
 
 
@@ -1959,7 +1955,7 @@ class Synapse:
         """Generate headers signed with the API key."""
         
         if self.username is None or self.apiKey is None:
-            raise Exception("Please login")
+            raise SynapseAuthenticationError("Please login")
             
         if headers is None:
             headers = dict(self.headers)
@@ -2001,11 +1997,7 @@ class Synapse:
         self._storeTimingProfile(response)
         if self.debug:
             utils.debug_response(response)
-        try:
-            response.raise_for_status()
-        except:
-            sys.stderr.write(response.content+'\n')
-            raise
+        exceptions._raise_for_status(response)
         return response.json()
      
      
@@ -2033,11 +2025,7 @@ class Synapse:
         response = requests.post(uri, data=body, headers=headers, **kwargs)
         if self.debug:
             utils.debug_response(response)
-        try:
-            response.raise_for_status()
-        except:
-            sys.stderr.write(response.content+'\n')
-            raise
+        exceptions._raise_for_status(response)
 
         if response.headers.get('content-type',None) == 'application/json':
             return response.json()
@@ -2069,11 +2057,7 @@ class Synapse:
         response = requests.put(uri, data=body, headers=headers, **kwargs)
         if self.debug:
             utils.debug_response(response)
-        try:
-            response.raise_for_status()
-        except:
-            sys.stderr.write(response.content+'\n')
-            raise
+        exceptions._raise_for_status(response)
             
         if response.headers.get('content-type',None) == 'application/json':
             return response.json()
@@ -2101,8 +2085,4 @@ class Synapse:
         response = requests.delete(uri, headers=headers, **kwargs)
         if self.debug:
             utils.debug_response(response)
-        try:
-            response.raise_for_status()
-        except:
-            sys.stderr.write(response.content+'\n')
-            raise
+        exceptions._raise_for_status(response)

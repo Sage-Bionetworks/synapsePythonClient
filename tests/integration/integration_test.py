@@ -17,6 +17,7 @@ import ConfigParser
 
 import synapseclient.client as client
 import synapseclient.utils as utils
+from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
 from synapseclient.client import Activity
 from synapseclient.version_check import version_check
@@ -47,7 +48,7 @@ def test_printEntity():
 
 def test_login():
     # Test that we fail gracefully with wrong user
-    assert_raises(Exception, syn.login, 'asdf', 'notarealpassword')
+    assert_raises(SynapseAuthenticationError, syn.login, 'asdf', 'notarealpassword')
 
     # Test that it work with assumed existing config file
     syn.login()
@@ -530,13 +531,11 @@ def test_wikiAttachment():
     syn.delete(wiki)
     syn.delete(subwiki)
 
-    ## test that delete worked
+    # Test that delete worked
     try:
         deleted_wiki = syn.getWiki(project)
-    except Exception as ex:
+    except SynapseHTTPError as ex:
         assert ex.response.status_code == 404
-    else:
-        assert False, 'Should raise 404 exception'
 
 
 def test_get_and_store_other_objects():
