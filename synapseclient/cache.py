@@ -17,15 +17,20 @@ Helpers
 
 .. automethod:: synapseclient.cache.obtain_lock_and_read_cache
 .. automethod:: synapseclient.cache.write_cache_then_release_lock
+.. automethod:: synapseclient.cache.iterator_over_cache_map
 .. automethod:: synapseclient.cache.is_lock_valid
 .. automethod:: synapseclient.cache.normalize_path
 .. automethod:: synapseclient.cache.determine_cache_directory
 .. automethod:: synapseclient.cache.determine_local_file_location
 .. automethod:: synapseclient.cache.parse_cache_entry_into_seconds
+.. automethod:: synapseclient.cache.get_modification_time
 
 """
 
-import os, sys, re, json, time, errno, shutil, filecmp, urlparse
+import os, sys, re
+import time, calendar
+import errno, shutil, filecmp
+import json, urlparse
 import synapseclient.utils as utils
 from synapseclient.entity import is_locationable
 from threading import Lock
@@ -69,7 +74,7 @@ def local_file_has_changed(entityBundle, path=None):
     
     # Compare the modification times
     path = normalize_path(path)
-    fileMTime = time.mktime(time.gmtime(os.path.getmtime(path))) if os.path.exists(path) else None
+    fileMTime = get_modification_time(path)
     unmodifiedFileExists = False
     for file, cacheTime, _ in iterator_over_cache_map(cacheDir):
         # When there is a direct match, return if it is modified
@@ -242,7 +247,7 @@ def obtain_lock_and_read_cache(cacheDir):
         except OSError as err:
             # Still locked...
             if err.errno != errno.EEXIST:
-                raise err
+                raise
         
         print "Waiting for cache to unlock"
         if is_lock_valid(cacheLock):
@@ -296,13 +301,13 @@ def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
         shutil.rmtree(cacheLock)
     except OSError as err:
         if err.errno != errno.ENOENT:
-            raise err
+            raise
             
             
 def iterator_over_cache_map(cacheDir):
     """
     Returns an iterator over the paths, timestamps, and modified times of the cache map.
-    Values are only returned for paths that exist
+    Values are only returned for paths that exist.
     """
     
     # Read the '.cacheMap'
@@ -312,7 +317,7 @@ def iterator_over_cache_map(cacheDir):
     for file in cache.keys():
         cacheTime = parse_cache_entry_into_seconds(cache[file])
         if os.path.exists(file):
-            fileMTime = time.mktime(time.gmtime(os.path.getmtime(file)))
+            fileMTime = get_modification_time(file)
             yield file, cacheTime, fileMTime
 
 
@@ -327,7 +332,7 @@ def is_lock_valid(cacheLock):
         if err.errno == errno.ENOENT:
             # Something else deleted the lock first, so lock is not valid
             return False
-        raise err
+        raise
     
     
 def normalize_path(path):
@@ -349,13 +354,23 @@ def determine_cache_directory(entity):
 strptimeLock = Lock()
 def parse_cache_entry_into_seconds(isoTime):
     """
-    Note: Due to the way Python parses time via strptime()
-        it may randomly append an incorrect Daylight Savings Time 
-        to the resulting time_struct, which must be corrected
-    Note: The `strptime() method is not thread-safe <http://bugs.python.org/issue7980>`_
+    Returns the number of seconds from the UNIX epoch.
+    See :py:attribute:`synapseclient.utils.ISO_FORMAT` for the parameter's expected format.
     """
+    
+    # Note: The `strptime() method is not thread-safe (http://bugs.python.org/issue7980)
     strptimeLock.acquire()
     cacheTime = time.strptime(isoTime, utils.ISO_FORMAT)
     strptimeLock.release()
-    return time.mktime(cacheTime) - 3600 * cacheTime.tm_isdst
+    return calendar.timegm(cacheTime)
+    
+
+def get_modification_time(path):
+    """
+    Returns the modification time of the path in the number of seconds from the UNIX epoch.
+    May return None if the path does not exist.
+    """
+    
+    if not os.path.exists(path): return None
+    return calendar.timegm(time.gmtime(os.path.getmtime(path)))
     

@@ -205,6 +205,7 @@ class Synapse:
 
         # Check version before logging in
         if not self.skip_checks: version_check()
+        self.apiKey = None
 
         if email is not None and password is not None:
             self.username = email
@@ -212,6 +213,7 @@ class Synapse:
             self.apiKey = self._getAPIKey(sessionToken)
             
         elif email is not None and apiKey is not None:
+            self.username = email
             self.apiKey = apiKey
         
         elif sessionToken is not None:
