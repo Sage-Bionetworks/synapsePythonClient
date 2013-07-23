@@ -71,7 +71,7 @@ class RetryRequest(object):
                     if hasattr(response, 'status_code') and response.status_code not in range(200,299):
                         if response.status_code in self.retry_status_codes:
                             retry = True
-                        elif hasattr(response, 'headers') and response.headers['content-type'].lower().startswith('application/json'):
+                        elif hasattr(response, 'headers') and 'content-type' in response.headers and response.headers['content-type'].lower().startswith('application/json'):
                             try:
                                 json = response.json()
                             except (AttributeError, ValueError) as ex:
