@@ -1661,7 +1661,7 @@ class Synapse:
         # Check for access rights
         unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
         if unmetRights['totalNumberOfResults'] > 0:
-            raise Exception('You have unmet access requirements: %s' % ', '.join(unmetRights[results]))
+            raise Exception('You have unmet access requirements: %s' % ', '.join(unmetRights['results']))
         
         if not 'versionNumber' in entity:
             entity = self.get(entity)    
@@ -1669,11 +1669,11 @@ class Synapse:
         entity_id = entity['id']
 
         name = entity['name'] if (name is None and 'name' in entity) else None
-        submission = {'evaluationId' : evaluation_id, 
-                      'entityId'     : entity_id, 
-                      'name'         : name, 
-                      'teamName'     : teamName, 
-                      'versionNumber': entity_version}
+        submission = {'evaluationId'  : evaluation_id, 
+                      'entityId'      : entity_id, 
+                      'name'          : name, 
+                      'submitterAlias': teamName, 
+                      'versionNumber' : entity_version}
         submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity.etag, 
                                                json.dumps(submission)))
         
