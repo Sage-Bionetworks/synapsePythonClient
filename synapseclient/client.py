@@ -1646,7 +1646,7 @@ class Synapse:
         return Evaluation(**self.restGET(uri))
 
 
-    def submit(self, evaluation, entity, name=None):
+    def submit(self, evaluation, entity, name=None, teamName=None):
         """
         Submit an Entity for evaluation by an evaluator.
         
@@ -1672,16 +1672,13 @@ class Synapse:
         submission = {'evaluationId' : evaluation_id, 
                       'entityId'     : entity_id, 
                       'name'         : name, 
+                      'teamName'     : teamName, 
                       'versionNumber': entity_version}
         submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity.etag, 
                                                json.dumps(submission)))
         
-        ## TODO: Decide whether to show the confirmation/success message
-        # print "Thank you for your submission."
-        # if 'submissionReceiptMessage' in evaluation:
-        #     print evaluation['submissionReceiptMessage']
-        # else:
-        #     print "Your submission will be scored and results posted to the challenge leaderboard."
+        if 'submissionReceiptMessage' in evaluation:
+            print evaluation['submissionReceiptMessage']
         return submitted
 
 
