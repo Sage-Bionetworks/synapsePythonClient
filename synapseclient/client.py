@@ -1661,7 +1661,8 @@ class Synapse:
         # Check for access rights
         unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
         if unmetRights['totalNumberOfResults'] > 0:
-            raise Exception('You have unmet access requirements: %s' % ', '.join(unmetRights['results']))
+            accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
+            raise Exception('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
         
         if not 'versionNumber' in entity:
             entity = self.get(entity)    
