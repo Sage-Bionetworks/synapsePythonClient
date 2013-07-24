@@ -35,7 +35,7 @@ def test_round_trip():
         junk.properties.update(syn._createEntity(junk.properties))
 
         print 'downloading file'
-        junk.update(syn._downloadFileEntity(junk))
+        junk.update(syn._downloadFileEntity(junk, filepath))
 
         print 'comparing files'
         assert filecmp.cmp(filepath, junk.path)

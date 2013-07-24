@@ -42,7 +42,7 @@ setup(name='synapseclient',
         'requests>=1.2',
     ],
     test_suite='nose.collector',
-    tests_require=['nose'],
+    tests_require=['nose', 'mock'],
     entry_points = {
         'console_scripts': ['synapse = synapseclient.__main__:main']
     },

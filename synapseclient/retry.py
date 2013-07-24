@@ -9,10 +9,11 @@ class RetryRequest(object):
     """
     A decorator that wraps calls to HTTP methods in the requests library in a
     retry function, with various settings.
+    
+    This class is a decorator factory, described here:
+    `Python Class Based Decorator with parameters that can decorate a method or a function <http://stackoverflow.com/a/9417088/199166>`_
     """
-    ## This class is a decorator factory, described here:
-    ## Python Class Based Decorator with parameters that can decorate a method or a function
-    ## http://stackoverflow.com/a/9417088/199166
+    
     def __init__(self, retry_status_codes=[502,503], retry_errors=[], retry_exceptions=[], retries=3, wait=1, back_off=2, verbose=False, tag='RetryRequest'):
         self.retry_status_codes = _to_iterable(retry_status_codes)
         self.retries = retries
@@ -26,7 +27,7 @@ class RetryRequest(object):
     def __call__(self, fn):
         @functools.wraps(fn)
         def with_retry(*args, **kwargs):
-            ## make local copies of these variables, so we can modify them safely
+            # Make local copies of these variables, so we can modify them safely
             retries = self.retries
             wait = self.wait
 
@@ -42,14 +43,14 @@ class RetryRequest(object):
                         a = None
                 print 'RetryRequest wrappers=',tags
 
-            ## retry 'til we succeed or run out of tries
+            # Retry until we succeed or run out of tries
             while True:
-                ## start with a clean slate
+                # Start with a clean slate
                 exc_info = None
                 retry = False
                 response = None
 
-                ## try making the call
+                # Try making the call
                 try:
                     response = fn(*args, **kwargs)
                 except Exception as ex:
@@ -59,7 +60,7 @@ class RetryRequest(object):
                     if hasattr(ex,'response'):
                         response = ex.response
 
-                ## check if we got a retryable error
+                # Check if we got a retry-able error
                 if response is not None:
                     if self.verbose=='debug':
                         print '[%s] response=' % with_retry.tag, response
@@ -70,7 +71,7 @@ class RetryRequest(object):
                     if hasattr(response, 'status_code') and response.status_code not in range(200,299):
                         if response.status_code in self.retry_status_codes:
                             retry = True
-                        elif hasattr(response, 'headers') and response.headers['content-type'].lower().startswith('application/json'):
+                        elif hasattr(response, 'headers') and 'content-type' in response.headers and response.headers['content-type'].lower().startswith('application/json'):
                             try:
                                 json = response.json()
                             except (AttributeError, ValueError) as ex:
@@ -83,15 +84,15 @@ class RetryRequest(object):
                                 if any([msg in response.content for msg in self.retry_errors]):
                                     retry = True
 
-                ## check if we got a retryable exception
+                # Check if we got a retry-able exception
                 if exc_info is not None:
-                    ## might need fully qualified names? ex.__class__.__module__ + "." + ex.__class__.__name__
+                    ## TODO: might need fully qualified names? (ex.__class__.__module__ + "." + ex.__class__.__name__)
                     if exc_info[1].__class__.__name__ in self.retry_exceptions:
                         if self.verbose=='debug':
                             print '[%s] exception=' % with_retry.tag, exc_info[1].__class__.__name__
                         retry = True
 
-                ## wait then retry
+                # Wait then retry
                 retries -= 1
                 if retries >= 0 and retry:
                     sys.stderr.write('\n...retrying in %d seconds...\n' % wait)
@@ -99,17 +100,17 @@ class RetryRequest(object):
                     wait *= self.back_off
                     continue
 
-                ## out of retries, reraise the exception or return the response
+                # Out of retries, re-raise the exception or return the response
                 if exc_info:
-                    ## re-raise exception, preserving original stack trace
+                    # Re-raise exception, preserving original stack trace
                     raise exc_info[0], exc_info[1], exc_info[2]
                 return response
 
-        ## Provide a hook to get back the wrapped function
-        ## functools.wraps does this in Python 3.x
+        # Provide a hook to get back the wrapped function
+        # functools.wraps does this in Python 3.x
         with_retry.__wrapped__ = fn
         with_retry.tag = self.tag
 
-        ## return the wrapper function
+        # Return the wrapper function
         return with_retry
 
