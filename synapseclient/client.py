@@ -1665,7 +1665,7 @@ class Synapse:
             raise Exception('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
         
         if not 'versionNumber' in entity:
-            entity = self.get(entity)    
+            entity = self.get(entity)
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
@@ -1675,7 +1675,7 @@ class Synapse:
                       'name'          : name, 
                       'submitterAlias': teamName, 
                       'versionNumber' : entity_version}
-        submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity.etag, 
+        submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity['etag'], 
                                                json.dumps(submission)))
         
         if 'submissionReceiptMessage' in evaluation:
