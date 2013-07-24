@@ -4,22 +4,17 @@ Integration tests for Synapse Client for Python
 ## to run tests: nosetests -vs
 ## to run single test: nosetests -vs tests/integration/integration_test.py:test_foo
 
-from nose.tools import assert_raises
-import tempfile
-import os
-import sys
-from datetime import datetime
-import filecmp
-import shutil
-import uuid
-import random
+import tempfile, os, sys, filecmp, shutil
+import uuid, random
 import ConfigParser
+from datetime import datetime
+from nose.tools import assert_raises
 
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
-from synapseclient.client import Activity
+from synapseclient.activity import Activity
 from synapseclient.version_check import version_check
 from synapseclient.entity import File
 from synapseclient.wiki import Wiki
@@ -28,7 +23,6 @@ import integration
 from integration import create_project, create_data_entity, schedule_for_cleanup
 
 
-PROJECT_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Project', u'name': ''}
 DATA_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Data', u'parentId': ''}
 CODE_JSON={ u'entityType': u'org.sagebionetworks.repo.model.Code', u'parentId': ''}
 
@@ -39,11 +33,6 @@ def setup(module):
     print os.path.basename(__file__)
     print '~' * 60
     module.syn = integration.syn
-
-
-def test_printEntity():
-    syn.printEntity({'hello':'world', 'alist':[1,2,3,4]}) 
-    #Nothing really to test
 
 
 def test_login():
@@ -57,10 +46,13 @@ def test_login():
     config.read(client.CONFIG_FILE)
     
     # Test three valid login combinations
-    password = config.get('authentication', 'password')
-    syn.login(config.get('authentication', 'username'), password)
-    syn.login(email=syn.username, apiKey=syn.apiKey)
-    syn.login(sessionToken=syn._getSessionToken(syn.username, password))
+    try:
+        password = config.get('authentication', 'password')
+        syn.login(config.get('authentication', 'username'), password)
+        syn.login(email=syn.username, apiKey=syn.apiKey)
+        syn.login(sessionToken=syn._getSessionToken(syn.username, password))
+    except ConfigParser.Error:
+        print "To fully test the login method, please supply a username and password in the configuration file"
 
 
 def test_entity_version():

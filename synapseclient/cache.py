@@ -342,7 +342,7 @@ def normalize_path(path):
 
     
 def determine_cache_directory(entity):
-    """Uses a file handle to determine the cache folder."""
+    """Uses the properties of the Entity to determine where it would be cached by default."""
     
     if is_locationable(entity):
         return os.path.join(CACHE_DIR, entity['id'], str(entity['versionNumber']))
