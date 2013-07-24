@@ -429,6 +429,8 @@ class File(Entity, Versionable):
         self.__dict__['synapseStore'] = synapseStore
         super(File, self).__init__(entityType=File._synapse_entity_type, properties=properties, 
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        if not synapseStore:
+            self.__setitem__('concreteType', 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
 
 

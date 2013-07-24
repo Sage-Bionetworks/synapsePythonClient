@@ -1281,11 +1281,14 @@ class Synapse:
                 else:
                     raise NotImplementedError("File can already be accessed.  Consider setting downloadFile to False")
 
-            headers = self._generateSignedHeaders(url, {})
-            response = requests.get(url, headers=headers, stream=True)
+            response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
+        
+        try:
             response.raise_for_status()
-        else:
-            response.raise_for_status()
+        except requests.exceptions.HTTPError as err:
+            if err.response.status_code == 404:
+                raise Exception("Could not download the file at %s" % url)
+            raise
 
         # Stream the file to disk
         with open(destination, "wb") as f:
@@ -1314,12 +1317,8 @@ class Synapse:
             raise ValueError('No filename given')
 
         elif utils.is_url(filename):
-            ## TODO: implement downloading and storing remote files?  by default??
-            # if synapseStore:
-            #     # download the file locally, then upload it and cache it?
-            #     raise Exception('not implemented, yet!')
-            # else:
-            #     return self._addURLtoFileHandleService(filename)
+            if synapseStore:
+                raise NotImplementedError('Automatic downloading and storing of external files is not supported.  Please try downloading the file locally first before storing it.')
             return self._addURLtoFileHandleService(filename)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
@@ -1354,9 +1353,9 @@ class Synapse:
         
         fileName = externalURL.split('/')[-1]
         externalURL = utils.as_url(externalURL)
-        fileHandle={'concreteType':'org.sagebionetworks.repo.model.file.ExternalFileHandle',
-                    'fileName': fileName,
-                    'externalURL':externalURL}
+        fileHandle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
+                      'fileName'    : fileName,
+                      'externalURL' : externalURL}
         (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
         if mimetype:
             fileHandle['contentType'] = mimetype

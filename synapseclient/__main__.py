@@ -131,6 +131,8 @@ def upload(args, syn):
               'description':args.description,
               'entityType': u'org.sagebionetworks.repo.model.%s' % args.type, 
               'path': args.file}
+    if utils.is_url(args.file):
+        entity['synapseStore'] = False
 
     entity = syn.store(entity, used=args.used, executed=args.executed)
 
