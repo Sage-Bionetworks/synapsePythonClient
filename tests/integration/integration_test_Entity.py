@@ -432,7 +432,7 @@ def test_store_activity():
     assert honking['used'][1]['wasExecuted'] == False
 
     ## store another entity with the same activity
-    f2 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent=project)
+    f2 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent=project, synapseStore=False)
     f2 = syn.store(f2, activity=honking)
 
     honking2 = syn.getProvenance(f2)
@@ -446,7 +446,7 @@ def test_ExternalFileHandle():
     ## Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
     singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
 
-    singapore = File(singapore_url, parent=project)
+    singapore = File(singapore_url, parent=project, synapseStore=False)
     singapore = syn.store(singapore)
 
     fileHandle = syn._getFileHandle(singapore.dataFileHandleId)
