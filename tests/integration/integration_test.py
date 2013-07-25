@@ -628,7 +628,7 @@ def test_get_submission_attachment_belonging_to_other():
     try:
         other_user['email'] = config.get('test-authentication', 'username')
         other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principleId'] = config.get('test-authentication', 'principleid')
+        other_user['principalId'] = config.get('test-authentication', 'principalId')
     except ConfigParser.Error:
         print 'Error reading section "test-authentication" from the config file in test "%s".' % os.path.basename(__file__)
         return
@@ -641,7 +641,7 @@ def test_get_submission_attachment_belonging_to_other():
     ev = syn.store(ev)
 
     # Add the test user as a participant
-    syn.addEvaluationParticipant(ev, other_user['principleId'])
+    syn.addEvaluationParticipant(ev, other_user['principalId'])
     
     # Login as the test user and make a project
     syn.login(email=other_user['email'], password=other_user['password'])

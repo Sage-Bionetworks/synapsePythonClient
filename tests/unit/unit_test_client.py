@@ -42,7 +42,7 @@ def test_getWithEntityBundle(*mocks):
     cache_location_guess_mock.return_value = (cacheDir, defaultLocation, cachedFile)
     
     # Make sure the Entity is updated with the cached file path
-    def _downloadFileEntity(entity, path):
+    def _downloadFileEntity(entity, path, submission):
         # We're disabling the download, but the given path should be within the cache
         assert path == defaultLocation
         return {"path": cachedFile}

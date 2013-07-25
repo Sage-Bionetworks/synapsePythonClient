@@ -398,7 +398,7 @@ class Synapse:
         See :py:func:`synapseclient.Synapse.get`.
         
         :param entityBundle: Uses the given dictionary as the meta information of the Entity to get
-        :param submissionId: Makes the method treats the entityBundle like it came from a Submission 
+        :param submission:   Makes the method treats the entityBundle like it came from a Submission 
                              and thereby needs a different URL to download
         """
         
@@ -407,7 +407,7 @@ class Synapse:
         downloadFile = kwargs.get('downloadFile', True)
         downloadLocation = kwargs.get('downloadLocation', None)
         ifcollision = kwargs.get('ifcollision', 'keep.both')
-        submissionId = kwargs.get('submissionId', False)
+        submission = kwargs.get('submission', None)
         
         # Make sure the download location is fully resolved
         downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
@@ -424,9 +424,6 @@ class Synapse:
         properties = bundle['entity']
         annotations = from_synapse_annotations(bundle['annotations'])
         entity = Entity.create(properties, annotations, local_state)
-        
-        # Add some extra information for Submissions
-        if submissionId: entity['submissionId'] = submissionId
 
         # Handle both FileEntities and Locationables
         isLocationable = is_locationable(entity)
@@ -481,7 +478,7 @@ class Synapse:
                     ## TODO: version, here
                     entity = self._downloadLocations(entity, downloadPath)
                 else:
-                    entity.update(self._downloadFileEntity(entity, downloadPath))
+                    entity.update(self._downloadFileEntity(entity, downloadPath, submission))
             else:
                 # The local state of the Entity is normally updated by the _downloadFileEntity method
                 # Use the EntityBundle to fill in the path information
@@ -1256,11 +1253,11 @@ class Synapse:
     ##               File handle service calls                ##
     ############################################################
 
-    def _downloadFileEntity(self, entity, destination):
+    def _downloadFileEntity(self, entity, destination, submission=None):
         """Downloads the file associated with a FileEntity to the given file path."""
         
-        if 'submissionId' in entity:
-            url = '%s/evaluation/submission/%s/file/%s' % (self.repoEndpoint, entity['submissionId'], entity['dataFileHandleId'])
+        if submission is not None:
+            url = '%s/evaluation/submission/%s/file/%s' % (self.repoEndpoint, id_of(submission), entity['dataFileHandleId'])
         elif 'versionNumber' in entity:
             url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity), entity['versionNumber'])
         else:
@@ -1783,7 +1780,7 @@ class Synapse:
         if 'entityId' in submission and submission['entityId'] is not None:
             related = self._getWithEntityBundle(submission['entityId'], \
                                 entityBundle=json.loads(submission['entityBundleJSON']), 
-                                submissionId=submission_id, **kwargs)
+                                submission=submission_id, **kwargs)
             submission['filePath'] = related['path']
             
         return submission

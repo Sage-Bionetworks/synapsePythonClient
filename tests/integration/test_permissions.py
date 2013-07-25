@@ -25,23 +25,23 @@ def setup(module):
     try:
         other_user['email'] = config.get('test-authentication', 'username')
         other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principleId'] = config.get('test-authentication', 'principleid')
+        other_user['principalId'] = config.get('test-authentication', 'principalId')
     except ConfigParser.Error:
         sys.stderr.write('\nError reading section "test-authentication" from the config file in test "%s".\n' % os.path.basename(__file__))
 
-    if 'principleId' not in other_user:
-        ## fall back on chris's principleId
-        other_user['principleId'] = 1421212
+    if 'principalId' not in other_user:
+        ## fall back on chris's principalId
+        other_user['principalId'] = 1421212
 
 
 def test_ACL():
-    ## get the user's principleId, which is called ownerId and is
+    ## get the user's principalId, which is called ownerId and is
     ## returned as a string, while in the ACL, it's an integer
     current_user_id = int(syn.getUserProfile()['ownerId'])
 
     ## verify the validity of the other user
     try:
-        profile = syn.getUserProfile(other_user['principleId'])
+        profile = syn.getUserProfile(other_user['principalId'])
     except Exception as ex:
         if hasattr(ex, 'response') and ex.response.status_code == 404:
             raise Exception('Test invalid, test user doesn\'t exist.', ex)
@@ -51,7 +51,7 @@ def test_ACL():
     project = create_project()
 
     ## add permissions on the project for a new user
-    acl = syn.setPermissions(project, other_user['principleId'], accessType=['READ', 'CREATE', 'UPDATE'])
+    acl = syn.setPermissions(project, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE'])
     
     permissions = syn.getPermissions(project, current_user_id)
     assert 'DELETE' in permissions
@@ -60,7 +60,7 @@ def test_ACL():
     assert 'CREATE' in permissions
     assert 'UPDATE' in permissions
 
-    permissions = syn.getPermissions(project, other_user['principleId'])
+    permissions = syn.getPermissions(project, other_user['principalId'])
     assert 'READ' in permissions
     assert 'CREATE' in permissions
     assert 'UPDATE' in permissions
