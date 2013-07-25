@@ -208,7 +208,7 @@ def test_command_line_store_and_submit():
 
     
     ## Submit a bogus file
-    output = run('synapse submit --evaluation %s --name Some random name --entity %s' %(eval.id, file_entity_id))
+    output = run('synapse submit --evaluation %s --name Some random name --teamName "My Team" --entity %s' %(eval.id, file_entity_id))
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
     
 

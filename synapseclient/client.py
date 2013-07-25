@@ -1651,8 +1651,19 @@ class Synapse:
         
         :param evaluation: Evaluation board to submit to
         :param entity:     The Entity containing the Submission
+        :param name:       A name for this submission
+        :param teamName:   Team name to be publicly displayed
         
-        :returns: A Submission object
+        :returns: A :py:class:`synapseclient.Submission` object
+
+        Example::
+            evaluation = syn.getEvaluation(12345)
+            entity = syn.get('syn12345')
+            submission = syn.submit(evaluation, entity, name='Our Final Answer', teamName='Blue Team')
+
+        Set team name to user name::
+            profile = syn.getUserProfile()
+            submission = syn.submit(evaluation, entity, name='My Data', teamName=profile['displayName'])
         """
 
         evaluation_id = id_of(evaluation)

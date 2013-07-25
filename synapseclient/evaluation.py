@@ -16,7 +16,7 @@ The :py:func:`synapseclient.Synapse.submit` method returns a
 :py:class:`synapseclient.evaluation.Submission` object::
 
     entity = syn.get(synapse_id)
-    submission = syn.submit(evaluation, entity)
+    submission = syn.submit(evaluation, entity, name='My Data', teamName='My Team')
 
 The Submission has a :py:class:`synapseclient.evaluation.SubmissionStatus`::
 

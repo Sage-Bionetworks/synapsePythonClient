@@ -590,7 +590,7 @@ def test_evaluations():
                 f=File(filename, parentId=project.id, name='entry-%02d'%i,
                        description ='An entry for testing evaluation')
                 entity=syn.store(f)
-                syn.submit(ev, entity)
+                syn.submit(ev, entity, name='Test 1', teamName='My Team')
             finally:
                 os.remove(filename)
             sys.stdout.write('.')
