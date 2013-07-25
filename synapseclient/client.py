@@ -205,6 +205,7 @@ class Synapse:
 
         # Check version before logging in
         if not self.skip_checks: version_check()
+        self.username = None
         self.apiKey = None
 
         if email is not None and password is not None:
@@ -221,7 +222,7 @@ class Synapse:
             self.apiKey = self._getAPIKey(sessionToken)
             
         # Check if the supplied arguments managed to get an API key
-        if self.apiKey is not None:
+        if self.username is not None and self.apiKey is not None:
             return
         
         # Resort to checking the config file
@@ -248,7 +249,7 @@ class Synapse:
             self.apiKey = self._getAPIKey(token)
         
         # Final check on login success
-        if self.apiKey is None:
+        if self.username is not None and self.apiKey is None:
             raise Exception("LOGIN FAILED: no credentials provided")
         
         
@@ -317,8 +318,9 @@ class Synapse:
         # Logout globally
         if not local: self.restDELETE('/secretKey', endpoint=self.authEndpoint)
             
-        # Remove the API key from memory
-        del self.apiKey
+        # Remove the authentication information from memory
+        self.username = None
+        self.apiKey = None
 
 
     def getUserProfile(self, id=None, sessionToken=None):
@@ -396,6 +398,8 @@ class Synapse:
         See :py:func:`synapseclient.Synapse.get`.
         
         :param entityBundle: Uses the given dictionary as the meta information of the Entity to get
+        :param submissionId: Makes the method treats the entityBundle like it came from a Submission 
+                             and thereby needs a different URL to download
         """
         
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
@@ -403,11 +407,11 @@ class Synapse:
         downloadFile = kwargs.get('downloadFile', True)
         downloadLocation = kwargs.get('downloadLocation', None)
         ifcollision = kwargs.get('ifcollision', 'keep.both')
-        load = kwargs.get('load', False)
+        submissionId = kwargs.get('submissionId', False)
         
         # Make sure the download location is fully resolved
         downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
-        if os.path.isfile(downloadLocation):
+        if downloadLocation is not None and os.path.isfile(downloadLocation):
             raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
 
         # Retrieve metadata
@@ -420,6 +424,9 @@ class Synapse:
         properties = bundle['entity']
         annotations = from_synapse_annotations(bundle['annotations'])
         entity = Entity.create(properties, annotations, local_state)
+        
+        # Add some extra information for Submissions
+        if submissionId: entity['submissionId'] = submissionId
 
         # Handle both FileEntities and Locationables
         isLocationable = is_locationable(entity)
@@ -441,7 +448,7 @@ class Synapse:
             # Determine if the file should be downloaded
             downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
             if downloadFile: 
-                downloadFile = cache.local_file_has_changed(bundle, downloadPath)
+                downloadFile = cache.local_file_has_changed(bundle, True, downloadPath)
                 
             # Determine where the file should be downloaded to
             if downloadFile:
@@ -475,12 +482,6 @@ class Synapse:
                     entity = self._downloadLocations(entity, downloadPath)
                 else:
                     entity.update(self._downloadFileEntity(entity, downloadPath))
-                    
-                # Send the Entity's dictionary to the update the file cache
-                if 'path' in entity.keys():
-                    cache.add_local_file_to_cache(**entity)
-                else:
-                    cache.add_local_file_to_cache(path=entity['path'], **entity)
             else:
                 # The local state of the Entity is normally updated by the _downloadFileEntity method
                 # Use the EntityBundle to fill in the path information
@@ -489,6 +490,14 @@ class Synapse:
                 # If the file was not downloaded and does not exist, set the synapseStore flag appropriately
                 if not isLocationable and 'path' in entity and not os.path.exists(entity['path']):
                     entity['synapseStore'] = False
+                    
+            # Send the Entity's dictionary to the update the file cache
+            if 'path' in entity.keys():
+                cache.add_local_file_to_cache(**entity)
+            elif 'path' in entity:
+                cache.add_local_file_to_cache(path=entity['path'], **entity)
+            elif downloadPath is not None:
+                cache.add_local_file_to_cache(path=downloadPath, **entity)
 
         return entity
 
@@ -556,7 +565,7 @@ class Synapse:
             bundle = self._getEntityBundle(entity)
                     
             # Check if the file should be uploaded
-            if bundle is None or cache.local_file_has_changed(bundle, entity['path']):
+            if bundle is None or cache.local_file_has_changed(bundle, False, entity['path']):
                 if isLocationable:
                     # Entity must exist before upload for Locationables
                     if 'id' not in properties: 
@@ -1250,10 +1259,12 @@ class Synapse:
     def _downloadFileEntity(self, entity, destination):
         """Downloads the file associated with a FileEntity to the given file path."""
         
-        if 'versionNumber' in entity:
+        if 'submissionId' in entity:
+            url = '%s/evaluation/submission/%s/file/%s' % (self.repoEndpoint, entity['submissionId'], entity['dataFileHandleId'])
+        elif 'versionNumber' in entity:
             url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity), entity['versionNumber'])
         else:
-            url = '%s/entity/%s/file' % (self.repoEndpoint, id_of(entity),)
+            url = '%s/entity/%s/file' % (self.repoEndpoint, id_of(entity))
 
         # Create the necessary directories
         try:
@@ -1694,8 +1705,8 @@ class Synapse:
         """
         
         evaluation_id = id_of(evaluation)
-        userId=self.getUserProfile()['ownerId'] if userId==None else userId
-        self.restPOST('/evaluation/%s/participant/%s'  %(evaluation_id, userId), {})
+        userId = self.getUserProfile()['ownerId'] if userId == None else userId
+        self.restPOST('/evaluation/%s/participant/%s' % (evaluation_id, userId), {})
 
 
     def getSubmissions(self, evaluation, status=None):
@@ -1771,7 +1782,8 @@ class Synapse:
         # Pre-fetch the Entity tied to the Submission, if there is one
         if 'entityId' in submission and submission['entityId'] is not None:
             related = self._getWithEntityBundle(submission['entityId'], \
-                                entityBundle=json.loads(submission['entityBundleJSON']), **kwargs)
+                                entityBundle=json.loads(submission['entityBundleJSON']), 
+                                submissionId=submission_id, **kwargs)
             submission['filePath'] = related['path']
             
         return submission

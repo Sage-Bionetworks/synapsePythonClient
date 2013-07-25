@@ -620,4 +620,54 @@ def test_evaluations():
         assert e.response.status_code == 404
 
 
+def test_get_submission_attachment_belonging_to_other():
+    # See if the configuration contains test authentication
+    config = ConfigParser.ConfigParser()
+    config.read(client.CONFIG_FILE)
+    other_user = {}
+    try:
+        other_user['email'] = config.get('test-authentication', 'username')
+        other_user['password'] = config.get('test-authentication', 'password')
+        other_user['principleId'] = config.get('test-authentication', 'principleid')
+    except ConfigParser.Error:
+        print 'Error reading section "test-authentication" from the config file in test "%s".' % os.path.basename(__file__)
+        return
+        
+    # Create an Evaluation belonging to the current user
+    syn.login()
+    project = create_project()
+    name = 'Test Evaluation %s' % str(uuid.uuid4())
+    ev = Evaluation(name=name, description='Evaluation for testing', contentSource=project['id'], status='OPEN')
+    ev = syn.store(ev)
 
+    # Add the test user as a participant
+    syn.addEvaluationParticipant(ev, other_user['principleId'])
+    
+    # Login as the test user and make a project
+    syn.login(email=other_user['email'], password=other_user['password'])
+    other_project = {'entityType':'org.sagebionetworks.repo.model.Project', 'name':str(uuid.uuid4())}
+    other_project = syn.createEntity(other_project)
+    
+    # Make a file to submit
+    fd, filename = tempfile.mkstemp()
+    with os.fdopen(fd, 'w') as f:
+        f.write(str(random.gauss(0,1)))
+        f.write('\n')
+    f = File(filename, parentId=other_project.id, name='entry', description ='An entry for testing evaluation')
+    entity = syn.store(f)
+    submission = syn.submit(ev, entity)
+    
+    # Clean up, since the current user can't access this project
+    # This also removes references to the submitted object :)
+    syn.delete(other_project)
+    
+    # Mess up the cached file so that syn._getWithEntityBundle must download again
+    os.utime(filename, (0, 0))
+    
+    # Login as the original user and grab the submission
+    syn.logout(local=True)
+    syn.login()
+    fetched = syn.getSubmission(submission['id'])
+    assert os.path.exists(fetched['filePath'])
+        
+    syn.delete(ev)

@@ -253,9 +253,11 @@ def test_get_with_downloadLocation_and_ifcollision():
 
     # Compare stuff to this one
     normalBogus = syn.get(bogus)
+    print normalBogus.path
     
     # Download to the temp folder, should be the same
     otherBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath))
+    print otherBogus.path
     assert otherBogus.id == normalBogus.id
     assert filecmp.cmp(otherBogus.path, normalBogus.path)
     
