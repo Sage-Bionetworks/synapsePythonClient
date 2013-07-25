@@ -407,6 +407,8 @@ class Synapse:
         
         # Make sure the download location is fully resolved
         downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
+        if os.path.isfile(downloadLocation):
+            raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
 
         # Retrieve metadata
         bundle = kwargs.get('entityBundle', None)

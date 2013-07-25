@@ -29,7 +29,7 @@ Helpers
 
 import os, sys, re
 import time, calendar
-import errno, shutil, filecmp
+import errno, shutil
 import json, urlparse
 import synapseclient.utils as utils
 from synapseclient.entity import is_locationable
@@ -76,15 +76,13 @@ def local_file_has_changed(entityBundle, path=None):
     path = normalize_path(path)
     fileMTime = get_modification_time(path)
     unmodifiedFileExists = False
-    for file, cacheTime, _ in iterator_over_cache_map(cacheDir):
+    for file, cacheTime, cachedFileMTime in iterator_over_cache_map(cacheDir):
         # When there is a direct match, return if it is modified
         if path == file and os.path.exists(path):
             return not fileMTime == cacheTime
             
         # If there is no direct match, but a pristine copy exists, return False (after checking all entries)
-        # The filecmp is necessary for Windows machines since their clocks do not keep millisecond information
-        # i.e. Two files created quickly may have the same timestamp
-        if fileMTime == cacheTime and os.path.exists(file) and filecmp.cmp(path, file):
+        if cachedFileMTime == cacheTime:
             unmodifiedFileExists = True
             
     # The file is not cached or has been changed
