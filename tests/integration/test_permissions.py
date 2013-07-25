@@ -71,38 +71,40 @@ def test_get_entity_owned_by_another_user():
         sys.stderr.write('\nWarning: no test-authentication configured. skipping test_get_entity_owned_by_another.\n')
         return
 
-    syn_other = synapseclient.Synapse()
-    syn_other.login(other_user['email'], other_user['password'])
+    try:
+        syn_other = synapseclient.Synapse()
+        syn_other.login(other_user['email'], other_user['password'])
 
-    project = Project(name=str(uuid.uuid4()))
-    project = syn_other.store(project)
+        project = Project(name=str(uuid.uuid4()))
+        project = syn_other.store(project)
 
-    filepath = utils.make_bogus_data_file()
-    a_file = File(filepath, parent=project, description='asdf qwer', foo=1234)
-    a_file = syn_other.store(a_file)
+        filepath = utils.make_bogus_data_file()
+        a_file = File(filepath, parent=project, description='asdf qwer', foo=1234)
+        a_file = syn_other.store(a_file)
 
-    current_user_id = int(syn.getUserProfile()['ownerId'])
+        current_user_id = int(syn.getUserProfile()['ownerId'])
 
-    ## update the acl to give the current user read permissions
-    syn_other.setPermissions(a_file, current_user_id, accessType=['READ'], modify_benefactor=True)
+        ## update the acl to give the current user read permissions
+        syn_other.setPermissions(a_file, current_user_id, accessType=['READ'], modify_benefactor=True)
 
-    ## test whether the benefactor's ACL was modified
-    assert syn_other.getPermissions(project, current_user_id) == ['READ']
+        ## test whether the benefactor's ACL was modified
+        assert syn_other.getPermissions(project, current_user_id) == ['READ']
 
-    ## add a new permission to a user with existing permissions
-    ## make this change on the entity itself, not its benefactor
-    syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'UPDATE'], modify_benefactor=False, warn_if_inherits=False)
-    permissions = syn_other.getPermissions(a_file, current_user_id)
-    assert 'READ' in permissions
-    assert 'UPDATE' in permissions
-    assert len(permissions) == 2
+        ## add a new permission to a user with existing permissions
+        ## make this change on the entity itself, not its benefactor
+        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'UPDATE'], modify_benefactor=False, warn_if_inherits=False)
+        permissions = syn_other.getPermissions(a_file, current_user_id)
+        assert 'READ' in permissions
+        assert 'UPDATE' in permissions
+        assert len(permissions) == 2
 
-    syn_other.setPermissions(a_file, current_user_id, accessType=['READ'])
-    assert syn_other.getPermissions(a_file, current_user_id) == ['READ']
+        syn_other.setPermissions(a_file, current_user_id, accessType=['READ'])
+        assert syn_other.getPermissions(a_file, current_user_id) == ['READ']
 
-    other_users_file = syn.get(a_file.id)
-    a_file = syn_other.get(a_file.id)
+        other_users_file = syn.get(a_file.id)
+        a_file = syn_other.get(a_file.id)
 
-    assert other_users_file == a_file
-
+        assert other_users_file == a_file
+    finally:
+        syn_other.logout()
 
