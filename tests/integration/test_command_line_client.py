@@ -217,6 +217,11 @@ def test_command_line_store_and_submit():
     schedule_for_cleanup(filename)
     output = run('synapse store --id %s --file %s' % (file_entity_id, filename,))
     updated_entity_id = parse(r'Updated entity:\s+(syn\d+)', output)
+    
+
+    ## Submit an updated bogus file
+    output = run('synapse submit --evaluation %s --entity %s' %(eval.id, file_entity_id))
+    submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
 
     ## Tests shouldn't have external dependencies, but here it's required
