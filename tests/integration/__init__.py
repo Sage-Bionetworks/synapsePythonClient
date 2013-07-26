@@ -1,12 +1,13 @@
 """
 Integration tests for the Synapse Client for Python
+
+To run all the tests      : nosetests -vs tests
+To run a single test suite: nosetests -vs tests/integration
+To run a single test set  : nosetests -vs tests/integration/integration_test_Entity.py
+To run a single test      : nosetests -vs tests/integration/integration_test_Entity.py:test_Entity
 """
 
-## to run tests: nosetests -vs synapseclient/integration_test_Entity.py
-## to run single test: nosetests -vs synapseclient/integration_test_Entity.py:test_Entity
-import uuid
-import os
-import sys
+import uuid, os, sys
 
 from synapseclient import Entity, Project, Folder, File, Data
 import synapseclient
@@ -18,6 +19,12 @@ def setup_module(module):
     syn.login()
     module.syn = syn
     module._to_cleanup = []
+    
+    # Make one project for all the tests to use
+    project = Project(name=str(uuid.uuid4()))
+    project = syn.store(project)
+    schedule_for_cleanup(project)
+    module.project = project
 
     print "Testing against endpoints:"
     print "  " + syn.repoEndpoint
@@ -29,23 +36,11 @@ def setup_module(module):
 def teardown_module(module):
     cleanup(module._to_cleanup)
 
-def create_project(name=None):
-    """return a newly created project that will be cleaned up during teardown"""
-    if name is None:
-        name = str(uuid.uuid4())
-    project = {'entityType':'org.sagebionetworks.repo.model.Project', 'name':name}
-    project = syn.createEntity(project)
-    schedule_for_cleanup(project)
-    return project
-
-def create_data_entity(parentId):
-    data = { 'entityType': 'org.sagebionetworks.repo.model.Data', 'parentId': parentId}
-    return syn.createEntity(data)
-
 
 def schedule_for_cleanup(item):
     """schedule a file of Synapse Entity to be deleted during teardown"""
     globals()['_to_cleanup'].append(item)
+    
 
 def cleanup(items):
     """cleanup junk created during testing"""
@@ -54,7 +49,7 @@ def cleanup(items):
             try:
                 syn.delete(item)
             except Exception as ex:
-                if hasattr(ex, 'response') and ex.response.status_code==404:
+                if hasattr(ex, 'response') and ex.response.status_code == 404:
                     pass
                 else:
                     print "Error cleaning up entity: " + str(ex)
