@@ -3,6 +3,7 @@ from nose.tools import assert_raises
 from mock import MagicMock, patch
 import unit
 import synapseclient
+from synapseclient.exceptions import *
 
 
 def setup(module):
@@ -85,7 +86,7 @@ def test_submit(*mocks):
                                 {'accessType': 'bat', 
                                  'termsOfUse': 'baz'}]}
                                  
-    assert_raises(Exception, syn.submit, "Evaluation", "Entity")
+    assert_raises(SynapseAuthenticationError, syn.submit, "Evaluation", "Entity")
     id_mock.assert_called_once_with("Evaluation")
     GET_mock.assert_called_once_with('/evaluation/1337/accessRequirementUnfulfilled')
     

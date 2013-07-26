@@ -136,7 +136,7 @@ def collect_errors_and_fail():
     for i in range(syn.test_errors.qsize()):
         failures.append(syn.test_errors.get())
     if len(failures) > 0:
-        raise Exception('\n' + '\n'.join(failures))
+        raise SynapseException('\n' + '\n'.join(failures))
     
 ######################
 ## Thread Behaviors ##    

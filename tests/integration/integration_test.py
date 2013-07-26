@@ -134,13 +134,9 @@ def test_query():
     #Create a project then add entities and verify that I can find them with a query
     project = create_project()
     for i in range(2):
-        try:
-            entity = create_data_entity(project['id'])
-        except Exception as ex:
-            print ex
-            print ex.response.text
+        entity = create_data_entity(project['id'])
         qry= syn.query("select id, name from entity where entity.parentId=='%s'" % project['id'])
-        assert qry['totalNumberOfResults']==(i+1)
+        assert qry['totalNumberOfResults'] == (i + 1)
 
         
 def test_chunked_query():
@@ -151,11 +147,7 @@ def test_chunked_query():
     # Create a project to dump a bunch of Entities into
     project = create_project()
     for i in range(client.QUERY_LIMIT * 5):
-        try:
-            entity = create_data_entity(project['id'])
-        except Exception as ex:
-            print ex
-            print ex.response.text
+        entity = create_data_entity(project['id'])
             
     iter = syn.chunkedQuery("select * from entity where entity.parentId=='%s'" % project['id'])
     count = 0
@@ -177,12 +169,9 @@ def test_md5_query():
     
     num = 5
     for i in range(num):
-        try:
-            repeated.name = 'Repeated data %d.dat' % i
-            syn.store(repeated)
-        except Exception as ex:
-            print ex
-            print ex.response.text
+        repeated.name = 'Repeated data %d.dat' % i
+        syn.store(repeated)
+        
     results = syn.md5Query(utils.md5_for_file(path).hexdigest())
     print [res['id'] for res in results]
     
@@ -267,9 +256,9 @@ def test_uploadFileEntity():
 
 
 def test_downloadFile():
-    "test download file function in utils.py"
+    # Test download file function in utils.py
     result = utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
-    if (result):
+    if result:
         # print("status: \"%s\"" % str(result[1].status))
         # print("filename: \"%s\"" % str(result[0]))
         filename = result[0]
@@ -278,17 +267,15 @@ def test_downloadFile():
         ## cleanup
         try:
             os.remove(filename)
-        except Exception:
-            print("warning: couldn't delete file: \"%s\"\n" % filename)
+        except OSError:
+            print "Warning: couldn't delete file: %s" % filename
     else:
-        print("failed to download file: \"%s\"" % filename)
+        print "Failed to download file: %s" % filename
         assert False
 
 
 def test_version_check():
-    """
-    test the version checking and blacklisting functionality
-    """
+    # Test the version checking and blacklisting functionality
 
     ## current version against dev synapsePythonClient version file
     version_check(version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
@@ -370,14 +357,8 @@ def test_provenance():
     ## test delete
     syn.deleteProvenance(data_entity)
 
-    try:
-        ## provenance should be gone now
-        ## decided this should throw exception with a 404
-        deleted_activity = syn.getProvenance(data_entity['id'])
-    except Exception as ex:
-        assert ex.response.status_code == 404
-    else:
-        assert False, 'Should throw 404 exception'
+    # Provenance should be gone now, so it should 404
+    assert_raises(SynapseHTTPError, syn.getProvenance, data_entity['id'])
 
 
 def test_annotations():
@@ -548,7 +529,7 @@ def test_get_and_store_other_objects():
 
     #Update it with createOrUpdate==False  ERROR
     #ev = Evaluation(name='foobar2', description='bar', status='OPEN')
-    #print syn.store(ev, createOrUpdate=False)  #Check that we fail with a HTTPError Exception
+    #print syn.store(ev, createOrUpdate=False)  #Check that we fail with a HTTPError
 
     #Update evaluation without supplying all parameters - OK
     #ev= syn.store(Evaluation(description='Testing update'), createOrUpdate=True)
@@ -611,12 +592,8 @@ def test_evaluations():
     finally:
         syn.delete(ev)
 
-    ## make sure it's deleted
-    try:
-        ev = syn.getEvaluation(ev)
-    except Exception as e:
-        print e
-        assert e.response.status_code == 404
+    # Make sure it's deleted
+    assert_raises(SynapseHTTPError, syn.getEvaluation, ev)
 
 
 def test_get_submission_attachment_belonging_to_other():

@@ -38,6 +38,7 @@ Activity
 import collections
 
 from synapseclient.utils import is_url, id_of, is_synapse_entity
+from synapseclient.exceptions import *
 
 
 def is_used_entity(x):
@@ -267,7 +268,7 @@ class Activity(dict):
             resource = {'reference':reference, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
 
         else:
-            raise SynapseProvenanceError('Unexpected parameters in call to Activity.used().')
+            raise SynapseError('Unexpected parameters in call to Activity.used().')
 
         # Set wasExecuted
         if wasExecuted is None:

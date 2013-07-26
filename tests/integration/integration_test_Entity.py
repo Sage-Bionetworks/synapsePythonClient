@@ -490,11 +490,7 @@ def test_synapseStore_flag():
     ## a file path that doesn't exist should still work
     f2 = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)
     f2 = syn.store(f2)
-    try:
-        syn.get(f2)
-        assert False
-    except Exception as err:
-        assert err.message.startswith("Could not download non-existent file")
+    assert_raises(IOError, syn.get, f2)
     assert f1a.synapseStore == False
 
     ## Try a URL
