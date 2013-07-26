@@ -152,7 +152,10 @@ def test_md5_query():
 
 def test_uploadFile_given_dictionary():
     # Make a Data Entity the old fashioned way
-    data = {'entityType': Data._synapse_entity_type, 'parentId': project['id']}
+    data = {'entityType': Data._synapse_entity_type, 
+            'parentId'  : project['id'], 
+            'name'      : 'foo',
+            'foo'       : 334455}
     entity = syn.createEntity(data)
     
     # Create and upload a temporary file
@@ -164,7 +167,26 @@ def test_uploadFile_given_dictionary():
     entity = syn.downloadEntity(entity)
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, os.path.join(entity['cacheDir'],entity['files'][0]))
+    assert entity.parentId == project.id
+    assert entity.foo[0] == 334455
 
+    # Update via a dictionary
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    rareCase = {}
+    rareCase.update(entity.annotations)
+    rareCase.update(entity.properties)
+    rareCase.update(entity.local_state())
+    rareCase['path'] = path
+    rareCase['description'] = 'Updating with a plain dictionary should be rare.'
+
+    # Verify it works
+    entity = syn.store(rareCase)
+    assert entity.description == rareCase['description']
+    assert entity.name == 'foo'
+    entity = syn.get(entity['id'])
+    assert filecmp.cmp(path, os.path.join(entity['cacheDir'], entity['files'][0]))
+    
 
 def test_uploadFileEntity():
     # Create a FileEntity
