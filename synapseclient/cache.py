@@ -33,6 +33,7 @@ import errno, shutil
 import json, urlparse
 import synapseclient.utils as utils
 from synapseclient.entity import is_locationable
+from synapseclient.exceptions import *
 from threading import Lock
 
 CACHE_DIR = os.path.join(os.path.expanduser('~'), '.synapseCache')

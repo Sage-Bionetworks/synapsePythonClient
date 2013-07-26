@@ -81,7 +81,13 @@ def test_write_cache_then_release_lock(lock_valid_mock, read_mock):
 @patch('os.path.exists')
 @patch('synapseclient.cache.write_cache_then_release_lock') # Ignore the fact that the .lock is not made
 @patch('synapseclient.cache.obtain_lock_and_read_cache')
-def test_iterator_over_cache_map(read_mock, write_mock, exist_mock, mod_time_mock):
+def test_iterator_over_cache_map(*mocks):
+    mocks = [mock for mock in mocks]
+    mod_time_mock = mocks.pop()
+    exist_mock    = mocks.pop()
+    write_mock    = mocks.pop()
+    read_mock     = mocks.pop()
+    
     # Replace the CacheMap with a dictionary with timestamps (0, 1, 2, 3)
     ret_dict = {"0": "1970-01-01T00:00:00.000Z", 
                 "1": "1970-01-01T00:00:01.000Z", 

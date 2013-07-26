@@ -101,8 +101,6 @@ def test_query():
     
     # Add entities and verify that I can find them with a query
     for i in range(2):
-        assert qry['totalNumberOfResults']==(i+1)
-
         syn.store(Data(parent=project['id']))
         qry = syn.query("select id, name from entity where entity.parentId=='%s'" % project['id'])
         assert qry['totalNumberOfResults'] == i + 1
@@ -154,7 +152,7 @@ def test_uploadFile_given_dictionary():
     # Make a Data Entity the old fashioned way
     data = {'entityType': Data._synapse_entity_type, 
             'parentId'  : project['id'], 
-            'name'      : 'foo',
+            'name'      : 'fooDictionary',
             'foo'       : 334455}
     entity = syn.createEntity(data)
     
@@ -183,7 +181,7 @@ def test_uploadFile_given_dictionary():
     # Verify it works
     entity = syn.store(rareCase)
     assert entity.description == rareCase['description']
-    assert entity.name == 'foo'
+    assert entity.name == 'fooDictionary'
     entity = syn.get(entity['id'])
     assert filecmp.cmp(path, os.path.join(entity['cacheDir'], entity['files'][0]))
     
@@ -193,7 +191,7 @@ def test_uploadFileEntity():
     # Dictionaries default to FileEntity as a type
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
-    entity = {'name'        : 'foo', \
+    entity = {'name'        : 'fooUploadFileEntity', \
               'description' : 'A test file entity', \
               'parentId'    : project['id']}
     entity = syn.uploadFile(entity, fname)
