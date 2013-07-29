@@ -68,7 +68,7 @@ class Evaluation(DictObject):
     :param name:          Name of the evaluation
     :param description:   A short description describing the evaluation
     :param status:        One of {'OPEN', 'PLANNED', 'CLOSED', 'COMPLETED'}.  Defaults to 'OPEN'
-    :param contentSource: Source of the evaluation's content
+    :param contentSource: Synapse Project that is the source of the evaluation's content.
     """
 
     @classmethod
