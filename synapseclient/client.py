@@ -204,6 +204,7 @@ class Synapse:
         5) check for a saved session token in the configuration file
         6) check for a saved email and password in the configuraton file
         """
+        # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
         if not self.skip_checks: version_check()
@@ -224,35 +225,37 @@ class Synapse:
             self.apiKey = self._getAPIKey(sessionToken)
             
         # Check if the supplied arguments managed to get an API key
-        if self.username is not None and self.apiKey is not None:
-            return
+        if self.username is None or self.apiKey is None:
         
-        # Resort to checking the config file
-        config = ConfigParser.ConfigParser()
-        try:
-            config.read(CONFIG_FILE)
-        except ConfigParser.Error:
-            sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
-            raise
+            # Resort to checking the config file
+            config = ConfigParser.ConfigParser()
+            try:
+                config.read(CONFIG_FILE)
+            except ConfigParser.Error:
+                sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
+                raise
+                
+            if config.has_option('authentication', 'username') and config.has_option('authentication', 'apikey'):
+                self.username = config.get('authentication', 'username')
+                self.apiKey = base64.b64decode(config.get('authentication', 'apikey'))
+                
+            elif config.has_option('authentication', 'sessiontoken'):
+                sessionToken = config.get('authentication', 'sessiontoken')
+                self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
+                self.apiKey = self._getAPIKey(sessionToken)
             
-        if config.has_option('authentication', 'username') and config.has_option('authentication', 'apikey'):
-            self.username = config.get('authentication', 'username')
-            self.apiKey = base64.b64decode(config.get('authentication', 'apikey'))
-            
-        elif config.has_option('authentication', 'sessiontoken'):
-            sessionToken = config.get('authentication', 'sessiontoken')
-            self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
-            self.apiKey = self._getAPIKey(sessionToken)
-        
-        elif config.has_option('authentication', 'username') and config.has_option('authentication', 'password'):
-            self.username = config.get('authentication', 'username')
-            password = config.get('authentication', 'password')
-            token = self._getSessionToken(email=self.username, password=password)
-            self.apiKey = self._getAPIKey(token)
+            elif config.has_option('authentication', 'username') and config.has_option('authentication', 'password'):
+                self.username = config.get('authentication', 'username')
+                password = config.get('authentication', 'password')
+                token = self._getSessionToken(email=self.username, password=password)
+                self.apiKey = self._getAPIKey(token)
         
         # Final check on login success
         if self.username is not None and self.apiKey is None:
             raise SynapseAuthenticationError("No credentials provided.")
+            
+        profile = self.getUserProfile()
+        print "Welcome, %s %s!  (If this is not you, please log out.)" % (profile['firstName'], profile['lastName'])
         
         
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
