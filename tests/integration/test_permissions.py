@@ -39,13 +39,8 @@ def test_ACL():
     ## returned as a string, while in the ACL, it's an integer
     current_user_id = int(syn.getUserProfile()['ownerId'])
 
-    ## verify the validity of the other user
-    try:
-        profile = syn.getUserProfile(other_user['principalId'])
-    except Exception as ex:
-        if hasattr(ex, 'response') and ex.response.status_code == 404:
-            raise Exception('Test invalid, test user doesn\'t exist.', ex)
-        raise
+    # Verify the validity of the other user
+    profile = syn.getUserProfile(other_user['principalId'])
 
     ## create a new project
     project = create_project()

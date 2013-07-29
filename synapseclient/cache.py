@@ -203,7 +203,7 @@ def determine_local_file_location(entityBundle):
                 path = os.path.join(cacheDir, handle['fileName'])
                 return cacheDir, path, unmodifiedFile
                     
-        raise Exception("Invalid parameters: the entityBundle does not contain matching file handle IDs")
+        raise SynapseMalformedEntityError("Invalid parameters: the entityBundle does not contain matching file handle IDs")
     
 
 def get_alternate_file_name(path):
@@ -259,7 +259,7 @@ def obtain_lock_and_read_cache(cacheDir):
     
     # Did it time out?
     if time.time() - tryLockStartTime >= CACHE_MAX_LOCK_TRY_TIME:
-        raise Exception("Could not obtain a lock on the CacheMap within %d seconds.  Please try again later" % CACHE_MAX_LOCK_TRY_TIME)
+        raise SynapseFileCacheError("Could not obtain a lock on the file cache within %d seconds.  Please try again later" % CACHE_MAX_LOCK_TRY_TIME)
         
     # Make sure the '.cacheMap' exists, otherwise just return a blank dictionary
     if not os.path.exists(cacheMap):

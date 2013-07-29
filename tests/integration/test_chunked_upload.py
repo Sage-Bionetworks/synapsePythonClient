@@ -1,6 +1,5 @@
 import filecmp
-import os
-import sys
+import os, sys, traceback
 
 import synapseclient
 import synapseclient.utils as utils
@@ -46,12 +45,12 @@ def test_round_trip():
         try:
             if 'junk' in locals():
                 syn.delete(junk)
-        except Exception as ex:
-            print ex
+        except Exception:
+            print traceback.format_exc()
         try:
             os.remove(filepath)
-        except Exception as ex:
-            print ex
+        except Exception:
+            print traceback.format_exc()
         if fh:
             print 'Deleting fileHandle', fh['id']
             syn._deleteFileHandle(fh)

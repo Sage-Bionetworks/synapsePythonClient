@@ -38,6 +38,7 @@ Activity
 import collections
 
 from synapseclient.utils import is_url, id_of, is_synapse_entity
+from synapseclient.exceptions import *
 
 
 def is_used_entity(x):
@@ -214,7 +215,7 @@ class Activity(dict):
 
             for param in illegal_params:
                 if param in params and params[param] is not None:
-                    raise Exception('%s: It is an error to specify the \'%s\' parameter in combination with a %s.' % (err_msg, str(param), context_msg))
+                    raise SynapseMalformedEntityError('%s: It is an error to specify the \'%s\' parameter in combination with a %s.' % (err_msg, str(param), context_msg))
 
         # List
         if isinstance(target, list):
@@ -267,7 +268,7 @@ class Activity(dict):
             resource = {'reference':reference, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
 
         else:
-            raise Exception('Unexpected parameters in call to Activity.used().')
+            raise SynapseError('Unexpected parameters in call to Activity.used().')
 
         # Set wasExecuted
         if wasExecuted is None:
