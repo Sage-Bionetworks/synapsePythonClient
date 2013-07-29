@@ -8,6 +8,7 @@ import synapseclient.utils as utils
 from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations
 from synapseclient.activity import Activity
 from synapseclient.utils import _find_used
+from synapseclient.exceptions import *
 
 
 def setup():
@@ -184,9 +185,9 @@ def test_activity_used_url():
 def test_activity_parameter_errors():
     """Test error handling in Activity.used()"""
     a = Activity(name='Foobarbat', description='Apply foo to a bar and a bat')
-    assert_raises(Exception, a.used, ['syn12345', 'http://google.com'], url='http://amazon.com')
-    assert_raises(Exception, a.used, 'syn12345', url='http://amazon.com')
-    assert_raises(Exception, a.used, 'http://amazon.com', targetVersion=1)
+    assert_raises(SynapseMalformedEntityError, a.used, ['syn12345', 'http://google.com'], url='http://amazon.com')
+    assert_raises(SynapseMalformedEntityError, a.used, 'syn12345', url='http://amazon.com')
+    assert_raises(SynapseMalformedEntityError, a.used, 'http://amazon.com', targetVersion=1)
 
 
 def test_is_url():
@@ -211,10 +212,10 @@ def test_id_of():
     assert utils.id_of(1) == '1'
     assert utils.id_of('syn12345') == 'syn12345'
     assert utils.id_of({'foo':1, 'id':123}) == 123
-    assert_raises(Exception, utils.id_of, {'foo':1, 'idzz':123})
+    assert_raises(SynapseMalformedEntityError, utils.id_of, {'foo':1, 'idzz':123})
     assert utils.id_of({'properties':{'id':123}}) == 123
-    assert_raises(Exception, utils.id_of, {'properties':{'qq':123}})
-    assert_raises(Exception, utils.id_of, object())
+    assert_raises(SynapseMalformedEntityError, utils.id_of, {'properties':{'qq':123}})
+    assert_raises(SynapseMalformedEntityError, utils.id_of, object())
 
     class Foo:
         def __init__(self, id):

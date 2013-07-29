@@ -14,6 +14,7 @@ from datetime import datetime as Datetime
 import synapseclient
 import synapseclient.utils as utils
 from synapseclient import Activity, Entity, Project, Folder, File, Data
+from synapseclient.exceptions import *
 
 import integration
 from integration import create_project, schedule_for_cleanup
@@ -214,7 +215,7 @@ def test_store_with_create_or_update_flag():
     bogus3 = File(newer_filepath, name='Bogus Test File', parent=project)
 
     # Expected behavior is raising an exception with a 409 error
-    assert_raises(requests.exceptions.HTTPError, syn.store, bogus3, createOrUpdate=False)
+    assert_raises(SynapseHTTPError, syn.store, bogus3, createOrUpdate=False)
 
 
 def test_store_with_force_version_flag():
@@ -489,11 +490,7 @@ def test_synapseStore_flag():
     ## a file path that doesn't exist should still work
     f2 = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)
     f2 = syn.store(f2)
-    try:
-        syn.get(f2)
-        assert False
-    except Exception as err:
-        assert err.message.startswith("Could not download non-existent file")
+    assert_raises(IOError, syn.get, f2)
     assert f1a.synapseStore == False
 
     ## Try a URL
