@@ -194,7 +194,7 @@ class Synapse:
             self.profile_data = json.loads(base64.b64decode(profile_data))
 
 
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False):
+    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False):
         """
         Authenticates the user using the given credentials, in order of preference:
         
@@ -209,7 +209,8 @@ class Synapse:
         
         :param apiKey:     Base64 encoded
         :param rememberMe: Whether the authentication information should be cached locally
-                           for usage across sessions and clients.  
+                           for usage across sessions and clients.
+        :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
         """
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
@@ -282,8 +283,9 @@ class Synapse:
             cachedSessions[self.username] = base64.b64encode(self.apiKey)
             self._writeSessionCache(cachedSessions)
             
-        profile = self.getUserProfile()
-        print "Welcome, %s %s!  (If this is not you, please log out.)" % (profile['firstName'], profile['lastName'])
+        if not silent:
+            profile = self.getUserProfile()
+            print "Welcome, %s!" % (profile['displayName'] if 'displayName' in profile else self.username)
         
         
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
