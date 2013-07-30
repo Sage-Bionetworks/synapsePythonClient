@@ -33,6 +33,7 @@ import errno, shutil
 import json, urlparse
 import synapseclient.utils as utils
 from synapseclient.entity import is_locationable
+from synapseclient.exceptions import *
 from threading import Lock
 
 CACHE_DIR = os.path.join(os.path.expanduser('~'), '.synapseCache')
@@ -342,7 +343,7 @@ def normalize_path(path):
 
     
 def determine_cache_directory(entity):
-    """Uses a file handle to determine the cache folder."""
+    """Uses the properties of the Entity to determine where it would be cached by default."""
     
     if is_locationable(entity):
         return os.path.join(CACHE_DIR, entity['id'], str(entity['versionNumber']))
