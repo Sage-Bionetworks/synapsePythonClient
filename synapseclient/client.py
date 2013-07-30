@@ -329,7 +329,8 @@ class Synapse:
     def _getAPIKey(self, sessionToken):
         """Uses a session token to fetch an API key."""
         
-        secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers={'sessionToken' : sessionToken})
+        headers = {'sessionToken' : sessionToken, 'Accept': 'application/json'}
+        secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
         return base64.b64decode(secret['secretKey'])
         
     
