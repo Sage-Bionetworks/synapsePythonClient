@@ -365,7 +365,7 @@ def main():
     #TODO Perform proper login either prompt for info or use parameters
     ## if synapseUser and synapsePassword are not given, try to use cached session token
     syn = synapseclient.Synapse(debug=args.debug)
-    syn.login(args.synapseUser, args.synapsePassword)
+    syn.login(args.synapseUser, args.synapsePassword, silent=True)
 
     #Perform the requested action
     if 'func' in args:

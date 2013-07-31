@@ -28,6 +28,7 @@ def test_obtain_lock_and_read_cache(lock_valid_mock, time_mock):
         # -- Make sure the method retries appropriately --
         # Have the method retry locking four times, succeeding on the last one
         waitStack = [False, True, True, True]
+        time_mock.side_effect = lambda: 0
         lock_valid_mock.side_effect = lambda x: waitStack.pop()
         assert cache.obtain_lock_and_read_cache(cacheDir) == {}
         assert len(waitStack) == 0
