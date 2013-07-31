@@ -8,7 +8,7 @@ import synapseclient.utils as utils
 from synapseclient import Activity, Entity, Project, Folder, File, Data
 
 import integration
-from integration import create_project, schedule_for_cleanup
+from integration import schedule_for_cleanup
 
 
 def setup(module):
@@ -17,8 +17,9 @@ def setup(module):
     print os.path.basename(__file__)
     print '~' * 60
     module.syn = integration.syn
+    module.project = integration.project
 
-    ## read test user from Config file
+    # Some of these tests require a second user
     config = ConfigParser.ConfigParser()
     config.read(synapseclient.client.CONFIG_FILE)
     module.other_user = {}
@@ -27,25 +28,22 @@ def setup(module):
         other_user['password'] = config.get('test-authentication', 'password')
         other_user['principalId'] = config.get('test-authentication', 'principalId')
     except ConfigParser.Error:
-        sys.stderr.write('\nError reading section "test-authentication" from the config file in test "%s".\n' % os.path.basename(__file__))
+        print "[test-authentication] section missing from the configuration file"
 
     if 'principalId' not in other_user:
-        ## fall back on chris's principalId
+        # Fall back on Chris's principalId
         other_user['principalId'] = 1421212
 
 
 def test_ACL():
-    ## get the user's principalId, which is called ownerId and is
-    ## returned as a string, while in the ACL, it's an integer
+    # Get the user's principalId, which is called ownerId and is
+    # returned as a string, while in the ACL, it's an integer
     current_user_id = int(syn.getUserProfile()['ownerId'])
 
     # Verify the validity of the other user
     profile = syn.getUserProfile(other_user['principalId'])
 
-    ## create a new project
-    project = create_project()
-
-    ## add permissions on the project for a new user
+    # Add permissions on the Project for a new user
     acl = syn.setPermissions(project, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE'])
     
     permissions = syn.getPermissions(project, current_user_id)
@@ -79,14 +77,14 @@ def test_get_entity_owned_by_another_user():
 
         current_user_id = int(syn.getUserProfile()['ownerId'])
 
-        ## update the acl to give the current user read permissions
+        # Update the acl to give the current user read permissions
         syn_other.setPermissions(a_file, current_user_id, accessType=['READ'], modify_benefactor=True)
 
-        ## test whether the benefactor's ACL was modified
+        # Test whether the benefactor's ACL was modified
         assert syn_other.getPermissions(project, current_user_id) == ['READ']
 
-        ## add a new permission to a user with existing permissions
-        ## make this change on the entity itself, not its benefactor
+        # Add a new permission to a user with existing permissions
+        # make this change on the entity itself, not its benefactor
         syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'UPDATE'], modify_benefactor=False, warn_if_inherits=False)
         permissions = syn_other.getPermissions(a_file, current_user_id)
         assert 'READ' in permissions

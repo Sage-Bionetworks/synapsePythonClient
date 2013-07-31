@@ -52,6 +52,7 @@ Submission Status
 
 import sys
 
+from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 
 

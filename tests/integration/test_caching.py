@@ -1,4 +1,4 @@
-import filecmp, os, sys, traceback, logging, requests
+import filecmp, os, sys, traceback, logging, requests, uuid
 import thread, time, random
 from threading import Lock
 from Queue import Queue
@@ -11,7 +11,7 @@ from synapseclient.utils import MB, GB
 from synapseclient import Activity, Entity, Project, Folder, File, Data
 
 import integration
-from integration import create_project, schedule_for_cleanup
+from integration import schedule_for_cleanup
 
 def setup(module):
     print '\n'
@@ -22,7 +22,8 @@ def setup(module):
     
     # Use the module-level syn object to communicate between main and child threads
     # - Read-only objects (for the children)
-    module.syn.test_parent = create_project()
+    module.syn.test_parent = module.syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(module.syn.test_parent)
     module.syn.test_keepRunning = True
     
     # - Child writeable objects

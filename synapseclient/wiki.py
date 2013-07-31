@@ -37,6 +37,7 @@ Wiki Class
 import sys
 import json
 
+from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.utils import guess_object_type, id_of
 
