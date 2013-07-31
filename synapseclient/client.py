@@ -230,8 +230,13 @@ class Synapse:
             self.apiKey = base64.b64decode(apiKey)
         
         elif sessionToken is not None:
-            self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
-            self.apiKey = self._getAPIKey(sessionToken)
+            try:
+                self._getSessionToken(sessionToken=sessionToken)
+                self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
+                self.apiKey = self._getAPIKey(sessionToken)
+            except SynapseAuthenticationError: 
+                # Session token is invalid
+                pass
             
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
@@ -270,8 +275,12 @@ class Synapse:
                         
                     elif config.has_option('authentication', 'sessiontoken'):
                         sessionToken = config.get('authentication', 'sessiontoken')
-                        self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
-                        self.apiKey = self._getAPIKey(sessionToken)
+                        try:
+                            self._getSessionToken(sessionToken=sessionToken)
+                            self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
+                            self.apiKey = self._getAPIKey(sessionToken)
+                        except SynapseAuthenticationError:
+                            raise SynapseAuthenticationError("No credentials provided.  Note: the session token within your configuration file has expired.")
         
         # Final check on login success
         if self.username is not None and self.apiKey is None:
