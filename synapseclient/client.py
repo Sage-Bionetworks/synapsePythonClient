@@ -56,6 +56,7 @@ CHUNK_SIZE = 5*MB
 QUERY_LIMIT = 5000
 CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
+DEBUG_DEFAULT = False
 
 
 ## defines the standard retry policy applied to the rest methods
@@ -93,7 +94,7 @@ class Synapse:
     """
 
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, 
-                 debug=False, skip_checks=False):
+                 debug=DEBUG_DEFAULT, skip_checks=False):
         # Check for a config file
         if os.path.isfile(CONFIG_FILE):
             config = self.getConfigFile()
