@@ -29,7 +29,7 @@ Helpers
 
 import os, sys, re
 import time, calendar
-import errno, shutil, filecmp
+import errno, shutil
 import json, urlparse
 import synapseclient.utils as utils
 from synapseclient.entity import is_locationable
@@ -42,18 +42,20 @@ CACHE_LOCK_TIME = 60
 CACHE_UNLOCK_WAIT_TIME = 0.5
 
 
-def local_file_has_changed(entityBundle, path=None):
+def local_file_has_changed(entityBundle, checkIndirect, path=None):
     """
     Checks the local cache to see if the given file has been modified.
     
-    :param entityBundle: A dictionary with 'fileHandles' and 'entity'.
-                         Typically created via::
+    :param entityBundle : A dictionary with 'fileHandles' and 'entity'.
+                          Typically created via::
 
         syn._getEntityBundle()
         
-    :param path:         Path to the local file.  May be in any format.  
-                         If not given, the information from the 'entityBundle'
-                         is used to derive a cached location for the file.  
+    :param checkIndirect: Whether or not the cache should be checked for unmodified files.
+                          Should be True when getting, False when storing.  
+    :param path:          Path to the local file.  May be in any format.  
+                          If not given, the information from the 'entityBundle'
+                          is used to derive a cached location for the file.  
     
     :returns: True if the file has been modified.
     
@@ -76,15 +78,13 @@ def local_file_has_changed(entityBundle, path=None):
     path = normalize_path(path)
     fileMTime = get_modification_time(path)
     unmodifiedFileExists = False
-    for file, cacheTime, _ in iterator_over_cache_map(cacheDir):
+    for file, cacheTime, cachedFileMTime in iterator_over_cache_map(cacheDir):
         # When there is a direct match, return if it is modified
         if path == file and os.path.exists(path):
             return not fileMTime == cacheTime
             
         # If there is no direct match, but a pristine copy exists, return False (after checking all entries)
-        # The filecmp is necessary for Windows machines since their clocks do not keep millisecond information
-        # i.e. Two files created quickly may have the same timestamp
-        if fileMTime == cacheTime and os.path.exists(file) and filecmp.cmp(path, file):
+        if checkIndirect and cachedFileMTime == cacheTime:
             unmodifiedFileExists = True
             
     # The file is not cached or has been changed
@@ -126,10 +126,10 @@ def add_local_file_to_cache(**entity):
                 break
                 
     # Update the cache
-    cache = obtain_lock_and_read_cache(cacheDir)
     if os.path.exists(entity['path']):
+        cache = obtain_lock_and_read_cache(cacheDir)
         cache[entity['path']] = time.strftime(utils.ISO_FORMAT, time.gmtime(os.path.getmtime(entity['path'])))
-    write_cache_then_release_lock(cacheDir, cache)
+        write_cache_then_release_lock(cacheDir, cache)
     
 
 def remove_local_file_from_cache(path, fileHandle):
@@ -173,8 +173,8 @@ def determine_local_file_location(entityBundle):
 
         syn._getEntityBundle()
     
-    :returns: A 2-tuple (cache directory, file location)
-              File location may be None if there is no file associated with the Entity
+    :returns: A 3-tuple (cache directory, default file location, first pristine cached file location)
+              The file locations may be None if there is no file associated with the Entity or cache
     """
     
     cacheDir = determine_cache_directory(entityBundle['entity'])
@@ -203,7 +203,7 @@ def determine_local_file_location(entityBundle):
                 path = os.path.join(cacheDir, handle['fileName'])
                 return cacheDir, path, unmodifiedFile
                     
-        raise Exception("Invalid parameters: the entityBundle does not contain matching file handle IDs")
+        raise SynapseMalformedEntityError("Invalid parameters: the entityBundle does not contain matching file handle IDs")
     
 
 def get_alternate_file_name(path):
@@ -259,7 +259,7 @@ def obtain_lock_and_read_cache(cacheDir):
     
     # Did it time out?
     if time.time() - tryLockStartTime >= CACHE_MAX_LOCK_TRY_TIME:
-        raise Exception("Could not obtain a lock on the CacheMap within %d seconds.  Please try again later" % CACHE_MAX_LOCK_TRY_TIME)
+        raise SynapseFileCacheError("Could not obtain a lock on the file cache within %d seconds.  Please try again later" % CACHE_MAX_LOCK_TRY_TIME)
         
     # Make sure the '.cacheMap' exists, otherwise just return a blank dictionary
     if not os.path.exists(cacheMap):

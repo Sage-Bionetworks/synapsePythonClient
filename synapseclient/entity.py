@@ -162,7 +162,7 @@ class Entity(collections.MutableMapping):
                     del properties['annotations']
                 self.__dict__['properties'].update(properties)
             else:
-                raise Exception('Unknown argument type: properties is a %s' % str(type(properties)))
+                raise SynapseMalformedEntityError('Unknown argument type: properties is a %s' % str(type(properties)))
 
         if annotations:
             if isinstance(annotations, collections.Mapping):
@@ -170,13 +170,13 @@ class Entity(collections.MutableMapping):
             elif isinstance(annotations, basestring):
                 self.properties['annotations'] = annotations
             else:
-                raise Exception('Unknown argument type: annotations is a %s' % str(type(annotations)))
+                raise SynapseMalformedEntityError('Unknown argument type: annotations is a %s' % str(type(annotations)))
 
         if local_state:
             if isinstance(local_state, collections.Mapping):
                 self.local_state(local_state)
             else:
-                raise Exception('Unknown argument type: local_state is a %s' % str(type(local_state)))
+                raise SynapseMalformedEntityError('Unknown argument type: local_state is a %s' % str(type(local_state)))
 
         for key in self.__class__._local_keys:
             if key not in self.__dict__:
@@ -188,9 +188,9 @@ class Entity(collections.MutableMapping):
                 if parent: kwargs['parentId'] = id_of(parent)
             except Exception:
                 if parent and isinstance(parent, Entity) and 'id' not in parent:
-                    raise Exception('Couldn\'t find \'id\' of parent. Has it been stored in Synapse?')
+                    raise SynapseMalformedEntityError("Couldn't find 'id' of parent.  Has it been stored in Synapse?")
                 else:
-                    raise Exception('Couldn\'t find \'id\' of parent.')
+                    raise SynapseMalformedEntityError("Couldn't find 'id' of parent.")
 
         # Note: that this will work properly if derived classes declare their
         # internal state variable *before* invoking super(...).__init__(...)
@@ -429,6 +429,8 @@ class File(Entity, Versionable):
         self.__dict__['synapseStore'] = synapseStore
         super(File, self).__init__(entityType=File._synapse_entity_type, properties=properties, 
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        if not synapseStore:
+            self.__setitem__('concreteType', 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
 
 
@@ -486,7 +488,7 @@ def split_entity_namespaces(entity):
         return (entity.properties.copy(), entity.annotations.copy(), entity.local_state())
 
     if not isinstance(entity, collections.Mapping):
-        raise Exception("Can't call split_entity_namespaces on objects of type: %s" % class_of(entity))
+        raise SynapseMalformedEntityError("Can't call split_entity_namespaces on objects of type: %s" % class_of(entity))
 
     if 'entityType' in entity and entity['entityType'] in _entity_type_to_class:
         entity_class = _entity_type_to_class[entity['entityType']]
@@ -539,5 +541,5 @@ def is_locationable(entity):
         else:
             return 'locations' in entity
     else:
-        raise Exception('Can\'t determine if %s is Locationable' % str(entity))
+        raise SynapseMalformedEntityError('Can\'t determine if %s is Locationable' % str(entity))
 

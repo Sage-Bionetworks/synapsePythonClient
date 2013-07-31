@@ -14,6 +14,7 @@ from datetime import datetime as Datetime
 import synapseclient
 import synapseclient.utils as utils
 from synapseclient import Activity, Entity, Project, Folder, File, Data
+from synapseclient.exceptions import *
 
 import integration
 from integration import create_project, schedule_for_cleanup
@@ -214,7 +215,7 @@ def test_store_with_create_or_update_flag():
     bogus3 = File(newer_filepath, name='Bogus Test File', parent=project)
 
     # Expected behavior is raising an exception with a 409 error
-    assert_raises(requests.exceptions.HTTPError, syn.store, bogus3, createOrUpdate=False)
+    assert_raises(SynapseHTTPError, syn.store, bogus3, createOrUpdate=False)
 
 
 def test_store_with_force_version_flag():
@@ -432,7 +433,7 @@ def test_store_activity():
     assert honking['used'][1]['wasExecuted'] == False
 
     ## store another entity with the same activity
-    f2 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent=project)
+    f2 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent=project, synapseStore=False)
     f2 = syn.store(f2, activity=honking)
 
     honking2 = syn.getProvenance(f2)
@@ -446,7 +447,7 @@ def test_ExternalFileHandle():
     ## Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
     singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
 
-    singapore = File(singapore_url, parent=project)
+    singapore = File(singapore_url, parent=project, synapseStore=False)
     singapore = syn.store(singapore)
 
     fileHandle = syn._getFileHandle(singapore.dataFileHandleId)
@@ -489,11 +490,7 @@ def test_synapseStore_flag():
     ## a file path that doesn't exist should still work
     f2 = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)
     f2 = syn.store(f2)
-    try:
-        syn.get(f2)
-        assert False
-    except Exception as err:
-        assert err.message.startswith("Could not download non-existent file")
+    assert_raises(IOError, syn.get, f2)
     assert f1a.synapseStore == False
 
     ## Try a URL

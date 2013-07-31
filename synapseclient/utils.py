@@ -62,6 +62,7 @@ import platform
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
+from synapseclient.exceptions import *
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -168,7 +169,7 @@ def id_of(obj):
         return str(obj)
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
-        raise Exception('Invalid parameters: couldn\'t find id of ' + str(obj))
+        raise SynapseMalformedEntityError('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result
 
 

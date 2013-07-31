@@ -131,6 +131,8 @@ def upload(args, syn):
               'description':args.description,
               'entityType': u'org.sagebionetworks.repo.model.%s' % args.type, 
               'path': args.file}
+    if utils.is_url(args.file):
+        entity['synapseStore'] = False
 
     entity = syn.store(entity, used=args.used, executed=args.executed)
 
@@ -208,7 +210,7 @@ def submit(args, syn):
     
     if args.name is not None: args.name = ' '.join(args.name)
     
-    submission = syn.submit(args.evaluation, args.entity, args.name)
+    submission = syn.submit(args.evaluation, args.entity, name=args.name, teamName=args.teamName)
     print 'Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' %(submission['id'], submission['entityId'], submission['name'], submission['evaluationId'])
 
 
@@ -266,6 +268,8 @@ def main():
                          help='Synapse ID of the entity to be submitted')
     parser_submit.add_argument('--name', type=str, nargs="+", 
                          help='Name of the submission')
+    parser_submit.add_argument('--teamName', '--team', type=str,
+                         help='Publicly displayed name of team for the submission')
     parser_submit.set_defaults(func=submit)
 
     parser_get = subparsers.add_parser('show', help='show metadata for an entity')

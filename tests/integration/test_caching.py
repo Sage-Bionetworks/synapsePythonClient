@@ -6,6 +6,7 @@ from Queue import Queue
 import synapseclient
 import synapseclient.utils as utils
 import synapseclient.cache as cache
+from synapseclient.exceptions import *
 from synapseclient.utils import MB, GB
 from synapseclient import Activity, Entity, Project, Folder, File, Data
 
@@ -135,7 +136,7 @@ def collect_errors_and_fail():
     for i in range(syn.test_errors.qsize()):
         failures.append(syn.test_errors.get())
     if len(failures) > 0:
-        raise Exception('\n' + '\n'.join(failures))
+        raise SynapseException('\n' + '\n'.join(failures))
     
 ######################
 ## Thread Behaviors ##    
@@ -212,7 +213,7 @@ def store_catch_412_HTTPError(entity):
     """Returns the stored Entity if the function succeeds or None if the 412 is caught."""
     try:
         return syn.store(entity)
-    except requests.exceptions.HTTPError as err:
+    except SynapseHTTPError as err:
         # Some other thread modified the Entity, so try again
         if err.response.status_code == 412:
             return None

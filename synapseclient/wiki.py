@@ -34,7 +34,6 @@ Wiki Class
 
 """
 
-from exceptions import ValueError
 import sys
 import json
 

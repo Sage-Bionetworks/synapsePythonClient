@@ -16,7 +16,7 @@ The :py:func:`synapseclient.Synapse.submit` method returns a
 :py:class:`synapseclient.evaluation.Submission` object::
 
     entity = syn.get(synapse_id)
-    submission = syn.submit(evaluation, entity)
+    submission = syn.submit(evaluation, entity, name='My Data', teamName='My Team')
 
 The Submission has a :py:class:`synapseclient.evaluation.SubmissionStatus`::
 
@@ -51,7 +51,6 @@ Submission Status
 """
 
 import sys
-from exceptions import ValueError
 
 from synapseclient.dict_object import DictObject
 
@@ -68,7 +67,7 @@ class Evaluation(DictObject):
     :param name:          Name of the evaluation
     :param description:   A short description describing the evaluation
     :param status:        One of {'OPEN', 'PLANNED', 'CLOSED', 'COMPLETED'}.  Defaults to 'OPEN'
-    :param contentSource: Source of the evaluation's content
+    :param contentSource: Synapse Project that is the source of the evaluation's content.
     """
 
     @classmethod
