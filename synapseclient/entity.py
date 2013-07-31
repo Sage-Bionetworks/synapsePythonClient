@@ -513,11 +513,48 @@ def split_entity_namespaces(entity):
     return (properties, annotations, local_state)
 
 
+LOCATIONABLE_TYPES = [
+    'org.sagebionetworks.repo.model.Data',
+    'org.sagebionetworks.repo.model.Code',
+    'org.sagebionetworks.repo.model.ExpressionData',
+    'org.sagebionetworks.repo.model.GenericData',
+    'org.sagebionetworks.repo.model.GenomicData',
+    'org.sagebionetworks.repo.model.GenotypeData',
+    'org.sagebionetworks.repo.model.Media',
+    'org.sagebionetworks.repo.model.PhenotypeData',
+    'org.sagebionetworks.repo.model.RObject',
+    'org.sagebionetworks.repo.model.Study',
+    'org.sagebionetworks.repo.model.ExampleEntity']
+
+ENTITY_TYPES = LOCATIONABLE_TYPES + [
+    'org.sagebionetworks.repo.model.Analysis',
+    'org.sagebionetworks.repo.model.FileEntity',
+    'org.sagebionetworks.repo.model.Folder',
+    'org.sagebionetworks.repo.model.Link',
+    'org.sagebionetworks.repo.model.Page',
+    'org.sagebionetworks.repo.model.Preview',
+    'org.sagebionetworks.repo.model.Project',
+    'org.sagebionetworks.repo.model.Step',
+    'org.sagebionetworks.repo.model.Summary'
+]
+
+def is_synapse_entity(entity):
+    """TODO_Sphinx"""
+
+    if isinstance(entity, Entity):
+        return True
+    if isinstance(entity, collections.Mapping):
+        return entity.get('concreteType', None) in ENTITY_TYPES
+    return False
+
+
 def is_versionable(entity):
-    """Return True if the given entity's entityType is one that is Versionable."""
-    
-    if 'entityType' in entity and entity['entityType'] in _entity_type_to_class:
-        entity_class = _entity_type_to_class[entity['entityType']]
+    """Return True if the given entity's concreteType is one that is Versionable."""
+
+    if isinstance(entity, Versionable):
+        return True
+    if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
+        entity_class = _entity_type_to_class[entity['concreteType']]
     else:
         entity_class = Entity
     return issubclass(entity_class, Versionable)
@@ -526,19 +563,11 @@ def is_versionable(entity):
 def is_locationable(entity):
     """Return True if the given entity is Locationable."""
     
+    if isinstance(entity, Locationable):
+        return True
     if isinstance(entity, collections.Mapping):
-        if 'entityType' in entity:
-            return entity['entityType'] in ['org.sagebionetworks.repo.model.Data',
-                                            'org.sagebionetworks.repo.model.Code',
-                                            'org.sagebionetworks.repo.model.ExpressionData',
-                                            'org.sagebionetworks.repo.model.GenericData',
-                                            'org.sagebionetworks.repo.model.GenomicData',
-                                            'org.sagebionetworks.repo.model.GenotypeData',
-                                            'org.sagebionetworks.repo.model.Media',
-                                            'org.sagebionetworks.repo.model.PhenotypeData',
-                                            'org.sagebionetworks.repo.model.RObject',
-                                            'org.sagebionetworks.repo.model.Study',
-                                            'org.sagebionetworks.repo.model.ExampleEntity']
+        if 'concreteType' in entity:
+            return entity['concreteType'] in LOCATIONABLE_TYPES
         else:
             return 'locations' in entity
     else:
