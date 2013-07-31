@@ -190,7 +190,7 @@ def get_properties(entity):
 def get_entity_type(entity):
     """Returns the Entity's type."""
     
-    return _get_from_members_items_or_properties(entity, 'entityType')
+    return _get_from_members_items_or_properties(entity, 'concreteType')
 
 
 def is_url(s):

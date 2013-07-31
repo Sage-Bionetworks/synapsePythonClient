@@ -113,7 +113,7 @@ class Entity(collections.MutableMapping):
 
         :param properties:  TODO_Sphinx
         
-            If 'entityType' is defined in properties, we create the proper subclass
+            If 'concreteType' is defined in properties, we create the proper subclass
             of Entity. If not, give back the type whose constructor was called:
             
             If passed an Entity as input, create a new Entity using the input
@@ -131,8 +131,8 @@ class Entity(collections.MutableMapping):
             local_state = properties.local_state() + (local_state if local_state else {})
             properties = properties.properties
             del properties['id']
-        if cls==Entity and 'entityType' in properties and properties['entityType'] in _entity_type_to_class:
-            cls = _entity_type_to_class[properties['entityType']]
+        if cls==Entity and 'concreteType' in properties and properties['concreteType'] in _entity_type_to_class:
+            cls = _entity_type_to_class[properties['concreteType']]
         return cls(properties=properties, annotations=annotations, local_state=local_state)
 
     @classmethod
@@ -198,8 +198,8 @@ class Entity(collections.MutableMapping):
         for key, value in kwargs.items():
             self.__setitem__(key, value)
 
-        if 'entityType' not in self:
-            self['entityType'] = self.__class__._synapse_entity_type
+        if 'concreteType' not in self:
+            self['concreteType'] = self.__class__._synapse_entity_type
 
 
     def postURI(self):
@@ -373,7 +373,7 @@ class Project(Entity):
 
     def __init__(self, name=None, properties=None, annotations=None, local_state=None, **kwargs):
         if name: kwargs['name'] = name
-        super(Project, self).__init__(entityType=Project._synapse_entity_type, properties=properties, 
+        super(Project, self).__init__(concreteType=Project._synapse_entity_type, properties=properties, 
                                       annotations=annotations, local_state=local_state, **kwargs)
 
 
@@ -393,7 +393,7 @@ class Folder(Entity):
 
     def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
         if name: kwargs['name'] = name
-        super(Folder, self).__init__(entityType=Folder._synapse_entity_type, properties=properties, 
+        super(Folder, self).__init__(concreteType=Folder._synapse_entity_type, properties=properties, 
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
@@ -428,10 +428,10 @@ class File(Entity, Versionable):
             self.__dict__['cacheDir'] = None
             self.__dict__['files'] = []
         self.__dict__['synapseStore'] = synapseStore
-        super(File, self).__init__(entityType=File._synapse_entity_type, properties=properties, 
+        super(File, self).__init__(concreteType=File._synapse_entity_type, properties=properties, 
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
-        if not synapseStore:
-            self.__setitem__('concreteType', 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
+        # if not synapseStore:
+        #     self.__setitem__('concreteType', 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
 
 
@@ -479,7 +479,7 @@ def split_entity_namespaces(entity):
     Given a plain dictionary or an Entity object,
     splits the object into properties, annotations and local state.
     A dictionary will be processed as a specific type of Entity 
-    if it has a valid 'entityType' field, 
+    if it has a valid 'concreteType' field, 
     otherwise it is treated as a generic Entity.
     
     :returns: a 3-tuple (properties, annotations, local_state).
@@ -491,8 +491,8 @@ def split_entity_namespaces(entity):
     if not isinstance(entity, collections.Mapping):
         raise SynapseMalformedEntityError("Can't call split_entity_namespaces on objects of type: %s" % class_of(entity))
 
-    if 'entityType' in entity and entity['entityType'] in _entity_type_to_class:
-        entity_class = _entity_type_to_class[entity['entityType']]
+    if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
+        entity_class = _entity_type_to_class[entity['concreteType']]
     else:
         entity_class = Entity
 

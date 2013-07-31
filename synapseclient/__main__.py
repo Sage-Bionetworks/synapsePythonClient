@@ -129,7 +129,7 @@ def upload(args, syn):
     entity = {'name': args.name,
               'parentId': args.parentid,
               'description':args.description,
-              'entityType': u'org.sagebionetworks.repo.model.%s' % args.type, 
+              'concreteType': u'org.sagebionetworks.repo.model.%s' % args.type, 
               'path': args.file}
     if utils.is_url(args.file):
         entity['synapseStore'] = False
@@ -147,7 +147,7 @@ def create(args, syn):
     entity={'name': args.name,
             'parentId': args.parentid,
             'description':args.description,
-            'entityType': u'org.sagebionetworks.repo.model.%s' %args.type}
+            'concreteType': u'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
     print 'Created entity: %s\t%s\n' %(entity['id'],entity['name'])
     return(entity)
