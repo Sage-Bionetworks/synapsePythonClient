@@ -50,6 +50,7 @@ STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/r
 
 __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.synapseConfig')
+SESSION_FILENAME = '.session'
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
 QUERY_LIMIT = 5000
@@ -193,22 +194,31 @@ class Synapse:
             self.profile_data = json.loads(base64.b64decode(profile_data))
 
 
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None):
+    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False):
         """
-        Authenticates and retrieves an API key by using (in order of preference):
+        Authenticates the user using the given credentials, in order of preference:
         
         1) supplied email and password
         2) supplied email and API key (base 64 encoded)
         3) supplied session token
-        4) check for a saved email and API key in the configuration file
-        5) check for a saved session token in the configuration file
-        6) check for a saved email and password in the configuraton file
+        4) supplied email and cached API key
+        5) email in the configuration file and cached API key
+        6) email and API key in the configuration file
+        7) email and password in the configuraton file
+        8) session token in the configuration file
+        
+        :param apiKey:     Base64 encoded
+        :param rememberMe: Whether the authentication information should be cached locally
+                           for usage across sessions and clients.
+        :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
         """
+        # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
         if not self.skip_checks: version_check()
-        self.username = None
-        self.apiKey = None
+        
+        # Make sure to invalidate the existing session
+        self.logout(local=True, clearCache=False)
 
         if email is not None and password is not None:
             self.username = email
@@ -217,42 +227,74 @@ class Synapse:
             
         elif email is not None and apiKey is not None:
             self.username = email
-            self.apiKey = apiKey
+            self.apiKey = base64.b64decode(apiKey)
         
         elif sessionToken is not None:
-            self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
-            self.apiKey = self._getAPIKey(sessionToken)
+            try:
+                self._getSessionToken(sessionToken=sessionToken)
+                self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
+                self.apiKey = self._getAPIKey(sessionToken)
+            except SynapseAuthenticationError: 
+                # Session token is invalid
+                pass
             
-        # Check if the supplied arguments managed to get an API key
-        if self.username is not None and self.apiKey is not None:
-            return
+        # If supplied arguments are not enough
+        # Try fetching the information from the API key cache
+        if self.apiKey is None:
+            cachedSessions = self._readSessionCache()
+            if email is not None and email in cachedSessions:
+                self.username = email
+                self.apiKey = base64.b64decode(cachedSessions[email])
         
-        # Resort to checking the config file
-        config = ConfigParser.ConfigParser()
-        try:
-            config.read(CONFIG_FILE)
-        except ConfigParser.Error:
-            sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
-            raise
-            
-        if config.has_option('authentication', 'username') and config.has_option('authentication', 'apikey'):
-            self.username = config.get('authentication', 'username')
-            self.apiKey = base64.b64decode(config.get('authentication', 'apikey'))
-            
-        elif config.has_option('authentication', 'sessiontoken'):
-            sessionToken = config.get('authentication', 'sessiontoken')
-            self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
-            self.apiKey = self._getAPIKey(sessionToken)
-        
-        elif config.has_option('authentication', 'username') and config.has_option('authentication', 'password'):
-            self.username = config.get('authentication', 'username')
-            password = config.get('authentication', 'password')
-            token = self._getSessionToken(email=self.username, password=password)
-            self.apiKey = self._getAPIKey(token)
+            # Resort to reading the configuration file
+            if self.apiKey is None:
+                # Resort to checking the config file
+                config = ConfigParser.ConfigParser()
+                try:
+                    config.read(CONFIG_FILE)
+                except ConfigParser.Error:
+                    sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
+                    raise
+                    
+                if config.has_option('authentication', 'username'):
+                    self.username = config.has_option('authentication', 'username')
+                    if self.username in cachedSessions:
+                        self.apiKey = base64.b64decode(cachedSessions[self.username])
+                
+                # Just use the configuration file
+                if self.apiKey is None:
+                    if config.has_option('authentication', 'username') and config.has_option('authentication', 'apikey'):
+                        self.username = config.get('authentication', 'username')
+                        self.apiKey = base64.b64decode(config.get('authentication', 'apikey'))
+                        
+                    elif config.has_option('authentication', 'username') and config.has_option('authentication', 'password'):
+                        self.username = config.get('authentication', 'username')
+                        password = config.get('authentication', 'password')
+                        token = self._getSessionToken(email=self.username, password=password)
+                        self.apiKey = self._getAPIKey(token)
+                        
+                    elif config.has_option('authentication', 'sessiontoken'):
+                        sessionToken = config.get('authentication', 'sessiontoken')
+                        try:
+                            self._getSessionToken(sessionToken=sessionToken)
+                            self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
+                            self.apiKey = self._getAPIKey(sessionToken)
+                        except SynapseAuthenticationError:
+                            raise SynapseAuthenticationError("No credentials provided.  Note: the session token within your configuration file has expired.")
         
         # Final check on login success
         if self.username is not None and self.apiKey is None:
             raise SynapseAuthenticationError("No credentials provided.")
+            
+        # Save the API key in the cache
+        if rememberMe:
+            cachedSessions = self._readSessionCache()
+            cachedSessions[self.username] = base64.b64encode(self.apiKey)
+            self._writeSessionCache(cachedSessions)
+            
+        if not silent:
+            profile = self.getUserProfile()
+            print "Welcome, %s!" % (profile['displayName'] if 'displayName' in profile else self.username)
         
         
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
@@ -290,6 +332,26 @@ class Synapse:
         secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers={'sessionToken' : sessionToken})
         return base64.b64decode(secret['secretKey'])
         
+    
+    def _readSessionCache(self):
+        """Returns the JSON contents of CACHE_DIR/SESSION_FILENAME."""
+        
+        sessionFile = os.path.join(cache.CACHE_DIR, SESSION_FILENAME)
+        if os.path.isfile(sessionFile):
+            try:
+                file = open(sessionFile, 'r')
+                return json.load(file)
+            except: pass
+        return {}
+        
+        
+    def _writeSessionCache(self, data):
+        """Dumps the JSON data into CACHE_DIR/SESSION_FILENAME."""
+        
+        sessionFile = os.path.join(cache.CACHE_DIR, SESSION_FILENAME)
+        with open(sessionFile, 'w') as file:
+            json.dump(data, file)
+    
 
     def _loggedIn(self):
         """Test whether the user is logged in to Synapse."""
@@ -310,15 +372,24 @@ class Synapse:
             raise
         
         
-    def logout(self, local=False):
+    def logout(self, local=False, clearCache=False):
         """
         Invalidates authentication.
         
-        :param local: Set as True to logout locally, otherwise all sessions are logged out
+        :param local:      Set as True to logout locally, otherwise all sessions are logged out.
+        :param clearCache: Set as True to clear any local storage of authentication information.
+                           See the flag "rememberMe" in :py:func:`synapseclient.Synapse.login`.
         """
 
         # Logout globally
         if not local: self.restDELETE('/secretKey', endpoint=self.authEndpoint)
+        
+        # Delete the user's API key from the cache
+        if not local or clearCache:
+            cachedSessions = self._readSessionCache()
+            if self.username in cachedSessions:
+                del cachedSessions[self.username]
+                self._writeSessionCache(cachedSessions)
             
         # Remove the authentication information from memory
         self.username = None

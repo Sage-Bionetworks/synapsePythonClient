@@ -7,7 +7,7 @@ from synapseclient.utils import MB, GB
 from synapseclient import Activity, Entity, Project, Folder, File, Data
 
 import integration
-from integration import create_project, schedule_for_cleanup
+from integration import schedule_for_cleanup
 
 
 def setup(module):
@@ -16,6 +16,7 @@ def setup(module):
     print os.path.basename(__file__)
     print '~' * 60
     module.syn = integration.syn
+    module.project = integration.project
 
 def test_round_trip():
     fh = None
@@ -23,23 +24,14 @@ def test_round_trip():
     print 'Made bogus file: ', filepath
     try:
         fh = syn._chunkedUploadFile(filepath, verbose=False)
+        # print 'FileHandle:'
+        # syn.printEntity(fh)
 
-        print '=' * 60
-        print 'FileHandle:'
-        syn.printEntity(fh)
-
-        print 'creating project and file'
-        project = create_project()
+        # Download the file and compare it with the original
         junk = File(filepath, parent=project, dataFileHandleId=fh['id'])
         junk.properties.update(syn._createEntity(junk.properties))
-
-        print 'downloading file'
         junk.update(syn._downloadFileEntity(junk, filepath))
-
-        print 'comparing files'
         assert filecmp.cmp(filepath, junk.path)
-
-        print 'ok!'
 
     finally:
         try:
@@ -52,7 +44,7 @@ def test_round_trip():
         except Exception:
             print traceback.format_exc()
         if fh:
-            print 'Deleting fileHandle', fh['id']
+            # print 'Deleting fileHandle', fh['id']
             syn._deleteFileHandle(fh)
 
 def manually_check_retry_on_key_does_not_exist():

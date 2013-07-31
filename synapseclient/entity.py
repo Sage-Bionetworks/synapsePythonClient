@@ -78,6 +78,7 @@ import itertools
 
 from synapseclient.dict_object import DictObject
 from synapseclient.utils import id_of, class_of, itersubclasses
+from synapseclient.exceptions import *
 import os
 
 
