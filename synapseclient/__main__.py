@@ -220,6 +220,7 @@ def main():
     parser.add_argument('-u', '--username', dest='synapseUser', help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword', help='Password used to connect to Synapse')
     parser.add_argument('--debug', dest='debug', action='store_true')
+    parser.add_argument('--skip-checks', '-s', dest='skip_checks', action='store_true', help='suppress checking for version upgrade messages and endpoint redirection')
 
 
     subparsers = parser.add_subparsers(title='subcommands', description='valid subcommands',
@@ -364,7 +365,7 @@ def main():
 
     #TODO Perform proper login either prompt for info or use parameters
     ## if synapseUser and synapsePassword are not given, try to use cached session token
-    syn = synapseclient.Synapse(debug=args.debug)
+    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
     syn.login(args.synapseUser, args.synapsePassword, silent=True)
 
     #Perform the requested action
