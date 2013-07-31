@@ -1,5 +1,5 @@
 import tempfile, os, sys, filecmp, shutil, requests
-import uuid, random
+import uuid, random, base64
 import ConfigParser
 from datetime import datetime
 from nose.tools import assert_raises
@@ -30,19 +30,29 @@ def test_login():
     # Test that we fail gracefully with wrong user
     assert_raises(SynapseAuthenticationError, syn.login, 'asdf', 'notarealpassword')
 
-    # Test that it work with assumed existing config file
-    syn.login()
-
-    # Test three valid login combinations
     try:
         config = ConfigParser.ConfigParser()
         config.read(client.CONFIG_FILE)
+        username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
-        syn.login(config.get('authentication', 'username'), password)
-        syn.login(email=syn.username, apiKey=syn.apiKey)
-        syn.login(sessionToken=syn._getSessionToken(syn.username, password))
+        
+        # Simple login with ID + PW
+        syn.login(username, password)
+        
+        # Login with ID + API key
+        syn.login(email=username, apiKey=base64.b64encode(syn.apiKey))
+        
+        # Login with session token
+        syn.login(sessionToken=syn._getSessionToken(username, password), rememberMe=True)
+        
+        # Login with ID only
+        syn.login(username)
+        syn.logout(local=True, clearCache=True)
+        syn.login(rememberMe=True)
     except ConfigParser.Error:
         print "To fully test the login method, please supply a username and password in the configuration file"
+
+    # Login with config file
 
 
 def test_entity_version():
