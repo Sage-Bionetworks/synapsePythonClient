@@ -17,7 +17,7 @@ def test_Entity():
                 properties  = dict(annotations='/repo/v1/entity/syn1234/annotations',
                                md5='cdef636522577fc8fb2de4d95875b27c',
                                parentId='syn1234'),
-                entityType='org.sagebionetworks.repo.model.Data')
+                concreteType='org.sagebionetworks.repo.model.Data')
 
     assert e.parentId == 'syn1234'
     assert e['parentId'] == 'syn1234'
@@ -98,26 +98,26 @@ def test_subclassing():
 def test_entity_creation():
     props = {
         "id": "syn123456",
-        "entityType": "org.sagebionetworks.repo.model.Folder",
+        "concreteType": "org.sagebionetworks.repo.model.Folder",
         "parentId": "syn445566",
         "name": "Testing123"
     }
     annos = {'testing':123}
     folder = Entity.create(props, annos)
 
-    assert folder.entityType == 'org.sagebionetworks.repo.model.Folder'
+    assert folder.concreteType == 'org.sagebionetworks.repo.model.Folder'
     assert folder.__class__ == Folder
     assert folder.name == 'Testing123'
     assert folder.testing == 123
 
     props = {
         "id": "syn123456",
-        "entityType": "org.sagebionetworks.repo.model.DoesntExist",
+        "concreteType": "org.sagebionetworks.repo.model.DoesntExist",
         "name": "Whatsits"
     }
     whatsits = Entity.create(props)
 
-    assert whatsits.entityType == 'org.sagebionetworks.repo.model.DoesntExist'
+    assert whatsits.concreteType == 'org.sagebionetworks.repo.model.DoesntExist'
     assert whatsits.__class__ == Entity
 
 
@@ -141,7 +141,7 @@ def test_entity_constructors():
 
     a_file = File('/path/to/fabulous_things.zzz', parent=folder, foo='biz')
     #assert a_file.name == 'fabulous_things.zzz'
-    assert a_file.entityType == 'org.sagebionetworks.repo.model.FileEntity'
+    assert a_file.concreteType == 'org.sagebionetworks.repo.model.FileEntity'
     assert a_file.path == '/path/to/fabulous_things.zzz'
     assert a_file.foo == 'biz'
     assert a_file.parentId == 'syn1002'
@@ -162,7 +162,7 @@ def test_keys():
     assert 'parentId' in iter_keys
     assert 'name' in iter_keys
     assert 'foo' in iter_keys
-    assert 'entityType' in iter_keys
+    assert 'concreteType' in iter_keys
 
 
 def test_attrs():
@@ -175,20 +175,20 @@ def test_attrs():
 def test_split_entity_namespaces():
     """Test split_entity_namespaces"""
 
-    e = {'entityType':'org.sagebionetworks.repo.model.Folder',
+    e = {'concreteType':'org.sagebionetworks.repo.model.Folder',
          'name':'Henry',
          'color':'blue',
          'foo':1234,
          'parentId':'syn1234'}
     (properties,annotations,local_state) = split_entity_namespaces(e)
 
-    assert set(properties.keys()) == set(['entityType', 'name', 'parentId'])
+    assert set(properties.keys()) == set(['concreteType', 'name', 'parentId'])
     assert properties['name'] == 'Henry'
     assert set(annotations.keys()) == set(['color', 'foo'])
     assert annotations['foo'] == 1234
     assert len(local_state) == 0
 
-    e = {'entityType':'org.sagebionetworks.repo.model.FileEntity',
+    e = {'concreteType':'org.sagebionetworks.repo.model.FileEntity',
          'name':'Henry',
          'color':'blue',
          'foo':1234,
@@ -199,7 +199,7 @@ def test_split_entity_namespaces():
          'path':'/foo/bar/bat/foo.xyz'}
     (properties,annotations,local_state) = split_entity_namespaces(e)
 
-    assert set(properties.keys()) == set(['entityType', 'name', 'parentId', 'dataFileHandleId'])
+    assert set(properties.keys()) == set(['concreteType', 'name', 'parentId', 'dataFileHandleId'])
     assert properties['name'] == 'Henry'
     assert properties['dataFileHandleId'] == 54321
     assert set(annotations.keys()) == set(['color', 'foo'])
@@ -213,4 +213,9 @@ def test_split_entity_namespaces():
     assert f.annotations.foo == 1234
     assert f.__dict__['cacheDir'] == '/foo/bar/bat'
     assert f.__dict__['path'] == '/foo/bar/bat/foo.xyz'
+
+
+def test_concrete_type():
+    f1 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent='syn1234567', synapseStore=False)
+    assert f1.concreteType=='org.sagebionetworks.repo.model.FileEntity'
 
