@@ -16,6 +16,13 @@ import synapseclient.utils as utils
 
 def setup_module(module):
     syn = synapseclient.Synapse(debug=False, skip_checks=True)
+
+    print "Testing against endpoints:"
+    print "  " + syn.repoEndpoint
+    print "  " + syn.authEndpoint
+    print "  " + syn.fileHandleEndpoint
+    print "  " + syn.portalEndpoint + "\n"
+
     syn.login()
     module.syn = syn
     module._to_cleanup = []
@@ -25,12 +32,6 @@ def setup_module(module):
     project = syn.store(project)
     schedule_for_cleanup(project)
     module.project = project
-
-    print "Testing against endpoints:"
-    print "  " + syn.repoEndpoint
-    print "  " + syn.authEndpoint
-    print "  " + syn.fileHandleEndpoint
-    print "  " + syn.portalEndpoint + "\n"
 
 
 def teardown_module(module):

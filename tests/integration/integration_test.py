@@ -160,7 +160,7 @@ def test_md5_query():
 
 def test_uploadFile_given_dictionary():
     # Make a Data Entity the old fashioned way
-    data = {'entityType': Data._synapse_entity_type, 
+    data = {'concreteType': Data._synapse_entity_type, 
             'parentId'  : project['id'], 
             'name'      : 'fooDictionary',
             'foo'       : 334455}
