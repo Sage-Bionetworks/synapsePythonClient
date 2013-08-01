@@ -98,7 +98,7 @@ def test_activity_creation_from_dict():
 def test_activity_used_execute_methods():
     """test activity creation and used and execute methods"""
     a = Activity(name='Fuzz', description='hipster beard dataset')
-    a.used({'id':'syn101', 'versionNumber':42, 'entityType': 'org.sagebionetworks.repo.model.Data'})
+    a.used({'id':'syn101', 'versionNumber':42, 'concreteType': 'org.sagebionetworks.repo.model.Data'})
     a.executed('syn102', targetVersion=1)
     usedEntities = a['used']
     len(usedEntities) == 2
@@ -119,7 +119,7 @@ def test_activity_creation_by_constructor():
     """test activity creation adding used entities by the constructor"""
 
     ue1 = {'reference':{'targetId':'syn101', 'targetVersionNumber':42}, 'wasExecuted':False}
-    ue2 = {'id':'syn102', 'versionNumber':2, 'entityType': 'org.sagebionetworks.repo.model.Code'}
+    ue2 = {'id':'syn102', 'versionNumber':2, 'concreteType': 'org.sagebionetworks.repo.model.Code'}
     ue3 = 'syn103'
 
     a = Activity(name='Fuzz', description='hipster beard dataset', used=[ue1, ue3], executed=[ue2])

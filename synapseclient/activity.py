@@ -37,7 +37,8 @@ Activity
 
 import collections
 
-from synapseclient.utils import is_url, id_of, is_synapse_entity
+from synapseclient.utils import is_url, id_of
+from synapseclient.entity import is_synapse_entity
 from synapseclient.exceptions import *
 
 
