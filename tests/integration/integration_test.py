@@ -3,6 +3,7 @@ import uuid, random, base64
 import ConfigParser
 from datetime import datetime
 from nose.tools import assert_raises
+from mock import MagicMock, patch
 
 import synapseclient.client as client
 import synapseclient.utils as utils
@@ -35,24 +36,59 @@ def test_login():
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
+        sessionToken = syn._getSessionToken(username, password)
         
         # Simple login with ID + PW
-        syn.login(username, password)
+        syn.login(username, password, silent=True)
         
         # Login with ID + API key
-        syn.login(email=username, apiKey=base64.b64encode(syn.apiKey))
+        syn.login(email=username, apiKey=base64.b64encode(syn.apiKey), silent=True)
+        syn.logout(local=True, clearCache=True)
+        
+        # Config file is read-only for the client, so it must be mocked!
+        with patch("ConfigParser.ConfigParser.has_option") as config_has_mock:
+            config_has_mock.return_value = False
+            
+            # Login with given bad session token, 
+            # It should REST PUT the token and fail
+            # Then keep going and, due to mocking, fail to read any credentials
+            assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
+            assert config_has_mock.called
+            
+            # Login with no credentials 
+            assert_raises(SynapseAuthenticationError, syn.login)
+            
+            config_has_mock.reset_mock()
+            config_has_mock.side_effect = lambda section, option: section == "authentication" and option == "sessiontoken"
+            with patch("ConfigParser.ConfigParser.get") as config_get_mock:
+                # Login with a session token from the config file
+                config_get_mock.return_value = sessionToken
+                syn.login(silent=True)
+                
+                # Login with a bad session token from the config file
+                config_get_mock.return_value = "derp-dee-derp"
+                assert_raises(SynapseAuthenticationError, syn.login)
         
         # Login with session token
-        syn.login(sessionToken=syn._getSessionToken(username, password), rememberMe=True)
+        syn.login(sessionToken=sessionToken, rememberMe=True, silent=True)
+        
+        # Login as the most recent user
+        with patch('synapseclient.Synapse._readSessionCache') as read_session_mock:
+            dict_mock = MagicMock()
+            read_session_mock.return_value = dict_mock
+            dict_mock.__contains__.side_effect = lambda x: x == '<mostRecent>'
+            dict_mock.__getitem__.return_value = syn.username
+            syn.login(silent=True)
+            dict_mock.__getitem__.assert_called_once_with('<mostRecent>')
         
         # Login with ID only
-        syn.login(username)
+        syn.login(username, silent=True)
         syn.logout(local=True, clearCache=True)
-        syn.login(rememberMe=True)
     except ConfigParser.Error:
         print "To fully test the login method, please supply a username and password in the configuration file"
 
     # Login with config file
+    syn.login(rememberMe=True, silent=True)
 
 
 def test_entity_version():

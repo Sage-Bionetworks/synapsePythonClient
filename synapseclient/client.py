@@ -186,16 +186,17 @@ class Synapse:
 
     def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False):
         """
-        Authenticates the user using the given credentials, in order of preference:
+        Authenticates the user using the given credentials (in order of preference):
         
-        1) supplied email and password
-        2) supplied email and API key (base 64 encoded)
-        3) supplied session token
-        4) supplied email and cached API key
-        5) email in the configuration file and cached API key
-        6) email and API key in the configuration file
-        7) email and password in the configuraton file
-        8) session token in the configuration file
+        - supplied email and password
+        - supplied email and API key (base 64 encoded)
+        - supplied session token
+        - supplied email and cached API key
+        - most recent cached email and API key
+        - email in the configuration file and cached API key
+        - email and API key in the configuration file
+        - email and password in the configuraton file
+        - session token in the configuration file
         
         :param apiKey:     Base64 encoded
         :param rememberMe: Whether the authentication information should be cached locally
@@ -232,6 +233,10 @@ class Synapse:
         # Try fetching the information from the API key cache
         if self.apiKey is None:
             cachedSessions = self._readSessionCache()
+            
+            if email is None and "<mostRecent>" in cachedSessions:
+                email = cachedSessions["<mostRecent>"]
+                
             if email is not None and email in cachedSessions:
                 self.username = email
                 self.apiKey = base64.b64decode(cachedSessions[email])
@@ -280,6 +285,9 @@ class Synapse:
         if rememberMe:
             cachedSessions = self._readSessionCache()
             cachedSessions[self.username] = base64.b64encode(self.apiKey)
+            
+            # Note: make sure this key cannot conflict with usernames by using invalid username characters
+            cachedSessions["<mostRecent>"] = self.username
             self._writeSessionCache(cachedSessions)
             
         if not silent:
