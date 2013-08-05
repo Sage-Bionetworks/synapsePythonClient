@@ -209,7 +209,7 @@ class Synapse:
         if not self.skip_checks: version_check()
         
         # Make sure to invalidate the existing session
-        self.logout(local=True, clearCache=False)
+        self.logout()
 
         if email is not None and password is not None:
             self.username = email
@@ -372,21 +372,19 @@ class Synapse:
             raise
         
         
-    def logout(self, local=False, clearCache=False):
+    def logout(self, forgetMe=False):
         """
-        Invalidates authentication.
+        Removes authentication information from the Synapse client.  
         
-        :param local:      Set as True to logout locally, otherwise all sessions are logged out.
-        :param clearCache: Set as True to clear any local storage of authentication information.
-                           See the flag "rememberMe" in :py:func:`synapseclient.Synapse.login`.
+        :param forgetMe: Set as True to clear any local storage of authentication information.
+                         See the flag "rememberMe" in :py:func:`synapseclient.Synapse.login`.
         """
+        
+        # Since this client does not store the session token, 
+        # it cannot REST DELETE /session
 
-        # Logout globally
-        if self._loggedIn() and not local: 
-            self.restDELETE('/secretKey', endpoint=self.authEndpoint)
-            
         # Delete the user's API key from the cache
-        if not local or clearCache:
+        if forgetMe:
             cachedSessions = self._readSessionCache()
             if self.username in cachedSessions:
                 del cachedSessions[self.username]
@@ -395,6 +393,14 @@ class Synapse:
         # Remove the authentication information from memory
         self.username = None
         self.apiKey = None
+        
+    
+    def invalidateAPIKey(self):
+        """Invalidates authentication across all clients."""
+        
+        # Logout globally
+        if self._loggedIn(): 
+            self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
 
     def getUserProfile(self, id=None, sessionToken=None):

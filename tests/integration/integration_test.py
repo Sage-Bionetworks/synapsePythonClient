@@ -43,7 +43,7 @@ def test_login():
         
         # Login with ID + API key
         syn.login(email=username, apiKey=base64.b64encode(syn.apiKey), silent=True)
-        syn.logout(local=True, clearCache=True)
+        syn.logout(forgetMe=True)
         
         # Config file is read-only for the client, so it must be mocked!
         with patch("ConfigParser.ConfigParser.has_option") as config_has_mock:
@@ -83,7 +83,7 @@ def test_login():
         
         # Login with ID only
         syn.login(username, silent=True)
-        syn.logout(local=True, clearCache=True)
+        syn.logout(forgetMe=True)
     except ConfigParser.Error:
         print "To fully test the login method, please supply a username and password in the configuration file"
 
