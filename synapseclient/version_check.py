@@ -23,8 +23,11 @@ def version_check(current_version=None, version_url=_VERSION_URL, upgrade_url=_U
         if (not current_version):
             current_version = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 
-        headers = { 'Accept': 'application/json' }
-        version_info = requests.get(version_url, headers=headers).json()
+        if version_url is None:
+            version_info = json.loads(open('synapseclient/synapsePythonClient').read())
+        else:
+            headers = { 'Accept': 'application/json' }
+            version_info = requests.get(version_url, headers=headers).json()
 
         # Check blacklist
         if current_version in version_info['blacklist']:
@@ -64,4 +67,7 @@ if __name__ == "__main__":
     if version_check(version_url=_DEV_VERSION_URL):
         print("ok")
 
+    print("Check against local copy of version file:")
+    if version_check(version_url=None):
+        print("ok")
 

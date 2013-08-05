@@ -56,6 +56,7 @@ CHUNK_SIZE = 5*MB
 QUERY_LIMIT = 5000
 CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
+DEBUG_DEFAULT = False
 
 
 ## defines the standard retry policy applied to the rest methods
@@ -93,7 +94,7 @@ class Synapse:
     """
 
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, 
-                 debug=False, skip_checks=False):
+                 debug=DEBUG_DEFAULT, skip_checks=False):
         # Check for a config file
         if os.path.isfile(CONFIG_FILE):
             config = self.getConfigFile()
@@ -625,8 +626,8 @@ class Synapse:
 
         # Anything with a path is treated as a cache-able item (FileEntity or Locationable)
         if entity.get('path', False):
-            if 'entityType' not in properties:
-                properties['entityType'] = File._synapse_entity_type
+            if 'concreteType' not in properties:
+                properties['concreteType'] = File._synapse_entity_type
                 
             # Make sure the path is fully resolved
             entity['path'] = os.path.expanduser(entity['path'])
@@ -676,7 +677,7 @@ class Synapse:
                     
                     ## TODO: no longer necessary?
                     # The conflict is between projects
-                    if properties['entityType'] == Project._synapse_entity_type:
+                    if properties['concreteType'] == Project._synapse_entity_type:
                         properties['parentId'] = ROOT_ENTITY
                         
                         # Below is a roundabout, but not-hard-coded way to find the ROOT_ENTITY
@@ -838,8 +839,8 @@ class Synapse:
         else:
             fileHandle = self._chunkedUploadFile(filename)
             entity['dataFileHandleId'] = fileHandle['id']
-        if 'entityType' not in entity:
-            entity['entityType'] = 'org.sagebionetworks.repo.model.FileEntity'
+        if 'concreteType' not in entity:
+            entity['concreteType'] = 'org.sagebionetworks.repo.model.FileEntity'
         return self.createEntity(entity, used=used, executed=executed)
 
 
@@ -1697,7 +1698,7 @@ class Synapse:
         self.printEntity(tree)
         self.createEntity({'name': name,
                            "description": description,
-                           "entityType": "org.sagebionetworks.repo.model.Summary", 
+                           "concreteType": "org.sagebionetworks.repo.model.Summary", 
                            "groups": tree,
                            "parentId": id})
 

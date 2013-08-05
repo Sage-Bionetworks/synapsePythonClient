@@ -25,7 +25,6 @@ Property Juggling
 .. automethod:: synapseclient.utils.get_entity_type
 .. automethod:: synapseclient.utils.is_url
 .. automethod:: synapseclient.utils.as_url
-.. automethod:: synapseclient.utils.is_synapse_entity
 .. automethod:: synapseclient.utils.is_synapse_id
 .. automethod:: synapseclient.utils.to_unix_epoch_time
 .. automethod:: synapseclient.utils.from_unix_epoch_time
@@ -128,8 +127,8 @@ def guess_object_type(obj):
     if isinstance(obj, basestring):
         if obj.startswith('syn'):
             return 'entity'
-    elif 'entityType' in obj:
-        return 'entity'
+    # elif 'entityType' in obj:
+    #     return 'entity'
     elif 'contentSource' in obj:
         return 'evaluation'
     else:
@@ -191,7 +190,7 @@ def get_properties(entity):
 def get_entity_type(entity):
     """Returns the Entity's type."""
     
-    return _get_from_members_items_or_properties(entity, 'entityType')
+    return _get_from_members_items_or_properties(entity, 'concreteType')
 
 
 def is_url(s):
@@ -242,13 +241,6 @@ def file_url_to_path(url, verify_exists=False):
                 'files': [os.path.basename(path)],
                 'cacheDir': os.path.dirname(path) }
     return {}
-
-def is_synapse_entity(entity):
-    """TODO_Sphinx"""
-    
-    if isinstance(entity, collections.Mapping):
-        return 'entityType' in entity
-    return False
 
 
 def is_synapse_id(obj):
