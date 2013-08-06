@@ -34,7 +34,6 @@ from synapseclient.annotations import from_synapse_annotations, to_synapse_annot
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, split_entity_namespaces, is_versionable, is_locationable
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
-from synapseclient.retry import RetryRequest
 from synapseclient.wiki import Wiki
 
 
@@ -59,13 +58,15 @@ ROOT_ENTITY = 'syn4489'
 DEBUG_DEFAULT = False
 
 
-## defines the standard retry policy applied to the rest methods
-STANDARD_RETRY_REQUEST = RetryRequest(retry_status_codes=[502,503],
-                                      retry_errors=[],
-                                      retry_exceptions=['Timeout', 'timeout'],
-                                      retries=3, wait=1, back_off=2, verbose=False)
+# Defines the standard retry policy applied to the rest methods
+STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503], 
+                         "retry_errors"      : [], 
+                         "retry_exceptions"  : ['Timeout', 'timeout'], 
+                         "retries"           : 3, 
+                         "wait"              : 1, 
+                         "back_off"          : 2}
 
-## add additional mimetypes
+# Add additional mimetypes
 mimetypes.add_type('text/x-r', '.R', strict=False)
 mimetypes.add_type('text/x-r', '.r', strict=False)
 
@@ -340,6 +341,7 @@ class Synapse:
         sessionFile = os.path.join(cache.CACHE_DIR, SESSION_FILENAME)
         with open(sessionFile, 'w') as file:
             json.dump(data, file)
+            file.write('\n') # For compatibility with R's JSON parser
     
 
     def _loggedIn(self):
@@ -1515,11 +1517,8 @@ class Synapse:
             sys.stdout.flush()
 
         # Define the retry policy for uploading chunks
-        with_retry = RetryRequest(
-            retry_status_codes=[502,503],
-            retry_errors=['We encountered an internal error. Please try again.'],
-            retries=4, wait=1, back_off=2, verbose=verbose,
-            tag='S3 put RetryRequest')
+        retryPolicy = dict(STANDARD_RETRY_PARAMS)
+        retryPolicy["retry_errors"] = ['We encountered an internal error. Please try again.']
 
         i = 0
         with open(filepath, 'rb') as f:
@@ -1533,7 +1532,9 @@ class Synapse:
                     sys.stdout.flush()
 
                 # PUT the chunk to S3
-                response = with_retry(requests.put)(url, data=chunk, headers=self._generateSignedHeaders(url, headers))
+                response = self._with_retry( \
+                    lambda: requests.put(url, data=chunk, headers=self._generateSignedHeaders(url, headers)), \
+                    **retryPolicy)
                 exceptions._raise_for_status(response, verbose=self.debug)
                 if progress:
                     sys.stdout.write(',')
@@ -2007,7 +2008,6 @@ class Synapse:
         return headers
     
     
-    @STANDARD_RETRY_REQUEST
     def restGET(self, uri, endpoint=None, headers=None, **kwargs):
         """
         Performs a REST GET operation to the Synapse server.
@@ -2027,12 +2027,11 @@ class Synapse:
         if headers is None:
             headers = self._generateSignedHeaders(uri)
             
-        response = requests.get(uri, headers=headers, **kwargs)
-        exceptions._raise_for_status(response)
-        return response.json()
+        response = self._with_retry(lambda: requests.get(uri, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        exceptions._raise_for_status(response, verbose=self.debug)
+        return self._return_rest_body(response)
      
      
-    @STANDARD_RETRY_REQUEST
     def restPOST(self, uri, body, endpoint=None, headers=None, **kwargs):
         """
         Performs a REST POST operation to the Synapse server.
@@ -2053,16 +2052,11 @@ class Synapse:
         if headers is None:
             headers = self._generateSignedHeaders(uri)
             
-        response = requests.post(uri, data=body, headers=headers, **kwargs)
-        exceptions._raise_for_status(response)
-
-        if response.headers.get('content-type',None) == 'application/json':
-            return response.json()
-        # 'content-type': 'text/plain;charset=ISO-8859-1'
-        return response.text
+        response = self._with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        exceptions._raise_for_status(response, verbose=self.debug)
+        return self._return_rest_body(response)
 
         
-    @STANDARD_RETRY_REQUEST
     def restPUT(self, uri, body=None, endpoint=None, headers=None, **kwargs):
         """
         Performs a REST PUT operation to the Synapse server.
@@ -2083,15 +2077,11 @@ class Synapse:
         if headers is None:
             headers = self._generateSignedHeaders(uri)
             
-        response = requests.put(uri, data=body, headers=headers, **kwargs)
-        exceptions._raise_for_status(response)
-            
-        if response.headers.get('content-type',None) == 'application/json':
-            return response.json()
-        return response.text
+        response = self._with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        exceptions._raise_for_status(response, verbose=self.debug)
+        return self._return_rest_body(response)
 
         
-    @STANDARD_RETRY_REQUEST
     def restDELETE(self, uri, endpoint=None, headers=None, **kwargs):
         """
         Performs a REST DELETE operation to the Synapse server.
@@ -2109,5 +2099,90 @@ class Synapse:
         if headers is None:
             headers = self._generateSignedHeaders(uri)
             
-        response = requests.delete(uri, headers=headers, **kwargs)
-        exceptions._raise_for_status(response)
+        response = self._with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        exceptions._raise_for_status(response, verbose=self.debug)
+        
+    
+    def _return_rest_body(self, response):
+        """Returns either a dictionary or a string depending on the 'content-type' of the response."""
+        
+        if response.headers.get('content-type', None).lower().strip() == 'application/json':
+            return response.json()
+        return response.text
+
+
+    def _with_retry(self, function, \
+            retry_status_codes=[502,503], retry_errors=[], retry_exceptions=[], \
+            retries=3, wait=1, back_off=2):
+        """
+        Retries the given function under certain conditions.
+        
+        :param function:           A function with no arguments.  If arguments are needed, use a lambda (see example).  
+        :param retry_status_codes: What status codes to retry upon in the case of a SynapseHTTPError.
+        :param retry_errors:       What reasons to retry upon, if function().response.json()['reason'] exists.
+        :param retry_exceptions:   What types of exceptions, specified as strings, to retry upon.
+        :param retries:            How many times to retry maximum.
+        :param wait:               How many seconds to wait between retries.  
+        :param back_off:           Exponential constant to increase wait for between progressive failures.  
+        
+        :returns: function()
+        
+        Example::
+            
+            def foo(a, b, c): return [a, b, c]
+            result = self._with_retry(lambda: foo("1", "2", "3"), **STANDARD_RETRY_PARAMS)
+        """
+        
+        # Retry until we succeed or run out of tries
+        while True:
+            # Start with a clean slate
+            exc_info = None
+            retry = False
+            response = None
+
+            # Try making the call
+            try:
+                response = function()
+            except Exception as ex:
+                exc_info = sys.exc_info()
+                if self.debug:
+                    print ex.message # This message will contain lots of info
+                if hasattr(ex, 'response'):
+                    response = ex.response
+
+            # Check if we got a retry-able error
+            if response is not None:
+                if response.status_code not in range(200,299):
+                    if response.status_code in retry_status_codes:
+                        retry = True
+                        
+                    elif 'content-type' in response.headers \
+                            and response.headers['content-type'].lower().strip() == 'application/json':
+                        try:
+                            json = response.json()
+                            if json.get('reason', None) in retry_errors:
+                                retry = True
+                        except (AttributeError, ValueError) as ex:
+                            pass
+                            
+                    elif any([msg in response.content for msg in retry_errors]):
+                        retry = True
+
+            # Check if we got a retry-able exception
+            if exc_info is not None and exc_info[1].__class__.__name__ in retry_exceptions:
+                    retry = True
+
+            # Wait then retry
+            retries -= 1
+            if retries >= 0 and retry:
+                if self.debug:
+                    sys.stderr.write('\n... Retrying in %d seconds...\n' % wait)
+                time.sleep(wait)
+                wait *= back_off
+                continue
+
+            # Out of retries, re-raise the exception or return the response
+            if exc_info:
+                # Re-raise exception, preserving original stack trace
+                raise exc_info[0], exc_info[1], exc_info[2]
+            return response
