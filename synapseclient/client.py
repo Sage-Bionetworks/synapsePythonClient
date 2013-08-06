@@ -1767,18 +1767,15 @@ class Synapse:
         return submitted
 
 
-    def addEvaluationParticipant(self, evaluation, userId=None):
+    def joinEvaluation(self, evaluation):
         """
-        Adds a participant to an Evaluation.
+        Adds the current user to an Evaluation.
 
         :param evaluation: An Evaluation object or Evaluation ID
-        :param userId:     The prinicipal ID of the participant.
-                           If not supplied, uses your ID
         """
         
         evaluation_id = id_of(evaluation)
-        userId = self.getUserProfile()['ownerId'] if userId == None else userId
-        self.restPOST('/evaluation/%s/participant/%s' % (evaluation_id, userId), {})
+        self.restPOST('/evaluation/%s/participant' % evaluation_id, {})
 
 
     def getSubmissions(self, evaluation, status=None):
