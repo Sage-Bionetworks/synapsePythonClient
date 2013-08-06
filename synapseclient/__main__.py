@@ -52,14 +52,13 @@ def get(args, syn):
         for file in entity['files']:
             src = os.path.join(entity['cacheDir'], file)
             dst = os.path.join('.', file.replace(".R_OBJECTS/",""))
-            print 'creating %s' % dst
+            print 'Creating %s' % dst
             if not os.path.exists(os.path.dirname(dst)):
                 os.mkdir(dst)
             shutil.copyfile(src, dst)
     else:
         sys.stderr.write('WARNING: No files associated with entity %s\n' % args.id)
         syn.printEntity(entity)
-    return entity
     
     
 def store(args, syn):
@@ -83,7 +82,7 @@ def store(args, syn):
     # --file, --used, and --executed indicates intention to upload()
     if args.file is not None or args.used is not None or args.executed is not None:
         if args.parentid is not None:
-            upload(args, syn)
+            add(args, syn)
         else: 
             print 'Add requires --parentid'
         return
@@ -125,7 +124,7 @@ def delete(args, syn):
     print 'Deleted entity: %s' % args.id
 
     
-def upload(args, syn):
+def add(args, syn):
     """TODO_Sphinx."""
     
     if args.type == 'File': args.type = 'FileEntity'
@@ -140,7 +139,6 @@ def upload(args, syn):
     entity = syn.store(entity, used=args.used, executed=args.executed)
 
     print 'Created entity: %s\t%s from file: %s' %(entity['id'], entity['name'], args.file)
-    return(entity)
 
 
 def create(args, syn):
@@ -153,7 +151,6 @@ def create(args, syn):
             'concreteType': u'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
     print 'Created entity: %s\t%s\n' %(entity['id'],entity['name'])
-    return(entity)
 
 
 def update(args, syn):
@@ -218,7 +215,7 @@ def submit(args, syn):
             % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId'])
 
 
-def main():
+def build_parser():
     """Builds the argument parser and returns the result."""
     
     parser = argparse.ArgumentParser(
@@ -493,25 +490,19 @@ def main():
     parser_onweb.set_defaults(func=onweb)
     return parser
 
-    args = parser.parse_args()
-
     
+def perform_main(args, syn):
+    if 'func' in args:
+        args.func(args, syn)
+
+        
+def main():
+    args = build_parser().parse_args()
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
     syn.login(args.synapseUser, args.synapsePassword, silent=True)
+    perform_main(args, syn)
+    
 
-    #Perform the requested action
-    if 'func' in args:
-        try:
-            args.func(args, syn)
-        except Exception as ex:
-            sys.stderr.write(utils.synapse_error_msg(ex))
-
-            if args.debug:
-                raise
-
-
-
-## call main method if this file is run as a script
 if __name__ == "__main__":
     main()
 
