@@ -491,9 +491,7 @@ def test_evaluations():
         other_project = testSyn.createEntity(other_project)
         
         # Give the test user permission to read and join the evaluation
-        acl = syn.restGET('/evaluation/%s/acl' % utils.id_of(ev))
-        acl['resourceAccess'].append({"accessType":["READ", "PARTICIPATE"], "principalId":testOwnerId})
-        syn.restPUT('/evaluation/acl', body=json.dumps(acl))
+        syn.allowParticipation(ev, testOwnerId)
         
         # Have the test user join the evaluation
         testSyn.joinEvaluation(ev)

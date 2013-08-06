@@ -1765,6 +1765,29 @@ class Synapse:
         if 'submissionReceiptMessage' in evaluation:
             print evaluation['submissionReceiptMessage']
         return submitted
+        
+        
+    def allowParticipation(self, evaluation, userId):
+        """
+        Grants the given user the minimal access rights to join and submit to an Evaluation. 
+        
+        :param evaluation: An Evaluation object or Evaluation ID
+        :param userId:     The principal ID of the user to grant rights for
+        """
+        
+        # Verify that the user exists
+        try: 
+            self.getUserProfile(userId)
+        except SynapseHTTPError as err:
+            if err.response.status_code == 404:
+                raise SynapseError("The user (%s) does not exist" % str(userId))
+            raise
+                
+        # Grab the ACL 
+        evaluation_id = id_of(evaluation)
+        acl = self.restGET('/evaluation/%s/acl' % evaluation_id)
+        acl['resourceAccess'].append({"accessType":["READ", "PARTICIPATE"], "principalId":int(userId)})
+        self.restPUT('/evaluation/acl', body=json.dumps(acl))
 
 
     def joinEvaluation(self, evaluation):
