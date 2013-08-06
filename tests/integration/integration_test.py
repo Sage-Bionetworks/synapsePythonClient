@@ -337,22 +337,14 @@ def test_annotations():
 
 def test_fileHandle():
     ## TODO: Remove this test (deprecated?)
+        
+    # Upload setup.py to the file handle service
+    path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+    fileHandle = syn._uploadFileToFileHandleService(path)
+    fileHandle2 = syn._getFileHandle(fileHandle)
     
-    oldDebugVal = syn.debug
-    try:
-        ## Note: Trying to get more information on a very rare bug
-        syn.debug = True
-        
-        # Upload setup.py to the file handle service
-        path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
-        fileHandle = syn._uploadFileToFileHandleService(path)
-        fileHandle2 = syn._getFileHandle(fileHandle)
-        
-        assert fileHandle == fileHandle2
-        syn._deleteFileHandle(fileHandle)
-        
-    finally:
-        syn.debug = oldDebugVal
+    assert fileHandle == fileHandle2
+    syn._deleteFileHandle(fileHandle)
 
 
 def test_wikiAttachment():

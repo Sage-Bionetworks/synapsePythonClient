@@ -492,7 +492,7 @@ def split_entity_namespaces(entity):
         return (entity.properties.copy(), entity.annotations.copy(), entity.local_state())
 
     if not isinstance(entity, collections.Mapping):
-        raise SynapseMalformedEntityError("Can't call split_entity_namespaces on objects of type: %s" % class_of(entity))
+        raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
 
     if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
         entity_class = _entity_type_to_class[entity['concreteType']]

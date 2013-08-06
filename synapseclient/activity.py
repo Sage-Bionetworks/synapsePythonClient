@@ -49,22 +49,34 @@ from synapseclient.exceptions import *
 def is_used_entity(x):
     """Returns True if the given object represents a UsedEntity."""
     
+    # A UsedEntity must be a dictionary with a 'reference' field, with a 'targetId' field
     if not isinstance(x, collections.Mapping) \
             or 'reference' not in x \
-            or 'targetId' not in x['reference'] \
-            or not all(key in ('reference', 'wasExecuted', 'concreteType') for key in x.keys()) \
-            or not all(key in ('targetId', 'targetVersionNumber') for key in x['reference'].keys()):
+            or 'targetId' not in x['reference']:
         return False
+        
+    # Must only have three keys
+    if not all(key in ('reference', 'wasExecuted', 'concreteType') for key in x.keys()):
+        return False
+        
+    # 'reference' field can only have two keys
+    if not all(key in ('targetId', 'targetVersionNumber') for key in x['reference'].keys()):
+        return False
+        
     return True
 
 
 def is_used_url(x):
     """Returns True if the given object represents a UsedURL."""
     
-    if not isinstance(x, collections.Mapping) \
-            or 'url' not in x \
-            or not all(key in ('url', 'name', 'wasExecuted', 'concreteType') for key in x.keys()):
+    # A UsedURL must be a dictionary with a 'url' field
+    if not isinstance(x, collections.Mapping) or 'url' not in x:
         return False
+        
+    # Must only have four keys
+    if not all(key in ('url', 'name', 'wasExecuted', 'concreteType') for key in x.keys()):
+        return False
+        
     return True
 
 
@@ -80,8 +92,8 @@ def _raise_incorrect_used_usage(badargs, message):
 
     if any(badargs):
         raise SynapseMalformedEntityError("The parameter%s '%s' %s not allowed in combination with a %s." \
-                % ("s" if len(badargs) > 1 else "",     \
-                   badargs,                                \
+                % ("s" if len(badargs) > 1 else "", \
+                   badargs, \
                    "are" if len(badargs) > 1 else "is", \
                    message))
 
@@ -110,10 +122,14 @@ class Activity(dict):
         if 'used' not in self: 
             self['used'] = []
         
-        if name        is not None: self['name'] = name
-        if description is not None: self['description'] = description
-        if used        is not None: self.used(used)
-        if executed    is not None: self.executed(executed)
+        if name is not None: 
+            self['name'] = name
+        if description is not None: 
+            self['description'] = description
+        if used is not None: 
+            self.used(used)
+        if executed is not None: 
+            self.executed(executed)
 
 
     def used(self, target=None, targetVersion=None, wasExecuted=None, url=None, name=None):

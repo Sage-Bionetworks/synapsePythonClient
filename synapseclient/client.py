@@ -101,24 +101,24 @@ class Synapse:
             
             if config.has_option('cache', 'location'):
                 cache.CACHE_DIR = os.path.expanduser(config.get('cache', 'location'))
+                
+            if config.has_section('debug'):
+                debug = True
         else: 
             # Alert the user if no config is found
             print "Could not find a config file (%s).  Using defaults." % os.path.abspath(CONFIG_FILE)
             
-            
         # Create the cache directory if it does not exist
-        self.cacheDir = cache.CACHE_DIR
         try:
-            os.makedirs(self.cacheDir)
+            os.makedirs(cache.CACHE_DIR)
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
 
-                
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
         
         ## TODO: rename to defaultHeaders ?
-        self.headers = {'content-type': 'application/json', 'Accept': 'application/json', 'request_profile':'False'}
+        self.headers = {'content-type': 'application/json', 'Accept': 'application/json'}
         self.username = None
         self.apiKey = None
         self.debug = debug
@@ -180,19 +180,6 @@ class Synapse:
         self.authEndpoint       = endpoints['authEndpoint']
         self.fileHandleEndpoint = endpoints['fileHandleEndpoint']
         self.portalEndpoint     = endpoints['portalEndpoint']
-
-
-    def _storeTimingProfile(self, resp):
-        """Stores timing information for the last call if request_profile was set."""
-        
-        ## TODO: Only used in .restGET().  Should the other rest methods use this too?
-        if self.headers.get('request_profile', 'False') == 'True':
-            profile_data = None
-            for k,v in resp.getheaders():
-                if k == "profile_response_object":
-                    profile_data = v
-                    break
-            self.profile_data = json.loads(base64.b64decode(profile_data))
 
 
     def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False):
@@ -954,7 +941,6 @@ class Synapse:
             syn.query("select id, name from entity where entity.parentId=='syn449742'")
         """
         
-        if(self.debug): print 'About to query %s' % (queryStr)
         return self.restGET('/query?query=' + urllib.quote(queryStr))
         
         
@@ -1006,7 +992,7 @@ class Synapse:
             # Build the sub-query
             remaining = options['limit'] + options['offset'] - offset + 1
             subqueryStr = "%s limit %d offset %d" %(queryStr, limit if limit < remaining else remaining, offset)
-            if(self.debug): print 'About to query: %s' % (subqueryStr)
+                
             try: 
                 response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
                 for res in response['results']:
@@ -1126,10 +1112,10 @@ class Synapse:
             if modify_benefactor:
                 entity = benefactor
             elif warn_if_inherits:
-                sys.stderr.write(utils.normalize_whitespace(
-                    '''Warning: Creating an ACL for entity %s, which formerly inherited
-                       access control from a benefactor entity, "%s" (%s).''' % 
-                       (id_of(entity), benefactor['name'], benefactor['id'],))+'\n')
+                sys.stderr.write('Warning: Creating an ACL for entity %s, '
+                                 'which formerly inherited access control '
+                                 'from a benefactor entity, "%s" (%s).\n' 
+                                 % (id_of(entity), benefactor['name'], benefactor['id']))
 
         principalId = int(principalId)
 
@@ -1273,7 +1259,7 @@ class Synapse:
                     'x-amz-acl' : 'bucket-owner-full-control' }
         with open(filename, 'rb') as f:
             response = requests.put(response_json['presignedUrl'], headers=headers, data=f)
-        exceptions._raise_for_status(response)
+        exceptions._raise_for_status(response, verbose=self.debug)
 
         # Add location to entity. Path will get converted to a signed S3 URL.
         locations = [{'path': location_path, 'type': 'awss3'}]
@@ -1350,9 +1336,6 @@ class Synapse:
         if response.status_code in [301,302,303,307,308]:
             url = response.headers['location']
 
-            if self.debug:
-                print "_downloadFile: redirect url=", url
-
             # If it's a file URL, turn it into a path and return it
             if url.startswith('file:'):
                 pathinfo = utils.file_url_to_path(url, verify_exists=True)
@@ -1364,7 +1347,7 @@ class Synapse:
             response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
         
         try:
-            response.raise_for_status()
+            exceptions._raise_for_status(response, verbose=self.debug)
         except SynapseHTTPError as err:
             if err.response.status_code == 404:
                 raise SynapseError("Could not download the file at %s" % url)
@@ -1421,7 +1404,7 @@ class Synapse:
         headers = self._generateSignedHeaders(url, {'Accept': 'application/json'})
         with open(filepath, 'rb') as f:
             response = requests.post(url, files={os.path.basename(filepath): f}, headers=headers)
-        exceptions._raise_for_status(response)
+        exceptions._raise_for_status(response, verbose=self.debug)
 
         # We expect a list of FileHandles of length one
         fileHandleList = response.json()
@@ -1489,7 +1472,7 @@ class Synapse:
         return self.restGET('/completeUploadDaemonStatus/%s' % status['daemonId'], endpoint=self.fileHandleEndpoint)
 
         
-    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, verbose=False, progress=True):
+    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, progress=True):
         """
         Upload a file to be stored in Synapse, dividing large files into chunks.
         
@@ -1504,107 +1487,94 @@ class Synapse:
             raise ValueError('Minimum chunksize is 5 MB.')
         if filepath is None or not os.path.exists(filepath):
             raise ValueError('File not found: ' + str(filepath))
-    
-        old_debug = self.debug
-        if verbose=='debug':
-            self.debug = True
 
         # Start timing
         start_time = time.time()
 
-        try:
-            i = 0
+        # Guess mime-type - important for confirmation of MD5 sum by receiver
+        (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
+        if (mimetype is None):
+            mimetype = "application/octet-stream"
 
-            # Guess mime-type - important for confirmation of MD5 sum by receiver
-            (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
-            if (mimetype is None):
-                mimetype = "application/octet-stream"
+        # S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
+        # 'transfer-encoding': 'chunked', which requests will add for you, if it
+        # can't figure out content length. The errors given by S3 are not very
+        # informative:
+        # If a request mistakenly contains both 'content-length' and
+        # 'transfer-encoding':'chunked', you get [Errno 32] Broken pipe.
+        # If you give S3 'transfer-encoding' and no 'content-length', you get:
+        #   501 Server Error: Not Implemented
+        #   A header you provided implies functionality that is not implemented
+        headers = { 'Content-Type' : mimetype}
 
-            # S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
-            # 'transfer-encoding': 'chunked', which requests will add for you, if it
-            # can't figure out content length. The errors given by S3 are not very
-            # informative:
-            # If a request mistakenly contains both 'content-length' and
-            # 'transfer-encoding':'chunked', you get [Errno 32] Broken pipe.
-            # If you give S3 'transfer-encoding' and no 'content-length', you get:
-            #   501 Server Error: Not Implemented
-            #   A header you provided implies functionality that is not implemented
-            headers = { 'Content-Type' : mimetype}
+        # Get token
+        token = self._createChunkedFileUploadToken(filepath, mimetype)
 
-            # Get token
-            token = self._createChunkedFileUploadToken(filepath, mimetype)
-            if verbose: sys.stderr.write('\n\ntoken= ' + str(token) + '\n')
+        if progress:
+            sys.stdout.write('.')
+            sys.stdout.flush()
 
-            if progress:
-                sys.stdout.write('.')
-                sys.stdout.flush()
+        # Define the retry policy for uploading chunks
+        with_retry = RetryRequest(
+            retry_status_codes=[502,503],
+            retry_errors=['We encountered an internal error. Please try again.'],
+            retries=4, wait=1, back_off=2, verbose=verbose,
+            tag='S3 put RetryRequest')
 
-            # Define the retry policy for uploading chunks
-            with_retry = RetryRequest(
-                retry_status_codes=[502,503],
-                retry_errors=['We encountered an internal error. Please try again.'],
-                retries=4, wait=1, back_off=2, verbose=verbose,
-                tag='S3 put RetryRequest')
+        i = 0
+        with open(filepath, 'rb') as f:
+            for chunk in utils.chunks(f, chunksize):
+                i += 1
 
-            with open(filepath, 'rb') as f:
-                for chunk in utils.chunks(f, chunksize):
-                    i += 1
-                    if verbose: sys.stderr.write('\nChunk %d\n' % i)
-
-                    # Get the signed S3 URL
-                    url = self._createChunkedFileUploadChunkURL(i, token)
-                    if verbose: sys.stderr.write('url= ' + str(url) + '\n')
-                    if progress:
-                        sys.stdout.write('.')
-                        sys.stdout.flush()
-
-                    # PUT the chunk to S3
-                    response = with_retry(requests.put)(url, data=chunk, headers=self._generateSignedHeaders(url, headers))
-                    exceptions._raise_for_status(response)
-                    if progress:
-                        sys.stdout.write(',')
-                        sys.stdout.flush()
-
-                    # Is requests closing response stream? Let's make sure:
-                    # "Note that connections are only released back to
-                    #  the pool for reuse once all body data has been
-                    #  read; be sure to either set stream to False or
-                    #  read the content property of the Response object."
-                    # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
-                    try:
-                        if response:
-                            throw_away = response.content
-                    except Exception as ex:
-                        sys.stderr.write('error reading response: '+str(ex))
-
-            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
-
-            # Poll until concatenating chunks is complete
-            while (status['state']=='PROCESSING'):
+                # Get the signed S3 URL
+                url = self._createChunkedFileUploadChunkURL(i, token)
                 if progress:
-                    sys.stdout.write('!')
+                    sys.stdout.write('.')
                     sys.stdout.flush()
-                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
-                status = self._completeUploadDaemonStatus(status)
-                if verbose: sys.stderr.write('status= ' + str(status) + '\n')
-                #sys.stderr.write(str(status['runTimeMS']) + '\t' + str(status['percentComplete']) + '\n')
 
+                # PUT the chunk to S3
+                response = with_retry(requests.put)(url, data=chunk, headers=self._generateSignedHeaders(url, headers))
+                exceptions._raise_for_status(response, verbose=self.debug)
+                if progress:
+                    sys.stdout.write(',')
+                    sys.stdout.flush()
+
+                # Is requests closing response stream? Let's make sure:
+                # "Note that connections are only released back to
+                #  the pool for reuse once all body data has been
+                #  read; be sure to either set stream to False or
+                #  read the content property of the Response object."
+                # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
+                try:
+                    if response:
+                        throw_away = response.content
+                except Exception as ex:
+                    sys.stderr.write('error reading response: '+str(ex))
+
+        status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+
+        # Poll until concatenating chunks is complete
+        while (status['state']=='PROCESSING'):
             if progress:
-                sys.stdout.write('!\n')
+                sys.stdout.write('!')
                 sys.stdout.flush()
+            time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+            status = self._completeUploadDaemonStatus(status)
 
-            if status['state'] == 'FAILED':
-                raise SynapseError(status['errorMessage'])
+        if progress:
+            sys.stdout.write('!\n')
+            sys.stdout.flush()
 
-            # Return a fileHandle
-            fileHandle = self._getFileHandle(status['fileHandleId'])
+        if status['state'] == 'FAILED':
+            raise SynapseError(status['errorMessage'])
 
-            # Print timing information
-            if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-start_time))
+        # Return a fileHandle
+        fileHandle = self._getFileHandle(status['fileHandleId'])
 
-            return fileHandle
-        finally:
-            self.debug = old_debug
+        # Print timing information
+        if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-start_time))
+
+        return fileHandle
 
 
 
@@ -1890,11 +1860,10 @@ class Synapse:
     def getWiki(self, owner, subpageId=None):
         """Gets a Wiki object from Synapse."""
         
-        owner_type = utils.guess_object_type(owner)
         if subpageId:
-            uri = '/%s/%s/wiki/%s' % (owner_type, id_of(owner), id_of(subpageId))
+            uri = '/entity/%s/wiki/%s' % (id_of(owner), id_of(subpageId))
         else:
-            uri = '/%s/%s/wiki' % (owner_type, id_of(owner))
+            uri = '/entity/%s/wiki' % id_of(owner)
         wiki = self.restGET(uri)
         wiki['owner'] = owner
         return Wiki(**wiki)
@@ -1908,22 +1877,19 @@ class Synapse:
         :returns: TODO_Sphinx
         """
         
-        owner_type = utils.guess_object_type(owner)
-        uri = '/%s/%s/wikiheadertree' % (owner_type, id_of(owner),)
+        uri = '/entity/%s/wikiheadertree' % id_of(owner)
         return self.restGET(uri)
 
         
     # # Need to test functionality of this
-    # def _downloadWikiAttachment(self, owner, wiki, filename, destination=None, owner_type=None):
+    # def _downloadWikiAttachment(self, owner, wiki, filename, destination=None):
     #     # Download a file attached to a wiki page
-    #     if not owner_type:
-    #         owner_type = utils.guess_object_type(owner)
-    #     url = "%s/%s/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, owner_type, id_of(owner), id_of(wiki), filename,)
+    #     url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(owner), id_of(wiki), filename,)
     #     return self._downloadFile(url, destination)
 
     
     # # Superseded by getWiki
-    # def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None, owner_type=None):
+    # def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None):
     #     """
     #     Create a new wiki page for an Entity (experimental).
     #     
@@ -1931,13 +1897,9 @@ class Synapse:
     #                                     with which the new Wiki page will be associated.
     #     :param markdown:                The markdown contents of the Wiki page
     #     :param attachmentFileHandleIds: A list of file handles or file handle IDs
-    #     :param owner_type:              Entity, Competition, or Evaluation can usually be 
-    #                                     automatically inferred from the owner object
     #     """
     # 
-    #     if not owner_type:
-    #         owner_type = utils.guess_object_type(owner)
-    #     uri = '/%s/%s/wiki' % (owner_type, id_of(owner),)
+    #     uri = '/entity/%s/wiki' % id_of(owner)
     #     wiki = {'title':title, 'markdown':markdown}
     #     if attachmentFileHandleIds:
     #         wiki['attachmentFileHandleIds'] = attachmentFileHandleIds
@@ -1974,7 +1936,6 @@ class Synapse:
         :returns: A dictionary containing an Entity's properties
         """
         
-        if self.debug: print "\n\n~~~ creating ~~~\n" + json.dumps(get_properties(entity), indent=2)
         return self.restPOST(uri='/entity', body=json.dumps(get_properties(entity)))
 
         
@@ -2000,7 +1961,6 @@ class Synapse:
         if versionLabel:
             entity['versionLabel'] = str(versionLabel)
 
-        if self.debug: print "\n\n~~~ updating ~~~\n" + json.dumps(get_properties(entity), indent=2)
         return self.restPUT(uri, body=json.dumps(get_properties(entity)))
 
         
@@ -2068,9 +2028,6 @@ class Synapse:
             headers = self._generateSignedHeaders(uri)
             
         response = requests.get(uri, headers=headers, **kwargs)
-        self._storeTimingProfile(response)
-        if self.debug:
-            utils.debug_response(response)
         exceptions._raise_for_status(response)
         return response.json()
      
@@ -2097,8 +2054,6 @@ class Synapse:
             headers = self._generateSignedHeaders(uri)
             
         response = requests.post(uri, data=body, headers=headers, **kwargs)
-        if self.debug:
-            utils.debug_response(response)
         exceptions._raise_for_status(response)
 
         if response.headers.get('content-type',None) == 'application/json':
@@ -2129,8 +2084,6 @@ class Synapse:
             headers = self._generateSignedHeaders(uri)
             
         response = requests.put(uri, data=body, headers=headers, **kwargs)
-        if self.debug:
-            utils.debug_response(response)
         exceptions._raise_for_status(response)
             
         if response.headers.get('content-type',None) == 'application/json':
@@ -2157,6 +2110,4 @@ class Synapse:
             headers = self._generateSignedHeaders(uri)
             
         response = requests.delete(uri, headers=headers, **kwargs)
-        if self.debug:
-            utils.debug_response(response)
         exceptions._raise_for_status(response)
