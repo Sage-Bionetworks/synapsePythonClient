@@ -247,7 +247,7 @@ def obtain_lock_and_read_cache(cacheDir):
             break
         except OSError as err:
             # Still locked...
-            if err.errno != errno.EEXIST:
+            if err.errno != errno.EEXIST and err.errno != errno.EACCES:
                 raise
         
         print "Waiting for cache to unlock"

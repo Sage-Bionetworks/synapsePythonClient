@@ -127,10 +127,13 @@ class Entity(collections.MutableMapping):
         
         # Create a new Entity using an existing Entity as a prototype
         if isinstance(properties, Entity):
-            annotations = properties.annotations + (annotations if annotations else {})
-            local_state = properties.local_state() + (local_state if local_state else {})
+            if annotations is None: annotations = {}
+            if local_state is None: local_state = {}
+            annotations.update(properties.annotations)
+            local_state.update(properties.local_state())
             properties = properties.properties
-            del properties['id']
+            if 'id' in properties: del properties['id']
+            
         if cls==Entity and 'concreteType' in properties and properties['concreteType'] in _entity_type_to_class:
             cls = _entity_type_to_class[properties['concreteType']]
         return cls(properties=properties, annotations=annotations, local_state=local_state)

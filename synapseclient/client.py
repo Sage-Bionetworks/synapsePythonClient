@@ -100,7 +100,7 @@ class Synapse:
             config = self.getConfigFile()
             
             if config.has_option('cache', 'location'):
-                cache.CACHE_DIR = config.get('cache', 'location')
+                cache.CACHE_DIR = os.path.expanduser(config.get('cache', 'location'))
         else: 
             # Alert the user if no config is found
             print "Could not find a config file (%s).  Using defaults." % os.path.abspath(CONFIG_FILE)
@@ -358,11 +358,11 @@ class Synapse:
     def _loggedIn(self):
         """Test whether the user is logged in to Synapse."""
         
-        if self.apiKey is None:
+        if self.apiKey is None or self.username is None:
             return False
             
         try:
-            user = restGET('/userProfile')
+            user = self.restGET('/userProfile')
             if 'displayName' in user:
                 if user['displayName'] == 'Anonymous':
                     # No session token, not logged in
@@ -384,8 +384,9 @@ class Synapse:
         """
 
         # Logout globally
-        if not local: self.restDELETE('/secretKey', endpoint=self.authEndpoint)
-        
+        if self._loggedIn() and not local: 
+            self.restDELETE('/secretKey', endpoint=self.authEndpoint)
+            
         # Delete the user's API key from the cache
         if not local or clearCache:
             cachedSessions = self._readSessionCache()
