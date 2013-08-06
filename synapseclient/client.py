@@ -35,6 +35,7 @@ from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, split_entity_namespaces, is_versionable, is_locationable
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
+from synapseclient.retry import _with_retry
 
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
@@ -1507,7 +1508,7 @@ class Synapse:
         # If you give S3 'transfer-encoding' and no 'content-length', you get:
         #   501 Server Error: Not Implemented
         #   A header you provided implies functionality that is not implemented
-        headers = { 'Content-Type' : mimetype}
+        headers = { 'Content-Type' : mimetype }
 
         # Get token
         token = self._createChunkedFileUploadToken(filepath, mimetype)
@@ -1515,10 +1516,6 @@ class Synapse:
         if progress:
             sys.stdout.write('.')
             sys.stdout.flush()
-
-        # Define the retry policy for uploading chunks
-        retryPolicy = dict(STANDARD_RETRY_PARAMS)
-        retryPolicy["retry_errors"] = ['We encountered an internal error. Please try again.']
 
         i = 0
         with open(filepath, 'rb') as f:
@@ -1532,10 +1529,9 @@ class Synapse:
                     sys.stdout.flush()
 
                 # PUT the chunk to S3
-                response = self._with_retry( \
-                    lambda: requests.put(url, data=chunk, headers=self._generateSignedHeaders(url, headers)), \
-                    **retryPolicy)
-                exceptions._raise_for_status(response, verbose=self.debug)
+                response = self.restPUT(url, body=chunk, 
+                        headers=self._generateSignedHeaders(url, headers), 
+                        retryPolicy={"retry_errors":['We encountered an internal error. Please try again.']})
                 if progress:
                     sys.stdout.write(',')
                     sys.stdout.flush()
@@ -2008,7 +2004,7 @@ class Synapse:
         return headers
     
     
-    def restGET(self, uri, endpoint=None, headers=None, **kwargs):
+    def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
         Performs a REST GET operation to the Synapse server.
         
@@ -2020,19 +2016,15 @@ class Synapse:
         :returns: JSON encoding of response
         """
         
-        # Build up the HTTP request info
-        if endpoint == None:
-            endpoint = self.repoEndpoint    
-        uri = endpoint + uri
-        if headers is None:
-            headers = self._generateSignedHeaders(uri)
+        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
+        retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = self._with_retry(lambda: requests.get(uri, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.get(uri, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
      
      
-    def restPOST(self, uri, body, endpoint=None, headers=None, **kwargs):
+    def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
         Performs a REST POST operation to the Synapse server.
         
@@ -2045,19 +2037,15 @@ class Synapse:
         :returns: JSON encoding of response
         """
         
-        # Build up the HTTP request info
-        if endpoint == None:
-            endpoint = self.repoEndpoint    
-        uri = endpoint + uri
-        if headers is None:
-            headers = self._generateSignedHeaders(uri)
+        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
+        retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = self._with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
         
-    def restPUT(self, uri, body=None, endpoint=None, headers=None, **kwargs):
+    def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
         Performs a REST PUT operation to the Synapse server.
         
@@ -2070,19 +2058,15 @@ class Synapse:
         :returns: JSON encoding of response
         """
         
-        # Build up the HTTP request info
-        if endpoint == None:
-            endpoint = self.repoEndpoint    
-        uri = endpoint + uri
-        if headers is None:
-            headers = self._generateSignedHeaders(uri)
+        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
+        retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = self._with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
         
-    def restDELETE(self, uri, endpoint=None, headers=None, **kwargs):
+    def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
         Performs a REST DELETE operation to the Synapse server.
         
@@ -2092,97 +2076,41 @@ class Synapse:
         :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
         """
         
-        # Build up the HTTP request info
+        uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
+        retryPolicy = self._build_retry_policy(retryPolicy)
+            
+        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        exceptions._raise_for_status(response, verbose=self.debug)
+        
+        
+    def _build_uri_and_headers(self, uri, endpoint=None, headers=None):
+        """Returns a tuple of the URI and headers to request with."""
+        
         if endpoint == None:
-            endpoint = self.repoEndpoint    
-        uri = endpoint + uri
+            endpoint = self.repoEndpoint
+        
+        # Check to see if the URI is incomplete (i.e. a Synapse URL)
+        # In that case, append a Synapse endpoint to the URI
+        parsedURL = urlparse.urlparse(uri)
+        if parsedURL.netloc == '':
+            uri = endpoint + uri
+            
         if headers is None:
             headers = self._generateSignedHeaders(uri)
-            
-        response = self._with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
-        exceptions._raise_for_status(response, verbose=self.debug)
+        return uri, headers
+        
+        
+    def _build_retry_policy(self, retryPolicy={}):
+        """Returns a retry policy to be passed onto _with_retry."""
+        
+        defaults = dict(STANDARD_RETRY_PARAMS)
+        defaults.update(retryPolicy)
+        return defaults
         
     
     def _return_rest_body(self, response):
         """Returns either a dictionary or a string depending on the 'content-type' of the response."""
         
-        if response.headers.get('content-type', None).lower().strip() == 'application/json':
+        if response.headers.get('content-type', '').lower().strip() == 'application/json':
             return response.json()
         return response.text
-
-
-    def _with_retry(self, function, \
-            retry_status_codes=[502,503], retry_errors=[], retry_exceptions=[], \
-            retries=3, wait=1, back_off=2):
-        """
-        Retries the given function under certain conditions.
-        
-        :param function:           A function with no arguments.  If arguments are needed, use a lambda (see example).  
-        :param retry_status_codes: What status codes to retry upon in the case of a SynapseHTTPError.
-        :param retry_errors:       What reasons to retry upon, if function().response.json()['reason'] exists.
-        :param retry_exceptions:   What types of exceptions, specified as strings, to retry upon.
-        :param retries:            How many times to retry maximum.
-        :param wait:               How many seconds to wait between retries.  
-        :param back_off:           Exponential constant to increase wait for between progressive failures.  
-        
-        :returns: function()
-        
-        Example::
-            
-            def foo(a, b, c): return [a, b, c]
-            result = self._with_retry(lambda: foo("1", "2", "3"), **STANDARD_RETRY_PARAMS)
-        """
-        
-        # Retry until we succeed or run out of tries
-        while True:
-            # Start with a clean slate
-            exc_info = None
-            retry = False
-            response = None
-
-            # Try making the call
-            try:
-                response = function()
-            except Exception as ex:
-                exc_info = sys.exc_info()
-                if self.debug:
-                    print ex.message # This message will contain lots of info
-                if hasattr(ex, 'response'):
-                    response = ex.response
-
-            # Check if we got a retry-able error
-            if response is not None:
-                if response.status_code not in range(200,299):
-                    if response.status_code in retry_status_codes:
-                        retry = True
-                        
-                    elif 'content-type' in response.headers \
-                            and response.headers['content-type'].lower().strip() == 'application/json':
-                        try:
-                            json = response.json()
-                            if json.get('reason', None) in retry_errors:
-                                retry = True
-                        except (AttributeError, ValueError) as ex:
-                            pass
-                            
-                    elif any([msg in response.content for msg in retry_errors]):
-                        retry = True
-
-            # Check if we got a retry-able exception
-            if exc_info is not None and exc_info[1].__class__.__name__ in retry_exceptions:
-                    retry = True
-
-            # Wait then retry
-            retries -= 1
-            if retries >= 0 and retry:
-                if self.debug:
-                    sys.stderr.write('\n... Retrying in %d seconds...\n' % wait)
-                time.sleep(wait)
-                wait *= back_off
-                continue
-
-            # Out of retries, re-raise the exception or return the response
-            if exc_info:
-                # Re-raise exception, preserving original stack trace
-                raise exc_info[0], exc_info[1], exc_info[2]
-            return response
