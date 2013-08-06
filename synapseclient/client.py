@@ -1767,26 +1767,46 @@ class Synapse:
         return submitted
         
         
-    def allowParticipation(self, evaluation, userId):
+    def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):
         """
         Grants the given user the minimal access rights to join and submit to an Evaluation. 
+        Note: The specification of this method has not been decided yet, so the method is likely to change in future. 
         
         :param evaluation: An Evaluation object or Evaluation ID
-        :param userId:     The principal ID of the user to grant rights for
+        :param user:       Either a user group or the principal ID of a user to grant rights to.
+                           To allow all users, use "PUBLIC".  
+                           To allow authenticated users, use "AUTHENTICATED_USERS". 
+        :param rights:     The access rights to give to the users.  
+                           Defaults to "READ", "PARTICIPATE", "SUBMIT", and "UPDATE_SUBMISSION".
         """
         
-        # Verify that the user exists
-        try: 
-            self.getUserProfile(userId)
-        except SynapseHTTPError as err:
-            if err.response.status_code == 404:
-                raise SynapseError("The user (%s) does not exist" % str(userId))
-            raise
+        # Check to see if the user is an ID or group
+        userId = -1
+        try:
+            ## TODO: is there a better way to differentiate between a userID and a group name?
+            ##   What if a group is named with just numbers?
+            userId = int(user)
+            
+            # Verify that the user exists
+            try: 
+                self.getUserProfile(userId)
+            except SynapseHTTPError as err:
+                if err.response.status_code == 404:
+                    raise SynapseError("The user (%s) does not exist" % str(userId))
+                raise
                 
+        except ValueError:
+            # Fetch the ID of the user group
+            groups = self.restGET('/userGroupHeaders?prefix=%s' % user)
+            for child in groups['children']:
+                if not child['isIndividual'] and child['displayName'] == user:
+                    userId = child['ownerId']
+                    break
+            
         # Grab the ACL 
         evaluation_id = id_of(evaluation)
         acl = self.restGET('/evaluation/%s/acl' % evaluation_id)
-        acl['resourceAccess'].append({"accessType":["READ", "PARTICIPATE"], "principalId":int(userId)})
+        acl['resourceAccess'].append({"accessType":rights, "principalId":int(userId)})
         self.restPUT('/evaluation/acl', body=json.dumps(acl))
 
 

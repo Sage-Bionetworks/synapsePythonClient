@@ -491,7 +491,9 @@ def test_evaluations():
         other_project = testSyn.createEntity(other_project)
         
         # Give the test user permission to read and join the evaluation
-        syn.allowParticipation(ev, testOwnerId)
+        syn._allowParticipation(ev, testOwnerId)
+        syn._allowParticipation(ev, "AUTHENTICATED_USERS")
+        syn._allowParticipation(ev, "PUBLIC")
         
         # Have the test user join the evaluation
         testSyn.joinEvaluation(ev)
