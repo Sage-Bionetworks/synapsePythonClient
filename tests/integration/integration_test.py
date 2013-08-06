@@ -130,7 +130,9 @@ def test_chunked_query():
         for i in range(client.QUERY_LIMIT * 5):
             syn.store(Data(parent=project['id']))
                 
-        iter = syn.chunkedQuery("select * from entity where entity.parentId=='%s'" % project['id'])
+        # Give a bunch of limits/offsets to be ignored (except for the first ones)
+        queryString = "select * from entity where entity.parentId=='%s' offset  1 limit 9999999999999    offset 2345   limit 6789 offset 3456    limit 5689" % project['id']
+        iter = syn.chunkedQuery(queryString)
         count = 0
         for res in iter:
             count += 1
@@ -335,22 +337,14 @@ def test_annotations():
 
 def test_fileHandle():
     ## TODO: Remove this test (deprecated?)
+        
+    # Upload setup.py to the file handle service
+    path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
+    fileHandle = syn._uploadFileToFileHandleService(path)
+    fileHandle2 = syn._getFileHandle(fileHandle)
     
-    oldDebugVal = syn.debug
-    try:
-        ## Note: Trying to get more information on a very rare bug
-        syn.debug = True
-        
-        # Upload setup.py to the file handle service
-        path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
-        fileHandle = syn._uploadFileToFileHandleService(path)
-        fileHandle2 = syn._getFileHandle(fileHandle)
-        
-        assert fileHandle == fileHandle2
-        syn._deleteFileHandle(fileHandle)
-        
-    finally:
-        syn.debug = oldDebugVal
+    assert fileHandle == fileHandle2
+    syn._deleteFileHandle(fileHandle)
 
 
 def test_wikiAttachment():
@@ -417,9 +411,20 @@ def test_evaluations():
                     contentSource=project['id'], status='CLOSED')
     ev = syn.store(ev)
     
+    # -- Get the Evaluation by name
+    evalNamed = syn.getEvaluationByName(name)
+    assert ev['contentSource'] == evalNamed['contentSource']
+    assert ev['createdOn'] == evalNamed['createdOn']
+    assert ev['description'] == evalNamed['description']
+    assert ev['etag'] == evalNamed['etag']
+    assert ev['id'] == evalNamed['id']
+    assert ev['name'] == evalNamed['name']
+    assert ev['ownerId'] == evalNamed['ownerId']
+    assert ev['status'] == evalNamed['status']
+    
     # Update the Evaluation
-    ev['status']='OPEN'
-    ev= syn.store(ev, createOrUpdate=True)
+    ev['status'] = 'OPEN'
+    ev = syn.store(ev, createOrUpdate=True)
     assert ev.status == 'OPEN'
 
     # Add the current user as a participant

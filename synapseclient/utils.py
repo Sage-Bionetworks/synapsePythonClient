@@ -18,11 +18,8 @@ File Handling
 Property Juggling
 ~~~~~~~~~~~~~~~~~
 
-.. automethod:: synapseclient.utils.guess_object_type
 .. automethod:: synapseclient.utils.id_of
-.. automethod:: synapseclient.utils.class_of
 .. automethod:: synapseclient.utils.get_properties
-.. automethod:: synapseclient.utils.get_entity_type
 .. automethod:: synapseclient.utils.is_url
 .. automethod:: synapseclient.utils.as_url
 .. automethod:: synapseclient.utils.is_synapse_id
@@ -43,15 +40,11 @@ Testing
 
 .. automethod:: synapseclient.utils.make_bogus_data_file
 .. automethod:: synapseclient.utils.make_bogus_binary_file
-.. automethod:: synapseclient.utils.synapse_error_msg
-.. automethod:: synapseclient.utils.debug_response
 .. automethod:: synapseclient.version_check.version_check
 
 """
 
 #!/usr/bin/env python2.7
-
-# To debug this, python -m pdb myscript.py
 
 import os, sys, urllib, urlparse, hashlib, re
 import random
@@ -121,20 +114,6 @@ def extract_filename(content_disposition):
     return match.group(1) if match else 'filename'
 
 
-def guess_object_type(obj):
-    """Returns whether the given Synapse object is an Entity or Evaluation."""
-    
-    if isinstance(obj, basestring):
-        if obj.startswith('syn'):
-            return 'entity'
-    # elif 'entityType' in obj:
-    #     return 'entity'
-    elif 'contentSource' in obj:
-        return 'evaluation'
-    else:
-        return 'entity'
-
-
 def _get_from_members_items_or_properties(obj, key):
     """TODO_Sphinx."""
     
@@ -172,25 +151,10 @@ def id_of(obj):
     return result
 
 
-def class_of(obj):
-    """Return the class or type of the input object as a string."""
-    
-    if obj is None:
-        return 'None'
-    if hasattr(obj,'__class__'):
-        return obj.__class__.__name__
-    return str(type(obj))
-
 def get_properties(entity):
     """Returns the dictionary of properties of the given Entity."""
     
     return entity.properties if hasattr(entity, 'properties') else entity
-
-
-def get_entity_type(entity):
-    """Returns the Entity's type."""
-    
-    return _get_from_members_items_or_properties(entity, 'concreteType')
 
 
 def is_url(s):
@@ -305,28 +269,21 @@ def make_bogus_data_file(n=100, seed=None):
     return f.name
 
 
-def make_bogus_binary_file(n=1*MB, verbose=False):
+def make_bogus_binary_file(n=1*MB):
     """
     Makes a bogus binary data file for testing. 
     It is the caller's responsibility to clean up the file when finished.
     
     :param n:       How many bytes to write
-    :param verbose: TODO_Sphinx
     
     :returns: The name of the file
     """
     
-    if verbose:
-        sys.stdout.write('writing bogus file')
     junk = os.urandom(min(n, 1*MB))
     with tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
         while n > 0:
             f.write(junk[0:min(n, 1*MB)])
             n -= min(n, 1*MB)
-            if verbose:
-                sys.stdout.write('.')
-    if verbose:
-        sys.stdout.write('\n')
     return f.name
 
 
@@ -383,55 +340,6 @@ def _find_used(activity, predicate):
         if predicate(resource):
             return resource
     return None
-
-
-def synapse_error_msg(ex):
-    """TODO_Sphinx."""
-    
-    
-    if isinstance(ex, basestring):
-        return ex
-
-    msg = '\n' + class_of(ex) + ': ' + str(ex) + '\n'
-
-    if hasattr(ex, 'response'):
-        response = ex.response
-        try:
-            synapse_error = response.json()
-            msg += str(synapse_error['reason'])
-        except Exception:
-            msg += str(response.text)
-
-    msg += '\n\n'
-
-    return msg
-
-
-def debug_response(response):
-    """
-    Given a `requests.Response object <http://www.python-requests.org/en/latest/api/#requests.Response>`_, 
-    prints debugging information.
-    """
-    
-    try:
-        print '\n\n'
-        print '\nREQUEST ' + '>' * 52
-        print response.request.url, response.request.method
-        print '  headers: ' + str(response.request.headers)
-        if hasattr(response.request, 'body'):
-            print '  body: ' + str(response.request.body)
-        print '\nRESPONSE ' + '<' * 51
-        print response
-        print '  headers: ' + str(response.headers)
-        try:
-            print '  body: ' + str(response.json())
-        except:
-            print '  body: ' + str(response.text)
-        print '-' * 60
-        print '\n'
-    except Exception as ex:
-        print "Exception in debug_response: " + str(ex)
-        print str(response)
 
 
 BUFFER_SIZE = 8*KB

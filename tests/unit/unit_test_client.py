@@ -1,4 +1,4 @@
-import os, json, tempfile
+import os, json, tempfile, filecmp
 from nose.tools import assert_raises
 from mock import MagicMock, patch
 import unit
@@ -12,6 +12,27 @@ def setup(module):
     print os.path.basename(__file__)
     print '~' * 60
     module.syn = unit.syn
+
+
+@patch('synapseclient.Synapse._loggedIn')
+@patch('synapseclient.Synapse.restDELETE')
+@patch('synapseclient.Synapse._readSessionCache')
+@patch('synapseclient.Synapse._writeSessionCache')
+def test_logout(*mocks):
+    mocks = [item for item in mocks]
+    logged_in_mock     = mocks.pop()
+    delete_mock        = mocks.pop()
+    read_session_mock  = mocks.pop()
+    write_session_mock = mocks.pop()
+    
+    # -- Logging out while not logged in shouldn't do anything --
+    logged_in_mock.return_value = False
+    syn.username = None
+    syn.logout()
+    syn.logout()
+    
+    assert not delete_mock.called
+    assert not write_session_mock.called
 
 
 @patch('synapseclient.client.is_locationable')
@@ -104,4 +125,3 @@ def test_submit(*mocks):
     assert not get_mock.called
     POST_mock.assert_called_once_with('/evaluation/submission?etag=Fake eTag', None)
     assert submission_mock.called
-    

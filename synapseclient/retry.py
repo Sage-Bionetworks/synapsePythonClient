@@ -1,116 +1,78 @@
-import functools
 import sys
 import time
 
-from synapseclient.utils import _to_iterable
-
-
-class RetryRequest(object):
+def _with_retry(function, verbose=False, \
+        retry_status_codes=[502,503], retry_errors=[], retry_exceptions=[], \
+        retries=3, wait=1, back_off=2):
     """
-    A decorator that wraps calls to HTTP methods in the requests library in a
-    retry function, with various settings.
+    Retries the given function under certain conditions.
     
-    This class is a decorator factory, described here:
-    `Python Class Based Decorator with parameters that can decorate a method or a function <http://stackoverflow.com/a/9417088/199166>`_
+    :param function:           A function with no arguments.  If arguments are needed, use a lambda (see example).  
+    :param retry_status_codes: What status codes to retry upon in the case of a SynapseHTTPError.
+    :param retry_errors:       What reasons to retry upon, if function().response.json()['reason'] exists.
+    :param retry_exceptions:   What types of exceptions, specified as strings, to retry upon.
+    :param retries:            How many times to retry maximum.
+    :param wait:               How many seconds to wait between retries.  
+    :param back_off:           Exponential constant to increase wait for between progressive failures.  
+    
+    :returns: function()
+    
+    Example::
+        
+        def foo(a, b, c): return [a, b, c]
+        result = self._with_retry(lambda: foo("1", "2", "3"), **STANDARD_RETRY_PARAMS)
     """
     
-    def __init__(self, retry_status_codes=[502,503], retry_errors=[], retry_exceptions=[], retries=3, wait=1, back_off=2, verbose=False, tag='RetryRequest'):
-        self.retry_status_codes = _to_iterable(retry_status_codes)
-        self.retries = retries
-        self.wait = wait
-        self.back_off = back_off
-        self.verbose = verbose
-        self.retry_errors = retry_errors
-        self.retry_exceptions = retry_exceptions
-        self.tag = tag
+    # Retry until we succeed or run out of tries
+    while True:
+        # Start with a clean slate
+        exc_info = None
+        retry = False
+        response = None
 
-    def __call__(self, fn):
-        @functools.wraps(fn)
-        def with_retry(*args, **kwargs):
-            # Make local copies of these variables, so we can modify them safely
-            retries = self.retries
-            wait = self.wait
+        # Try making the call
+        try:
+            response = function()
+        except Exception as ex:
+            exc_info = sys.exc_info()
+            if verbose:
+                print ex.message # This message will contain lots of info
+            if hasattr(ex, 'response'):
+                response = ex.response
 
-            if self.verbose=='debug':
-                tags = []
-                a = with_retry
-                while a:
-                    if hasattr(a, 'tag'):
-                        tags.append(a.tag)
-                    if hasattr(a, '__wrapped__'):
-                        a = a.__wrapped__
-                    else:
-                        a = None
-                print 'RetryRequest wrappers=',tags
-
-            # Retry until we succeed or run out of tries
-            while True:
-                # Start with a clean slate
-                exc_info = None
-                retry = False
-                response = None
-
-                # Try making the call
-                try:
-                    response = fn(*args, **kwargs)
-                except Exception as ex:
-                    exc_info = sys.exc_info()
-                    if self.verbose=='debug':
-                        print '[%s] exception=' % with_retry.tag, str(exc_info[1])
-                    if hasattr(ex,'response'):
-                        response = ex.response
-
-                # Check if we got a retry-able error
-                if response is not None:
-                    if self.verbose=='debug':
-                        print '[%s] response=' % with_retry.tag, response
-                        if hasattr(response, 'reason'):
-                            print '[%s] reason=' % with_retry.tag, response.reason
-                        if hasattr(response, 'content'):
-                            print '[%s] response.content=' % with_retry.tag, response.content
-                    if hasattr(response, 'status_code') and response.status_code not in range(200,299):
-                        if response.status_code in self.retry_status_codes:
+        # Check if we got a retry-able error
+        if response is not None:
+            if response.status_code not in range(200,299):
+                if response.status_code in retry_status_codes:
+                    retry = True
+                    
+                elif 'content-type' in response.headers \
+                        and response.headers['content-type'].lower().strip() == 'application/json':
+                    try:
+                        json = response.json()
+                        if json.get('reason', None) in retry_errors:
                             retry = True
-                        elif hasattr(response, 'headers') and 'content-type' in response.headers and response.headers['content-type'].lower().startswith('application/json'):
-                            try:
-                                json = response.json()
-                            except (AttributeError, ValueError) as ex:
-                                pass
-                            else:
-                                if 'reason' in json and json['reason'] in self.retry_errors:
-                                    retry = True
-                        else:
-                            if hasattr(response, 'content'):
-                                if any([msg in response.content for msg in self.retry_errors]):
-                                    retry = True
+                    except (AttributeError, ValueError) as ex:
+                        pass
+                        
+                elif any([msg in response.content for msg in retry_errors]):
+                    retry = True
 
-                # Check if we got a retry-able exception
-                if exc_info is not None:
-                    ## TODO: might need fully qualified names? (ex.__class__.__module__ + "." + ex.__class__.__name__)
-                    if exc_info[1].__class__.__name__ in self.retry_exceptions:
-                        if self.verbose=='debug':
-                            print '[%s] exception=' % with_retry.tag, exc_info[1].__class__.__name__
-                        retry = True
+        # Check if we got a retry-able exception
+        if exc_info is not None and exc_info[1].__class__.__name__ in retry_exceptions:
+            retry = True
 
-                # Wait then retry
-                retries -= 1
-                if retries >= 0 and retry:
-                    sys.stderr.write('\n...retrying in %d seconds...\n' % wait)
-                    time.sleep(wait)
-                    wait *= self.back_off
-                    continue
+        # Wait then retry
+        retries -= 1
+        if retries >= 0 and retry:
+            if verbose:
+                sys.stderr.write('\n... Retrying in %d seconds...\n' % wait)
+            time.sleep(wait)
+            wait *= back_off
+            continue
 
-                # Out of retries, re-raise the exception or return the response
-                if exc_info:
-                    # Re-raise exception, preserving original stack trace
-                    raise exc_info[0], exc_info[1], exc_info[2]
-                return response
-
-        # Provide a hook to get back the wrapped function
-        # functools.wraps does this in Python 3.x
-        with_retry.__wrapped__ = fn
-        with_retry.tag = self.tag
-
-        # Return the wrapper function
-        return with_retry
-
+        # Out of retries, re-raise the exception or return the response
+        if exc_info:
+            # Re-raise exception, preserving original stack trace
+            raise exc_info[0], exc_info[1], exc_info[2]
+        return response
