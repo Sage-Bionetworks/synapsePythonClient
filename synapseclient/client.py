@@ -70,6 +70,14 @@ mimetypes.add_type('text/x-r', '.R', strict=False)
 mimetypes.add_type('text/x-r', '.r', strict=False)
 
 
+def login(*args, **kwargs):
+    """Convience method to create a Synapse object and login."""
+    
+    syn = Synapse()
+    syn.login(*args, **kwargs)
+    return syn
+
+
 class Synapse:
     """
     Constructs a Python client object for the Synapse repository service
