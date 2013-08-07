@@ -77,7 +77,7 @@ import collections
 import itertools
 
 from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of, class_of, itersubclasses
+from synapseclient.utils import id_of, itersubclasses
 from synapseclient.exceptions import *
 import os
 
@@ -127,10 +127,13 @@ class Entity(collections.MutableMapping):
         
         # Create a new Entity using an existing Entity as a prototype
         if isinstance(properties, Entity):
-            annotations = properties.annotations + (annotations if annotations else {})
-            local_state = properties.local_state() + (local_state if local_state else {})
+            if annotations is None: annotations = {}
+            if local_state is None: local_state = {}
+            annotations.update(properties.annotations)
+            local_state.update(properties.local_state())
             properties = properties.properties
-            del properties['id']
+            if 'id' in properties: del properties['id']
+            
         if cls==Entity and 'concreteType' in properties and properties['concreteType'] in _entity_type_to_class:
             cls = _entity_type_to_class[properties['concreteType']]
         return cls(properties=properties, annotations=annotations, local_state=local_state)
@@ -489,7 +492,7 @@ def split_entity_namespaces(entity):
         return (entity.properties.copy(), entity.annotations.copy(), entity.local_state())
 
     if not isinstance(entity, collections.Mapping):
-        raise SynapseMalformedEntityError("Can't call split_entity_namespaces on objects of type: %s" % class_of(entity))
+        raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
 
     if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
         entity_class = _entity_type_to_class[entity['concreteType']]

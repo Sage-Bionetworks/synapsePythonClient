@@ -12,8 +12,7 @@ def setup():
     print '~' * 60
 
 def test_chunks():
-    return True
-    ### read a file in chunks, write the chunks out, and compare to the original
+    # Read a file in chunks, write the chunks out, and compare to the original
     try:
         filepath = utils.make_bogus_binary_file()
         with open(filepath, 'rb') as f, tempfile.NamedTemporaryFile(mode='wb', delete=False) as out:
