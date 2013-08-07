@@ -502,7 +502,9 @@ def test_evaluations():
         fd, filename = tempfile.mkstemp()
         os.write(fd, str(random.gauss(0,1)) + '\n')
         os.close(fd)
-        f = File(filename, parentId=other_project.id, name="Don look at me", description ="Haha!  I'm inaccessible...")
+        f = File(filename, parentId=other_project.id, 
+                 name='Different from file name', 
+                 description ="Haha!  I'm inaccessible...")
         entity = testSyn.store(f)
         submission = testSyn.submit(ev, entity)
         
@@ -531,12 +533,13 @@ def test_evaluations():
         f = File(filename, parentId=project.id, name='entry-%02d' % i,
                  description='An entry for testing evaluation')
         entity=syn.store(f)
-        syn.submit(ev, entity, name='Test 1', teamName='My Team')
+        syn.submit(ev, entity, name='Different from file name', teamName='My Team')
 
     # Score the submissions
     submissions = syn.getSubmissions(ev)
     print "Scoring Submissions"
     for submission in submissions:
+        assert submission['name'] == 'Different from file name'
         status = syn.getSubmissionStatus(submission)
         status.score = random.random()
         status.status = 'SCORED'
