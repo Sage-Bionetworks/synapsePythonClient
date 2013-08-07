@@ -1,4 +1,4 @@
-import tempfile, os, sys, filecmp, shutil, requests
+import tempfile, os, sys, filecmp, shutil, requests, json
 import uuid, random, base64
 import ConfigParser
 from datetime import datetime
@@ -442,7 +442,7 @@ def test_wikiAttachment():
 
 def test_evaluations():
     # Create an Evaluation
-    name = 'Test Evaluation %s' % (str(uuid.uuid4()),)
+    name = 'Test Evaluation %s' % str(uuid.uuid4())
     ev = Evaluation(name=name, description='Evaluation for testing', 
                     contentSource=project['id'], status='CLOSED')
     ev = syn.store(ev)
@@ -464,8 +464,7 @@ def test_evaluations():
     assert ev.status == 'OPEN'
 
     # Add the current user as a participant
-    user = syn.getUserProfile()
-    syn.addEvaluationParticipant(ev, user['ownerId'])
+    syn.joinEvaluation(ev)
 
     # Test getSubmissions with no Submissions (SYNR-453)
     submissions = syn.getSubmissions(ev)
@@ -482,14 +481,22 @@ def test_evaluations():
         other_user['principalId'] = config.get('test-authentication', 'principalId')
         print "Testing SYNR-541"
         
-        # Add the test user as a participant
-        syn.addEvaluationParticipant(ev, other_user['principalId'])
-        
+        # Login as the test user
         testSyn = client.Synapse()
-        # Login as the test user and make a project
         testSyn.login(email=other_user['email'], password=other_user['password'])
+        testOwnerId = int(testSyn.getUserProfile()['ownerId'])
+        
+        # Make a project
         other_project = Project(name=str(uuid.uuid4()))
         other_project = testSyn.createEntity(other_project)
+        
+        # Give the test user permission to read and join the evaluation
+        syn._allowParticipation(ev, testOwnerId)
+        syn._allowParticipation(ev, "AUTHENTICATED_USERS")
+        syn._allowParticipation(ev, "PUBLIC")
+        
+        # Have the test user join the evaluation
+        testSyn.joinEvaluation(ev)
         
         # Make a file to submit
         fd, filename = tempfile.mkstemp()
