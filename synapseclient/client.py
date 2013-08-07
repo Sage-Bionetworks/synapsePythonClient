@@ -1753,7 +1753,7 @@ class Synapse:
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
-        name = entity['name'] if (name is None and 'name' in entity) else None
+        name = entity['name'] if (name is None and 'name' in entity) else name
         submission = {'evaluationId'  : evaluation_id, 
                       'entityId'      : entity_id, 
                       'name'          : name, 
