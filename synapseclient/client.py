@@ -3,6 +3,7 @@
 Client
 ******
 
+.. automethod:: synapseclient.client.login
 .. autoclass:: synapseclient.Synapse
    :members:
    
@@ -71,7 +72,11 @@ mimetypes.add_type('text/x-r', '.r', strict=False)
 
 
 def login(*args, **kwargs):
-    """Convience method to create a Synapse object and login."""
+    """
+    Convience method to create a Synapse object and login.
+    
+    See :py:func:`synapseclient.Synapse.login` for arguments and usage.
+    """
     
     syn = Synapse()
     syn.login(*args, **kwargs)
