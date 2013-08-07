@@ -470,7 +470,7 @@ def test_evaluations():
         print "Testing SYNR-541"
         
         # Login as the test user
-        testSyn = client.Synapse()
+        testSyn = client.Synapse(skip_checks=True)
         testSyn.login(email=other_user['email'], password=other_user['password'])
         testOwnerId = int(testSyn.getUserProfile()['ownerId'])
         
