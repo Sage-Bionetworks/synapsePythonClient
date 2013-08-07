@@ -66,7 +66,7 @@ def from_synapse_annotations(annotations):
     for key, value in annotations.iteritems():
         if key=='dateAnnotations':
             for k,v in value.iteritems():
-                #debug: print "%s=>%s\n" % (k,v,)
+                # print "%s=>%s\n" % (k,v,)
                 annos.setdefault(k,[]).extend([from_unix_epoch_time(float(t)) for t in v])
         elif key in ['stringAnnotations','longAnnotations','doubleAnnotations']:
             for k,v in value.iteritems():

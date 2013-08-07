@@ -20,10 +20,10 @@ def setup(module):
 
 def test_round_trip():
     fh = None
-    filepath = utils.make_bogus_binary_file(6*MB + 777771, verbose=True)
+    filepath = utils.make_bogus_binary_file(6*MB + 777771)
     print 'Made bogus file: ', filepath
     try:
-        fh = syn._chunkedUploadFile(filepath, verbose=False)
+        fh = syn._chunkedUploadFile(filepath)
         # print 'FileHandle:'
         # syn.printEntity(fh)
 
@@ -55,13 +55,13 @@ def manually_check_retry_on_key_does_not_exist():
     ## Expected behavior: Retries several times, getting a error message:
     ## 'The specified key does not exist.', then fails with a stack trace.
     i = 1
-    filepath = utils.make_bogus_binary_file(6*MB, verbose=True)
+    filepath = utils.make_bogus_binary_file(6*MB)
 
     try:
         token = syn._createChunkedFileUploadToken(filepath, 'application/octet-stream')
         chunkRequest, url = syn._createChunkedFileUploadChunkURL(i, token)
         ## never upload the chunk, so we will get an error 'The specified key does not exist.'
-        chunkResult = syn._addChunkToFile(chunkRequest, verbose=True)
+        chunkResult = syn._addChunkToFile(chunkRequest)
     finally:
         os.remove(filepath)
 

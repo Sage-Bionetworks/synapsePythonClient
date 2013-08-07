@@ -36,7 +36,7 @@ class SynapseProvenanceError(Exception):
 class SynapseHTTPError(requests.exceptions.HTTPError):
     """Wraps recognized HTTP errors.  See `HTTPError <http://docs.python-requests.org/en/latest/api/?highlight=exceptions#requests.exceptions.HTTPError>`_"""
 
-def _raise_for_status(response):
+def _raise_for_status(response, verbose=False):
     """
     Replacement for requests.response.raise_for_status(). 
     Catches and wraps any Synapse-specific HTTP errors with appropriate text.  
@@ -98,8 +98,23 @@ def _raise_for_status(response):
 
     if message is not None:
         if response.headers.get('content-type',None) == 'application/json':
+            # Append the server's JSON error message
             message += "\n%s" % response.json()['reason']
-            ## TODO: Might as well append more information to the exception message
+            
+        if verbose:
+            try:
+                # Append the request sent
+                message += "\n\n>>>>>> Request <<<<<<\n%s %s" % (response.request.url, response.request.method)
+                message += "\n>>> Headers: %s" % response.request.headers
+                message += "\n>>> Body: %s" % response.request.body
+            except: message += "\nCould not append all request info"
+            
+            try: 
+                # Append the response recieved
+                message += "\n\n>>>>>> Response <<<<<<\n%s" % str(response)
+                message += "\n>>> Headers: %s" % response.headers
+                message += "\n>>> Body: %s\n\n" % response.text
+            except: message += "\nCould not append all response info"
             
         raise SynapseHTTPError(message, response=response)
         
