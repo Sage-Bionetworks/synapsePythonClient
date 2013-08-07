@@ -7,5 +7,4 @@ import synapseclient
 
 def setup_module(module):
     syn = synapseclient.Synapse(debug=False, skip_checks=True)
-    syn.login()
     module.syn = syn

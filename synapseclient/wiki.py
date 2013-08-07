@@ -39,7 +39,7 @@ import json
 
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
-from synapseclient.utils import guess_object_type, id_of
+from synapseclient.utils import id_of
 
 class Wiki(DictObject):
     """
@@ -60,8 +60,7 @@ class Wiki(DictObject):
             raise ValueError
 
         super(Wiki, self).__init__(kwargs)
-        self.ownerType=guess_object_type(self.owner)
-        self.ownerId=id_of(self.owner)
+        self.ownerId = id_of(self.owner)
         del self['owner']
         
 
@@ -74,21 +73,21 @@ class Wiki(DictObject):
     def getURI(self):
         """TODO_Sphinx"""
         
-        return '/%s/%s/wiki/%s' % (self.ownerType, self.ownerId, self.id)
+        return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
 
     def postURI(self):
         """TODO_Sphinx"""
         
-        return '/%s/%s/wiki' % (self.ownerType, self.ownerId)
+        return '/entity/%s/wiki' % self.ownerId
 
     def putURI(self):
         """TODO_Sphinx"""
         
-        return '/%s/%s/wiki/%s' % (self.ownerType, self.ownerId, self.id)
+        return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
 
     def deleteURI(self):
         """TODO_Sphinx"""
         
-        return '/%s/%s/wiki/%s' % (self.ownerType, self.ownerId, self.id)
+        return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
 
 

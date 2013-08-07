@@ -39,7 +39,7 @@ from threading import Lock
 CACHE_DIR = os.path.join(os.path.expanduser('~'), '.synapseCache')
 CACHE_FANOUT = 1000
 CACHE_MAX_LOCK_TRY_TIME = 70
-CACHE_LOCK_TIME = 60
+CACHE_LOCK_TIME = 10
 CACHE_UNLOCK_WAIT_TIME = 0.5
 
 
@@ -247,7 +247,7 @@ def obtain_lock_and_read_cache(cacheDir):
             break
         except OSError as err:
             # Still locked...
-            if err.errno != errno.EEXIST:
+            if err.errno != errno.EEXIST and err.errno != errno.EACCES:
                 raise
         
         print "Waiting for cache to unlock"
@@ -296,6 +296,7 @@ def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
         cacheMap = os.path.join(cacheDir, '.cacheMap')
         with open(cacheMap, 'w') as f:
             json.dump(cacheMapBody, f)
+            f.write('\n') # For compatibility with R's JSON parser
         
     # Delete the '.lock' (and anything that might have been put into it)
     try:
@@ -332,6 +333,9 @@ def is_lock_valid(cacheLock):
     except OSError as err:
         if err.errno == errno.ENOENT:
             # Something else deleted the lock first, so lock is not valid
+            return False
+        elif err.errno == errno.EACCES:
+            # Don't have permission to access the folder
             return False
         raise
     
