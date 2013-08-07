@@ -1765,20 +1765,60 @@ class Synapse:
         if 'submissionReceiptMessage' in evaluation:
             print evaluation['submissionReceiptMessage']
         return submitted
-
-
-    def addEvaluationParticipant(self, evaluation, userId=None):
+        
+        
+    def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):
         """
-        Adds a participant to an Evaluation.
+        Grants the given user the minimal access rights to join and submit to an Evaluation. 
+        Note: The specification of this method has not been decided yet, so the method is likely to change in future. 
+        
+        :param evaluation: An Evaluation object or Evaluation ID
+        :param user:       Either a user group or the principal ID of a user to grant rights to.
+                           To allow all users, use "PUBLIC".  
+                           To allow authenticated users, use "AUTHENTICATED_USERS". 
+        :param rights:     The access rights to give to the users.  
+                           Defaults to "READ", "PARTICIPATE", "SUBMIT", and "UPDATE_SUBMISSION".
+        """
+        
+        # Check to see if the user is an ID or group
+        userId = -1
+        try:
+            ## TODO: is there a better way to differentiate between a userID and a group name?
+            ##   What if a group is named with just numbers?
+            userId = int(user)
+            
+            # Verify that the user exists
+            try: 
+                self.getUserProfile(userId)
+            except SynapseHTTPError as err:
+                if err.response.status_code == 404:
+                    raise SynapseError("The user (%s) does not exist" % str(userId))
+                raise
+                
+        except ValueError:
+            # Fetch the ID of the user group
+            groups = self.restGET('/userGroupHeaders?prefix=%s' % user)
+            for child in groups['children']:
+                if not child['isIndividual'] and child['displayName'] == user:
+                    userId = child['ownerId']
+                    break
+            
+        # Grab the ACL 
+        evaluation_id = id_of(evaluation)
+        acl = self.restGET('/evaluation/%s/acl' % evaluation_id)
+        acl['resourceAccess'].append({"accessType":rights, "principalId":int(userId)})
+        self.restPUT('/evaluation/acl', body=json.dumps(acl))
+
+
+    def joinEvaluation(self, evaluation):
+        """
+        Adds the current user to an Evaluation.
 
         :param evaluation: An Evaluation object or Evaluation ID
-        :param userId:     The prinicipal ID of the participant.
-                           If not supplied, uses your ID
         """
         
         evaluation_id = id_of(evaluation)
-        userId = self.getUserProfile()['ownerId'] if userId == None else userId
-        self.restPOST('/evaluation/%s/participant/%s' % (evaluation_id, userId), {})
+        self.restPOST('/evaluation/%s/participant' % evaluation_id, {})
 
 
     def getSubmissions(self, evaluation, status=None):

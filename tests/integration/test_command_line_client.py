@@ -296,7 +296,7 @@ def test_command_line_store_and_submit():
     # Create an Evaluation to submit to
     eval = Evaluation(name=str(uuid.uuid4()), contentSource=project_id)
     eval = syn.store(eval)
-    syn.addEvaluationParticipant(eval)
+    syn.joinEvaluation(eval)
     
     # Submit a bogus file
     output = run('synapse', 
