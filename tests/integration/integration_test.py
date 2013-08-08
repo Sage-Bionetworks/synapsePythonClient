@@ -385,11 +385,14 @@ def test_fileHandle():
 
 def test_wikiAttachment():
     # Upload a file to be attached to a Wiki
-    fname = utils.make_bogus_data_file()
-    schedule_for_cleanup(fname)
-    fileHandle = syn._uploadFileToFileHandleService(fname)
+    filename = utils.make_bogus_data_file()
+    attachname = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    schedule_for_cleanup(attachname)
+    fileHandle = syn._uploadFileToFileHandleService(filename)
 
     # Create and store a Wiki 
+    # The constructor should accept both file handles and file paths
     md = """
     This is a test wiki
     =======================
@@ -397,7 +400,8 @@ def test_wikiAttachment():
     Blabber jabber blah blah boo.
     """
     wiki = Wiki(owner=project, title='A Test Wiki', markdown=md, 
-                attachmentFileHandleIds=[fileHandle['id']])
+                fileHandles=[fileHandle['id']], 
+                attachments=[attachname])
     wiki = syn.store(wiki)
     
     # Create a Wiki sub-page
@@ -428,7 +432,7 @@ def test_wikiAttachment():
     # # Retrieve the file attachment
     # tmpdir = tempfile.mkdtemp()
     # file_props = syn._downloadWikiAttachment(project, wiki, 
-    #                         os.path.basename(fname), dest_dir=tmpdir)
+    #                         os.path.basename(filename), dest_dir=tmpdir)
     # path = file_props['path']
     # assert os.path.exists(path)
     # assert filecmp.cmp(original_path, path)
