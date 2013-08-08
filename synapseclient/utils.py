@@ -466,3 +466,14 @@ def normalize_whitespace(s):
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
 
 
+def _synapse_error_msg(ex):
+    """
+    Format a human readable error message
+    """
+    
+    if isinstance(ex, basestring):
+        return ex
+
+    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
+
+

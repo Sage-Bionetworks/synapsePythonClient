@@ -490,18 +490,24 @@ def build_parser():
     parser_onweb.set_defaults(func=onweb)
     return parser
 
-    
+
 def perform_main(args, syn):
     if 'func' in args:
-        args.func(args, syn)
+        try:
+            args.func(args, syn)
+        except Exception as ex:
+            if args.debug:
+                raise
+            else:
+                sys.stderr.write(utils._synapse_error_msg(ex))
 
-        
+
 def main():
     args = build_parser().parse_args()
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
     syn.login(args.synapseUser, args.synapsePassword, silent=True)
     perform_main(args, syn)
-    
+
 
 if __name__ == "__main__":
     main()
