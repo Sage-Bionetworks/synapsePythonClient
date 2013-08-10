@@ -404,7 +404,7 @@ def test_wikiAttachment():
     # assert filecmp.cmp(original_path, path)
 
     # Clean up
-    syn._deleteFileHandle(fileHandle)
+    # syn._deleteFileHandle(fileHandle)
     syn.delete(wiki)
     syn.delete(subwiki)
     assert_raises(SynapseHTTPError, syn.getWiki, project)

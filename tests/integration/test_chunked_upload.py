@@ -43,9 +43,9 @@ def test_round_trip():
             os.remove(filepath)
         except Exception:
             print traceback.format_exc()
-        if fh:
-            # print 'Deleting fileHandle', fh['id']
-            syn._deleteFileHandle(fh)
+        # if fh:
+        #     # print 'Deleting fileHandle', fh['id']
+        #     syn._deleteFileHandle(fh)
 
 def manually_check_retry_on_key_does_not_exist():
     ## This is a manual test -- don't know how to automate this one.
