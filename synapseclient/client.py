@@ -1019,9 +1019,14 @@ class Synapse:
         limit = options['limit'] if options['limit'] < QUERY_LIMIT else QUERY_LIMIT
         offset = options['offset']
         while True:
+            remaining = options['limit'] + options['offset'] - offset
+
+            # Handle the case where a query was skipped due to size and now no items remain
+            if remaining <= 0:
+                raise StopIteration
+                
             # Build the sub-query
-            remaining = options['limit'] + options['offset'] - offset + 1
-            subqueryStr = "%s limit %d offset %d" %(queryStr, limit if limit < remaining else remaining, offset)
+            subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
                 
             try: 
                 response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
@@ -1039,15 +1044,23 @@ class Synapse:
                     break
                     
                 # Exit when all requests results have been pulled
-                if offset > options['offset'] + options['limit']:
+                if offset > options['offset'] + options['limit'] - 1:
                     break
             except SynapseHTTPError as err:
                 # Shrink the query size when appropriate
                 ## TODO: Change the error check when PLFM-1990 is resolved
                 if err.response.status_code == 400 and err.response.json()['reason'].startswith('java.lang.IllegalArgumentException: The results of this query exceeded the maximum'):
                     if (limit == 1):
-                        raise SynapseMalformedEntityError("A single row (offset %s) of this query exceeds the maximum size.  Consider limiting the columns returned in the select clause." % offset)
-                    limit /= 2
+                        sys.stderr.write("A single row (offset %s) of this query "
+                                         "exceeds the maximum size.  Consider "
+                                         "limiting the columns returned "
+                                         "in the select clause.  Skipping...\n" % offset)
+                        offset += 1
+                        
+                        # Since these large rows are anomalous, reset the limit
+                        limit = QUERY_LIMIT 
+                    else:
+                        limit /= 2
                 else:
                     raise
                   
