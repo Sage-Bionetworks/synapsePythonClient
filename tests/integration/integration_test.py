@@ -371,18 +371,6 @@ def test_annotations():
     assert annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == annote['present_time'].strftime('%Y-%m-%d %H:%M:%S')
 
 
-def test_fileHandle():
-    ## TODO: Remove this test (deprecated?)
-        
-    # Upload setup.py to the file handle service
-    path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
-    fileHandle = syn._uploadFileToFileHandleService(path)
-    fileHandle2 = syn._getFileHandle(fileHandle)
-    
-    assert fileHandle == fileHandle2
-    syn._deleteFileHandle(fileHandle)
-
-
 def test_wikiAttachment():
     # Upload a file to be attached to a Wiki
     fname = utils.make_bogus_data_file()
@@ -482,7 +470,7 @@ def test_evaluations():
         print "Testing SYNR-541"
         
         # Login as the test user
-        testSyn = client.Synapse()
+        testSyn = client.Synapse(skip_checks=True)
         testSyn.login(email=other_user['email'], password=other_user['password'])
         testOwnerId = int(testSyn.getUserProfile()['ownerId'])
         

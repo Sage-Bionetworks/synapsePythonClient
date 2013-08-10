@@ -1,7 +1,9 @@
 *.pyc
-pypi.info.txt
-/build/
-/dist/
 *.egg-info
+pypi.info.txt
+build
+dist
+virtualenvs
+examples_temp
 
 doc/_build
