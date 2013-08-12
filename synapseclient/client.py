@@ -250,9 +250,10 @@ class Synapse:
             if email is None and "<mostRecent>" in cachedSessions:
                 email = cachedSessions["<mostRecent>"]
                 
-            if email is not None and email in cachedSessions:
+            endpointAndEmail = "%s %s" % (self.authEndpoint, email)
+            if email is not None and endpointAndEmail in cachedSessions:
                 self.username = email
-                self.apiKey = base64.b64decode(cachedSessions[email])
+                self.apiKey = base64.b64decode(cachedSessions[endpointAndEmail])
         
             # Resort to reading the configuration file
             if self.apiKey is None:
@@ -266,8 +267,9 @@ class Synapse:
                     
                 if config.has_option('authentication', 'username'):
                     self.username = config.has_option('authentication', 'username')
-                    if self.username in cachedSessions:
-                        self.apiKey = base64.b64decode(cachedSessions[self.username])
+                    endpointAndEmail = "%s %s" % (self.authEndpoint, self.username)
+                    if endpointAndEmail in cachedSessions:
+                        self.apiKey = base64.b64decode(cachedSessions[endpointAndEmail])
                 
                 # Just use the configuration file
                 if self.apiKey is None:
@@ -297,7 +299,8 @@ class Synapse:
         # Save the API key in the cache
         if rememberMe:
             cachedSessions = self._readSessionCache()
-            cachedSessions[self.username] = base64.b64encode(self.apiKey)
+            endpointAndEmail = "%s %s" % (self.authEndpoint, self.username)
+            cachedSessions[endpointAndEmail] = base64.b64encode(self.apiKey)
             
             # Note: make sure this key cannot conflict with usernames by using invalid username characters
             cachedSessions["<mostRecent>"] = self.username
@@ -399,8 +402,9 @@ class Synapse:
         # Delete the user's API key from the cache
         if forgetMe:
             cachedSessions = self._readSessionCache()
-            if self.username in cachedSessions:
-                del cachedSessions[self.username]
+            endpointAndEmail = "%s %s" % (self.authEndpoint, self.username)
+            if endpointAndEmail in cachedSessions:
+                del cachedSessions[endpointAndEmail]
                 self._writeSessionCache(cachedSessions)
             
         # Remove the authentication information from memory
