@@ -45,20 +45,30 @@ class Wiki(DictObject):
     """
     Represents a wiki page in Synapse with content specified in markdown.
     
-    :param title:         Title of Wiki
-    :param owner:         Parent Entity or Evaluation that Wiki belongs to
-    :param markdown:      Content of Wiki
-    :param attachmentIds: List of file handle IDs representing attached files, such as image files
+    :param title:       Title of the Wiki
+    :param owner:       Parent Entity that the Wiki will belong to
+    :param markdown:    Content of the Wiki
+    :param attachments: List of paths to files to attach
+    :param fileHandles: List of file handle IDs representing files to be attached
     """
     
     __PROPERTIES = ('title', 'markdown', 'attachmentFileHandleIds', 'id', 'etag', 'createdBy', 'createdOn', 'modifiedBy', 'modifiedOn', 'parentWikiId')
 
     def __init__(self, **kwargs):
-        #Verify that the parameters are correct
+        # Verify that the parameters are correct
         if not 'owner' in kwargs:
-            sys.stderr.write('Wiki constructor must have an owner specified')
-            raise ValueError
+            raise ValueError('Wiki constructor must have an owner specified')
 
+        # Initialize the file handle list to be an empty list
+        if 'attachmentFileHandleIds' not in kwargs:
+            kwargs['attachmentFileHandleIds'] = []
+            
+        # Move the 'fileHandles' into the proper (wordier) bucket
+        if 'fileHandles' in kwargs:
+            for handle in kwargs['fileHandles']:
+                kwargs['attachmentFileHandleIds'].append(handle)
+            del kwargs['fileHandles']
+        
         super(Wiki, self).__init__(kwargs)
         self.ownerId = id_of(self.owner)
         del self['owner']

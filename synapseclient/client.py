@@ -619,6 +619,9 @@ class Synapse:
 
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
+            if isinstance(obj, Wiki):
+                return self._storeWiki(obj)
+                
             if 'id' in obj: # If ID is present, update 
                 obj.update(self.restPUT(obj.putURI(), obj.json()))
                 return obj
@@ -1947,7 +1950,8 @@ class Synapse:
         
 
     def getWikiHeaders(self, owner):
-        """Retrieves the the header of all Wiki's belonging to the owner."
+        """
+        Retrieves the header of all Wiki's belonging to the owner.
         
         :param owner: An Evaluation or Entity
         
@@ -1957,30 +1961,44 @@ class Synapse:
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
         return self.restGET(uri)
 
+    
+    def _storeWiki(self, wiki):
+        """
+        Stores or updates the given Wiki.
+        
+        :param wiki: A Wiki object
+        
+        :returns: An updated Wiki object
+        """
+        
+        # Make sure the file handle field is a list
+        if 'attachmentFileHandleIds' not in wiki:
+            wiki['attachmentFileHandleIds'] = []
+
+        # Convert all attachments into file handles
+        if 'attachments' in wiki:
+            for attachment in wiki['attachments']:
+                fileHandle = self._uploadToFileHandleService(attachment)
+                cache.add_local_file_to_cache(path=attachment, dataFileHandleId=fileHandle['id'])
+                wiki['attachmentFileHandleIds'].append(fileHandle['id'])
+            del wiki['attachments']
+            
+        # Perform an update if the Wiki has an ID
+        if 'id' in wiki:
+            wiki.update(self.restPUT(wiki.putURI(), wiki.json()))
+        
+        # Perform a create if the Wiki has no ID
+        else:
+            wiki.update(self.restPOST(wiki.postURI(), wiki.json()))
+            
+        return wiki
+
         
     # # Need to test functionality of this
     # def _downloadWikiAttachment(self, owner, wiki, filename, destination=None):
     #     # Download a file attached to a wiki page
     #     url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(owner), id_of(wiki), filename,)
     #     return self._downloadFile(url, destination)
-
-    
-    # # Superseded by getWiki
-    # def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None):
-    #     """
-    #     Create a new wiki page for an Entity (experimental).
-    #     
-    #     :param owner:                   The owner object (Entity, Competition, or Evaluation) 
-    #                                     with which the new Wiki page will be associated.
-    #     :param markdown:                The markdown contents of the Wiki page
-    #     :param attachmentFileHandleIds: A list of file handles or file handle IDs
-    #     """
-    # 
-    #     uri = '/entity/%s/wiki' % id_of(owner)
-    #     wiki = {'title':title, 'markdown':markdown}
-    #     if attachmentFileHandleIds:
-    #         wiki['attachmentFileHandleIds'] = attachmentFileHandleIds
-    #     return self.restPOST(uri, body=json.dumps(wiki))
 
 
     
