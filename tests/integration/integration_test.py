@@ -93,7 +93,11 @@ def test_login():
 
 def test_entity_version():
     # Make an Entity and make sure the version is one
-    entity = syn.createEntity(Data(parent=project['id']))
+    entity = Data(parent=project['id'])
+    entity['path'] = utils.make_bogus_data_file()
+    schedule_for_cleanup(entity['path'])
+    entity = syn.createEntity(entity)
+    
     syn.setAnnotations(entity, {'fizzbuzz':111222})
     entity = syn.getEntity(entity)
     assert entity.versionNumber == 1
