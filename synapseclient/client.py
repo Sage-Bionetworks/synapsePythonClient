@@ -679,7 +679,7 @@ class Synapse:
                 # The cache expects a path, but FileEntities and Locationables do not have the path in their properties
                 cache.add_local_file_to_cache(path=entity['path'], **properties)
                     
-            elif 'dataFileHandleId' not in properties:
+            elif 'dataFileHandleId' not in properties and not isLocationable:
                 # Handle the case where the Entity lacks an ID 
                 # But becomes an update() due to conflict
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
@@ -2046,7 +2046,7 @@ class Synapse:
         uri = '/entity/%s' % id_of(entity)
 
         if is_versionable(entity):
-            if incrementVersion:
+            if incrementVersion or versionLabel is not None:
                 uri += '/version'
                 if 'versionNumber' in entity:
                     entity['versionNumber'] += 1
