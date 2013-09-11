@@ -1835,64 +1835,75 @@ class Synapse:
         
         evaluation_id = id_of(evaluation)
         self.restPOST('/evaluation/%s/participant' % evaluation_id, {})
-
-
-    def getSubmissions(self, evaluation, status=None):
-        """
-        TODO_Sphinx
         
-        :param evaluation: Evaluation board to get submissions from.
-        :param status:     Get submissions that have specific status 
-                           one of {OPEN, CLOSED, SCORED, INVALID}
+        
+    def getParticipants(self, evaluation):
+        """
+        :param evaluation: Evaluation to get Participants from.
+        
+        :returns: A generator over Participants (dictionary) for an Evaluation
+        """
+        
+        evaluation_id = id_of(evaluation)
+        url = "/evaluation/%s/participant?" % evaluation_id
+        
+        for result in self._GET_paginated(url):
+            yield result
+
+
+    def getSubmissions(self, evaluation, status=None, myOwn=False):
+        """
+        :param evaluation: Evaluation to get submissions from.
+        :param status:     Optionally filter submissions for a specific status. 
+                           One of {OPEN, CLOSED, SCORED, INVALID}
+        :param myOwn:      Determines if only your Submissions should be fetched.  
+                           Defaults to False (all Submissions)
                            
-        :returns: A generator over all Submissions for an Evaluation, 
-                  optionally filters Submissions for a specified status.
+        :returns: A generator over Submissions for an Evaluation
                   
         Example::
         
-            for submission in syn.getEvaluationSubmissions(1234567):
+            for submission in syn.getSubmissions(1234567):
                 print submission['entityId']
         """
         
-        evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
-
+        evaluation_id = id_of(evaluation)
+        url = "/evaluation/%s/submission%s?" % (evaluation_id, "" if myOwn else "/all")
+        if status != None:
+            if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
+                raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
+            uri += "status=%s" % status
+            
+        for result in self._GET_paginated(url):
+            yield Submission(**result)
+            
+            
+    def _GET_paginated(self, url):
+        """
+        :param url: A URL that returns paginated results.  MUST contain a '?'
+        
+        :returns: A generator over some paginated results
+        """
+        
         result_count = 0
         limit = 20
         offset = 0 - limit
-        max_results = 1000 # Gets updated later
-        submissions = []
+        max_results = 1 # Gets updated later
+        results = []
 
         while result_count < max_results:
             # If we're out of results, do a(nother) REST call
-            if result_count >= offset + len(submissions):
+            if result_count >= offset + len(results):
                 offset += limit
-                if status != None:
-                    if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
-                        raise SynapseError('status may be one of {OPEN, CLOSED, SCORED, INVALID}')
-                    uri = "/evaluation/%s/submission/all?status=%s&limit=%d&offset=%d" %(evaluation_id, 
-                                                                                         status, limit, 
-                                                                                         offset)
-                else:
-                    uri = "/evaluation/%s/submission/all?limit=%d&offset=%d" %(evaluation_id, limit, 
-                                                                               offset)
-                page_of_submissions = self.restGET(uri)
-                max_results = page_of_submissions['totalNumberOfResults']
-                submissions = page_of_submissions['results']
-                if len(submissions)==0:
+                page = self.restGET(url + ("&limit=%d&offset=%d" % (limit, offset)))
+                max_results = page['totalNumberOfResults']
+                results = page['results']
+                if len(results)==0:
                     return
 
             i = result_count - offset
             result_count += 1
-            yield Submission(**submissions[i])
-
-
-    def getOwnSubmissions(self, evaluation):
-        """
-        TODO_Sphinx - Not implemented yet
-        """
-        
-        ## TODO: implement this if this is really usefull?
-        pass
+            yield results[i]
 
 
     def getSubmission(self, id, **kwargs):
