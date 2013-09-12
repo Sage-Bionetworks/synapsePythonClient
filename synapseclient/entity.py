@@ -3,55 +3,14 @@
 Entity
 ******
 
-The Entity class is the base class for all entities. It has a few
-special characteristics. It is a dictionary-like object in which
-both object and dictionary notation (entity.foo or entity['foo'])
-can be used interchangeably.
+The Entity class is the base class for all entities, including Project, Folder
+and File, as well as deprecated entity types such as Data, Study, Summary,
+etc.
 
-In Synapse, entities have both properties and annotations. This has
-come to be viewed as awkward, so we try to hide it. Furthermore,
-because we're getting tricky with the dot notation, there are three
-distinct namespaces to consider when accessing variables that are
-part of the entity: the members of the object, properties defined by
-Synapse, and Synapse annotations, which are open-ended and user-
-defined.
-
-The rule, for either getting or setting is: first look in the object
-then look in properties, then look in annotations. If the key is not
-found in any of these three, a get results in a ``KeyError`` and a set
-results in a new annotation being created. Thus, the following results
-in a new annotation that will be persisted in Synapse::
-
-    entity.foo = 'bar'
-
-To create an object member variable, which will *not* be persisted in
-Synapse, this unfortunate notation is required::
-
-    entity.__dict__['foo'] = 'bar'
-
-Between the three namespaces, name collisions are entirely possible.
-Keys in the three namespaces can be referred to unambiguously like so::
-
-    entity.__dict__['key']
-    
-    entity.properties.key
-    entity.properties['key']
-    
-    entity.annotations.key
-    entity.annotations['key']
-
-Alternate implementations include:
-- a naming convention to tag object members
-- keeping a list of 'transient' variables (the object members)
-- giving up on the dot notation (implemented in Entity2.py in commit e441fcf5a6963118bcf2b5286c67fc66c004f2b5 in the entity_object branch)
-- giving up on hiding the difference between properties and annotations
+Entities are dictionary-like objects in which both object and dictionary
+notation (entity.foo or entity['foo']) can be used interchangeably.
 
 .. autoclass:: synapseclient.entity.Entity
-   :members:
-   
-.. automethod:: synapseclient.entity.is_locationable
-.. automethod:: synapseclient.entity.is_versionable
-.. automethod:: synapseclient.entity.split_entity_namespaces
    
 ~~~~~~~
 Project
@@ -71,6 +30,72 @@ File
 
 .. autoclass:: synapseclient.entity.File
 
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Properties and annotations, implementation details
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In Synapse, entities have both properties and annotations. Properties are used
+by the system, whereas annotations are completely user defined. In the Python
+client, we try to present this situation as a normal object, with one set of
+properties.
+
+Printing an entity will show the division between properties and annotations.::
+
+    print entity
+
+Under the covers, an Entity object has two dictionaries, one for properties and one
+for annotations. These two namespaces are distinct, so there is a possibility of
+collisions. It is recommended to avoid defining annotations with names that collide
+with properties, but this is not enforced.::
+
+    ## don't do this!
+    entity.properties['description'] = 'One thing'
+    entity.annotations['description'] = 'A different thing'
+
+In case of conflict, properties will take precedence.::
+
+    print entity.description
+    #> One thing
+
+Some additional ambiguity is entailed in the use of dot notation. Entity
+objects have their own internal properties which are not persisted to Synapse.
+As in all Python objects, these properties are held in object.__dict__. For
+example, this dictionary holds the keys 'properties' and 'annotations' whose
+values are both dictionaries themselves.
+
+The rule, for either getting or setting is: first look in the object then look
+in properties, then look in annotations. If the key is not found in any of
+these three, a get results in a ``KeyError`` and a set results in a new
+annotation being created. Thus, the following results in a new annotation that
+will be persisted in Synapse::
+
+    entity.foo = 'bar'
+
+To create an object member variable, which will *not* be persisted in
+Synapse, this unfortunate notation is required::
+
+    entity.__dict__['foo'] = 'bar'
+
+As mentioned previously, name collisions are entirely possible.
+Keys in the three namespaces can be referred to unambiguously like so::
+
+    entity.__dict__['key']
+
+    entity.properties.key
+    entity.properties['key']
+
+    entity.annotations.key
+    entity.annotations['key']
+
+Most of the time, users should be able to ignore these distinctions and treat
+Entities like normal Python objects. End users should never need to manipulate
+items in __dict__.
+
+See also:
+
+- :py:mod:`synapseclient.annotations`
+
 """
 
 import collections
@@ -89,13 +114,24 @@ class Versionable(object):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Versionable'
     _property_keys = ['versionNumber', 'versionLabel', 'versionComment', 'versionUrl', 'versions']
 
+
 ## TODO: inherit from UserDict.DictMixin?
 ##       http://docs.python.org/2/library/userdict.html#UserDict.DictMixin
+
+## Alternate implementations include:
+## - a naming convention to tag object members
+## - keeping a list of 'transient' variables (the object members)
+## - giving up on the dot notation (implemented in Entity2.py in commit e441fcf5a6963118bcf2b5286c67fc66c004f2b5 in the entity_object branch)
+## - giving up on hiding the difference between properties and annotations
+
 class Entity(collections.MutableMapping):
     """
     A Synapse entity is an object that has metadata, access control, and
     potentially a file. It can represent data, source code, or a folder
     that contains other entities.
+
+    Entities should typically be created using the constructors for specific
+    subclasses such as Project, Folder or File.
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Entity'
@@ -556,11 +592,15 @@ def is_versionable(entity):
 
     if isinstance(entity, Versionable):
         return True
-    if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
-        entity_class = _entity_type_to_class[entity['concreteType']]
-    else:
-        entity_class = Entity
-    return issubclass(entity_class, Versionable)
+
+    try:
+        if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
+            entity_class = _entity_type_to_class[entity['concreteType']]
+            return issubclass(entity_class, Versionable)
+    except TypeError:
+        pass
+
+    return False
 
 
 def is_locationable(entity):

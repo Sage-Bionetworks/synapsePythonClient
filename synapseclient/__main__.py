@@ -215,6 +215,11 @@ def submit(args, syn):
             % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId'])
 
 
+def login(args, syn):
+    """Log in to Synapse, optionally caching credentials"""
+    syn.login(args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe)
+
+
 def build_parser():
     """Builds the argument parser and returns the result."""
     
@@ -237,20 +242,20 @@ def build_parser():
             dest='debug', 
             action='store_true')
     parser.add_argument(
-            '-s', '--skip-checks', 
-            dest='skip_checks', 
+            '-s', '--skip-checks',
+            dest='skip_checks',
             action='store_true', 
             help='suppress checking for version upgrade messages and endpoint redirection')
 
 
     subparsers = parser.add_subparsers(
-            title='subcommands', 
-            description='valid subcommands',
-            help='additional help')
+            title='commands',
+            description='The following commands are available:',
+            help='For additional help: "synapse <COMMAND> -h"')
 
     
     parser_query = subparsers.add_parser(
-            'query', 
+            'query',
             help='Performs SQL like queries on Synapse')
     parser_query.add_argument(
             'queryString', 
@@ -488,6 +493,30 @@ def build_parser():
             type=str,
             help='Synapse id')
     parser_onweb.set_defaults(func=onweb)
+
+
+    ## the purpose of the login command (as opposed to just using the -u and -p args) is
+    ## to allow the command line user to cache credentials
+    parser_login = subparsers.add_parser(
+            'login',
+            help='login to Synapse and (optionally) cache credentials')
+    parser_login.add_argument(
+            '-u', '--username',
+            dest='synapseUser',
+            help='Username used to connect to Synapse')
+    parser_login.add_argument(
+            '-p', '--password',
+            dest='synapsePassword',
+            help='Password used to connect to Synapse')
+    parser_login.add_argument(
+            '--rememberMe', '--remember-me',
+            dest='rememberMe',
+            action='store_true',
+            default=False,
+            help='Cache credentials for automatic authentication on future interactions with Synapse')
+    parser_login.set_defaults(func=login)
+
+
     return parser
 
 

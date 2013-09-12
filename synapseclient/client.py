@@ -11,7 +11,7 @@ Client
 More information
 ~~~~~~~~~~~~~~~~
 
-`Synapse API's <https://sagebionetworks.jira.com/wiki/display/PLFM/Synapse+REST+APIs>`_
+`Synapse API's <http://rest.synapse.org>`_
 
 """
 
@@ -23,8 +23,8 @@ import base64, hashlib, hmac
 import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
-import pkg_resources
 
+import synapseclient
 import synapseclient.utils as utils
 import synapseclient.cache as cache
 import synapseclient.exceptions as exceptions
@@ -49,7 +49,6 @@ STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/r
                         'fileHandleEndpoint':'https://file-staging.prod.sagebase.org/file/v1', 
                         'portalEndpoint':'https://staging.synapse.org/'}
 
-__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.synapseConfig')
 SESSION_FILENAME = '.session'
 FILE_BUFFER_SIZE = 4*KB
@@ -219,7 +218,7 @@ class Synapse:
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
-        if not self.skip_checks: version_check()
+        if not self.skip_checks: version_check(synapseclient.__version__)
         
         # Make sure to invalidate the existing session
         self.logout()
@@ -690,21 +689,15 @@ class Synapse:
         if 'id' in properties:
             properties = self._updateEntity(properties, forceVersion, versionLabel)
         else:
+
+            ## The default for createOrUpdate is True for versionable entities
+            ## but False for non-versionable entities (Projects, Folders, etc.)
+            createOrUpdate = kwargs.get('createOrUpdate', is_versionable(entity))
+
             try:
                 properties = self._createEntity(properties)
             except SynapseHTTPError as ex:
                 if createOrUpdate and ex.response.status_code == 409:
-                    existing_entity_id = None
-                    
-                    ## TODO: no longer necessary?
-                    # The conflict is between projects
-                    if properties['concreteType'] == Project._synapse_entity_type:
-                        properties['parentId'] = ROOT_ENTITY
-                        
-                        # Below is a roundabout, but not-hard-coded way to find the ROOT_ENTITY
-                        # errText = ex.response.json()['reason']
-                        # properties['parentId'] = re.findall('syn\d+', errText)[-1]
-                        
                     # Get the existing Entity's ID via the name and parent
                     existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
                     if existing_entity_id is None: raise
@@ -766,7 +759,7 @@ class Synapse:
         # ACCESS_REQUIREMENTS       = 0x200
         # UNMET_ACCESS_REQUIREMENTS = 0x400
         # FILE_HANDLES              = 0x800
-        bitFlags = 0x800 | 0x400 | 0x2 | 0x1;
+        bitFlags = 0x800 | 0x400 | 0x2 | 0x1
 
         # If 'entity' is given without an ID, try to find it by 'parentId' and 'name'.
         # Use case:
@@ -776,7 +769,7 @@ class Synapse:
             entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId',ROOT_ENTITY))
         
         # Avoid an exception from finding an ID from a NoneType
-        try: id_of(entity) 
+        try: id_of(entity)
         except SynapseMalformedEntityError:
             return None
         
