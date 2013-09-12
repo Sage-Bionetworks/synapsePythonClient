@@ -32,12 +32,12 @@ the system, whereas annotations are completely user defined. In the Python clien
 we try to present this situation as a normal object, with one set of properties.
 
 For more on the implementation and a few gotchas, see the documentation on
-:py:module:`synapseclient.entity`.
+:py:mod:`synapseclient.entity`.
 
 See also:
 
 - :py:class:`synapseclient.entity.Entity`
-- :py:module:`synapseclient.entity`
+- :py:mod:`synapseclient.entity`
 
 """
 

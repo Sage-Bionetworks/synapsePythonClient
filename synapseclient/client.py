@@ -11,7 +11,7 @@ Client
 More information
 ~~~~~~~~~~~~~~~~
 
-`Synapse API's <https://sagebionetworks.jira.com/wiki/display/PLFM/Synapse+REST+APIs>`_
+`Synapse API's <http://rest.synapse.org>`_
 
 """
 
