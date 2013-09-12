@@ -11,7 +11,6 @@ Entities are dictionary-like objects in which both object and dictionary
 notation (entity.foo or entity['foo']) can be used interchangeably.
 
 .. autoclass:: synapseclient.entity.Entity
-   :members:
    
 ~~~~~~~
 Project
@@ -95,7 +94,7 @@ items in __dict__.
 
 See also:
 
-- :py:module:`synapseclient.annotations`
+- :py:mod:`synapseclient.annotations`
 
 """
 

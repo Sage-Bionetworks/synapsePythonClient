@@ -1,6 +1,9 @@
 ===================================
 Synapse Python Client documentation
 ===================================
+.. automodule:: synapseclient
+   :members:
+
 .. toctree::
    :maxdepth: 1
    
@@ -11,6 +14,3 @@ Synapse Python Client documentation
    _static/Annotations
    _static/Wiki
    _static/Utilities
-   
-.. automodule:: synapseclient
-   :members:
