@@ -50,8 +50,8 @@ To view the entity in the browser::
 
     syn.onweb('syn1899498')
 
-Creating a project
-==================
+Organizing data in a Project
+============================
 
 You can create your own projects and upload your own data sets. Synapse stores
 entities in a hierarchical or tree structure. Projects are at the top level and
@@ -80,6 +80,18 @@ See also:
 - :py:class:`synapseclient.entity.Folder`
 - :py:class:`synapseclient.entity.File`
 - :py:func:`synapseclient.Synapse.store`
+
+Annotating Synapse entities
+===========================
+
+Annotations are arbitrary metadata attached to Synapse entities, for example::
+
+    test_entity.genome_assembly = "hg19"
+
+See:
+
+- :py:module:`synapseclient.annotations`
+- :py:module:`synapseclient.entity`
 
 Querying
 ========
@@ -147,6 +159,10 @@ See:
 
 Accessing the API directly
 ==========================
+
+These methods enable access to the Synapse REST(ish) API taking care of details
+like endpoints and authentication. See the
+`REST API documentation <http://rest.synapse.org/>`_.
 
 See:
 

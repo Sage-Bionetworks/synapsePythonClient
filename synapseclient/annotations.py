@@ -2,17 +2,42 @@
 ***********
 Annotations
 ***********
-TODO_Sphinx (I'm not sure about this comment block)
 
-Annotations are standard dictionary objects
-   
-~~~~~~~~~~~~~~
-Helper Methods
-~~~~~~~~~~~~~~
+Annotations are arbitrary metadata attached to Synapse entities. They can be
+accessed like ordinary object properties or like dictionary keys::
 
-.. automethod:: synapseclient.annotations.is_synapse_annotations
-.. automethod:: synapseclient.annotations.to_synapse_annotations
-.. automethod:: synapseclient.annotations.from_synapse_annotations
+    entity.my_annotation = 'This is one way to do it'
+    entity['other_annotation'] = 'This is another'
+
+Annotations can be given in the constructor for Synapse Entities::
+
+    entity = File('data.xyz', parent=my_project, rating=9.1234)
+
+Annotate the entity with where we got it::
+
+    entity.data_source = "http://data_r_us.com/really/great/data.xyz"
+
+Record when we retrieved the data::
+
+    from datetime import datetime as Datetime
+    entity.retrieval_date = Datetime.now()
+
+
+~~~~~~~~~~~~~~~~~~~~~~
+Implementation details
+~~~~~~~~~~~~~~~~~~~~~~
+
+In Synapse, entities have both properties and annotations. Properties are used by
+the system, whereas annotations are completely user defined. In the Python client,
+we try to present this situation as a normal object, with one set of properties.
+
+For more on the implementation and a few gotchas, see the documentation on
+:py:module:`synapseclient.entity`.
+
+See also:
+
+- :py:class:`synapseclient.entity.Entity`
+- :py:module:`synapseclient.entity`
 
 """
 
