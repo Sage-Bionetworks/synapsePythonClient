@@ -894,7 +894,7 @@ class Synapse:
         if filename is not None:
             entity['path'] = filename
         if 'name' not in entity or entity['name'] is None:
-            entity['name'] = os.path.basename(filename)
+            entity['name'] = utils.guess_file_name(filename)
             
         return self.store(entity, used=used, executed=executed)
 
@@ -1491,7 +1491,7 @@ class Synapse:
     
         md5 = utils.md5_for_file(filepath)
         chunkedFileTokenRequest = \
-            {'fileName'    : os.path.basename(filepath), \
+            {'fileName'    : utils.guess_file_name(filepath), \
              'contentType' : mimetype, \
              'contentMD5'  : md5.hexdigest()}
         return self.restPOST('/createChunkedFileUploadToken', json.dumps(chunkedFileTokenRequest), endpoint=self.fileHandleEndpoint)
