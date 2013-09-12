@@ -23,8 +23,8 @@ import base64, hashlib, hmac
 import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
-import pkg_resources
 
+import synapseclient
 import synapseclient.utils as utils
 import synapseclient.cache as cache
 import synapseclient.exceptions as exceptions
@@ -49,7 +49,6 @@ STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/r
                         'fileHandleEndpoint':'https://file-staging.prod.sagebase.org/file/v1', 
                         'portalEndpoint':'https://staging.synapse.org/'}
 
-__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.synapseConfig')
 SESSION_FILENAME = '.session'
 FILE_BUFFER_SIZE = 4*KB
@@ -219,7 +218,7 @@ class Synapse:
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
-        if not self.skip_checks: version_check()
+        if not self.skip_checks: version_check(synapseclient.__version__)
         
         # Make sure to invalidate the existing session
         self.logout()
