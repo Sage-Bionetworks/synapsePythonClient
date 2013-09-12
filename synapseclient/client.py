@@ -1845,7 +1845,7 @@ class Synapse:
         """
         
         evaluation_id = id_of(evaluation)
-        url = "/evaluation/%s/participant?" % evaluation_id
+        url = "/evaluation/%s/participant" % evaluation_id
         
         for result in self._GET_paginated(url):
             yield result
@@ -1868,11 +1868,11 @@ class Synapse:
         """
         
         evaluation_id = id_of(evaluation)
-        url = "/evaluation/%s/submission%s?" % (evaluation_id, "" if myOwn else "/all")
+        url = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
         if status != None:
             if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
                 raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
-            uri += "status=%s" % status
+            uri += "?status=%s" % status
             
         for result in self._GET_paginated(url):
             yield Submission(**result)
@@ -1880,7 +1880,7 @@ class Synapse:
             
     def _GET_paginated(self, url):
         """
-        :param url: A URL that returns paginated results.  MUST contain a '?'
+        :param url: A URL that returns paginated results
         
         :returns: A generator over some paginated results
         """
@@ -1894,8 +1894,15 @@ class Synapse:
         while result_count < max_results:
             # If we're out of results, do a(nother) REST call
             if result_count >= offset + len(results):
+                # Add the query terms to the URL
                 offset += limit
-                page = self.restGET(url + ("&limit=%d&offset=%d" % (limit, offset)))
+                parsedURL = urlparse.urlparse(url)
+                query = urlparse.parse_qs(parsedURL.query)
+                query['limit'] = limit
+                query['offset'] = offset
+                modifiedURL = "%s?%s" % (parsedURL.path, urllib.urlencode(query))
+                
+                page = self.restGET(modifiedURL)
                 max_results = page['totalNumberOfResults']
                 results = page['results']
                 if len(results)==0:
