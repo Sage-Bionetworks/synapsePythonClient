@@ -24,7 +24,7 @@ def version_check(current_version=None, version_url=_VERSION_URL):
             current_version = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 
         if version_url is None:
-            version_info = json.loads(open('synapseclient/synapsePythonClient').read())
+            version_info = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))
         else:
             headers = { 'Accept': 'application/json' }
             version_info = requests.get(version_url, headers=headers).json()

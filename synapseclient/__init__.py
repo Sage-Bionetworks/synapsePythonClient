@@ -179,10 +179,18 @@ For more information see the
 
 """
 
-from client import Synapse, __version__, login
+import json
+import pkg_resources
+
+__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
+
+
+from client import Synapse, login
 from activity import Activity
 from entity import Entity, Project, Folder, File
 from entity import Analysis, Code, Data, Study, Summary
 from evaluation import Evaluation, Submission, SubmissionStatus
 from wiki import Wiki
+
+
 
