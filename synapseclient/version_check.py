@@ -10,10 +10,10 @@ import pkg_resources
 
 _VERSION_URL     = 'http://versions.synapse.sagebase.org/synapsePythonClient'
 _DEV_VERSION_URL = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient'
-_UPGRADE_URL     = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+_GITHUB_URL      = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
 
 
-def version_check(current_version=None, version_url=_VERSION_URL, upgrade_url=_UPGRADE_URL):
+def version_check(current_version=None, version_url=_VERSION_URL):
     """
     Gets the latest version information from version_url and check against
     the current version.  Recommends upgrade, if a newer version exists.
@@ -31,7 +31,9 @@ def version_check(current_version=None, version_url=_VERSION_URL, upgrade_url=_U
 
         # Check blacklist
         if current_version in version_info['blacklist']:
-            msg = "\nPLEASE UPGRADE YOUR CLIENT\n\nUpgrading your SynapseClient is required. Please visit:\n%s\n\n" % (upgrade_url,)
+            msg = ("\nPLEASE UPGRADE YOUR CLIENT\n\nUpgrading your SynapseClient is required. "
+                   "Please upgrade your client by typing:\n"
+                   "    pip install --upgrade synapseclient\n\n")
             raise SystemExit(msg)
 
         if 'message' in version_info:
@@ -39,7 +41,9 @@ def version_check(current_version=None, version_url=_VERSION_URL, upgrade_url=_U
 
         # Check latest version
         if StrictVersion(current_version) < StrictVersion(version_info['latestVersion']):
-            msg = "\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. Your version (%s) can be upgraded by visiting:\n%s\n\n" % (version_info['latestVersion'], current_version, upgrade_url,)
+            msg = ("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. "
+                   "Your version (%s) can be upgraded by typing:\n"
+                   "    pip install --upgrade synapseclient\n\n") % (version_info['latestVersion'], current_version,)
             sys.stdout.write(msg)
             if 'releaseNotes' in version_info:
                 sys.stdout.write(version_info['releaseNotes'] + '\n')
