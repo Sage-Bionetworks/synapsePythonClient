@@ -461,6 +461,15 @@ def test_evaluations():
 
     # Add the current user as a participant
     syn.joinEvaluation(ev)
+        
+    # Find this user in the participant list
+    foundMe = False
+    myOwnerId = int(syn.getUserProfile()['ownerId'])
+    for item in syn.getParticipants(ev):
+        if int(item['userId']) == myOwnerId:
+            foundMe = True
+            break
+    assert foundMe
 
     # Test getSubmissions with no Submissions (SYNR-453)
     submissions = syn.getSubmissions(ev)
@@ -474,7 +483,6 @@ def test_evaluations():
         other_user = {}
         other_user['email'] = config.get('test-authentication', 'username')
         other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principalId'] = config.get('test-authentication', 'principalId')
         print "Testing SYNR-541"
         
         # Login as the test user
@@ -493,6 +501,14 @@ def test_evaluations():
         
         # Have the test user join the evaluation
         testSyn.joinEvaluation(ev)
+        
+        # Find the test user in the participants list
+        foundMe = False
+        for item in syn.getParticipants(ev):
+            if int(item['userId']) == testOwnerId:
+                foundMe = True
+                break
+        assert foundMe
         
         # Make a file to submit
         fd, filename = tempfile.mkstemp()
