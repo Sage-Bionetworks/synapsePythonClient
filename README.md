@@ -42,6 +42,8 @@ Installing the develop branch can be useful for testing or for access to the lat
     git checkout develop
     python setup.py install
 
+Replace `python setup.py install` with `python setup.py develop` to make the installation follow the head without having to reinstall.
+
 
 Command line usage
 ------------------
@@ -124,17 +126,24 @@ The synapse client can be used to write software that interacts with the Sage Sy
 
 Authentication
 --------------
-Authentication toward [synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished in a few different way. One is by passing username and password to the `syn.login` function (or using the -u and -p parameters on the command line).
+Authentication toward [synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished in a few different ways. One is by passing username and password to the `syn.login` function.
 
+    import synapseclient
+    syn = synapseclient.Synapse()
     syn.login('me@nowhere.com', 'secret')
 
 It is much more convenient to use an API key, which can be generated and cached locally by adding the rememberMe=True flag:
 
-    syn.login('me@nowhere.com', 'secret'. rememberMe=True)
+    syn.login('me@nowhere.com', 'secret', rememberMe=True)
 
-In subsequent interactions, specifying username and password is optional and only needed to login as a different user. Calling `login` with no arguments uses cached credentials when they are available.
+Then, in subsequent interactions, specifying username and password is optional and only needed to login as a different user. Calling `login` with no arguments uses cached credentials when they are available.
 
     syn.login()
+
+As a short-cut, creating the `Synapse` object and logging in can be done in one step:
+
+    import synapseclient
+    syn = synapseclient.login()
 
 Caching credentials can also be done from the command line client:
 
