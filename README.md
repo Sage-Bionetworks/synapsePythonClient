@@ -33,6 +33,17 @@ Clone the [source code repository](https://github.com/Sage-Bionetworks/synapsePy
     cd synapsePythonClient
     python setup.py install
 
+#### Install develop branch
+
+Installing the develop branch can be useful for testing or for access to the latest features, with the acceptence of an increased risk of experiencing bugs. Using [virtualenv](http://www.virtualenv.org/) to create an isolated test environment is a good idea.
+
+    git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
+    cd synapsePythonClient
+    git checkout develop
+    python setup.py install
+
+Replace `python setup.py install` with `python setup.py develop` to make the installation follow the head without having to reinstall.
+
 
 Command line usage
 ------------------
@@ -115,20 +126,30 @@ The synapse client can be used to write software that interacts with the Sage Sy
 
 Authentication
 --------------
-Authentication toward [synapse](https://www.synapse.org/#RegisterAccount:0) can be specified in three ways:
+Authentication toward [synapse](https://www.synapse.org/#RegisterAccount:0) can be accomplished in a few different ways. One is by passing username and password to the `syn.login` function.
 
-1. By passing username and password to the login function (or using the -u and -p parameters on the command line)
+    import synapseclient
+    syn = synapseclient.Synapse()
+    syn.login('me@nowhere.com', 'secret')
 
-2. Creating a configuration file in the home directory called .synapseConfig that contains the username and password. See example below.
+It is much more convenient to use an API key, which can be generated and cached locally by adding the rememberMe=True flag:
 
-3. Using cached authentication. Everytime the client authenticates the credentials are cached for 24 hours.  Meaning that subsequent interactions do not need the username and password credentials.
+    syn.login('me@nowhere.com', 'secret', rememberMe=True)
+
+Then, in subsequent interactions, specifying username and password is optional and only needed to login as a different user. Calling `login` with no arguments uses cached credentials when they are available.
+
+    syn.login()
+
+As a short-cut, creating the `Synapse` object and logging in can be done in one step:
+
+    import synapseclient
+    syn = synapseclient.login()
+
+Caching credentials can also be done from the command line client:
+
+    synapse login -u me@nowhere.com -p secret --rememberMe
 
 
-###Example config file stored in ~/.synapseConfig
-    [authentication]
-    username: me@nowhere.com
-    password: secret
-    
 
 
 License and Copyright
