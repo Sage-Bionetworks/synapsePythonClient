@@ -3,24 +3,29 @@
 Overview
 ********
 
-The ``synapseclient`` package provides an interface 
-to `Synapse <http://www.synapse.org>`_, a collaborative
-workspace for reproducible data intensive science.
-
-Synapse provides software infrastructure for sharing living research projects,
-including:
+The ``synapseclient`` package provides an interface to
+`Synapse <http://www.synapse.org>`_, a collaborative
+workspace for reproducible data intensive research projects,
+providing support for:
 
 - integrated presentation of data, code and text
 - fine grained access control
 - provenance tracking
+
+If you're just getting started with Synapse, you might want to
+have a look at the `Getting Started Guide <https://www.synapse.org/#!Wiki:syn1669771/ENTITY/54546>`_
+and `Getting started with the Python client for Synapse <https://www.synapse.org/#!Synapse:syn1768504>`_.
 
 Connecting to Synapse
 =====================
 
 To use Synapse, you'll need to 
 `register <https://www.synapse.org/#!RegisterAccount:0>`_ 
-for an account on Synapse. In your Python script, 
-load the client library, create a Synapse object and login::
+for an account. The Synapse website can authenticate using a Google account,
+but you'll need to take the extra step of creating a Synapse password
+to use the programmatic clients.
+
+Once that's done, you'll be able to load the library, create a :py:class:`Synapse` object and login::
 
     import synapseclient
     syn = synapseclient.Synapse()
@@ -50,8 +55,8 @@ To view the entity in the browser::
 
     syn.onweb('syn1899498')
 
-Creating a project
-==================
+Organizing data in a Project
+============================
 
 You can create your own projects and upload your own data sets. Synapse stores
 entities in a hierarchical or tree structure. Projects are at the top level and
@@ -81,6 +86,18 @@ See also:
 - :py:class:`synapseclient.entity.File`
 - :py:func:`synapseclient.Synapse.store`
 
+Annotating Synapse entities
+===========================
+
+Annotations are arbitrary metadata attached to Synapse entities, for example::
+
+    test_entity.genome_assembly = "hg19"
+
+See:
+
+- :py:mod:`synapseclient.annotations`
+- :py:mod:`synapseclient.entity`
+
 Querying
 ========
 
@@ -105,8 +122,8 @@ TODO: finish this once there is a reasonable way to find principleIds.
 
 See:
 
-- :py:func:`Synapse.getPermission`
-- :py:func:`Synapse.setPermission`
+- :py:func:`Synapse.getPermissions`
+- :py:func:`Synapse.setPermissions`
 
 Provenance
 ==========
@@ -148,6 +165,10 @@ See:
 Accessing the API directly
 ==========================
 
+These methods enable access to the Synapse REST(ish) API taking care of details
+like endpoints and authentication. See the
+`REST API documentation <http://rest.synapse.org/>`_.
+
 See:
 
 - :py:func:`synapseclient.Synapse.restGET`
@@ -163,10 +184,18 @@ For more information see the
 
 """
 
-from client import Synapse, __version__, login
+import json
+import pkg_resources
+
+__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
+
+
+from client import Synapse, login
 from activity import Activity
 from entity import Entity, Project, Folder, File
 from entity import Analysis, Code, Data, Study, Summary
 from evaluation import Evaluation, Submission, SubmissionStatus
 from wiki import Wiki
+
+
 
