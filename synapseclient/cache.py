@@ -19,7 +19,6 @@ Helpers
 .. automethod:: synapseclient.cache.write_cache_then_release_lock
 .. automethod:: synapseclient.cache.iterator_over_cache_map
 .. automethod:: synapseclient.cache.is_lock_valid
-.. automethod:: synapseclient.cache.normalize_path
 .. automethod:: synapseclient.cache.determine_cache_directory
 .. automethod:: synapseclient.cache.determine_local_file_location
 .. automethod:: synapseclient.cache.parse_cache_entry_into_seconds
@@ -76,7 +75,7 @@ def local_file_has_changed(entityBundle, checkIndirect, path=None):
         return True
     
     # Compare the modification times
-    path = normalize_path(path)
+    path = utils.normalize_path(path)
     fileMTime = get_modification_time(path)
     unmodifiedFileExists = False
     for file, cacheTime, cachedFileMTime in iterator_over_cache_map(cacheDir):
@@ -117,7 +116,7 @@ def add_local_file_to_cache(**entity):
     
     # Get the '.cacheMap'
     cacheDir = determine_cache_directory(entity)
-    entity['path'] = normalize_path(entity['path'])
+    entity['path'] = utils.normalize_path(entity['path'])
     
     # If the file to-be-added does not exist, search the cache for a pristine copy
     if not os.path.exists(entity['path']):
@@ -338,12 +337,6 @@ def is_lock_valid(cacheLock):
             # Don't have permission to access the folder
             return False
         raise
-    
-    
-def normalize_path(path):
-    """Transforms a path into an absolute path with forward slashes only."""
-    
-    return re.sub(r'\\', '/', os.path.abspath(path))
 
     
 def determine_cache_directory(entity):

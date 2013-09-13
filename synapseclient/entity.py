@@ -77,6 +77,7 @@ import collections
 import itertools
 
 from synapseclient.dict_object import DictObject
+import synapseclient.utils as utils
 from synapseclient.utils import id_of, itersubclasses
 from synapseclient.exceptions import *
 import os
@@ -421,7 +422,7 @@ class File(Entity, Versionable):
     def __init__(self, path=None, parent=None, synapseStore=True, properties=None, 
                  annotations=None, local_state=None, **kwargs):
         if path and 'name' not in kwargs:
-            kwargs['name'] = os.path.basename(path)
+            kwargs['name'] = utils.guess_file_name(path)
         self.__dict__['path'] = path
         if path:
             cacheDir, basename = os.path.split(path)
