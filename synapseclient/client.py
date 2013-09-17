@@ -1040,7 +1040,7 @@ class Synapse:
             except SynapseHTTPError as err:
                 # Shrink the query size when appropriate
                 ## TODO: Change the error check when PLFM-1990 is resolved
-                if err.response.status_code == 400 and err.response.json()['reason'].startswith('java.lang.IllegalArgumentException: The results of this query exceeded the maximum'):
+                if err.response.status_code == 400 and ('The results of this query exceeded the max' in err.response.json()['reason']):
                     if (limit == 1):
                         sys.stderr.write("A single row (offset %s) of this query "
                                          "exceeds the maximum size.  Consider "
