@@ -6,6 +6,7 @@ import requests
 import json
 import sys
 import pkg_resources
+import synapseclient
 
 
 _VERSION_URL     = 'http://versions.synapse.sagebase.org/synapsePythonClient'
@@ -27,6 +28,7 @@ def version_check(current_version=None, version_url=_VERSION_URL):
             version_info = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))
         else:
             headers = { 'Accept': 'application/json' }
+            headers.update(synapseclient.USER_AGENT)
             version_info = requests.get(version_url, headers=headers).json()
 
         # Check blacklist
