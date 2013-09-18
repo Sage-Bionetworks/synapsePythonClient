@@ -22,7 +22,7 @@ def version_check(current_version=None, version_url=_VERSION_URL):
 
     try:
         if (not current_version):
-            current_version = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
+            current_version = synapseclient.__version__
 
         if version_url is None:
             version_info = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))
@@ -58,12 +58,13 @@ def version_check(current_version=None, version_url=_VERSION_URL):
 
     return True
 
+
 # If this file is run as a script, print current version
 # then perform version check
 if __name__ == "__main__":
     print "Version check"
     print "============="
-    print("Python Synapse Client version: %s" % json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion'])
+    print("Python Synapse Client version: %s" % synapseclient.__version__)
 
     print("Check against production version:")
     if version_check():
