@@ -186,9 +186,10 @@ For more information see the
 
 import json
 import pkg_resources
-
 __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 
+import requests
+USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
 from client import Synapse, login
 from activity import Activity
