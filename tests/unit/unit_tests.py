@@ -224,3 +224,21 @@ def test_id_of():
     foo = Foo(123)
     assert utils.id_of(foo) == 123
 
+def test_guess_file_name():
+    assert utils.guess_file_name('a/b') == 'b'
+    assert utils.guess_file_name('file:///a/b') == 'b'
+    assert utils.guess_file_name('A:/a/b') == 'b'
+    assert utils.guess_file_name('B:/a/b/') == 'b'
+    assert utils.guess_file_name('c:\\a\\b') == 'b'
+    assert utils.guess_file_name('d:\\a\\b\\') == 'b'
+    assert utils.guess_file_name('E:\\a/b') == 'b'
+    assert utils.guess_file_name('F:\\a/b/') == 'b'
+    assert utils.guess_file_name('/a/b') == 'b'
+    assert utils.guess_file_name('/a/b/') == 'b'
+    assert utils.guess_file_name('http://www.a.com/b') == 'b'
+    assert utils.guess_file_name('http://www.a.com/b/') == 'b'
+    assert utils.guess_file_name('http://www.a.com/b?foo=bar') == 'b'
+    assert utils.guess_file_name('http://www.a.com/b/?foo=bar') == 'b'
+    assert utils.guess_file_name('http://www.a.com/b?foo=bar&arga=barga') == 'b'
+    assert utils.guess_file_name('http://www.a.com/b/?foo=bar&arga=barga') == 'b'
+

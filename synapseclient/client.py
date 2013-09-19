@@ -11,7 +11,7 @@ Client
 More information
 ~~~~~~~~~~~~~~~~
 
-`Synapse API's <https://sagebionetworks.jira.com/wiki/display/PLFM/Synapse+REST+APIs>`_
+`Synapse API's <http://rest.synapse.org>`_
 
 """
 
@@ -23,8 +23,8 @@ import base64, hashlib, hmac
 import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
-import pkg_resources
 
+import synapseclient
 import synapseclient.utils as utils
 import synapseclient.cache as cache
 import synapseclient.exceptions as exceptions
@@ -49,7 +49,6 @@ STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/r
                         'fileHandleEndpoint':'https://file-staging.prod.sagebase.org/file/v1', 
                         'portalEndpoint':'https://staging.synapse.org/'}
 
-__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.synapseConfig')
 SESSION_FILENAME = '.session'
 FILE_BUFFER_SIZE = 4*KB
@@ -219,7 +218,7 @@ class Synapse:
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
-        if not self.skip_checks: version_check()
+        if not self.skip_checks: version_check(synapseclient.__version__)
         
         # Make sure to invalidate the existing session
         self.logout()
@@ -619,6 +618,9 @@ class Synapse:
 
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
+            if isinstance(obj, Wiki):
+                return self._storeWiki(obj)
+                
             if 'id' in obj: # If ID is present, update 
                 obj.update(self.restPUT(obj.putURI(), obj.json()))
                 return obj
@@ -676,7 +678,7 @@ class Synapse:
                 # The cache expects a path, but FileEntities and Locationables do not have the path in their properties
                 cache.add_local_file_to_cache(path=entity['path'], **properties)
                     
-            elif 'dataFileHandleId' not in properties:
+            elif 'dataFileHandleId' not in properties and not isLocationable:
                 # Handle the case where the Entity lacks an ID 
                 # But becomes an update() due to conflict
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
@@ -691,19 +693,8 @@ class Synapse:
                 properties = self._createEntity(properties)
             except SynapseHTTPError as ex:
                 if createOrUpdate and ex.response.status_code == 409:
-                    existing_entity_id = None
-                    
-                    ## TODO: no longer necessary?
-                    # The conflict is between projects
-                    if properties['concreteType'] == Project._synapse_entity_type:
-                        properties['parentId'] = ROOT_ENTITY
-                        
-                        # Below is a roundabout, but not-hard-coded way to find the ROOT_ENTITY
-                        # errText = ex.response.json()['reason']
-                        # properties['parentId'] = re.findall('syn\d+', errText)[-1]
-                        
                     # Get the existing Entity's ID via the name and parent
-                    existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
+                    existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', ROOT_ENTITY))
                     if existing_entity_id is None: raise
 
                     # Update the conflicting Entity
@@ -763,7 +754,7 @@ class Synapse:
         # ACCESS_REQUIREMENTS       = 0x200
         # UNMET_ACCESS_REQUIREMENTS = 0x400
         # FILE_HANDLES              = 0x800
-        bitFlags = 0x800 | 0x400 | 0x2 | 0x1;
+        bitFlags = 0x800 | 0x400 | 0x2 | 0x1
 
         # If 'entity' is given without an ID, try to find it by 'parentId' and 'name'.
         # Use case:
@@ -773,7 +764,7 @@ class Synapse:
             entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId',ROOT_ENTITY))
         
         # Avoid an exception from finding an ID from a NoneType
-        try: id_of(entity) 
+        try: id_of(entity)
         except SynapseMalformedEntityError:
             return None
         
@@ -891,7 +882,7 @@ class Synapse:
         if filename is not None:
             entity['path'] = filename
         if 'name' not in entity or entity['name'] is None:
-            entity['name'] = os.path.basename(filename)
+            entity['name'] = utils.guess_file_name(filename)
             
         return self.store(entity, used=used, executed=executed)
 
@@ -1019,9 +1010,14 @@ class Synapse:
         limit = options['limit'] if options['limit'] < QUERY_LIMIT else QUERY_LIMIT
         offset = options['offset']
         while True:
+            remaining = options['limit'] + options['offset'] - offset
+
+            # Handle the case where a query was skipped due to size and now no items remain
+            if remaining <= 0:
+                raise StopIteration
+                
             # Build the sub-query
-            remaining = options['limit'] + options['offset'] - offset + 1
-            subqueryStr = "%s limit %d offset %d" %(queryStr, limit if limit < remaining else remaining, offset)
+            subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
                 
             try: 
                 response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
@@ -1039,15 +1035,23 @@ class Synapse:
                     break
                     
                 # Exit when all requests results have been pulled
-                if offset > options['offset'] + options['limit']:
+                if offset > options['offset'] + options['limit'] - 1:
                     break
             except SynapseHTTPError as err:
                 # Shrink the query size when appropriate
                 ## TODO: Change the error check when PLFM-1990 is resolved
-                if err.response.status_code == 400 and err.response.json()['reason'].startswith('java.lang.IllegalArgumentException: The results of this query exceeded the maximum'):
+                if err.response.status_code == 400 and ('The results of this query exceeded the max' in err.response.json()['reason']):
                     if (limit == 1):
-                        raise SynapseMalformedEntityError("A single row (offset %s) of this query exceeds the maximum size.  Consider limiting the columns returned in the select clause." % offset)
-                    limit /= 2
+                        sys.stderr.write("A single row (offset %s) of this query "
+                                         "exceeds the maximum size.  Consider "
+                                         "limiting the columns returned "
+                                         "in the select clause.  Skipping...\n" % offset)
+                        offset += 1
+                        
+                        # Since these large rows are anomalous, reset the limit
+                        limit = QUERY_LIMIT 
+                    else:
+                        limit /= 2
                 else:
                     raise
                   
@@ -1475,7 +1479,7 @@ class Synapse:
     
         md5 = utils.md5_for_file(filepath)
         chunkedFileTokenRequest = \
-            {'fileName'    : os.path.basename(filepath), \
+            {'fileName'    : utils.guess_file_name(filepath), \
              'contentType' : mimetype, \
              'contentMD5'  : md5.hexdigest()}
         return self.restPOST('/createChunkedFileUploadToken', json.dumps(chunkedFileTokenRequest), endpoint=self.fileHandleEndpoint)
@@ -1753,7 +1757,7 @@ class Synapse:
         entity_version = entity['versionNumber']
         entity_id = entity['id']
 
-        name = entity['name'] if (name is None and 'name' in entity) else None
+        name = entity['name'] if (name is None and 'name' in entity) else name
         submission = {'evaluationId'  : evaluation_id, 
                       'entityId'      : entity_id, 
                       'name'          : name, 
@@ -1765,78 +1769,136 @@ class Synapse:
         if 'submissionReceiptMessage' in evaluation:
             print evaluation['submissionReceiptMessage']
         return submitted
-
-
-    def addEvaluationParticipant(self, evaluation, userId=None):
+        
+        
+    def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):
         """
-        Adds a participant to an Evaluation.
+        Grants the given user the minimal access rights to join and submit to an Evaluation. 
+        Note: The specification of this method has not been decided yet, so the method is likely to change in future. 
+        
+        :param evaluation: An Evaluation object or Evaluation ID
+        :param user:       Either a user group or the principal ID of a user to grant rights to.
+                           To allow all users, use "PUBLIC".  
+                           To allow authenticated users, use "AUTHENTICATED_USERS". 
+        :param rights:     The access rights to give to the users.  
+                           Defaults to "READ", "PARTICIPATE", "SUBMIT", and "UPDATE_SUBMISSION".
+        """
+        
+        # Check to see if the user is an ID or group
+        userId = -1
+        try:
+            ## TODO: is there a better way to differentiate between a userID and a group name?
+            ##   What if a group is named with just numbers?
+            userId = int(user)
+            
+            # Verify that the user exists
+            try: 
+                self.getUserProfile(userId)
+            except SynapseHTTPError as err:
+                if err.response.status_code == 404:
+                    raise SynapseError("The user (%s) does not exist" % str(userId))
+                raise
+                
+        except ValueError:
+            # Fetch the ID of the user group
+            groups = self.restGET('/userGroupHeaders?prefix=%s' % user)
+            for child in groups['children']:
+                if not child['isIndividual'] and child['displayName'] == user:
+                    userId = child['ownerId']
+                    break
+            
+        # Grab the ACL 
+        evaluation_id = id_of(evaluation)
+        acl = self.restGET('/evaluation/%s/acl' % evaluation_id)
+        acl['resourceAccess'].append({"accessType":rights, "principalId":int(userId)})
+        self.restPUT('/evaluation/acl', body=json.dumps(acl))
+
+
+    def joinEvaluation(self, evaluation):
+        """
+        Adds the current user to an Evaluation.
 
         :param evaluation: An Evaluation object or Evaluation ID
-        :param userId:     The prinicipal ID of the participant.
-                           If not supplied, uses your ID
         """
         
         evaluation_id = id_of(evaluation)
-        userId = self.getUserProfile()['ownerId'] if userId == None else userId
-        self.restPOST('/evaluation/%s/participant/%s' % (evaluation_id, userId), {})
-
-
-    def getSubmissions(self, evaluation, status=None):
-        """
-        TODO_Sphinx
+        self.restPOST('/evaluation/%s/participant' % evaluation_id, {})
         
-        :param evaluation: Evaluation board to get submissions from.
-        :param status:     Get submissions that have specific status 
-                           one of {OPEN, CLOSED, SCORED, INVALID}
+        
+    def getParticipants(self, evaluation):
+        """
+        :param evaluation: Evaluation to get Participants from.
+        
+        :returns: A generator over Participants (dictionary) for an Evaluation
+        """
+        
+        evaluation_id = id_of(evaluation)
+        url = "/evaluation/%s/participant" % evaluation_id
+        
+        for result in self._GET_paginated(url):
+            yield result
+
+
+    def getSubmissions(self, evaluation, status=None, myOwn=False):
+        """
+        :param evaluation: Evaluation to get submissions from.
+        :param status:     Optionally filter submissions for a specific status. 
+                           One of {OPEN, CLOSED, SCORED, INVALID}
+        :param myOwn:      Determines if only your Submissions should be fetched.  
+                           Defaults to False (all Submissions)
                            
-        :returns: A generator over all Submissions for an Evaluation, 
-                  optionally filters Submissions for a specified status.
+        :returns: A generator over Submissions for an Evaluation
                   
         Example::
         
-            for submission in syn.getEvaluationSubmissions(1234567):
+            for submission in syn.getSubmissions(1234567):
                 print submission['entityId']
         """
         
-        evaluation_id = evaluation['id'] if 'id' in evaluation else str(evaluation)
-
+        evaluation_id = id_of(evaluation)
+        url = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
+        if status != None:
+            if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
+                raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
+            uri += "?status=%s" % status
+            
+        for result in self._GET_paginated(url):
+            yield Submission(**result)
+            
+            
+    def _GET_paginated(self, url):
+        """
+        :param url: A URL that returns paginated results
+        
+        :returns: A generator over some paginated results
+        """
+        
         result_count = 0
         limit = 20
         offset = 0 - limit
-        max_results = 1000 # Gets updated later
-        submissions = []
+        max_results = 1 # Gets updated later
+        results = []
 
         while result_count < max_results:
             # If we're out of results, do a(nother) REST call
-            if result_count >= offset + len(submissions):
+            if result_count >= offset + len(results):
+                # Add the query terms to the URL
                 offset += limit
-                if status != None:
-                    if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
-                        raise SynapseError('status may be one of {OPEN, CLOSED, SCORED, INVALID}')
-                    uri = "/evaluation/%s/submission/all?status=%s&limit=%d&offset=%d" %(evaluation_id, 
-                                                                                         status, limit, 
-                                                                                         offset)
-                else:
-                    uri = "/evaluation/%s/submission/all?limit=%d&offset=%d" %(evaluation_id, limit, 
-                                                                               offset)
-                page_of_submissions = self.restGET(uri)
-                max_results = page_of_submissions['totalNumberOfResults']
-                submissions = page_of_submissions['results']
-                if len(submissions)==0:
+                parsedURL = urlparse.urlparse(url)
+                query = urlparse.parse_qs(parsedURL.query)
+                query['limit'] = limit
+                query['offset'] = offset
+                modifiedURL = "%s?%s" % (parsedURL.path, urllib.urlencode(query))
+                
+                page = self.restGET(modifiedURL)
+                max_results = page['totalNumberOfResults']
+                results = page['results']
+                if len(results)==0:
                     return
 
             i = result_count - offset
             result_count += 1
-            yield Submission(**submissions[i])
-
-
-    def getOwnSubmissions(self, evaluation):
-        """
-        TODO_Sphinx - Not implemented yet
-        """
-        
-        ## TODO: implement this if this is really usefull?
-        pass
+            yield results[i]
 
 
     def getSubmission(self, id, **kwargs):
@@ -1894,7 +1956,8 @@ class Synapse:
         
 
     def getWikiHeaders(self, owner):
-        """Retrieves the the header of all Wiki's belonging to the owner."
+        """
+        Retrieves the header of all Wiki's belonging to the owner.
         
         :param owner: An Evaluation or Entity
         
@@ -1904,30 +1967,44 @@ class Synapse:
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
         return self.restGET(uri)
 
+    
+    def _storeWiki(self, wiki):
+        """
+        Stores or updates the given Wiki.
+        
+        :param wiki: A Wiki object
+        
+        :returns: An updated Wiki object
+        """
+        
+        # Make sure the file handle field is a list
+        if 'attachmentFileHandleIds' not in wiki:
+            wiki['attachmentFileHandleIds'] = []
+
+        # Convert all attachments into file handles
+        if 'attachments' in wiki:
+            for attachment in wiki['attachments']:
+                fileHandle = self._uploadToFileHandleService(attachment)
+                cache.add_local_file_to_cache(path=attachment, dataFileHandleId=fileHandle['id'])
+                wiki['attachmentFileHandleIds'].append(fileHandle['id'])
+            del wiki['attachments']
+            
+        # Perform an update if the Wiki has an ID
+        if 'id' in wiki:
+            wiki.update(self.restPUT(wiki.putURI(), wiki.json()))
+        
+        # Perform a create if the Wiki has no ID
+        else:
+            wiki.update(self.restPOST(wiki.postURI(), wiki.json()))
+            
+        return wiki
+
         
     # # Need to test functionality of this
     # def _downloadWikiAttachment(self, owner, wiki, filename, destination=None):
     #     # Download a file attached to a wiki page
     #     url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(owner), id_of(wiki), filename,)
     #     return self._downloadFile(url, destination)
-
-    
-    # # Superseded by getWiki
-    # def _createWiki(self, owner, title, markdown, attachmentFileHandleIds=None):
-    #     """
-    #     Create a new wiki page for an Entity (experimental).
-    #     
-    #     :param owner:                   The owner object (Entity, Competition, or Evaluation) 
-    #                                     with which the new Wiki page will be associated.
-    #     :param markdown:                The markdown contents of the Wiki page
-    #     :param attachmentFileHandleIds: A list of file handles or file handle IDs
-    #     """
-    # 
-    #     uri = '/entity/%s/wiki' % id_of(owner)
-    #     wiki = {'title':title, 'markdown':markdown}
-    #     if attachmentFileHandleIds:
-    #         wiki['attachmentFileHandleIds'] = attachmentFileHandleIds
-    #     return self.restPOST(uri, body=json.dumps(wiki))
 
 
     
@@ -1975,7 +2052,7 @@ class Synapse:
         uri = '/entity/%s' % id_of(entity)
 
         if is_versionable(entity):
-            if incrementVersion:
+            if incrementVersion or versionLabel is not None:
                 uri += '/version'
                 if 'versionNumber' in entity:
                     entity['versionNumber'] += 1

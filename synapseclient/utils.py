@@ -13,6 +13,8 @@ File Handling
 .. automethod:: synapseclient.utils.extract_filename
 .. automethod:: synapseclient.utils.file_url_to_path
 .. automethod:: synapseclient.utils.normalize_whitespace
+.. automethod:: synapseclient.cache.normalize_path
+.. automethod:: synapseclient.cache.guess_file_name
 
 ~~~~~~~~~~~~~~~~~
 Property Juggling
@@ -185,6 +187,29 @@ def as_url(s):
         return url_parts.geturl()
     else:
         return 'file://%s' % str(s)
+
+
+def guess_file_name(string):
+    """Tries to derive a filename from an arbitrary string."""
+    
+    path = urlparse.urlparse(string).path
+    path = normalize_path(path)
+    tokens = filter(lambda x: x != '', path.split('/'))
+    if len(tokens) > 0:
+        return tokens[-1]
+    
+    # Try scrubbing the path of illegal characters
+    if len(path) > 0:
+        path = re.sub(r"[^a-zA-Z0-9_.+() -]", "", path)
+    if len(path) > 0:
+        return path
+    raise ValueError("Could not derive a name from %s" % string)
+    
+    
+def normalize_path(path):
+    """Transforms a path into an absolute path with forward slashes only."""
+    
+    return re.sub(r'\\', '/', os.path.abspath(path))
 
 
 def file_url_to_path(url, verify_exists=False):
@@ -464,5 +489,16 @@ def normalize_whitespace(s):
     
     assert isinstance(s, str) or isinstance(s, unicode)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
+
+
+def _synapse_error_msg(ex):
+    """
+    Format a human readable error message
+    """
+    
+    if isinstance(ex, basestring):
+        return ex
+
+    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
 
 

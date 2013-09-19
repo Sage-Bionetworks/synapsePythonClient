@@ -26,7 +26,7 @@ See:
 
 - :py:func:`synapseclient.Synapse.getEvaluation`
 - :py:func:`synapseclient.Synapse.submit`
-- :py:func:`synapseclient.Synapse.addEvaluationParticipant`
+- :py:func:`synapseclient.Synapse.joinEvaluation`
 - :py:func:`synapseclient.Synapse.getSubmissions`
 - :py:func:`synapseclient.Synapse.getSubmission`
 - :py:func:`synapseclient.Synapse.getSubmissionStatus`

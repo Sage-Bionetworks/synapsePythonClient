@@ -65,7 +65,7 @@ def test_get_entity_owned_by_another_user():
         return
 
     try:
-        syn_other = synapseclient.Synapse()
+        syn_other = synapseclient.Synapse(skip_checks=True)
         syn_other.login(other_user['email'], other_user['password'])
 
         project = Project(name=str(uuid.uuid4()))

@@ -1,4 +1,4 @@
-import tempfile, os, sys, filecmp, shutil, requests
+import tempfile, os, sys, filecmp, shutil, requests, json
 import uuid, random, base64
 import ConfigParser
 from datetime import datetime
@@ -93,7 +93,11 @@ def test_login():
 
 def test_entity_version():
     # Make an Entity and make sure the version is one
-    entity = syn.createEntity(Data(parent=project['id']))
+    entity = Data(parent=project['id'])
+    entity['path'] = utils.make_bogus_data_file()
+    schedule_for_cleanup(entity['path'])
+    entity = syn.createEntity(entity)
+    
     syn.setAnnotations(entity, {'fizzbuzz':111222})
     entity = syn.getEntity(entity)
     assert entity.versionNumber == 1
@@ -135,46 +139,6 @@ def test_createEntity_with_provenance():
     # Verify the Provenance
     activity = syn.getProvenance(entity)
     assert activity['used'][0]['reference']['targetId'] == 'syn123'
-
-
-def test_query():
-    ## TODO: replace this test with the one below when query() is replaced
-    
-    # Remove all the Entities that are in the project
-    qry = syn.query("select id from entity where entity.parentId=='%s'" % project['id'])
-    for res in qry['results']:
-        syn.delete(res['entity.id'])
-    
-    # Add entities and verify that I can find them with a query
-    for i in range(2):
-        syn.store(Data(parent=project['id']))
-        qry = syn.query("select id, name from entity where entity.parentId=='%s'" % project['id'])
-        assert qry['totalNumberOfResults'] == i + 1
-
-        
-def test_chunked_query():
-    oldLimit = client.QUERY_LIMIT
-    try:
-        client.QUERY_LIMIT = 3
-        
-        # Remove all the Entities that are in the project
-        iter = syn.chunkedQuery("select id from entity where entity.parentId=='%s'" % project['id'])
-        for res in iter:
-            syn.delete(res['entity.id'])
-        
-        # Dump a bunch of Entities into the project
-        for i in range(client.QUERY_LIMIT * 5):
-            syn.store(Data(parent=project['id']))
-                
-        # Give a bunch of limits/offsets to be ignored (except for the first ones)
-        queryString = "select * from entity where entity.parentId=='%s' offset  1 limit 9999999999999    offset 2345   limit 6789 offset 3456    limit 5689" % project['id']
-        iter = syn.chunkedQuery(queryString)
-        count = 0
-        for res in iter:
-            count += 1
-        assert count == (client.QUERY_LIMIT * 5)
-    finally:
-        client.QUERY_LIMIT = oldLimit
     
 
 def test_md5_query():
@@ -371,25 +335,16 @@ def test_annotations():
     assert annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == annote['present_time'].strftime('%Y-%m-%d %H:%M:%S')
 
 
-def test_fileHandle():
-    ## TODO: Remove this test (deprecated?)
-        
-    # Upload setup.py to the file handle service
-    path = os.path.join(os.path.dirname(client.__file__), '..', 'setup.py')
-    fileHandle = syn._uploadFileToFileHandleService(path)
-    fileHandle2 = syn._getFileHandle(fileHandle)
-    
-    assert fileHandle == fileHandle2
-    syn._deleteFileHandle(fileHandle)
-
-
 def test_wikiAttachment():
     # Upload a file to be attached to a Wiki
-    fname = utils.make_bogus_data_file()
-    schedule_for_cleanup(fname)
-    fileHandle = syn._uploadFileToFileHandleService(fname)
+    filename = utils.make_bogus_data_file()
+    attachname = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    schedule_for_cleanup(attachname)
+    fileHandle = syn._uploadFileToFileHandleService(filename)
 
     # Create and store a Wiki 
+    # The constructor should accept both file handles and file paths
     md = """
     This is a test wiki
     =======================
@@ -397,7 +352,8 @@ def test_wikiAttachment():
     Blabber jabber blah blah boo.
     """
     wiki = Wiki(owner=project, title='A Test Wiki', markdown=md, 
-                attachmentFileHandleIds=[fileHandle['id']])
+                fileHandles=[fileHandle['id']], 
+                attachments=[attachname])
     wiki = syn.store(wiki)
     
     # Create a Wiki sub-page
@@ -428,13 +384,13 @@ def test_wikiAttachment():
     # # Retrieve the file attachment
     # tmpdir = tempfile.mkdtemp()
     # file_props = syn._downloadWikiAttachment(project, wiki, 
-    #                         os.path.basename(fname), dest_dir=tmpdir)
+    #                         os.path.basename(filename), dest_dir=tmpdir)
     # path = file_props['path']
     # assert os.path.exists(path)
     # assert filecmp.cmp(original_path, path)
 
     # Clean up
-    syn._deleteFileHandle(fileHandle)
+    # syn._deleteFileHandle(fileHandle)
     syn.delete(wiki)
     syn.delete(subwiki)
     assert_raises(SynapseHTTPError, syn.getWiki, project)
@@ -442,7 +398,7 @@ def test_wikiAttachment():
 
 def test_evaluations():
     # Create an Evaluation
-    name = 'Test Evaluation %s' % (str(uuid.uuid4()),)
+    name = 'Test Evaluation %s' % str(uuid.uuid4())
     ev = Evaluation(name=name, description='Evaluation for testing', 
                     contentSource=project['id'], status='CLOSED')
     ev = syn.store(ev)
@@ -464,8 +420,16 @@ def test_evaluations():
     assert ev.status == 'OPEN'
 
     # Add the current user as a participant
-    user = syn.getUserProfile()
-    syn.addEvaluationParticipant(ev, user['ownerId'])
+    syn.joinEvaluation(ev)
+        
+    # Find this user in the participant list
+    foundMe = False
+    myOwnerId = int(syn.getUserProfile()['ownerId'])
+    for item in syn.getParticipants(ev):
+        if int(item['userId']) == myOwnerId:
+            foundMe = True
+            break
+    assert foundMe
 
     # Test getSubmissions with no Submissions (SYNR-453)
     submissions = syn.getSubmissions(ev)
@@ -479,23 +443,40 @@ def test_evaluations():
         other_user = {}
         other_user['email'] = config.get('test-authentication', 'username')
         other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principalId'] = config.get('test-authentication', 'principalId')
         print "Testing SYNR-541"
         
-        # Add the test user as a participant
-        syn.addEvaluationParticipant(ev, other_user['principalId'])
-        
-        testSyn = client.Synapse()
-        # Login as the test user and make a project
+        # Login as the test user
+        testSyn = client.Synapse(skip_checks=True)
         testSyn.login(email=other_user['email'], password=other_user['password'])
+        testOwnerId = int(testSyn.getUserProfile()['ownerId'])
+        
+        # Make a project
         other_project = Project(name=str(uuid.uuid4()))
         other_project = testSyn.createEntity(other_project)
+        
+        # Give the test user permission to read and join the evaluation
+        syn._allowParticipation(ev, testOwnerId)
+        syn._allowParticipation(ev, "AUTHENTICATED_USERS")
+        syn._allowParticipation(ev, "PUBLIC")
+        
+        # Have the test user join the evaluation
+        testSyn.joinEvaluation(ev)
+        
+        # Find the test user in the participants list
+        foundMe = False
+        for item in syn.getParticipants(ev):
+            if int(item['userId']) == testOwnerId:
+                foundMe = True
+                break
+        assert foundMe
         
         # Make a file to submit
         fd, filename = tempfile.mkstemp()
         os.write(fd, str(random.gauss(0,1)) + '\n')
         os.close(fd)
-        f = File(filename, parentId=other_project.id, name="Don look at me", description ="Haha!  I'm inaccessible...")
+        f = File(filename, parentId=other_project.id, 
+                 name='Different from file name', 
+                 description ="Haha!  I'm inaccessible...")
         entity = testSyn.store(f)
         submission = testSyn.submit(ev, entity)
         
@@ -524,12 +505,13 @@ def test_evaluations():
         f = File(filename, parentId=project.id, name='entry-%02d' % i,
                  description='An entry for testing evaluation')
         entity=syn.store(f)
-        syn.submit(ev, entity, name='Test 1', teamName='My Team')
+        syn.submit(ev, entity, name='Different from file name', teamName='My Team')
 
     # Score the submissions
     submissions = syn.getSubmissions(ev)
     print "Scoring Submissions"
     for submission in submissions:
+        assert submission['name'] == 'Different from file name'
         status = syn.getSubmissionStatus(submission)
         status.score = random.random()
         status.status = 'SCORED'
