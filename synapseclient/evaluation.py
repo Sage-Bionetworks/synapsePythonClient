@@ -89,8 +89,9 @@ class Evaluation(DictObject):
         kwargs['status'] = kwargs.get('status', 'OPEN')
         kwargs['contentSource'] = kwargs.get('contentSource', '')
         if  kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
-            sys.stderr.write('\nEvaluation Status must be one of [OPEN, PLANNED, CLOSED, COMPLETED]\n\n')
-            raise ValueError
+            raise ValueError('Evaluation Status must be one of [OPEN, PLANNED, CLOSED, COMPLETED]')
+        if not kwargs['contentSource'].startswith('syn'):   #Verify that synapse Id given
+            raise ValueError('The "contentSource" parameter must be specified as a Synapse Entity when creating an Evaluation')
         super(Evaluation, self).__init__(kwargs)
 
 
