@@ -186,7 +186,7 @@ class Synapse:
 
             # Update endpoints if we get redirected
             if not skip_checks:
-                response = requests.get(endpoints[point], allow_redirects=False)
+                response = requests.get(endpoints[point], allow_redirects=False, headers=synapseclient.USER_AGENT)
                 if response.status_code == 301:
                     endpoints[point] = response.headers['location']
 
@@ -1281,16 +1281,15 @@ class Synapse:
         (_, base_filename) = os.path.split(filename)
         data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
         uri = '/entity/%s/s3Token' % id_of(entity)
-        headers = self._generateSignedHeaders(uri, 
-                            {'Content-Type': 'application/json',
-                             'Accept': 'application/json'})
         response_json = self.restPOST(uri, body=json.dumps(data))
         location_path = response_json['path']
 
-        # PUT file to S3
         headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
                     'Content-Type' : mimetype,
-                    'x-amz-acl' : 'bucket-owner-full-control' }
+                    'x-amz-acl' : 'bucket-owner-full-control'}
+        headers.update(synapseclient.USER_AGENT)
+
+        # PUT file to S3
         with open(filename, 'rb') as f:
             response = requests.put(response_json['presignedUrl'], headers=headers, data=f)
         exceptions._raise_for_status(response, verbose=self.debug)
@@ -2094,6 +2093,8 @@ class Synapse:
             
         if headers is None:
             headers = dict(self.headers)
+
+        headers.update(synapseclient.USER_AGENT)
             
         sig_timestamp = time.strftime(utils.ISO_FORMAT, time.gmtime())
         url = urlparse.urlparse(url).path

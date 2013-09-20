@@ -266,7 +266,7 @@ def test_command_line_store_and_submit():
                  '--name',
                  str(uuid.uuid4()),
                  '--description',
-                 '"test of store command',
+                 'test of store command',
                  '--type',
                  'Project')
     project_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
