@@ -138,7 +138,7 @@ def add(args, syn):
 
     entity = syn.store(entity, used=args.used, executed=args.executed)
 
-    print 'Created entity: %s\t%s from file: %s' %(entity['id'], entity['name'], args.file)
+    print 'Created/Updated entity: %s\t%s from file: %s' %(entity['id'], entity['name'], args.file)
 
 
 def create(args, syn):
