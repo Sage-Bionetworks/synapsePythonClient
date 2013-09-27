@@ -443,6 +443,12 @@ class File(Entity, Versionable):
 
     When a File object is stored, the associated local file or its URL will be
     stored in Synapse. A File must have a path (or URL) and a parent.
+    
+    :param path:         Location to be represented by this File
+    :param name:         Name of the file in Synapse, not to be confused with the name within the path
+    :param parent:       Project or Folder where this File is stored
+    :param synapseStore: Whether the File should be uploaded or if only the path should be stored.
+                         Defaults to True (file should be uploaded)
 
     ::
     
