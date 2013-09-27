@@ -2,7 +2,8 @@
 *****************
 Utility Functions
 *****************
-TODO_Sphinx (There's probably some way to generally describe these functions)
+
+Utility functions useful in the implementation and testing of the Synapse client.
    
 ~~~~~~~~~~~~~
 File Handling
@@ -13,8 +14,6 @@ File Handling
 .. automethod:: synapseclient.utils.extract_filename
 .. automethod:: synapseclient.utils.file_url_to_path
 .. automethod:: synapseclient.utils.normalize_whitespace
-.. automethod:: synapseclient.cache.normalize_path
-.. automethod:: synapseclient.cache.guess_file_name
 
 ~~~~~~~~~~~~~~~~~
 Property Juggling
@@ -42,7 +41,6 @@ Testing
 
 .. automethod:: synapseclient.utils.make_bogus_data_file
 .. automethod:: synapseclient.utils.make_bogus_binary_file
-.. automethod:: synapseclient.version_check.version_check
 
 """
 
