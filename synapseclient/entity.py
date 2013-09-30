@@ -10,6 +10,13 @@ etc.
 Entities are dictionary-like objects in which both object and dictionary
 notation (entity.foo or entity['foo']) can be used interchangeably.
 
+Imports::
+
+    from synapseclient import Project, Folder, File
+    
+    ## the following Entity types are deprecated
+    from synapseclient import Analysis, Code, Data, Study, Summary
+
 .. autoclass:: synapseclient.entity.Entity
    
 ~~~~~~~
