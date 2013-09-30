@@ -1,6 +1,6 @@
 {
   "client":"synapsePythonClient",
-  "latestVersion":"0.5.0",
+  "latestVersion":"0.5.1.dev1",
   "blacklist":["0.0.0", "0.4.1", "0.4.0", "0.3.0", "0.2.1", "0.2.0", "0.1.4"],
   "releaseNotes":"For help Getting started with the Python client for Synapse see:\nhttps://www.synapse.org/#!Synapse:syn1768504"
 }
