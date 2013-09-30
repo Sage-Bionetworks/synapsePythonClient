@@ -5,6 +5,8 @@ Wiki
 A Wiki page requires a title, markdown and an owner object.  
 For example::
 
+    from synapseclient import Wiki
+
     entity = syn.get('syn123456')
 
     content = \"\"\"
@@ -17,11 +19,10 @@ For example::
     ${image?fileName=foo.png&align=none}
     \"\"\"
 
-    wiki = Wiki(title='My Wiki Page', owner=entity, markdown=content)
-
-    ## temporary work-around
-    fileHandle = syn._uploadFileToFileHandleService('/path/to/foo.png')
-    wiki.attachmentFileHandleIds = [fileHandle['id']]
+    wiki = Wiki(title='My Wiki Page',
+                owner=entity,
+                markdown=content,
+                attachments=['/path/to/foo.png'])
 
     wiki = syn.store(wiki)
    
@@ -30,7 +31,7 @@ Wiki Class
 ~~~~~~~~~~
 
 .. autoclass:: synapseclient.wiki.Wiki
-   :members:
+   :members: __init__
 
 """
 
@@ -75,28 +76,28 @@ class Wiki(DictObject):
         
 
     def json(self):
-        """Returns the JSON represenation of the Wiki object."""
+        """Returns the JSON representation of the Wiki object."""
         return json.dumps({k:v for k,v in self.iteritems() 
                            if k in self.__PROPERTIES})
 
 
     def getURI(self):
-        """TODO_Sphinx"""
+        """For internal use."""
         
         return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
 
     def postURI(self):
-        """TODO_Sphinx"""
+        """For internal use."""
         
         return '/entity/%s/wiki' % self.ownerId
 
     def putURI(self):
-        """TODO_Sphinx"""
+        """For internal use."""
         
         return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
 
     def deleteURI(self):
-        """TODO_Sphinx"""
+        """For internal use."""
         
         return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
 

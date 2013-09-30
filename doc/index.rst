@@ -14,3 +14,4 @@ Synapse Python Client documentation
    _static/Annotations
    _static/Wiki
    _static/Utilities
+   _static/CommandLineClient
