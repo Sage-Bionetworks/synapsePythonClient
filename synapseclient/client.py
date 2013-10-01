@@ -1805,14 +1805,14 @@ class Synapse:
         return Evaluation(**self.restGET(uri))
         
     
-    def getEvaluationByProject(self, project):
+    def getEvaluationByContentSource(self, entity):
         """
         Returns a generator over evaluations that 
-        derive their content from the given project
+        derive their content from the given entity
         """
         
-        projectId = id_of(project)
-        url = "/evaluation/project/%s" % projectId
+        entityId = id_of(entity)
+        url = "/entity/%s/evaluation" % entityId
             
         for result in self._GET_paginated(url):
             yield Evaluation(**result)

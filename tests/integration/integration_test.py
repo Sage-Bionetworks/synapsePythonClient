@@ -415,7 +415,7 @@ def test_evaluations():
     assert ev['status'] == evalNamed['status']
     
     # -- Get the Evaluation by project
-    evalProj = syn.getEvaluationByProject(project)
+    evalProj = syn.getEvaluationByContentSource(project)
     evalProj = evalProj.next()
     assert ev['contentSource'] == evalProj['contentSource']
     assert ev['createdOn'] == evalProj['createdOn']
