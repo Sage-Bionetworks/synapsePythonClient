@@ -414,6 +414,18 @@ def test_evaluations():
     assert ev['ownerId'] == evalNamed['ownerId']
     assert ev['status'] == evalNamed['status']
     
+    # -- Get the Evaluation by project
+    evalProj = syn.getEvaluationByContentSource(project)
+    evalProj = evalProj.next()
+    assert ev['contentSource'] == evalProj['contentSource']
+    assert ev['createdOn'] == evalProj['createdOn']
+    assert ev['description'] == evalProj['description']
+    assert ev['etag'] == evalProj['etag']
+    assert ev['id'] == evalProj['id']
+    assert ev['name'] == evalProj['name']
+    assert ev['ownerId'] == evalProj['ownerId']
+    assert ev['status'] == evalProj['status']
+    
     # Update the Evaluation
     ev['status'] = 'OPEN'
     ev = syn.store(ev, createOrUpdate=True)
