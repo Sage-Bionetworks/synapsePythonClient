@@ -43,7 +43,14 @@ Installing from source::
 
     git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
     cd synapsePythonClient
-    python setup.py install
+
+You can stay on the master branch to get the latest stable release or check out the develop branch or a tagged revision::
+
+    get checkout <branch or tag>
+
+Next, either install the package in the site-packages directory ``python setup.py install`` or ``python setup.py develop`` to make the installation follow the head without having to reinstall::
+
+    python setup.py <install or develop>
 
 
 Connecting to Synapse

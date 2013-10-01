@@ -727,7 +727,6 @@ class Synapse:
                     # Entity must exist before upload for Locationables
                     if 'id' not in properties: 
                         properties = self._createEntity(properties)
-                    annotations.pop('path')
                     properties.update(self._uploadFileAsLocation(properties, entity['path']))
                 
                     # A file has been uploaded, so version should not be incremented if possible
