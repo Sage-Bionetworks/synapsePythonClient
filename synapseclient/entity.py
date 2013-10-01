@@ -502,16 +502,19 @@ class Analysis(Entity):
 
 class Code(Entity, Locationable):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Code'
+    _local_keys = Locationable._local_keys
     _property_keys = Entity._property_keys + Locationable._property_keys
 
 
 class Data(Entity, Locationable):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Data'
+    _local_keys = Locationable._local_keys
     _property_keys = Entity._property_keys + Locationable._property_keys
 
 
 class Study(Entity, Locationable):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Study'
+    _local_keys = Locationable._local_keys
     _property_keys = Entity._property_keys + Locationable._property_keys
 
 
