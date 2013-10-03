@@ -2249,7 +2249,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -2270,7 +2270,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -2288,7 +2288,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         
         
