@@ -1609,6 +1609,7 @@ class Synapse:
         #   501 Server Error: Not Implemented
         #   A header you provided implies functionality that is not implemented
         headers = { 'Content-Type' : mimetype }
+        headers.update(synapseclient.USER_AGENT)
 
         # Get token
         token = self._createChunkedFileUploadToken(filepath, mimetype)
@@ -1629,9 +1630,11 @@ class Synapse:
                     sys.stdout.flush()
 
                 # PUT the chunk to S3
-                response = self.restPUT(url, body=chunk, 
-                        headers=self._generateSignedHeaders(url, headers), 
-                        retryPolicy={"retry_errors":['We encountered an internal error. Please try again.']})
+                retry_policy=self._build_retry_policy(
+                    {"retry_errors":['We encountered an internal error. Please try again.']})
+                response = _with_retry(
+                    lambda: requests.put(url, data=chunk, headers=headers),
+                    **retry_policy)
                 if progress:
                     sys.stdout.write(',')
                     sys.stdout.flush()
