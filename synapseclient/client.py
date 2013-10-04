@@ -148,6 +148,7 @@ class Synapse:
         self.apiKey = None
         self.debug = debug
         self.skip_checks = skip_checks
+        self._upload_diagnostics = None
         
     
     def getConfigFile(self):
@@ -1585,14 +1586,14 @@ class Synapse:
         
         :returns: An S3 FileHandle
         """
-        
+
         if chunksize < 5*MB:
             raise ValueError('Minimum chunksize is 5 MB.')
         if filepath is None or not os.path.exists(filepath):
             raise ValueError('File not found: ' + str(filepath))
 
         # Start timing
-        start_time = time.time()
+        diagnostics = {'start-time': time.time()}
 
         # Guess mime-type - important for confirmation of MD5 sum by receiver
         (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
@@ -1611,68 +1612,95 @@ class Synapse:
         headers = { 'Content-Type' : mimetype }
         headers.update(synapseclient.USER_AGENT)
 
-        # Get token
-        token = self._createChunkedFileUploadToken(filepath, mimetype)
+        diagnostics['mimetype'] = mimetype
+        diagnostics['User-Agent'] = synapseclient.USER_AGENT
 
-        if progress:
-            sys.stdout.write('.')
-            sys.stdout.flush()
+        try:
 
-        i = 0
-        with open(filepath, 'rb') as f:
-            for chunk in utils.chunks(f, chunksize):
-                i += 1
+            # Get token
+            token = self._createChunkedFileUploadToken(filepath, mimetype)
 
-                # Get the signed S3 URL
-                url = self._createChunkedFileUploadChunkURL(i, token)
-                if progress:
-                    sys.stdout.write('.')
-                    sys.stdout.flush()
+            diagnostics['token'] = token
 
-                # PUT the chunk to S3
-                retry_policy=self._build_retry_policy(
-                    {"retry_errors":['We encountered an internal error. Please try again.']})
-                response = _with_retry(
-                    lambda: requests.put(url, data=chunk, headers=headers),
-                    **retry_policy)
-                if progress:
-                    sys.stdout.write(',')
-                    sys.stdout.flush()
-
-                # Is requests closing response stream? Let's make sure:
-                # "Note that connections are only released back to
-                #  the pool for reuse once all body data has been
-                #  read; be sure to either set stream to False or
-                #  read the content property of the Response object."
-                # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
-                try:
-                    if response:
-                        throw_away = response.content
-                except Exception as ex:
-                    sys.stderr.write('error reading response: '+str(ex))
-
-        status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
-
-        # Poll until concatenating chunks is complete
-        while (status['state']=='PROCESSING'):
             if progress:
-                sys.stdout.write('!')
+                sys.stdout.write('.')
                 sys.stdout.flush()
-            time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
-            status = self._completeUploadDaemonStatus(status)
 
-        if progress:
-            sys.stdout.write('!\n')
-            sys.stdout.flush()
+            diagnostics['chunks'] = []
 
-        if status['state'] == 'FAILED':
-            raise SynapseError(status['errorMessage'])
+            i = 0
+            with open(filepath, 'rb') as f:
+                for chunk in utils.chunks(f, chunksize):
+                    i += 1
+                    chunk_record = {'chunk-number':i}
 
-        # Return a fileHandle
-        fileHandle = self._getFileHandle(status['fileHandleId'])
+                    # Get the signed S3 URL
+                    url = self._createChunkedFileUploadChunkURL(i, token)
+                    chunk_record['url'] = url
+                    if progress:
+                        sys.stdout.write('.')
+                        sys.stdout.flush()
+
+                    # PUT the chunk to S3
+                    retry_policy=self._build_retry_policy(
+                        {"retry_errors":['We encountered an internal error. Please try again.']})
+                    response = _with_retry(
+                        lambda: requests.put(url, data=chunk, headers=headers),
+                        **retry_policy)
+
+                    if progress:
+                        sys.stdout.write(',')
+                        sys.stdout.flush()
+
+                    chunk_record['response-status-code'] = response.status_code
+                    chunk_record['response-headers'] = response.headers
+                    if response.text:
+                        chunk_record['response-body'] = response.text
+                    diagnostics['chunks'].append(chunk_record)
+
+                    # Is requests closing response stream? Let's make sure:
+                    # "Note that connections are only released back to
+                    #  the pool for reuse once all body data has been
+                    #  read; be sure to either set stream to False or
+                    #  read the content property of the Response object."
+                    # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
+                    try:
+                        if response:
+                            throw_away = response.content
+                    except Exception as ex:
+                        sys.stderr.write('error reading response: '+str(ex))
+
+                    exceptions._raise_for_status(response, verbose=self.debug)
+
+            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+            diagnostics['status'] = [status]
+
+            # Poll until concatenating chunks is complete
+            while (status['state']=='PROCESSING'):
+                if progress:
+                    sys.stdout.write('!')
+                    sys.stdout.flush()
+                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+                status = self._completeUploadDaemonStatus(status)
+                diagnostics['status'].append(status)
+
+            if progress:
+                sys.stdout.write('!\n')
+                sys.stdout.flush()
+
+            if status['state'] == 'FAILED':
+                raise SynapseError(status['errorMessage'])
+
+            # Return a fileHandle
+            fileHandle = self._getFileHandle(status['fileHandleId'])
+            diagnostics['fileHandle'] = fileHandle
+
+        except Exception as ex:
+            ex.diagnostics = diagnostics
+            raise sys.exc_info()[0], ex, sys.exc_info()[2]
 
         # Print timing information
-        if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-start_time))
+        if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
 
         return fileHandle
 
