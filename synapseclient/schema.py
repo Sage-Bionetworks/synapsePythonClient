@@ -13,14 +13,16 @@ from synapseclient.exceptions import *
 
 _schemaDefinitions = {}
 
-def _init_schemas(synapse):
+def _init_schemas(synapse, selection=None):
     """
     Fetches schemas for the various objects used by Synapse
     And constructs default constructors for each, 
     Which can be accessed via synapseclient.schema.<resourceName>
     
-    :param synapse: Since schemas may differ depending on the version of Synapse, 
-                    an initialized client is required to perform this operation
+    :param synapse:   Since schemas may differ depending on the version of Synapse, 
+                      an initialized client is required to perform this operation
+    :param selection: An iterable item with substrings of schemas to load
+                      i.e. "File" or "Data" (rather than "org.sagebionetworks.repo.model.FileEntity")
     """
     
     if synapse is None:
@@ -30,8 +32,15 @@ def _init_schemas(synapse):
     if 'list' not in resources:
         raise SynapseError("Could not fetch the list of schemas")
         
+    schemasToFetch = resources['list']
+    if selection is not None:
+        included = set()
+        for snippet in selection:
+            included.update(filter(lambda x: snippet in x, resources['list']))
+        schemasToFetch = included
+        
     # Initialize each of the schemas from the list
-    for resource in resources['list']:
+    for resource in schemasToFetch:
         schema = synapse.restGET('/REST/resources/effectiveSchema?resourceId=%s' % resource, headers=synapse.headers)
     
         # Save the schema in memory
@@ -55,7 +64,7 @@ def _add_dynamic_method(name):
     
 def _schema_constructor(name, **kwargs):
     """
-    
+    Checks the supplied keyword arguments and prints warnings if necessary
     """
     
     if name not in _schemaDefinitions:
@@ -65,22 +74,59 @@ def _schema_constructor(name, **kwargs):
     if 'properties' not in schema:
         raise ValueError("Could not parse schema")
         
+    return _check_schema_properties(name, schema['properties'], kwargs)
+        
+    
+def _check_schema_properties(currentScope, expectedProperties, givenDict):
+    """
+    Handles the properties of an "object"-type schema
+    
+    :returns: A checked dictionary
+    """
+    
     result = {}
     
     # Match the keyword arguments
-    topLevelArgs = schema['properties'].keys()
+    topLevelArgs = expectedProperties.keys()
     someArgsUnmatched = False
-    for keyword in kwargs.keys():
+    for keyword in givenDict.keys():
         if keyword in topLevelArgs:
-            result[keyword] = kwargs[keyword]
+            result[keyword] = _check_schema_property(currentScope, expectedProperties[keyword], givenDict[keyword])
         else:
-            print "WARNING: Unknown property '%s'" % keyword
+            print "WARNING: Unknown property %s.%s" % (currentScope, keyword)
             someArgsUnmatched = True
         
     # Let the user know about the proper arguments
     if someArgsUnmatched or len(result) == 0:
-        print "Valid arguments include: %s" % topLevelArgs
+        print "Valid properties for %s include: %s" % (currentScope, topLevelArgs)
         
     return result
     
-def _
+def _check_schema_property(currentScope, subSchema, value):
+    """
+    Takes a dictionary and calls the appropriate method 
+    to check the correctness of the arguments.
+    
+    :returns: The checked value
+    """
+    
+    subType = subSchema['type']
+    if subType == "object":
+        return _check_schema_properties(currentScope + '.' + subSchema['name'], subSchema['properties'], value)
+        
+    if subType == "array":
+        returnItems = []
+        for i in range(len(value)):
+            item = value[i]
+            returnItems.append(_check_schema_property(currentScope, subSchema['items'], item))
+        return returnItems
+        
+    if subType == "string":
+        return str(value)
+        
+    if subType == "integer":
+        return int(value)
+        
+    ## TODO: Other types are possible
+    return value
+    
