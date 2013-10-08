@@ -39,7 +39,7 @@ def version_check(current_version=None, version_url=_VERSION_URL):
         current_base_version = re.sub(r'\.dev\d+', '', current_version)
 
         # Check blacklist
-        if current_base_version in version_info['blacklist']:
+        if current_base_version in version_info['blacklist'] or current_version in version_info['blacklist']:
             msg = ("\nPLEASE UPGRADE YOUR CLIENT\n\nUpgrading your SynapseClient is required. "
                    "Please upgrade your client by typing:\n"
                    "    pip install --upgrade synapseclient\n\n")
@@ -48,8 +48,11 @@ def version_check(current_version=None, version_url=_VERSION_URL):
         if 'message' in version_info:
             sys.stdout.write(version_info['message'] + '\n')
 
+        # strip off .devNN suffix, which StrictVersion doesn't like
+        lastest_base_version = re.sub(r'\.dev\d+', '', version_info['latestVersion'])
+
         # Compare with latest version
-        if StrictVersion(current_base_version) < StrictVersion(version_info['latestVersion']):
+        if StrictVersion(current_base_version) < StrictVersion(lastest_base_version):
             msg = ("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. "
                    "Your version (%s) can be upgraded by typing:\n"
                    "    pip install --upgrade synapseclient\n\n") % (version_info['latestVersion'], current_version,)
