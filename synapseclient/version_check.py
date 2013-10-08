@@ -14,7 +14,7 @@ _DEV_VERSION_URL = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient
 _GITHUB_URL      = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
 
 
-def version_check(current_version=None, version_url=_VERSION_URL, check_for_point_releases=False, exit_on_blacklist=False):
+def version_check(current_version=None, version_url=_VERSION_URL, check_for_point_releases=False):
     """
     Gets the latest version information from version_url and check against
     the current version.  Recommends upgrade, if a newer version exists.
@@ -36,9 +36,7 @@ def version_check(current_version=None, version_url=_VERSION_URL, check_for_poin
             msg = ("\nPLEASE UPGRADE YOUR CLIENT\n\nUpgrading your SynapseClient is required. "
                    "Please upgrade your client by typing:\n"
                    "    pip install --upgrade synapseclient\n\n")
-            if exit_on_blacklist:
-                raise SystemExit(msg)
-            return false
+            raise SystemExit(msg)
 
         if 'message' in version_info:
             sys.stdout.write(version_info['message'] + '\n')

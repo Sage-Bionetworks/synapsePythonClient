@@ -241,7 +241,7 @@ class Synapse:
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
-        if not self.skip_checks: version_check(synapseclient.__version__, exit_on_blacklist=True)
+        if not self.skip_checks: version_check(synapseclient.__version__)
         
         # Make sure to invalidate the existing session
         self.logout()
@@ -1632,6 +1632,9 @@ class Synapse:
             sys.stdout.write('.')
             sys.stdout.flush()
 
+        retry_policy=self._build_retry_policy(
+            {"retry_errors":['We encountered an internal error. Please try again.']})
+
         i = 0
         with open(filepath, 'rb') as f:
             for chunk in utils.chunks(f, chunksize):
@@ -1644,8 +1647,6 @@ class Synapse:
                     sys.stdout.flush()
 
                 # PUT the chunk to S3
-                retry_policy=self._build_retry_policy(
-                    {"retry_errors":['We encountered an internal error. Please try again.']})
                 response = _with_retry(
                     lambda: requests.put(url, data=chunk, headers=headers),
                     **retry_policy)
