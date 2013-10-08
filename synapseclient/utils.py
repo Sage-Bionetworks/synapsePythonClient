@@ -206,9 +206,9 @@ def guess_file_name(string):
     
 def normalize_path(path):
     """Transforms a path into an absolute path with forward slashes only."""
-    
+    if path is None:
+        return None
     return re.sub(r'\\', '/', os.path.abspath(path))
-
 
 def file_url_to_path(url, verify_exists=False):
     """TODO_Sphinx"""

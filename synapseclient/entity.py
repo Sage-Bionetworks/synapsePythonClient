@@ -348,6 +348,7 @@ class Entity(collections.MutableMapping):
         return len(self.keys())
 
 
+    ## TODO shouldn't these include local_state as well? -jcb
     def keys(self):
         """Returns a set of property and annotation keys"""
         

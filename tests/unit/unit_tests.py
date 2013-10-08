@@ -242,3 +242,25 @@ def test_guess_file_name():
     assert utils.guess_file_name('http://www.a.com/b?foo=bar&arga=barga') == 'b'
     assert utils.guess_file_name('http://www.a.com/b/?foo=bar&arga=barga') == 'b'
 
+def test_version_check():
+    from synapseclient.version_check import _version_tuple
+    assert _version_tuple('0.5.1.dev200', levels=2) == ('0', '5')
+    assert _version_tuple('0.5.1.dev200', levels=3) == ('0', '5', '1')
+    assert _version_tuple('1.6', levels=3) == ('1', '6', '0')
+
+def test_normalize_path():
+    ## tests should pass on reasonable OSes and also on windows
+
+    ## resolves relative paths
+    assert len(utils.normalize_path('asdf.txt')) > 8
+
+    ## doesn't resolve home directory references
+    #assert '~' not in utils.normalize_path('~/asdf.txt')
+
+    ## converts back slashes to forward slashes
+    assert utils.normalize_path('\\windows\\why\\why\\why.txt')
+
+    ## what's the right thing to do for None?
+    assert utils.normalize_path(None) is None
+
+
