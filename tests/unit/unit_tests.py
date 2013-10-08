@@ -242,3 +242,9 @@ def test_guess_file_name():
     assert utils.guess_file_name('http://www.a.com/b?foo=bar&arga=barga') == 'b'
     assert utils.guess_file_name('http://www.a.com/b/?foo=bar&arga=barga') == 'b'
 
+def test_version_check():
+    from synapseclient.version_check import _version_tuple
+    assert _version_tuple('0.5.1.dev200', levels=2) == ('0', '5')
+    assert _version_tuple('0.5.1.dev200', levels=3) == ('0', '5', '1')
+    assert _version_tuple('1.6', levels=3) == ('1', '6', '0')
+

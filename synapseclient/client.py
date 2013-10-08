@@ -241,7 +241,7 @@ class Synapse:
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
-        if not self.skip_checks: version_check(synapseclient.__version__)
+        if not self.skip_checks: version_check(synapseclient.__version__, exit_on_blacklist=True)
         
         # Make sure to invalidate the existing session
         self.logout()
@@ -1155,7 +1155,21 @@ class Synapse:
 
 
     def _storeACL(self, entity, acl):
-        """Create or update the ACL for a Synapse Entity."""
+        """
+        Create or update the ACL for a Synapse Entity.
+
+        :param entity:  An entity or Synapse ID
+        :param acl:  An ACl as a dict
+
+        :returns: the new or updated ACL
+
+        .. code-block:: python
+
+            {'resourceAccess': [
+                {'accessType': ['READ'],
+                 'principalId': 222222}
+            ]}
+        """
         
         # Get benefactor. (An entity gets its ACL from its benefactor.)
         entity_id = id_of(entity)
