@@ -111,8 +111,8 @@ def add_local_file_to_cache(**entity):
     """
         
     # External URLs will be ignored
-    if utils.is_url(entity['path']):
-        return True
+    if utils.is_url(entity['path']) or entity['path'] is None:
+        return
     
     # Get the '.cacheMap'
     cacheDir = determine_cache_directory(entity)

@@ -10,36 +10,33 @@ Exceptions
 .. autoclass:: synapseclient.exceptions.SynapseProvenanceError
 .. autoclass:: synapseclient.exceptions.SynapseHTTPError
 
-~~~~~~~~~~~~~~~~~~~~
-Unused Subsection :D
-~~~~~~~~~~~~~~~~~~~~
-
 """
 
 import requests
 
-class SynapseError(Exception): 
+class SynapseError(Exception):
     """Generic exception thrown by the client."""
 
-class SynapseAuthenticationError(Exception): 
+class SynapseAuthenticationError(Exception):
     """Unauthorized access."""
-    
-class SynapseFileCacheError(Exception): 
+
+class SynapseFileCacheError(Exception):
     """Error related to local file storage."""
-    
-class SynapseMalformedEntityError(Exception): 
+
+class SynapseMalformedEntityError(Exception):
     """Unexpected structure of Entities."""
-    
-class SynapseProvenanceError(Exception): 
+
+class SynapseProvenanceError(Exception):
     """Incorrect usage of provenance objects."""
 
-class SynapseHTTPError(requests.exceptions.HTTPError):
+class SynapseHTTPError(SynapseError, requests.exceptions.HTTPError):
     """Wraps recognized HTTP errors.  See `HTTPError <http://docs.python-requests.org/en/latest/api/?highlight=exceptions#requests.exceptions.HTTPError>`_"""
+
 
 def _raise_for_status(response, verbose=False):
     """
     Replacement for requests.response.raise_for_status(). 
-    Catches and wraps any Synapse-specific HTTP errors with appropriate text.  
+    Catches and wraps any Synapse-specific HTTP errors with appropriate text.
     """
 
     message = None
@@ -100,7 +97,7 @@ def _raise_for_status(response, verbose=False):
         if response.headers.get('content-type',None) == 'application/json':
             # Append the server's JSON error message
             message += "\n%s" % response.json()['reason']
-            
+
         if verbose:
             try:
                 # Append the request sent
@@ -108,13 +105,13 @@ def _raise_for_status(response, verbose=False):
                 message += "\n>>> Headers: %s" % response.request.headers
                 message += "\n>>> Body: %s" % response.request.body
             except: message += "\nCould not append all request info"
-            
-            try: 
+
+            try:
                 # Append the response recieved
                 message += "\n\n>>>>>> Response <<<<<<\n%s" % str(response)
                 message += "\n>>> Headers: %s" % response.headers
                 message += "\n>>> Body: %s\n\n" % response.text
             except: message += "\nCould not append all response info"
-            
+
         raise SynapseHTTPError(message, response=response)
         

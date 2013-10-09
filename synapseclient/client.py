@@ -1155,7 +1155,21 @@ class Synapse:
 
 
     def _storeACL(self, entity, acl):
-        """Create or update the ACL for a Synapse Entity."""
+        """
+        Create or update the ACL for a Synapse Entity.
+
+        :param entity:  An entity or Synapse ID
+        :param acl:  An ACl as a dict
+
+        :returns: the new or updated ACL
+
+        .. code-block:: python
+
+            {'resourceAccess': [
+                {'accessType': ['READ'],
+                 'principalId': 222222}
+            ]}
+        """
         
         # Get benefactor. (An entity gets its ACL from its benefactor.)
         entity_id = id_of(entity)
@@ -1585,14 +1599,14 @@ class Synapse:
         
         :returns: An S3 FileHandle
         """
-        
+
         if chunksize < 5*MB:
             raise ValueError('Minimum chunksize is 5 MB.')
         if filepath is None or not os.path.exists(filepath):
             raise ValueError('File not found: ' + str(filepath))
 
         # Start timing
-        start_time = time.time()
+        diagnostics = {'start-time': time.time()}
 
         # Guess mime-type - important for confirmation of MD5 sum by receiver
         (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
@@ -1609,67 +1623,97 @@ class Synapse:
         #   501 Server Error: Not Implemented
         #   A header you provided implies functionality that is not implemented
         headers = { 'Content-Type' : mimetype }
+        headers.update(synapseclient.USER_AGENT)
 
-        # Get token
-        token = self._createChunkedFileUploadToken(filepath, mimetype)
+        diagnostics['mimetype'] = mimetype
+        diagnostics['User-Agent'] = synapseclient.USER_AGENT
 
-        if progress:
-            sys.stdout.write('.')
-            sys.stdout.flush()
+        try:
 
-        i = 0
-        with open(filepath, 'rb') as f:
-            for chunk in utils.chunks(f, chunksize):
-                i += 1
+            # Get token
+            token = self._createChunkedFileUploadToken(filepath, mimetype)
+            diagnostics['token'] = token
 
-                # Get the signed S3 URL
-                url = self._createChunkedFileUploadChunkURL(i, token)
-                if progress:
-                    sys.stdout.write('.')
-                    sys.stdout.flush()
-
-                # PUT the chunk to S3
-                response = self.restPUT(url, body=chunk, 
-                        headers=self._generateSignedHeaders(url, headers), 
-                        retryPolicy={"retry_errors":['We encountered an internal error. Please try again.']})
-                if progress:
-                    sys.stdout.write(',')
-                    sys.stdout.flush()
-
-                # Is requests closing response stream? Let's make sure:
-                # "Note that connections are only released back to
-                #  the pool for reuse once all body data has been
-                #  read; be sure to either set stream to False or
-                #  read the content property of the Response object."
-                # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
-                try:
-                    if response:
-                        throw_away = response.content
-                except Exception as ex:
-                    sys.stderr.write('error reading response: '+str(ex))
-
-        status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
-
-        # Poll until concatenating chunks is complete
-        while (status['state']=='PROCESSING'):
             if progress:
-                sys.stdout.write('!')
+                sys.stdout.write('.')
                 sys.stdout.flush()
-            time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
-            status = self._completeUploadDaemonStatus(status)
 
-        if progress:
-            sys.stdout.write('!\n')
-            sys.stdout.flush()
+            retry_policy=self._build_retry_policy(
+                {"retry_errors":['We encountered an internal error. Please try again.']})
 
-        if status['state'] == 'FAILED':
-            raise SynapseError(status['errorMessage'])
+            diagnostics['chunks'] = []
 
-        # Return a fileHandle
-        fileHandle = self._getFileHandle(status['fileHandleId'])
+            i = 0
+            with open(filepath, 'rb') as f:
+                for chunk in utils.chunks(f, chunksize):
+                    i += 1
+                    chunk_record = {'chunk-number':i}
+
+                    # Get the signed S3 URL
+                    url = self._createChunkedFileUploadChunkURL(i, token)
+                    chunk_record['url'] = url
+                    if progress:
+                        sys.stdout.write('.')
+                        sys.stdout.flush()
+
+                    # PUT the chunk to S3
+                    response = _with_retry(
+                        lambda: requests.put(url, data=chunk, headers=headers),
+                        **retry_policy)
+
+                    if progress:
+                        sys.stdout.write(',')
+                        sys.stdout.flush()
+
+                    chunk_record['response-status-code'] = response.status_code
+                    chunk_record['response-headers'] = response.headers
+                    if response.text:
+                        chunk_record['response-body'] = response.text
+                    diagnostics['chunks'].append(chunk_record)
+
+                    # Is requests closing response stream? Let's make sure:
+                    # "Note that connections are only released back to
+                    #  the pool for reuse once all body data has been
+                    #  read; be sure to either set stream to False or
+                    #  read the content property of the Response object."
+                    # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
+                    try:
+                        if response:
+                            throw_away = response.content
+                    except Exception as ex:
+                        sys.stderr.write('error reading response: '+str(ex))
+
+                    exceptions._raise_for_status(response, verbose=self.debug)
+
+            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+            diagnostics['status'] = [status]
+
+            # Poll until concatenating chunks is complete
+            while (status['state']=='PROCESSING'):
+                if progress:
+                    sys.stdout.write('!')
+                    sys.stdout.flush()
+                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+                status = self._completeUploadDaemonStatus(status)
+                diagnostics['status'].append(status)
+
+            if progress:
+                sys.stdout.write('!\n')
+                sys.stdout.flush()
+
+            if status['state'] == 'FAILED':
+                raise SynapseError(status['errorMessage'])
+
+            # Return a fileHandle
+            fileHandle = self._getFileHandle(status['fileHandleId'])
+            diagnostics['fileHandle'] = fileHandle
+
+        except Exception as ex:
+            ex.diagnostics = diagnostics
+            raise sys.exc_info()[0], ex, sys.exc_info()[2]
 
         # Print timing information
-        if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-start_time))
+        if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
 
         return fileHandle
 
@@ -2249,7 +2293,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -2270,7 +2314,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -2288,7 +2332,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         
         

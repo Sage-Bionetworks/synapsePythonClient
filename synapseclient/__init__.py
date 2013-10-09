@@ -271,4 +271,7 @@ from entity import Analysis, Code, Data, Study, Summary
 from evaluation import Evaluation, Submission, SubmissionStatus
 from wiki import Wiki
 
+from version_check import check_for_updates
+from version_check import release_notes
+
 
