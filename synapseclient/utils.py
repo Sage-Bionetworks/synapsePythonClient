@@ -4,16 +4,6 @@ Utility Functions
 *****************
 
 Utility functions useful in the implementation and testing of the Synapse client.
-   
-~~~~~~~~~~~~~
-File Handling
-~~~~~~~~~~~~~
-
-.. automethod:: synapseclient.utils.md5_for_file
-.. automethod:: synapseclient.utils.download_file
-.. automethod:: synapseclient.utils.extract_filename
-.. automethod:: synapseclient.utils.file_url_to_path
-.. automethod:: synapseclient.utils.normalize_whitespace
 
 ~~~~~~~~~~~~~~~~~
 Property Juggling
@@ -27,6 +17,16 @@ Property Juggling
 .. automethod:: synapseclient.utils.to_unix_epoch_time
 .. automethod:: synapseclient.utils.from_unix_epoch_time
 .. automethod:: synapseclient.utils.format_time_interval
+
+~~~~~~~~~~~~~
+File Handling
+~~~~~~~~~~~~~
+
+.. automethod:: synapseclient.utils.md5_for_file
+.. automethod:: synapseclient.utils.download_file
+.. automethod:: synapseclient.utils.extract_filename
+.. automethod:: synapseclient.utils.file_url_to_path
+.. automethod:: synapseclient.utils.normalize_whitespace
 
 ~~~~~~~~
 Chunking
@@ -103,11 +103,11 @@ def download_file(url, localFilepath=None):
 
 def extract_filename(content_disposition):
     """
-    TODO_Sphinx - This could be made more robust.
+    Extract a filename from an HTTP content-disposition header field.
     
     See `this memo <http://tools.ietf.org/html/rfc6266>`_ 
     and `this package <http://pypi.python.org/pypi/rfc6266>`_ 
-    for cryptic details.  (TODO_Sphinx - clarify this)
+    for cryptic details.
     """
     
     match = re.search('filename=([^ ]*)', content_disposition)
@@ -115,8 +115,6 @@ def extract_filename(content_disposition):
 
 
 def _get_from_members_items_or_properties(obj, key):
-    """TODO_Sphinx."""
-    
     try:
         if hasattr(obj, key):
             return obj.id
@@ -211,7 +209,16 @@ def normalize_path(path):
     return re.sub(r'\\', '/', os.path.abspath(path))
 
 def file_url_to_path(url, verify_exists=False):
-    """TODO_Sphinx"""
+    """
+    Convert a file URL to a path, handling some odd cases around Windows paths.
+
+    :param url: a file URL
+    :param verify_exists: If true, return an populated dict only if the
+                          resulting file path exists on the local file system.
+
+    :returns: a dict containing keys `path`, `files` and `cacheDir` or an empty
+              dict if the URL is not a file URL.
+    """
     
     parts = urlparse.urlsplit(url)
     if parts.scheme=='file' or parts.scheme=='':
@@ -240,16 +247,12 @@ def is_synapse_id(obj):
     return None
 
 def _is_date(dt):
-    """TODO_Sphinx."""
-    
-    # Objects of class datetime.date and datetime.datetime will be recognized as dates
+    """Objects of class datetime.date and datetime.datetime will be recognized as dates"""
     return isinstance(dt,Date) or isinstance(dt,Datetime)
 
 
 def _to_list(value):
-    """TODO_Sphinx."""
-    
-    # Convert the value (an iterable or a scalar value) to a list.
+    """Convert the value (an iterable or a scalar value) to a list."""
     if isinstance(value, collections.Iterable) and not isinstance(value, basestring):
         return list(value)
     else:
@@ -257,9 +260,7 @@ def _to_list(value):
 
 
 def _to_iterable(value):
-    """TODO_Sphinx."""
-    
-    # Convert the value (an iterable or a scalar value) to a list.
+    """Convert the value (an iterable or a scalar value) to an iterable."""
     if isinstance(value, basestring):
         return (value,)
     if isinstance(value, collections.Iterable):
@@ -313,7 +314,7 @@ def make_bogus_binary_file(n=1*MB):
 def to_unix_epoch_time(dt):
     """
     Convert either `datetime.date or datetime.datetime objects 
-    <http://docs.python.org/2/library/datetime.html#available-types>`_ to UNIX time.
+    <http://docs.python.org/2/library/datetime.html>`_ to UNIX time.
     """
     
     if type(dt) == Date:
@@ -334,7 +335,7 @@ def from_unix_epoch_time(ms):
 
 
 def format_time_interval(seconds):
-    """TODO_Sphinx."""
+    """Format a time interval given in seconds to a readable value, e.g. \"5 minutes, 37 seconds\"."""
     
     periods = (
         ('year',        60*60*24*365),
@@ -368,8 +369,10 @@ def _find_used(activity, predicate):
 BUFFER_SIZE = 8*KB
 
 class Chunk(object):
-    """TODO_Sphinx."""
-    
+    """
+    A file-like object representing a fixed-size part of a larger file for use
+    during chunked file uploading.
+    """
     
     ## TODO: implement seek and tell?
 
@@ -380,9 +383,6 @@ class Chunk(object):
         self.closed = False
 
     def read(self, size=None):
-        """TODO_Sphinx."""
-    
-        
         if size is None or size <= 0:
             size = self.size - self.position
         else:
@@ -395,23 +395,15 @@ class Chunk(object):
         return self.fileobj.read(size)
 
     def mode(self):
-        """TODO_Sphinx."""
-    
         return self.fileobj.mode()
 
     def __len__(self):
-        """TODO_Sphinx."""
-    
         return self.size
 
     def __iter__(self):
-        """TODO_Sphinx."""
-    
         return self
 
     def next(self):
-        """TODO_Sphinx."""
-    
         if self.closed:
             raise StopIteration
         data = self.read(BUFFER_SIZE)
@@ -420,13 +412,13 @@ class Chunk(object):
         return data
 
     def close(self):
-        """TODO_Sphinx."""
-    
         self.closed = True
 
 
 def chunks(fileobj, chunksize=5*MB):
-    """Generate file-like objects from which chunksize bytes can be streamed."""
+    """
+    Given a file, generate `Chunk` objects from which `chunksize` bytes can be streamed.
+    for use during chunked file uploading."""
     
     remaining = os.stat(fileobj.name).st_size
     while remaining > 0:
@@ -437,7 +429,6 @@ def chunks(fileobj, chunksize=5*MB):
 
 def itersubclasses(cls, _seen=None):
     """
-    TODO_Sphinx - Clean up this comment
     http://code.activestate.com/recipes/576949/ (r3)
     
     itersubclasses(cls)

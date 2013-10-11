@@ -2,36 +2,85 @@
 ****
 Wiki
 ****
-A Wiki page requires a title, markdown and an owner object.  
-For example::
+
+A Wiki page requires a title, markdown and an owner object and can
+alse include images.
+
+~~~~~~~~~~~~~~~
+Creating a Wiki
+~~~~~~~~~~~~~~~
+
+::
 
     from synapseclient import Wiki
 
     entity = syn.get('syn123456')
 
     content = \"\"\"
-    My Wiki Page
-    ============
+    # My Wiki Page
 
-    A **bold** statement in markdown!
+    Here is a description of my **fantastic** project!
 
     An attached image:
-    ${image?fileName=foo.png&align=none}
+    ${image?fileName=logo.png&align=none}
     \"\"\"
 
     wiki = Wiki(title='My Wiki Page',
                 owner=entity,
                 markdown=content,
-                attachments=['/path/to/foo.png'])
+                attachments=['/path/to/logo.png'])
 
     wiki = syn.store(wiki)
-   
+
+~~~~~~~~~~~~~~~~
+Embedding images
+~~~~~~~~~~~~~~~~
+
+Note that in the above example, we've **attached** a logo graphic and embedded it
+in the web page.
+
+Figures that are more than just decoration can be stored as Synapse entities
+allowing versioning and provenance information to be recorded. This is a better
+choice for figures with data behind them.
+
+~~~~~~~~~~~~~~~
+Updating a Wiki
+~~~~~~~~~~~~~~~
+
+::
+
+    entity = syn.get('syn123456')
+    wiki = syn.getWiki(entity)
+
+    content = \"\"\"
+    # My Wiki Page
+
+    Here is a description of my **fantastic** project! Let's
+    *emphasize* the important stuff.
+
+    An embedded image that is also a Synapse entity:
+    ${image?synapseId=syn1824434&align=None&scale=66}
+
+    Now we can track it's provenance and keep multiple versions.
+    \"\"\"
+
+    wiki = syn.store(wiki)
+
 ~~~~~~~~~~
 Wiki Class
 ~~~~~~~~~~
 
 .. autoclass:: synapseclient.wiki.Wiki
    :members: __init__
+
+~~~~~~~~~~~~
+Wiki methods
+~~~~~~~~~~~~
+
+ - :py:meth:`synapseclient.Synapse.getWiki`
+ - :py:meth:`synapseclient.Synapse.getWikiHeaders`
+ - :py:meth:`synapseclient.Synapse.store`
+ - :py:meth:`synapseclient.Synapse.delete`
 
 """
 

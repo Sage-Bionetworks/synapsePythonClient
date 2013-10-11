@@ -1,7 +1,15 @@
 """
-******
-Client
-******
+**************
+Synapse Client
+**************
+
+The `Synapse` object encapsulates a connection to the Synapse service and is
+used for building projects, uploading and retrieving data, and recording
+provenance of data analysis.
+
+~~~~~
+Login
+~~~~~
 
 .. automethod:: synapseclient.client.login
 
@@ -1550,7 +1558,12 @@ class Synapse:
 
         
     def _deleteFileHandle(self, fileHandle):
-        """TODO_Sphinx."""
+        """
+        Delete the given file handle.
+
+        Note: Only the user that created the FileHandle can delete it. Also, a
+        FileHandle cannot be deleted if it is associated with a FileEntity or WikiPage
+        """
         
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
         self.restDELETE(uri, endpoint=self.fileHandleEndpoint)
@@ -1558,7 +1571,12 @@ class Synapse:
 
         
     def _createChunkedFileUploadToken(self, filepath, mimetype):
-        """TODO_Sphinx."""
+        """
+        This is the first step in uploading a large file. The resulting
+        ChunkedFileToken will be required for all remaining chunk file requests.
+
+        :returns: a `ChunkedFileToken <http://rest.synapse.org/org/sagebionetworks/repo/model/file/ChunkedFileToken.html>`_
+        """
     
         md5 = utils.md5_for_file(filepath)
         chunkedFileTokenRequest = \
@@ -1569,14 +1587,18 @@ class Synapse:
 
         
     def _createChunkedFileUploadChunkURL(self, chunkNumber, chunkedFileToken):
-        """TODO_Sphinx."""
+        """Create a pre-signed URL that will be used to upload a single chunk of a large file."""
     
         chunkRequest = {'chunkNumber':chunkNumber, 'chunkedFileToken':chunkedFileToken}
         return self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
 
         
     def _startCompleteUploadDaemon(self, chunkedFileToken, chunkNumbers):
-        """TODO_Sphinx."""
+        """
+        After all of the chunks are added, start a Daemon that will copy all of the parts and complete the request.
+
+        :returns: an `UploadDaemonStatus <http://rest.synapse.org/org/sagebionetworks/repo/model/file/UploadDaemonStatus.html>`_
+        """
     
         completeAllChunksRequest = {'chunkNumbers': chunkNumbers,
                                     'chunkedFileToken': chunkedFileToken}
@@ -1584,7 +1606,11 @@ class Synapse:
 
         
     def _completeUploadDaemonStatus(self, status):
-        """TODO_Sphinx."""
+        """
+        Get the status of a daemon.
+
+        :returns: an `UploadDaemonStatus <http://rest.synapse.org/org/sagebionetworks/repo/model/file/UploadDaemonStatus.html>`_
+        """
     
         return self.restGET('/completeUploadDaemonStatus/%s' % status['daemonId'], endpoint=self.fileHandleEndpoint)
 
@@ -1597,7 +1623,7 @@ class Synapse:
         :param chunksize: Chop the file into chunks of this many bytes. 
                           The default value is 5MB, which is also the minimum value.
         
-        :returns: An S3 FileHandle
+        :returns: An `S3 FileHandle <http://rest.synapse.org/org/sagebionetworks/repo/model/file/S3FileHandle.html>`_
         """
 
         if chunksize < 5*MB:

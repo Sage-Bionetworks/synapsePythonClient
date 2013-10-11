@@ -255,6 +255,11 @@ For more information see the
 API docs are browsable online at 
 `python-docs.synapse.org <http://python-docs.synapse.org/>`_.
 
+Getting updates
+===============
+
+To get information about new versions of the client including development versions
+see `synapseclient.check_for_updates() <_static/Versions.html#synapseclient.version_check.check_for_updates>`_ and `synapseclient.release_notes() <_static/Versions.html#synapseclient.version_check.release_notes>`_.
 """
 
 import json
