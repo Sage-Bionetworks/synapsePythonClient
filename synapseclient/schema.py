@@ -48,33 +48,33 @@ def _init_schemas(synapse, selection=None):
         _schemaDefinitions[schema['name']] = schema
         
         
-def _add_dynamic_method(name):
+def _add_dynamic_method(name_of_the_schema):
     """
     Adds a default constructor method to the schema module
     
-    :param name: The name of the method to add
+    :param name_of_the_schema: The name of the method to add
     """
     
     # Each schema constructor calls the default constructor
     def dynamicMethod(**kwargs):
-        return _schema_constructor(name, **kwargs)
+        return _schema_constructor(name_of_the_schema, **kwargs)
         
-    synapseclient.schema.__setattr__(name, dynamicMethod)
+    synapseclient.schema.__setattr__(name_of_the_schema, dynamicMethod)
     
     
-def _schema_constructor(name, **kwargs):
+def _schema_constructor(name_of_the_schema, **kwargs):
     """
     Checks the supplied keyword arguments and prints warnings if necessary
     """
     
-    if name not in _schemaDefinitions:
-        raise ValueError("Could not find a schema for %s" % name)
+    if name_of_the_schema not in _schemaDefinitions:
+        raise ValueError("Could not find a schema for %s" % name_of_the_schema)
     
-    schema = _schemaDefinitions[name]
+    schema = _schemaDefinitions[name_of_the_schema]
     if 'properties' not in schema:
         raise ValueError("Could not parse schema")
         
-    return _check_schema_properties(name, schema['properties'], kwargs)
+    return _check_schema_properties(name_of_the_schema, schema['properties'], kwargs)
         
     
 def _check_schema_properties(currentScope, expectedProperties, givenDict):
