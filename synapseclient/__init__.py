@@ -226,7 +226,7 @@ Access control
 By default, data sets in Synapse are private to your user account, but they can
 easily be shared with specific users, groups, or the public.
 
-TODO: finish this once there is a reasonable way to find principleIds.
+TODO: finish this once there is a reasonable way to find principalIds.
 
 See:
 
