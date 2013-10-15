@@ -54,8 +54,6 @@ import json
 
 
 def query(args, syn):
-    """TODO_Sphinx."""
-    
     ## TODO: Should use loop over multiple returned values if return is too long
     results = syn.chunkedQuery(' '.join(args.queryString))
 
@@ -77,8 +75,6 @@ def query(args, syn):
 
         
 def get(args, syn):
-    """TODO_Sphinx."""
-    
     entity = syn.get(args.id)
     
     ## TODO: Is this part even necessary?
@@ -97,8 +93,6 @@ def get(args, syn):
     
     
 def store(args, syn):
-    """TODO_Sphinx."""
-    
     # Concatenate the multi-part arguments "name" and "description" 
     # so that the other functions can accept them
     if args.name is not None: 
@@ -134,8 +128,6 @@ def store(args, syn):
 
 
 def cat(args, syn):
-    """TODO_Sphinx."""
-    
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     entity = syn.get(args.id)
     if 'files' in entity:
@@ -153,15 +145,11 @@ def show(args, syn):
 
     
 def delete(args, syn):
-    """TODO_Sphinx."""
-    
     syn.delete(args.id)
     print 'Deleted entity: %s' % args.id
 
     
 def add(args, syn):
-    """TODO_Sphinx."""
-    
     if args.type == 'File': args.type = 'FileEntity'
     entity = {'name': args.name,
               'parentId': args.parentid,
@@ -177,8 +165,6 @@ def add(args, syn):
 
 
 def create(args, syn):
-    """TODO_Sphinx."""
-    
     if args.type == 'File': args.type = 'FileEntity'
     entity={'name': args.name,
             'parentId': args.parentid,
@@ -189,8 +175,6 @@ def create(args, syn):
 
 
 def update(args, syn):
-    """TODO_Sphinx."""
-    
     entity = syn.get(args.id)
     entity.path = args.file
     entity = syn.store(entity)
@@ -198,8 +182,6 @@ def update(args, syn):
 
 
 def onweb(args, syn):
-    """TODO_Sphinx."""
-    
     syn.onweb(args.id)
 
 def setProvenance(args, syn):
@@ -228,8 +210,6 @@ def setProvenance(args, syn):
 
 
 def getProvenance(args, syn):
-    """TODO_Sphinx."""
-    
     activity = syn.getProvenance(args.id)
 
     if args.output is None or args.output=='STDOUT':
@@ -241,8 +221,6 @@ def getProvenance(args, syn):
     
     
 def submit(args, syn):
-    """TODO_Sphinx."""
-    
     if args.name is not None: args.name = ' '.join(args.name)
     
     submission = syn.submit(args.evaluation, args.entity, name=args.name, teamName=args.teamName)

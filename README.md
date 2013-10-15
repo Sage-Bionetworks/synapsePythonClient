@@ -119,7 +119,7 @@ The synapse client can be used to write software that interacts with the Sage Sy
 
 ### querying for my projects
     profile = syn.getUserProfile()
-    query_results = syn.query('select id,name from projects where project.createdByPrincipleId==%s' % profile['ownerId'])
+    query_results = syn.query('select id,name from project where project.createdByPrincipalId==%s' % profile['ownerId'])
 
 ### querying for entities that are part of the [Synapse Commons Repository](https://www.synapse.org/#!Synapse:syn150935)
 

@@ -117,7 +117,7 @@ import os
 
 # File, Locationable and Summary are Versionable
 class Versionable(object):
-    """TODO_Sphinx."""
+    """An entity for which Synapse will store a version history."""
     
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Versionable'
     _property_keys = ['versionNumber', 'versionLabel', 'versionComment', 'versionUrl', 'versions']
@@ -155,7 +155,7 @@ class Entity(collections.MutableMapping):
         Create an Entity or a subclass given dictionaries of properties
         and annotations, as might be received from the Synapse Repository.
 
-        :param properties:  TODO_Sphinx
+        :param properties:  A map of Synapse properties
         
             If 'concreteType' is defined in properties, we create the proper subclass
             of Entity. If not, give back the type whose constructor was called:
@@ -163,7 +163,7 @@ class Entity(collections.MutableMapping):
             If passed an Entity as input, create a new Entity using the input
             entity as a prototype.
             
-        :param annotations: TODO_Sphinx
+        :param annotations: A map of user defined annotations
         :param local_state: Allow local state to be given.  
                             This state information is not persisted 
                             in the Synapse Repository.
@@ -184,8 +184,6 @@ class Entity(collections.MutableMapping):
 
     @classmethod
     def getURI(self, id):
-        """TODO_Sphinx."""
-        
         return '/entity/%s' %id
 
 
@@ -250,18 +248,12 @@ class Entity(collections.MutableMapping):
 
 
     def postURI(self):
-        """TODO_Sphinx."""
-        
         return '/entity'
 
     def putURI(self):
-        """TODO_Sphinx."""
-        
         return '/entity/%s' %self.id
 
     def deleteURI(self):
-        """TODO_Sphinx."""
-        
         return '/entity/%s' %self.id
 
 
@@ -283,14 +275,10 @@ class Entity(collections.MutableMapping):
 
 
     def __setattr__(self, key, value):
-        """TODO_Sphinx."""
-        
         return self.__setitem__(key, value)
 
 
     def __setitem__(self, key, value):
-        """TODO_Sphinx."""
-        
         if key in self.__dict__:
             # If we assign like so:
             #   entity.annotations = {'foo';123, 'bar':'bat'}
@@ -308,16 +296,12 @@ class Entity(collections.MutableMapping):
     ## TODO: def __delattr__
 
     def __getattr__(self, key):
-        """TODO_Sphinx."""
-        
         # Note: that __getattr__ is only called after an attempt to
         # look the key up in the object's dictionary has failed.
         return self.__getitem__(key)
 
 
     def __getitem__(self, key):
-        """TODO_Sphinx."""
-        
         if key in self.__dict__:
             return self.__dict__[key]
         elif key in self.properties:
@@ -328,8 +312,6 @@ class Entity(collections.MutableMapping):
             raise KeyError(key)
 
     def __delitem__(self, key):
-        """TODO_Sphinx."""
-        
         if key in self.properties:
             del self.properties[key]
         elif key in self.annotations:
@@ -337,14 +319,10 @@ class Entity(collections.MutableMapping):
 
 
     def __iter__(self):
-        """TODO_Sphinx."""
-        
         return iter(self.keys())
 
 
     def __len__(self):
-        """TODO_Sphinx."""
-        
         return len(self.keys())
 
 
@@ -360,8 +338,6 @@ class Entity(collections.MutableMapping):
         return key in self.properties or key in self.annotations
 
     def __str__(self):
-        """TODO_Sphinx."""
-        
         from cStringIO import StringIO
         f = StringIO()
 
@@ -596,8 +572,6 @@ ENTITY_TYPES = LOCATIONABLE_TYPES + [
 ]
 
 def is_synapse_entity(entity):
-    """TODO_Sphinx"""
-
     if isinstance(entity, Entity):
         return True
     if isinstance(entity, collections.Mapping):

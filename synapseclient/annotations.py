@@ -13,15 +13,25 @@ Annotations can be given in the constructor for Synapse Entities::
 
     entity = File('data.xyz', parent=my_project, rating=9.1234)
 
-Annotate the entity with where we got it::
+Annotate the entity with location data::
 
-    entity.data_source = "http://data_r_us.com/really/great/data.xyz"
+    entity.lat_long = [47.627477, -122.332154]
 
-Record when we retrieved the data::
+Record when we collected the data::
 
     from datetime import datetime as Datetime
-    entity.retrieval_date = Datetime.now()
+    entity.collection_date = Datetime.now()
 
+See:
+
+- :py:meth:`synapseclient.Synapse.getAnnotation`
+- :py:meth:`synapseclient.Synapse.setAnnotation`
+
+~~~~~~~~~~~~~~~~~~~~~~~
+Annotating data sources
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Data sources are best recorded using Synapse's `provenance <Activity.html>`_ tools.
 
 ~~~~~~~~~~~~~~~~~~~~~~
 Implementation details
