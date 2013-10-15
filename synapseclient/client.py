@@ -1,17 +1,31 @@
 """
-******
-Client
-******
+**************
+Synapse Client
+**************
+
+The `Synapse` object encapsulates a connection to the Synapse service and is
+used for building projects, uploading and retrieving data, and recording
+provenance of data analysis.
+
+~~~~~
+Login
+~~~~~
 
 .. automethod:: synapseclient.client.login
+
+~~~~~~~
+Synapse
+~~~~~~~
+
 .. autoclass:: synapseclient.Synapse
-   :members:
-   
+    :members:
+
+
 ~~~~~~~~~~~~~~~~
 More information
 ~~~~~~~~~~~~~~~~
 
-`Synapse API's <http://rest.synapse.org>`_
+See also the `Synapse API documentation <http://rest.synapse.org>`_.
 
 """
 
@@ -77,6 +91,11 @@ def login(*args, **kwargs):
     Convience method to create a Synapse object and login.
     
     See :py:func:`synapseclient.Synapse.login` for arguments and usage.
+
+    Example::
+
+        import synapseclient
+        syn = synapseclient.login()
     """
     
     syn = Synapse()
@@ -186,7 +205,7 @@ class Synapse:
 
             # Update endpoints if we get redirected
             if not skip_checks:
-                response = requests.get(endpoints[point], allow_redirects=False)
+                response = requests.get(endpoints[point], allow_redirects=False, headers=synapseclient.USER_AGENT)
                 if response.status_code == 301:
                     endpoints[point] = response.headers['location']
 
@@ -214,6 +233,18 @@ class Synapse:
         :param rememberMe: Whether the authentication information should be cached locally
                            for usage across sessions and clients.
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
+
+        Example::
+
+            syn.login('me@somewhere.com', 'secret-password', rememberMe=True)
+            #> Welcome, Me!
+
+        After logging in with the *rememberMe* flag set, an API key will be cached and
+        used to authenticate for future logins::
+
+            syn.login()
+            #> Welcome, Me!
+
         """
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
@@ -424,6 +455,13 @@ class Synapse:
         :param sessionToken: The session token to use to find the user profile
         
         :returns: JSON-object
+
+        Example::
+
+            my_profile = syn.getUserProfile()
+            print my_profile['displayName']
+            user_id = my_profile['ownerId']
+
         """
         
         uri = '/userProfile/%s' % ('' if id is None else str(id))
@@ -479,6 +517,19 @@ class Synapse:
                                  Defaults to "keep.both".
 
         :returns: A new Synapse Entity object of the appropriate type
+
+        Example::
+
+            ## download file into cache
+            entity = syn.get('syn1906479')
+            print entity.name
+            print entity.path
+
+            ## download file into current working directory
+            entity = syn.get('syn1906479', downloadLocation='.')
+            print entity.name
+            print entity.path
+
         """
         
         version = kwargs.get('version', None)
@@ -602,13 +653,36 @@ class Synapse:
         :param executed:            The Entity, Synapse ID, or URL 
                                     representing code executed to create the object
         :param activity:            Activity object specifying the user's provenance
-        :param activityName:        TODO_Sphinx. 
-        :param activityDescription: TODO_Sphinx. 
+        :param activityName:        Activity name to be used in conjunction with *used* and *executed*.
+        :param activityDescription: Activity description to be used in conjunction with *used* and *executed*.
         :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj' conflicts with an existing Synapse object.  Defaults to True. 
         :param forceVersion:        Indicates whether the method should increment the version of the object even if nothing has changed.  Defaults to True.
         :param versionLabel:        Arbitrary string used to label the version.  
 
         :returns: A Synapse Entity, Evaluation, or Wiki
+
+        Example::
+
+            from synapseclient import Project
+
+            project = Project('My uniquely named project')
+            project = syn.store(project)
+
+        Adding files with `provenance <Activity.html>`_::
+
+            from synapseclient import File, Activity
+
+            ## A synapse entity *syn1906480* contains data
+            ## entity *syn1917825* contains code
+            activity = Activity(
+                'Fancy Processing',
+                description='No seriously, really fancy processing',
+                used=['syn1906480', 'http://data_r_us.com/fancy/data.txt'],
+                executed='syn1917825')
+
+            test_entity = File('/path/to/data/file.xyz', description='Fancy new data', parent=project)
+            test_entity = syn.store(test_entity, activity=activity)
+
         """
         
         createOrUpdate = kwargs.get('createOrUpdate', True)
@@ -661,7 +735,6 @@ class Synapse:
                     # Entity must exist before upload for Locationables
                     if 'id' not in properties: 
                         properties = self._createEntity(properties)
-                    annotations.pop('path')
                     properties.update(self._uploadFileAsLocation(properties, entity['path']))
                 
                     # A file has been uploaded, so version should not be incremented if possible
@@ -904,7 +977,7 @@ class Synapse:
 
     def getAnnotations(self, entity, version=None):
         """
-        Retrieve annotations for an Entity in the Synapse Repository.
+        Retrieve annotations for an Entity from the Synapse Repository.
         
         :param entity:  An Entity or Synapse ID to lookup
         :param version: The version of the Entity to retrieve.  
@@ -953,13 +1026,15 @@ class Synapse:
         """
         Query for Synapse entities.  
         **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
-        See `in-depth documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
         
         :returns: A JSON object containing an array of query results
 
         Example::
         
             syn.query("select id, name from entity where entity.parentId=='syn449742'")
+
+        See also: :py:func:`synapseclient.Synapse.chunkedQuery`
         """
         
         return self.restGET('/query?query=' + urllib.quote(queryStr))
@@ -969,7 +1044,7 @@ class Synapse:
         """
         Query for Synapse Entities.  
         More robust than :py:func:`synapseclient.Synapse.query`.
-        See `in-depth documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
         
         :returns: An iterator that will break up large queries into managable pieces.  
         
@@ -1079,7 +1154,7 @@ class Synapse:
         return self.restGET('/entity/%s/benefactor' % id_of(entity))
 
     def _getACL(self, entity):
-        """TODO_Sphinx."""
+        """Get the effective ACL for a Synapse Entity."""
         
         # Get the ACL from the benefactor (which may be the entity itself)
         benefactor = self._getBenefactor(entity)
@@ -1088,7 +1163,21 @@ class Synapse:
 
 
     def _storeACL(self, entity, acl):
-        """TODO_Sphinx."""
+        """
+        Create or update the ACL for a Synapse Entity.
+
+        :param entity:  An entity or Synapse ID
+        :param acl:  An ACl as a dict
+
+        :returns: the new or updated ACL
+
+        .. code-block:: python
+
+            {'resourceAccess': [
+                {'accessType': ['READ'],
+                 'principalId': 222222}
+            ]}
+        """
         
         # Get benefactor. (An entity gets its ACL from its benefactor.)
         entity_id = id_of(entity)
@@ -1108,10 +1197,10 @@ class Synapse:
         Get the permissions that a user or group has on an Entity.
 
         :param entity:      An Entity or Synapse ID to lookup
-        :param principalId: TODO_Sphinx
+        :param principalId: Identifier of a user or group
         
         :returns: An array containing some combination of 
-                  ['READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS']
+                  ['READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS', 'DOWNLOAD', 'PARTICIPATE']
                   or an empty array
         """
 
@@ -1130,14 +1219,17 @@ class Synapse:
         An Entity may have its own ACL or inherit its ACL from a benefactor.  
 
         :param entity:            An Entity or Synapse ID to modify
-        :param principalId:       TODO_Sphinx
-        :param accessType:        TODO_Sphinx
+        :param principalId:       Identifier of a user or group
+        :param accessType:        Type of permission to be granted
         :param modify_benefactor: Set as True when modifying a benefactor's ACL
         :param warn_if_inherits:  Set as False, when creating a new ACL. 
                                   Trying to modify the ACL of an Entity that 
                                   inherits its ACL will result in a warning
         
-        :returns: TODO_Sphinx
+        :returns: an Access Control List object
+
+        Valid access types are: CREATE, READ, UPDATE, DELETE, CHANGE_PERMISSIONS, DOWNLOAD, PARTICIPATE
+
         """
 
         benefactor = self._getBenefactor(entity)
@@ -1200,12 +1292,12 @@ class Synapse:
 
     def setProvenance(self, entity, activity):
         """
-        TODO_Sphinx
+        Stores a record of the code and data used to derive a Synapse entity.
         
         :param entity:   An Entity or Synapse ID to modify
-        :param activity: TODO_Sphinx
+        :param activity: a :py:class:`synapseclient.activity.Activity`
         
-        :returns: An updated Activity object
+        :returns: An updated :py:class:`synapseclient.activity.Activity` object
         """
         
         # Assert that the entity was generated by a given Activity.
@@ -1281,16 +1373,15 @@ class Synapse:
         (_, base_filename) = os.path.split(filename)
         data = {'md5':md5.hexdigest(), 'path':base_filename, 'contentType':mimetype}
         uri = '/entity/%s/s3Token' % id_of(entity)
-        headers = self._generateSignedHeaders(uri, 
-                            {'Content-Type': 'application/json',
-                             'Accept': 'application/json'})
         response_json = self.restPOST(uri, body=json.dumps(data))
         location_path = response_json['path']
 
-        # PUT file to S3
         headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
                     'Content-Type' : mimetype,
-                    'x-amz-acl' : 'bucket-owner-full-control' }
+                    'x-amz-acl' : 'bucket-owner-full-control'}
+        headers.update(synapseclient.USER_AGENT)
+
+        # PUT file to S3
         with open(filename, 'rb') as f:
             response = requests.put(response_json['presignedUrl'], headers=headers, data=f)
         exceptions._raise_for_status(response, verbose=self.debug)
@@ -1467,7 +1558,12 @@ class Synapse:
 
         
     def _deleteFileHandle(self, fileHandle):
-        """TODO_Sphinx."""
+        """
+        Delete the given file handle.
+
+        Note: Only the user that created the FileHandle can delete it. Also, a
+        FileHandle cannot be deleted if it is associated with a FileEntity or WikiPage
+        """
         
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
         self.restDELETE(uri, endpoint=self.fileHandleEndpoint)
@@ -1475,7 +1571,12 @@ class Synapse:
 
         
     def _createChunkedFileUploadToken(self, filepath, mimetype):
-        """TODO_Sphinx."""
+        """
+        This is the first step in uploading a large file. The resulting
+        ChunkedFileToken will be required for all remaining chunk file requests.
+
+        :returns: a `ChunkedFileToken <http://rest.synapse.org/org/sagebionetworks/repo/model/file/ChunkedFileToken.html>`_
+        """
     
         md5 = utils.md5_for_file(filepath)
         chunkedFileTokenRequest = \
@@ -1486,14 +1587,18 @@ class Synapse:
 
         
     def _createChunkedFileUploadChunkURL(self, chunkNumber, chunkedFileToken):
-        """TODO_Sphinx."""
+        """Create a pre-signed URL that will be used to upload a single chunk of a large file."""
     
         chunkRequest = {'chunkNumber':chunkNumber, 'chunkedFileToken':chunkedFileToken}
         return self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
 
         
     def _startCompleteUploadDaemon(self, chunkedFileToken, chunkNumbers):
-        """TODO_Sphinx."""
+        """
+        After all of the chunks are added, start a Daemon that will copy all of the parts and complete the request.
+
+        :returns: an `UploadDaemonStatus <http://rest.synapse.org/org/sagebionetworks/repo/model/file/UploadDaemonStatus.html>`_
+        """
     
         completeAllChunksRequest = {'chunkNumbers': chunkNumbers,
                                     'chunkedFileToken': chunkedFileToken}
@@ -1501,7 +1606,11 @@ class Synapse:
 
         
     def _completeUploadDaemonStatus(self, status):
-        """TODO_Sphinx."""
+        """
+        Get the status of a daemon.
+
+        :returns: an `UploadDaemonStatus <http://rest.synapse.org/org/sagebionetworks/repo/model/file/UploadDaemonStatus.html>`_
+        """
     
         return self.restGET('/completeUploadDaemonStatus/%s' % status['daemonId'], endpoint=self.fileHandleEndpoint)
 
@@ -1514,16 +1623,16 @@ class Synapse:
         :param chunksize: Chop the file into chunks of this many bytes. 
                           The default value is 5MB, which is also the minimum value.
         
-        :returns: An S3 FileHandle
+        :returns: An `S3 FileHandle <http://rest.synapse.org/org/sagebionetworks/repo/model/file/S3FileHandle.html>`_
         """
-        
+
         if chunksize < 5*MB:
             raise ValueError('Minimum chunksize is 5 MB.')
         if filepath is None or not os.path.exists(filepath):
             raise ValueError('File not found: ' + str(filepath))
 
         # Start timing
-        start_time = time.time()
+        diagnostics = {'start-time': time.time()}
 
         # Guess mime-type - important for confirmation of MD5 sum by receiver
         (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
@@ -1540,67 +1649,97 @@ class Synapse:
         #   501 Server Error: Not Implemented
         #   A header you provided implies functionality that is not implemented
         headers = { 'Content-Type' : mimetype }
+        headers.update(synapseclient.USER_AGENT)
 
-        # Get token
-        token = self._createChunkedFileUploadToken(filepath, mimetype)
+        diagnostics['mimetype'] = mimetype
+        diagnostics['User-Agent'] = synapseclient.USER_AGENT
 
-        if progress:
-            sys.stdout.write('.')
-            sys.stdout.flush()
+        try:
 
-        i = 0
-        with open(filepath, 'rb') as f:
-            for chunk in utils.chunks(f, chunksize):
-                i += 1
+            # Get token
+            token = self._createChunkedFileUploadToken(filepath, mimetype)
+            diagnostics['token'] = token
 
-                # Get the signed S3 URL
-                url = self._createChunkedFileUploadChunkURL(i, token)
-                if progress:
-                    sys.stdout.write('.')
-                    sys.stdout.flush()
-
-                # PUT the chunk to S3
-                response = self.restPUT(url, body=chunk, 
-                        headers=self._generateSignedHeaders(url, headers), 
-                        retryPolicy={"retry_errors":['We encountered an internal error. Please try again.']})
-                if progress:
-                    sys.stdout.write(',')
-                    sys.stdout.flush()
-
-                # Is requests closing response stream? Let's make sure:
-                # "Note that connections are only released back to
-                #  the pool for reuse once all body data has been
-                #  read; be sure to either set stream to False or
-                #  read the content property of the Response object."
-                # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
-                try:
-                    if response:
-                        throw_away = response.content
-                except Exception as ex:
-                    sys.stderr.write('error reading response: '+str(ex))
-
-        status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
-
-        # Poll until concatenating chunks is complete
-        while (status['state']=='PROCESSING'):
             if progress:
-                sys.stdout.write('!')
+                sys.stdout.write('.')
                 sys.stdout.flush()
-            time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
-            status = self._completeUploadDaemonStatus(status)
 
-        if progress:
-            sys.stdout.write('!\n')
-            sys.stdout.flush()
+            retry_policy=self._build_retry_policy(
+                {"retry_errors":['We encountered an internal error. Please try again.']})
 
-        if status['state'] == 'FAILED':
-            raise SynapseError(status['errorMessage'])
+            diagnostics['chunks'] = []
 
-        # Return a fileHandle
-        fileHandle = self._getFileHandle(status['fileHandleId'])
+            i = 0
+            with open(filepath, 'rb') as f:
+                for chunk in utils.chunks(f, chunksize):
+                    i += 1
+                    chunk_record = {'chunk-number':i}
+
+                    # Get the signed S3 URL
+                    url = self._createChunkedFileUploadChunkURL(i, token)
+                    chunk_record['url'] = url
+                    if progress:
+                        sys.stdout.write('.')
+                        sys.stdout.flush()
+
+                    # PUT the chunk to S3
+                    response = _with_retry(
+                        lambda: requests.put(url, data=chunk, headers=headers),
+                        **retry_policy)
+
+                    if progress:
+                        sys.stdout.write(',')
+                        sys.stdout.flush()
+
+                    chunk_record['response-status-code'] = response.status_code
+                    chunk_record['response-headers'] = response.headers
+                    if response.text:
+                        chunk_record['response-body'] = response.text
+                    diagnostics['chunks'].append(chunk_record)
+
+                    # Is requests closing response stream? Let's make sure:
+                    # "Note that connections are only released back to
+                    #  the pool for reuse once all body data has been
+                    #  read; be sure to either set stream to False or
+                    #  read the content property of the Response object."
+                    # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
+                    try:
+                        if response:
+                            throw_away = response.content
+                    except Exception as ex:
+                        sys.stderr.write('error reading response: '+str(ex))
+
+                    exceptions._raise_for_status(response, verbose=self.debug)
+
+            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+            diagnostics['status'] = [status]
+
+            # Poll until concatenating chunks is complete
+            while (status['state']=='PROCESSING'):
+                if progress:
+                    sys.stdout.write('!')
+                    sys.stdout.flush()
+                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+                status = self._completeUploadDaemonStatus(status)
+                diagnostics['status'].append(status)
+
+            if progress:
+                sys.stdout.write('!\n')
+                sys.stdout.flush()
+
+            if status['state'] == 'FAILED':
+                raise SynapseError(status['errorMessage'])
+
+            # Return a fileHandle
+            fileHandle = self._getFileHandle(status['fileHandleId'])
+            diagnostics['fileHandle'] = fileHandle
+
+        except Exception as ex:
+            ex.diagnostics = diagnostics
+            raise sys.exc_info()[0], ex, sys.exc_info()[2]
 
         # Print timing information
-        if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-start_time))
+        if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
 
         return fileHandle
 
@@ -1708,7 +1847,15 @@ class Synapse:
     ############################################################
 
     def getEvaluation(self, id):
-        """Gets an Evaluation object from Synapse."""
+        """
+        Gets an Evaluation object from Synapse.
+
+        See: :py:mod:`synapseclient.evaluation`
+
+        Example::
+
+            evaluation = syn.getEvalutation(2005090)
+        """
         
         evaluation_id = id_of(id)
         uri = Evaluation.getURI(evaluation_id)
@@ -1717,7 +1864,11 @@ class Synapse:
         
     ## TODO: Should this be combined with getEvaluation?
     def getEvaluationByName(self, name):
-        """Gets an Evaluation object from Synapse."""
+        """
+        Gets an Evaluation object from Synapse.
+
+        See: :py:mod:`synapseclient.evaluation`
+        """
         
         uri = Evaluation.getByNameURI(urllib.quote(name))
         return Evaluation(**self.restGET(uri))
@@ -1725,21 +1876,23 @@ class Synapse:
 
     def submit(self, evaluation, entity, name=None, teamName=None):
         """
-        Submit an Entity for evaluation by an evaluator.
+        Submit an Entity for `evaluation <Evaluation.html>`_.
         
         :param evaluation: Evaluation board to submit to
         :param entity:     The Entity containing the Submission
         :param name:       A name for this submission
         :param teamName:   Team name to be publicly displayed
         
-        :returns: A :py:class:`synapseclient.Submission` object
+        :returns: A :py:class:`synapseclient.evaluation.Submission` object
 
         Example::
+
             evaluation = syn.getEvaluation(12345)
             entity = syn.get('syn12345')
             submission = syn.submit(evaluation, entity, name='Our Final Answer', teamName='Blue Team')
 
         Set team name to user name::
+
             profile = syn.getUserProfile()
             submission = syn.submit(evaluation, entity, name='My Data', teamName=profile['displayName'])
         """
@@ -1819,6 +1972,13 @@ class Synapse:
         Adds the current user to an Evaluation.
 
         :param evaluation: An Evaluation object or Evaluation ID
+
+        Example::
+
+            evaluation = syn.getEvaluation(12345)
+            syn.joinEvaluation(evaluation)
+
+        See: :py:mod:`synapseclient.evaluation`
         """
         
         evaluation_id = id_of(evaluation)
@@ -1830,6 +1990,8 @@ class Synapse:
         :param evaluation: Evaluation to get Participants from.
         
         :returns: A generator over Participants (dictionary) for an Evaluation
+
+        See: :py:mod:`synapseclient.evaluation`
         """
         
         evaluation_id = id_of(evaluation)
@@ -1847,12 +2009,14 @@ class Synapse:
         :param myOwn:      Determines if only your Submissions should be fetched.  
                            Defaults to False (all Submissions)
                            
-        :returns: A generator over Submissions for an Evaluation
+        :returns: A generator over :py:class:`synapseclient.evaluation.Submission` objects for an Evaluation
                   
         Example::
         
             for submission in syn.getSubmissions(1234567):
                 print submission['entityId']
+
+        See: :py:mod:`synapseclient.evaluation`
         """
         
         evaluation_id = id_of(evaluation)
@@ -1903,7 +2067,7 @@ class Synapse:
 
     def getSubmission(self, id, **kwargs):
         """
-        Gets a Submission object.
+        Gets a :py:class:`synapseclient.evaluation.Submission` object.
         
         See: :py:func:`synapseclient.Synapse.get` for information 
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
@@ -1929,7 +2093,7 @@ class Synapse:
         
         :param submission: The Submission to lookup
         
-        :returns: A SubmissionStatus object
+        :returns: A :py:class:`synapseclient.evaluation.SubmissionStatus` object
         """
         
         submission_id = id_of(submission)
@@ -1944,7 +2108,7 @@ class Synapse:
     ############################################################
 
     def getWiki(self, owner, subpageId=None):
-        """Gets a Wiki object from Synapse."""
+        """Gets a :py:class:`synapseclient.wiki.Wiki` object from Synapse."""
         
         if subpageId:
             uri = '/entity/%s/wiki/%s' % (id_of(owner), id_of(subpageId))
@@ -1961,7 +2125,16 @@ class Synapse:
         
         :param owner: An Evaluation or Entity
         
-        :returns: TODO_Sphinx
+        :returns: A dictionary with the following format:
+
+        .. code-block:: python
+
+            {'results': [
+                {'id': '100', 'title': 'Root'},
+                {'id': '102', 'parentId': '100', 'title': 'Child wiki page 1'},
+                {'id': '103', 'parentId': '100', 'title': 'Child wiki page 2'}],
+             'totalNumberOfResults': 3}
+
         """
         
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
@@ -2094,6 +2267,8 @@ class Synapse:
             
         if headers is None:
             headers = dict(self.headers)
+
+        headers.update(synapseclient.USER_AGENT)
             
         sig_timestamp = time.strftime(utils.ISO_FORMAT, time.gmtime())
         url = urlparse.urlparse(url).path
@@ -2144,7 +2319,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -2165,7 +2340,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -2183,7 +2358,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
-        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         
         

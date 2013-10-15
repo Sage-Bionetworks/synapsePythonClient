@@ -86,7 +86,7 @@ def test_command_line_client():
                  '-parentid', 
                  project_id, 
                  filename)
-    file_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
 
     # Verify that we stored the file in Synapse
     f1 = syn.get(file_entity_id)
@@ -140,7 +140,7 @@ def test_command_line_client():
                  '-parentid', 
                  project_id, 
                  filename)
-    data_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    data_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
 
     # Get the Data object back
     output = run('synapse', 
@@ -236,7 +236,7 @@ def test_command_line_client():
                  '-parentid', 
                  project_id, 
                  singapore_url)
-    exteral_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    exteral_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
 
     # Verify that we created an external file handle
     f2 = syn.get(exteral_entity_id)
@@ -266,7 +266,7 @@ def test_command_line_store_and_submit():
                  '--name',
                  str(uuid.uuid4()),
                  '--description',
-                 '"test of store command',
+                 'test of store command',
                  '--type',
                  'Project')
     project_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
@@ -286,7 +286,7 @@ def test_command_line_store_and_submit():
                  project_id,
                  '--file',
                  filename)
-    file_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
     
     # Verify that we stored the file in Synapse
     f1 = syn.get(file_entity_id)
@@ -349,7 +349,7 @@ def test_command_line_store_and_submit():
                  project_id, 
                  '--file', 
                  ducky_url)
-    exteral_entity_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    exteral_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
 
     # Verify that we created an external file handle
     f2 = syn.get(exteral_entity_id)

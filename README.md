@@ -35,7 +35,7 @@ Clone the [source code repository](https://github.com/Sage-Bionetworks/synapsePy
 
 #### Install develop branch
 
-Installing the develop branch can be useful for testing or for access to the latest features, with the acceptence of an increased risk of experiencing bugs. Using [virtualenv](http://www.virtualenv.org/) to create an isolated test environment is a good idea.
+Installing the [develop](https://github.com/Sage-Bionetworks/synapsePythonClient/tree/develop) branch can be useful for testing or for access to the latest features, with the acceptence of an increased risk of experiencing bugs. Using [virtualenv](http://www.virtualenv.org/) to create an isolated test environment is a good idea.
 
     git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
     cd synapsePythonClient
@@ -43,6 +43,13 @@ Installing the develop branch can be useful for testing or for access to the lat
     python setup.py install
 
 Replace `python setup.py install` with `python setup.py develop` to make the installation follow the head without having to reinstall.
+
+#### Installing a tagged version
+
+Checking out a tagged version will ensure that [JIRA issues](https://sagebionetworks.jira.com/issues/?jql=project%20%3D%20SYNR%20AND%20component%20in%20%28EMPTY%2C%20%22Command%20Line%20Client%22%2C%20%22Python%20Client%22%29%20AND%20status%20%3D%20Resolved%20ORDER%20BY%20updatedDate%20DESC) are validated on the correct version of the client code. Instead of checking out the develop branch, check out the tag instead, for example:
+
+    git checkout v0.5.1.dev2
+
 
 
 Command line usage
@@ -112,7 +119,7 @@ The synapse client can be used to write software that interacts with the Sage Sy
 
 ### querying for my projects
     profile = syn.getUserProfile()
-    query_results = syn.query('select id,name from projects where project.createdByPrincipleId==%s' % profile['ownerId'])
+    query_results = syn.query('select id,name from project where project.createdByPrincipalId==%s' % profile['ownerId'])
 
 ### querying for entities that are part of the [Synapse Commons Repository](https://www.synapse.org/#!Synapse:syn150935)
 
