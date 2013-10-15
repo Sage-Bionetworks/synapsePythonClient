@@ -282,3 +282,20 @@ def test_synapseStore_flag():
     bogus = syn.get(bogus)
     assert bogus.synapseStore == False
 
+def test_path_in_annotations_of_data_entities_bug():
+    # test for SYNR-610, path, files and cacheDir appearing in annotations
+    data1 = syn.createEntity(Data(name='Yet more totally bogus data', parent=project))
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    entity = syn.uploadFile(data1, path)
+
+    ## entity should have a path, but not files and location at this point
+    assert 'path' in entity and entity['path'] is not None
+
+    data2 = syn.get(data1.id)
+
+    ## These shouldn't be in annotations: "files" and "path" and "cacheDir"
+    assert not 'files' in data2.annotations
+    assert not 'path' in data2.annotations
+    assert not 'cacheDir' in data2.annotations
+

@@ -3,7 +3,42 @@
 Synapse command line client
 ***************************
 
-For help, type synapse -h.
+The Synapse client can be used from the command line via the **synapse**
+command. For help, type::
+
+    synapse -h.
+
+For help on commands, type::
+
+    synapse [command] -h
+
+
+Optional arguments
+==================
+
+.. code-block:: shell
+
+    -h, --help            show this help message and exit
+    --version             show program's version number and exit
+    -u SYNAPSEUSER, --username SYNAPSEUSER
+                        Username used to connect to Synapse
+    -p SYNAPSEPASSWORD, --password SYNAPSEPASSWORD
+                        Password used to connect to Synapse
+
+Commands
+========
+  * **login**            - login to Synapse and (optionally) cache credentials
+  * **get**              - download an entity and associated data
+  * **store**            - create or update
+  * **delete**           - removes a dataset from Synapse
+  * **query**            - performs SQL like queries on Synapse
+  * **submit**           - submit an entity for evaluation
+  * **set-provenance**   - create provenance records
+  * **get-provenance**   - show provenance records
+  * **show**             - show metadata for an entity
+  * **onweb**            - opens Synapse website for Entity
+
+A few more commands (show, cat, add, create, update) exist, mostly for backwards compatibility.
 
 """
 
@@ -19,8 +54,6 @@ import json
 
 
 def query(args, syn):
-    """TODO_Sphinx."""
-    
     ## TODO: Should use loop over multiple returned values if return is too long
     results = syn.chunkedQuery(' '.join(args.queryString))
 
@@ -42,8 +75,6 @@ def query(args, syn):
 
         
 def get(args, syn):
-    """TODO_Sphinx."""
-    
     entity = syn.get(args.id)
     
     ## TODO: Is this part even necessary?
@@ -62,8 +93,6 @@ def get(args, syn):
     
     
 def store(args, syn):
-    """TODO_Sphinx."""
-    
     # Concatenate the multi-part arguments "name" and "description" 
     # so that the other functions can accept them
     if args.name is not None: 
@@ -99,8 +128,6 @@ def store(args, syn):
 
 
 def cat(args, syn):
-    """TODO_Sphinx."""
-    
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     entity = syn.get(args.id)
     if 'files' in entity:
@@ -118,15 +145,11 @@ def show(args, syn):
 
     
 def delete(args, syn):
-    """TODO_Sphinx."""
-    
     syn.delete(args.id)
     print 'Deleted entity: %s' % args.id
 
     
 def add(args, syn):
-    """TODO_Sphinx."""
-    
     if args.type == 'File': args.type = 'FileEntity'
     entity = {'name': args.name,
               'parentId': args.parentid,
@@ -142,8 +165,6 @@ def add(args, syn):
 
 
 def create(args, syn):
-    """TODO_Sphinx."""
-    
     if args.type == 'File': args.type = 'FileEntity'
     entity={'name': args.name,
             'parentId': args.parentid,
@@ -154,8 +175,6 @@ def create(args, syn):
 
 
 def update(args, syn):
-    """TODO_Sphinx."""
-    
     entity = syn.get(args.id)
     entity.path = args.file
     entity = syn.store(entity)
@@ -163,8 +182,6 @@ def update(args, syn):
 
 
 def onweb(args, syn):
-    """TODO_Sphinx."""
-    
     syn.onweb(args.id)
 
 def setProvenance(args, syn):
@@ -193,8 +210,6 @@ def setProvenance(args, syn):
 
 
 def getProvenance(args, syn):
-    """TODO_Sphinx."""
-    
     activity = syn.getProvenance(args.id)
 
     if args.output is None or args.output=='STDOUT':
@@ -206,8 +221,6 @@ def getProvenance(args, syn):
     
     
 def submit(args, syn):
-    """TODO_Sphinx."""
-    
     if args.name is not None: args.name = ' '.join(args.name)
     
     submission = syn.submit(args.evaluation, args.entity, name=args.name, teamName=args.teamName)
@@ -226,25 +239,25 @@ def build_parser():
     parser = argparse.ArgumentParser(
             description='Interfaces with the Synapse repository.')
     parser.add_argument(
-            '--version', 
-            action='version', 
+            '--version',
+            action='version',
             version='Synapse Client %s' % synapseclient.__version__)
     parser.add_argument(
-            '-u', '--username', 
-            dest='synapseUser', 
+            '-u', '--username',
+            dest='synapseUser',
             help='Username used to connect to Synapse')
     parser.add_argument(
-            '-p', '--password', 
-            dest='synapsePassword', 
+            '-p', '--password',
+            dest='synapsePassword',
             help='Password used to connect to Synapse')
     parser.add_argument(
-            '--debug', 
-            dest='debug', 
+            '--debug',
+            dest='debug',
             action='store_true')
     parser.add_argument(
             '-s', '--skip-checks',
             dest='skip_checks',
-            action='store_true', 
+            action='store_true',
             help='suppress checking for version upgrade messages and endpoint redirection')
 
 
@@ -254,242 +267,243 @@ def build_parser():
             help='For additional help: "synapse <COMMAND> -h"')
 
     
-    parser_query = subparsers.add_parser(
-            'query',
-            help='Performs SQL like queries on Synapse')
-    parser_query.add_argument(
-            'queryString', 
-            metavar='string', 
-            type=str, nargs='*',
-            help='A query string, see https://sagebionetworks.jira.com/wiki/'
-                 'display/PLFM/Repository+Service+API#'
-                 'RepositoryServiceAPI-QueryAPI for more information')
-    parser_query.set_defaults(func=query)
-
-    
     parser_get = subparsers.add_parser(
-            'get', 
+            'get',
             help='downloads a dataset from Synapse')
     parser_get.add_argument(
-            'id', 
-            metavar='syn123', type=str, 
+            'id',
+            metavar='syn123', type=str,
             help='Synapse ID of form syn123 of desired data object')
     parser_get.set_defaults(func=get)
 
     
     parser_store = subparsers.add_parser(
-            'store', 
+            'store',
             help='depending on the arguments supplied, '
                  'store will either create, add, or update')
     group = parser_store.add_mutually_exclusive_group()
     group.add_argument(
-            '--id', 
-            metavar='syn123', type=str, 
+            '--id',
+            metavar='syn123', type=str,
             help='Synapse ID of form syn123 of the Synapse object to update')
     group.add_argument(
-            '--parentid', 
-            metavar='syn123', type=str,  
+            '--parentid',
+            metavar='syn123', type=str,
             help='Synapse ID of project or folder where to upload new data.')
     parser_store.add_argument(
-            '--name', 
-            type=str, nargs="+", 
+            '--name',
+            type=str, nargs="+",
             help='Name of data object in Synapse')
     parser_store.add_argument(
-            '--description', 
-            type=str, nargs="+", 
+            '--description',
+            type=str, nargs="+",
             help='Description of data object in Synapse.')
     parser_store.add_argument(
-            '--type', 
+            '--type',
             type=str, default='File',
             help='Type of object, such as "File", "Folder", or '
                  '"Project", to create in Synapse. Defaults to "File"')
     parser_store.add_argument(
-            '--used', 
+            '--used',
             metavar='TargetID', type=str, nargs='*',
             help='ID of a target data entity from which the specified entity is derived')
     parser_store.add_argument(
-            '--executed', 
+            '--executed',
             metavar='TargetID', type=str, nargs='*',
             help='ID of a code entity from which the specified entity is derived')
     parser_store.add_argument(
-            '--file', 
+            '--file',
             type=str,
             help='file to be added to synapse.')
     parser_store.set_defaults(func=store)
+
+
+    parser_delete = subparsers.add_parser(
+            'delete',
+            help='removes a dataset from Synapse')
+    parser_delete.add_argument(
+            'id',
+            metavar='syn123', type=str,
+            help='Synapse ID of form syn123 of desired data object')
+    parser_delete.set_defaults(func=delete)
+
+
+    parser_query = subparsers.add_parser(
+            'query',
+            help='Performs SQL like queries on Synapse')
+    parser_query.add_argument(
+            'queryString',
+            metavar='string',
+            type=str, nargs='*',
+            help='A query string, see https://sagebionetworks.jira.com/wiki/'
+                 'display/PLFM/Repository+Service+API#'
+                 'RepositoryServiceAPI-QueryAPI for more information')
+    parser_query.set_defaults(func=query)
     
     
     parser_submit = subparsers.add_parser(
-            'submit', 
+            'submit',
             help='submit an entity for evaluation')
     parser_submit.add_argument(
-            '--evaluation', 
-            type=str, required=True, 
+            '--evaluation',
+            type=str, required=True,
             help='Evaluation ID where the entity will be submitted')
     parser_submit.add_argument(
-            '--entity', 
-            type=str, required=True, 
+            '--entity',
+            type=str, required=True,
             help='Synapse ID of the entity to be submitted')
     parser_submit.add_argument(
-            '--name', 
-            type=str, nargs="+", 
+            '--name',
+            type=str, nargs="+",
             help='Name of the submission')
     parser_submit.add_argument(
-            '--teamName', '--team', 
+            '--teamName', '--team',
             type=str,
             help='Publicly displayed name of team for the submission')
     parser_submit.set_defaults(func=submit)
 
     
     parser_get = subparsers.add_parser(
-            'show', 
+            'show',
             help='show metadata for an entity')
     parser_get.add_argument(
-            'id', 
-            metavar='syn123', type=str, 
+            'id',
+            metavar='syn123', type=str,
             help='Synapse ID of form syn123 of desired synapse object')
     parser_get.set_defaults(func=show)
 
     
     parser_cat = subparsers.add_parser(
-            'cat', 
+            'cat',
             help='prints a dataset from Synapse')
     parser_cat.add_argument(
-            'id', 
+            'id',
             metavar='syn123', type=str,
             help='Synapse ID of form syn123 of desired data object')
     parser_cat.set_defaults(func=cat)
-    
-
-    parser_add = subparsers.add_parser(
-            'add', 
-            help='uploads and adds a dataset to Synapse')
-    parser_add.add_argument(
-            '-parentid', '-parentId', 
-            metavar='syn123', type=str, required=True, 
-            help='Synapse ID of project or folder where to upload data.')
-    parser_add.add_argument(
-            '-name', 
-            metavar='NAME', type=str, required=False,
-            help='Name of data object in Synapse')
-    parser_add.add_argument(
-            '-description', 
-            metavar='DESCRIPTION', type=str, 
-            help='Description of data object in Synapse.')
-    parser_add.add_argument(
-            '-type', 
-            type=str, default='File',
-            help='Type of object to create in synapse. Defaults to "File".')
-    parser_add.add_argument(
-            '-used', 
-            metavar='TargetID', type=str, nargs='*',
-            help='ID of a target data entity from which the specified entity is derived')
-    parser_add.add_argument(
-            '-executed', 
-            metavar='TargetID', type=str, nargs='*',
-            help='ID of a code entity from which the specified entity is derived')
-    parser_add.add_argument(
-            'file', 
-            type=str,
-            help='file to be added to synapse.')
-    parser_add.set_defaults(func=add)
 
 
     parser_set_provenance = subparsers.add_parser(
-            'set-provenance', 
+            'set-provenance',
             help='create provenance records')
     parser_set_provenance.add_argument(
-            '-id', 
+            '-id',
             metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
     parser_set_provenance.add_argument(
-            '-name', 
+            '-name',
             metavar='NAME', type=str, required=False,
             help='Name of the activity that generated the entity')
     parser_set_provenance.add_argument(
-            '-description', 
-            metavar='DESCRIPTION', type=str, required=False, 
+            '-description',
+            metavar='DESCRIPTION', type=str, required=False,
             help='Description of the activity that generated the entity')
     parser_set_provenance.add_argument(
-            '-o', '-output', 
+            '-o', '-output',
             metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
     parser_set_provenance.add_argument(
-            '-used', 
+            '-used',
             metavar='TargetID', type=str, nargs='*',
             help='ID of a target data entity from which the specified entity is derived')
     parser_set_provenance.add_argument(
-            '-executed', 
+            '-executed',
             metavar='TargetID', type=str, nargs='*',
             help='ID of a code entity from which the specified entity is derived')
     parser_set_provenance.set_defaults(func=setProvenance)
 
 
     parser_get_provenance = subparsers.add_parser(
-            'get-provenance', 
+            'get-provenance',
             help='show provenance records')
     parser_get_provenance.add_argument(
-            '-id', 
+            '-id',
             metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
     parser_get_provenance.add_argument(
-            '-o', '-output', 
+            '-o', '-output',
             metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
     parser_get_provenance.set_defaults(func=getProvenance)
 
 
+    parser_add = subparsers.add_parser(
+            'add',
+            help='uploads and adds a dataset to Synapse')
+    parser_add.add_argument(
+            '-parentid', '-parentId',
+            metavar='syn123', type=str, required=True,
+            help='Synapse ID of project or folder where to upload data.')
+    parser_add.add_argument(
+            '-name',
+            metavar='NAME', type=str, required=False,
+            help='Name of data object in Synapse')
+    parser_add.add_argument(
+            '-description',
+            metavar='DESCRIPTION', type=str,
+            help='Description of data object in Synapse.')
+    parser_add.add_argument(
+            '-type',
+            type=str, default='File',
+            help='Type of object to create in synapse. Defaults to "File".')
+    parser_add.add_argument(
+            '-used',
+            metavar='TargetID', type=str, nargs='*',
+            help='ID of a target data entity from which the specified entity is derived')
+    parser_add.add_argument(
+            '-executed',
+            metavar='TargetID', type=str, nargs='*',
+            help='ID of a code entity from which the specified entity is derived')
+    parser_add.add_argument(
+            'file',
+            type=str,
+            help='file to be added to synapse.')
+    parser_add.set_defaults(func=add)
+
+
     parser_create = subparsers.add_parser(
-            'create', 
+            'create',
             help='Creates folders or projects on Synapse')
     parser_create.add_argument(
-            '-parentid', '-parentId', 
-            metavar='syn123', type=str, required=False, 
+            '-parentid', '-parentId',
+            metavar='syn123', type=str, required=False,
             help='Synapse ID of project or folder where to place folder [not used with project]')
     parser_create.add_argument(
-            '-name', 
+            '-name',
             metavar='NAME', type=str, required=True,
             help='Name of folder/project.')
     parser_create.add_argument(
-            '-description', 
-            metavar='DESCRIPTION', type=str, 
+            '-description',
+            metavar='DESCRIPTION', type=str,
             help='Description of project/folder')
     parser_create.add_argument(
-            'type', 
+            'type',
             type=str,
             help='Type of object to create in synapse one of {Project, Folder}')
     parser_create.set_defaults(func=create)
 
 
     parser_update = subparsers.add_parser(
-            'update', 
+            'update',
             help='uploads a new file to an existing Synapse Entity')
     parser_update.add_argument(
-            '-id', 
+            '-id',
             metavar='syn123', type=str, required=True,
             help='Synapse ID of entity to be updated')
     parser_update.add_argument(
-            'file', 
+            'file',
             type=str,
             help='file to be added to synapse.')
     parser_update.set_defaults(func=update)
 
-    parser_delete = subparsers.add_parser(
-            'delete', 
-            help='removes a dataset from Synapse')
-    parser_delete.add_argument(
-            'id', 
-            metavar='syn123', type=str,
-            help='Synapse ID of form syn123 of desired data object')
-    parser_delete.set_defaults(func=delete)
-
 
     parser_onweb = subparsers.add_parser(
-            'onweb', 
+            'onweb',
             help='opens Synapse website for Entity')
     parser_onweb.add_argument(
-            'id', 
+            'id',
             type=str,
             help='Synapse id')
     parser_onweb.set_defaults(func=onweb)

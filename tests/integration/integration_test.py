@@ -139,6 +139,10 @@ def test_createEntity_with_provenance():
     # Verify the Provenance
     activity = syn.getProvenance(entity)
     assert activity['used'][0]['reference']['targetId'] == 'syn123'
+
+    # test getting a data entity with no locations
+    d1 = syn.get(entity['id'])
+    assert d1.name==entity['name']
     
 
 def test_md5_query():
@@ -521,4 +525,4 @@ def test_evaluations():
     # Clean up
     syn.delete(ev)
     assert_raises(SynapseHTTPError, syn.getEvaluation, ev)
-    
+

@@ -1,26 +1,46 @@
 """
-**********
-Evaluation
-**********
+***********
+Evaluations
+***********
 
-An evaluation object represents a collection of Synapse Entities that will be
+An evaluation_ object represents a collection of Synapse Entities that will be
 processed in a particular way.  This could mean scoring Entries in a challenge
 or executing a processing pipeline.
+
+Imports::
+
+    from synapseclient import Evaluation, Submission, SubmissionStatus
 
 Evaluations can be retrieved by ID::
 
     evaluation = syn.getEvaluation(1901877)
 
-Entities may be submitted for evaluation. 
-The :py:func:`synapseclient.Synapse.submit` method returns a
-:py:class:`synapseclient.evaluation.Submission` object::
+Entities may be submitted for evaluation, if the owner of the evaluation has
+given the current user permission to join the evaluation. To join::
+
+    syn.joinEvaluation(evaluation)
+
+The :py:func:`synapseclient.Synapse.submit` method returns a Submission_ object::
 
     entity = syn.get(synapse_id)
     submission = syn.submit(evaluation, entity, name='My Data', teamName='My Team')
 
-The Submission has a :py:class:`synapseclient.evaluation.SubmissionStatus`::
+The Submission object can then be used to check the `status <#submission-status>`_ of the submission::
 
     status = syn.getSubmissionStatus(submission)
+
+The status of a submission may be:
+    - **INVALID** the submitted entity is in the wrong format
+    - **SCORED** in the context of a challenge or competition
+    - **OPEN** indicating processing *has not* completed
+    - **CLOSED** indicating processing *has* completed
+
+Submission status objects can be updated, usually by changing the *status* and *score*
+fields, and stored back to Synapse using :py:func:`synapseclient.Synapse.store`::
+
+    status.score = 0.99
+    status.status = 'SCORED'
+    status = syn.store(status)
 
 See:
 
@@ -30,23 +50,27 @@ See:
 - :py:func:`synapseclient.Synapse.getSubmissions`
 - :py:func:`synapseclient.Synapse.getSubmission`
 - :py:func:`synapseclient.Synapse.getSubmissionStatus`
-    
+
+~~~~~~~~~~
+Evaluation
+~~~~~~~~~~
+
 .. autoclass:: synapseclient.evaluation.Evaluation
-   :members:
+   :members: __init__
    
 ~~~~~~~~~~
 Submission
 ~~~~~~~~~~
 
 .. autoclass:: synapseclient.evaluation.Submission
-   :members:
+   :members: __init__
    
 ~~~~~~~~~~~~~~~~~
 Submission Status
 ~~~~~~~~~~~~~~~~~
 
 .. autoclass:: synapseclient.evaluation.SubmissionStatus
-   :members:
+   :members: __init__
 
 """
 
@@ -73,15 +97,11 @@ class Evaluation(DictObject):
 
     @classmethod
     def getByNameURI(cls, name):
-        """TODO_Sphinx."""
-        
         return '/evaluation/name/%s' %name
     
     
     @classmethod
     def getURI(cls, id):
-        """TODO_Sphinx."""
-        
         return '/evaluation/%s' %id
 
 
@@ -96,26 +116,20 @@ class Evaluation(DictObject):
 
 
     def postURI(self):
-        """TODO_Sphinx."""
-        
         return '/evaluation'
 
         
     def putURI(self):
-        """TODO_Sphinx."""
-        
         return '/evaluation/%s' %self.id
 
         
     def deleteURI(self):
-        """TODO_Sphinx."""
-        
         return '/evaluation/%s' %self.id
 
 
 class Submission(DictObject):
     """
-    Builds an Synapse submission object
+    Builds an Synapse submission object.
 
     :param entityId:      Synapse ID of the Entity to submit
     :param evaluationId:  ID of the Evaluation to which the Entity is to be submitted
@@ -124,8 +138,6 @@ class Submission(DictObject):
 
     @classmethod
     def getURI(cls, id):
-        """TODO_Sphinx."""
-        
         return '/evaluation/submission/%s' %id
 
 
@@ -139,39 +151,27 @@ class Submission(DictObject):
 
         
     def postURI(self):
-        """TODO_Sphinx."""
-        
         return '/evaluation/submission?etag=%s' %self.etag
 
         
     def putURI(self):
-        """TODO_Sphinx."""
-        
         return '/evaluation/submission/%s' %self.id
 
         
     def deleteURI(self):
-        """TODO_Sphinx."""
-        
         return '/evaluation/submission/%s' %self.id
 
 
 class SubmissionStatus(DictObject):
     """
-    Builds an Synapse submission status object
+    Builds an Synapse submission status object.
 
-    :param etag:       TODO_Sphinx
-    :param id:         TODO_Sphinx
-    :param modifiedOn: TODO_Sphinx
-    :param score:      TODO_Sphinx
-    :param status:     TODO_Sphinx
-                       Status can be one of {'OPEN', 'CLOSED', 'SCORED', 'INVALID'}.
+    :param score:      The score of the submission
+    :param status:     Status can be one of {'OPEN', 'CLOSED', 'SCORED', 'INVALID'}.
     """
 
     @classmethod
     def getURI(cls, id):
-        """TODO_Sphinx."""
-        
         return '/evaluation/submission/%s/status' %id
 
 
@@ -180,20 +180,14 @@ class SubmissionStatus(DictObject):
 
         
     def postURI(self):
-        """TODO_Sphinx."""
-        
         return '/evaluation/submission/%s/status' %self.id
 
         
     def putURI(self):
-        """TODO_Sphinx."""
-        
         return '/evaluation/submission/%s/status' %self.id
 
         
     def deleteURI(self):
-        """TODO_Sphinx."""
-        
         return '/evaluation/submission/%s/status' %self.id
         
         
