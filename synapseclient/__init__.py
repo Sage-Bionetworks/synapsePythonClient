@@ -226,7 +226,7 @@ Access control
 By default, data sets in Synapse are private to your user account, but they can
 easily be shared with specific users, groups, or the public.
 
-TODO: finish this once there is a reasonable way to find principleIds.
+TODO: finish this once there is a reasonable way to find principalIds.
 
 See:
 
@@ -255,6 +255,11 @@ For more information see the
 API docs are browsable online at 
 `python-docs.synapse.org <http://python-docs.synapse.org/>`_.
 
+Getting updates
+===============
+
+To get information about new versions of the client including development versions
+see `synapseclient.check_for_updates() <_static/Versions.html#synapseclient.version_check.check_for_updates>`_ and `synapseclient.release_notes() <_static/Versions.html#synapseclient.version_check.release_notes>`_.
 """
 
 import json
