@@ -1224,8 +1224,6 @@ class Synapse:
                   or an empty array
 
         """
-
-        ## TODO: look up user by email?
         ## TODO: what if user has permissions by membership in a group?
         principalId = self.__getUserbyPrincipalIdOrName(principalId)
         acl = self._getACL(entity)
