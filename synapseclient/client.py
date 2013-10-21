@@ -1872,6 +1872,19 @@ class Synapse:
         
         uri = Evaluation.getByNameURI(urllib.quote(name))
         return Evaluation(**self.restGET(uri))
+        
+    
+    def getEvaluationByContentSource(self, entity):
+        """
+        Returns a generator over evaluations that 
+        derive their content from the given entity
+        """
+        
+        entityId = id_of(entity)
+        url = "/entity/%s/evaluation" % entityId
+            
+        for result in self._GET_paginated(url):
+            yield Evaluation(**result)
 
 
     def submit(self, evaluation, entity, name=None, teamName=None):
