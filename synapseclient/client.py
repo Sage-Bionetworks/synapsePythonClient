@@ -2203,8 +2203,15 @@ class Synapse:
         
         # Perform a create if the Wiki has no ID
         else:
-            wiki.update(self.restPOST(wiki.postURI(), wiki.json()))
-            
+            try:
+                wiki.update(self.restPOST(wiki.postURI(), wiki.json()))
+            except SynapseHTTPError as err:
+                # If already present we get an unhelpful SQL error
+                # SYNR-631
+                if err.response.status_code == 400 and "DuplicateKeyException" in err.message:
+                    raise SynapseHTTPError("Can't re-create a wiki that already exists. CreateOrUpdate not yet supported for wikis.", response=err.response)
+                raise
+
         return wiki
 
         
