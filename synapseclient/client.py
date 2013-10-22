@@ -534,7 +534,14 @@ class Synapse:
         """
         
         version = kwargs.get('version', None)
-        return self._getWithEntityBundle(entity, entityBundle=self._getEntityBundle(entity, version), **kwargs)
+
+        bundle = self._getEntityBundle(entity, version)
+
+        # Check and warn for unmet access requirements
+        if len(bundle['unmetAccessRequirements']) > 0:
+            sys.stderr.write("\nWARNING: This entity has access restrictions. Please visit the web page for this entity (syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to review and fulfill its download requirement(s).\n" % id_of(entity))
+
+        return self._getWithEntityBundle(entity, entityBundle=bundle, **kwargs)
         
     def _getWithEntityBundle(self, entity, **kwargs):
         """
@@ -718,6 +725,7 @@ class Synapse:
         entity = obj
         properties, annotations, local_state = split_entity_namespaces(entity)
         isLocationable = is_locationable(properties)
+        bundle = None
 
         # Anything with a path is treated as a cache-able item (FileEntity or Locationable)
         if entity.get('path', False):
@@ -771,11 +779,21 @@ class Synapse:
                     existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', ROOT_ENTITY))
                     if existing_entity_id is None: raise
 
-                    # Update the conflicting Entity
-                    existing_entity = self._getEntity(existing_entity_id)
+                    # get existing properties and annotations
+                    if not bundle:
+                        bundle = self._getEntityBundle(existing_entity_id, bitFlags=0x1|0x2)
+
                     # Need some fields from the existing entity: id, etag, and version info.
+                    existing_entity = bundle['entity']
+
+                    # Update the conflicting Entity
                     existing_entity.update(properties)
                     properties = self._updateEntity(existing_entity, forceVersion, versionLabel)
+
+                    # Merge new annotations with existing annotations
+                    existing_annos = bundle['annotations']
+                    existing_annos.update(annotations)
+                    annotations = existing_annos
                 else:
                     raise
 
@@ -809,26 +827,36 @@ class Synapse:
         return Entity.create(properties, annotations, local_state)
 
     
-    ## TODO: add bitFlag parameter?
-    def _getEntityBundle(self, entity, version=None):
+    def _getEntityBundle(self, entity, version=None, bitFlags=None):
         """
         Gets some information about the Entity.
+
+        :parameter entity: a Synapse Entity or Synapse ID
+        :parameter version: the entity's version (defaults to None meaning most recent version)
+        :parameter bitFlags: Bit flags representing which entity components to return
+
+        EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)::
+
+            ENTITY                    = 0x1
+            ANNOTATIONS               = 0x2
+            PERMISSIONS               = 0x4
+            ENTITY_PATH               = 0x8
+            ENTITY_REFERENCEDBY       = 0x10
+            HAS_CHILDREN              = 0x20
+            ACL                       = 0x40
+            ACCESS_REQUIREMENTS       = 0x200
+            UNMET_ACCESS_REQUIREMENTS = 0x400
+            FILE_HANDLES              = 0x800
+
+        For example, we might ask for an entity bundle containing file handles, annotations, and properties::
+
+            bundle = syn._getEntityBundle('syn111111', bitFlags=0x800|0x2|0x1)
         
-        :returns: An EntityBundle with the Entity header, annotations, unmet access requirements, and file handles
+        :returns: An EntityBundle with the requested fields or by default Entity header, annotations, unmet access requirements, and file handles
         """
         
-        # EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)
-        # ENTITY                    = 0x1
-        # ANNOTATIONS               = 0x2
-        # PERMISSIONS               = 0x4
-        # ENTITY_PATH               = 0x8
-        # ENTITY_REFERENCEDBY       = 0x10
-        # HAS_CHILDREN              = 0x20
-        # ACL                       = 0x40
-        # ACCESS_REQUIREMENTS       = 0x200
-        # UNMET_ACCESS_REQUIREMENTS = 0x400
-        # FILE_HANDLES              = 0x800
-        bitFlags = 0x800 | 0x400 | 0x2 | 0x1
+        if not bitFlags:
+            bitFlags = 0x800 | 0x400 | 0x2 | 0x1
 
         # If 'entity' is given without an ID, try to find it by 'parentId' and 'name'.
         # Use case:
@@ -847,10 +875,6 @@ class Synapse:
         else:
             uri = '/entity/%s/bundle?mask=%d' %(id_of(entity), bitFlags)
         bundle = self.restGET(uri)
-        
-        # Check and warn for unmet access requirements
-        if len(bundle['unmetAccessRequirements']) > 0:
-            sys.stderr.write("\nWARNING: This entity has access restrictions. Please visit the web page for this entity (syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to review and fulfill its download requirement(s).\n" % id_of(entity))
         
         return bundle
 

@@ -299,3 +299,30 @@ def test_path_in_annotations_of_data_entities_bug():
     assert not 'path' in data2.annotations
     assert not 'cacheDir' in data2.annotations
 
+
+def test_create_or_update_project():
+    name = str(uuid.uuid4())
+
+    project = Project(name, a=1, b=2)
+    syn.store(project)
+
+    project = Project(name, b=3, c=4)
+    project = syn.store(project)
+
+    assert project.a == [1]
+    assert project.b == [3]
+    assert project.c == [4]
+
+    project = syn.get(project.id)
+
+    assert project.a == [1]
+    assert project.b == [3]
+    assert project.c == [4]
+
+    project = Project(name, c=5, d=6)
+    try:
+        project = syn.store(project, createOrUpdate=False)
+        assert False, "Expect an exception from storing an existing project with createOrUpdate=False"
+    except Exception as ex1:
+        pass
+
