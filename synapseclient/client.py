@@ -1210,7 +1210,7 @@ class Synapse:
             if userProfiles['totalNumberOfResults']==1:
                 return  int(userProfiles['children'][0]['ownerId'])
             else:
-                raise SynapseError('Unkown user specified please specify ')
+                raise SynapseError('Unkown Synapse user specified please be more specific')
 
 
     def getPermissions(self, entity, principalId=None):
