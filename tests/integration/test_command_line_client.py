@@ -278,8 +278,6 @@ def test_command_line_store_and_submit():
     output = run('synapse',
                  '--skip-checks',
                  'store',
-                 '--name',
-                 'BogusFileEntity',
                  '--description',
                  'Bogus data to test file upload', 
                  '--parentid',
@@ -292,6 +290,9 @@ def test_command_line_store_and_submit():
     f1 = syn.get(file_entity_id)
     fh = syn._getFileHandle(f1.dataFileHandleId)
     assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
+
+    # Test that entity is named after the file it contains
+    assert f1.name == os.path.basename(filename)
     
     # Create an Evaluation to submit to
     eval = Evaluation(name=str(uuid.uuid4()), contentSource=project_id)
