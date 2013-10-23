@@ -33,7 +33,7 @@ def setup(module):
     if 'principalId' not in other_user:
         # Fall back on Chris's principalId
         other_user['principalId'] = 1421212
-
+        other_user['email'] = 'chris.bare@sagebase.org'
 
 def test_ACL():
     # Get the user's principalId, which is called ownerId and is
@@ -57,6 +57,18 @@ def test_ACL():
     assert 'READ' in permissions
     assert 'CREATE' in permissions
     assert 'UPDATE' in permissions
+
+    #Make sure it works to set/getPermissions by email
+    email = other_user['email']
+    acl = syn.setPermissions(project, email, accessType=['READ'])
+    permissions = syn.getPermissions(project, email)
+    assert 'READ' in permissions and len(permissions)==1
+
+    #Get permissionsons of PUBLIC user
+    permissions = syn.getPermissions(project)
+    assert len(permissions)==0
+    
+    
 
 
 def test_get_entity_owned_by_another_user():

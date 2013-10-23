@@ -70,6 +70,7 @@ CHUNK_SIZE = 5*MB
 QUERY_LIMIT = 5000
 CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
+PUBLIC = 273949  #PrincipalId of public "user"
 DEBUG_DEFAULT = False
 
 
@@ -1192,20 +1193,39 @@ class Synapse:
             return self.restPOST(uri,json.dumps(acl))
 
 
-    def getPermissions(self, entity, principalId):
+    def __getUserbyPrincipalIdOrName(self, principalId=None):
+        """Given either a string, int or None finds corresponding user where None
+        means public
+ 
+        :param principalId:       Identifier of a user or group
+
+        :returns: int representing principalId
         """
-        Get the permissions that a user or group has on an Entity.
+        if principalId is None:
+            return  PUBLIC
+        try: #If principalId is not a number assume it is a name or email
+            return int(principalId)
+        except ValueError:
+            userProfiles = self.restGET('/userGroupHeaders?prefix=%s' % principalId)
+            if userProfiles['totalNumberOfResults']==1:
+                return  int(userProfiles['children'][0]['ownerId'])
+            else:
+                raise SynapseError('Unkown Synapse user specified please be more specific')
+
+
+    def getPermissions(self, entity, principalId=None):
+        """Get the permissions that a user or group has on an Entity. 
 
         :param entity:      An Entity or Synapse ID to lookup
-        :param principalId: Identifier of a user or group
+        :param principalId: Identifier of a user or group (defaults to PUBLIC users)
         
         :returns: An array containing some combination of 
                   ['READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS', 'DOWNLOAD', 'PARTICIPATE']
                   or an empty array
-        """
 
-        ## TODO: look up user by email?
+        """
         ## TODO: what if user has permissions by membership in a group?
+        principalId = self.__getUserbyPrincipalIdOrName(principalId)
         acl = self._getACL(entity)
         for permissions in acl['resourceAccess']:
             if 'principalId' in permissions and permissions['principalId'] == int(principalId):
@@ -1213,7 +1233,9 @@ class Synapse:
         return []
 
 
-    def setPermissions(self, entity, principalId, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True):
+
+
+    def setPermissions(self, entity, principalId=None, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True):
         """
         Sets permission that a user or group has on an Entity.
         An Entity may have its own ACL or inherit its ACL from a benefactor.  
@@ -1233,7 +1255,7 @@ class Synapse:
         """
 
         benefactor = self._getBenefactor(entity)
-
+        principalId = self.__getUserbyPrincipalIdOrName(principalId)
         if benefactor['id'] != id_of(entity):
             if modify_benefactor:
                 entity = benefactor
@@ -1242,8 +1264,6 @@ class Synapse:
                                  'which formerly inherited access control '
                                  'from a benefactor entity, "%s" (%s).\n' 
                                  % (id_of(entity), benefactor['name'], benefactor['id']))
-
-        principalId = int(principalId)
 
         acl = self._getACL(entity)
 
