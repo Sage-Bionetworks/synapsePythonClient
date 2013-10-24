@@ -491,3 +491,27 @@ def _synapse_error_msg(ex):
     return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
 
 
+def _limit_and_offset(uri, limit=None, offset=None):
+    """
+    Set limit and/or offset query parameters of the given URI.
+    """
+    parts = urlparse.urlparse(uri)
+    query = urlparse.parse_qs(parts.query)
+    if limit is None:
+        query.pop('limit', None)
+    else:
+        query['limit'] = limit
+    if offset is None:
+        query.pop('offset', None)
+    else:
+        query['offset'] = offset
+    new_query_string = urllib.urlencode(query, doseq=True)
+    return urlparse.urlunparse(urlparse.ParseResult(
+        scheme=parts.scheme,
+        netloc=parts.netloc,
+        path=parts.path,
+        params=parts.params,
+        query=new_query_string,
+        fragment=parts.fragment))
+
+

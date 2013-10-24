@@ -263,4 +263,31 @@ def test_normalize_path():
     ## what's the right thing to do for None?
     assert utils.normalize_path(None) is None
 
+def test_limit_and_offset():
+    def query_params(uri):
+        """Return the query params as a dict"""
+        return dict([kvp.split('=') for kvp in uri.split('?')[1].split('&')])
+
+    qp = query_params(utils._limit_and_offset('/asdf/1234', limit=10, offset=0))
+    assert qp['limit'] == '10'
+    assert qp['offset'] == '0'
+
+    qp = query_params(utils._limit_and_offset('/asdf/1234?limit=5&offset=10', limit=25, offset=50))
+    assert qp['limit'] == '25'
+    assert qp['offset'] == '50'
+    assert len(qp) == 2
+
+    qp = query_params(utils._limit_and_offset('/asdf/1234?foo=bar', limit=10, offset=30))
+    assert qp['limit'] == '10'
+    assert qp['offset'] == '30'
+    assert qp['foo'] == 'bar'
+    assert len(qp) == 3
+
+    qp = query_params(utils._limit_and_offset('/asdf/1234?foo=bar&a=b', limit=10))
+    assert qp['limit'] == '10'
+    assert 'offset' not in qp
+    assert qp['foo'] == 'bar'
+    assert qp['a'] == 'b'
+    assert len(qp) == 3
+
 

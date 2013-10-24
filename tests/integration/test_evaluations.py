@@ -1,4 +1,4 @@
-import tempfile, os, sys, filecmp, shutil, requests, json
+import tempfile, os, re, sys, filecmp, shutil, requests, json
 import uuid, random, base64
 from nose.tools import assert_raises
 
@@ -113,7 +113,7 @@ def test_evaluations():
         os.write(fd, str(random.gauss(0,1)) + '\n')
         os.close(fd)
         f = File(filename, parentId=other_project.id, 
-                 name='Different from file name', 
+                 name='Submission 999', 
                  description ="Haha!  I'm inaccessible...")
         entity = testSyn.store(f)
         submission = testSyn.submit(ev, entity)
@@ -132,8 +132,11 @@ def test_evaluations():
     except ConfigParser.Error:
         print 'Skipping test for SYNR-541: No [test-authentication] in %s' % client.CONFIG_FILE
 
+    # Increase this to fully test paging by getEvaluationSubmissions
+    # not to be less than 2
+    num_of_submissions = 2
+
     # Create a bunch of Entities and submit them for scoring
-    num_of_submissions = 3 # Increase this to fully test paging by getEvaluationSubmissions
     print "Creating Submissions"
     for i in range(num_of_submissions):
         fd, filename = tempfile.mkstemp()
@@ -143,18 +146,27 @@ def test_evaluations():
         f = File(filename, parentId=project.id, name='entry-%02d' % i,
                  description='An entry for testing evaluation')
         entity=syn.store(f)
-        syn.submit(ev, entity, name='Different from file name', teamName='My Team')
+        syn.submit(ev, entity, name='Submission %02d' % i, teamName='My Team')
 
     # Score the submissions
     submissions = syn.getSubmissions(ev)
     print "Scoring Submissions"
     for submission in submissions:
-        assert submission['name'] == 'Different from file name'
+        assert re.match('Submission \d+', submission['name'])
         status = syn.getSubmissionStatus(submission)
         status.score = random.random()
-        status.status = 'SCORED'
-        status.report = 'a fabulous effort!'
+        if submission['name'] == 'Submission 01':
+            status.status = 'INVALID'
+            status.report = 'Uh-oh, something went wrong!'
+        else:
+            status.status = 'SCORED'
+            status.report = 'a fabulous effort!'
         syn.store(status)
+
+    ## Test that we can retrieve submissions with a specific status
+    invalid_submissions = list(syn.getSubmissions(ev, status='INVALID'))
+    assert len(invalid_submissions) == 1, len(invalid_submissions)
+    assert invalid_submissions[0]['name'] == 'Submission 01'
 
     # Clean up
     syn.delete(ev)

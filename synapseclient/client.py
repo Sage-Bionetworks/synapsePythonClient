@@ -1968,6 +1968,7 @@ class Synapse:
             accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
             raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
         
+        ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
             entity = self.get(entity)
         entity_version = entity['versionNumber']
@@ -2079,16 +2080,16 @@ class Synapse:
         """
         
         evaluation_id = id_of(evaluation)
-        url = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
+        uri = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
         if status != None:
             if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
                 raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
             uri += "?status=%s" % status
             
-        for result in self._GET_paginated(url):
+        for result in self._GET_paginated(uri):
             yield Submission(**result)
-            
-            
+
+
     def _GET_paginated(self, url):
         """
         :param url: A URL that returns paginated results
@@ -2107,13 +2108,7 @@ class Synapse:
             if result_count >= offset + len(results):
                 # Add the query terms to the URL
                 offset += limit
-                parsedURL = urlparse.urlparse(url)
-                query = urlparse.parse_qs(parsedURL.query)
-                query['limit'] = limit
-                query['offset'] = offset
-                modifiedURL = "%s?%s" % (parsedURL.path, urllib.urlencode(query))
-                
-                page = self.restGET(modifiedURL)
+                page = self.restGET(utils._limit_and_offset(url, limit=limit, offset=offset))
                 max_results = page['totalNumberOfResults']
                 results = page['results']
                 if len(results)==0:
