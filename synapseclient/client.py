@@ -2085,9 +2085,41 @@ class Synapse:
             if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
                 raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
             uri += "?status=%s" % status
-            
+
         for result in self._GET_paginated(uri):
             yield Submission(**result)
+
+
+    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False):
+        """
+        :param evaluation: Evaluation to get submissions from.
+        :param status:     Optionally filter submissions for a specific status.
+                           One of {OPEN, CLOSED, SCORED, INVALID}
+        :param myOwn:      Determines if only your Submissions should be fetched.
+                           Defaults to False (all Submissions)
+
+        :returns: A generator over dictionaries with keys 'submission' and 'submissionStatus'.
+
+        Example::
+
+            for sb in syn._getSubmissionBundles(1234567):
+                print sb['submission']['name'], \\
+                      sb['submission']['submitterAlias'], \\
+                      sb['submissionStatus']['status'], \\
+                      sb['submissionStatus']['score']
+
+        This may later be changed to return objects, pending some thought on how submissions
+        along with related status and annotations should be represented in the clients.
+
+        See: :py:mod:`synapseclient.evaluation`
+        """
+
+        evaluation_id = id_of(evaluation)
+        url = "/evaluation/%s/submission/bundle%s" % (evaluation_id, "" if myOwn else "/all")
+        if status != None:
+            url += "?status=%s" % status
+
+        return self._GET_paginated(url)
 
 
     def _GET_paginated(self, url):
