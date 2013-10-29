@@ -1193,24 +1193,30 @@ class Synapse:
             return self.restPOST(uri,json.dumps(acl))
 
 
-    def __getUserbyPrincipalIdOrName(self, principalId=None):
-        """Given either a string, int or None finds corresponding user where None
-        means public
+    def _getUserbyPrincipalIdOrName(self, principalId=None):
+        """
+        Given either a string, int or None
+        finds the corresponding user 
+        where None implies PUBLIC
  
-        :param principalId:       Identifier of a user or group
+        :param principalId: Identifier of a user or group
 
-        :returns: int representing principalId
+        :returns: The integer ID of the user
         """
         if principalId is None:
-            return  PUBLIC
-        try: #If principalId is not a number assume it is a name or email
+            return PUBLIC
+        try: 
             return int(principalId)
+            
+        # If principalId is not a number assume it is a name or email
         except ValueError:
             userProfiles = self.restGET('/userGroupHeaders?prefix=%s' % principalId)
-            if userProfiles['totalNumberOfResults']==1:
-                return  int(userProfiles['children'][0]['ownerId'])
-            else:
-                raise SynapseError('Unkown Synapse user specified please be more specific')
+            totalResults = userProfiles['totalNumberOfResults']
+            if totalResults == 1:
+                return int(userProfiles['children'][0]['ownerId'])
+            
+            supplementalMessage = 'Please be more specific' if totalResults > 1 else 'No matches'
+            raise SynapseError('Unknown Synapse user (%s).  %s.' % (principalId, supplementalMessage))
 
 
     def getPermissions(self, entity, principalId=None):
@@ -1225,7 +1231,7 @@ class Synapse:
 
         """
         ## TODO: what if user has permissions by membership in a group?
-        principalId = self.__getUserbyPrincipalIdOrName(principalId)
+        principalId = self._getUserbyPrincipalIdOrName(principalId)
         acl = self._getACL(entity)
         for permissions in acl['resourceAccess']:
             if 'principalId' in permissions and permissions['principalId'] == int(principalId):
@@ -1255,7 +1261,7 @@ class Synapse:
         """
 
         benefactor = self._getBenefactor(entity)
-        principalId = self.__getUserbyPrincipalIdOrName(principalId)
+        principalId = self._getUserbyPrincipalIdOrName(principalId)
         if benefactor['id'] != id_of(entity):
             if modify_benefactor:
                 entity = benefactor
@@ -1987,11 +1993,7 @@ class Synapse:
                 
         except ValueError:
             # Fetch the ID of the user group
-            groups = self.restGET('/userGroupHeaders?prefix=%s' % user)
-            for child in groups['children']:
-                if not child['isIndividual'] and child['displayName'] == user:
-                    userId = child['ownerId']
-                    break
+            userId = self._getUserbyPrincipalIdOrName(user)
             
         # Grab the ACL 
         evaluation_id = id_of(evaluation)
