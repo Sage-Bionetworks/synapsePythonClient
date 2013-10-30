@@ -382,8 +382,8 @@ def test_wikiAttachment():
 
     # Check the Wiki's metadata
     headers = syn.getWikiHeaders(project)
-    assert headers['totalNumberOfResults'] == 2
-    assert headers['results'][0]['title'] in (wiki['title'], subwiki['title'])
+    assert len(headers) == 2
+    assert headers[0]['title'] in (wiki['title'], subwiki['title'])
 
     # # Retrieve the file attachment
     # tmpdir = tempfile.mkdtemp()

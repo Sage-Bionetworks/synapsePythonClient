@@ -48,6 +48,7 @@ from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, split_entity_namespaces, is_versionable, is_locationable
+from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
 from synapseclient.retry import _with_retry
@@ -2211,20 +2212,11 @@ class Synapse:
         
         :param owner: An Evaluation or Entity
         
-        :returns: A dictionary with the following format:
-
-        .. code-block:: python
-
-            {'results': [
-                {'id': '100', 'title': 'Root'},
-                {'id': '102', 'parentId': '100', 'title': 'Child wiki page 1'},
-                {'id': '103', 'parentId': '100', 'title': 'Child wiki page 2'}],
-             'totalNumberOfResults': 3}
-
+        :returns: A list of Objects with three fields: id, title and parentId.
         """
-        
+
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
-        return self.restGET(uri)
+        return [DictObject(**header) for header in self.restGET(uri)['results']]
 
     
     def _storeWiki(self, wiki):
