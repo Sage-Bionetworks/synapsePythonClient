@@ -828,7 +828,7 @@ class Synapse:
         return Entity.create(properties, annotations, local_state)
 
     
-    def _getEntityBundle(self, entity, version=None, bitFlags=None):
+    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x400 | 0x2 | 0x1):
         """
         Gets some information about the Entity.
 
@@ -855,9 +855,6 @@ class Synapse:
         
         :returns: An EntityBundle with the requested fields or by default Entity header, annotations, unmet access requirements, and file handles
         """
-        
-        if not bitFlags:
-            bitFlags = 0x800 | 0x400 | 0x2 | 0x1
 
         # If 'entity' is given without an ID, try to find it by 'parentId' and 'name'.
         # Use case:
