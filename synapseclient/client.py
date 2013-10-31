@@ -1225,7 +1225,7 @@ class Synapse:
 
         :returns: The integer ID of the user
         """
-        if principalId is None:
+        if principalId is None or principalId=='PUBLIC':
             return PUBLIC
         try: 
             return int(principalId)
