@@ -349,7 +349,7 @@ class Synapse:
                 session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.headers)
                 return session['sessionToken']
             except SynapseHTTPError as err:
-                if err.response.status_code == 400:
+                if err.response.status_code == 403 or err.response.status_code == 404:
                     raise SynapseAuthenticationError("Invalid username or password.")
                 raise
                     
@@ -363,7 +363,7 @@ class Synapse:
                 return sessionToken
                 
             except SynapseHTTPError as err:
-                if err.response.status_code == 404:
+                if err.response.status_code == 401:
                     raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
                 raise
         else:
