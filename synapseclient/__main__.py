@@ -151,6 +151,8 @@ def delete(args, syn):
     
 def add(args, syn):
     if args.type == 'File': args.type = 'FileEntity'
+    if args.file and not args.name:
+        args.name = utils.guess_file_name(args.file)
     entity = {'name': args.name,
               'parentId': args.parentid,
               'description':args.description,
