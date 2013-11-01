@@ -472,6 +472,29 @@ class Synapse:
         return self.restGET(uri, headers={'sessionToken' : sessionToken})
 
 
+    def _findPrincipals(self, query_string):
+        """
+        Find users or groups by name or email.
+
+        :returns: A list of userGroupHeader objects with fields displayName, email, firstName, lastName, isIndividual, ownerId
+
+        Example::
+
+            syn._findPrincipals('test')
+
+            [{u'displayName': u'Synapse Test',
+              u'email': u'syn...t@sagebase.org',
+              u'firstName': u'Synapse',
+              u'isIndividual': True,
+              u'lastName': u'Test',
+              u'ownerId': u'1560002'},
+             {u'displayName': ... }]
+
+        """
+        uri = '/userGroupHeaders?prefix=%s' % query_string
+        return [DictObject(**result) for result in self._GET_paginated(uri)]
+
+
     def onweb(self, entity, subpageId=None):
         """
         Opens up a browser window to the entity page or wiki-subpage.
@@ -1227,9 +1250,9 @@ class Synapse:
         """
         if principalId is None or principalId=='PUBLIC':
             return PUBLIC
-        try: 
+        try:
             return int(principalId)
-            
+
         # If principalId is not a number assume it is a name or email
         except ValueError:
             userProfiles = self.restGET('/userGroupHeaders?prefix=%s' % principalId)
@@ -1259,8 +1282,6 @@ class Synapse:
             if 'principalId' in permissions and permissions['principalId'] == int(principalId):
                 return permissions['accessType']
         return []
-
-
 
 
     def setPermissions(self, entity, principalId=None, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True):
@@ -2140,7 +2161,7 @@ class Synapse:
                 offset += limit
                 page = self.restGET(utils._limit_and_offset(url, limit=limit, offset=offset))
                 max_results = page['totalNumberOfResults']
-                results = page['results']
+                results = page['results'] if 'results' in page else page['children']
                 if len(results)==0:
                     return
 
