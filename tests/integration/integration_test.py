@@ -28,10 +28,10 @@ def setup(module):
 
 
 def test_login():
-    # Test that we fail gracefully with wrong user
-    assert_raises(SynapseAuthenticationError, syn.login, 'asdf', 'notarealpassword')
-
     try:
+        # Test that we fail gracefully with wrong user
+        assert_raises(SynapseAuthenticationError, syn.login, 'asdf', 'notarealpassword')
+
         config = ConfigParser.ConfigParser()
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
@@ -87,8 +87,9 @@ def test_login():
     except ConfigParser.Error:
         print "To fully test the login method, please supply a username and password in the configuration file"
 
-    # Login with config file
-    syn.login(rememberMe=True, silent=True)
+    finally:
+        # Login with config file
+        syn.login(rememberMe=True, silent=True)
 
 
 def test_entity_version():
