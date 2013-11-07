@@ -215,6 +215,7 @@ def test_uploadFileEntity():
 
     # Download and verify
     entity = syn.downloadEntity(entity)
+    syn.printEntity(entity)
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
