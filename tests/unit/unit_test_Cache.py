@@ -122,7 +122,7 @@ def test_iterator_over_cache_map(*mocks):
     assert_raises(StopIteration, iter.next)
 
     # Lock should only ever be gotten once
-    read_mock.assert_called_ones_with(None)
+    read_mock.assert_called_once_with(None)
     write_mock.assert_called_once_with(None)
 
     

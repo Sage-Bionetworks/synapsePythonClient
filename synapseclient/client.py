@@ -690,6 +690,7 @@ class Synapse:
         :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj' conflicts with an existing Synapse object.  Defaults to True. 
         :param forceVersion:        Indicates whether the method should increment the version of the object even if nothing has changed.  Defaults to True.
         :param versionLabel:        Arbitrary string used to label the version.  
+        :param isRestricted:        Indicates whether the method should add access requirements to the entity
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
@@ -789,8 +790,6 @@ class Synapse:
                 # But becomes an update() due to conflict
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
 
-        ## TODO: deal with access restrictions
-
         # Create or update Entity in Synapse
         if 'id' in properties:
             properties = self._updateEntity(properties, forceVersion, versionLabel)
@@ -821,6 +820,9 @@ class Synapse:
                 else:
                     raise
 
+        # Deal with access restrictions
+        if isRestricted:
+            self._createAccessRequirementIfNone(properties)
 
         # Update annotations
         annotations['etag'] = properties['etag']
@@ -849,6 +851,17 @@ class Synapse:
 
         # Return the updated Entity object
         return Entity.create(properties, annotations, local_state)
+        
+        
+    def _createAccessRequirementIfNone(self, entity):
+        """
+        Checks to see if the given entity has access requirements.
+        If not, then one is added
+        """
+        
+        existingRestrictions = self.restGET('/entity/%s/accessRequirement' % id_of(entity))
+        if existingRestrictions['totalNumberOfResults'] <= 0:
+            self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
     
     def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x400 | 0x2 | 0x1):
