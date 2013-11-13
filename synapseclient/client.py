@@ -616,6 +616,10 @@ class Synapse:
                         if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                             entity['externalURL'] = handle['externalURL']
                             entity['synapseStore'] = False
+                            
+                            # It is unnecessary to hit the caching logic for external URLs not being downloaded
+                            if not downloadFile:
+                                return entity
         
             # Determine if the file should be downloaded
             downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
@@ -658,7 +662,7 @@ class Synapse:
                 # The local state of the Entity is normally updated by the _downloadFileEntity method
                 # If the file exists locally, make sure the entity points to it
                 localFileInfo = cache.retrieve_local_file_info(bundle, downloadPath)
-                if 'path' in localFileInfo and localFileInfo['path'] is not None and os.path.exists(localFileInfo['path']):
+                if 'path' in localFileInfo and localFileInfo['path'] is not None and os.path.isfile(localFileInfo['path']):
                     entity.update(localFileInfo)
                 
                 # If the file was not downloaded and does not exist, set the synapseStore flag appropriately

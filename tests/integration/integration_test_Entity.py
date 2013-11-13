@@ -364,12 +364,28 @@ def test_download_file_false():
     assert filecmp.cmp(filepath + RENAME_SUFFIX, reupload.path)
     assert reupload.name == file.name
 
-    # Try a URL
+def test_download_file_URL_false():
+    # Upload an external file handle
     fileThatExists = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient'
-    reupload.synapseStore = False
-    reupload.path = fileThatExists
+    reupload = File(fileThatExists, synapseStore=False, parent=project)
     reupload = syn.store(reupload)
     reupload = syn.get(reupload, downloadFile=False)
-    reupload = syn.store(reupload)
+    originalVersion = reupload.versionNumber
+    
+    # Reupload and check that the URL and version does not get mangled
+    reupload = syn.store(reupload, forceVersion=False)
     assert reupload.path == fileThatExists, "Entity should still be pointing at a URL"
+    assert originalVersion == reupload.versionNumber
+
+    # Try a URL with an extra slash at the end
+    fileThatDoesntExist = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient/'
+    reupload.synapseStore = False
+    reupload.path = fileThatDoesntExist
+    reupload = syn.store(reupload)
+    reupload = syn.get(reupload, downloadFile=False)
+    originalVersion = reupload.versionNumber
+    
+    reupload = syn.store(reupload, forceVersion=False)
+    assert reupload.path == fileThatDoesntExist, "Entity should still be pointing at a URL"
+    assert originalVersion == reupload.versionNumber
 
