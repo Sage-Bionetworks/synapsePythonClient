@@ -617,8 +617,9 @@ class Synapse:
                             entity['externalURL'] = handle['externalURL']
                             entity['synapseStore'] = False
                             
-                            # It is unnecessary to hit the caching logic for external file handles
-                            return entity
+                            # It is unnecessary to hit the caching logic for external URLs not being downloaded
+                            if not downloadFile:
+                                return entity
         
             # Determine if the file should be downloaded
             downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)

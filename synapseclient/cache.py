@@ -72,8 +72,14 @@ def local_file_has_changed(entityBundle, checkIndirect, path=None):
     if path is None:
         return False
         
-    # External URLs will be ignored
+    # For external URLs, if the path has not changed
+    # then the file handle does not have to change
     if utils.is_url(path):
+        for handle in entityBundle['fileHandles']:
+            if handle['id'] == entityBundle['entity']['dataFileHandleId'] \
+                    and handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle' \
+                    and handle['externalURL'] == path:
+                return False
         return True
     
     # Compare the modification times
