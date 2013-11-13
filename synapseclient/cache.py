@@ -40,6 +40,8 @@ CACHE_FANOUT = 1000
 CACHE_MAX_LOCK_TRY_TIME = 70
 CACHE_LOCK_TIME = 10
 CACHE_UNLOCK_WAIT_TIME = 0.5
+CACHE_MAP_NAME = '.cacheMap'
+CACHE_LOCK_SUFFIX = '.lock'
 
 
 def local_file_has_changed(entityBundle, checkIndirect, path=None):
@@ -231,8 +233,8 @@ def obtain_lock_and_read_cache(cacheDir):
     :returns: A dictionary with the JSON contents of the locked '.cacheMap'
     """
     
-    cacheLock = os.path.join(cacheDir, '.lock')
-    cacheMap = os.path.join(cacheDir, '.cacheMap')
+    cacheMap = os.path.join(cacheDir, CACHE_MAP_NAME)
+    cacheLock = cacheMap + CACHE_LOCK_SUFFIX
     
     # Make and thereby obtain the '.lock'
     tryLockStartTime = time.time()
@@ -280,7 +282,7 @@ def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
     :param cacheMapBody: JSON object to write in the '.cacheMap' before releasing the lock.
     """
     
-    cacheLock = os.path.join(cacheDir, '.lock')
+    cacheLock = os.path.join(cacheDir, CACHE_MAP_NAME + CACHE_LOCK_SUFFIX)
     
     # Update the '.cacheMap'
     if cacheMapBody is not None:
@@ -292,7 +294,7 @@ def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
             relockedCacheMap.update(cacheMapBody)
             cacheMapBody = relockedCacheMap
         
-        cacheMap = os.path.join(cacheDir, '.cacheMap')
+        cacheMap = os.path.join(cacheDir, CACHE_MAP_NAME)
         with open(cacheMap, 'w') as f:
             json.dump(cacheMapBody, f)
             f.write('\n') # For compatibility with R's JSON parser
