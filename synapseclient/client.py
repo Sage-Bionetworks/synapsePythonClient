@@ -690,7 +690,11 @@ class Synapse:
         :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj' conflicts with an existing Synapse object.  Defaults to True. 
         :param forceVersion:        Indicates whether the method should increment the version of the object even if nothing has changed.  Defaults to True.
         :param versionLabel:        Arbitrary string used to label the version.  
-        :param isRestricted:        Indicates whether the method should add access requirements to the entity
+        :param isRestricted:        If set to true, an email will be sent to the Synapse access control team 
+                                    to start the process of adding terms-of-use 
+                                    or review board approval for this entity. 
+                                    You will be contacted with regards to the specific data being restricted 
+                                    and the requirements of access.
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
