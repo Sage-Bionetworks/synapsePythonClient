@@ -656,11 +656,15 @@ class Synapse:
                     entity.update(self._downloadFileEntity(entity, downloadPath, submission))
             else:
                 # The local state of the Entity is normally updated by the _downloadFileEntity method
-                # Use the EntityBundle to fill in the path information
-                entity.update(cache.retrieve_local_file_info(bundle, downloadPath))
+                # If the file exists locally, make sure the entity points to it
+                localFileInfo = cache.retrieve_local_file_info(bundle, downloadPath)
+                if 'path' in localFileInfo and localFileInfo['path'] is not None and os.path.exists(localFileInfo['path']):
+                    entity.update(localFileInfo)
                 
                 # If the file was not downloaded and does not exist, set the synapseStore flag appropriately
-                if not isLocationable and 'path' in entity and not os.path.exists(entity['path']):
+                if not isLocationable \
+                        and 'path' in entity \
+                        and (entity['path'] is None or not os.path.exists(entity['path'])):
                     entity['synapseStore'] = False
                     
             # Send the Entity's dictionary to the update the file cache

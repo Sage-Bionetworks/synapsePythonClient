@@ -326,3 +326,37 @@ def test_create_or_update_project():
     except Exception as ex1:
         pass
 
+
+def test_download_file_false():
+    RENAME_SUFFIX = 'blah'
+    
+    # Upload a file
+    filepath = utils.make_bogus_binary_file()
+    schedule_for_cleanup(filepath)
+    schedule_for_cleanup(filepath + RENAME_SUFFIX)
+    file = File(filepath, name='SYNR 619', parent=project)
+    file = syn.store(file)
+    
+    # Now hide the file from the cache and download with downloadFile=False
+    os.rename(filepath, filepath + RENAME_SUFFIX)
+    file = syn.get(file.id, downloadFile=False)
+    
+    # Change something and reupload the file's metadata
+    file.name = "Only change the name, not the file"
+    reupload = syn.store(file)
+    assert reupload.path is None, "Path field should be null: %s" % reupload.path
+    
+    # This should still get the correct file
+    reupload = syn.get(reupload.id)
+    assert filecmp.cmp(filepath + RENAME_SUFFIX, reupload.path)
+    assert reupload.name == file.name
+
+    # Try a URL
+    fileThatExists = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient'
+    reupload.synapseStore = False
+    reupload.path = fileThatExists
+    reupload = syn.store(reupload)
+    reupload = syn.get(reupload, downloadFile=False)
+    reupload = syn.store(reupload)
+    assert reupload.path == fileThatExists, "Entity should still be pointing at a URL"
+
