@@ -18,7 +18,7 @@ def setup():
 @patch('synapseclient.cache.is_lock_valid')
 def test_obtain_lock_and_read_cache(lock_valid_mock, time_mock):
     cacheDir = tempfile.mkdtemp()
-    cacheLock = os.path.join(cacheDir, '.lock')
+    cacheLock = os.path.join(cacheDir, '.cacheMap.lock')
     os.makedirs(cacheLock)
     oldUnlockWaitTime = cache.CACHE_UNLOCK_WAIT_TIME
     
@@ -48,7 +48,7 @@ def test_obtain_lock_and_read_cache(lock_valid_mock, time_mock):
 @patch('synapseclient.cache.is_lock_valid')
 def test_write_cache_then_release_lock(lock_valid_mock, read_mock):
     cacheDir = tempfile.mkdtemp()
-    cacheLock = os.path.join(cacheDir, '.lock')
+    cacheLock = os.path.join(cacheDir, '.cacheMap.lock')
     # -- Make sure the .lock is removed along with any junk inside --
     os.makedirs(os.path.join(cacheLock, 'random folder'))
     os.makedirs(os.path.join(cacheLock, 'OtherExtraneousFolder'))
@@ -130,7 +130,7 @@ def test_is_lock_valid():
     # Lock should be valid right after creation
     cacheDir = tempfile.mkdtemp()
     cache.obtain_lock_and_read_cache(cacheDir)
-    assert cache.is_lock_valid(os.path.join(cacheDir, '.lock'))
+    assert cache.is_lock_valid(os.path.join(cacheDir, '.cacheMap.lock'))
     cache.write_cache_then_release_lock(cacheDir)
 
 
