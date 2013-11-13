@@ -48,6 +48,7 @@ from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, split_entity_namespaces, is_versionable, is_locationable
+from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
 from synapseclient.retry import _with_retry
@@ -348,7 +349,7 @@ class Synapse:
                 session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.headers)
                 return session['sessionToken']
             except SynapseHTTPError as err:
-                if err.response.status_code == 400:
+                if err.response.status_code == 403 or err.response.status_code == 404:
                     raise SynapseAuthenticationError("Invalid username or password.")
                 raise
                     
@@ -362,7 +363,7 @@ class Synapse:
                 return sessionToken
                 
             except SynapseHTTPError as err:
-                if err.response.status_code == 404:
+                if err.response.status_code == 401:
                     raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
                 raise
         else:
@@ -471,6 +472,29 @@ class Synapse:
         return self.restGET(uri, headers={'sessionToken' : sessionToken})
 
 
+    def _findPrincipals(self, query_string):
+        """
+        Find users or groups by name or email.
+
+        :returns: A list of userGroupHeader objects with fields displayName, email, firstName, lastName, isIndividual, ownerId
+
+        Example::
+
+            syn._findPrincipals('test')
+
+            [{u'displayName': u'Synapse Test',
+              u'email': u'syn...t@sagebase.org',
+              u'firstName': u'Synapse',
+              u'isIndividual': True,
+              u'lastName': u'Test',
+              u'ownerId': u'1560002'},
+             {u'displayName': ... }]
+
+        """
+        uri = '/userGroupHeaders?prefix=%s' % query_string
+        return [DictObject(**result) for result in self._GET_paginated(uri)]
+
+
     def onweb(self, entity, subpageId=None):
         """
         Opens up a browser window to the entity page or wiki-subpage.
@@ -534,7 +558,14 @@ class Synapse:
         """
         
         version = kwargs.get('version', None)
-        return self._getWithEntityBundle(entity, entityBundle=self._getEntityBundle(entity, version), **kwargs)
+
+        bundle = self._getEntityBundle(entity, version)
+
+        # Check and warn for unmet access requirements
+        if len(bundle['unmetAccessRequirements']) > 0:
+            sys.stderr.write("\nWARNING: This entity has access restrictions. Please visit the web page for this entity (syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to review and fulfill its download requirement(s).\n" % id_of(entity))
+
+        return self._getWithEntityBundle(entity, entityBundle=bundle, **kwargs)
         
     def _getWithEntityBundle(self, entity, **kwargs):
         """
@@ -625,11 +656,15 @@ class Synapse:
                     entity.update(self._downloadFileEntity(entity, downloadPath, submission))
             else:
                 # The local state of the Entity is normally updated by the _downloadFileEntity method
-                # Use the EntityBundle to fill in the path information
-                entity.update(cache.retrieve_local_file_info(bundle, downloadPath))
+                # If the file exists locally, make sure the entity points to it
+                localFileInfo = cache.retrieve_local_file_info(bundle, downloadPath)
+                if 'path' in localFileInfo and localFileInfo['path'] is not None and os.path.exists(localFileInfo['path']):
+                    entity.update(localFileInfo)
                 
                 # If the file was not downloaded and does not exist, set the synapseStore flag appropriately
-                if not isLocationable and 'path' in entity and not os.path.exists(entity['path']):
+                if not isLocationable \
+                        and 'path' in entity \
+                        and (entity['path'] is None or not os.path.exists(entity['path'])):
                     entity['synapseStore'] = False
                     
             # Send the Entity's dictionary to the update the file cache
@@ -659,6 +694,11 @@ class Synapse:
         :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj' conflicts with an existing Synapse object.  Defaults to True. 
         :param forceVersion:        Indicates whether the method should increment the version of the object even if nothing has changed.  Defaults to True.
         :param versionLabel:        Arbitrary string used to label the version.  
+        :param isRestricted:        If set to true, an email will be sent to the Synapse access control team 
+                                    to start the process of adding terms-of-use 
+                                    or review board approval for this entity. 
+                                    You will be contacted with regards to the specific data being restricted 
+                                    and the requirements of access.
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
@@ -718,6 +758,7 @@ class Synapse:
         entity = obj
         properties, annotations, local_state = split_entity_namespaces(entity)
         isLocationable = is_locationable(properties)
+        bundle = None
 
         # Anything with a path is treated as a cache-able item (FileEntity or Locationable)
         if entity.get('path', False):
@@ -757,8 +798,6 @@ class Synapse:
                 # But becomes an update() due to conflict
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
 
-        ## TODO: deal with access restrictions
-
         # Create or update Entity in Synapse
         if 'id' in properties:
             properties = self._updateEntity(properties, forceVersion, versionLabel)
@@ -771,14 +810,27 @@ class Synapse:
                     existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', ROOT_ENTITY))
                     if existing_entity_id is None: raise
 
-                    # Update the conflicting Entity
-                    existing_entity = self._getEntity(existing_entity_id)
+                    # get existing properties and annotations
+                    if not bundle:
+                        bundle = self._getEntityBundle(existing_entity_id, bitFlags=0x1|0x2)
+
                     # Need some fields from the existing entity: id, etag, and version info.
+                    existing_entity = bundle['entity']
+
+                    # Update the conflicting Entity
                     existing_entity.update(properties)
                     properties = self._updateEntity(existing_entity, forceVersion, versionLabel)
+
+                    # Merge new annotations with existing annotations
+                    existing_annos = bundle['annotations']
+                    existing_annos.update(annotations)
+                    annotations = existing_annos
                 else:
                     raise
 
+        # Deal with access restrictions
+        if isRestricted:
+            self._createAccessRequirementIfNone(properties)
 
         # Update annotations
         annotations['etag'] = properties['etag']
@@ -807,28 +859,46 @@ class Synapse:
 
         # Return the updated Entity object
         return Entity.create(properties, annotations, local_state)
+        
+        
+    def _createAccessRequirementIfNone(self, entity):
+        """
+        Checks to see if the given entity has access requirements.
+        If not, then one is added
+        """
+        
+        existingRestrictions = self.restGET('/entity/%s/accessRequirement' % id_of(entity))
+        if existingRestrictions['totalNumberOfResults'] <= 0:
+            self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
     
-    ## TODO: add bitFlag parameter?
-    def _getEntityBundle(self, entity, version=None):
+    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x400 | 0x2 | 0x1):
         """
         Gets some information about the Entity.
+
+        :parameter entity: a Synapse Entity or Synapse ID
+        :parameter version: the entity's version (defaults to None meaning most recent version)
+        :parameter bitFlags: Bit flags representing which entity components to return
+
+        EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)::
+
+            ENTITY                    = 0x1
+            ANNOTATIONS               = 0x2
+            PERMISSIONS               = 0x4
+            ENTITY_PATH               = 0x8
+            ENTITY_REFERENCEDBY       = 0x10
+            HAS_CHILDREN              = 0x20
+            ACL                       = 0x40
+            ACCESS_REQUIREMENTS       = 0x200
+            UNMET_ACCESS_REQUIREMENTS = 0x400
+            FILE_HANDLES              = 0x800
+
+        For example, we might ask for an entity bundle containing file handles, annotations, and properties::
+
+            bundle = syn._getEntityBundle('syn111111', bitFlags=0x800|0x2|0x1)
         
-        :returns: An EntityBundle with the Entity header, annotations, unmet access requirements, and file handles
+        :returns: An EntityBundle with the requested fields or by default Entity header, annotations, unmet access requirements, and file handles
         """
-        
-        # EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)
-        # ENTITY                    = 0x1
-        # ANNOTATIONS               = 0x2
-        # PERMISSIONS               = 0x4
-        # ENTITY_PATH               = 0x8
-        # ENTITY_REFERENCEDBY       = 0x10
-        # HAS_CHILDREN              = 0x20
-        # ACL                       = 0x40
-        # ACCESS_REQUIREMENTS       = 0x200
-        # UNMET_ACCESS_REQUIREMENTS = 0x400
-        # FILE_HANDLES              = 0x800
-        bitFlags = 0x800 | 0x400 | 0x2 | 0x1
 
         # If 'entity' is given without an ID, try to find it by 'parentId' and 'name'.
         # Use case:
@@ -847,10 +917,6 @@ class Synapse:
         else:
             uri = '/entity/%s/bundle?mask=%d' %(id_of(entity), bitFlags)
         bundle = self.restGET(uri)
-        
-        # Check and warn for unmet access requirements
-        if len(bundle['unmetAccessRequirements']) > 0:
-            sys.stderr.write("\nWARNING: This entity has access restrictions. Please visit the web page for this entity (syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to review and fulfill its download requirement(s).\n" % id_of(entity))
         
         return bundle
 
@@ -1193,24 +1259,30 @@ class Synapse:
             return self.restPOST(uri,json.dumps(acl))
 
 
-    def __getUserbyPrincipalIdOrName(self, principalId=None):
-        """Given either a string, int or None finds corresponding user where None
-        means public
- 
-        :param principalId:       Identifier of a user or group
-
-        :returns: int representing principalId
+    def _getUserbyPrincipalIdOrName(self, principalId=None):
         """
-        if principalId is None:
-            return  PUBLIC
-        try: #If principalId is not a number assume it is a name or email
+        Given either a string, int or None
+        finds the corresponding user 
+        where None implies PUBLIC
+ 
+        :param principalId: Identifier of a user or group
+
+        :returns: The integer ID of the user
+        """
+        if principalId is None or principalId=='PUBLIC':
+            return PUBLIC
+        try:
             return int(principalId)
+
+        # If principalId is not a number assume it is a name or email
         except ValueError:
             userProfiles = self.restGET('/userGroupHeaders?prefix=%s' % principalId)
-            if userProfiles['totalNumberOfResults']==1:
-                return  int(userProfiles['children'][0]['ownerId'])
-            else:
-                raise SynapseError('Unkown Synapse user specified please be more specific')
+            totalResults = userProfiles['totalNumberOfResults']
+            if totalResults == 1:
+                return int(userProfiles['children'][0]['ownerId'])
+            
+            supplementalMessage = 'Please be more specific' if totalResults > 1 else 'No matches'
+            raise SynapseError('Unknown Synapse user (%s).  %s.' % (principalId, supplementalMessage))
 
 
     def getPermissions(self, entity, principalId=None):
@@ -1225,14 +1297,12 @@ class Synapse:
 
         """
         ## TODO: what if user has permissions by membership in a group?
-        principalId = self.__getUserbyPrincipalIdOrName(principalId)
+        principalId = self._getUserbyPrincipalIdOrName(principalId)
         acl = self._getACL(entity)
         for permissions in acl['resourceAccess']:
             if 'principalId' in permissions and permissions['principalId'] == int(principalId):
                 return permissions['accessType']
         return []
-
-
 
 
     def setPermissions(self, entity, principalId=None, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True):
@@ -1255,7 +1325,7 @@ class Synapse:
         """
 
         benefactor = self._getBenefactor(entity)
-        principalId = self.__getUserbyPrincipalIdOrName(principalId)
+        principalId = self._getUserbyPrincipalIdOrName(principalId)
         if benefactor['id'] != id_of(entity):
             if modify_benefactor:
                 entity = benefactor
@@ -1892,6 +1962,19 @@ class Synapse:
         
         uri = Evaluation.getByNameURI(urllib.quote(name))
         return Evaluation(**self.restGET(uri))
+        
+    
+    def getEvaluationByContentSource(self, entity):
+        """
+        Returns a generator over evaluations that 
+        derive their content from the given entity
+        """
+        
+        entityId = id_of(entity)
+        url = "/entity/%s/evaluation" % entityId
+            
+        for result in self._GET_paginated(url):
+            yield Evaluation(**result)
 
 
     def submit(self, evaluation, entity, name=None, teamName=None):
@@ -1925,6 +2008,7 @@ class Synapse:
             accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
             raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
         
+        ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
             entity = self.get(entity)
         entity_version = entity['versionNumber']
@@ -1974,11 +2058,7 @@ class Synapse:
                 
         except ValueError:
             # Fetch the ID of the user group
-            groups = self.restGET('/userGroupHeaders?prefix=%s' % user)
-            for child in groups['children']:
-                if not child['isIndividual'] and child['displayName'] == user:
-                    userId = child['ownerId']
-                    break
+            userId = self._getUserbyPrincipalIdOrName(user)
             
         # Grab the ACL 
         evaluation_id = id_of(evaluation)
@@ -2040,16 +2120,48 @@ class Synapse:
         """
         
         evaluation_id = id_of(evaluation)
-        url = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
+        uri = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
         if status != None:
             if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
                 raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
             uri += "?status=%s" % status
-            
-        for result in self._GET_paginated(url):
+
+        for result in self._GET_paginated(uri):
             yield Submission(**result)
-            
-            
+
+
+    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False):
+        """
+        :param evaluation: Evaluation to get submissions from.
+        :param status:     Optionally filter submissions for a specific status.
+                           One of {OPEN, CLOSED, SCORED, INVALID}
+        :param myOwn:      Determines if only your Submissions should be fetched.
+                           Defaults to False (all Submissions)
+
+        :returns: A generator over dictionaries with keys 'submission' and 'submissionStatus'.
+
+        Example::
+
+            for sb in syn._getSubmissionBundles(1234567):
+                print sb['submission']['name'], \\
+                      sb['submission']['submitterAlias'], \\
+                      sb['submissionStatus']['status'], \\
+                      sb['submissionStatus']['score']
+
+        This may later be changed to return objects, pending some thought on how submissions
+        along with related status and annotations should be represented in the clients.
+
+        See: :py:mod:`synapseclient.evaluation`
+        """
+
+        evaluation_id = id_of(evaluation)
+        url = "/evaluation/%s/submission/bundle%s" % (evaluation_id, "" if myOwn else "/all")
+        if status != None:
+            url += "?status=%s" % status
+
+        return self._GET_paginated(url)
+
+
     def _GET_paginated(self, url):
         """
         :param url: A URL that returns paginated results
@@ -2068,15 +2180,9 @@ class Synapse:
             if result_count >= offset + len(results):
                 # Add the query terms to the URL
                 offset += limit
-                parsedURL = urlparse.urlparse(url)
-                query = urlparse.parse_qs(parsedURL.query)
-                query['limit'] = limit
-                query['offset'] = offset
-                modifiedURL = "%s?%s" % (parsedURL.path, urllib.urlencode(query))
-                
-                page = self.restGET(modifiedURL)
+                page = self.restGET(utils._limit_and_offset(url, limit=limit, offset=offset))
                 max_results = page['totalNumberOfResults']
-                results = page['results']
+                results = page['results'] if 'results' in page else page['children']
                 if len(results)==0:
                     return
 
@@ -2145,20 +2251,11 @@ class Synapse:
         
         :param owner: An Evaluation or Entity
         
-        :returns: A dictionary with the following format:
-
-        .. code-block:: python
-
-            {'results': [
-                {'id': '100', 'title': 'Root'},
-                {'id': '102', 'parentId': '100', 'title': 'Child wiki page 1'},
-                {'id': '103', 'parentId': '100', 'title': 'Child wiki page 2'}],
-             'totalNumberOfResults': 3}
-
+        :returns: A list of Objects with three fields: id, title and parentId.
         """
-        
+
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
-        return self.restGET(uri)
+        return [DictObject(**header) for header in self.restGET(uri)['results']]
 
     
     def _storeWiki(self, wiki):
@@ -2188,8 +2285,15 @@ class Synapse:
         
         # Perform a create if the Wiki has no ID
         else:
-            wiki.update(self.restPOST(wiki.postURI(), wiki.json()))
-            
+            try:
+                wiki.update(self.restPOST(wiki.postURI(), wiki.json()))
+            except SynapseHTTPError as err:
+                # If already present we get an unhelpful SQL error
+                # TODO: implement createOrUpdate for Wikis, see SYNR-631
+                if err.response.status_code == 400 and "DuplicateKeyException" in err.message:
+                    raise SynapseHTTPError("Can't re-create a wiki that already exists. CreateOrUpdate not yet supported for wikis.", response=err.response)
+                raise
+
         return wiki
 
         

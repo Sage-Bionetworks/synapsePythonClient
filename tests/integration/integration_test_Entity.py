@@ -1,6 +1,7 @@
 import uuid, filecmp, os, sys, requests, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
+from mock import patch
 
 import synapseclient.client as client
 import synapseclient.utils as utils
@@ -230,6 +231,18 @@ def test_store_activity():
     assert honking['id'] == honking2['id']
 
 
+def test_store_isRestricted_flag():
+    # Store a file with access requirements
+    path = utils.make_bogus_binary_file()
+    schedule_for_cleanup(path)
+    entity = File(path, name='Secret human data', parent=project)
+    
+    # We don't want to spam ACT with test emails
+    with patch('synapseclient.client.Synapse._createAccessRequirementIfNone') as intercepted:
+        entity = syn.store(entity, isRestricted=True)
+        assert intercepted.called
+
+
 def test_ExternalFileHandle():
     # Tests shouldn't have external dependencies, but this is a pretty picture of Singapore
     singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
@@ -298,4 +311,65 @@ def test_path_in_annotations_of_data_entities_bug():
     assert not 'files' in data2.annotations
     assert not 'path' in data2.annotations
     assert not 'cacheDir' in data2.annotations
+
+
+def test_create_or_update_project():
+    name = str(uuid.uuid4())
+
+    project = Project(name, a=1, b=2)
+    syn.store(project)
+
+    project = Project(name, b=3, c=4)
+    project = syn.store(project)
+
+    assert project.a == [1]
+    assert project.b == [3]
+    assert project.c == [4]
+
+    project = syn.get(project.id)
+
+    assert project.a == [1]
+    assert project.b == [3]
+    assert project.c == [4]
+
+    project = Project(name, c=5, d=6)
+    try:
+        project = syn.store(project, createOrUpdate=False)
+        assert False, "Expect an exception from storing an existing project with createOrUpdate=False"
+    except Exception as ex1:
+        pass
+
+
+def test_download_file_false():
+    RENAME_SUFFIX = 'blah'
+    
+    # Upload a file
+    filepath = utils.make_bogus_binary_file()
+    schedule_for_cleanup(filepath)
+    schedule_for_cleanup(filepath + RENAME_SUFFIX)
+    file = File(filepath, name='SYNR 619', parent=project)
+    file = syn.store(file)
+    
+    # Now hide the file from the cache and download with downloadFile=False
+    os.rename(filepath, filepath + RENAME_SUFFIX)
+    file = syn.get(file.id, downloadFile=False)
+    
+    # Change something and reupload the file's metadata
+    file.name = "Only change the name, not the file"
+    reupload = syn.store(file)
+    assert reupload.path is None, "Path field should be null: %s" % reupload.path
+    
+    # This should still get the correct file
+    reupload = syn.get(reupload.id)
+    assert filecmp.cmp(filepath + RENAME_SUFFIX, reupload.path)
+    assert reupload.name == file.name
+
+    # Try a URL
+    fileThatExists = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient'
+    reupload.synapseStore = False
+    reupload.path = fileThatExists
+    reupload = syn.store(reupload)
+    reupload = syn.get(reupload, downloadFile=False)
+    reupload = syn.store(reupload)
+    assert reupload.path == fileThatExists, "Entity should still be pointing at a URL"
 
