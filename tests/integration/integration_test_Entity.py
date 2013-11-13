@@ -373,3 +373,12 @@ def test_download_file_false():
     reupload = syn.store(reupload)
     assert reupload.path == fileThatExists, "Entity should still be pointing at a URL"
 
+    # Try a URL with an extra slash at the end
+    fileThatDoesntExist = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient/'
+    reupload.synapseStore = False
+    reupload.path = fileThatDoesntExist
+    reupload = syn.store(reupload)
+    reupload = syn.get(reupload, downloadFile=False)
+    reupload = syn.store(reupload)
+    assert reupload.path == fileThatDoesntExist, "Entity should still be pointing at a URL"
+
