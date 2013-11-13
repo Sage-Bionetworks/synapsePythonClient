@@ -1,6 +1,7 @@
 import uuid, filecmp, os, sys, requests, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
+from mock import patch
 
 import synapseclient.client as client
 import synapseclient.utils as utils
@@ -228,6 +229,18 @@ def test_store_activity():
     # The Activities should match
     honking2 = syn.getProvenance(entity)
     assert honking['id'] == honking2['id']
+
+
+def test_store_isRestricted_flag():
+    # Store a file with access requirements
+    path = utils.make_bogus_binary_file()
+    schedule_for_cleanup(path)
+    entity = File(path, name='Secret human data', parent=project)
+    
+    # We don't want to spam ACT with test emails
+    with patch('synapseclient.client.Synapse._createAccessRequirementIfNone') as intercepted:
+        entity = syn.store(entity, isRestricted=True)
+        assert intercepted.called
 
 
 def test_ExternalFileHandle():
