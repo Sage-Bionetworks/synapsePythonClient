@@ -210,8 +210,9 @@ def determine_local_file_location(entityBundle):
             if handle['id'] == entityBundle['entity']['dataFileHandleId']:
                 path = os.path.join(cacheDir, handle['fileName'])
                 return cacheDir, path, unmodifiedFile
-                    
-        raise SynapseMalformedEntityError("Invalid parameters: the entityBundle does not contain matching file handle IDs")
+
+        # Note: fileHandles will be empty if there are unmet access requirements
+        return None, None, None
     
 
 def get_alternate_file_name(path):
