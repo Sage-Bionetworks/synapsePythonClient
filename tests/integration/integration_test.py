@@ -347,7 +347,7 @@ def test_wikiAttachment():
     attachname = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     schedule_for_cleanup(attachname)
-    fileHandle = syn._uploadFileToFileHandleService(filename)
+    fileHandle = syn._uploadToFileHandleService(filename)
 
     # Create and store a Wiki 
     # The constructor should accept both file handles and file paths

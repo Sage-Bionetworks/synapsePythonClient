@@ -1610,25 +1610,6 @@ class Synapse:
             else:
                 return self._addURLtoFileHandleService(filename)
 
-                
-    def _uploadFileToFileHandleService(self, filepath):
-        """
-        Upload a file to the new fileHandle service (experimental)
-        
-        :returns: A fileHandle which can be used to create a FileEntity or attach to a Wiki
-        """
-           
-        # print "_uploadFileToFileHandleService - filepath = " + str(filepath)
-        url = "%s/fileHandle" % (self.fileHandleEndpoint,)
-        headers = self._generateSignedHeaders(url, {'Accept': 'application/json'})
-        with open(filepath, 'rb') as f:
-            response = requests.post(url, files={os.path.basename(filepath): f}, headers=headers)
-        exceptions._raise_for_status(response, verbose=self.debug)
-
-        # We expect a list of FileHandles of length one
-        fileHandleList = response.json()
-        return fileHandleList['list'][0]
-
         
     def _addURLtoFileHandleService(self, externalURL):
         """Create a new FileHandle representing an external URL."""
