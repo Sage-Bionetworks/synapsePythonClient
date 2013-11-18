@@ -563,7 +563,10 @@ class Synapse:
 
         # Check and warn for unmet access requirements
         if len(bundle['unmetAccessRequirements']) > 0:
-            sys.stderr.write("\nWARNING: This entity has access restrictions. Please visit the web page for this entity (syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to review and fulfill its download requirement(s).\n" % id_of(entity))
+            warning_message = "\nWARNING: This entity has access restrictions. Please visit the web page for this entity (syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to review and fulfill its download requirement(s).\n" % id_of(entity)
+            if kwargs.get('downloadFile', True):
+                raise SynapseUnmetAccessRestrictions(warning_message)
+            sys.stderr.write(warning_message)
 
         return self._getWithEntityBundle(entity, entityBundle=bundle, **kwargs)
         

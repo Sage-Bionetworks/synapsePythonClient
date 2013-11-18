@@ -26,6 +26,9 @@ class SynapseFileCacheError(Exception):
 class SynapseMalformedEntityError(Exception):
     """Unexpected structure of Entities."""
 
+class SynapseUnmetAccessRestrictions(Exception):
+    """Request cannot be completed due to unmet access restrictions."""
+
 class SynapseProvenanceError(Exception):
     """Incorrect usage of provenance objects."""
 

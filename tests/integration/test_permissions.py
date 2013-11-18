@@ -5,6 +5,8 @@ import os
 import sys
 import uuid
 
+from nose.tools import assert_raises
+
 import synapseclient
 import synapseclient.utils as utils
 from synapseclient import Activity, Entity, Project, Folder, File, Data
@@ -152,9 +154,7 @@ def test_access_restrictions():
         assert entity is not None
         assert entity.path is None
 
-        ## can't download if we have unmet access requirements
-        entity = syn.get('syn1000002', downloadFile=True)
-        assert entity is not None
-        assert entity.path is None
+        ## Downloading the file is the default, but is an error if we have unmet access requirements
+        assert_raises(synapseclient.exceptions.SynapseUnmetAccessRestrictions, syn.get, 'syn1000002', downloadFile=True)
 
 
