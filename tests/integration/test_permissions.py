@@ -1,7 +1,11 @@
 import ConfigParser
+import json
+import mock
 import os
 import sys
 import uuid
+
+from nose.tools import assert_raises
 
 import synapseclient
 import synapseclient.utils as utils
@@ -112,4 +116,45 @@ def test_get_entity_owned_by_another_user():
         assert other_users_file == a_file
     finally:
         syn_other.logout()
+
+
+def test_access_restrictions():
+    ## Bruce gives this test a 'B'. The 'A' solution would be to
+    ## construct the mock value from the schemas. -jcb
+    with mock.patch('synapseclient.Synapse._getEntityBundle') as _getEntityBundle_mock:
+        _getEntityBundle_mock.return_value = {
+            u'annotations': {
+              u'etag': u'cbda8e02-a83e-4435-96d0-0af4d3684a90',
+              u'id': u'syn1000002',
+              u'stringAnnotations': {}},
+            u'entity': {
+              u'concreteType': u'org.sagebionetworks.repo.model.FileEntity',
+              u'createdBy': u'Miles Dewey Davis',
+              u'dataFileHandleId': u'1234',
+              u'entityType': u'org.sagebionetworks.repo.model.FileEntity',
+              u'etag': u'cbda8e02-a83e-4435-96d0-0af4d3684a90',
+              u'id': u'syn1000002',
+              u'name': u'so_what.mp3',
+              u'parentId': u'syn1000001',
+              u'versionLabel': u'1',
+              u'versionNumber': 1},
+            u'entityType': u'org.sagebionetworks.repo.model.FileEntity',
+            u'fileHandles': [],
+            u'unmetAccessRequirements': [{
+              u'accessType': u'DOWNLOAD',
+              u'concreteType': u'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
+              u'createdBy': u'377358',
+              u'entityType': u'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
+              u'etag': u'1dfedff0-c3b1-472c-b9ff-1b67acb81f00',
+              u'id': 2299555,
+              u'subjectIds': [{u'id': u'syn1000002', u'type': u'ENTITY'}],
+              u'termsOfUse': u'Use it or lose it!'}]}
+
+        entity = syn.get('syn1000002', downloadFile=False)
+        assert entity is not None
+        assert entity.path is None
+
+        ## Downloading the file is the default, but is an error if we have unmet access requirements
+        assert_raises(synapseclient.exceptions.SynapseUnmetAccessRestrictions, syn.get, 'syn1000002', downloadFile=True)
+
 
