@@ -596,7 +596,7 @@ class Synapse:
         bundle = kwargs.get('entityBundle', None)
         if bundle is None:
             raise SynapseMalformedEntityError("Could not determine the Synapse ID to fetch")
-            
+
         # Make a fresh copy of the Entity
         local_state = entity.local_state() if isinstance(entity, Entity) else None
         properties = bundle['entity']
