@@ -28,12 +28,19 @@ def test_annotations():
 
 def test_more_annotations():
     """Test long, float and data annotations"""
-    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Platypus', birthdays=[Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3)])
+    a = dict(foo=1234,
+             zoo=[123.1, 456.2, 789.3],
+             species='Platypus',
+             birthdays=[Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3)],
+             test_boolean=True,
+             test_mo_booleans=[False, True, True, False])
     sa = to_synapse_annotations(a)
-    # print sa
+    print sa
     assert sa['longAnnotations']['foo'] == [1234]
     assert sa['doubleAnnotations']['zoo'] == [123.1, 456.2, 789.3]
     assert sa['stringAnnotations']['species'] == ['Platypus']
+    assert sa['stringAnnotations']['test_boolean'] == ['true']
+    assert sa['stringAnnotations']['test_mo_booleans'] == ['false', 'true', 'true', 'false']
 
     ## this part of the test is kinda fragile. It it breaks again, it should be removed
     bdays = [utils.from_unix_epoch_time(t) for t in sa['dateAnnotations']['birthdays']]

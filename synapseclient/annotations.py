@@ -78,6 +78,8 @@ def to_synapse_annotations(annotations):
             elements = _to_list(value)
             if all((isinstance(elem, basestring) for elem in elements)):
                 synapseAnnos.setdefault('stringAnnotations', {})[key] = elements
+            elif all((isinstance(elem, bool) for elem in elements)):
+                synapseAnnos.setdefault('stringAnnotations', {})[key] = [str(element).lower() for element in elements]
             elif all((isinstance(elem, int) or isinstance(elem, long) for elem in elements)):
                 synapseAnnos.setdefault('longAnnotations', {})[key] = elements
             elif all((isinstance(elem, float) for elem in elements)):
