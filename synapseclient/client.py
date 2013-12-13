@@ -941,6 +941,25 @@ class Synapse:
         else:
             self.restDELETE(obj.deleteURI())
 
+    def _list(self, parent, recursive=False, indent=0, out=sys.stdout):
+        """
+        List child objects of the given parent, recursively if requested.
+        """
+        results = self.chunkedQuery('select id,name,nodeType from entity where parentId=="%s"' % id_of(parent))
+        for result in results:
+            ## if it's a folder, recurse
+            if result['entity.nodeType'] == 4:
+                out.write("{padding}{id} {name}/\n".format(
+                    padding=' ' * indent,
+                    name=result['entity.name'],
+                    id=result['entity.id']))
+                if recursive:
+                    self._list(result['entity.id'], recursive=recursive, indent=indent+2)
+            else:
+                out.write("{padding}{id} {name}\n".format(
+                    padding=' ' * indent,
+                    name=result['entity.name'],
+                    id=result['entity.id']))
 
             
     ############################################################
