@@ -319,7 +319,7 @@ def to_unix_epoch_time(dt):
     
     if type(dt) == Date:
         return (dt - UNIX_EPOCH.date()).total_seconds() * 1000
-    return (dt - UNIX_EPOCH).total_seconds() * 1000
+    return int((dt - UNIX_EPOCH).total_seconds() * 1000)
 
 
 def from_unix_epoch_time(ms):

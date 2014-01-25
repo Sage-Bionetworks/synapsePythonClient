@@ -57,10 +57,9 @@ from utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
 
 def is_synapse_annotations(annotations):
     """Tests if the given object is a Synapse-style Annotations object."""
-    
+    keys=['id', 'etag', 'creationDate', 'uri', 'stringAnnotations','longAnnotations','doubleAnnotations','dateAnnotations', 'blobAnnotations']
     if not isinstance(annotations, collections.Mapping): return False
-    annotations_keys = ['id', 'etag', 'creationDate', 'uri', 'stringAnnotations','longAnnotations','doubleAnnotations','dateAnnotations', 'blobAnnotations']
-    return all([key in annotations_keys for key in annotations.keys()])
+    return all([key in keys for key in annotations.keys()])
 
 
 def to_synapse_annotations(annotations):
@@ -114,4 +113,71 @@ def from_synapse_annotations(annotations):
             annos[key] = value
     return annos
 
+
+def is_submission_status_annotations(annotations):
+    """Tests if the given dictionary is in the form of annotations to submission status"""
+    keys = ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']
+    if not isinstance(annotations, collections.Mapping): return False
+    return all([key in keys for key in annotations.keys()])
+
+
+def to_submission_status_annotations(annotations):
+    """
+    Converts a normal dictionary to the format used to annotate submission
+    statuses, which is different from the format used to annotate entities.
+
+    Example::
+
+        from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
+        from datetime import datetime as Datetime
+
+        ## create a submission and get its status
+        submission = syn.submit(evaluation, 'syn11111111')
+        submission_status = syn.getSubmissionStatus(submission)
+
+        ## add annotations
+        submission_status.annotations = {'foo':'bar', 'shoe_size':12, 'IQ':12, 'timestamp':Datetime.now()}
+
+        ## convert annotations
+        submission_status.annotations = to_submission_status_annotations(submission_status.annotations)
+        submission_status = syn.store(submission_status)
+
+
+    Synapse categorizes these annotations by: stringAnnos, doubleAnnos,
+    longAnnos. If date or blob annotations are supported, they are not
+    `documented <http://rest.synapse.org/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
+    """
+    if is_submission_status_annotations(annotations):
+        return annotations
+    synapseAnnos = {}
+    for key, value in annotations.iteritems():
+        if key in ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']:
+            synapseAnnos[key] = value
+        elif isinstance(value, int) or isinstance(value, long):
+            synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':value })
+        elif isinstance(value, float):
+            synapseAnnos.setdefault('doubleAnnos', []).append({ 'key':key, 'value':value })
+        elif isinstance(value, basestring):
+            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':value })
+        elif _is_date(value):
+            synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':to_unix_epoch_time(value) })
+        else:
+            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':unicode(value) })
+    return synapseAnnos
+
+def from_submission_status_annotations(annotations):
+    """
+    Convert back from submission status annotation format to a normal dictionary.
+
+    Example::
+
+        submission_status.annotations = from_submission_status_annotations(submission_status.annotations)
+    """
+    dictionary = {}
+    for key, value in annotations.iteritems():
+        if key in ['stringAnnos','longAnnos','doubleAnnos']:
+            dictionary.update( { kvp['key']:kvp['value'] for kvp in value } )
+        else:
+            dictionary[key] = value
+    return dictionary
 

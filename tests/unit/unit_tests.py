@@ -5,7 +5,7 @@ from nose.tools import assert_raises
 import os
 
 import synapseclient.utils as utils
-from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations
+from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations, to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
 from synapseclient.utils import _find_used
 from synapseclient.exceptions import *
@@ -82,6 +82,32 @@ def test_idempotent_annotations():
     a2.update(sa)
     sa2 = to_synapse_annotations(a2)
     assert sa == sa2
+
+def test_submission_status_annotations_round_trip():
+    from math import pi
+    april_28_1969 = Datetime(1969,4,28)
+    a = dict(screen_name='Bullwinkle', species='Moose', lucky=13, pi=pi, birthday=april_28_1969)
+    sa = to_submission_status_annotations(a)
+    print sa
+    assert set(['screen_name','species']) == set([kvp['key'] for kvp in sa['stringAnnos']])
+    assert set(['Bullwinkle','Moose']) == set([kvp['value'] for kvp in sa['stringAnnos']])
+
+    assert set(['lucky', 'birthday']) == set([kvp['key'] for kvp in sa['longAnnos']])
+    for kvp in sa['longAnnos']:
+        key = kvp['key']
+        value = kvp['value']
+        if key=='lucky':
+            assert value == 13
+        if key=='birthday':
+            assert utils.from_unix_epoch_time(value) == april_28_1969
+
+    set(['pi']) == set([kvp['key'] for kvp in sa['doubleAnnos']])
+    set([pi]) == set([kvp['value'] for kvp in sa['doubleAnnos']])
+
+    a2 = from_submission_status_annotations(sa)
+    # TODO: is there a way to convert dates back from longs automatically?
+    a2['birthday'] = utils.from_unix_epoch_time(a2['birthday'])
+    assert a == a2
 
 def test_activity_creation_from_dict():
     """test that activities are created correctly from a dictionary"""
