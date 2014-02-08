@@ -79,13 +79,13 @@ def test_evaluations():
         config = ConfigParser.ConfigParser()
         config.read(client.CONFIG_FILE)
         other_user = {}
-        other_user['email'] = config.get('test-authentication', 'username')
+        other_user['username'] = config.get('test-authentication', 'username')
         other_user['password'] = config.get('test-authentication', 'password')
         print "Testing SYNR-541"
         
         # Login as the test user
         testSyn = client.Synapse(skip_checks=True)
-        testSyn.login(email=other_user['email'], password=other_user['password'])
+        testSyn.login(email=other_user['username'], password=other_user['password'])
         testOwnerId = int(testSyn.getUserProfile()['ownerId'])
         
         # Make a project

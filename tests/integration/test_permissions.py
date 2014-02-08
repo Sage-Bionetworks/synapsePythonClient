@@ -28,7 +28,7 @@ def setup(module):
     config.read(synapseclient.client.CONFIG_FILE)
     module.other_user = {}
     try:
-        other_user['email'] = config.get('test-authentication', 'username')
+        other_user['username'] = config.get('test-authentication', 'username')
         other_user['password'] = config.get('test-authentication', 'password')
         other_user['principalId'] = config.get('test-authentication', 'principalId')
     except ConfigParser.Error:
@@ -37,7 +37,7 @@ def setup(module):
     if 'principalId' not in other_user:
         # Fall back on Chris's principalId
         other_user['principalId'] = 1421212
-        other_user['email'] = 'chris.bare@sagebase.org'
+        other_user['username'] = 'chris.bare@sagebase.org'
 
 def test_ACL():
     # Get the user's principalId, which is called ownerId and is
@@ -62,13 +62,13 @@ def test_ACL():
     assert 'CREATE' in permissions
     assert 'UPDATE' in permissions
 
-    #Make sure it works to set/getPermissions by email
-    email = other_user['email']
-    acl = syn.setPermissions(project, email, accessType=['READ'])
-    permissions = syn.getPermissions(project, email)
+    #Make sure it works to set/getPermissions by username (email no longer works)
+    username = other_user['username']
+    acl = syn.setPermissions(project, username, accessType=['READ'])
+    permissions = syn.getPermissions(project, username)
     assert 'READ' in permissions and len(permissions)==1
 
-    #Get permissionsons of PUBLIC user
+    #Get permissions of PUBLIC user
     permissions = syn.getPermissions(project)
     assert len(permissions)==0
     
@@ -76,13 +76,13 @@ def test_ACL():
 
 
 def test_get_entity_owned_by_another_user():
-    if 'email' not in other_user or 'password' not in other_user:
+    if 'username' not in other_user or 'password' not in other_user:
         sys.stderr.write('\nWarning: no test-authentication configured. skipping test_get_entity_owned_by_another.\n')
         return
 
     try:
         syn_other = synapseclient.Synapse(skip_checks=True)
-        syn_other.login(other_user['email'], other_user['password'])
+        syn_other.login(other_user['username'], other_user['password'])
 
         project = Project(name=str(uuid.uuid4()))
         project = syn_other.store(project)

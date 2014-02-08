@@ -100,6 +100,7 @@ class Wiki(DictObject):
     :param markdown:    Content of the Wiki
     :param attachments: List of paths to files to attach
     :param fileHandles: List of file handle IDs representing files to be attached
+    :param parentWikiId: (optional) For subpages, specify parent wiki page
     """
     
     __PROPERTIES = ('title', 'markdown', 'attachmentFileHandleIds', 'id', 'etag', 'createdBy', 'createdOn', 'modifiedBy', 'modifiedOn', 'parentWikiId')

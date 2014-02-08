@@ -279,4 +279,6 @@ from wiki import Wiki
 from version_check import check_for_updates
 from version_check import release_notes
 
+from client import PUBLIC
+from client import ROOT_ENTITY
 

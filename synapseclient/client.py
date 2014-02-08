@@ -46,6 +46,7 @@ from synapseclient.exceptions import *
 from synapseclient.version_check import version_check
 from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
+from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, split_entity_namespaces, is_versionable, is_locationable
 from synapseclient.dict_object import DictObject
@@ -745,7 +746,7 @@ class Synapse:
         if not (isinstance(obj, Entity) or type(obj) == dict):
             if isinstance(obj, Wiki):
                 return self._storeWiki(obj)
-                
+
             if 'id' in obj: # If ID is present, update 
                 obj.update(self.restPUT(obj.putURI(), obj.json()))
                 return obj
@@ -944,6 +945,25 @@ class Synapse:
         else:
             self.restDELETE(obj.deleteURI())
 
+    def _list(self, parent, recursive=False, indent=0, out=sys.stdout):
+        """
+        List child objects of the given parent, recursively if requested.
+        """
+        results = self.chunkedQuery('select id,name,nodeType from entity where parentId=="%s"' % id_of(parent))
+        for result in results:
+            ## if it's a folder, recurse
+            if result['entity.nodeType'] == 4:
+                out.write("{padding}{id} {name}/\n".format(
+                    padding=' ' * indent,
+                    name=result['entity.name'],
+                    id=result['entity.id']))
+                if recursive:
+                    self._list(result['entity.id'], recursive=recursive, indent=indent+2)
+            else:
+                out.write("{padding}{id} {name}\n".format(
+                    padding=' ' * indent,
+                    name=result['entity.name'],
+                    id=result['entity.id']))
 
             
     ############################################################
