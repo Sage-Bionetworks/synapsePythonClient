@@ -223,13 +223,68 @@ def getProvenance(args, syn):
     
     
 def submit(args, syn):
-    if args.name is not None: args.name = ' '.join(args.name)
+    '''
+    Method to allow challenge participants to submit to an evaluation queue
     
-    submission = syn.submit(args.evaluation, args.entity, name=args.name, teamName=args.teamName)
-    print 'Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' \
+    Examples:
+    1. #submit to a eval Queue by eval ID , uploading the submission file
+    synapse submit -evalID 2343117 -f ~/testing/testing.txt -pid syn2345030 --used syn2351967 --executed syn2351968
+    2. #submit to a eval Queue by eval Name, specifying the entity to submit
+    
+    
+    '''
+    
+    
+    
+    if args.teamName is None:
+        args.teamName = syn.getUserProfile()['userName']
+        
+    #1. checking if user has entered a evaluation ID or evaluation Name
+    if args.evaluationID is None and args.evaluationName is None:
+        print '[Error]: Evaluation ID or Evaluation Name is required'
+        sys.exit(2)
+    elif args.evaluationID is not None and args.evaluationName is not None:
+        print '[Warning]: Both Evaluation ID & Evaluation Name are specified \n EvaluationID will be used'
+    elif args.evaluationID is None: #get evalID from evalName
+        try:
+            args.evaluationID = syn.getEvaluationByName(args.evaluationName)['id']
+        except Exception as e:
+            print '[Error]: could not find evaluation ID for evaluation Name %s' % args.evaluationName
+            print e.message
+            sys.exit(2)
+    
+    
+    #2. checking if a entity id or file was specified by the user
+    if args.entity is None and args.file is None:
+        print '[Error]: Either entityID or filename is required for a submission'
+        sys.exit(2)
+    elif args.entity is not  None and args.file is not None:
+        print '[Warning]: Both entityID and filename are specified \n entityID will be used'
+    elif args.entity is None: #upload the the file to synapse and get synapse entity id for the file
+        if args.parentId is None:
+            print '[Error]: parentID required with a file upload'
+            sys.exit(2)
+        if not os.path.exists(args.file):
+            print '[Error]: file path not valid'
+            sys.exit(2)
+        # //ideally this should be factored out
+        try:
+            synFile = syn.store(synapseclient.File(path=args.file,parent=args.parentId),
+                                used=args.used, executed=args.executed)
+            args.entity = synFile.id
+        except Exception as e:
+            print '[Error]: Unable to upload file %s to synapse' % args.file
+            print e.message
+            sys.exit(2)
+    try:    
+        submission = syn.submit(args.evaluationID, args.entity, name=args.name, teamName=args.teamName)
+        print 'Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' \
             % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId'])
-
-
+    except Exception as e:
+        print '[Error]: Unable to successfully submit to the evaluation %s' % args.evaluationID
+        print e.message
+        
+        
 def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
     syn.login(args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe)
@@ -345,15 +400,27 @@ def build_parser():
     
     parser_submit = subparsers.add_parser(
             'submit',
-            help='submit an entity for evaluation')
+            help='submit an entity or a file for evaluation')
     parser_submit.add_argument(
-            '--evaluation',
-            type=str, required=True,
-            help='Evaluation ID where the entity will be submitted')
+            '--evaluationID', '-evalID',
+            type=str,
+            help='Evaluation ID where the entity/file will be submitted')
     parser_submit.add_argument(
-            '--entity',
-            type=str, required=True,
+            '--evaluationName', '-evalN',
+            type=str,
+            help='Evaluation Name where the entity/file will be submitted')
+    parser_submit.add_argument(
+            '--entity', '-eid',
+            type=str,
             help='Synapse ID of the entity to be submitted')
+    parser_submit.add_argument(
+            '--file', '-f',
+            type=str,
+            help='File to be submitted to the challenge')
+    parser_submit.add_argument(
+            '--parentId', '-pid',
+            type=str,
+            help='Synapse ID of project or folder where to upload data')
     parser_submit.add_argument(
             '--name',
             type=str, nargs="+",
@@ -361,7 +428,15 @@ def build_parser():
     parser_submit.add_argument(
             '--teamName', '--team',
             type=str,
-            help='Publicly displayed name of team for the submission')
+            help='Publicly displayed name of team for the submission[defaults to username]')
+    parser_submit.add_argument(
+            '--used',
+            metavar='TargetID', type=str, nargs='*',
+            help='ID of a target data entity from which the specified entity is derived')
+    parser_submit.add_argument(
+            '--executed',
+            metavar='TargetID', type=str, nargs='*',
+            help='ID of a code entity from which the specified entity is derived')
     parser_submit.set_defaults(func=submit)
 
     
@@ -429,7 +504,6 @@ def build_parser():
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
     parser_get_provenance.set_defaults(func=getProvenance)
-
 
     parser_add = subparsers.add_parser(
             'add',
