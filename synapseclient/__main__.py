@@ -229,43 +229,53 @@ def submit(args, syn):
     Examples:
     1. #submit to a eval Queue by eval ID , uploading the submission file
     synapse submit -evalID 2343117 -f ~/testing/testing.txt -pid syn2345030 --used syn2351967 --executed syn2351968
-    2. #submit to a eval Queue by eval Name, specifying the entity to submit
     
+    2. support for deprecated --evaluation option
+    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt -pid syn2345030 --used syn2351967 --executed syn2351968
+    synapse submit --evaluation 2343117 -f ~/testing/testing.txt -pid syn2345030 --used syn2351967 --executed syn2351968
     
     '''
     
+    #backward compatibility support
+    if args.evaluation is not None:
+        sys.stdout.write('[Warning]: Use of --evaluation is deprecated. Use -evalId or -evalName \n')
+        #check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
+        try:
+            args.evaluationID = str(int(args.evaluation))
+        except ValueError:
+            args.evaluationName = args.evaluation
     
-    
+    #set the user teamname to username if none is specified
     if args.teamName is None:
         args.teamName = syn.getUserProfile()['userName']
         
-    #1. checking if user has entered a evaluation ID or evaluation Name
+    # checking if user has entered a evaluation ID or evaluation Name
     if args.evaluationID is None and args.evaluationName is None:
-        print '[Error]: Evaluation ID or Evaluation Name is required'
+        sys.stderr.write('[Error]: Evaluation ID or Evaluation Name is required\n')
         sys.exit(2)
     elif args.evaluationID is not None and args.evaluationName is not None:
-        print '[Warning]: Both Evaluation ID & Evaluation Name are specified \n EvaluationID will be used'
+        sys.stderr.write('[Warning]: Both Evaluation ID & Evaluation Name are specified \n EvaluationID will be used\n')
     elif args.evaluationID is None: #get evalID from evalName
         try:
             args.evaluationID = syn.getEvaluationByName(args.evaluationName)['id']
         except Exception as e:
-            print '[Error]: could not find evaluation ID for evaluation Name %s' % args.evaluationName
-            print e.message
+            sys.stderr.write('[Error]: could not find evaluationID for evaluationName: %s \n' % args.evaluationName)
+            sys.stderr.write(e.message)
             sys.exit(2)
     
     
-    #2. checking if a entity id or file was specified by the user
+    # checking if a entity id or file was specified by the user
     if args.entity is None and args.file is None:
-        print '[Error]: Either entityID or filename is required for a submission'
+        sys.stderr.write('[Error]: Either entityID or filename is required for a submission\n')
         sys.exit(2)
     elif args.entity is not  None and args.file is not None:
-        print '[Warning]: Both entityID and filename are specified \n entityID will be used'
+        sys.stderr.write('[Warning]: Both entityID and filename are specified \n entityID will be used\n')
     elif args.entity is None: #upload the the file to synapse and get synapse entity id for the file
         if args.parentId is None:
-            print '[Error]: parentID required with a file upload'
+            sys.stderr.write('[Error]: parentID required with a file upload\n')
             sys.exit(2)
         if not os.path.exists(args.file):
-            print '[Error]: file path not valid'
+            sys.stderr.write('[Error]: file path %s not valid \n' % args.file)
             sys.exit(2)
         # //ideally this should be factored out
         try:
@@ -273,16 +283,16 @@ def submit(args, syn):
                                 used=args.used, executed=args.executed)
             args.entity = synFile.id
         except Exception as e:
-            print '[Error]: Unable to upload file %s to synapse' % args.file
-            print e.message
+            sys.stderr.write('[Error]: Unable to upload file %s to synapse \n' % args.file)
+            sys.stderr.write(e.message)
             sys.exit(2)
     try:    
         submission = syn.submit(args.evaluationID, args.entity, name=args.name, teamName=args.teamName)
-        print 'Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' \
-            % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId'])
+        sys.stdout.write('Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' \
+            % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId']))
     except Exception as e:
-        print '[Error]: Unable to successfully submit to the evaluation %s' % args.evaluationID
-        print e.message
+        sys.stderr.write('[Error]: Unable to successfully submit to the evaluation %s \n' % args.evaluationID)
+        sys.stderr.write(e.message)
         
         
 def login(args, syn):
@@ -409,6 +419,10 @@ def build_parser():
             '--evaluationName', '-evalN',
             type=str,
             help='Evaluation Name where the entity/file will be submitted')
+    parser_submit.add_argument(
+            '--evaluation',
+            type=str,
+            help=argparse.SUPPRESS)  #mainly to maintain the backward compatibility
     parser_submit.add_argument(
             '--entity', '-eid',
             type=str,
