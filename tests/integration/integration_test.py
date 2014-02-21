@@ -46,8 +46,10 @@ def test_login():
         syn.logout(forgetMe=True)
         
         # Config file is read-only for the client, so it must be mocked!
-        with patch("ConfigParser.ConfigParser.has_option") as config_has_mock:
+        with patch("ConfigParser.ConfigParser.has_option") as config_has_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
+
             config_has_mock.return_value = False
+            read_session_mock.return_value = {}
             
             # Login with given bad session token, 
             # It should REST PUT the token and fail
@@ -61,6 +63,7 @@ def test_login():
             config_has_mock.reset_mock()
             config_has_mock.side_effect = lambda section, option: section == "authentication" and option == "sessiontoken"
             with patch("ConfigParser.ConfigParser.get") as config_get_mock:
+
                 # Login with a session token from the config file
                 config_get_mock.return_value = sessionToken
                 syn.login(silent=True)
