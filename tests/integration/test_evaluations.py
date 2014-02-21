@@ -8,6 +8,7 @@ import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
 from synapseclient.entity import Project, File
+from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
 
 import integration
 from integration import schedule_for_cleanup
@@ -162,6 +163,30 @@ def test_evaluations():
             status.status = 'SCORED'
             status.report = 'a fabulous effort!'
         syn.store(status)
+
+    # Annotate the submissions
+    print "Annotating Submissions"
+    bogosity = {}
+    submissions = syn.getSubmissions(ev)
+    for submission in submissions:
+        status = syn.getSubmissionStatus(submission)
+        b = random.randint(1,100)
+        bogosity[submission.id] = b
+        a = dict(foo='bar', bogosity=b)
+        status['annotations'] = to_submission_status_annotations(a)
+        set_privacy(status['annotations'], key='bogosity', is_private=False)
+        syn.store(status)
+
+    # Test that the annotations stuck
+    submissions = syn.getSubmissions(ev)
+    for submission in submissions:
+        status = syn.getSubmissionStatus(submission)
+        a = from_submission_status_annotations(status.annotations)
+        assert a['foo'] == 'bar'
+        assert a['bogosity'] == bogosity[submission.id]
+        for kvp in status.annotations['longAnnos']:
+            if kvp['key'] == 'bogosity':
+                assert kvp['isPrivate'] == False
 
     ## Test that we can retrieve submissions with a specific status
     invalid_submissions = list(syn.getSubmissions(ev, status='INVALID'))

@@ -53,6 +53,7 @@ See also:
 
 import collections
 from utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
+from exceptions import SynapseError
 
 
 def is_synapse_annotations(annotations):
@@ -181,3 +182,14 @@ def from_submission_status_annotations(annotations):
             dictionary[key] = value
     return dictionary
 
+def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'doubleAnnos', 'stringAnnos']):
+    if key in ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']:
+        raise SynapseError('End users shouldn\'t use the key "%s".')
+    for value_type in value_types:
+        kvps = annotations.get(value_type, None)
+        if kvps:
+            for kvp in kvps:
+                if kvp['key'] == key:
+                    kvp['isPrivate'] = is_private
+                    return kvp
+    raise KeyError('The key "%s" couldn\'t be found in the annotations.')

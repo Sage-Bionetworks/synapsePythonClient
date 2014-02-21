@@ -5,7 +5,7 @@ from nose.tools import assert_raises
 import os
 
 import synapseclient.utils as utils
-from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations, to_submission_status_annotations, from_submission_status_annotations
+from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations, to_submission_status_annotations, from_submission_status_annotations, set_privacy
 from synapseclient.activity import Activity
 from synapseclient.utils import _find_used
 from synapseclient.exceptions import *
@@ -103,6 +103,13 @@ def test_submission_status_annotations_round_trip():
 
     set(['pi']) == set([kvp['key'] for kvp in sa['doubleAnnos']])
     set([pi]) == set([kvp['value'] for kvp in sa['doubleAnnos']])
+
+    set_privacy(sa, key='screen_name', is_private=False)
+    assert_raises(KeyError, set_privacy, sa, key='this_key_does_not_exist', is_private=False)
+
+    for kvp in sa['stringAnnos']:
+        if kvp['key'] == 'screen_name':
+            assert kvp['isPrivate'] == False
 
     a2 = from_submission_status_annotations(sa)
     # TODO: is there a way to convert dates back from longs automatically?
