@@ -183,8 +183,6 @@ def from_submission_status_annotations(annotations):
     return dictionary
 
 def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'doubleAnnos', 'stringAnnos']):
-    if key in ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']:
-        raise SynapseError('End users shouldn\'t use the key "%s".')
     for value_type in value_types:
         kvps = annotations.get(value_type, None)
         if kvps:
