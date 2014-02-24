@@ -298,6 +298,7 @@ def test_command_line_store_and_submit():
     eval = Evaluation(name=str(uuid.uuid4()), contentSource=project_id)
     eval = syn.store(eval)
     syn.joinEvaluation(eval)
+    schedule_for_cleanup(eval.id)
     
     # Submit a bogus file
     output = run('synapse', 
@@ -313,6 +314,22 @@ def test_command_line_store_and_submit():
                  file_entity_id)
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
     
+    #testing different commmand line options for submitting to an evaluation
+    #. submitting to an evaluation by evaluationID
+    output = run('synapse', 
+                 '--skip-checks',
+                 'submit',
+                 '--evalID',
+                 eval.id, 
+                 '--name',
+                 'Some random name',
+                 '--teamName',
+                 'My Team',
+                 '--entity',
+                 file_entity_id)
+    submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
+    
+
     # Update the file
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
@@ -324,19 +341,21 @@ def test_command_line_store_and_submit():
                  '--file',
                  filename)
     updated_entity_id = parse(r'Updated entity:\s+(syn\d+)', output)
+    schedule_for_cleanup(updated_entity_id)
     
-    # Submit an updated bogus file
+    # Submit an updated bogus file and this time by evaluation name
     output = run('synapse', 
                  '--skip-checks', 
                  'submit', 
-                 '--evaluation', 
-                 eval.id, 
+                 '--evaluationName', 
+                 eval.name,
                  '--entity',
                  file_entity_id)
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
     # Tests shouldn't have external dependencies, but here it's required
     ducky_url = 'http://upload.wikimedia.org/wikipedia/commons/9/93/Rubber_Duck.jpg'
+
 
     # Test external file handle
     output = run('synapse', 
@@ -351,11 +370,34 @@ def test_command_line_store_and_submit():
                  '--file', 
                  ducky_url)
     exteral_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+    schedule_for_cleanup(exteral_entity_id)
 
     # Verify that we created an external file handle
     f2 = syn.get(exteral_entity_id)
     fh = syn._getFileHandle(f2.dataFileHandleId)
     assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
+
+    #submit an external file to an evaluation and use provenance
+    filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+    output = run('synapse', 
+                 '--skip-checks', 
+                 'submit', 
+                 '--evalID', 
+                 eval.id, 
+                 '--file',
+                 filename,
+                 '--pid',
+                 project_id,
+                 '--used',
+                 exteral_entity_id,
+                 '--executed',
+                 repo_url
+                 )
+    submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
+
+
 
     # Delete project
     output = run('synapse', 
