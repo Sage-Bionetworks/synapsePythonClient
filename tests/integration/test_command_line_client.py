@@ -298,7 +298,7 @@ def test_command_line_store_and_submit():
     eval = Evaluation(name=str(uuid.uuid4()), contentSource=project_id)
     eval = syn.store(eval)
     syn.joinEvaluation(eval)
-    schedule_for_cleanup(eval.id)
+    schedule_for_cleanup(eval)
     
     # Submit a bogus file
     output = run('synapse', 
