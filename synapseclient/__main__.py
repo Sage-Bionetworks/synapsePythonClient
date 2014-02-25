@@ -428,7 +428,7 @@ def build_parser():
             help='Synapse ID of project or folder where to upload data')
     parser_submit.add_argument(
             '--name',
-            type=str, nargs="+",
+            type=str,
             help='Name of the submission')
     parser_submit.add_argument(
             '--teamName', '--team',
