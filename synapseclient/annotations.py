@@ -122,10 +122,14 @@ def is_submission_status_annotations(annotations):
     return all([key in keys for key in annotations.keys()])
 
 
-def to_submission_status_annotations(annotations):
+def to_submission_status_annotations(annotations, is_private=True):
     """
     Converts a normal dictionary to the format used to annotate submission
     statuses, which is different from the format used to annotate entities.
+
+    :param annotations: A normal Python dictionary whose values are strings, floats, ints or doubles
+
+    :param isPrivate: Set privacy on all annotations at once. These can be set individually using :py:func:`set_privacy`.
 
     Example::
 
@@ -154,16 +158,18 @@ def to_submission_status_annotations(annotations):
     for key, value in annotations.iteritems():
         if key in ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']:
             synapseAnnos[key] = value
+        elif isinstance(value, bool):
+            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':unicode(value).lower(), 'isPrivate':is_private })
         elif isinstance(value, int) or isinstance(value, long):
-            synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':value })
+            synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
         elif isinstance(value, float):
-            synapseAnnos.setdefault('doubleAnnos', []).append({ 'key':key, 'value':value })
+            synapseAnnos.setdefault('doubleAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
         elif isinstance(value, basestring):
-            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':value })
+            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
         elif _is_date(value):
-            synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':to_unix_epoch_time(value) })
+            synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':to_unix_epoch_time(value), 'isPrivate':is_private })
         else:
-            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':unicode(value) })
+            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':unicode(value), 'isPrivate':is_private })
     return synapseAnnos
 
 def from_submission_status_annotations(annotations):
@@ -183,6 +189,20 @@ def from_submission_status_annotations(annotations):
     return dictionary
 
 def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'doubleAnnos', 'stringAnnos']):
+    """
+    Set privacy of individual annotations, where annotations are in the format used by Synapse
+    SubmissionStatus objects. See the `Annotations documentation <http://rest.synapse.org/org/sagebionetworks/repo/model/annotation/Annotations.html>`_.
+
+    :param annotations: Annotations that have already been converted to Synapse format using
+                        :py:func:`to_submission_status_annotations`.
+    :param key:
+    :param is_private: If False, the annotation will be visible to users with READ permission on the evaluation.
+                       If True, the it will be visible only to users with READ_PRIVATE_SUBMISSION on the evaluation.
+                       Note: Is this really correct???
+    :param value_types: A list of the value types in which to search for the key. Defaults to all types
+                        ['longAnnos', 'doubleAnnos', 'stringAnnos'].
+
+    """
     for value_type in value_types:
         kvps = annotations.get(value_type, None)
         if kvps:

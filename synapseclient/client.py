@@ -2033,9 +2033,13 @@ class Synapse:
                       'versionNumber' : entity_version}
         submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity['etag'], 
                                                json.dumps(submission)))
-        
-        if 'submissionReceiptMessage' in evaluation:
-            print evaluation['submissionReceiptMessage']
+        try:
+            if 'submissionReceiptMessage' in evaluation:
+                print evaluation['submissionReceiptMessage']
+        except TypeError as ex1:
+            ## if evaluation is an int, we just won't have a message
+            pass
+
         return submitted
         
         
