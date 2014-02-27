@@ -199,4 +199,5 @@ def test_evaluations():
         # Clean up
         syn.delete(ev)
 
+    ## Just deleted it. Shouldn't be able to get it.
     assert_raises(SynapseHTTPError, syn.getEvaluation, ev)

@@ -52,7 +52,8 @@ def test_Entity():
     # Test CRUD on Files
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    a_file = File(path, parent=folder, description='Random data for testing', 
+    a_file = File(path, parent=folder, description='Random data for testing',
+                  contentType='text/flapdoodle',
                   foo='An arbitrary value', bar=[33,44,55], bday=Datetime(2013,3,15))
     a_file = syn._createFileEntity(a_file)
     assert a_file.path == path
@@ -61,6 +62,7 @@ def test_Entity():
     assert a_file['foo'][0] == 'An arbitrary value'
     assert a_file['bar'] == [33,44,55]
     assert a_file['bday'][0] == Datetime(2013,3,15)
+    assert a_file.contentType == 'text/flapdoodle'
     
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
