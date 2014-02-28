@@ -191,14 +191,15 @@ def from_submission_status_annotations(annotations):
 def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'doubleAnnos', 'stringAnnos']):
     """
     Set privacy of individual annotations, where annotations are in the format used by Synapse
-    SubmissionStatus objects. See the `Annotations documentation <http://rest.synapse.org/org/sagebionetworks/repo/model/annotation/Annotations.html>`_.
+    SubmissionStatus objects. See the `Annotations documentation <http://rest.synapse.org/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
+    and the docs regarding `querying annotations <http://rest.synapse.org/GET/evaluation/submission/query.html>`_.
 
     :param annotations: Annotations that have already been converted to Synapse format using
                         :py:func:`to_submission_status_annotations`.
-    :param key:
-    :param is_private: If False, the annotation will be visible to users with READ permission on the evaluation.
-                       If True, the it will be visible only to users with READ_PRIVATE_SUBMISSION on the evaluation.
-                       Note: Is this really correct???
+    :param key:         The key of the annotation whose privacy we're setting.
+    :param is_private:  If False, the annotation will be visible to users with READ permission on the evaluation.
+                        If True, the it will be visible only to users with READ_PRIVATE_SUBMISSION on the evaluation.
+                        Note: Is this really correct???
     :param value_types: A list of the value types in which to search for the key. Defaults to all types
                         ['longAnnos', 'doubleAnnos', 'stringAnnos'].
 

@@ -119,7 +119,9 @@ def test_evaluations():
                      name='Submission 999',
                      description ="Haha!  I'm inaccessible...")
             entity = testSyn.store(f)
-            submission = testSyn.submit(ev, entity)
+
+            ## test submission by evaluation ID
+            submission = testSyn.submit(ev.id, entity)
 
             # Clean up, since the current user can't access this project
             # This also removes references to the submitted object :)

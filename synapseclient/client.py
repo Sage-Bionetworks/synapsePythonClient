@@ -1991,7 +1991,7 @@ class Synapse:
             yield Evaluation(**result)
 
 
-    def submit(self, evaluation, entity, name=None, teamName=None):
+    def submit(self, evaluation, entity, name=None, teamName=None, silent=False):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
         
@@ -2036,13 +2036,15 @@ class Synapse:
                       'versionNumber' : entity_version}
         submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity['etag'], 
                                                json.dumps(submission)))
-        try:
+
+        ## if we want to display the receipt message, we need the full object
+        if not silent:
+            if not(isinstance(evaluation, Evaluation)):
+                evaluation = self.getEvaluation(evaluation_id)
             if 'submissionReceiptMessage' in evaluation:
                 print evaluation['submissionReceiptMessage']
-        except TypeError as ex1:
-            ## if evaluation is an int, we just won't have a message
-            pass
 
+        #TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage']) like the R client
         return submitted
         
         

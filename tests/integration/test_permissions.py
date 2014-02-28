@@ -52,16 +52,17 @@ def test_ACL():
     acl = syn.setPermissions(project, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE'])
 
     ## skip this next bit if the other user is the same as the current user
-    if other_user['principalId'] == current_user_id:
-        sys.stderr.write('\nWarning: current user and other user are the same. Please run as a different user or modify .synapseConfig\n')
-    else:
-        ## make sure the current user still has a full set of permissions
-        permissions = syn.getPermissions(project, current_user_id)
-        assert 'DELETE' in permissions
-        assert 'CHANGE_PERMISSIONS' in permissions
-        assert 'READ' in permissions
-        assert 'CREATE' in permissions
-        assert 'UPDATE' in permissions
+    assert other_user['principalId'] != current_user_id, \
+        "\nInvalid test: current user and other user are the same. Please run as a " \
+        "different user or modify the [test-authentication] section of .synapseConfig\n"
+
+    ## make sure the current user still has a full set of permissions
+    permissions = syn.getPermissions(project, current_user_id)
+    assert 'DELETE' in permissions
+    assert 'CHANGE_PERMISSIONS' in permissions
+    assert 'READ' in permissions
+    assert 'CREATE' in permissions
+    assert 'UPDATE' in permissions
 
     ## check if the permissions granted to the other user stuck
     permissions = syn.getPermissions(project, other_user['principalId'])
