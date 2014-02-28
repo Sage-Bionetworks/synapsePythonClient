@@ -28,10 +28,10 @@ def setup(module):
 
 
 def test_login():
-    # Test that we fail gracefully with wrong user
-    assert_raises(SynapseAuthenticationError, syn.login, 'asdf', 'notarealpassword')
-
     try:
+        # Test that we fail gracefully with wrong user
+        assert_raises(SynapseAuthenticationError, syn.login, 'asdf', 'notarealpassword')
+
         config = ConfigParser.ConfigParser()
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
@@ -46,8 +46,10 @@ def test_login():
         syn.logout(forgetMe=True)
         
         # Config file is read-only for the client, so it must be mocked!
-        with patch("ConfigParser.ConfigParser.has_option") as config_has_mock:
+        with patch("ConfigParser.ConfigParser.has_option") as config_has_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
+
             config_has_mock.return_value = False
+            read_session_mock.return_value = {}
             
             # Login with given bad session token, 
             # It should REST PUT the token and fail
@@ -61,6 +63,7 @@ def test_login():
             config_has_mock.reset_mock()
             config_has_mock.side_effect = lambda section, option: section == "authentication" and option == "sessiontoken"
             with patch("ConfigParser.ConfigParser.get") as config_get_mock:
+
                 # Login with a session token from the config file
                 config_get_mock.return_value = sessionToken
                 syn.login(silent=True)
@@ -87,8 +90,9 @@ def test_login():
     except ConfigParser.Error:
         print "To fully test the login method, please supply a username and password in the configuration file"
 
-    # Login with config file
-    syn.login(rememberMe=True, silent=True)
+    finally:
+        # Login with config file
+        syn.login(rememberMe=True, silent=True)
 
 
 def test_entity_version():
@@ -214,6 +218,7 @@ def test_uploadFileEntity():
 
     # Download and verify
     entity = syn.downloadEntity(entity)
+
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
@@ -345,7 +350,7 @@ def test_wikiAttachment():
     attachname = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     schedule_for_cleanup(attachname)
-    fileHandle = syn._uploadFileToFileHandleService(filename)
+    fileHandle = syn._uploadToFileHandleService(filename)
 
     # Create and store a Wiki 
     # The constructor should accept both file handles and file paths
@@ -382,8 +387,8 @@ def test_wikiAttachment():
 
     # Check the Wiki's metadata
     headers = syn.getWikiHeaders(project)
-    assert headers['totalNumberOfResults'] == 2
-    assert headers['results'][0]['title'] in (wiki['title'], subwiki['title'])
+    assert len(headers) == 2
+    assert headers[0]['title'] in (wiki['title'], subwiki['title'])
 
     # # Retrieve the file attachment
     # tmpdir = tempfile.mkdtemp()
@@ -398,131 +403,4 @@ def test_wikiAttachment():
     syn.delete(wiki)
     syn.delete(subwiki)
     assert_raises(SynapseHTTPError, syn.getWiki, project)
-
-
-def test_evaluations():
-    # Create an Evaluation
-    name = 'Test Evaluation %s' % str(uuid.uuid4())
-    ev = Evaluation(name=name, description='Evaluation for testing', 
-                    contentSource=project['id'], status='CLOSED')
-    ev = syn.store(ev)
-    
-    # -- Get the Evaluation by name
-    evalNamed = syn.getEvaluationByName(name)
-    assert ev['contentSource'] == evalNamed['contentSource']
-    assert ev['createdOn'] == evalNamed['createdOn']
-    assert ev['description'] == evalNamed['description']
-    assert ev['etag'] == evalNamed['etag']
-    assert ev['id'] == evalNamed['id']
-    assert ev['name'] == evalNamed['name']
-    assert ev['ownerId'] == evalNamed['ownerId']
-    assert ev['status'] == evalNamed['status']
-    
-    # Update the Evaluation
-    ev['status'] = 'OPEN'
-    ev = syn.store(ev, createOrUpdate=True)
-    assert ev.status == 'OPEN'
-
-    # Add the current user as a participant
-    syn.joinEvaluation(ev)
-        
-    # Find this user in the participant list
-    foundMe = False
-    myOwnerId = int(syn.getUserProfile()['ownerId'])
-    for item in syn.getParticipants(ev):
-        if int(item['userId']) == myOwnerId:
-            foundMe = True
-            break
-    assert foundMe
-
-    # Test getSubmissions with no Submissions (SYNR-453)
-    submissions = syn.getSubmissions(ev)
-    assert len(list(submissions)) == 0
-        
-    # -- Get a Submission attachment belonging to another user (SYNR-541) --
-    # See if the configuration contains test authentication
-    try:
-        config = ConfigParser.ConfigParser()
-        config.read(client.CONFIG_FILE)
-        other_user = {}
-        other_user['email'] = config.get('test-authentication', 'username')
-        other_user['password'] = config.get('test-authentication', 'password')
-        print "Testing SYNR-541"
-        
-        # Login as the test user
-        testSyn = client.Synapse(skip_checks=True)
-        testSyn.login(email=other_user['email'], password=other_user['password'])
-        testOwnerId = int(testSyn.getUserProfile()['ownerId'])
-        
-        # Make a project
-        other_project = Project(name=str(uuid.uuid4()))
-        other_project = testSyn.createEntity(other_project)
-        
-        # Give the test user permission to read and join the evaluation
-        syn._allowParticipation(ev, testOwnerId)
-        syn._allowParticipation(ev, "AUTHENTICATED_USERS")
-        syn._allowParticipation(ev, "PUBLIC")
-        
-        # Have the test user join the evaluation
-        testSyn.joinEvaluation(ev)
-        
-        # Find the test user in the participants list
-        foundMe = False
-        for item in syn.getParticipants(ev):
-            if int(item['userId']) == testOwnerId:
-                foundMe = True
-                break
-        assert foundMe
-        
-        # Make a file to submit
-        fd, filename = tempfile.mkstemp()
-        os.write(fd, str(random.gauss(0,1)) + '\n')
-        os.close(fd)
-        f = File(filename, parentId=other_project.id, 
-                 name='Different from file name', 
-                 description ="Haha!  I'm inaccessible...")
-        entity = testSyn.store(f)
-        submission = testSyn.submit(ev, entity)
-        
-        # Clean up, since the current user can't access this project
-        # This also removes references to the submitted object :)
-        testSyn.delete(other_project)
-        
-        # Mess up the cached file so that syn._getWithEntityBundle must download again
-        os.utime(filename, (0, 0))
-        
-        # Grab the Submission as the original user
-        fetched = syn.getSubmission(submission['id'])
-        assert os.path.exists(fetched['filePath'])
-        
-    except ConfigParser.Error:
-        print 'Skipping test for SYNR-541: No [test-authentication] in %s' % client.CONFIG_FILE
-
-    # Create a bunch of Entities and submit them for scoring
-    num_of_submissions = 3 # Increase this to fully test paging by getEvaluationSubmissions
-    print "Creating Submissions"
-    for i in range(num_of_submissions):
-        fd, filename = tempfile.mkstemp()
-        os.write(fd, str(random.gauss(0,1)) + '\n')
-        os.close(fd)
-        
-        f = File(filename, parentId=project.id, name='entry-%02d' % i,
-                 description='An entry for testing evaluation')
-        entity=syn.store(f)
-        syn.submit(ev, entity, name='Different from file name', teamName='My Team')
-
-    # Score the submissions
-    submissions = syn.getSubmissions(ev)
-    print "Scoring Submissions"
-    for submission in submissions:
-        assert submission['name'] == 'Different from file name'
-        status = syn.getSubmissionStatus(submission)
-        status.score = random.random()
-        status.status = 'SCORED'
-        status.report = 'a fabulous effort!'
-        syn.store(status)
-
-    # Clean up
-    syn.delete(ev)
-    assert_raises(SynapseHTTPError, syn.getEvaluation, ev)
 

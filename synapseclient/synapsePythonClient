@@ -1,6 +1,6 @@
 {
   "client":"synapsePythonClient",
-  "latestVersion":"0.5.1",
+  "latestVersion":"0.5.2",
   "blacklist":["0.0.0", "0.4.1", "0.4.0", "0.3.0", "0.2.1", "0.2.0", "0.1.4"],
   "releaseNotes":"New in this release:\n* Improved functions for handling evaluations, see: ?synapseclient.evaluation\n* Improvements to API key based login, see ?synapseclient.Synapse.login\n* Improved API docs hosted at http://python-docs.synapse.org\n\nNumerous other improvements and bug-fixes. For a complete list, see:\n\nhttps://sagebionetworks.jira.com/issues/?jql=project%20%3D%20SYNR%20AND%20(fixVersion%20%3D%20%22py-0.5.1%22%20OR%20fixVersion%20%3D%20%22py-0.5.1.dev1%22%20OR%20fixVersion%20%3D%20%22py-0.5.1.dev2%22)%20ORDER%20BY%20priority%20DESC%2C%20created%20ASC\n\nFor help Getting started with the Python client for Synapse see:\nhttps://www.synapse.org/#!Synapse:syn1768504"
 }

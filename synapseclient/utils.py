@@ -319,7 +319,7 @@ def to_unix_epoch_time(dt):
     
     if type(dt) == Date:
         return (dt - UNIX_EPOCH.date()).total_seconds() * 1000
-    return (dt - UNIX_EPOCH).total_seconds() * 1000
+    return int((dt - UNIX_EPOCH).total_seconds() * 1000)
 
 
 def from_unix_epoch_time(ms):
@@ -489,5 +489,29 @@ def _synapse_error_msg(ex):
         return ex
 
     return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
+
+
+def _limit_and_offset(uri, limit=None, offset=None):
+    """
+    Set limit and/or offset query parameters of the given URI.
+    """
+    parts = urlparse.urlparse(uri)
+    query = urlparse.parse_qs(parts.query)
+    if limit is None:
+        query.pop('limit', None)
+    else:
+        query['limit'] = limit
+    if offset is None:
+        query.pop('offset', None)
+    else:
+        query['offset'] = offset
+    new_query_string = urllib.urlencode(query, doseq=True)
+    return urlparse.urlunparse(urlparse.ParseResult(
+        scheme=parts.scheme,
+        netloc=parts.netloc,
+        path=parts.path,
+        params=parts.params,
+        query=new_query_string,
+        fragment=parts.fragment))
 
 

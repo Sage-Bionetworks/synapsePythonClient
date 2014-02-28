@@ -131,9 +131,11 @@ class Submission(DictObject):
     """
     Builds an Synapse submission object.
 
-    :param entityId:      Synapse ID of the Entity to submit
-    :param evaluationId:  ID of the Evaluation to which the Entity is to be submitted
-    :param versionNumber: Version number of the submitted Entity
+    :param name:             Name of submission
+    :param entityId:         Synapse ID of the Entity to submit
+    :param evaluationId:     ID of the Evaluation to which the Entity is to be submitted
+    :param versionNumber:    Version number of the submitted Entity
+    :param submitterAlias:   A pseudonym or team name for a challenge entry
     """
 
     @classmethod

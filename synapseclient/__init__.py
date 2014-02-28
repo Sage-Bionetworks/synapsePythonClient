@@ -18,7 +18,7 @@ within Python scripts or at the interactive Python console. Other Synapse client
 exist for `R <https://www.synapse.org/#!Synapse:syn1834618>`_,
 `Java <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/tree/develop/client/synapseJavaClient>`_,
 and the `web <https://www.synapse.org/>`_. The Python client can also be used from the
-`command line <_static/CommandLineClient.html>`_.
+`command line <CommandLineClient.html>`_.
 
 If you're just getting started with Synapse,
 have a look at the Getting Started guides for `Synapse <https://www.synapse.org/#!Wiki:syn1669771/ENTITY/54546>`_
@@ -259,7 +259,7 @@ Getting updates
 ===============
 
 To get information about new versions of the client including development versions
-see `synapseclient.check_for_updates() <_static/Versions.html#synapseclient.version_check.check_for_updates>`_ and `synapseclient.release_notes() <_static/Versions.html#synapseclient.version_check.release_notes>`_.
+see `synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_ and `synapseclient.release_notes() <Versions.html#synapseclient.version_check.release_notes>`_.
 """
 
 import json
@@ -279,4 +279,6 @@ from wiki import Wiki
 from version_check import check_for_updates
 from version_check import release_notes
 
+from client import PUBLIC
+from client import ROOT_ENTITY
 

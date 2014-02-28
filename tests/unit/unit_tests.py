@@ -5,7 +5,6 @@ from nose.tools import assert_raises
 import os
 
 import synapseclient.utils as utils
-from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations
 from synapseclient.activity import Activity
 from synapseclient.utils import _find_used
 from synapseclient.exceptions import *
@@ -16,65 +15,6 @@ def setup():
     print '~' * 60
     print os.path.basename(__file__)
     print '~' * 60
-
-def test_annotations():
-    """Test string annotations"""
-    a = dict(foo='bar', zoo=['zing','zaboo'], species='Platypus')
-    sa = to_synapse_annotations(a)
-    # print sa
-    assert sa['stringAnnotations']['foo'] == ['bar']
-    assert sa['stringAnnotations']['zoo'] == ['zing','zaboo']
-    assert sa['stringAnnotations']['species'] == ['Platypus']
-
-def test_more_annotations():
-    """Test long, float and data annotations"""
-    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Platypus', birthdays=[Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3)])
-    sa = to_synapse_annotations(a)
-    # print sa
-    assert sa['longAnnotations']['foo'] == [1234]
-    assert sa['doubleAnnotations']['zoo'] == [123.1, 456.2, 789.3]
-    assert sa['stringAnnotations']['species'] == ['Platypus']
-
-    ## this part of the test is kinda fragile. It it breaks again, it should be removed
-    bdays = [utils.from_unix_epoch_time(t) for t in sa['dateAnnotations']['birthdays']]
-    assert all([t in bdays for t in [Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3)]])
-
-def test_annotations_unicode():
-    a = {'files': [u'tmp6y5tVr.txt'], 'cacheDir': u'/Users/chris/.synapseCache/python/syn1809087', u'foo': 1266}
-    sa = to_synapse_annotations(a)
-    assert sa['stringAnnotations']['cacheDir'] == [u'/Users/chris/.synapseCache/python/syn1809087']
-
-def test_round_trip_annotations():
-    """Test that annotations can make the round trip from a simple dictionary
-    to the synapse format and back"""
-    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose', birthdays=[Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3), Datetime(2013,3,15)])
-    sa = to_synapse_annotations(a)
-    # print sa
-    a2 = from_synapse_annotations(sa)
-    # print a2
-    a = a2
-
-def test_mixed_annotations():
-    """test that to_synapse_annotations will coerce a list of mixed types to strings"""
-    a = dict(foo=[1, 'a', Datetime(1969,4,28,11,47)])
-    sa = to_synapse_annotations(a)
-    # print sa
-    a2 = from_synapse_annotations(sa)
-    # print a2
-    assert a2['foo'][0] == '1'
-    assert a2['foo'][1] == 'a'
-    assert a2['foo'][2].find('1969') > -1
-
-
-def test_idempotent_annotations():
-    """test that to_synapse_annotations won't mess up a dictionary that's already
-    in the synapse format"""
-    a = dict(species='Moose', n=42, birthday=Datetime(1969,4,28))
-    sa = to_synapse_annotations(a)
-    a2 = dict()
-    a2.update(sa)
-    sa2 = to_synapse_annotations(a2)
-    assert sa == sa2
 
 def test_activity_creation_from_dict():
     """test that activities are created correctly from a dictionary"""
@@ -262,5 +202,32 @@ def test_normalize_path():
 
     ## what's the right thing to do for None?
     assert utils.normalize_path(None) is None
+
+def test_limit_and_offset():
+    def query_params(uri):
+        """Return the query params as a dict"""
+        return dict([kvp.split('=') for kvp in uri.split('?')[1].split('&')])
+
+    qp = query_params(utils._limit_and_offset('/asdf/1234', limit=10, offset=0))
+    assert qp['limit'] == '10'
+    assert qp['offset'] == '0'
+
+    qp = query_params(utils._limit_and_offset('/asdf/1234?limit=5&offset=10', limit=25, offset=50))
+    assert qp['limit'] == '25'
+    assert qp['offset'] == '50'
+    assert len(qp) == 2
+
+    qp = query_params(utils._limit_and_offset('/asdf/1234?foo=bar', limit=10, offset=30))
+    assert qp['limit'] == '10'
+    assert qp['offset'] == '30'
+    assert qp['foo'] == 'bar'
+    assert len(qp) == 3
+
+    qp = query_params(utils._limit_and_offset('/asdf/1234?foo=bar&a=b', limit=10))
+    assert qp['limit'] == '10'
+    assert 'offset' not in qp
+    assert qp['foo'] == 'bar'
+    assert qp['a'] == 'b'
+    assert len(qp) == 3
 
 

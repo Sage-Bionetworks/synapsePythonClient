@@ -1,7 +1,11 @@
 import ConfigParser
+import json
+import mock
 import os
 import sys
 import uuid
+
+from nose.tools import assert_raises
 
 import synapseclient
 import synapseclient.utils as utils
@@ -24,15 +28,16 @@ def setup(module):
     config.read(synapseclient.client.CONFIG_FILE)
     module.other_user = {}
     try:
-        other_user['email'] = config.get('test-authentication', 'username')
+        other_user['username'] = config.get('test-authentication', 'username')
         other_user['password'] = config.get('test-authentication', 'password')
         other_user['principalId'] = config.get('test-authentication', 'principalId')
     except ConfigParser.Error:
         print "[test-authentication] section missing from the configuration file"
 
     if 'principalId' not in other_user:
-        # Fall back on Chris's principalId
-        other_user['principalId'] = 1421212
+        # Fall back on the synapse-test user
+        other_user['principalId'] = 1560252
+        other_user['username'] = 'synapse-test'
 
 
 def test_ACL():
@@ -45,7 +50,13 @@ def test_ACL():
 
     # Add permissions on the Project for a new user
     acl = syn.setPermissions(project, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE'])
-    
+
+    ## skip this next bit if the other user is the same as the current user
+    assert other_user['principalId'] != current_user_id, \
+        "\nInvalid test: current user and other user are the same. Please run as a " \
+        "different user or modify the [test-authentication] section of .synapseConfig\n"
+
+    ## make sure the current user still has a full set of permissions
     permissions = syn.getPermissions(project, current_user_id)
     assert 'DELETE' in permissions
     assert 'CHANGE_PERMISSIONS' in permissions
@@ -53,20 +64,31 @@ def test_ACL():
     assert 'CREATE' in permissions
     assert 'UPDATE' in permissions
 
+    ## check if the permissions granted to the other user stuck
     permissions = syn.getPermissions(project, other_user['principalId'])
     assert 'READ' in permissions
     assert 'CREATE' in permissions
     assert 'UPDATE' in permissions
 
+    #Make sure it works to set/getPermissions by username (email no longer works)
+    username = other_user['username']
+    acl = syn.setPermissions(project, username, accessType=['READ'])
+    permissions = syn.getPermissions(project, username)
+    assert 'READ' in permissions and len(permissions)==1
+
+    #Get permissions of PUBLIC user
+    permissions = syn.getPermissions(project)
+    assert len(permissions)==0
+
 
 def test_get_entity_owned_by_another_user():
-    if 'email' not in other_user or 'password' not in other_user:
+    if 'username' not in other_user or 'password' not in other_user:
         sys.stderr.write('\nWarning: no test-authentication configured. skipping test_get_entity_owned_by_another.\n')
         return
 
     try:
         syn_other = synapseclient.Synapse(skip_checks=True)
-        syn_other.login(other_user['email'], other_user['password'])
+        syn_other.login(other_user['username'], other_user['password'])
 
         project = Project(name=str(uuid.uuid4()))
         project = syn_other.store(project)
@@ -100,4 +122,45 @@ def test_get_entity_owned_by_another_user():
         assert other_users_file == a_file
     finally:
         syn_other.logout()
+
+
+def test_access_restrictions():
+    ## Bruce gives this test a 'B'. The 'A' solution would be to
+    ## construct the mock value from the schemas. -jcb
+    with mock.patch('synapseclient.Synapse._getEntityBundle') as _getEntityBundle_mock:
+        _getEntityBundle_mock.return_value = {
+            u'annotations': {
+              u'etag': u'cbda8e02-a83e-4435-96d0-0af4d3684a90',
+              u'id': u'syn1000002',
+              u'stringAnnotations': {}},
+            u'entity': {
+              u'concreteType': u'org.sagebionetworks.repo.model.FileEntity',
+              u'createdBy': u'Miles Dewey Davis',
+              u'dataFileHandleId': u'1234',
+              u'entityType': u'org.sagebionetworks.repo.model.FileEntity',
+              u'etag': u'cbda8e02-a83e-4435-96d0-0af4d3684a90',
+              u'id': u'syn1000002',
+              u'name': u'so_what.mp3',
+              u'parentId': u'syn1000001',
+              u'versionLabel': u'1',
+              u'versionNumber': 1},
+            u'entityType': u'org.sagebionetworks.repo.model.FileEntity',
+            u'fileHandles': [],
+            u'unmetAccessRequirements': [{
+              u'accessType': u'DOWNLOAD',
+              u'concreteType': u'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
+              u'createdBy': u'377358',
+              u'entityType': u'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
+              u'etag': u'1dfedff0-c3b1-472c-b9ff-1b67acb81f00',
+              u'id': 2299555,
+              u'subjectIds': [{u'id': u'syn1000002', u'type': u'ENTITY'}],
+              u'termsOfUse': u'Use it or lose it!'}]}
+
+        entity = syn.get('syn1000002', downloadFile=False)
+        assert entity is not None
+        assert entity.path is None
+
+        ## Downloading the file is the default, but is an error if we have unmet access requirements
+        assert_raises(synapseclient.exceptions.SynapseUnmetAccessRestrictions, syn.get, 'syn1000002', downloadFile=True)
+
 

@@ -40,6 +40,8 @@ CACHE_FANOUT = 1000
 CACHE_MAX_LOCK_TRY_TIME = 70
 CACHE_LOCK_TIME = 10
 CACHE_UNLOCK_WAIT_TIME = 0.5
+CACHE_MAP_NAME = '.cacheMap'
+CACHE_LOCK_SUFFIX = '.lock'
 
 
 def local_file_has_changed(entityBundle, checkIndirect, path=None):
@@ -70,8 +72,14 @@ def local_file_has_changed(entityBundle, checkIndirect, path=None):
     if path is None:
         return False
         
-    # External URLs will be ignored
+    # For external URLs, if the path has not changed
+    # then the file handle does not have to change
     if utils.is_url(path):
+        for handle in entityBundle['fileHandles']:
+            if handle['id'] == entityBundle['entity']['dataFileHandleId'] \
+                    and handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle' \
+                    and handle['externalURL'] == path:
+                return False
         return True
     
     # Compare the modification times
@@ -202,8 +210,9 @@ def determine_local_file_location(entityBundle):
             if handle['id'] == entityBundle['entity']['dataFileHandleId']:
                 path = os.path.join(cacheDir, handle['fileName'])
                 return cacheDir, path, unmodifiedFile
-                    
-        raise SynapseMalformedEntityError("Invalid parameters: the entityBundle does not contain matching file handle IDs")
+
+        # Note: fileHandles will be empty if there are unmet access requirements
+        return None, None, None
     
 
 def get_alternate_file_name(path):
@@ -231,8 +240,8 @@ def obtain_lock_and_read_cache(cacheDir):
     :returns: A dictionary with the JSON contents of the locked '.cacheMap'
     """
     
-    cacheLock = os.path.join(cacheDir, '.lock')
-    cacheMap = os.path.join(cacheDir, '.cacheMap')
+    cacheMap = os.path.join(cacheDir, CACHE_MAP_NAME)
+    cacheLock = cacheMap + CACHE_LOCK_SUFFIX
     
     # Make and thereby obtain the '.lock'
     tryLockStartTime = time.time()
@@ -280,7 +289,7 @@ def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
     :param cacheMapBody: JSON object to write in the '.cacheMap' before releasing the lock.
     """
     
-    cacheLock = os.path.join(cacheDir, '.lock')
+    cacheLock = os.path.join(cacheDir, CACHE_MAP_NAME + CACHE_LOCK_SUFFIX)
     
     # Update the '.cacheMap'
     if cacheMapBody is not None:
@@ -292,7 +301,7 @@ def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
             relockedCacheMap.update(cacheMapBody)
             cacheMapBody = relockedCacheMap
         
-        cacheMap = os.path.join(cacheDir, '.cacheMap')
+        cacheMap = os.path.join(cacheDir, CACHE_MAP_NAME)
         with open(cacheMap, 'w') as f:
             json.dump(cacheMapBody, f)
             f.write('\n') # For compatibility with R's JSON parser

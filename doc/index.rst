@@ -7,13 +7,13 @@ Synapse Python Client documentation
 .. toctree::
    :maxdepth: 1
    
-   _static/Client
-   _static/Entity
-   _static/Evaluation
-   _static/Activity
-   _static/Annotations
-   _static/Wiki
-   _static/Utilities
-   _static/Versions
-   _static/CommandLineClient
+   Client
+   Entity
+   Evaluation
+   Activity
+   Annotations
+   Wiki
+   Utilities
+   Versions
+   CommandLineClient
 
