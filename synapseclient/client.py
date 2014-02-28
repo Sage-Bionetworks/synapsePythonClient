@@ -619,6 +619,7 @@ class Synapse:
                     if handle['id'] == bundle['entity']['dataFileHandleId']:
                         entity.md5 = handle.get('contentMd5', '')
                         entity.fileSize = handle.get('contentSize', None)
+                        entity.contentType = handle.get('contentType', None)
                         fileName = handle['fileName']
                         if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                             entity['externalURL'] = handle['externalURL']
@@ -795,7 +796,8 @@ class Synapse:
                     
                 else:
                     fileHandle = self._uploadToFileHandleService(entity['path'], \
-                                            synapseStore=entity.get('synapseStore', True))
+                                            synapseStore=entity.get('synapseStore', True),
+                                            mimetype=local_state.get('contentType', None))
                     properties['dataFileHandleId'] = fileHandle['id']
                 
                     # A file has been uploaded, so version must be updated
@@ -1612,7 +1614,7 @@ class Synapse:
             'cacheDir': os.path.dirname(destination) }
 
 
-    def _uploadToFileHandleService(self, filename, synapseStore=True):
+    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None):
         """
         Create and return a fileHandle, by either uploading a local file or
         linking to an external URL.
@@ -1632,7 +1634,7 @@ class Synapse:
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
             if synapseStore:
-                return self._chunkedUploadFile(filename)
+                return self._chunkedUploadFile(filename, mimetype=mimetype)
             else:
                 return self._addURLtoFileHandleService(filename)
 
@@ -1716,7 +1718,7 @@ class Synapse:
         return self.restGET('/completeUploadDaemonStatus/%s' % status['daemonId'], endpoint=self.fileHandleEndpoint)
 
         
-    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, progress=True):
+    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, progress=True, mimetype=None):
         """
         Upload a file to be stored in Synapse, dividing large files into chunks.
         
@@ -1736,8 +1738,9 @@ class Synapse:
         diagnostics = {'start-time': time.time()}
 
         # Guess mime-type - important for confirmation of MD5 sum by receiver
-        (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
-        if (mimetype is None):
+        if not mimetype:
+            (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
+        if not mimetype:
             mimetype = "application/octet-stream"
 
         # S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
@@ -1988,7 +1991,7 @@ class Synapse:
             yield Evaluation(**result)
 
 
-    def submit(self, evaluation, entity, name=None, teamName=None):
+    def submit(self, evaluation, entity, name=None, teamName=None, silent=False):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
         
@@ -2033,9 +2036,15 @@ class Synapse:
                       'versionNumber' : entity_version}
         submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity['etag'], 
                                                json.dumps(submission)))
-        
-        if 'submissionReceiptMessage' in evaluation:
-            print evaluation['submissionReceiptMessage']
+
+        ## if we want to display the receipt message, we need the full object
+        if not silent:
+            if not(isinstance(evaluation, Evaluation)):
+                evaluation = self.getEvaluation(evaluation_id)
+            if 'submissionReceiptMessage' in evaluation:
+                print evaluation['submissionReceiptMessage']
+
+        #TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage']) like the R client
         return submitted
         
         

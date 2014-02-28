@@ -123,14 +123,6 @@ def test_entity_creation():
 
 
 def test_entity_constructors():
-    project = Project(name=str(uuid.uuid4()), description='Testing 123')
-
-    folder = Folder(name='Musicians', parent=project, genre='Jazz', datatype='personnel')
-
-    personnel_file = File(fname, parentId=folder.id, group='Miles Davis Quintet', album='Stockholm 1960 Complete')
-
-
-def test_entity_constructors():
     project = Project('TestProject', id='syn1001', foo='bar')
     assert project.name == 'TestProject'
     assert project['foo'] == 'bar'
@@ -140,12 +132,14 @@ def test_entity_constructors():
     assert folder.foo == 'bat'
     assert folder.parentId == 'syn1001'
 
-    a_file = File('/path/to/fabulous_things.zzz', parent=folder, foo='biz')
+    a_file = File('/path/to/fabulous_things.zzz', parent=folder, foo='biz', contentType='application/cattywampus')
     #assert a_file.name == 'fabulous_things.zzz'
     assert a_file.concreteType == 'org.sagebionetworks.repo.model.FileEntity'
     assert a_file.path == '/path/to/fabulous_things.zzz'
     assert a_file.foo == 'biz'
     assert a_file.parentId == 'syn1002'
+    assert a_file.contentType == 'application/cattywampus'
+    assert 'contentType' in a_file.__dict__
 
 
 def test_property_keys():

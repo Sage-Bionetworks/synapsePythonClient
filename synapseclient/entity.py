@@ -441,7 +441,7 @@ class File(Entity, Versionable):
     """
     
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
-    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize']
+    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize', 'contentType']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
     ## TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")

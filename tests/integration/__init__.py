@@ -9,7 +9,7 @@ To run a single test      : nosetests -vs tests/integration/integration_test_Ent
 
 import uuid, os, sys
 
-from synapseclient import Entity, Project, Folder, File, Data
+from synapseclient import Entity, Project, Folder, File, Data, Evaluation
 import synapseclient
 import synapseclient.utils as utils
 
@@ -46,7 +46,7 @@ def schedule_for_cleanup(item):
 def cleanup(items):
     """cleanup junk created during testing"""
     for item in items:
-        if isinstance(item, Entity) or utils.is_synapse_id(item):
+        if isinstance(item, Entity) or utils.is_synapse_id(item) or hasattr(item, 'deleteURI'):
             try:
                 syn.delete(item)
             except Exception as ex:

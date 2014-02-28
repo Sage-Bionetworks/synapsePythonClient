@@ -35,9 +35,10 @@ def setup(module):
         print "[test-authentication] section missing from the configuration file"
 
     if 'principalId' not in other_user:
-        # Fall back on Chris's principalId
-        other_user['principalId'] = 1421212
-        other_user['username'] = 'chris.bare@sagebase.org'
+        # Fall back on the synapse-test user
+        other_user['principalId'] = 1560252
+        other_user['username'] = 'synapse-test'
+
 
 def test_ACL():
     # Get the user's principalId, which is called ownerId and is
@@ -49,7 +50,13 @@ def test_ACL():
 
     # Add permissions on the Project for a new user
     acl = syn.setPermissions(project, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE'])
-    
+
+    ## skip this next bit if the other user is the same as the current user
+    assert other_user['principalId'] != current_user_id, \
+        "\nInvalid test: current user and other user are the same. Please run as a " \
+        "different user or modify the [test-authentication] section of .synapseConfig\n"
+
+    ## make sure the current user still has a full set of permissions
     permissions = syn.getPermissions(project, current_user_id)
     assert 'DELETE' in permissions
     assert 'CHANGE_PERMISSIONS' in permissions
@@ -57,6 +64,7 @@ def test_ACL():
     assert 'CREATE' in permissions
     assert 'UPDATE' in permissions
 
+    ## check if the permissions granted to the other user stuck
     permissions = syn.getPermissions(project, other_user['principalId'])
     assert 'READ' in permissions
     assert 'CREATE' in permissions
@@ -71,8 +79,6 @@ def test_ACL():
     #Get permissions of PUBLIC user
     permissions = syn.getPermissions(project)
     assert len(permissions)==0
-    
-    
 
 
 def test_get_entity_owned_by_another_user():
