@@ -4,6 +4,7 @@ from mock import MagicMock, patch
 import unit
 import synapseclient
 from synapseclient.exceptions import *
+from synapseclient import Evaluation
 
 
 def setup(module):
@@ -83,45 +84,52 @@ def test_getWithEntityBundle(*mocks):
     ## TODO: add more test cases for flag combination of this method
 
 
-@patch('synapseclient.client.id_of')
 @patch('synapseclient.Synapse.restGET')
-@patch('synapseclient.Synapse.get')
 @patch('synapseclient.Synapse.restPOST')
-@patch('json.dumps')
-@patch('synapseclient.client.Submission')
+@patch('synapseclient.Synapse.getEvaluation')
 def test_submit(*mocks):
     mocks = [item for item in mocks]
-    id_mock         = mocks.pop()
     GET_mock        = mocks.pop()
-    get_mock        = mocks.pop()
     POST_mock       = mocks.pop()
-    json_mock       = mocks.pop()
-    submission_mock = mocks.pop()
+    getEvaluation_mock = mocks.pop()
     
     # -- Unmet access rights --
-    id_mock.return_value = 1337
     GET_mock.return_value = {'totalNumberOfResults': 2, 
                              'results': [
                                 {'accessType': 'Foo', 
                                  'termsOfUse': 'Bar'}, 
                                 {'accessType': 'bat', 
                                  'termsOfUse': 'baz'}]}
-                                 
-    assert_raises(SynapseAuthenticationError, syn.submit, "Evaluation", "Entity")
-    id_mock.assert_called_once_with("Evaluation")
-    GET_mock.assert_called_once_with('/evaluation/1337/accessRequirementUnfulfilled')
+    getEvaluation_mock.return_value = Evaluation(**{u'contentSource': u'syn1001',
+                                                    u'createdOn': u'2013-11-06T06:04:26.789Z',
+                                                    u'etag': u'86485ea1-8c89-4f24-a0a4-2f63bc011091',
+                                                    u'id': u'9090',
+                                                    u'name': u'test evaluation',
+                                                    u'ownerId': u'1560252',
+                                                    u'status': u'OPEN',
+                                                    u'submissionReceiptMessage': u'mmmm yummy!'})
+
+    assert_raises(SynapseAuthenticationError, syn.submit, "9090", "syn1001")
+    GET_mock.assert_called_once_with('/evaluation/9090/accessRequirementUnfulfilled')
     
     # -- Normal submission --
     # Pretend the user has access rights 
     GET_mock.return_value = {'totalNumberOfResults': 0, 'results': []}
     
-    # Ignore whatever is POST-ed
-    json_mock.return_value = None
-    POST_mock.return_value = {}
+    # insert a shim that returns the dictionary it was passed after adding a bogus id
+    def shim(*args):
+        assert args[0] == '/evaluation/submission?etag=Fake eTag'
+        submission = json.loads(args[1])
+        submission['id'] = 1234
+        return submission
+    POST_mock.side_effect = shim
     
-    syn.submit("EvalTwo", {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'})
-    id_mock.assert_called_with("EvalTwo")
+    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', teamName='Team X')
     assert GET_mock.call_count == 2
-    assert not get_mock.called
-    POST_mock.assert_called_once_with('/evaluation/submission?etag=Fake eTag', None)
-    assert submission_mock.called
+
+    assert submission.id == 1234
+    assert submission.evaluationId == '9090'
+    assert submission.name == 'George'
+    assert submission.submitterAlias == 'Team X'
+
+    print submission
