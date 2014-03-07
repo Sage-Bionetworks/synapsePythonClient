@@ -188,7 +188,7 @@ class Entity(collections.MutableMapping):
 
 
     def __new__(typ, *args, **kwargs):
-        obj = object.__new__(typ, *args, **kwargs)
+        obj = object.__new__(typ)
         
         # Make really sure that properties and annotations exist before
         # any object methods get invoked. This is important because the
