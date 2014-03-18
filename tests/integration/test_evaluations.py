@@ -1,4 +1,4 @@
-import tempfile, os, re, sys, filecmp, shutil, requests, json
+import tempfile, time, os, re, sys, filecmp, shutil, requests, json
 import uuid, random, base64
 from nose.tools import assert_raises
 
@@ -72,6 +72,17 @@ def test_evaluations():
                 break
         assert foundMe
 
+        # Add public READ permissions on evaluation
+        syn.setPermissions(ev, "AUTHENTICATED_USERS", accessType=['READ'])
+        syn.setPermissions(ev, "PUBLIC", accessType=['READ'])
+
+        # test getPermissions
+        permissions = syn.getPermissions(ev, "PUBLIC")
+        assert ['READ'] == permissions
+
+        permissions = syn.getPermissions(ev, syn.getUserProfile()['ownerId'])
+        assert [p in permissions for p in ['READ', 'CREATE', 'DELETE', 'UPDATE', 'CHANGE_PERMISSIONS', 'READ_PRIVATE_SUBMISSION']]
+
         # Test getSubmissions with no Submissions (SYNR-453)
         submissions = syn.getSubmissions(ev)
         assert len(list(submissions)) == 0
@@ -97,8 +108,6 @@ def test_evaluations():
 
             # Give the test user permission to read and join the evaluation
             syn._allowParticipation(ev, testOwnerId)
-            syn._allowParticipation(ev, "AUTHENTICATED_USERS")
-            syn._allowParticipation(ev, "PUBLIC")
 
             # Have the test user join the evaluation
             testSyn.joinEvaluation(ev)
@@ -172,11 +181,12 @@ def test_evaluations():
         print "Annotating Submissions"
         bogosity = {}
         submissions = syn.getSubmissions(ev)
+        b = 123
         for submission in submissions:
             status = syn.getSubmissionStatus(submission)
-            b = random.randint(1,100)
             bogosity[submission.id] = b
             a = dict(foo='bar', bogosity=b)
+            b += 123
             status['annotations'] = to_submission_status_annotations(a)
             set_privacy(status['annotations'], key='bogosity', is_private=False)
             syn.store(status)
@@ -191,6 +201,29 @@ def test_evaluations():
             for kvp in status.annotations['longAnnos']:
                 if kvp['key'] == 'bogosity':
                     assert kvp['isPrivate'] == False
+
+        # test query by submission annotations
+        # These queries run against an eventually consistent index table which is
+        # populated by an asynchronous worker. Thus, the queries may remain out
+        # of sync for some unbounded, but assumed to be short time.
+        attempts = 2
+        while attempts > 0:
+            try:
+                print "Querying for submissions"
+                results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s" % ev.id)
+                print results
+                assert results[u'totalNumberOfResults'] == num_of_submissions+1
+
+                results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
+                print results
+                assert results[u'totalNumberOfResults'] == num_of_submissions
+            except AssertionError as ex1:
+                print "failed query: ", ex1
+                attempts -= 1
+                if attempts > 0: print "retrying..."
+                time.sleep(2)
+            else:
+                attempts = 0
 
         ## Test that we can retrieve submissions with a specific status
         invalid_submissions = list(syn.getSubmissions(ev, status='INVALID'))

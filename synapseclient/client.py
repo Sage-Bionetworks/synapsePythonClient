@@ -48,7 +48,7 @@ from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, split_entity_namespaces, is_versionable, is_locationable
+from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -73,6 +73,7 @@ QUERY_LIMIT = 5000
 CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
 PUBLIC = 273949  #PrincipalId of public "user"
+AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 
 
@@ -628,7 +629,7 @@ class Synapse:
                             # It is unnecessary to hit the caching logic for external URLs not being downloaded
                             if not downloadFile:
                                 return entity
-        
+
             # Determine if the file should be downloaded
             downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
             if downloadFile: 
@@ -1249,15 +1250,21 @@ class Synapse:
 
     def _getBenefactor(self, entity):
         """An Entity gets its ACL from its benefactor."""
-        
-        return self.restGET('/entity/%s/benefactor' % id_of(entity))
+
+        if utils.is_synapse_id(entity) or synapseclient.entity.is_synapse_entity(entity):
+            return self.restGET('/entity/%s/benefactor' % id_of(entity))
+        return entity
+
 
     def _getACL(self, entity):
         """Get the effective ACL for a Synapse Entity."""
-        
-        # Get the ACL from the benefactor (which may be the entity itself)
-        benefactor = self._getBenefactor(entity)
-        uri = '/entity/%s/acl' % (benefactor['id'])
+
+        if hasattr(entity, 'getACLURI'):
+            uri = entity.getACLURI()
+        else:
+            # Get the ACL from the benefactor (which may be the entity itself)
+            benefactor = self._getBenefactor(entity)
+            uri = '/entity/%s/acl' % (benefactor['id'])
         return self.restGET(uri)
 
 
@@ -1278,17 +1285,20 @@ class Synapse:
             ]}
         """
         
-        # Get benefactor. (An entity gets its ACL from its benefactor.)
-        entity_id = id_of(entity)
-        uri = '/entity/%s/benefactor' % entity_id
-        benefactor = self.restGET(uri)
-
-        # Update or create new ACL
-        uri = '/entity/%s/acl' % entity_id
-        if benefactor['id']==entity_id:
-            return self.restPUT(uri, json.dumps(acl))
+        if hasattr(entity, 'putACLURI'):
+            return self.restPUT(entity.putACLURI(), json.dumps(acl))
         else:
-            return self.restPOST(uri,json.dumps(acl))
+            # Get benefactor. (An entity gets its ACL from its benefactor.)
+            entity_id = id_of(entity)
+            uri = '/entity/%s/benefactor' % entity_id
+            benefactor = self.restGET(uri)
+
+            # Update or create new ACL
+            uri = '/entity/%s/acl' % entity_id
+            if benefactor['id']==entity_id:
+                return self.restPUT(uri, json.dumps(acl))
+            else:
+                return self.restPOST(uri,json.dumps(acl))
 
 
     def _getUserbyPrincipalIdOrName(self, principalId=None):
@@ -1337,7 +1347,7 @@ class Synapse:
         return []
 
 
-    def setPermissions(self, entity, principalId=None, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True):
+    def setPermissions(self, entity, principalId=None, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True, overwrite=True):
         """
         Sets permission that a user or group has on an Entity.
         An Entity may have its own ACL or inherit its ACL from a benefactor.  
@@ -1349,6 +1359,8 @@ class Synapse:
         :param warn_if_inherits:  Set as False, when creating a new ACL. 
                                   Trying to modify the ACL of an Entity that 
                                   inherits its ACL will result in a warning
+        :param overwrite:         By default this function overwrites existing permissions.
+                                  Set this flag to False to add new permissions nondestructively.
         
         :returns: an Access Control List object
 
@@ -1357,7 +1369,6 @@ class Synapse:
         """
 
         benefactor = self._getBenefactor(entity)
-        principalId = self._getUserbyPrincipalIdOrName(principalId)
         if benefactor['id'] != id_of(entity):
             if modify_benefactor:
                 entity = benefactor
@@ -1369,18 +1380,21 @@ class Synapse:
 
         acl = self._getACL(entity)
 
+        principalId = self._getUserbyPrincipalIdOrName(principalId)
+
         # Find existing permissions
-        existing_permissions = None
+        permissions_to_update = None
         for permissions in acl['resourceAccess']:
             if 'principalId' in permissions and permissions['principalId'] == principalId:
-                existing_permissions = permissions
-        if existing_permissions:
-            existing_permissions['accessType'] = accessType
+                permissions_to_update = permissions
+        if not permissions_to_update:
+            permissions_to_update = {u'accessType': [], u'principalId': principalId}
+            acl['resourceAccess'].append(permissions_to_update)
+        if overwrite:
+            permissions_to_update['accessType'] = accessType
         else:
-            acl['resourceAccess'].append({u'accessType': accessType, u'principalId': principalId})
-        acl = self._storeACL(entity, acl)
-
-        return acl
+            permissions_to_update['accessType'] = list(set(permissions_to_update['accessType']) | set(accessType))
+        return self._storeACL(entity, acl)
 
 
 
@@ -2079,12 +2093,11 @@ class Synapse:
         except ValueError:
             # Fetch the ID of the user group
             userId = self._getUserbyPrincipalIdOrName(user)
-            
-        # Grab the ACL 
-        evaluation_id = id_of(evaluation)
-        acl = self.restGET('/evaluation/%s/acl' % evaluation_id)
-        acl['resourceAccess'].append({"accessType":rights, "principalId":int(userId)})
-        self.restPUT('/evaluation/acl', body=json.dumps(acl))
+
+        if not isinstance(evaluation, Evaluation):
+            evaluation = self.getEvaluation(id_of(evaluation))
+
+        self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
 
 
     def joinEvaluation(self, evaluation):
@@ -2101,10 +2114,9 @@ class Synapse:
         See: :py:mod:`synapseclient.evaluation`
         """
         
-        evaluation_id = id_of(evaluation)
-        self.restPOST('/evaluation/%s/participant' % evaluation_id, {})
-        
-        
+        self.restPOST('/evaluation/%s/participant' % id_of(evaluation), {})
+
+
     def getParticipants(self, evaluation):
         """
         :param evaluation: Evaluation to get Participants from.

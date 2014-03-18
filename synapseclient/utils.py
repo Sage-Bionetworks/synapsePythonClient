@@ -238,7 +238,7 @@ def file_url_to_path(url, verify_exists=False):
 
 
 def is_synapse_id(obj):
-    """Returns None iff the input is a Synapse ID."""
+    """If the input is a Synapse ID return it, otherwise return None"""
     
     if isinstance(obj, basestring):
         m = re.match(r'(syn\d+)', obj)

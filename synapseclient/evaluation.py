@@ -126,6 +126,12 @@ class Evaluation(DictObject):
     def deleteURI(self):
         return '/evaluation/%s' %self.id
 
+    def getACLURI(self):
+        return '/evaluation/%s/acl' %self.id
+
+    def putACLURI(self):
+        return '/evaluation/acl'
+
 
 class Submission(DictObject):
     """
