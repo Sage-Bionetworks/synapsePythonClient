@@ -230,13 +230,14 @@ class Entity(collections.MutableMapping):
 
         # Extract parentId from parent
         if 'parentId' not in kwargs:
-            try:
-                if parent: kwargs['parentId'] = id_of(parent)
-            except Exception:
-                if parent and isinstance(parent, Entity) and 'id' not in parent:
-                    raise SynapseMalformedEntityError("Couldn't find 'id' of parent.  Has it been stored in Synapse?")
-                else:
-                    raise SynapseMalformedEntityError("Couldn't find 'id' of parent.")
+            if parent:
+                try:
+                    kwargs['parentId'] = id_of(parent)
+                except Exception:
+                    if isinstance(parent, Entity) and 'id' not in parent:
+                        raise SynapseMalformedEntityError("Couldn't find 'id' of parent.  Has it been stored in Synapse?")
+                    else:
+                        raise SynapseMalformedEntityError("Couldn't find 'id' of parent.")
 
         # Note: that this will work properly if derived classes declare their
         # internal state variable *before* invoking super(...).__init__(...)
@@ -245,6 +246,12 @@ class Entity(collections.MutableMapping):
 
         if 'concreteType' not in self:
             self['concreteType'] = self.__class__._synapse_entity_type
+
+        ## Only project can be top-level. All other entity types require parentId
+        ## don't enforce this for generic Entity
+        if 'parentId' not in self and not isinstance(self, Project) and not type(self)==Entity:
+            raise SynapseMalformedEntityError("Entities of type %s must have a parentId." % type(self))
+
 
 
     def postURI(self):
