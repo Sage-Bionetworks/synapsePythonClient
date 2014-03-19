@@ -54,7 +54,15 @@ import json
 
 
 def query(args, syn):
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    try:
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    except (AttributeError, ValueError) as ex1:
+        ## Different OS's have different signals defined. In particular,
+        ## SIGPIPE doesn't exist one Windows. The docs have this to say,
+        ## "On Windows, signal() can only be called with SIGABRT, SIGFPE,
+        ## SIGILL, SIGINT, SIGSEGV, or SIGTERM. A ValueError will be raised
+        ## in any other case."
+        pass
     ## TODO: Should use loop over multiple returned values if return is too long
     results = syn.chunkedQuery(' '.join(args.queryString))
 
@@ -129,7 +137,15 @@ def store(args, syn):
 
 
 def cat(args, syn):
-    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    try:
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    except (AttributeError, ValueError) as ex1:
+        ## Different OS's have different signals defined. In particular,
+        ## SIGPIPE doesn't exist one Windows. The docs have this to say,
+        ## "On Windows, signal() can only be called with SIGABRT, SIGFPE,
+        ## SIGILL, SIGINT, SIGSEGV, or SIGTERM. A ValueError will be raised
+        ## in any other case."
+        pass
     entity = syn.get(args.id)
     if 'files' in entity:
         for file in entity['files']:
