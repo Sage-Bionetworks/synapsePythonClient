@@ -948,20 +948,38 @@ class Synapse:
         else:
             self.restDELETE(obj.deleteURI())
 
+
     def _list(self, parent, recursive=False, indent=0, out=sys.stdout):
         """
         List child objects of the given parent, recursively if requested.
         """
+        results = list(self.chunkedQuery('select id,name,nodeType from entity where id=="%s"' % id_of(parent)))
+        if len(results) == 0:
+            out.write('No results visible to {username} found for id {id}\n'.format(username=self.username, id=id_of(parent)))
+        for result in results:
+            out.write("{padding}{id} {name}{slash_or_not}\n".format(
+                padding=' ' * indent,
+                name=result['entity.name'],
+                id=result['entity.id'],
+                slash_or_not='/' if result['entity.nodeType'] in (2,4) else ''))
+            if result['entity.nodeType'] in (2,4):
+                self.__list(result['entity.id'], recursive=recursive, indent=indent+2)
+
+
+    def __list(self, parent, recursive=False, indent=0, out=sys.stdout):
+        """
+        Helper recursive function for _list.
+        """
         results = self.chunkedQuery('select id,name,nodeType from entity where parentId=="%s"' % id_of(parent))
         for result in results:
-            ## if it's a folder, recurse
-            if result['entity.nodeType'] == 4:
+            ## if it's a project or folder, recurse
+            if result['entity.nodeType'] in (2,4):
                 out.write("{padding}{id} {name}/\n".format(
                     padding=' ' * indent,
                     name=result['entity.name'],
                     id=result['entity.id']))
                 if recursive:
-                    self._list(result['entity.id'], recursive=recursive, indent=indent+2)
+                    self.__list(result['entity.id'], recursive=recursive, indent=indent+2)
             else:
                 out.write("{padding}{id} {name}\n".format(
                     padding=' ' * indent,
