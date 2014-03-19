@@ -54,6 +54,7 @@ import json
 
 
 def query(args, syn):
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     ## TODO: Should use loop over multiple returned values if return is too long
     results = syn.chunkedQuery(' '.join(args.queryString))
 
@@ -65,13 +66,13 @@ def query(args, syn):
             headings[head] = True
     if len(headings) == 0: # No results found
         return 
-    print '\t'.join(headings)
+    sys.stdout.write('%s\n' %'\t'.join(headings))
     
     for res in temp:
         out = []
         for key in headings:
             out.append(str(res.get(key, "")))
-        print "\t".join(out)
+        sys.stdout.write('%s\n' % "\t".join(out))
 
         
 def get(args, syn):
