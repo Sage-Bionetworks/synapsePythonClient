@@ -2151,14 +2151,21 @@ class Synapse:
             yield result
 
 
-    def getSubmissions(self, evaluation, status=None, myOwn=False):
+    def getSubmissions(self, evaluation, status=None, myOwn=False, **kwargs):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status. 
                            One of {OPEN, CLOSED, SCORED, INVALID}
         :param myOwn:      Determines if only your Submissions should be fetched.  
                            Defaults to False (all Submissions)
-                           
+        :param limit:      Limits the number of submissions in a single response.
+                           Because this method returns a generator and repeatedly
+                           fetches submissions, this arguement is limiting the
+                           size of a single request and NOT the number of sub-
+                           missions returned in total.
+        :param offset:     Start iterating at a submission offset from the first
+                           submission.
+
         :returns: A generator over :py:class:`synapseclient.evaluation.Submission` objects for an Evaluation
                   
         Example::
@@ -2171,22 +2178,27 @@ class Synapse:
         
         evaluation_id = id_of(evaluation)
         uri = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
+
         if status != None:
             if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
                 raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
             uri += "?status=%s" % status
 
-        for result in self._GET_paginated(uri):
+        for result in self._GET_paginated(uri, limit=kwargs.get('limit', 100), offset=kwargs.get('offset', 0)):
             yield Submission(**result)
 
 
-    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False):
+    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, **kwargs):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
                            One of {OPEN, CLOSED, SCORED, INVALID}
         :param myOwn:      Determines if only your Submissions should be fetched.
                            Defaults to False (all Submissions)
+        :param limit:      Limits the number of submissions coming back from the
+                           service in a single response.
+        :param offset:     Start iterating at a submission offset from the first
+                           submission.
 
         :returns: A generator over dictionaries with keys 'submission' and 'submissionStatus'.
 
@@ -2209,36 +2221,32 @@ class Synapse:
         if status != None:
             url += "?status=%s" % status
 
-        return self._GET_paginated(url)
+        return self._GET_paginated(url, limit=kwargs.get('limit', 100), offset=kwargs.get('offset', 0))
 
 
-    def _GET_paginated(self, url):
+    def _GET_paginated(self, url, limit=20, offset=0):
         """
         :param url: A URL that returns paginated results
+        :param limit: How many records should be returned per request
+        :param offset: At what record offset from the first should
+                       iteration start
         
         :returns: A generator over some paginated results
+
+        The limit parameter is set at 20 by default. Using a larger limit
+        results in fewer calls to the service, but if responses are large
+        enough to be a burden on the service they may be truncated.
         """
-        
-        result_count = 0
-        limit = 20
-        offset = 0 - limit
-        max_results = 1 # Gets updated later
-        results = []
 
-        while result_count < max_results:
-            # If we're out of results, do a(nother) REST call
-            if result_count >= offset + len(results):
-                # Add the query terms to the URL
-                offset += limit
-                page = self.restGET(utils._limit_and_offset(url, limit=limit, offset=offset))
-                max_results = page['totalNumberOfResults']
-                results = page['results'] if 'results' in page else page['children']
-                if len(results)==0:
-                    return
-
-            i = result_count - offset
-            result_count += 1
-            yield results[i]
+        totalNumberOfResults = sys.maxint
+        while offset < totalNumberOfResults:
+            uri = utils._limit_and_offset(url, limit=limit, offset=offset)
+            page = self.restGET(uri)
+            totalNumberOfResults = page['totalNumberOfResults']
+            results = page['results'] if 'results' in page else page['children']
+            for result in results:
+                offset += 1
+                yield result
 
 
     def getSubmission(self, id, **kwargs):
