@@ -615,3 +615,15 @@ def is_locationable(entity):
     else:
         raise SynapseMalformedEntityError('Can\'t determine if %s is Locationable' % str(entity))
 
+def is_container(entity):
+    """Test if an entity is a container (ie, a Project or a Folder)"""
+    if 'concreteType' in entity:
+        concreteType = entity['concreteType']
+    elif 'entity.concreteType' in entity:
+        concreteType = entity['entity.concreteType'][0]
+    elif 'entity.nodeType' in entity:
+        return entity['entity.nodeType'] in [2,4]
+    else:
+        return False
+    return concreteType in (Project._synapse_entity_type, Folder._synapse_entity_type)
+

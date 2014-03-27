@@ -48,7 +48,7 @@ from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable
+from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -949,42 +949,55 @@ class Synapse:
             self.restDELETE(obj.deleteURI())
 
 
-    def _list(self, parent, recursive=False, indent=0, out=sys.stdout):
+    _user_name_cache = {}
+    def _get_user_name(self, user_id):
+        if user_id not in self._user_name_cache:
+            profile = self.getUserProfile(user_id)
+            self._user_name_cache[user_id] = profile['userName']
+        return self._user_name_cache[user_id]
+
+
+    def _list(self, parent, recursive=False, long_format=False, show_modified=False, indent=0, out=sys.stdout):
         """
         List child objects of the given parent, recursively if requested.
         """
-        results = list(self.chunkedQuery('select id,name,nodeType from entity where id=="%s"' % id_of(parent)))
-        if len(results) == 0:
+        fields = ['id', 'name', 'nodeType']
+        if long_format:
+            fields.extend(['createdByPrincipalId','createdOn','versionNumber'])
+        if show_modified:
+            fields.extend(['modifiedByPrincipalId', 'modifiedOn'])
+        query = 'select ' + ','.join(fields) + \
+                ' from entity where %s=="%s"' % ('id' if indent==0 else 'parentId', id_of(parent))
+        results = self.chunkedQuery(query)
+
+        results_found = False
+        for result in results:
+            results_found = True
+
+            fmt_fields = {'name' : result['entity.name'],
+                          'id' : result['entity.id'],
+                          'padding' : ' ' * indent,
+                          'slash_or_not' : '/' if is_container(result) else ''}
+            fmt_string = "{id}"
+
+            if long_format:
+                fmt_fields['createdOn'] = utils.from_unix_epoch_time(result['entity.createdOn']).strftime("%Y-%m-%d %H:%M")
+                fmt_fields['createdBy'] = self._get_user_name(result['entity.createdByPrincipalId'])[:18]
+                fmt_fields['version']   = result['entity.versionNumber']
+                fmt_string += " {version:3}  {createdBy:>18} {createdOn}"
+            if show_modified:
+                fmt_fields['modifiedOn'] = utils.from_unix_epoch_time(result['entity.modifiedOn']).strftime("%Y-%m-%d %H:%M")
+                fmt_fields['modifiedBy'] = self._get_user_name(result['entity.modifiedByPrincipalId'])[:18]
+                fmt_string += "  {modifiedBy:>18} {modifiedOn}"
+
+            fmt_string += "  {padding}{name}{slash_or_not}\n"
+            out.write(fmt_string.format(**fmt_fields))
+
+            if (indent==0 or recursive) and is_container(result):
+                self._list(result['entity.id'], recursive=recursive, long_format=long_format, show_modified=show_modified, indent=indent+2, out=out)
+
+        if indent==0 and not results_found:
             out.write('No results visible to {username} found for id {id}\n'.format(username=self.username, id=id_of(parent)))
-        for result in results:
-            out.write("{padding}{id} {name}{slash_or_not}\n".format(
-                padding=' ' * indent,
-                name=result['entity.name'],
-                id=result['entity.id'],
-                slash_or_not='/' if result['entity.nodeType'] in (2,4) else ''))
-            if result['entity.nodeType'] in (2,4):
-                self.__list(result['entity.id'], recursive=recursive, indent=indent+2)
-
-
-    def __list(self, parent, recursive=False, indent=0, out=sys.stdout):
-        """
-        Helper recursive function for _list.
-        """
-        results = self.chunkedQuery('select id,name,nodeType from entity where parentId=="%s"' % id_of(parent))
-        for result in results:
-            ## if it's a project or folder, recurse
-            if result['entity.nodeType'] in (2,4):
-                out.write("{padding}{id} {name}/\n".format(
-                    padding=' ' * indent,
-                    name=result['entity.name'],
-                    id=result['entity.id']))
-                if recursive:
-                    self.__list(result['entity.id'], recursive=recursive, indent=indent+2)
-            else:
-                out.write("{padding}{id} {name}\n".format(
-                    padding=' ' * indent,
-                    name=result['entity.name'],
-                    id=result['entity.id']))
 
             
     ############################################################

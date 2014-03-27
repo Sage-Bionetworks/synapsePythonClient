@@ -139,7 +139,7 @@ def cat(args, syn):
 
 def list(args, syn):
     """List entities in a Project or Folder"""
-    syn._list(args.id, recursive=args.recursive)
+    syn._list(args.id, recursive=args.recursive, long_format=args.long, show_modified=args.modified)
 
                     
 def show(args, syn):
@@ -472,7 +472,7 @@ def build_parser():
 
     parser_list = subparsers.add_parser(
             'list',
-            help='show Synapse entities contained by the given Project or Folder. Note: May not be supported in future versions of the client.')
+            help='List Synapse entities contained by the given Project or Folder. Note: May not be supported in future versions of the client.')
     parser_list.add_argument(
             'id',
             metavar='syn123', type=str,
@@ -483,6 +483,18 @@ def build_parser():
             default=False,
             required=False,
             help='recursively list contents of the subtree descending from the given Synapse ID')
+    parser_list.add_argument(
+            '-l', '--long',
+            action='store_true',
+            default=False,
+            required=False,
+            help='List synapse entities in long format')
+    parser_list.add_argument(
+            '-m', '--modified',
+            action='store_true',
+            default=False,
+            required=False,
+            help='List modified by and modified date')
     parser_list.set_defaults(func=list)
 
 
