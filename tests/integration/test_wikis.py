@@ -1,4 +1,4 @@
-import os
+import os, uuid
 from nose.tools import assert_raises
 
 import synapseclient.client as client
@@ -78,3 +78,16 @@ def test_wikiAttachment():
     syn.delete(wiki)
     syn.delete(subwiki)
     assert_raises(SynapseHTTPError, syn.getWiki, project)
+
+
+def test_create_or_update_wiki():
+    # create wiki once
+    wiki = syn.store(Wiki(title='This is the title', owner=project, markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!"))
+
+    # for now, creating it again raises an exception, see SYNR-631
+    assert_raises(SynapseHTTPError,
+        syn.store, 
+        Wiki(title='This is a different title', owner=project, markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!"),
+        createOrUpdate=True)
+
+
