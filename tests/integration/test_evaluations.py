@@ -163,7 +163,7 @@ def test_evaluations():
             syn.submit(ev, entity, name='Submission %02d' % i, teamName='My Team')
 
         # Score the submissions
-        submissions = syn.getSubmissions(ev)
+        submissions = syn.getSubmissions(ev, limit=num_of_submissions-1)
         print "Scoring Submissions"
         for submission in submissions:
             assert re.match('Submission \d+', submission['name'])

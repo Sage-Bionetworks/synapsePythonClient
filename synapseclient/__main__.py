@@ -153,6 +153,11 @@ def cat(args, syn):
                 for line in input:
                     print line
 
+
+def list(args, syn):
+    """List entities in a Project or Folder"""
+    syn._list(args.id, recursive=args.recursive, long_format=args.long, show_modified=args.modified)
+
                     
 def show(args, syn):
     """Show metadata for an entity."""
@@ -341,7 +346,7 @@ def build_parser():
             description='The following commands are available:',
             help='For additional help: "synapse <COMMAND> -h"')
 
-    
+
     parser_get = subparsers.add_parser(
             'get',
             help='downloads a dataset from Synapse')
@@ -482,6 +487,34 @@ def build_parser():
     parser_cat.set_defaults(func=cat)
 
 
+    parser_list = subparsers.add_parser(
+            'list',
+            help='List Synapse entities contained by the given Project or Folder. Note: May not be supported in future versions of the client.')
+    parser_list.add_argument(
+            'id',
+            metavar='syn123', type=str,
+            help='Synapse ID of a project or folder')
+    parser_list.add_argument(
+            '-r', '--recursive',
+            action='store_true',
+            default=False,
+            required=False,
+            help='recursively list contents of the subtree descending from the given Synapse ID')
+    parser_list.add_argument(
+            '-l', '--long',
+            action='store_true',
+            default=False,
+            required=False,
+            help='List synapse entities in long format')
+    parser_list.add_argument(
+            '-m', '--modified',
+            action='store_true',
+            default=False,
+            required=False,
+            help='List modified by and modified date')
+    parser_list.set_defaults(func=list)
+
+
     parser_set_provenance = subparsers.add_parser(
             'set-provenance',
             help='create provenance records')
@@ -526,6 +559,7 @@ def build_parser():
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
     parser_get_provenance.set_defaults(func=getProvenance)
+
 
     parser_add = subparsers.add_parser(
             'add',

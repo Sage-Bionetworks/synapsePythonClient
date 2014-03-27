@@ -48,7 +48,7 @@ from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable
+from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -948,25 +948,56 @@ class Synapse:
         else:
             self.restDELETE(obj.deleteURI())
 
-    def _list(self, parent, recursive=False, indent=0, out=sys.stdout):
+
+    _user_name_cache = {}
+    def _get_user_name(self, user_id):
+        if user_id not in self._user_name_cache:
+            profile = self.getUserProfile(user_id)
+            self._user_name_cache[user_id] = profile['userName']
+        return self._user_name_cache[user_id]
+
+
+    def _list(self, parent, recursive=False, long_format=False, show_modified=False, indent=0, out=sys.stdout):
         """
         List child objects of the given parent, recursively if requested.
         """
-        results = self.chunkedQuery('select id,name,nodeType from entity where parentId=="%s"' % id_of(parent))
+        fields = ['id', 'name', 'nodeType']
+        if long_format:
+            fields.extend(['createdByPrincipalId','createdOn','versionNumber'])
+        if show_modified:
+            fields.extend(['modifiedByPrincipalId', 'modifiedOn'])
+        query = 'select ' + ','.join(fields) + \
+                ' from entity where %s=="%s"' % ('id' if indent==0 else 'parentId', id_of(parent))
+        results = self.chunkedQuery(query)
+
+        results_found = False
         for result in results:
-            ## if it's a folder, recurse
-            if result['entity.nodeType'] == 4:
-                out.write("{padding}{id} {name}/\n".format(
-                    padding=' ' * indent,
-                    name=result['entity.name'],
-                    id=result['entity.id']))
-                if recursive:
-                    self._list(result['entity.id'], recursive=recursive, indent=indent+2)
-            else:
-                out.write("{padding}{id} {name}\n".format(
-                    padding=' ' * indent,
-                    name=result['entity.name'],
-                    id=result['entity.id']))
+            results_found = True
+
+            fmt_fields = {'name' : result['entity.name'],
+                          'id' : result['entity.id'],
+                          'padding' : ' ' * indent,
+                          'slash_or_not' : '/' if is_container(result) else ''}
+            fmt_string = "{id}"
+
+            if long_format:
+                fmt_fields['createdOn'] = utils.from_unix_epoch_time(result['entity.createdOn']).strftime("%Y-%m-%d %H:%M")
+                fmt_fields['createdBy'] = self._get_user_name(result['entity.createdByPrincipalId'])[:18]
+                fmt_fields['version']   = result['entity.versionNumber']
+                fmt_string += " {version:3}  {createdBy:>18} {createdOn}"
+            if show_modified:
+                fmt_fields['modifiedOn'] = utils.from_unix_epoch_time(result['entity.modifiedOn']).strftime("%Y-%m-%d %H:%M")
+                fmt_fields['modifiedBy'] = self._get_user_name(result['entity.modifiedByPrincipalId'])[:18]
+                fmt_string += "  {modifiedBy:>18} {modifiedOn}"
+
+            fmt_string += "  {padding}{name}{slash_or_not}\n"
+            out.write(fmt_string.format(**fmt_fields))
+
+            if (indent==0 or recursive) and is_container(result):
+                self._list(result['entity.id'], recursive=recursive, long_format=long_format, show_modified=show_modified, indent=indent+2, out=out)
+
+        if indent==0 and not results_found:
+            out.write('No results visible to {username} found for id {id}\n'.format(username=self.username, id=id_of(parent)))
 
             
     ############################################################
@@ -2133,14 +2164,21 @@ class Synapse:
             yield result
 
 
-    def getSubmissions(self, evaluation, status=None, myOwn=False):
+    def getSubmissions(self, evaluation, status=None, myOwn=False, **kwargs):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status. 
                            One of {OPEN, CLOSED, SCORED, INVALID}
         :param myOwn:      Determines if only your Submissions should be fetched.  
                            Defaults to False (all Submissions)
-                           
+        :param limit:      Limits the number of submissions in a single response.
+                           Because this method returns a generator and repeatedly
+                           fetches submissions, this arguement is limiting the
+                           size of a single request and NOT the number of sub-
+                           missions returned in total.
+        :param offset:     Start iterating at a submission offset from the first
+                           submission.
+
         :returns: A generator over :py:class:`synapseclient.evaluation.Submission` objects for an Evaluation
                   
         Example::
@@ -2153,22 +2191,27 @@ class Synapse:
         
         evaluation_id = id_of(evaluation)
         uri = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
+
         if status != None:
             if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
                 raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
             uri += "?status=%s" % status
 
-        for result in self._GET_paginated(uri):
+        for result in self._GET_paginated(uri, limit=kwargs.get('limit', 100), offset=kwargs.get('offset', 0)):
             yield Submission(**result)
 
 
-    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False):
+    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, **kwargs):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
                            One of {OPEN, CLOSED, SCORED, INVALID}
         :param myOwn:      Determines if only your Submissions should be fetched.
                            Defaults to False (all Submissions)
+        :param limit:      Limits the number of submissions coming back from the
+                           service in a single response.
+        :param offset:     Start iterating at a submission offset from the first
+                           submission.
 
         :returns: A generator over dictionaries with keys 'submission' and 'submissionStatus'.
 
@@ -2191,36 +2234,32 @@ class Synapse:
         if status != None:
             url += "?status=%s" % status
 
-        return self._GET_paginated(url)
+        return self._GET_paginated(url, limit=kwargs.get('limit', 100), offset=kwargs.get('offset', 0))
 
 
-    def _GET_paginated(self, url):
+    def _GET_paginated(self, url, limit=20, offset=0):
         """
         :param url: A URL that returns paginated results
+        :param limit: How many records should be returned per request
+        :param offset: At what record offset from the first should
+                       iteration start
         
         :returns: A generator over some paginated results
+
+        The limit parameter is set at 20 by default. Using a larger limit
+        results in fewer calls to the service, but if responses are large
+        enough to be a burden on the service they may be truncated.
         """
-        
-        result_count = 0
-        limit = 20
-        offset = 0 - limit
-        max_results = 1 # Gets updated later
-        results = []
 
-        while result_count < max_results:
-            # If we're out of results, do a(nother) REST call
-            if result_count >= offset + len(results):
-                # Add the query terms to the URL
-                offset += limit
-                page = self.restGET(utils._limit_and_offset(url, limit=limit, offset=offset))
-                max_results = page['totalNumberOfResults']
-                results = page['results'] if 'results' in page else page['children']
-                if len(results)==0:
-                    return
-
-            i = result_count - offset
-            result_count += 1
-            yield results[i]
+        totalNumberOfResults = sys.maxint
+        while offset < totalNumberOfResults:
+            uri = utils._limit_and_offset(url, limit=limit, offset=offset)
+            page = self.restGET(uri)
+            totalNumberOfResults = page['totalNumberOfResults']
+            results = page['results'] if 'results' in page else page['children']
+            for result in results:
+                offset += 1
+                yield result
 
 
     def getSubmission(self, id, **kwargs):
