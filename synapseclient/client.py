@@ -1390,8 +1390,9 @@ class Synapse:
         :param warn_if_inherits:  Set as False, when creating a new ACL. 
                                   Trying to modify the ACL of an Entity that 
                                   inherits its ACL will result in a warning
-        :param overwrite:         By default this function overwrites existing permissions.
-                                  Set this flag to False to add new permissions nondestructively.
+        :param overwrite:         By default this function overwrites existing
+                                  permissions for the specified user. Set this
+                                  flag to False to add new permissions nondestructively.
         
         :returns: an Access Control List object
 
@@ -2164,7 +2165,7 @@ class Synapse:
             yield result
 
 
-    def getSubmissions(self, evaluation, status=None, myOwn=False, **kwargs):
+    def getSubmissions(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status. 
@@ -2197,11 +2198,11 @@ class Synapse:
                 raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
             uri += "?status=%s" % status
 
-        for result in self._GET_paginated(uri, limit=kwargs.get('limit', 100), offset=kwargs.get('offset', 0)):
+        for result in self._GET_paginated(uri, limit=limit, offset=offset):
             yield Submission(**result)
 
 
-    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, **kwargs):
+    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
@@ -2234,7 +2235,7 @@ class Synapse:
         if status != None:
             url += "?status=%s" % status
 
-        return self._GET_paginated(url, limit=kwargs.get('limit', 100), offset=kwargs.get('offset', 0))
+        return self._GET_paginated(url, limit=limit, offset=offset)
 
 
     def _GET_paginated(self, url, limit=20, offset=0):

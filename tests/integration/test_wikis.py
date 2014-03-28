@@ -1,4 +1,4 @@
-import os, uuid
+import os
 from nose.tools import assert_raises
 
 import synapseclient.client as client
