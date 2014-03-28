@@ -952,8 +952,7 @@ class Synapse:
     _user_name_cache = {}
     def _get_user_name(self, user_id):
         if user_id not in self._user_name_cache:
-            profile = self.getUserProfile(user_id)
-            self._user_name_cache[user_id] = profile['userName']
+            self._user_name_cache[user_id] = utils.extract_user_name(self.getUserProfile(user_id))
         return self._user_name_cache[user_id]
 
 
