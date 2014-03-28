@@ -114,6 +114,25 @@ def extract_filename(content_disposition):
     return match.group(1) if match else 'filename'
 
 
+def extract_user_name(profile):
+    """
+    Extract a displayable user name from a user's profile
+    """
+    if 'userName' in profile and profile['userName']:
+        return profile['userName']
+    elif 'displayName' in profile and profile['displayName']:
+        return profile['displayName']
+    else:
+        if 'firstName' in profile and profile['firstName'] and 'lastName' in profile and profile['lastName']:
+            return profile['firstName'] + ' ' + profile['lastName']
+        elif 'lastName' in profile and profile['lastName']:
+            return profile['lastName']
+        elif 'firstName' in profile and profile['firstName']:
+            return profile['firstName']
+        else:
+            return str(profile.get('id', 'Unknown-user'))
+
+
 def _get_from_members_items_or_properties(obj, key):
     try:
         if hasattr(obj, key):
@@ -238,7 +257,7 @@ def file_url_to_path(url, verify_exists=False):
 
 
 def is_synapse_id(obj):
-    """Returns None iff the input is a Synapse ID."""
+    """If the input is a Synapse ID return it, otherwise return None"""
     
     if isinstance(obj, basestring):
         m = re.match(r'(syn\d+)', obj)

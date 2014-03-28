@@ -50,7 +50,8 @@ def test_getWithEntityBundle(*mocks):
     
     bundle = {"entity"     : {"name": "anonymous", 
                               "dataFileHandleId": "-1337", 
-                              "concreteType": "org.sagebionetworks.repo.model.FileEntity"},
+                              "concreteType": "org.sagebionetworks.repo.model.FileEntity",
+                              "parentId": "syn12345"},
               "fileHandles": [], 
               "annotations": {}}
     

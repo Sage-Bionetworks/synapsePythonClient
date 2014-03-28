@@ -48,7 +48,7 @@ from synapseclient.utils import id_of, get_properties, KB, MB
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, split_entity_namespaces, is_versionable, is_locationable
+from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -73,6 +73,7 @@ QUERY_LIMIT = 5000
 CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
 PUBLIC = 273949  #PrincipalId of public "user"
+AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 
 
@@ -628,7 +629,7 @@ class Synapse:
                             # It is unnecessary to hit the caching logic for external URLs not being downloaded
                             if not downloadFile:
                                 return entity
-        
+
             # Determine if the file should be downloaded
             downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
             if downloadFile: 
@@ -947,25 +948,55 @@ class Synapse:
         else:
             self.restDELETE(obj.deleteURI())
 
-    def _list(self, parent, recursive=False, indent=0, out=sys.stdout):
+
+    _user_name_cache = {}
+    def _get_user_name(self, user_id):
+        if user_id not in self._user_name_cache:
+            self._user_name_cache[user_id] = utils.extract_user_name(self.getUserProfile(user_id))
+        return self._user_name_cache[user_id]
+
+
+    def _list(self, parent, recursive=False, long_format=False, show_modified=False, indent=0, out=sys.stdout):
         """
         List child objects of the given parent, recursively if requested.
         """
-        results = self.chunkedQuery('select id,name,nodeType from entity where parentId=="%s"' % id_of(parent))
+        fields = ['id', 'name', 'nodeType']
+        if long_format:
+            fields.extend(['createdByPrincipalId','createdOn','versionNumber'])
+        if show_modified:
+            fields.extend(['modifiedByPrincipalId', 'modifiedOn'])
+        query = 'select ' + ','.join(fields) + \
+                ' from entity where %s=="%s"' % ('id' if indent==0 else 'parentId', id_of(parent))
+        results = self.chunkedQuery(query)
+
+        results_found = False
         for result in results:
-            ## if it's a folder, recurse
-            if result['entity.nodeType'] == 4:
-                out.write("{padding}{id} {name}/\n".format(
-                    padding=' ' * indent,
-                    name=result['entity.name'],
-                    id=result['entity.id']))
-                if recursive:
-                    self._list(result['entity.id'], recursive=recursive, indent=indent+2)
-            else:
-                out.write("{padding}{id} {name}\n".format(
-                    padding=' ' * indent,
-                    name=result['entity.name'],
-                    id=result['entity.id']))
+            results_found = True
+
+            fmt_fields = {'name' : result['entity.name'],
+                          'id' : result['entity.id'],
+                          'padding' : ' ' * indent,
+                          'slash_or_not' : '/' if is_container(result) else ''}
+            fmt_string = "{id}"
+
+            if long_format:
+                fmt_fields['createdOn'] = utils.from_unix_epoch_time(result['entity.createdOn']).strftime("%Y-%m-%d %H:%M")
+                fmt_fields['createdBy'] = self._get_user_name(result['entity.createdByPrincipalId'])[:18]
+                fmt_fields['version']   = result['entity.versionNumber']
+                fmt_string += " {version:3}  {createdBy:>18} {createdOn}"
+            if show_modified:
+                fmt_fields['modifiedOn'] = utils.from_unix_epoch_time(result['entity.modifiedOn']).strftime("%Y-%m-%d %H:%M")
+                fmt_fields['modifiedBy'] = self._get_user_name(result['entity.modifiedByPrincipalId'])[:18]
+                fmt_string += "  {modifiedBy:>18} {modifiedOn}"
+
+            fmt_string += "  {padding}{name}{slash_or_not}\n"
+            out.write(fmt_string.format(**fmt_fields))
+
+            if (indent==0 or recursive) and is_container(result):
+                self._list(result['entity.id'], recursive=recursive, long_format=long_format, show_modified=show_modified, indent=indent+2, out=out)
+
+        if indent==0 and not results_found:
+            out.write('No results visible to {username} found for id {id}\n'.format(username=self.username, id=id_of(parent)))
 
             
     ############################################################
@@ -1249,15 +1280,21 @@ class Synapse:
 
     def _getBenefactor(self, entity):
         """An Entity gets its ACL from its benefactor."""
-        
-        return self.restGET('/entity/%s/benefactor' % id_of(entity))
+
+        if utils.is_synapse_id(entity) or synapseclient.entity.is_synapse_entity(entity):
+            return self.restGET('/entity/%s/benefactor' % id_of(entity))
+        return entity
+
 
     def _getACL(self, entity):
         """Get the effective ACL for a Synapse Entity."""
-        
-        # Get the ACL from the benefactor (which may be the entity itself)
-        benefactor = self._getBenefactor(entity)
-        uri = '/entity/%s/acl' % (benefactor['id'])
+
+        if hasattr(entity, 'getACLURI'):
+            uri = entity.getACLURI()
+        else:
+            # Get the ACL from the benefactor (which may be the entity itself)
+            benefactor = self._getBenefactor(entity)
+            uri = '/entity/%s/acl' % (benefactor['id'])
         return self.restGET(uri)
 
 
@@ -1278,17 +1315,20 @@ class Synapse:
             ]}
         """
         
-        # Get benefactor. (An entity gets its ACL from its benefactor.)
-        entity_id = id_of(entity)
-        uri = '/entity/%s/benefactor' % entity_id
-        benefactor = self.restGET(uri)
-
-        # Update or create new ACL
-        uri = '/entity/%s/acl' % entity_id
-        if benefactor['id']==entity_id:
-            return self.restPUT(uri, json.dumps(acl))
+        if hasattr(entity, 'putACLURI'):
+            return self.restPUT(entity.putACLURI(), json.dumps(acl))
         else:
-            return self.restPOST(uri,json.dumps(acl))
+            # Get benefactor. (An entity gets its ACL from its benefactor.)
+            entity_id = id_of(entity)
+            uri = '/entity/%s/benefactor' % entity_id
+            benefactor = self.restGET(uri)
+
+            # Update or create new ACL
+            uri = '/entity/%s/acl' % entity_id
+            if benefactor['id']==entity_id:
+                return self.restPUT(uri, json.dumps(acl))
+            else:
+                return self.restPOST(uri,json.dumps(acl))
 
 
     def _getUserbyPrincipalIdOrName(self, principalId=None):
@@ -1337,7 +1377,7 @@ class Synapse:
         return []
 
 
-    def setPermissions(self, entity, principalId=None, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True):
+    def setPermissions(self, entity, principalId=None, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True, overwrite=True):
         """
         Sets permission that a user or group has on an Entity.
         An Entity may have its own ACL or inherit its ACL from a benefactor.  
@@ -1349,6 +1389,9 @@ class Synapse:
         :param warn_if_inherits:  Set as False, when creating a new ACL. 
                                   Trying to modify the ACL of an Entity that 
                                   inherits its ACL will result in a warning
+        :param overwrite:         By default this function overwrites existing
+                                  permissions for the specified user. Set this
+                                  flag to False to add new permissions nondestructively.
         
         :returns: an Access Control List object
 
@@ -1357,7 +1400,6 @@ class Synapse:
         """
 
         benefactor = self._getBenefactor(entity)
-        principalId = self._getUserbyPrincipalIdOrName(principalId)
         if benefactor['id'] != id_of(entity):
             if modify_benefactor:
                 entity = benefactor
@@ -1369,18 +1411,21 @@ class Synapse:
 
         acl = self._getACL(entity)
 
+        principalId = self._getUserbyPrincipalIdOrName(principalId)
+
         # Find existing permissions
-        existing_permissions = None
+        permissions_to_update = None
         for permissions in acl['resourceAccess']:
             if 'principalId' in permissions and permissions['principalId'] == principalId:
-                existing_permissions = permissions
-        if existing_permissions:
-            existing_permissions['accessType'] = accessType
+                permissions_to_update = permissions
+        if not permissions_to_update:
+            permissions_to_update = {u'accessType': [], u'principalId': principalId}
+            acl['resourceAccess'].append(permissions_to_update)
+        if overwrite:
+            permissions_to_update['accessType'] = accessType
         else:
-            acl['resourceAccess'].append({u'accessType': accessType, u'principalId': principalId})
-        acl = self._storeACL(entity, acl)
-
-        return acl
+            permissions_to_update['accessType'] = list(set(permissions_to_update['accessType']) | set(accessType))
+        return self._storeACL(entity, acl)
 
 
 
@@ -2079,12 +2124,11 @@ class Synapse:
         except ValueError:
             # Fetch the ID of the user group
             userId = self._getUserbyPrincipalIdOrName(user)
-            
-        # Grab the ACL 
-        evaluation_id = id_of(evaluation)
-        acl = self.restGET('/evaluation/%s/acl' % evaluation_id)
-        acl['resourceAccess'].append({"accessType":rights, "principalId":int(userId)})
-        self.restPUT('/evaluation/acl', body=json.dumps(acl))
+
+        if not isinstance(evaluation, Evaluation):
+            evaluation = self.getEvaluation(id_of(evaluation))
+
+        self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
 
 
     def joinEvaluation(self, evaluation):
@@ -2101,10 +2145,9 @@ class Synapse:
         See: :py:mod:`synapseclient.evaluation`
         """
         
-        evaluation_id = id_of(evaluation)
-        self.restPOST('/evaluation/%s/participant' % evaluation_id, {})
-        
-        
+        self.restPOST('/evaluation/%s/participant' % id_of(evaluation), {})
+
+
     def getParticipants(self, evaluation):
         """
         :param evaluation: Evaluation to get Participants from.
@@ -2121,14 +2164,21 @@ class Synapse:
             yield result
 
 
-    def getSubmissions(self, evaluation, status=None, myOwn=False):
+    def getSubmissions(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status. 
                            One of {OPEN, CLOSED, SCORED, INVALID}
         :param myOwn:      Determines if only your Submissions should be fetched.  
                            Defaults to False (all Submissions)
-                           
+        :param limit:      Limits the number of submissions in a single response.
+                           Because this method returns a generator and repeatedly
+                           fetches submissions, this arguement is limiting the
+                           size of a single request and NOT the number of sub-
+                           missions returned in total.
+        :param offset:     Start iterating at a submission offset from the first
+                           submission.
+
         :returns: A generator over :py:class:`synapseclient.evaluation.Submission` objects for an Evaluation
                   
         Example::
@@ -2141,22 +2191,27 @@ class Synapse:
         
         evaluation_id = id_of(evaluation)
         uri = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
+
         if status != None:
             if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
                 raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
             uri += "?status=%s" % status
 
-        for result in self._GET_paginated(uri):
+        for result in self._GET_paginated(uri, limit=limit, offset=offset):
             yield Submission(**result)
 
 
-    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False):
+    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
                            One of {OPEN, CLOSED, SCORED, INVALID}
         :param myOwn:      Determines if only your Submissions should be fetched.
                            Defaults to False (all Submissions)
+        :param limit:      Limits the number of submissions coming back from the
+                           service in a single response.
+        :param offset:     Start iterating at a submission offset from the first
+                           submission.
 
         :returns: A generator over dictionaries with keys 'submission' and 'submissionStatus'.
 
@@ -2179,36 +2234,32 @@ class Synapse:
         if status != None:
             url += "?status=%s" % status
 
-        return self._GET_paginated(url)
+        return self._GET_paginated(url, limit=limit, offset=offset)
 
 
-    def _GET_paginated(self, url):
+    def _GET_paginated(self, url, limit=20, offset=0):
         """
         :param url: A URL that returns paginated results
+        :param limit: How many records should be returned per request
+        :param offset: At what record offset from the first should
+                       iteration start
         
         :returns: A generator over some paginated results
+
+        The limit parameter is set at 20 by default. Using a larger limit
+        results in fewer calls to the service, but if responses are large
+        enough to be a burden on the service they may be truncated.
         """
-        
-        result_count = 0
-        limit = 20
-        offset = 0 - limit
-        max_results = 1 # Gets updated later
-        results = []
 
-        while result_count < max_results:
-            # If we're out of results, do a(nother) REST call
-            if result_count >= offset + len(results):
-                # Add the query terms to the URL
-                offset += limit
-                page = self.restGET(utils._limit_and_offset(url, limit=limit, offset=offset))
-                max_results = page['totalNumberOfResults']
-                results = page['results'] if 'results' in page else page['children']
-                if len(results)==0:
-                    return
-
-            i = result_count - offset
-            result_count += 1
-            yield results[i]
+        totalNumberOfResults = sys.maxint
+        while offset < totalNumberOfResults:
+            uri = utils._limit_and_offset(url, limit=limit, offset=offset)
+            page = self.restGET(uri)
+            totalNumberOfResults = page['totalNumberOfResults']
+            results = page['results'] if 'results' in page else page['children']
+            for result in results:
+                offset += 1
+                yield result
 
 
     def getSubmission(self, id, **kwargs):

@@ -231,3 +231,18 @@ def test_limit_and_offset():
     assert len(qp) == 3
 
 
+def test_utils_extract_user_name():
+    profile = {'firstName':'Madonna'}
+    assert utils.extract_user_name(profile) == 'Madonna'
+    profile = {'firstName':'Oscar', 'lastName':'the Grouch'}
+    assert utils.extract_user_name(profile) == 'Oscar the Grouch'
+    profile['displayName'] = None
+    assert utils.extract_user_name(profile) == 'Oscar the Grouch'
+    profile['displayName'] = ''
+    assert utils.extract_user_name(profile) == 'Oscar the Grouch'
+    profile['displayName'] = 'Assistant Professor Oscar the Grouch, PhD'
+    assert utils.extract_user_name(profile) == 'Assistant Professor Oscar the Grouch, PhD'
+    profile['userName'] = 'otg'
+    assert utils.extract_user_name(profile) == 'otg'
+
+

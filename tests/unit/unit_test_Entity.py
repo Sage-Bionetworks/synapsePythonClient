@@ -1,6 +1,8 @@
 import collections
 import os
 from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces
+from synapseclient.exceptions import *
+from nose.tools import assert_raises
 
 
 def setup():
@@ -111,15 +113,28 @@ def test_entity_creation():
     assert folder.name == 'Testing123'
     assert folder.testing == 123
 
+    ## In case of unknown concreteType, fall back on generic Entity object
     props = {
         "id": "syn123456",
         "concreteType": "org.sagebionetworks.repo.model.DoesntExist",
+        "parentId": "syn445566",
         "name": "Whatsits"
     }
     whatsits = Entity.create(props)
 
     assert whatsits.concreteType == 'org.sagebionetworks.repo.model.DoesntExist'
     assert whatsits.__class__ == Entity
+
+
+def test_parent_id_required():
+    xkcd1 = File('http://xkcd.com/1343/', name='XKCD: Manuals', parent='syn1000001', synapseStore=False)
+    assert xkcd1.parentId == 'syn1000001'
+
+    xkcd2 = File('http://xkcd.com/1343/', name='XKCD: Manuals', parentId='syn1000002', synapseStore=False)
+    assert xkcd2.parentId == 'syn1000002'
+
+    assert_raises(SynapseMalformedEntityError, File, 'http://xkcd.com/1343/', name='XKCD: Manuals', synapseStore=False)
+
 
 
 def test_entity_constructors():
