@@ -223,7 +223,7 @@ class Synapse:
         self.portalEndpoint     = endpoints['portalEndpoint']
 
 
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=True):
+    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False):
         """
         Authenticates the user using the given credentials (in order of preference):
         
