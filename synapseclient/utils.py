@@ -167,6 +167,15 @@ def id_of(obj):
         raise SynapseMalformedEntityError('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result
 
+def is_in_path(id, path):
+    """Determines weather id is in the path as returned from /entity/{id}/path
+
+    :param id: synapse id string
+    :param path: object as returned from '/entity/{id}/path'
+
+    :returns: True or False
+    """
+    return id in [item['id'] for item in path['path']]
 
 def get_properties(entity):
     """Returns the dictionary of properties of the given Entity."""

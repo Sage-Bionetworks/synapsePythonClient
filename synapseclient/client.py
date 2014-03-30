@@ -37,6 +37,7 @@ import base64, hashlib, hmac
 import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
+import warnings
 
 import synapseclient
 import synapseclient.utils as utils
@@ -222,7 +223,7 @@ class Synapse:
         self.portalEndpoint     = endpoints['portalEndpoint']
 
 
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False):
+    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=True):
         """
         Authenticates the user using the given credentials (in order of preference):
         
@@ -535,7 +536,8 @@ class Synapse:
         Gets a Synapse entity from the repository service.
         
         :param entity:           A Synapse ID, a Synapse Entity object, 
-                                 or a plain dictionary in which 'id' maps to a Synapse ID
+                                 a plain dictionary in which 'id' maps to a Synapse ID or
+                                 a local file that is stored in Synapse (found by hash of file)
         :param version:          The specific version to get.
                                  Defaults to the most recent version.
         :param downloadFile:     Whether associated files(s) should be downloaded.  
@@ -545,6 +547,10 @@ class Synapse:
         :param ifcollision:      Determines how to handle file collisions.
                                  May be "overwrite.local", "keep.local", or "keep.both".
                                  Defaults to "keep.both".
+        :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is
+                                 specified as a local file.  That is, if the file is stored in multiple
+                                 locations in Synapse only the ones in the specified folder/project will be
+                                 returned.
 
         :returns: A new Synapse Entity object of the appropriate type
 
@@ -560,20 +566,59 @@ class Synapse:
             print entity.name
             print entity.path
 
+           ## Determine the provenance of a localy stored file as indicated in Synapse
+           entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
+           print syn.getProvenance(entity)
+
         """
         
-        version = kwargs.get('version', None)
-
-        bundle = self._getEntityBundle(entity, version)
+        #If entity is a local file determine the corresponding synapse entity
+        try:
+            isFile = os.path.isfile(entity)
+        except  TypeError:
+            isFile = False
+        if isFile:
+            bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
+            kwargs['downloadFile']=False
+        else:
+            version = kwargs.get('version', None)
+            bundle = self._getEntityBundle(entity, version)
 
         # Check and warn for unmet access requirements
         if len(bundle['unmetAccessRequirements']) > 0:
             warning_message = "\nWARNING: This entity has access restrictions. Please visit the web page for this entity (syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to review and fulfill its download requirement(s).\n" % id_of(entity)
             if kwargs.get('downloadFile', True):
                 raise SynapseUnmetAccessRestrictions(warning_message)
-            sys.stderr.write(warning_message)
+            warnings.warn(warning_message)
 
         return self._getWithEntityBundle(entity, entityBundle=bundle, **kwargs)
+
+
+    def __getFromFile(self, filepath, limitSearch=None):
+        """
+        Gets a Synapse entityBundle based on the md5 of a local file
+        See :py:func:`synapseclient.Synapse.get`.
+
+        :param filepath: path to local file
+        :param limitSearch:   Limits the places in Synapse where the file is searched for.
+        """
+        results = self.restGET('/entity/md5/%s' %utils.md5_for_file(filepath).hexdigest())['results']
+        if limitSearch is not None:
+            #Go through and find the path of every entity found
+            paths = [self.restGET('/entity/%s/path' %ent['id']) for ent in results]
+            #Filter out all entities whose path does not contain limitSearch
+            results = [ent for ent, path in zip(results, paths) if
+                       utils.is_in_path(limitSearch, path)]
+        if len(results)==0: #None found 
+            raise SynapseError('File not found in Synapse')
+        elif len(results)>1:
+            warning = '\nWARNING: This file is associated with many entities.  You can limit to a specific project or folder by setting the limitSearch to a synapse Id.  Will use the first one returned %s version %i' %( results[0]['id'], results[0]['versionNumber'])
+            warnings.warn(warning)
+        entity = results[0]
+        bundle = self._getEntityBundle(entity)
+        cache.add_local_file_to_cache(path = filepath, **bundle['entity'])
+        return bundle
+
         
     def _getWithEntityBundle(self, entity, **kwargs):
         """
