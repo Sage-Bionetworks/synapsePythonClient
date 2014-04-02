@@ -472,6 +472,24 @@ class File(Entity, Versionable):
         #     self.__setitem__('concreteType', 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
 
+class Table(Entity, Versionable):
+    """
+    Represents data in tabular format in Synapse.
+
+    A table contains a set of rows that conform to the schema defined by the Table's columns.
+    """
+    _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
+    _local_keys = Entity._local_keys
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.TableEntity'
+
+    def __init__(self, name=None, columns=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
+        if name: kwargs['name'] = name
+        if columns:
+            kwargs.setdefault('columnIds',[]).extend([id_of(column) for column in columns])
+        super(Table, self).__init__(concreteType=Table._synapse_entity_type, properties=properties, 
+                                   annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+
+
 
 # Deprecated, but kept around for compatibility with
 # old-style Data, Code, Study, etc. entities
@@ -576,7 +594,8 @@ ENTITY_TYPES = LOCATIONABLE_TYPES + [
     'org.sagebionetworks.repo.model.Preview',
     'org.sagebionetworks.repo.model.Project',
     'org.sagebionetworks.repo.model.Step',
-    'org.sagebionetworks.repo.model.Summary'
+    'org.sagebionetworks.repo.model.Summary',
+    'org.sagebionetworks.repo.model.table.TableEntity'
 ]
 
 def is_synapse_entity(entity):

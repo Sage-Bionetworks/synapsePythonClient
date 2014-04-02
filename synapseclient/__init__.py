@@ -279,7 +279,7 @@ USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.
 
 from client import Synapse, login
 from activity import Activity
-from entity import Entity, Project, Folder, File
+from entity import Entity, Project, Folder, File, Table
 from entity import Analysis, Code, Data, Study, Summary
 from evaluation import Evaluation, Submission, SubmissionStatus
 from wiki import Wiki
