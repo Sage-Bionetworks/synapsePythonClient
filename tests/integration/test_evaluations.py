@@ -143,6 +143,10 @@ def test_evaluations():
             fetched = syn.getSubmission(submission['id'])
             assert os.path.exists(fetched['filePath'])
 
+            # make sure the fetched file is the same as the original (PLFM-2666)
+            assert filecmp.cmp(filename, fetched['filePath'])
+
+
         except ConfigParser.Error:
             print 'Skipping test for SYNR-541: No [test-authentication] in %s' % client.CONFIG_FILE
 
