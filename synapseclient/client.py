@@ -59,7 +59,7 @@ from synapseclient.retry import _with_retry
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
                         'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1', 
-                        'portalEndpoint':'https://synapse.org/'}
+                        'portalEndpoint':'https://www.synapse.org/'}
 
 STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-staging.prod.sagebase.org/auth/v1',
