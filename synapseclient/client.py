@@ -2571,7 +2571,7 @@ class Synapse:
     ##                     Tables                             ##
     ############################################################
 
-    def getColumns(self, prefix=None, limit=20, offset=0):
+    def getColumns(self, prefix=None, limit=100, offset=0):
         uri = '/column'
         if prefix:
             uri += '?prefix=' + prefix
@@ -2579,12 +2579,14 @@ class Synapse:
             yield ColumnModel(**result)
 
 
-    def getTableColumns(self, table, limit=20, offset=0):
+    def getTableColumns(self, table, limit=100, offset=0):
         uri = '/entity/{id}/column'.format(id=id_of(table))
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
             yield ColumnModel(**result)
 
 
+    ## This is redundant with syn.store(ColumnModel(...)) and will be removed
+    ## unless people prefer this method.
     def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):
         columnModel = ColumnModel(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValue)
         return ColumnModel(**self.restPOST('/column', json.dumps(columnModel)))
