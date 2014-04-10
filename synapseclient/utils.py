@@ -51,9 +51,11 @@ import random
 import collections
 import tempfile
 import platform
+import functools
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
+
 from synapseclient.exceptions import *
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
@@ -61,6 +63,7 @@ ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
 GB = 2**30
 MB = 2**20
 KB = 2**10
+BUFFER_SIZE = 8*KB
 
 
 def md5_for_file(filename, block_size=2**20):
@@ -394,8 +397,6 @@ def _find_used(activity, predicate):
     return None
 
 
-BUFFER_SIZE = 8*KB
-
 class Chunk(object):
     """
     A file-like object representing a fixed-size part of a larger file for use
@@ -543,3 +544,16 @@ def _limit_and_offset(uri, limit=None, offset=None):
         fragment=parts.fragment))
 
 
+#Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
+def memoize(obj):
+    cache = obj.cache = {}
+
+    @functools.wraps(obj)
+    def memoizer(*args, **kwargs):
+        if kwargs.get('ignoreCache', False):
+            return obj(*args, **kwargs)
+        key = str(args) + str(kwargs)
+        if key not in cache:
+            cache[key] = obj(*args, **kwargs)
+        return cache[key]
+    return memoizer

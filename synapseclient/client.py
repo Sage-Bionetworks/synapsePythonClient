@@ -453,14 +453,15 @@ class Synapse:
         if self._loggedIn(): 
             self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
-
-    def getUserProfile(self, id=None, sessionToken=None):
+    @utils.memoize
+    def getUserProfile(self, id=None, sessionToken=None, ignoreCache=False):
         """
         Get the details about a Synapse user.  
         Retrieves information on the current user if 'id' is omitted.
         
         :param id:           The 'ownerId' of a user
         :param sessionToken: The session token to use to find the user profile
+        :param ignoreCache:  If set to True will always fetch the data from Synape
         
         :returns: JSON-object
 
