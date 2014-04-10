@@ -6,8 +6,10 @@ To run a single test suite: nosetests -vs tests/integration
 To run a single test set  : nosetests -vs tests/integration/integration_test_Entity.py
 To run a single test      : nosetests -vs tests/integration/integration_test_Entity.py:test_Entity
 """
-
-import uuid, os, sys
+import uuid
+import os
+import  sys
+import shutil 
 
 from synapseclient import Entity, Project, Folder, File, Data, Evaluation
 import synapseclient
@@ -56,7 +58,10 @@ def cleanup(items):
                     print "Error cleaning up entity: " + str(ex)
         elif isinstance(item, basestring) and os.path.exists(item):
             try:
-                os.remove(item)
+                if os.path.isdir(item):
+                    shutil.rmtree(item)
+                else: #Assum that remove will work on antyhing besides folders
+                    os.remove(item)
             except Exception as ex:
                 print ex
         else:

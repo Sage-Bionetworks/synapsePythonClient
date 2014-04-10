@@ -3,6 +3,7 @@ import uuid, random, base64
 import ConfigParser
 from datetime import datetime
 from nose.tools import assert_raises
+from nose.plugins.attrib import attr
 from mock import MagicMock, patch
 
 import synapseclient.client as client
@@ -25,7 +26,6 @@ def setup(module):
     print '~' * 60
     module.syn = integration.syn
     module.project = integration.project
-
 
 def test_login():
     try:
@@ -272,8 +272,7 @@ def test_provenance():
     # Create a Data Entity
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
-    data_entity = syn.createEntity(Data(parent=project['id']))
-    data_entity = syn.uploadFile(data_entity, fname)
+    data_entity = syn.store(File(fname, parent=project['id']))
 
     # Create a Code Entity
     fd, path = tempfile.mkstemp(suffix=".py")
@@ -286,8 +285,7 @@ def test_provenance():
                  """)
     os.close(fd)
     schedule_for_cleanup(path)
-    code_entity = syn.createEntity(Code(parent=project['id']))
-    code_entity = syn.uploadFile(code_entity, path)
+    code_entity = syn.store(File(path, parent=project['id']))
     
     # Create a new Activity asserting that the Code Entity was 'used'
     activity = Activity(name='random.gauss', description='Generate some random numbers')
