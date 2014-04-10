@@ -342,7 +342,7 @@ class Synapse:
             self._writeSessionCache(cachedSessions)
             
         if not silent:
-            profile = self.getUserProfile()
+            profile = self.getUserProfile(ignoreCache=True)
             print "Welcome, %s!" % (profile['displayName'] if 'displayName' in profile else self.username)
         
         
