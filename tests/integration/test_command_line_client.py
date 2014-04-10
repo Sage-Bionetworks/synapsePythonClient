@@ -5,6 +5,9 @@ import sys
 import uuid
 import json
 from cStringIO import StringIO
+from nose.plugins.attrib import attr
+import tempfile
+import shutil
 
 import synapseclient
 import synapseclient.utils as utils
@@ -109,11 +112,11 @@ def test_command_line_client():
     schedule_for_cleanup(filename)
     output = run('synapse', 
                  '--skip-checks', 
-                 'update', 
-                 '-id', 
+                 'store', 
+                 '--id', 
                  file_entity_id, 
                  filename)
-    updated_entity_id = parse(r'Updated entity:\s+(syn\d+)', output)
+    updated_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)', output)
 
     # Get the File again
     output = run('synapse', 
@@ -157,8 +160,8 @@ def test_command_line_client():
     schedule_for_cleanup(filename)
     output = run('synapse', 
                 '--skip-checks', 
-                'update', 
-                '-id', 
+                'store', 
+                '--id', 
                 data_entity_id, 
                 filename)
     updated_entity_id = parse(r'Updated entity:\s+(syn\d+)', output)
@@ -269,7 +272,7 @@ def test_command_line_store_and_submit():
                  'test of store command',
                  '--type',
                  'Project')
-    project_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    project_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
     schedule_for_cleanup(project_id)
 
     # Create and upload a file
@@ -404,3 +407,73 @@ def test_command_line_store_and_submit():
                  '--skip-checks',
                  'delete',
                  project_id)
+
+@attr('now')
+def test_command_line_using_paths():
+    # Create a Project
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    # Create a Folder in Project
+    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()), parent=project_entity))
+
+    # Create and upload a file in Folder
+    filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    file_entity = syn.store(synapseclient.File(filename, parent=folder_entity))
+
+    # Verify that we can use show with a filename
+    output = run('synapse', '--skip-checks', 'show', filename)
+    id = parse(r'File: %s\s+\((syn\d+)\)\s+' %os.path.split(filename)[1], output)
+    assert file_entity.id == id
+    
+    #Verify that limitSearch works by using get
+    #Store same file in project as well
+    file_entity2 = syn.store(synapseclient.File(filename, parent=project_entity))
+    output = run('synapse', '--skip-checks', 'get', 
+                 '--limitSearch', folder_entity.id, 
+                 filename)
+    name = parse(r'Creating\s+\.\/(%s)\s+' %os.path.split(filename)[1], output)
+    assert name == os.path.split(filename)[1]
+    schedule_for_cleanup('./'+name)
+
+    #Verify that set-provenance works with filepath
+    repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+    output = run('synapse', '--skip-checks', 'set-provenance', 
+                 '-id', file_entity2.id,
+                 '-name', 'TestActivity', 
+                 '-description', 'A very excellent provenance', 
+                 '-used', filename,
+                 '-executed', repo_url,
+                 '-limitSearch', folder_entity.id)
+    activity_id = parse(r'Set provenance record (\d+) on entity syn\d+', output)
+
+    output = run('synapse', '--skip-checks', 'get-provenance', 
+                 '-id', file_entity2.id)
+    activity = json.loads(output)
+    assert activity['name'] == 'TestActivity'
+    assert activity['description'] == 'A very excellent provenance'
+    
+    #Verify that store works with provenance specified with filepath
+    repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+    filename2 = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename2)
+    output = run('synapse', '--skip-checks', 'add', filename2, 
+                 '-parentid', project_entity.id, 
+                 '-used', filename,
+                 '-executed', '%s %s' %(repo_url, filename))
+    entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+    output = run('synapse', '--skip-checks', 'get-provenance', 
+                 '-id', entity_id)
+    activity = json.loads(output)
+    a = [a for a in activity['used'] if a['wasExecuted']==False]
+    assert a[0]['reference']['targetId'] in [file_entity.id, file_entity2.id]
+    
+    #Test associate command
+    #I have two files in Synapse filename and filename2
+    path = tempfile.mkdtemp()
+    schedule_for_cleanup(path)
+    shutil.copy(filename, path)
+    shutil.copy(filename2, path)
+    output = run('synapse', '--skip-checks', 'associate', path, '-r')
+    output = run('synapse', '--skip-checks', 'show', filename)
