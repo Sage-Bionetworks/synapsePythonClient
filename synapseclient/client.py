@@ -59,7 +59,7 @@ from synapseclient.retry import _with_retry
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
                         'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1', 
-                        'portalEndpoint':'https://synapse.org/'}
+                        'portalEndpoint':'https://www.synapse.org/'}
 
 STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-staging.prod.sagebase.org/auth/v1',
@@ -2286,6 +2286,38 @@ class Synapse:
             url += "?status=%s" % status
 
         return self._GET_paginated(url, limit=limit, offset=offset)
+
+
+    def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
+        """
+        :param evaluation: Evaluation to get submissions from.
+        :param status:     Optionally filter submissions for a specific status.
+                           One of {OPEN, CLOSED, SCORED, INVALID}
+        :param myOwn:      Determines if only your Submissions should be fetched.
+                           Defaults to False (all Submissions)
+        :param limit:      Limits the number of submissions coming back from the
+                           service in a single response.
+        :param offset:     Start iterating at a submission offset from the first
+                           submission.
+
+        :returns: A generator over tuples containing a :py:class:`synapseclient.evaluation.Submission`
+                  and a :py:class:`synapseclient.evaluation.SubmissionStatus`.
+
+        Example::
+
+            for submission, status in syn.getSubmissionBundles(evaluation):
+                print submission.name, \\
+                      submission.submitterAlias, \\
+                      status.status, \\
+                      status.score
+
+        This may later be changed to return objects, pending some thought on how submissions
+        along with related status and annotations should be represented in the clients.
+
+        See: :py:mod:`synapseclient.evaluation`
+        """
+        for bundle in self._getSubmissionBundles(evaluation, status=status, myOwn=myOwn, limit=limit, offset=offset):
+            yield (Submission(**bundle['submission']), SubmissionStatus(**bundle['submissionStatus']))
 
 
     def _GET_paginated(self, url, limit=20, offset=0):

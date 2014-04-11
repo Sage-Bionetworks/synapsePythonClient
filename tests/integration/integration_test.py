@@ -241,13 +241,8 @@ def test_uploadFileEntity():
 
 def test_downloadFile():
     # See if the a "wget" works
-    result = utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
-    filename = result[0]
-    
-    # print "status: %s" % str(result[1].status))
-    # print "filename: %s" % filename
+    filename = utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
     schedule_for_cleanup(filename)
-    assert result, "Failed to download file: %s" % filename
     assert os.path.exists(filename)
 
 

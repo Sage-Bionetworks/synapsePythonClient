@@ -93,15 +93,29 @@ def download_file(url, localFilepath=None):
     
     :param localFilePath: May be None, in which case a temporary file is created
     
-    :returns: A tuple (localFilePath, HTTPmsg).
-              See `urllib.urlretrieve <http://docs.python.org/2/library/urllib.html#urllib.urlretrieve>`_
+    :returns: localFilePath
     """
-    
-    if (localFilepath):
-        dir = os.path.dirname(localFilepath)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-    return urllib.urlretrieve(url, localFilepath)
+
+    f = None
+    try:
+        if localFilepath:
+            dir = os.path.dirname(localFilepath)
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+            f = open(localFilepath, 'wb')
+        else:
+            f = tempfile.NamedTemporaryFile(delete=False)
+            localFilepath = f.name
+
+        r = requests.get(url, stream=True)
+        for chunk in r.iter_content(chunk_size=1024):
+            if chunk:
+                f.write(chunk)
+    finally:
+        if f:
+            f.close()
+
+    return localFilepath
 
 
 def extract_filename(content_disposition):
