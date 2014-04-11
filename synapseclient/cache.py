@@ -258,7 +258,7 @@ def obtain_lock_and_read_cache(cacheDir):
             if err.errno != errno.EEXIST and err.errno != errno.EACCES:
                 raise
         
-        print "Waiting for cache to unlock"
+        sys.stderr.write("Waiting for cache to unlock\n")
         if is_lock_valid(cacheLock):
             time.sleep(CACHE_UNLOCK_WAIT_TIME)
             continue
@@ -295,7 +295,7 @@ def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
     if cacheMapBody is not None:
         # Make sure the lock is still valid
         if not is_lock_valid(cacheLock):
-            print "Lock has expired, reaquiring..."
+            sys.stderr.write("Lock has expired, reaquiring...\n")
             relockedCacheMap = obtain_lock_and_read_cache(cacheDir)
             # We assume that the rest of this operation can be completed within CACHE_LOCK_TIME seconds
             relockedCacheMap.update(cacheMapBody)

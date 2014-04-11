@@ -343,7 +343,7 @@ class Synapse:
             
         if not silent:
             profile = self.getUserProfile(refresh=True)
-            print "Welcome, %s!" % (profile['displayName'] if 'displayName' in profile else self.username)
+            sys.stderr.write("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
         
         
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
@@ -1069,7 +1069,7 @@ class Synapse:
         Use :py:func:`synapseclient.Synapse.get`
         """
 
-        print 'WARNING!: THIS ONLY DOWNLOADS ENTITIES!'
+        sys.stderr.write('WARNING!: THIS ONLY DOWNLOADS ENTITIES!')
         return self.downloadEntity(entity)
 
 
@@ -1973,7 +1973,7 @@ class Synapse:
                     self._traverseTree(entity['entity.id'], \
                                        entity['entity.name'], \
                                        entity['entity.versionNumber']))
-        print id, count, name
+        sys.stdout.write('%s %i %s\n' %(id, count, name))
         if count == 0:
             del output[-1]['records']
             del output[-1]['name'] 
@@ -2025,7 +2025,6 @@ class Synapse:
         :param name:        Name of created summary Entity
         :param description: Description of created Entity
         """
-        print "hello"
         tree=self._traverseTree(id)[0]['records']
         print self.printEntity(tree)
         
