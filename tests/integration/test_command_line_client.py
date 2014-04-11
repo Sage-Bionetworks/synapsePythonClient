@@ -408,7 +408,7 @@ def test_command_line_store_and_submit():
                  'delete',
                  project_id)
 
-@attr('now')
+
 def test_command_line_using_paths():
     # Create a Project
     project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))

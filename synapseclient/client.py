@@ -342,7 +342,7 @@ class Synapse:
             self._writeSessionCache(cachedSessions)
             
         if not silent:
-            profile = self.getUserProfile(ignoreCache=True)
+            profile = self.getUserProfile(refresh=True)
             print "Welcome, %s!" % (profile['displayName'] if 'displayName' in profile else self.username)
         
         
@@ -454,14 +454,15 @@ class Synapse:
             self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
     @utils.memoize
-    def getUserProfile(self, id=None, sessionToken=None, ignoreCache=False):
+    def getUserProfile(self, id=None, sessionToken=None, refresh=False):
         """
         Get the details about a Synapse user.  
         Retrieves information on the current user if 'id' is omitted.
         
         :param id:           The 'ownerId' of a user
         :param sessionToken: The session token to use to find the user profile
-        :param ignoreCache:  If set to True will always fetch the data from Synape
+        :param refresh:  If set to True will always fetch the data from Synape otherwise 
+                         will used cached information
         
         :returns: JSON-object
 

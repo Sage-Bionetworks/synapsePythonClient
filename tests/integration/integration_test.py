@@ -272,7 +272,8 @@ def test_provenance():
     # Create a Data Entity
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
-    data_entity = syn.store(File(fname, parent=project['id']))
+    data_entity = syn.createEntity(Data(parent=project['id']))
+    data_entity = syn.uploadFile(data_entity, fname)
 
     # Create a Code Entity
     fd, path = tempfile.mkstemp(suffix=".py")
@@ -285,7 +286,8 @@ def test_provenance():
                  """)
     os.close(fd)
     schedule_for_cleanup(path)
-    code_entity = syn.store(File(path, parent=project['id']))
+    code_entity = syn.createEntity(Code(parent=project['id']))
+    code_entity = syn.uploadFile(code_entity, path)
     
     # Create a new Activity asserting that the Code Entity was 'used'
     activity = Activity(name='random.gauss', description='Generate some random numbers')

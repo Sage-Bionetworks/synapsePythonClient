@@ -144,7 +144,7 @@ def associate(args, syn):
     if len(files) ==0:
         raise Exception('The path specified is innacurate.  If it is a directory try -r')
     for file in files:
-        syn.get(file)
+        syn.get(file, limitSearch=args.limitSearch)
 
 
 def cat(args, syn):
