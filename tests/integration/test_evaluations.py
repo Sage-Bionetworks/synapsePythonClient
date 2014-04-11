@@ -186,8 +186,7 @@ def test_evaluations():
         bogosity = {}
         submissions = syn.getSubmissions(ev)
         b = 123
-        for submission in submissions:
-            status = syn.getSubmissionStatus(submission)
+        for submission, status in syn.getSubmissionBundles(ev):
             bogosity[submission.id] = b
             a = dict(foo='bar', bogosity=b)
             b += 123
@@ -196,9 +195,7 @@ def test_evaluations():
             syn.store(status)
 
         # Test that the annotations stuck
-        submissions = syn.getSubmissions(ev)
-        for submission in submissions:
-            status = syn.getSubmissionStatus(submission)
+        for submission, status in syn.getSubmissionBundles(ev):
             a = from_submission_status_annotations(status.annotations)
             assert a['foo'] == 'bar'
             assert a['bogosity'] == bogosity[submission.id]

@@ -211,4 +211,4 @@ def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'do
                 if kvp['key'] == key:
                     kvp['isPrivate'] = is_private
                     return kvp
-    raise KeyError('The key "%s" couldn\'t be found in the annotations.')
+    raise KeyError('The key "%s" couldn\'t be found in the annotations.' % key)
