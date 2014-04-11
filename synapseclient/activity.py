@@ -28,19 +28,20 @@ Creating an activity object
                    executed='syn4567')
 
 Here, syn1234 and syn1235 might be two types of measurements on a common set of
-samples. Some whizzy clustering code might be referred to by syn4567.
+samples. Some whizzy clustering code might be referred to by syn4567.  The used and
+executed can reference entities in Synapse or URLs.
 
 Alternatively, you can build an activity up piecemeal::
 
     act = Activity(name='clustering', description='whizzy clustering')
     act.used(['syn12345', 'syn12346'])
-    act.executed('syn12347')
+    act.executed('https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/develop/tests/unit/unit_test_client.py')
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Storing entities with provenance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The activity can be passed in when storing an Entity to link set the Entity's provenance::
+The activity can be passed in when storing an Entity to set the Entity's provenance::
 
     clustered_samples = syn.store(clustered_samples, activity=act)
 
@@ -51,7 +52,7 @@ applied to the data stored in syn1234 and syn1235.
 Recording data source
 ~~~~~~~~~~~~~~~~~~~~~
 
-The :py:meth:`synapseclient.Synapse.store` method can do some of the work for you. For example, when
+The :py:meth:`synapseclient.Synapse.store` has shortcuts for specifying the used and executed lists directly. For example, when
 storing a data entity, it's a good idea to record its source::
 
     excellent_data = syn.store(excellent_data,
@@ -134,9 +135,10 @@ class Activity(dict):
     
     :param name:        name of the Activity
     :param description: a short text description of the Activity
-    :param used:        Either a list of reference objects 
-                        (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``) 
-                        or a list of Synapse Entities or Entity IDs
+    :param used:        Either a list of:
+                        - reference objects (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``) 
+                        - a list of Synapse Entities or Entity IDs
+                        - a list of URL's
     :param executed:    A code resource that was executed to generate the Entity.
     :param data:        A dictionary representation of an Activity, 
                         with fields 'name', 'description' and 'used' 
@@ -312,3 +314,20 @@ class Activity(dict):
         """
         
         self.used(target=target, targetVersion=targetVersion, url=url, name=name, wasExecuted=True)
+
+    def __str__(self):
+        #user = syn.getUserProfile(self['createdBy'])
+        #str = '  Added by: %s %s (%s)' %(user['firstName'], user['lastName'], user['userName']))
+        str = '%s\n  Executed:\n' % self.get('name', '')
+        for source in [source for source in self['used'] if source.get('wasExecuted', False)]:
+            if source['concreteType'].endswith('UsedURL'):
+                str +='    %s\n' %source['name']
+            else: #It is an entity for now
+                str +='    %s.%i\n' %(source['reference']['targetId'], source['reference']['targetVersionNumber'])
+        str += '  Used:\n'
+        for source in [source for source in self['used'] if not source.get('wasExecuted', False)]:
+            if source['concreteType'].endswith('UsedURL'):
+                str += '    %s\n' %source['name']
+            else: #It is an entity for now
+                str += '    %s.%i\n' %(source['reference']['targetId'], source['reference']['targetVersionNumber'])
+        return str

@@ -1,6 +1,7 @@
 import uuid, filecmp, os, sys, requests, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
+from nose.plugins.attrib import attr
 from mock import patch
 
 import synapseclient.client as client
@@ -90,6 +91,33 @@ def test_Entity():
     # Make sure we can still get the older version of file
     old_random_data = syn.get(a_file.id, version=1)
     assert filecmp.cmp(old_random_data.path, path)
+
+
+def test_get_local_file():
+    """Tests synapse.get() with local a local file """
+    new_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(new_path)
+    folder = Folder('TestFindFileFolder', parent=project, description='A place to put my junk')
+    folder = syn.createEntity(folder)
+
+    #Get an nonexistent file in Synapse
+    assert_raises(SynapseError, syn.get, new_path)
+
+    #Get a file really stored in Synapse
+    ent_folder = syn.store(File(new_path, parent=folder))
+    ent2 = syn.get(new_path)
+    assert ent_folder.id==ent2.id and ent_folder.versionNumber==ent2.versionNumber
+
+    #Get a file stored in Multiple locations #should display warning
+    ent = syn.store(File(new_path, parent=project))
+    ent = syn.get(new_path)
+
+    #Get a file stored in multiple locations with limit set
+    ent = syn.get(new_path, limitSearch=folder.id)
+    assert ent.id == ent_folder.id and ent.versionNumber==ent_folder.versionNumber
+
+    #Get a file that exists but such that limitSearch removes them and raises error
+    assert_raises(SynapseError, syn.get, new_path, limitSearch='syn1')
 
 
 def test_store_with_flags():

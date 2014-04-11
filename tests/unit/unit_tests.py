@@ -148,6 +148,16 @@ def test_windows_file_urls():
     assert utils.is_url(url)
     assert utils.file_url_to_path(url, verify_exists=False).get('path',None) == 'c:/WINDOWS/clock.avi', utils.file_url_to_path(url)
 
+
+def test_is_in_path():
+    #Path as returned form syn.restGET('entity/{}/path')
+    path = {u'path': [{u'id': u'syn4489',  u'name': u'root', u'type': u'org.sagebionetworks.repo.model.Folder'},
+                      {u'id': u'syn537704', u'name': u'my Test project', u'type': u'org.sagebionetworks.repo.model.Project'},
+                      {u'id': u'syn2385356',u'name': u'.emacs', u'type': u'org.sagebionetworks.repo.model.FileEntity'}]}
+
+    assert utils.is_in_path('syn537704', path)  
+    assert not utils.is_in_path('syn123', path)
+
 def test_id_of():
     assert utils.id_of(1) == '1'
     assert utils.id_of('syn12345') == 'syn12345'

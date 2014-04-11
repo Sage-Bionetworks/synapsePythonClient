@@ -3,6 +3,7 @@ import uuid, random, base64
 import ConfigParser
 from datetime import datetime
 from nose.tools import assert_raises
+from nose.plugins.attrib import attr
 from mock import MagicMock, patch
 
 import synapseclient.client as client
@@ -25,7 +26,6 @@ def setup(module):
     print '~' * 60
     module.syn = integration.syn
     module.project = integration.project
-
 
 def test_login():
     try:
