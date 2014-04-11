@@ -2300,7 +2300,7 @@ class Synapse:
         :param offset:     Start iterating at a submission offset from the first
                            submission.
 
-        :returns: A generator over tubles which contain a :py:class:`synapseclient.evaluation.Submission`
+        :returns: A generator over tuples containing a :py:class:`synapseclient.evaluation.Submission`
                   and a :py:class:`synapseclient.evaluation.SubmissionStatus`.
 
         Example::
