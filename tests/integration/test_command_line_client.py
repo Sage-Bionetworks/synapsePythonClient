@@ -433,7 +433,7 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'get', 
                  '--limitSearch', folder_entity.id, 
                  filename)
-    name = parse(r'Creating\s+\.\/(%s)\s+' %os.path.split(filename)[1], output)
+    name = parse(r'Creating\s+\.\%s(%s)\s+' % (os.path.sep, os.path.split(filename)[1]), output)
     assert name == os.path.split(filename)[1]
     schedule_for_cleanup('./'+name)
 
