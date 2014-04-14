@@ -564,8 +564,9 @@ def memoize(obj):
 
     @functools.wraps(obj)
     def memoizer(*args, **kwargs):
+        refresh = kwargs.pop('refresh', False)
         key = str(args) + str(kwargs)
-        if key not in cache or kwargs.get('refresh', False):
+        if refresh or key not in cache:
             cache[key] = obj(*args, **kwargs)
         return cache[key]
     return memoizer
