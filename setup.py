@@ -5,7 +5,7 @@ import sys
 ## check Python version, before we do anything
 if sys.version_info < (2, 7, 0):
     sys.stderr.write("The Synapse Client for Python requires Python 2.7.\n")
-    sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % (sys.version_info.major, sys.version_info.minor, sys.version_info.micro,))
+    sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
     sys.exit(-1)
 
 if sys.version_info >= (3, 0, 0):
