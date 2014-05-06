@@ -714,7 +714,7 @@ class Synapse:
             if downloadFile:
                 if isLocationable:
                     ## TODO: version, here
-                    entity = self._downloadLocations(entity, downloadPath)
+                    entity.update(self._downloadLocations(entity, downloadPath))
                 else:
                     entity.update(self._downloadFileEntity(entity, downloadPath, submission))
             else:
@@ -1622,14 +1622,16 @@ class Synapse:
         :returns: An updated Entity dictionary
         """
         
+        results = DictObject()
+
         if 'locations' not in entity or len(entity['locations']) == 0:
-            return entity
+            return results
             
         location = entity['locations'][0]  ## TODO: verify that this doesn't fail for unattached files
         url = location['path']
         utils.download_file(url, filename)
 
-        entity.path = filename
+        results.path = filename
         if entity['contentType'] == 'application/zip':
             # Unpack file
             filepath = os.path.join(os.path.dirname(filename), os.path.basename(filename) + '_unpacked')
@@ -1639,13 +1641,13 @@ class Synapse:
             z.extractall(filepath) #WARNING!!!NOT SAFE
             
             ## TODO: fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
-            entity['cacheDir'] = filepath
-            entity['files'] = z.namelist()
+            results['cacheDir'] = filepath
+            results['files'] = z.namelist()
         else:
             ## TODO: fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
-            entity['cacheDir'] = os.path.dirname(filename)
-            entity['files'] = [os.path.basename(filename)]
-        return entity
+            results['cacheDir'] = os.path.dirname(filename)
+            results['files'] = [os.path.basename(filename)]
+        return results
 
 
         
