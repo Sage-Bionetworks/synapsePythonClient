@@ -92,6 +92,7 @@ mimetypes.add_type('text/x-r', '.r', strict=False)
 mimetypes.add_type('text/tab-separated-values', '.maf', strict=False)
 mimetypes.add_type('text/tab-separated-values', '.bed5', strict=False)
 mimetypes.add_type('text/tab-separated-values', '.vcf', strict=False)
+mimetypes.add_type('text/tab-separated-values', '.sam', strict=False)
 
 
 def login(*args, **kwargs):
@@ -2362,7 +2363,7 @@ class Synapse:
                                 entityBundle=json.loads(submission['entityBundleJSON']), 
                                 submission=submission_id, **kwargs)
             submission.entity = related
-            submission['filePath'] = related['path']
+            submission.filePath = related['path']
             
         return submission
 
