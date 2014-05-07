@@ -594,7 +594,7 @@ class Synapse:
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
 
-        return self._getWithEntityBundle(entity, entityBundle=bundle, **kwargs)
+        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
 
 
     def __getFromFile(self, filepath, limitSearch=None):
@@ -624,15 +624,20 @@ class Synapse:
         cache.add_local_file_to_cache(path = filepath, **bundle['entity'])
         return bundle
 
-        
-    def _getWithEntityBundle(self, entity, **kwargs):
+
+    def _getWithEntityBundle(self, entityBundle, entity=None, **kwargs):
         """
-        Gets a Synapse entity from the repository service.
-        See :py:func:`synapseclient.Synapse.get`.
-        
+        Creates a :py:mod:`synapseclient.Entity` from an entity bundle returned by Synapse.
+        An existing Entity can be supplied in case we want to refresh a stale Entity.
+
         :param entityBundle: Uses the given dictionary as the meta information of the Entity to get
-        :param submission:   Makes the method treats the entityBundle like it came from a Submission 
-                             and thereby needs a different URL to download
+        :param entity:       Optional, entity whose local state will be copied into the returned entity
+        :param submission:   Optional, access associated files through a submission rather than
+                             through an entity.
+
+        See :py:func:`synapseclient.Synapse.get`.
+        See :py:func:`synapseclient.Synapse._getEntityBundle`.
+        See :py:mod:`synapseclient.Entity`.
         """
         
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
@@ -641,21 +646,11 @@ class Synapse:
         downloadLocation = kwargs.get('downloadLocation', None)
         ifcollision = kwargs.get('ifcollision', 'keep.both')
         submission = kwargs.get('submission', None)
-        
-        # Make sure the download location is fully resolved
-        downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
-        if downloadLocation is not None and os.path.isfile(downloadLocation):
-            raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
-
-        # Retrieve metadata
-        bundle = kwargs.get('entityBundle', None)
-        if bundle is None:
-            raise SynapseMalformedEntityError("Could not determine the Synapse ID to fetch")
 
         # Make a fresh copy of the Entity
-        local_state = entity.local_state() if isinstance(entity, Entity) else None
-        properties = bundle['entity']
-        annotations = from_synapse_annotations(bundle['annotations'])
+        local_state = entity.local_state() if entity and isinstance(entity, Entity) else None
+        properties = entityBundle['entity']
+        annotations = from_synapse_annotations(entityBundle['annotations'])
         entity = Entity.create(properties, annotations, local_state)
 
         # Handle both FileEntities and Locationables
@@ -664,10 +659,10 @@ class Synapse:
             fileName = entity['name']
             
             if not isLocationable:
-                # Fill in some information about the file
-                # Note: fileHandles will be empty if there are unmet access requirements
-                for handle in bundle['fileHandles']:
-                    if handle['id'] == bundle['entity']['dataFileHandleId']:
+                # Fill in information about the file, even if we don't download it
+                # Note: fileHandles will be an empty list if there are unmet access requirements
+                for handle in entityBundle['fileHandles']:
+                    if handle['id'] == entityBundle['entity']['dataFileHandleId']:
                         entity.md5 = handle.get('contentMd5', '')
                         entity.fileSize = handle.get('contentSize', None)
                         entity.contentType = handle.get('contentType', None)
@@ -680,14 +675,19 @@ class Synapse:
                             if not downloadFile:
                                 return entity
 
+            # Make sure the download location is fully resolved
+            downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
+            if downloadLocation is not None and os.path.isfile(downloadLocation):
+                raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+
             # Determine if the file should be downloaded
             downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
             if downloadFile: 
-                downloadFile = cache.local_file_has_changed(bundle, True, downloadPath)
+                downloadFile = cache.local_file_has_changed(entityBundle, True, downloadPath)
                 
             # Determine where the file should be downloaded to
             if downloadFile:
-                _, localPath, _ = cache.determine_local_file_location(bundle)
+                _, localPath, _ = cache.determine_local_file_location(entityBundle)
                 
                 # By default, download to the local cache
                 if downloadPath is None:
@@ -720,7 +720,7 @@ class Synapse:
             else:
                 # The local state of the Entity is normally updated by the _downloadFileEntity method
                 # If the file exists locally, make sure the entity points to it
-                localFileInfo = cache.retrieve_local_file_info(bundle, downloadPath)
+                localFileInfo = cache.retrieve_local_file_info(entityBundle, downloadPath)
                 if 'path' in localFileInfo and localFileInfo['path'] is not None and os.path.isfile(localFileInfo['path']):
                     entity.update(localFileInfo)
                 
@@ -2447,8 +2447,9 @@ class Synapse:
         
         # Pre-fetch the Entity tied to the Submission, if there is one
         if 'entityId' in submission and submission['entityId'] is not None:
-            related = self._getWithEntityBundle(submission['entityId'], \
-                                entityBundle=json.loads(submission['entityBundleJSON']), 
+            related = self._getWithEntityBundle(
+                                entityBundle=json.loads(submission['entityBundleJSON']),
+                                entity=submission['entityId'],
                                 submission=submission_id, **kwargs)
             submission.entity = related
             submission.filePath = related['path']
