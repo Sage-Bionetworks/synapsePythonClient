@@ -165,11 +165,14 @@ def retrieve_local_file_info(entityBundle, path=None):
     if path is None:
         return {}
     
-    return {
-        'path': path,
-        'files': [os.path.basename(path)],
-        'cacheDir': os.path.dirname(path) }
-
+    locations = {'path': path}
+    if os.path.isdir(path+'_unpacked') and path.endswith('.zip'):  #This is a locationable with an unpacked zip file
+        locations['cacheDir'] = path+'_unpacked'
+        locations['files'] = os.listdir(locations['cacheDir'])
+    else:
+        locations['cacheDir'] = os.path.dirname(path)
+        locations['files'] = [os.path.basename(path)]
+    return locations
     
 def determine_local_file_location(entityBundle):
     """
