@@ -2361,6 +2361,7 @@ class Synapse:
             related = self._getWithEntityBundle(submission['entityId'], \
                                 entityBundle=json.loads(submission['entityBundleJSON']), 
                                 submission=submission_id, **kwargs)
+            submission.entity = related
             submission['filePath'] = related['path']
             
         return submission
