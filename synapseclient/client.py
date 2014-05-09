@@ -2620,6 +2620,32 @@ class Synapse:
 
             
     ############################################################
+    ##                      Send Message                      ##
+    ############################################################
+    def sendMessage(self, userIds, messageSubject, messageBody):
+        """
+        send a message via Synapse.
+        
+        :param userId: A list of user IDs to which the message is to be sent
+        
+        :param messageSubject: The subject for the message
+        
+        :param messageBody: The body of the message
+        
+        :returns: The metadata of the created message
+        """
+        
+        fileHandle = self._uploadStringToFile(messageBody)
+        message = dict()
+        message['recipients']=userIds
+        message['subject']=messageSubject
+        message['fileHandleId']=fileHandle['id']
+        return self.restPOST(uri='/message', body=json.dumps(message))
+
+        
+    
+
+    ############################################################
     ##                  Low level Rest calls                  ##
     ############################################################
     
