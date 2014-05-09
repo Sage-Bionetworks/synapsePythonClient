@@ -5,6 +5,7 @@ import synapseclient
 import synapseclient.utils as utils
 from synapseclient.utils import MB, GB
 from synapseclient import Activity, Entity, Project, Folder, File, Data
+import tempfile
 
 import integration
 from integration import schedule_for_cleanup
@@ -65,3 +66,37 @@ def manually_check_retry_on_key_does_not_exist():
     finally:
         os.remove(filepath)
 
+def test_upload_string():
+    ## This tests the utility that uploads  a _string_ rather than 
+    ## a file on disk, to S3.
+    
+    fh = None
+    content = "My dog has fleas.\n"
+    f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+    f.write(content)
+    f.close()
+    filepath=f.name
+        
+    print 'Made bogus file: ', filepath
+    try:
+        fh = syn._uploadStringToFile(content)
+        # print 'FileHandle:'
+        # syn.printEntity(fh)
+
+        # Download the file and compare it with the original
+        junk = File(filepath, parent=project, dataFileHandleId=fh['id'])
+        junk.properties.update(syn._createEntity(junk.properties))
+        junk.update(syn._downloadFileEntity(junk, filepath))
+        assert filecmp.cmp(filepath, junk.path)
+
+    finally:
+        try:
+            if 'junk' in locals():
+                syn.delete(junk)
+        except Exception:
+            print traceback.format_exc()
+        try:
+            os.remove(filepath)
+        except Exception:
+            print traceback.format_exc()
+            
