@@ -1776,13 +1776,23 @@ class Synapse:
         ChunkedFileToken will be required for all remaining chunk file requests.
 
         :returns: a `ChunkedFileToken <http://rest.synapse.org/org/sagebionetworks/repo/model/file/ChunkedFileToken.html>`_
-        """
+        """ 
+        md5 = utils.md5_for_file(filepath).hexdigest()
+        fileName = utils.guess_file_name(filepath)
+        return self._createChunkedUploadToken(md5, fileName, mimetype)
     
-        md5 = utils.md5_for_file(filepath)
+    def _createChunkedUploadToken(self, md5, fileName, mimetype):
+        """
+        This is the first step in uploading a large file. The resulting
+        ChunkedFileToken will be required for all remaining chunk file requests.
+
+        :returns: a `ChunkedFileToken <http://rest.synapse.org/org/sagebionetworks/repo/model/file/ChunkedFileToken.html>`_
+        """
+        
         chunkedFileTokenRequest = \
-            {'fileName'    : utils.guess_file_name(filepath), \
+            {'fileName'    : fileName, \
              'contentType' : mimetype, \
-             'contentMD5'  : md5.hexdigest()}
+             'contentMD5'  : md5}
         return self.restPOST('/createChunkedFileUploadToken', json.dumps(chunkedFileTokenRequest), endpoint=self.fileHandleEndpoint)
 
         
@@ -1941,6 +1951,81 @@ class Synapse:
 
         # Print timing information
         if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
+
+        return fileHandle
+
+    def _uploadStringToFile(self, content, contentType="text/plain"):
+        """
+        Upload a string to be stored in Synapse, as a single upload chunk
+        
+        :param content: The content to be uploaded
+        
+        :param contentType: The content type to be stored with the file
+       
+        :returns: An `S3 FileHandle <http://rest.synapse.org/org/sagebionetworks/repo/model/file/S3FileHandle.html>`_
+        """
+
+        if len(content)>5*MB:
+            raise ValueError('Maximum string length is 5 MB.')
+
+
+        headers = { 'Content-Type' : contentType }
+        headers.update(synapseclient.USER_AGENT)
+
+        try:
+
+            # Get token
+            md5 = hashlib.md5(content).hexdigest()
+            token = self._createChunkedUploadToken(md5, "message", contentType)
+            
+            retry_policy=self._build_retry_policy(
+                {"retry_errors":['We encountered an internal error. Please try again.']})
+
+            i = 1
+            chunk_record = {'chunk-number':i}
+
+            # Get the signed S3 URL
+            url = self._createChunkedFileUploadChunkURL(i, token)
+
+            # PUT the chunk to S3
+            response = _with_retry(
+                lambda: requests.put(url, data=content, headers=headers),
+                **retry_policy)
+
+            chunk_record['response-status-code'] = response.status_code
+            chunk_record['response-headers'] = response.headers
+            if response.text:
+                chunk_record['response-body'] = response.text
+ 
+            # Is requests closing response stream? Let's make sure:
+            # "Note that connections are only released back to
+            #  the pool for reuse once all body data has been
+            #  read; be sure to either set stream to False or
+            #  read the content property of the Response object."
+            # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
+            try:
+                if response:
+                    throw_away = response.content
+            except Exception as ex:
+                sys.stderr.write('error reading response: '+str(ex))
+
+            exceptions._raise_for_status(response, verbose=self.debug)
+
+            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+
+            # Poll until concatenating chunks is complete
+            while (status['state']=='PROCESSING'):
+                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+                status = self._completeUploadDaemonStatus(status)
+
+            if status['state'] == 'FAILED':
+                raise SynapseError(status['errorMessage'])
+
+            # Return a fileHandle
+            fileHandle = self._getFileHandle(status['fileHandleId'])
+
+        except Exception as ex:
+            raise sys.exc_info()[0], ex, sys.exc_info()[2]
 
         return fileHandle
 
@@ -2534,6 +2619,32 @@ class Synapse:
 
 
             
+    ############################################################
+    ##                      Send Message                      ##
+    ############################################################
+    def sendMessage(self, userIds, messageSubject, messageBody):
+        """
+        send a message via Synapse.
+        
+        :param userId: A list of user IDs to which the message is to be sent
+        
+        :param messageSubject: The subject for the message
+        
+        :param messageBody: The body of the message
+        
+        :returns: The metadata of the created message
+        """
+        
+        fileHandle = self._uploadStringToFile(messageBody)
+        message = dict()
+        message['recipients']=userIds
+        message['subject']=messageSubject
+        message['fileHandleId']=fileHandle['id']
+        return self.restPOST(uri='/message', body=json.dumps(message))
+
+        
+    
+
     ############################################################
     ##                  Low level Rest calls                  ##
     ############################################################
