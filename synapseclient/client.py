@@ -2304,7 +2304,8 @@ class Synapse:
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status. 
-                           One of {OPEN, CLOSED, SCORED, INVALID}
+                           One of {OPEN, CLOSED, SCORED,INVALID,VALIDATED,
+                           EVALUATION_IN_PROGRESS,RECEIVED, REJECTED, ACCEPTED}
         :param myOwn:      Determines if only your Submissions should be fetched.  
                            Defaults to False (all Submissions)
         :param limit:      Limits the number of submissions in a single response.
