@@ -1619,7 +1619,7 @@ class Synapse:
             
         **Deprecated** in favor of FileEntities, but still supported.
         
-        :returns: An updated Entity dictionary
+        :returns: A file info dictionary with keys path, cacheDir, files
         """
         
         results = DictObject()
@@ -1656,7 +1656,11 @@ class Synapse:
     ############################################################
 
     def _downloadFileEntity(self, entity, destination, submission=None):
-        """Downloads the file associated with a FileEntity to the given file path."""
+        """
+        Downloads the file associated with a FileEntity to the given file path.
+
+        :returns: A file info dictionary with keys path, cacheDir, files
+        """
         
         if submission is not None:
             url = '%s/evaluation/submission/%s/file/%s' % (self.repoEndpoint, id_of(submission), entity['dataFileHandleId'])
@@ -1675,7 +1679,11 @@ class Synapse:
 
 
     def _downloadFile(self, url, destination):
-        """Download a file from a URL to a the given file path."""
+        """
+        Download a file from a URL to a the given file path.
+
+        :returns: A file info dictionary with keys path, cacheDir, files
+        """
 
         # We expect to be redirected to a signed S3 URL
         response = requests.get(url, headers=self._generateSignedHeaders(url), allow_redirects=False)

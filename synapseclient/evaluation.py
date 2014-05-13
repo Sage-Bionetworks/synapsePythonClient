@@ -85,14 +85,16 @@ class Evaluation(DictObject):
     Keeps track of an evaluation in Synapse.  Allowing for
     submissions, retrieval and scoring.
 
-    Evaluations can be retrieved from Synapse by ID::
+    `Evaluations <http://rest.synapse.org/org/sagebionetworks/evaluation/model/Evaluation.html>`_
+    can be retrieved from Synapse by ID::
 
         evaluation = syn.getEvaluation(1901877)
     
     :param name:          Name of the evaluation
     :param description:   A short description describing the evaluation
-    :param status:        One of {'OPEN', 'PLANNED', 'CLOSED', 'COMPLETED'}.  Defaults to 'OPEN'
-    :param contentSource: Synapse Project that is the source of the evaluation's content.
+    :param contentSource: Synapse Project that is the source of the evaluation's content
+    :param submissionReceiptMessage: Message to display to users upon submission
+    :param submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions
     """
 
     @classmethod
