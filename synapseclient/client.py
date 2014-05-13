@@ -70,7 +70,7 @@ CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.synapseConfig')
 SESSION_FILENAME = '.session'
 FILE_BUFFER_SIZE = 4*KB
 CHUNK_SIZE = 5*MB
-QUERY_LIMIT = 5000
+QUERY_LIMIT = 1000
 CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
 ROOT_ENTITY = 'syn4489'
 PUBLIC = 273949  #PrincipalId of public "user"
@@ -1274,13 +1274,13 @@ class Synapse:
             # Build the sub-query
             subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
                 
-            try: 
+            try:
                 response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
                 for res in response['results']:
                     yield res
                     
                 # Increase the size of the limit slowly 
-                if limit < QUERY_LIMIT / 2: 
+                if limit < QUERY_LIMIT / 2:
                     limit = int(limit * 1.5 + 1)
                     
                 # Exit when no more results can be pulled
