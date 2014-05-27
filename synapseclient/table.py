@@ -15,18 +15,47 @@ from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.utils import id_of
 
+#COLUMN_TYPES = ['STRING', 'DOUBLE', 'LONG', 'BOOLEAN', 'DATE', 'FILEHANDLEID']
+DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
+                     'd': 'DOUBLE', 'g': 'DOUBLE', 'e': 'DOUBLE', 'f': 'DOUBLE',
+                     'b': 'LONG', 'B': 'LONG', 'h': 'LONG', 'H': 'LONG',
+                     'i': 'LONG', 'I': 'LONG', 'l': 'LONG', 'L': 'LONG',
+                     'm': 'LONG', 'q': 'LONG', 'Q': 'LONG',
+                     'S': 'STRING', 'U': 'STRING', 'O': 'STRING'}
 
 
-# org.sagebionetworks.repo.model.table.ColumnModel
-# id           STRING           The immutable ID issued to new columns
-# columnType   STRING           The type of the column must be from this enumeration:
-#                               'STRING', 'DOUBLE', 'LONG', 'BOOLEAN', 'FILEHANDLEID'
-# maximumSize  INTEGER          A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs
-#                                have a default maximum size of 50 characters, but can be set to a maximumSize of
-#                                1 to 1000 characters.
-# name         STRING           The display name of the column
-# enumValues   ARRAY<STRING>    Columns type of STRING can be constrained to an enumeration values set on this list.
-# defaultValue
+def df2Table(df, tableName, parentProject):
+    """Creates a new table from data in pandas data frame.
+    parameters: df, tableName, parentProject
+    """
+
+    #Create columns:
+    cols = list()
+    for col in df:
+        columnType = DTYPE_2_TABLETYPE[df[col].dtype.char]
+        if columnType == 'STRING':
+            size = min(1000, max(30, df[col].str.len().max()*1.5))  #Determine lenght of longest string
+            cols.append(ColumnModel(name=col, columnType=columnType, maximumSize=size, defaultValue=''))
+        else:
+            cols.append(ColumnModel(name=col, columnType=columnType))
+    cols = [syn.store(col) for col in cols]
+
+    #Create Table
+    table1 = Table(name=tableName, columns=cols, parent=parentProject)
+    table1 = syn.store(table1)
+
+
+    #Add data to Table
+    for i in range(12, df.shape[0]/250+1):
+        start =  i*250
+        end = min((i+1)*250, df.shape[0])
+        print start, end
+        rowset1 = RowSet(columns=cols, table=table1,
+                         rows=[Row(list(df.ix[j,:])) for j in range(start,end)])
+        rowset1 = syn.store(rowset1)
+
+    return table1
+
 
 class ColumnModel(DictObject):
     """
