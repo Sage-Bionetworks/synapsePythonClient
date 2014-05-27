@@ -1445,7 +1445,7 @@ class Synapse:
         
         :returns: an Access Control List object
 
-        Valid access types are: CREATE, READ, UPDATE, DELETE, CHANGE_PERMISSIONS, DOWNLOAD, PARTICIPATE
+        Valid access types are: CREATE, READ, UPDATE, DELETE, CHANGE_PERMISSIONS, DOWNLOAD, PARTICIPATE, SUBMIT
 
         """
 
