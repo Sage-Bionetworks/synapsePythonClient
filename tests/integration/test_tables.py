@@ -101,3 +101,37 @@ def test_tables():
 
     ## todo: there is not yet a way to delete rows
 
+
+def test_big_tables():
+    cols = []
+    cols.append(syn.store(ColumnModel(name='name', columnType='STRING', maximumSize=1000)))
+    cols.append(syn.store(ColumnModel(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat'])))
+    cols.append(syn.store(ColumnModel(name='x', columnType='DOUBLE')))
+    cols.append(syn.store(ColumnModel(name='n', columnType='LONG')))
+    cols.append(syn.store(ColumnModel(name='is_bogus', columnType='BOOLEAN')))
+
+    table1 = syn.store(Table(name='Big Table', columns=cols, parent=project))
+
+    print table1.id
+    print table1.columnIds
+
+    for i in range(100):
+        rows = []
+        for j in range(100):
+            foo = cols[1].enumValues[random.randint(0,2)]
+            rows.append(Row(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
+        rowset1 = syn.store(RowSet(columns=cols, table=table1, rows=rows))
+
+    result = syn.queryTable("select * from %s limit 100" % table1.id, countOnly=True)
+    print result.asInteger()
+
+    result = syn.queryTable("select * from %s limit 100" % table1.id)
+    for row in result:
+        print row
+
+    ## should count only queries return just the value?
+    # result = syn.restPOST('/table/query?isConsistent=true&countOnly=true', body=json.dumps({'sql':'select * from %s limit 100'%table1.id}), retryPolicy=retryPolicy)
+    # result_count = result['rows'][0]['values'][0]
+
+    # rowset3 = syn.restPOST('/table/query?isConsistent=true', body=json.dumps({'sql':'select * from %s where n>50 limit 100'%table1.id}), retryPolicy=retryPolicy)
+

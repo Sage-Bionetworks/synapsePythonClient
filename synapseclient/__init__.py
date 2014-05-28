@@ -282,6 +282,7 @@ from activity import Activity
 from entity import Entity, Project, Folder, File, Table
 from entity import Analysis, Code, Data, Study, Summary
 from evaluation import Evaluation, Submission, SubmissionStatus
+from table import ColumnModel, RowSet, Row
 from wiki import Wiki
 
 from version_check import check_for_updates

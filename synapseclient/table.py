@@ -133,13 +133,13 @@ class TableQueryResult(object):
             countOnly=self.countOnly,
             isConsistent=self.isConsistent)
 
-    def etag():
+    def etag(self):
         return self.rowset.get('etag', None)
 
-    def headers():
+    def headers(self):
         return self.rowset.get('headers', None)
 
-    def tableId():
+    def tableId(self):
         return self.rowset.get('tableId', None)
 
     def asDataFrame(self):
@@ -150,7 +150,7 @@ class TableQueryResult(object):
 
     def asInteger(self):
         try:
-            self.rowset['rows'][0]['values'][0]
+            return long(self.rowset['rows'][0]['values'][0])
         except:
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
 
