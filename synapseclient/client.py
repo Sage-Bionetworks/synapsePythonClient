@@ -50,7 +50,7 @@ from synapseclient.annotations import from_synapse_annotations, to_synapse_annot
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, Table, split_entity_namespaces, is_versionable, is_locationable, is_container
-from synapseclient.table import ColumnModel, RowSet, Row
+from synapseclient.table import ColumnModel, RowSet, Row, TableQueryResult
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -2583,6 +2583,37 @@ class Synapse:
         uri = '/entity/{id}/column'.format(id=id_of(table))
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
             yield ColumnModel(**result)
+
+
+    def queryTable(self, query, countOnly=False, isConsistent=True):
+        return TableQueryResult(self, query, countOnly, isConsistent)
+
+        # query, limit, offset = query_limit_and_offset(query, hard_limit=QUERY_LIMIT)
+        # rowset = self._queryTable(query, countOnly=countOnly, isConsistent=isConsistent)
+        # return RowSet(**rowset)
+
+
+    def _queryTable(self, query, countOnly=False, isConsistent=True):
+        params = []
+        if isConsistent:
+            params.append("isConsistent=true")
+        if countOnly:
+            params.append("countOnly=true")
+        uri = "/table/query" + ("?" + "&".join(params) if params else "")
+
+        retryPolicy = self._build_retry_policy({
+            "retry_status_codes": [202, 502, 503],
+            "retry_exceptions"  : ['Timeout', 'timeout'],
+            "retries"           : 10,
+            "wait"              : 1,
+            "back_off"          : 2,
+            "max_wait"          : 10,
+            "verbose"           : True})
+
+        print "uri=", uri
+        print "query=", query
+
+        return self.restPOST(uri, body=json.dumps({'sql':query}), retryPolicy=retryPolicy)
 
 
     ## This is redundant with syn.store(ColumnModel(...)) and will be removed

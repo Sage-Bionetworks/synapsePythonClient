@@ -1,4 +1,4 @@
-import os, json
+import os, json, random, uuid
 from nose.tools import assert_raises
 
 import synapseclient.client as client
@@ -68,7 +68,9 @@ def test_tables():
         "max_wait"          : 10,
         "verbose"           : True})
 
+    ## should count only queries return just the value?
     result = syn.restPOST('/table/query?isConsistent=true&countOnly=true', body=json.dumps({'sql':'select * from %s limit 100'%table1.id}), retryPolicy=retryPolicy)
+    result_count = result['rows'][0]['values'][0]
 
     ## to modify rows, we have to select *
     rowset3 = syn.restPOST('/table/query?isConsistent=true', body=json.dumps({'sql':'select * from %s where n>1000 limit 100'%table1.id}), retryPolicy=retryPolicy)
@@ -82,7 +84,7 @@ def test_tables():
 
     row_reference_set = syn.store(rs)
 
-    rowset4 = syn.restPOST('/table/query?isConsistent=true', body=json.dumps({'sql':'select name, x, n from %s limit 100'%table1.id}), retryPolicy=retryPolicy)
+    rowset4 = syn.restPOST('/table/query?isConsistent=True', body=json.dumps({'sql':'select name, x, n from %s limit 100'%table1.id}), retryPolicy=retryPolicy)
     rs = RowSet(**rowset4)
 
     ## don't forget that numeric values come back as strings

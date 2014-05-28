@@ -13,7 +13,7 @@ syn.getTableColumns
 """
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of
+from synapseclient.utils import id_of, query_limit_and_offset
 
 #COLUMN_TYPES = ['STRING', 'DOUBLE', 'LONG', 'BOOLEAN', 'DATE', 'FILEHANDLEID']
 DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
@@ -46,7 +46,7 @@ def df2Table(df, tableName, parentProject):
 
 
     #Add data to Table
-    for i in range(12, df.shape[0]/250+1):
+    for i in range(0, df.shape[0]/250+1):
         start =  i*250
         end = min((i+1)*250, df.shape[0])
         print start, end
@@ -112,3 +112,62 @@ class Row(DictObject):
         self.values = values
         self.rowId = rowId
         self.versionNumber = versionNumber
+
+
+class TableQueryResult(object):
+
+    def __init__(self, synapse, query, countOnly=False, isConsistent=True, hard_limit=1000):
+        query, limit, offset = query_limit_and_offset(query, hard_limit=hard_limit)
+        self.query = query
+        self.limit = limit
+        self.offset = offset
+        self.syn = synapse
+
+        self.countOnly = countOnly
+        self.isConsistent = isConsistent
+        self.hard_limit = hard_limit
+        self.i = -1
+
+        self.rowset = self.syn._queryTable(
+            query=self.query + " limit %s offset %s" % (self.limit, self.offset),
+            countOnly=self.countOnly,
+            isConsistent=self.isConsistent)
+
+    def etag():
+        return self.rowset.get('etag', None)
+
+    def headers():
+        return self.rowset.get('headers', None)
+
+    def tableId():
+        return self.rowset.get('tableId', None)
+
+    def asDataFrame(self):
+        raise NotImplementedError
+
+    def asRowSet(self):
+        raise NotImplementedError
+
+    def asInteger(self):
+        try:
+            self.rowset['rows'][0]['values'][0]
+        except:
+            raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        self.i += 1
+        if self.i >= len(self.rowset['rows']):
+            if len(self.rowset['rows']) < self.limit:
+                raise StopIteration()
+            else:
+                self.offset += self.i
+                self.i = 0
+                self.rowset = self.syn._queryTable(
+                    query=self.query + " limit %s offset %s" % (self.limit, self.offset),
+                    countOnly=self.countOnly,
+                    isConsistent=self.isConsistent)
+        return self.rowset['rows'][self.i]
+
