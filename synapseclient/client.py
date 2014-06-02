@@ -2595,7 +2595,7 @@ class Synapse:
 
     def _queryTable(self, query, countOnly=False, isConsistent=True):
         params = []
-        if !isConsistent:
+        if ~isConsistent:
             params.append("isConsistent=false")
         if countOnly:
             params.append("countOnly=true")
