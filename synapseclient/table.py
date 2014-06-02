@@ -14,6 +14,7 @@ syn.getTableColumns
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.utils import id_of, query_limit_and_offset
+from synapseclient.entity import Table
 
 #COLUMN_TYPES = ['STRING', 'DOUBLE', 'LONG', 'BOOLEAN', 'DATE', 'FILEHANDLEID']
 DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
@@ -24,12 +25,13 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'S': 'STRING', 'U': 'STRING', 'O': 'STRING'}
 
 
-def df2Table(df, tableName, parentProject):
+def df2Table(df, syn,  tableName, parentProject):
     """Creates a new table from data in pandas data frame.
     parameters: df, tableName, parentProject
     """
 
     #Create columns:
+    print df.shape
     cols = list()
     for col in df:
         columnType = DTYPE_2_TABLETYPE[df[col].dtype.char]
@@ -46,12 +48,13 @@ def df2Table(df, tableName, parentProject):
 
 
     #Add data to Table
-    for i in range(0, df.shape[0]/250+1):
-        start =  i*250
-        end = min((i+1)*250, df.shape[0])
+    for i in range(0, df.shape[0]/1200+1):
+        start =  i*1200
+        end = min((i+1)*1200, df.shape[0])
         print start, end
         rowset1 = RowSet(columns=cols, table=table1,
                          rows=[Row(list(df.ix[j,:])) for j in range(start,end)])
+        #print len(rowset1.rows)
         rowset1 = syn.store(rowset1)
 
     return table1
