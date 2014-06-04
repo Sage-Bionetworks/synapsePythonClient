@@ -69,11 +69,11 @@ def to_synapse_annotations(annotations):
     if is_synapse_annotations(annotations):
         return annotations
     synapseAnnos = {}
-    for key, value in annotations.items():
+    for key, value in list(annotations.items()):
         if key in ['id', 'etag', 'blobAnnotations', 'creationDate', 'uri']:
             synapseAnnos[key] = value
         elif key in ['stringAnnotations','longAnnotations','doubleAnnotations','dateAnnotations'] and isinstance(value, collections.Mapping):
-            synapseAnnos.setdefault(key, {}).update({k:_to_list(v) for k,v in value.items()})
+            synapseAnnos.setdefault(key, {}).update({k:_to_list(v) for k,v in list(value.items())})
         else:
             elements = _to_list(value)
             if all((isinstance(elem, str) for elem in elements)):
@@ -100,12 +100,12 @@ def from_synapse_annotations(annotations):
     # Flatten the raw annotations to consolidate doubleAnnotations, longAnnotations,
     # stringAnnotations and dateAnnotations into one dictionary
     annos = dict()
-    for key, value in annotations.items():
+    for key, value in list(annotations.items()):
         if key=='dateAnnotations':
-            for k,v in value.items():
+            for k,v in list(value.items()):
                 annos.setdefault(k,[]).extend([from_unix_epoch_time(float(t)) for t in v])
         elif key in ['stringAnnotations','longAnnotations','doubleAnnotations']:
-            for k,v in value.items():
+            for k,v in list(value.items()):
                 annos.setdefault(k,[]).extend(v)
         elif key=='blobAnnotations':
             pass ## TODO: blob annotations not supported
@@ -154,7 +154,7 @@ def to_submission_status_annotations(annotations, is_private=True):
     if is_submission_status_annotations(annotations):
         return annotations
     synapseAnnos = {}
-    for key, value in annotations.items():
+    for key, value in list(annotations.items()):
         if key in ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']:
             synapseAnnos[key] = value
         elif isinstance(value, bool):
@@ -180,7 +180,7 @@ def from_submission_status_annotations(annotations):
         submission_status.annotations = from_submission_status_annotations(submission_status.annotations)
     """
     dictionary = {}
-    for key, value in annotations.items():
+    for key, value in list(annotations.items()):
         if key in ['stringAnnos','longAnnos','doubleAnnos']:
             dictionary.update( { kvp['key']:kvp['value'] for kvp in value } )
         else:

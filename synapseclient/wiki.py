@@ -127,7 +127,7 @@ class Wiki(DictObject):
 
     def json(self):
         """Returns the JSON representation of the Wiki object."""
-        return json.dumps({k:v for k,v in self.items() 
+        return json.dumps({k:v for k,v in list(self.items()) 
                            if k in self.__PROPERTIES})
 
 

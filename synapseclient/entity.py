@@ -379,8 +379,7 @@ class Entity(collections.MutableMapping):
         f.write(", ".join(
             {"%s=%s" % (str(key), value.__repr__(),) for key, value in 
                 itertools.chain(
-                    list(filter(lambda k,v: not (k in ['properties', 'annotations'] or k.startswith('__')), 
-                           list(self.__dict__.items()))),
+                    list([k_v for k_v in list(self.__dict__.items()) if not (k_v[0] in ['properties', 'annotations'] or k_v[0].startswith('__'))]),
                     list(self.properties.items()),
                     list(self.annotations.items()))}))
         f.write(")")
