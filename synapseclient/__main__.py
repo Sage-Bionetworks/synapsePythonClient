@@ -49,7 +49,7 @@ import shutil
 import sys
 import synapseclient
 from synapseclient import Activity
-import utils
+from . import utils
 import signal
 import json
 import warnings
@@ -95,7 +95,7 @@ def get(args, syn):
         for file in entity['files']:
             src = os.path.join(entity['cacheDir'], file)
             dst = os.path.join('.', file.replace(".R_OBJECTS/",""))
-            print 'Creating %s' % dst
+            print(('Creating %s' % (dst)))
             if not os.path.exists(os.path.dirname(dst)):
                 os.mkdir(dst)
             shutil.copyfile(src, dst)
@@ -117,7 +117,7 @@ def store(args, syn):
     if args.id is not None:
         entity = syn.get(args.id)
     else:
-        entity = {'concreteType': u'org.sagebionetworks.repo.model.%s' % args.type, 
+        entity = {'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type, 
                   'name': utils.guess_file_name(args.file) if args.file and not args.name else None,
                   'parentId' : None,
                   'description' : None,
@@ -133,7 +133,7 @@ def store(args, syn):
     used = _convertProvenanceList(args.used, args.limitSearch, syn)
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
     entity = syn.store(entity, used=used, executed=executed)
-    print 'Created/Updated entity: %s\t%s' %(entity['id'], entity['name'])
+    print(('Created/Updated entity: %s\t%s' %(entity['id'], entity['name'])))
 
 
 def associate(args, syn):
@@ -145,7 +145,7 @@ def associate(args, syn):
         raise Exception('The path specified is innacurate.  If it is a directory try -r')
     for file in files:
         ent = syn.get(file, limitSearch=args.limitSearch)
-        print '%s.%i\t%s' %(ent.id, ent.versionNumber, file)
+        print(('%s.%i\t%s' %(ent.id, ent.versionNumber, file)))
 
 
 def cat(args, syn):
@@ -163,7 +163,7 @@ def cat(args, syn):
         for file in entity['files']:
             with open(os.path.join(entity['cacheDir'], file)) as input:
                 for line in input:
-                    print line
+                    print(line)
 
 
 def list(args, syn):
@@ -179,14 +179,14 @@ def show(args, syn):
     sys.stdout.write('Provenance:\n')
     try:
         prov = syn.getProvenance(ent)
-        print prov
+        print(prov)
     except SynapseHTTPError as e:
-        print '  No Activity specified.\n'
+        print('  No Activity specified.\n')
 
     
 def delete(args, syn):
     syn.delete(args.id)
-    print 'Deleted entity: %s' % args.id
+    print(('Deleted entity: %s' % (args.id)))
 
 
 
@@ -194,9 +194,9 @@ def create(args, syn):
     entity={'name': args.name,
             'parentId': args.parentid,
             'description':args.description,
-            'concreteType': u'org.sagebionetworks.repo.model.%s' %args.type}
+            'concreteType': 'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
-    print 'Created entity: %s\t%s\n' %(entity['id'],entity['name'])
+    print(('Created entity: %s\t%s\n' %(entity['id'],entity['name'])))
 
 
 # def update(args, syn):
@@ -204,7 +204,7 @@ def create(args, syn):
 #     entity = syn.get(args.id)
 #     entity.path = args.file
 #     entity = syn.store(entity, used=args.used, executed=args.executed)
-#     print 'Updated entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file)
+#     print('Updated entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file))
 
 
 def onweb(args, syn):
@@ -215,7 +215,7 @@ def _convertProvenanceList(usedList, limitSearch, syn):
     if usedList is None:
         return None
     usedList = [syn.get(target, limitSearch=limitSearch) if 
-                (os.path.isfile(target) if isinstance(target, basestring) else False) else target for 
+                (os.path.isfile(target) if isinstance(target, str) else False) else target for 
                 target in usedList]
     return usedList
 
@@ -243,14 +243,14 @@ def setProvenance(args, syn):
                 f.write(json.dumps(activity))
                 f.write('\n')
     else:
-        print 'Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id))
+        print(('Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id))))
 
 
 def getProvenance(args, syn):
     activity = syn.getProvenance(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        print json.dumps(activity,sort_keys=True, indent=2)
+        print((json.dumps(activity,sort_keys=True, indent=2)))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))

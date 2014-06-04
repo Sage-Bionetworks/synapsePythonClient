@@ -29,12 +29,13 @@ See also the `Synapse API documentation <http://rest.synapse.org>`_.
 
 """
 
-import ConfigParser
+import configparser
 import collections
 import os, sys, stat, re, json, time
 import os.path
 import base64, hashlib, hmac
-import urllib, urlparse, requests, webbrowser
+from urllib.parse import urlparse
+import urllib.request, urllib.parse, urllib.error, requests, webbrowser
 import zipfile
 import mimetypes
 import warnings
@@ -171,10 +172,10 @@ class Synapse:
         """Returns a ConfigParser populated with properties from the user's configuration file."""
         
         try:
-            config = ConfigParser.ConfigParser()
+            config = configparser.ConfigParser()
             config.read(CONFIG_FILE) # Does not fail if the file does not exist
             return config
-        except ConfigParser.Error:
+        except configparser.Error:
             sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
             raise
         
@@ -203,12 +204,12 @@ class Synapse:
         
         # For unspecified endpoints, first look in the config file
         config = self.getConfigFile()
-        for point in endpoints.keys():
+        for point in list(endpoints.keys()):
             if endpoints[point] is None and config.has_option('endpoints', point):
                 endpoints[point] = config.get('endpoints', point)
 
         # Endpoints default to production
-        for point in endpoints.keys():
+        for point in list(endpoints.keys()):
             if endpoints[point] is None:
                 endpoints[point] = PRODUCTION_ENDPOINTS[point]
 
@@ -296,10 +297,10 @@ class Synapse:
             # Resort to reading the configuration file
             if self.apiKey is None:
                 # Resort to checking the config file
-                config = ConfigParser.ConfigParser()
+                config = configparser.ConfigParser()
                 try:
                     config.read(CONFIG_FILE)
-                except ConfigParser.Error:
+                except configparser.Error:
                     sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
                     raise
                     
@@ -327,11 +328,11 @@ class Synapse:
                             self.username = self.getUserProfile(sessionToken=sessionToken)['userName']
                             self.apiKey = self._getAPIKey(sessionToken)
                         except SynapseAuthenticationError:
-                            raise SynapseAuthenticationError("No credentials provided.  Note: the session token within your configuration file has expired.")
+                            raise SynapseAuthenticationError
         
         # Final check on login success
         if self.username is not None and self.apiKey is None:
-            raise SynapseAuthenticationError("No credentials provided.")
+            raise SynapseAuthenticationError
             
         # Save the API key in the cache
         if rememberMe:
@@ -357,7 +358,7 @@ class Synapse:
                 return session['sessionToken']
             except SynapseHTTPError as err:
                 if err.response.status_code == 403 or err.response.status_code == 404:
-                    raise SynapseAuthenticationError("Invalid username or password.")
+                    raise SynapseAuthenticationError
                 raise
                     
         elif sessionToken is not None:
@@ -371,10 +372,10 @@ class Synapse:
                 
             except SynapseHTTPError as err:
                 if err.response.status_code == 401:
-                    raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
+                    raise SynapseAuthenticationError
                 raise
         else:
-            raise SynapseAuthenticationError("No credentials provided.")
+            raise SynapseAuthenticationError
             
     def _getAPIKey(self, sessionToken):
         """Uses a session token to fetch an API key."""
@@ -524,9 +525,9 @@ class Synapse:
         if utils.is_synapse_id(entity):
             entity = self._getEntity(entity)
         try:
-            print json.dumps(entity, sort_keys=True, indent=2)
+            print((json.dumps(entity, sort_keys=True, indent=2)))
         except TypeError:
-            print str(entity)
+            print((str(entity)))
 
 
 
@@ -576,7 +577,7 @@ class Synapse:
         """
         
         #If entity is a local file determine the corresponding synapse entity
-        isFile = os.path.isfile(entity) if isinstance(entity, basestring) else False
+        isFile = os.path.isfile(entity) if isinstance(entity, str) else False
         if isFile:
             bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
             kwargs['downloadFile']=False
@@ -591,7 +592,7 @@ class Synapse:
                               "arrow next to the file's name to review and fulfill its download "
                               "requirement(s).\n" % id_of(entity))
             if kwargs.get('downloadFile', True):
-                raise SynapseUnmetAccessRestrictions(warning_message)
+                raise SynapseUnmetAccessRestrictions
             warnings.warn(warning_message)
 
         return self._getWithEntityBundle(entity, entityBundle=bundle, **kwargs)
@@ -613,7 +614,7 @@ class Synapse:
             results = [ent for ent, path in zip(results, paths) if
                        utils.is_in_path(limitSearch, path)]
         if len(results)==0: #None found 
-            raise SynapseError('File not found in Synapse')
+            raise SynapseError
         elif len(results)>1:
             sys.stderr.write('\nWARNING: The file %s is associated with many entities in Synapse. '
                           'You can limit to a specific project or folder by setting the '
@@ -645,12 +646,12 @@ class Synapse:
         # Make sure the download location is fully resolved
         downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
         if downloadLocation is not None and os.path.isfile(downloadLocation):
-            raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+            raise ValueError
 
         # Retrieve metadata
         bundle = kwargs.get('entityBundle', None)
         if bundle is None:
-            raise SynapseMalformedEntityError("Could not determine the Synapse ID to fetch")
+            raise SynapseMalformedEntityError
 
         # Make a fresh copy of the Entity
         local_state = entity.local_state() if isinstance(entity, Entity) else None
@@ -709,7 +710,7 @@ class Synapse:
                         downloadPath = cache.get_alternate_file_name(downloadPath)
                         
                     else:
-                        raise ValueError('Invalid parameter: "%s" is not a valid value for "ifcollision"' % ifcollision)
+                        raise ValueError
 
             if downloadFile:
                 if isLocationable:
@@ -731,7 +732,7 @@ class Synapse:
                     entity['synapseStore'] = False
                     
             # Send the Entity's dictionary to the update the file cache
-            if 'path' in entity.keys():
+            if 'path' in list(entity.keys()):
                 cache.add_local_file_to_cache(**entity)
             elif 'path' in entity:
                 cache.add_local_file_to_cache(path=entity['path'], **entity)
@@ -909,7 +910,7 @@ class Synapse:
         if used or executed:
             if activity is not None:
                 ## TODO: move this argument check closer to the front of the method
-                raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
+                raise SynapseProvenanceError
             activityName = kwargs.get('activityName', None)
             activityDescription = kwargs.get('activityDescription', None)
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
@@ -993,7 +994,7 @@ class Synapse:
         """
         
         # Handle all strings as the Entity ID for backward compatibility
-        if isinstance(obj, basestring):
+        if isinstance(obj, str):
             self.restDELETE(uri='/entity/%s' % id_of(obj))
         else:
             self.restDELETE(obj.deleteURI())
@@ -1094,7 +1095,7 @@ class Synapse:
             if 'path' in entity:
                 filename = entity.path
             else:
-                raise SynapseMalformedEntityError('can\'t create a File entity without a file path or URL')
+                raise SynapseMalformedEntityError
         if utils.is_url(filename):
             fileHandle = self._addURLtoFileHandleService(filename)
             entity['dataFileHandleId'] = fileHandle['id']
@@ -1217,7 +1218,7 @@ class Synapse:
         See also: :py:func:`synapseclient.Synapse.chunkedQuery`
         """
         
-        return self.restGET('/query?query=' + urllib.quote(queryStr))
+        return self.restGET('/query?query=' + urllib.parse.quote(queryStr))
         
         
     def chunkedQuery(self, queryStr):
@@ -1269,13 +1270,13 @@ class Synapse:
 
             # Handle the case where a query was skipped due to size and now no items remain
             if remaining <= 0:
-                raise StopIteration
+                raise(StopIteration)
                 
             # Build the sub-query
             subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
                 
             try: 
-                response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
+                response = self.restGET('/query?query=' + urllib.parse.quote(subqueryStr))
                 for res in response['results']:
                     yield res
                     
@@ -1404,7 +1405,7 @@ class Synapse:
                 return int(userProfiles['children'][0]['ownerId'])
             
             supplementalMessage = 'Please be more specific' if totalResults > 1 else 'No matches'
-            raise SynapseError('Unknown Synapse user (%s).  %s.' % (principalId, supplementalMessage))
+            raise SynapseError
 
 
     def getPermissions(self, entity, principalId=None):
@@ -1469,7 +1470,7 @@ class Synapse:
             if 'principalId' in permissions and permissions['principalId'] == principalId:
                 permissions_to_update = permissions
         if not permissions_to_update:
-            permissions_to_update = {u'accessType': [], u'principalId': principalId}
+            permissions_to_update = {'accessType': [], 'principalId': principalId}
             acl['resourceAccess'].append(permissions_to_update)
         if overwrite:
             permissions_to_update['accessType'] = accessType
@@ -1684,9 +1685,9 @@ class Synapse:
             if url.startswith('file:'):
                 pathinfo = utils.file_url_to_path(url, verify_exists=True)
                 if 'path' not in pathinfo:
-                    raise IOError("Could not download non-existent file (%s)." % url)
+                    raise IOError
                 else:
-                    raise NotImplementedError("File can already be accessed.  Consider setting downloadFile to False")
+                    raise NotImplementedError
 
             response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
         
@@ -1694,7 +1695,7 @@ class Synapse:
             exceptions._raise_for_status(response, verbose=self.debug)
         except SynapseHTTPError as err:
             if err.response.status_code == 404:
-                raise SynapseError("Could not download the file at %s" % url)
+                raise SynapseError
             raise
 
         # Stream the file to disk
@@ -1721,11 +1722,11 @@ class Synapse:
         """
         
         if filename is None:
-            raise ValueError('No filename given')
+            raise ValueError
 
         elif utils.is_url(filename):
             if synapseStore:
-                raise NotImplementedError('Automatic downloading and storing of external files is not supported.  Please try downloading the file locally first before storing it.')
+                raise NotImplementedError
             return self._addURLtoFileHandleService(filename)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
@@ -1837,9 +1838,9 @@ class Synapse:
         """
 
         if chunksize < 5*MB:
-            raise ValueError('Minimum chunksize is 5 MB.')
+            raise ValueError
         if filepath is None or not os.path.exists(filepath):
-            raise ValueError('File not found: ' + str(filepath))
+            raise ValueError
 
         # Start timing
         diagnostics = {'start-time': time.time()}
@@ -1939,7 +1940,7 @@ class Synapse:
                 sys.stdout.flush()
 
             if status['state'] == 'FAILED':
-                raise SynapseError(status['errorMessage'])
+                raise SynapseError
 
             # Return a fileHandle
             fileHandle = self._getFileHandle(status['fileHandleId'])
@@ -1947,7 +1948,7 @@ class Synapse:
 
         except Exception as ex:
             ex.diagnostics = diagnostics
-            raise sys.exc_info()[0], ex, sys.exc_info()[2]
+            raise sys.exc_info()[0]
 
         # Print timing information
         if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
@@ -1966,7 +1967,7 @@ class Synapse:
         """
 
         if len(content)>5*MB:
-            raise ValueError('Maximum string length is 5 MB.')
+            raise ValueError
 
 
         headers = { 'Content-Type' : contentType }
@@ -2019,13 +2020,13 @@ class Synapse:
                 status = self._completeUploadDaemonStatus(status)
 
             if status['state'] == 'FAILED':
-                raise SynapseError(status['errorMessage'])
+                raise SynapseError
 
             # Return a fileHandle
             fileHandle = self._getFileHandle(status['fileHandleId'])
 
         except Exception as ex:
-            raise sys.exc_info()[0], ex, sys.exc_info()[2]
+            raise sys.exc_info()[0]
 
         return fileHandle
 
@@ -2081,17 +2082,17 @@ class Synapse:
         # Move direct entities to subgroup "Content"
         if level == 0: 
             ## TODO: I am so sorry!  This is incredibly inefficient but I had no time to think through it.
-            contents = [group for group in tree if not group.has_key('records')]
+            contents = [group for group in tree if 'records' not in group]
             tree.append({'name':'Content', 'records':contents, 'targetId':'', 'targetVersionNumber':''})
-            for i in sorted([i for i, group in enumerate(tree) if not group.has_key('records')], reverse=True):
+            for i in sorted([i for i, group in enumerate(tree) if 'records' not in group], reverse=True):
                 tree.pop(i)
 
             # tree=[group for i, group in enumerate(tree) if i not in contents]
             self.printEntity(tree)
-            print "============================================"
+            print("============================================")
         
         for i, group in enumerate(tree):
-            if group.has_key('records'): #Means that it has subrecords
+            if 'records' in group: #Means that it has subrecords
                 self._flattenTree2Groups(group['records'], level+1, out)
             else:
                 out.append({'entityReference':group})
@@ -2112,7 +2113,7 @@ class Synapse:
         :param description: Description of created Entity
         """
         tree=self._traverseTree(id)[0]['records']
-        print self.printEntity(tree)
+        print((self.printEntity(tree)))
         
         ## TODO: Instead of doing a flatten just by the default hierarchy structure, 
         ##       I should be using an external group-by parameter that determines whether 
@@ -2155,7 +2156,7 @@ class Synapse:
         See: :py:mod:`synapseclient.evaluation`
         """
         
-        uri = Evaluation.getByNameURI(urllib.quote(name))
+        uri = Evaluation.getByNameURI(urllib.parse.quote(name))
         return Evaluation(**self.restGET(uri))
         
     
@@ -2201,7 +2202,7 @@ class Synapse:
         unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
         if unmetRights['totalNumberOfResults'] > 0:
             accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
-            raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
+            raise SynapseAuthenticationError
         
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
@@ -2223,7 +2224,7 @@ class Synapse:
             if not(isinstance(evaluation, Evaluation)):
                 evaluation = self.getEvaluation(evaluation_id)
             if 'submissionReceiptMessage' in evaluation:
-                print evaluation['submissionReceiptMessage']
+                print((evaluation['submissionReceiptMessage']))
 
         #TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage']) like the R client
         return submitted
@@ -2254,7 +2255,7 @@ class Synapse:
                 self.getUserProfile(userId)
             except SynapseHTTPError as err:
                 if err.response.status_code == 404:
-                    raise SynapseError("The user (%s) does not exist" % str(userId))
+                    raise SynapseError
                 raise
                 
         except ValueError:
@@ -2330,7 +2331,7 @@ class Synapse:
 
         if status != None:
             if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
-                raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
+                raise SynapseError
             uri += "?status=%s" % status
 
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
@@ -2419,7 +2420,7 @@ class Synapse:
         enough to be a burden on the service they may be truncated.
         """
 
-        totalNumberOfResults = sys.maxint
+        totalNumberOfResults = sys.maxsize
         while offset < totalNumberOfResults:
             uri = utils._limit_and_offset(url, limit=limit, offset=offset)
             page = self.restGET(uri)
@@ -2531,7 +2532,7 @@ class Synapse:
                 # If already present we get an unhelpful SQL error
                 # TODO: implement createOrUpdate for Wikis, see SYNR-631
                 if err.response.status_code == 400 and "DuplicateKeyException" in err.message:
-                    raise SynapseHTTPError("Can't re-create a wiki that already exists. CreateOrUpdate not yet supported for wikis.", response=err.response)
+                    raise SynapseHTTPError
                 raise
 
         return wiki
@@ -2653,7 +2654,7 @@ class Synapse:
         """Generate headers signed with the API key."""
         
         if self.username is None or self.apiKey is None:
-            raise SynapseAuthenticationError("Please login")
+            raise SynapseAuthenticationError
             
         if headers is None:
             headers = dict(self.headers)
@@ -2661,9 +2662,9 @@ class Synapse:
         headers.update(synapseclient.USER_AGENT)
             
         sig_timestamp = time.strftime(utils.ISO_FORMAT, time.gmtime())
-        url = urlparse.urlparse(url).path
+        url = urlparse(url).path
         sig_data = self.username + url + sig_timestamp
-        signature = base64.b64encode(hmac.new(self.apiKey, sig_data, hashlib.sha1).digest())
+        signature = base64.b64encode(hmac.new(self.apiKey, sig_data.encode(), hashlib.sha1).digest())
 
         sig_header = {'userId'             : self.username,
                       'signatureTimestamp' : sig_timestamp,
@@ -2760,7 +2761,7 @@ class Synapse:
         
         # Check to see if the URI is incomplete (i.e. a Synapse URL)
         # In that case, append a Synapse endpoint to the URI
-        parsedURL = urlparse.urlparse(uri)
+        parsedURL = urlparse(uri)
         if parsedURL.netloc == '':
             uri = endpoint + uri
             

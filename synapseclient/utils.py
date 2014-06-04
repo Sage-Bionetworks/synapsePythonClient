@@ -46,7 +46,8 @@ Testing
 
 #!/usr/bin/env python2.7
 
-import os, sys, urllib, urlparse, hashlib, re
+from urllib.parse import urlparse
+import os, sys, urllib.request, urllib.parse, urllib.error, hashlib, re
 import random
 import collections
 import tempfile
@@ -175,7 +176,7 @@ def id_of(obj):
     :returns: The ID or throws an exception
     """
     
-    if isinstance(obj, basestring):
+    if isinstance(obj, str):
         return obj
     if isinstance(obj, Number):
         return str(obj)
@@ -203,7 +204,7 @@ def get_properties(entity):
 def is_url(s):
     """Return True if the string appears to be a valid URL."""
     
-    if isinstance(s, basestring):
+    if isinstance(s, str):
         try:
             url_parts = urlparse.urlsplit(s)
             ## looks like a Windows drive letter?
@@ -235,7 +236,7 @@ def guess_file_name(string):
     
     path = urlparse.urlparse(string).path
     path = normalize_path(path)
-    tokens = filter(lambda x: x != '', path.split('/'))
+    tokens = [x for x in path.split('/') if x != '']
     if len(tokens) > 0:
         return tokens[-1]
     
@@ -285,7 +286,7 @@ def file_url_to_path(url, verify_exists=False):
 def is_synapse_id(obj):
     """If the input is a Synapse ID return it, otherwise return None"""
     
-    if isinstance(obj, basestring):
+    if isinstance(obj, str):
         m = re.match(r'(syn\d+)', obj)
         if m:
             return m.group(1)
@@ -298,7 +299,7 @@ def _is_date(dt):
 
 def _to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
-    if isinstance(value, collections.Iterable) and not isinstance(value, basestring):
+    if isinstance(value, collections.Iterable) and not isinstance(value, str):
         return list(value)
     else:
         return [value]
@@ -306,7 +307,7 @@ def _to_list(value):
 
 def _to_iterable(value):
     """Convert the value (an iterable or a scalar value) to an iterable."""
-    if isinstance(value, basestring):
+    if isinstance(value, str):
         return (value,)
     if isinstance(value, collections.Iterable):
         return value
@@ -446,7 +447,7 @@ class Chunk(object):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if self.closed:
             raise StopIteration
         data = self.read(BUFFER_SIZE)
@@ -519,7 +520,7 @@ def normalize_whitespace(s):
     non-printable characters with a single space.
     """
     
-    assert isinstance(s, str) or isinstance(s, unicode)
+    assert isinstance(s, str) or isinstance(s, str)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
 
 
@@ -528,7 +529,7 @@ def _synapse_error_msg(ex):
     Format a human readable error message
     """
     
-    if isinstance(ex, basestring):
+    if isinstance(ex, str):
         return ex
 
     return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
@@ -548,7 +549,7 @@ def _limit_and_offset(uri, limit=None, offset=None):
         query.pop('offset', None)
     else:
         query['offset'] = offset
-    new_query_string = urllib.urlencode(query, doseq=True)
+    new_query_string = urllib.parse.urlencode(query, doseq=True)
     return urlparse.urlunparse(urlparse.ParseResult(
         scheme=parts.scheme,
         netloc=parts.netloc,

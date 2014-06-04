@@ -42,7 +42,7 @@ def _with_retry(function, verbose=False, \
 
         # Check if we got a retry-able error
         if response is not None:
-            if response.status_code not in range(200,299):
+            if response.status_code not in list(range(200,299)):
                 if response.status_code in retry_status_codes:
                     retry = True
                     
@@ -74,5 +74,5 @@ def _with_retry(function, verbose=False, \
         # Out of retries, re-raise the exception or return the response
         if exc_info:
             # Re-raise exception, preserving original stack trace
-            raise exc_info[0], exc_info[1], exc_info[2]
+            raise exc_info[0]
         return response

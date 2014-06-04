@@ -87,11 +87,11 @@ def is_used_entity(x):
         return False
         
     # Must only have three keys
-    if not all(key in ('reference', 'wasExecuted', 'concreteType') for key in x.keys()):
+    if not all(key in ('reference', 'wasExecuted', 'concreteType') for key in list(x.keys())):
         return False
         
     # 'reference' field can only have two keys
-    if not all(key in ('targetId', 'targetVersionNumber') for key in x['reference'].keys()):
+    if not all(key in ('targetId', 'targetVersionNumber') for key in list(x['reference'].keys())):
         return False
         
     return True
@@ -105,7 +105,7 @@ def is_used_url(x):
         return False
         
     # Must only have four keys
-    if not all(key in ('url', 'name', 'wasExecuted', 'concreteType') for key in x.keys()):
+    if not all(key in ('url', 'name', 'wasExecuted', 'concreteType') for key in list(x.keys())):
         return False
         
     return True
@@ -262,7 +262,7 @@ class Activity(dict):
             resource = {'url':target, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
             
         # -- Synapse Entity ID (assuming the string is an ID)
-        elif isinstance(target, basestring):
+        elif isinstance(target, str):
             badargs = _get_any_bad_args(['url', 'name'], locals())
             _raise_incorrect_used_usage(badargs, 'Synapse entity')
            
