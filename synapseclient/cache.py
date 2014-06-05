@@ -29,7 +29,12 @@ Helpers
 import os, sys, re
 import time, calendar
 import errno, shutil
-from urllib.parse import urlparse
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 import json
 import synapseclient.utils as utils
 from synapseclient.entity import is_locationable

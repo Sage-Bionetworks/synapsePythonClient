@@ -105,11 +105,15 @@ See also:
 
 """
 
+from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import division
 import collections
 import itertools
 
 from synapseclient.dict_object import DictObject
 import synapseclient.utils as utils
+from synapseclient.utils import u
 from synapseclient.utils import id_of, itersubclasses
 from synapseclient.exceptions import *
 import os
@@ -374,15 +378,15 @@ class Entity(collections.MutableMapping):
         
         from io import StringIO
         f = StringIO()
-        f.write(self.__class__.__name__)
-        f.write("(")
+        f.write(u(self.__class__.__name__))
+        f.write(u"(")
         f.write(", ".join(
             {"%s=%s" % (str(key), value.__repr__(),) for key, value in 
                 itertools.chain(
                     list([k_v for k_v in list(self.__dict__.items()) if not (k_v[0] in ['properties', 'annotations'] or k_v[0].startswith('__'))]),
                     list(self.properties.items()),
                     list(self.annotations.items()))}))
-        f.write(")")
+        f.write(u")")
         return f.getvalue()
 
 

@@ -46,8 +46,18 @@ Testing
 
 #!/usr/bin/env python2.7
 
-from urllib.parse import urlparse
-import os, sys, urllib.request, urllib.parse, urllib.error, hashlib, re
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
+import os, sys
+try:
+    import urllib.request, urllib.parse, urllib.error
+except ImportError:
+    import urllib, urlparse
+
+import hashlib, re
 import random
 import collections
 import tempfile
@@ -571,3 +581,13 @@ def memoize(obj):
             cache[key] = obj(*args, **kwargs)
         return cache[key]
     return memoizer
+
+
+# source: http://python3porting.com/noconv.html
+if sys.version < '3':
+    import codecs
+    def u(x):
+        return codecs.unicode_escape_decode(x)[0]
+else:
+    def u(x):
+        return x

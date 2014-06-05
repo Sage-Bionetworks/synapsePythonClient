@@ -29,13 +29,28 @@ See also the `Synapse API documentation <http://rest.synapse.org>`_.
 
 """
 
-import configparser
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
 import collections
 import os, sys, stat, re, json, time
 import os.path
 import base64, hashlib, hmac
-from urllib.parse import urlparse
-import urllib.request, urllib.parse, urllib.error, requests, webbrowser
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
+try:
+    import urllib.request, urllib.parse, urllib.error
+except ImportError:
+    import urllib
+    from urlparse import urlparse
+
+import requests, webbrowser
 import zipfile
 import mimetypes
 import warnings
