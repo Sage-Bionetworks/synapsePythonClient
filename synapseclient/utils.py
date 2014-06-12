@@ -48,14 +48,22 @@ Testing
 
 try:
     from urllib.parse import urlparse
+    from urllib.parse import urlencode
+    from urllib.parse import parse_qs
+    from urllib.parse import urlunparse
+    from urllib.parse import ParseResult
 except ImportError:
     from urlparse import urlparse
+    from urllib import urlencode
+    from urlparse import parse_qs
+    from urlparse import urlunparse
+    from urlparse import ParseResult
 
 import os, sys
 try:
-    import urllib.request, urllib.parse, urllib.error
+    import urllib.request, urllib.error
 except ImportError:
-    import urllib, urlparse
+    import urllib
 
 import hashlib, re
 import random
@@ -244,7 +252,7 @@ def as_url(s):
 def guess_file_name(string):
     """Tries to derive a filename from an arbitrary string."""
     
-    path = urlparse.urlparse(string).path
+    path = urlparse(string).path
     path = normalize_path(path)
     tokens = [x for x in path.split('/') if x != '']
     if len(tokens) > 0:
@@ -549,8 +557,8 @@ def _limit_and_offset(uri, limit=None, offset=None):
     """
     Set limit and/or offset query parameters of the given URI.
     """
-    parts = urlparse.urlparse(uri)
-    query = urlparse.parse_qs(parts.query)
+    parts = urlparse(uri)
+    query = parse_qs(parts.query)
     if limit is None:
         query.pop('limit', None)
     else:
@@ -559,8 +567,8 @@ def _limit_and_offset(uri, limit=None, offset=None):
         query.pop('offset', None)
     else:
         query['offset'] = offset
-    new_query_string = urllib.parse.urlencode(query, doseq=True)
-    return urlparse.urlunparse(urlparse.ParseResult(
+    new_query_string = urlencode(query, doseq=True)
+    return urlunparse(ParseResult(
         scheme=parts.scheme,
         netloc=parts.netloc,
         path=parts.path,
