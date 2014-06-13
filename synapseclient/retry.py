@@ -73,6 +73,11 @@ def _with_retry(function, verbose=False, \
 
         # Out of retries, re-raise the exception or return the response
         if exc_info:
+            #import traceback
+            #traceback.print_exc()
+            print(exc_info[0])
+            print(exc_info[1])
+            print(exc_info[2])
             # Re-raise exception, preserving original stack trace
             raise exc_info[0]
         return response

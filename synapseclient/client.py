@@ -38,6 +38,7 @@ import collections
 import os, sys, stat, re, json, time
 import os.path
 import base64, hashlib, hmac
+import six
 
 try:
     from urllib.parse import urlparse
@@ -63,7 +64,7 @@ from . import exceptions
 from . import constants
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize
+from .utils import id_of, get_properties, KB, MB, memoize, u, to_bytes
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
@@ -231,7 +232,7 @@ class Synapse:
 
             # Update endpoints if we get redirected
             if not skip_checks:
-                response = requests.get(endpoints[point], allow_redirects=False, headers=synapseclient.USER_AGENT)
+                response = requests.get(endpoints[point], allow_redirects=False, headers=constants.USER_AGENT)
                 if response.status_code == 301:
                     endpoints[point] = response.headers['location']
 
@@ -353,7 +354,7 @@ class Synapse:
         # Save the API key in the cache
         if rememberMe:
             cachedSessions = self._readSessionCache()
-            cachedSessions[self.username] = base64.b64encode(self.apiKey)
+            cachedSessions[self.username] = base64.b64encode(self.apiKey).decode()
             
             # Note: make sure this key cannot conflict with usernames by using invalid username characters
             cachedSessions["<mostRecent>"] = self.username
@@ -398,7 +399,9 @@ class Synapse:
         
         headers = {'sessionToken' : sessionToken, 'Accept': 'application/json'}
         secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
-        return base64.b64decode(secret['secretKey'])
+        print(secret)
+        print(type(secret['secretKey']))
+        return base64.b64decode(to_bytes(secret['secretKey']))
         
     
     def _readSessionCache(self):
@@ -593,7 +596,7 @@ class Synapse:
         """
         
         #If entity is a local file determine the corresponding synapse entity
-        isFile = os.path.isfile(entity) if isinstance(entity, str) else False
+        isFile = os.path.isfile(entity) if isinstance(entity, six.string_types) else False
         if isFile:
             bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
             kwargs['downloadFile']=False
@@ -1010,7 +1013,7 @@ class Synapse:
         """
         
         # Handle all strings as the Entity ID for backward compatibility
-        if isinstance(obj, str):
+        if isinstance(obj, six.string_types):
             self.restDELETE(uri='/entity/%s' % id_of(obj))
         else:
             self.restDELETE(obj.deleteURI())
@@ -1999,7 +2002,7 @@ class Synapse:
 
 
         headers = { 'Content-Type' : contentType }
-        headers.update(synapseclient.USER_AGENT)
+        headers.update(constants.USER_AGENT)
 
         try:
 

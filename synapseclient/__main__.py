@@ -53,6 +53,7 @@ from . import utils
 import signal
 import json
 import warnings
+import constants
 from synapseclient.exceptions import *
 
 
@@ -565,7 +566,7 @@ def perform_main(args, syn):
 
 def main():
     args = build_parser().parse_args()
-    synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
+    constants.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + constants.USER_AGENT['User-Agent']
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
     syn.login(args.synapseUser, args.synapsePassword, silent=True)
     perform_main(args, syn)

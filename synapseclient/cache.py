@@ -161,7 +161,7 @@ def retrieve_local_file_info(entityBundle, path=None):
     if path is None:
     
         # When an unmodified file exists while the default cached file does not, use the unmodified file
-        if file is not None and unmodifiedFile is not None \
+        if filepath is not None and unmodifiedFile is not None \
                 and not os.path.exists(filepath) and os.path.exists(unmodifiedFile):
             path = unmodifiedFile
         else:

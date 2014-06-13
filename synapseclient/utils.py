@@ -601,3 +601,15 @@ if sys.version < '3':
 else:
     def u(x):
         return x
+
+
+if sys.version < '3':
+    def to_bytes(x):
+        if (type(x) == unicode):
+            return bytes(x)
+        return(x)
+else:
+    def to_bytes(x):
+        if (type(x) == str):
+            return bytes(x, 'ascii')
+        return x
