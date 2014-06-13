@@ -19,10 +19,10 @@ from integration import schedule_for_cleanup
 
 
 def setup_module(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.parser = cmdline.build_parser()
 
@@ -34,7 +34,7 @@ def run(*command):
     :returns: The STDOUT output of the command.
     """
     
-    print ' '.join(command)
+    print(' '.join(command))
     old_stdout = sys.stdout
     capturedSTDOUT = StringIO()
     try:
@@ -48,7 +48,7 @@ def run(*command):
         sys.stdout = old_stdout
         
     capturedSTDOUT = capturedSTDOUT.getvalue()
-    print capturedSTDOUT
+    print(capturedSTDOUT)
     return capturedSTDOUT
     
 

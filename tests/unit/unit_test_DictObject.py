@@ -3,10 +3,10 @@ from synapseclient.dict_object import DictObject
 
 
 def setup():
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
 
 def test_DictObject():
     """Test creation and property access on DictObjects"""

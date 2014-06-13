@@ -52,12 +52,14 @@ try:
     from urllib.parse import parse_qs
     from urllib.parse import urlunparse
     from urllib.parse import ParseResult
+    from urllib.parse import urlsplit
 except ImportError:
     from urlparse import urlparse
     from urllib import urlencode
     from urlparse import parse_qs
     from urlparse import urlunparse
     from urlparse import ParseResult
+    from urlparse import urlsplit
 
 import os, sys
 try:
@@ -74,8 +76,9 @@ import functools
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
+import six
 
-from synapseclient.exceptions import *
+from .exceptions import *
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -193,11 +196,10 @@ def id_of(obj):
     
     :returns: The ID or throws an exception
     """
-    
-    if isinstance(obj, str):
-        return obj
+    if isinstance(obj, six.string_types):
+        return u(obj)
     if isinstance(obj, Number):
-        return str(obj)
+        return u(str(obj))
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
         raise SynapseMalformedEntityError('Invalid parameters: couldn\'t find id of ' + str(obj))
@@ -224,7 +226,7 @@ def is_url(s):
     
     if isinstance(s, str):
         try:
-            url_parts = urlparse.urlsplit(s)
+            url_parts = urlsplit(s)
             ## looks like a Windows drive letter?
             if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
                 return False
@@ -239,7 +241,7 @@ def is_url(s):
 def as_url(s):
     """Tries to convert the input into a proper URL."""
     
-    url_parts = urlparse.urlsplit(s)
+    url_parts = urlsplit(s)
     ## Windows drive letter?
     if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
         return 'file:///%s' % str(s)
@@ -284,7 +286,7 @@ def file_url_to_path(url, verify_exists=False):
               dict if the URL is not a file URL.
     """
     
-    parts = urlparse.urlsplit(url)
+    parts = urlsplit(url)
     if parts.scheme=='file' or parts.scheme=='':
         path = parts.path
         ## A windows file URL, for example file:///c:/WINDOWS/asdf.txt
@@ -349,8 +351,8 @@ def make_bogus_data_file(n=100, seed=None):
 
     f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
     try:
-        f.write(", ".join((str(n) for n in data)))
-        f.write("\n")
+        f.write(", ".join((str(n) for n in data)).encode('utf-8'))
+        f.write(b"\n")
     finally:
         f.close()
 

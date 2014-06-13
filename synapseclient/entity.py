@@ -360,7 +360,7 @@ class Entity(collections.MutableMapping):
                     f.write('  ')
                     f.write(key)
                     f.write('=')
-                    f.write(str(dictionary[key]))
+                    f.write(u(str(dictionary[key])))
                     f.write('\n')
 
         write_kvps(self.__dict__, lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))

@@ -12,17 +12,17 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
 def test_round_trip():
     fh = None
     filepath = utils.make_bogus_binary_file(6*MB + 777771)
-    print 'Made bogus file: ', filepath
+    print('Made bogus file: ', filepath)
     try:
         fh = syn._chunkedUploadFile(filepath)
         # print 'FileHandle:'
@@ -39,11 +39,11 @@ def test_round_trip():
             if 'junk' in locals():
                 syn.delete(junk)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
         try:
             os.remove(filepath)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
         # if fh:
         #     # print 'Deleting fileHandle', fh['id']
         #     syn._deleteFileHandle(fh)
@@ -77,7 +77,7 @@ def test_upload_string():
     f.close()
     filepath=f.name
         
-    print 'Made bogus file: ', filepath
+    print('Made bogus file: ', filepath)
     try:
         fh = syn._uploadStringToFile(content)
         # print 'FileHandle:'
@@ -94,9 +94,9 @@ def test_upload_string():
             if 'junk' in locals():
                 syn.delete(junk)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
         try:
             os.remove(filepath)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
             

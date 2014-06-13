@@ -8,10 +8,10 @@ from synapseclient import Evaluation
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = unit.syn
 
 
@@ -133,4 +133,4 @@ def test_submit(*mocks):
     assert submission.name == 'George'
     assert submission.submitterAlias == 'Team X'
 
-    print submission
+    print(submission)

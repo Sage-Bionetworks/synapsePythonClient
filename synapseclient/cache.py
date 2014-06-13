@@ -210,7 +210,7 @@ def determine_local_file_location(entityBundle):
             return cacheDir, None, unmodifiedFile
             
         url = entityBundle['entity']['locations'][0]['path']
-        filename = urlparse.urlparse(url).path.split('/')[-1]
+        filename = urlparse(url).path.split('/')[-1]
         path = os.path.join(cacheDir, filename)
         return cacheDir, path, unmodifiedFile
         
