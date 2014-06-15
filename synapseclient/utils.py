@@ -45,6 +45,7 @@ Testing
 """
 
 #!/usr/bin/env python2.7
+from __future__ import unicode_literals
 
 try:
     from urllib.parse import urlparse
@@ -224,7 +225,7 @@ def get_properties(entity):
 def is_url(s):
     """Return True if the string appears to be a valid URL."""
     
-    if isinstance(s, str):
+    if isinstance(s, six.string_types):
         try:
             url_parts = urlsplit(s)
             ## looks like a Windows drive letter?
@@ -306,7 +307,7 @@ def file_url_to_path(url, verify_exists=False):
 def is_synapse_id(obj):
     """If the input is a Synapse ID return it, otherwise return None"""
     
-    if isinstance(obj, str):
+    if isinstance(obj, six.string_types):
         m = re.match(r'(syn\d+)', obj)
         if m:
             return m.group(1)
@@ -319,7 +320,7 @@ def _is_date(dt):
 
 def _to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
-    if isinstance(value, collections.Iterable) and not isinstance(value, str):
+    if isinstance(value, collections.Iterable) and not isinstance(value, six.string_types):
         return list(value)
     else:
         return [value]
@@ -327,7 +328,7 @@ def _to_list(value):
 
 def _to_iterable(value):
     """Convert the value (an iterable or a scalar value) to an iterable."""
-    if isinstance(value, str):
+    if isinstance(value, six.string_types):
         return (value,)
     if isinstance(value, collections.Iterable):
         return value
@@ -458,8 +459,9 @@ class Chunk(object):
         self.position += size
         return self.fileobj.read(size)
 
-    def mode(self):
-        return self.fileobj.mode()
+    def get_mode(self):
+        return self.fileobj.mode
+    mode = property(get_mode)
 
     def __len__(self):
         return self.size
@@ -540,7 +542,7 @@ def normalize_whitespace(s):
     non-printable characters with a single space.
     """
     
-    assert isinstance(s, str) or isinstance(s, str)
+    assert isinstance(s, six.string_types) or isinstance(s, six.string_types)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
 
 
@@ -549,7 +551,7 @@ def _synapse_error_msg(ex):
     Format a human readable error message
     """
     
-    if isinstance(ex, str):
+    if isinstance(ex, six.string_types):
         return ex
 
     return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'

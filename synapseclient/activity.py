@@ -69,7 +69,7 @@ Activity
    :members:
 
 """
-
+from __future__ import unicode_literals
 import collections
 
 from synapseclient.utils import is_url, id_of

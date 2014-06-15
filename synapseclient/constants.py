@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import json
 import pkg_resources
 __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient').decode())['latestVersion']

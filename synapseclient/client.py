@@ -29,6 +29,7 @@ See also the `Synapse API documentation <http://rest.synapse.org>`_.
 
 """
 
+from __future__ import unicode_literals
 try:
     import configparser
 except ImportError:
@@ -68,7 +69,7 @@ from .utils import id_of, get_properties, KB, MB, memoize, u, to_bytes
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
-from .entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
+from .entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .wiki import Wiki
@@ -1351,7 +1352,7 @@ class Synapse:
     def _getBenefactor(self, entity):
         """An Entity gets its ACL from its benefactor."""
 
-        if utils.is_synapse_id(entity) or synapseclient.entity.is_synapse_entity(entity):
+        if utils.is_synapse_id(entity) or is_synapse_entity(entity):
             return self.restGET('/entity/%s/benefactor' % id_of(entity))
         return entity
 
@@ -1881,6 +1882,17 @@ class Synapse:
         if not mimetype:
             mimetype = "application/octet-stream"
 
+        import ssl
+        from functools import wraps
+        def sslwrap(func):
+            @wraps(func)
+            def bar(*args, **kw):
+                kw['ssl_version'] = ssl.PROTOCOL_TLSv1
+                return func(*args, **kw)
+            return bar
+
+        ssl.wrap_socket = sslwrap(ssl.wrap_socket)
+
         # S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
         # 'transfer-encoding': 'chunked', which requests will add for you, if it
         # can't figure out content length. The errors given by S3 are not very
@@ -1925,6 +1937,7 @@ class Synapse:
                         sys.stdout.flush()
 
                     # PUT the chunk to S3
+                    print(url, chunk, headers)
                     response = _with_retry(
                         lambda: requests.put(url, data=chunk, headers=headers),
                         **retry_policy)

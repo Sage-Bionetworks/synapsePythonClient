@@ -83,6 +83,7 @@ Wiki methods
  - :py:meth:`synapseclient.Synapse.delete`
 
 """
+from __future__ import unicode_literals
 
 import sys
 import json

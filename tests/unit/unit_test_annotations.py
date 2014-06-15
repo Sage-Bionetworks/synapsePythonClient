@@ -1,5 +1,6 @@
 ## unit tests for python synapse client
 ############################################################
+from __future__ import unicode_literals
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
 import os
@@ -19,7 +20,7 @@ def test_annotations():
     """Test string annotations"""
     a = dict(foo='bar', zoo=['zing','zaboo'], species='Platypus')
     sa = to_synapse_annotations(a)
-    # print sa
+    print(sa)
     assert sa['stringAnnotations']['foo'] == ['bar']
     assert sa['stringAnnotations']['zoo'] == ['zing','zaboo']
     assert sa['stringAnnotations']['species'] == ['Platypus']
@@ -33,7 +34,7 @@ def test_more_annotations():
              test_boolean=True,
              test_mo_booleans=[False, True, True, False])
     sa = to_synapse_annotations(a)
-    print sa
+    print(sa)
     assert sa['longAnnotations']['foo'] == [1234]
     assert sa['doubleAnnotations']['zoo'] == [123.1, 456.2, 789.3]
     assert sa['stringAnnotations']['species'] == ['Platypus']
@@ -86,7 +87,7 @@ def test_submission_status_annotations_round_trip():
     april_28_1969 = Datetime(1969,4,28)
     a = dict(screen_name='Bullwinkle', species='Moose', lucky=13, pi=pi, birthday=april_28_1969)
     sa = to_submission_status_annotations(a)
-    print sa
+    print(sa)
     assert set(['screen_name','species']) == set([kvp['key'] for kvp in sa['stringAnnos']])
     assert set(['Bullwinkle','Moose']) == set([kvp['value'] for kvp in sa['stringAnnos']])
 

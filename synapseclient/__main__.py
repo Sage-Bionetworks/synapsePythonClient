@@ -42,19 +42,20 @@ Commands
 A few more commands (cat, create, update, associate)
 
 """
+from __future__ import unicode_literals
 
 import argparse
 import os
 import shutil
 import sys
 import synapseclient
-from synapseclient import Activity
+from . import Activity
 from . import utils
 import signal
 import json
 import warnings
 import constants
-from synapseclient.exceptions import *
+from .exceptions import *
 
 
 def query(args, syn):
@@ -333,7 +334,7 @@ def build_parser():
     
     parser = argparse.ArgumentParser(description='Interfaces with the Synapse repository.')
     parser.add_argument('--version',  action='version',
-            version='Synapse Client %s' % synapseclient.__version__)
+            version='Synapse Client %s' % constants.__version__)
     parser.add_argument('-u', '--username',  dest='synapseUser',
             help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword',

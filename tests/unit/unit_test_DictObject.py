@@ -18,8 +18,8 @@ def test_DictObject():
     assert d.nerds==['chris','jen','janey']
     assert d['nerds']==['chris','jen','janey']
 
-    print d.keys()
+    print(d.keys())
     assert all([key in d.keys() for key in ['args_working?', 'a', 'b', 'nerds']])
-    print d
+    print(d)
     d.new_key = 'new value!'
     assert d['new_key'] == 'new value!'

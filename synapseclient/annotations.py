@@ -51,7 +51,9 @@ See also:
 
 """
 
+from __future__ import unicode_literals
 import collections
+import six
 from .utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
 from .exceptions import SynapseError
 
@@ -76,7 +78,7 @@ def to_synapse_annotations(annotations):
             synapseAnnos.setdefault(key, {}).update({k:_to_list(v) for k,v in list(value.items())})
         else:
             elements = _to_list(value)
-            if all((isinstance(elem, str) for elem in elements)):
+            if all((isinstance(elem, six.string_types) for elem in elements)):
                 synapseAnnos.setdefault('stringAnnotations', {})[key] = elements
             elif all((isinstance(elem, bool) for elem in elements)):
                 synapseAnnos.setdefault('stringAnnotations', {})[key] = [str(element).lower() for element in elements]
@@ -163,7 +165,7 @@ def to_submission_status_annotations(annotations, is_private=True):
             synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
         elif isinstance(value, float):
             synapseAnnos.setdefault('doubleAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
-        elif isinstance(value, str):
+        elif isinstance(value, six.string_types):
             synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
         elif _is_date(value):
             synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':to_unix_epoch_time(value), 'isPrivate':is_private })

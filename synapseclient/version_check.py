@@ -15,14 +15,15 @@ Print release notes for installed version of client::
 .. automethod:: synapseclient.version_check.release_notes
 
 """
+from __future__ import unicode_literals
 
 import re
 import requests
 import json
 import sys
 import pkg_resources
-import constants
-import synapseclient
+from . import constants
+#import synapseclient
 
 
 _VERSION_URL     = 'http://versions.synapse.sagebase.org/synapsePythonClient'

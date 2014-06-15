@@ -25,6 +25,7 @@ Helpers
 .. automethod:: synapseclient.cache.get_modification_time
 
 """
+from __future__ import unicode_literals
 
 import os, sys, re
 import time, calendar
