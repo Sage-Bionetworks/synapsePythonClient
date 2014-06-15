@@ -73,6 +73,7 @@ Submission Status
    :members: __init__
 
 """
+from __future__ import unicode_literals
 
 import sys
 

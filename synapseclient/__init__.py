@@ -261,24 +261,18 @@ Getting updates
 To get information about new versions of the client including development versions
 see `synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_ and `synapseclient.release_notes() <Versions.html#synapseclient.version_check.release_notes>`_.
 """
+from __future__ import unicode_literals
 
-import json
-import pkg_resources
-__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
+from .client import Synapse, login
+from .activity import Activity
+from .entity import Entity, Project, Folder, File
+from .entity import Analysis, Code, Data, Study, Summary
+from .evaluation import Evaluation, Submission, SubmissionStatus
+from .wiki import Wiki
 
-import requests
-USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
+from .version_check import check_for_updates
+from .version_check import release_notes
 
-from client import Synapse, login
-from activity import Activity
-from entity import Entity, Project, Folder, File
-from entity import Analysis, Code, Data, Study, Summary
-from evaluation import Evaluation, Submission, SubmissionStatus
-from wiki import Wiki
-
-from version_check import check_for_updates
-from version_check import release_notes
-
-from client import PUBLIC, AUTHENTICATED_USERS
-from client import ROOT_ENTITY
+from .client import PUBLIC, AUTHENTICATED_USERS
+from .client import ROOT_ENTITY
 

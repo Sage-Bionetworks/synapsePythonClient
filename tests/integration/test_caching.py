@@ -14,10 +14,10 @@ import integration
 from integration import schedule_for_cleanup
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
     
@@ -115,7 +115,7 @@ def test_threaded_access():
     requests_originalLevel = requests_log.getEffectiveLevel()
     requests_log.setLevel(logging.WARNING)
     
-    print "Starting threads"
+    print("Starting threads")
     store_thread = wrap_function_as_child_thread(thread_keep_storing_one_File)
     get_thread = wrap_function_as_child_thread(thread_get_files_from_Project)
     update_thread = wrap_function_as_child_thread(thread_get_and_update_file_from_Project)
@@ -133,7 +133,7 @@ def test_threaded_access():
     # Give the threads some time to wreak havoc on the cache
     time.sleep(20)
     
-    print "Terminating threads"
+    print("Terminating threads")
     syn.test_keepRunning = False
     while syn.test_threadsRunning > 0:
         time.sleep(1)

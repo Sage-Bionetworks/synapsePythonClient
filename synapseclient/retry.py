@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 import sys
 import time
 
@@ -26,7 +27,7 @@ def _with_retry(function, verbose=False, \
     # Retry until we succeed or run out of tries
     while True:
         # Start with a clean slate
-        exc_info = None
+        my_exc_info = None
         retry = False
         response = None
 
@@ -34,7 +35,9 @@ def _with_retry(function, verbose=False, \
         try:
             response = function()
         except Exception as ex:
-            exc_info = sys.exc_info()
+            my_exc_info = sys.exc_info()
+            import traceback
+            traceback.print_exc()
             if verbose:
                 sys.stderr.write(ex.message+'\n') # This message will contain lots of info
             if hasattr(ex, 'response'):
@@ -42,7 +45,7 @@ def _with_retry(function, verbose=False, \
 
         # Check if we got a retry-able error
         if response is not None:
-            if response.status_code not in range(200,299):
+            if response.status_code not in list(range(200,299)):
                 if response.status_code in retry_status_codes:
                     retry = True
                     
@@ -59,7 +62,7 @@ def _with_retry(function, verbose=False, \
                     retry = True
 
         # Check if we got a retry-able exception
-        if exc_info is not None and exc_info[1].__class__.__name__ in retry_exceptions:
+        if my_exc_info is not None and my_exc_info[1].__class__.__name__ in retry_exceptions:
             retry = True
 
         # Wait then retry
@@ -72,7 +75,13 @@ def _with_retry(function, verbose=False, \
             continue
 
         # Out of retries, re-raise the exception or return the response
-        if exc_info:
+        if my_exc_info is not None and my_exc_info[0] is not None:
+            #import traceback
+            #traceback.print_exc()
+            print(my_exc_info[0])
+            print(my_exc_info[1])
+            print(my_exc_info[2])
             # Re-raise exception, preserving original stack trace
-            raise exc_info[0], exc_info[1], exc_info[2]
+            raise my_exc_info[0](my_exc_info[1])
+            #raise
         return response

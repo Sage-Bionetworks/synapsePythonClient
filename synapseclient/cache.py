@@ -25,11 +25,18 @@ Helpers
 .. automethod:: synapseclient.cache.get_modification_time
 
 """
+from __future__ import unicode_literals
 
 import os, sys, re
 import time, calendar
 import errno, shutil
-import json, urlparse
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
+import json
 import synapseclient.utils as utils
 from synapseclient.entity import is_locationable
 from synapseclient.exceptions import *
@@ -155,7 +162,7 @@ def retrieve_local_file_info(entityBundle, path=None):
     if path is None:
     
         # When an unmodified file exists while the default cached file does not, use the unmodified file
-        if file is not None and unmodifiedFile is not None \
+        if filepath is not None and unmodifiedFile is not None \
                 and not os.path.exists(filepath) and os.path.exists(unmodifiedFile):
             path = unmodifiedFile
         else:
@@ -204,7 +211,7 @@ def determine_local_file_location(entityBundle):
             return cacheDir, None, unmodifiedFile
             
         url = entityBundle['entity']['locations'][0]['path']
-        filename = urlparse.urlparse(url).path.split('/')[-1]
+        filename = urlparse(url).path.split('/')[-1]
         path = os.path.join(cacheDir, filename)
         return cacheDir, path, unmodifiedFile
         
@@ -327,7 +334,7 @@ def iterator_over_cache_map(cacheDir):
     cache = obtain_lock_and_read_cache(cacheDir)
     write_cache_then_release_lock(cacheDir)
     
-    for file in cache.keys():
+    for file in list(cache.keys()):
         cacheTime = parse_cache_entry_into_seconds(cache[file])
         if os.path.exists(file):
             fileMTime = get_modification_time(file)

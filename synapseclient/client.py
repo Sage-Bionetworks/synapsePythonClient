@@ -29,32 +29,51 @@ See also the `Synapse API documentation <http://rest.synapse.org>`_.
 
 """
 
-import ConfigParser
+from __future__ import unicode_literals
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
 import collections
 import os, sys, stat, re, json, time
 import os.path
 import base64, hashlib, hmac
-import urllib, urlparse, requests, webbrowser
+import six
+
+try:
+    from urllib.parse import urlparse
+    from urllib.parse import quote
+except ImportError:
+    from urlparse import urlparse
+    from urllib import quote
+
+try:
+    import urllib.request, urllib.parse, urllib.error
+except ImportError:
+    import urllib
+    from urlparse import urlparse
+
+import requests, webbrowser
 import zipfile
 import mimetypes
 import warnings
 
-import synapseclient
-import synapseclient.utils as utils
-import synapseclient.cache as cache
-import synapseclient.exceptions as exceptions
-from synapseclient.exceptions import *
-from synapseclient.version_check import version_check
-from synapseclient.utils import id_of, get_properties, KB, MB
-from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
-from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
-from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
-from synapseclient.dict_object import DictObject
-from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
-from synapseclient.wiki import Wiki
-from synapseclient.retry import _with_retry
-
+from . import utils
+from . import cache
+from . import exceptions
+from . import constants
+from .exceptions import *
+from .version_check import version_check
+from .utils import id_of, get_properties, KB, MB, memoize, u, to_bytes
+from .annotations import from_synapse_annotations, to_synapse_annotations
+from .annotations import to_submission_status_annotations, from_submission_status_annotations
+from .activity import Activity
+from .entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container, is_synapse_entity
+from .dict_object import DictObject
+from .evaluation import Evaluation, Submission, SubmissionStatus
+from .wiki import Wiki
+from .retry import _with_retry
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -171,10 +190,10 @@ class Synapse:
         """Returns a ConfigParser populated with properties from the user's configuration file."""
         
         try:
-            config = ConfigParser.ConfigParser()
+            config = configparser.ConfigParser()
             config.read(CONFIG_FILE) # Does not fail if the file does not exist
             return config
-        except ConfigParser.Error:
+        except configparser.Error:
             sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
             raise
         
@@ -203,18 +222,18 @@ class Synapse:
         
         # For unspecified endpoints, first look in the config file
         config = self.getConfigFile()
-        for point in endpoints.keys():
+        for point in list(endpoints.keys()):
             if endpoints[point] is None and config.has_option('endpoints', point):
                 endpoints[point] = config.get('endpoints', point)
 
         # Endpoints default to production
-        for point in endpoints.keys():
+        for point in list(endpoints.keys()):
             if endpoints[point] is None:
                 endpoints[point] = PRODUCTION_ENDPOINTS[point]
 
             # Update endpoints if we get redirected
             if not skip_checks:
-                response = requests.get(endpoints[point], allow_redirects=False, headers=synapseclient.USER_AGENT)
+                response = requests.get(endpoints[point], allow_redirects=False, headers=constants.USER_AGENT)
                 if response.status_code == 301:
                     endpoints[point] = response.headers['location']
 
@@ -296,10 +315,10 @@ class Synapse:
             # Resort to reading the configuration file
             if self.apiKey is None:
                 # Resort to checking the config file
-                config = ConfigParser.ConfigParser()
+                config = configparser.ConfigParser()
                 try:
                     config.read(CONFIG_FILE)
-                except ConfigParser.Error:
+                except configparser.Error:
                     sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
                     raise
                     
@@ -336,7 +355,7 @@ class Synapse:
         # Save the API key in the cache
         if rememberMe:
             cachedSessions = self._readSessionCache()
-            cachedSessions[self.username] = base64.b64encode(self.apiKey)
+            cachedSessions[self.username] = base64.b64encode(self.apiKey).decode()
             
             # Note: make sure this key cannot conflict with usernames by using invalid username characters
             cachedSessions["<mostRecent>"] = self.username
@@ -381,7 +400,9 @@ class Synapse:
         
         headers = {'sessionToken' : sessionToken, 'Accept': 'application/json'}
         secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
-        return base64.b64decode(secret['secretKey'])
+        print(secret)
+        print(type(secret['secretKey']))
+        return base64.b64decode(to_bytes(secret['secretKey']))
         
     
     def _readSessionCache(self):
@@ -454,7 +475,7 @@ class Synapse:
         if self._loggedIn(): 
             self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
-    @utils.memoize
+    @memoize
     def getUserProfile(self, id=None, sessionToken=None, refresh=False):
         """
         Get the details about a Synapse user.  
@@ -524,9 +545,9 @@ class Synapse:
         if utils.is_synapse_id(entity):
             entity = self._getEntity(entity)
         try:
-            print json.dumps(entity, sort_keys=True, indent=2)
+            print((json.dumps(entity, sort_keys=True, indent=2)))
         except TypeError:
-            print str(entity)
+            print((str(entity)))
 
 
 
@@ -576,7 +597,7 @@ class Synapse:
         """
         
         #If entity is a local file determine the corresponding synapse entity
-        isFile = os.path.isfile(entity) if isinstance(entity, basestring) else False
+        isFile = os.path.isfile(entity) if isinstance(entity, six.string_types) else False
         if isFile:
             bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
             kwargs['downloadFile']=False
@@ -731,7 +752,7 @@ class Synapse:
                     entity['synapseStore'] = False
                     
             # Send the Entity's dictionary to the update the file cache
-            if 'path' in entity.keys():
+            if 'path' in list(entity.keys()):
                 cache.add_local_file_to_cache(**entity)
             elif 'path' in entity:
                 cache.add_local_file_to_cache(path=entity['path'], **entity)
@@ -993,7 +1014,7 @@ class Synapse:
         """
         
         # Handle all strings as the Entity ID for backward compatibility
-        if isinstance(obj, basestring):
+        if isinstance(obj, six.string_types):
             self.restDELETE(uri='/entity/%s' % id_of(obj))
         else:
             self.restDELETE(obj.deleteURI())
@@ -1217,7 +1238,7 @@ class Synapse:
         See also: :py:func:`synapseclient.Synapse.chunkedQuery`
         """
         
-        return self.restGET('/query?query=' + urllib.quote(queryStr))
+        return self.restGET('/query?query=' + quote(queryStr))
         
         
     def chunkedQuery(self, queryStr):
@@ -1269,13 +1290,13 @@ class Synapse:
 
             # Handle the case where a query was skipped due to size and now no items remain
             if remaining <= 0:
-                raise StopIteration
+                raise(StopIteration)
                 
             # Build the sub-query
             subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
                 
             try: 
-                response = self.restGET('/query?query=' + urllib.quote(subqueryStr))
+                response = self.restGET('/query?query=' + quote(subqueryStr))
                 for res in response['results']:
                     yield res
                     
@@ -1331,7 +1352,7 @@ class Synapse:
     def _getBenefactor(self, entity):
         """An Entity gets its ACL from its benefactor."""
 
-        if utils.is_synapse_id(entity) or synapseclient.entity.is_synapse_entity(entity):
+        if utils.is_synapse_id(entity) or is_synapse_entity(entity):
             return self.restGET('/entity/%s/benefactor' % id_of(entity))
         return entity
 
@@ -1469,7 +1490,7 @@ class Synapse:
             if 'principalId' in permissions and permissions['principalId'] == principalId:
                 permissions_to_update = permissions
         if not permissions_to_update:
-            permissions_to_update = {u'accessType': [], u'principalId': principalId}
+            permissions_to_update = {'accessType': [], 'principalId': principalId}
             acl['resourceAccess'].append(permissions_to_update)
         if overwrite:
             permissions_to_update['accessType'] = accessType
@@ -1581,6 +1602,17 @@ class Synapse:
         :returns: A list of length one containing a dictionary with 'locations' and 'md5' of the file
         """
         
+        import ssl
+        from functools import wraps
+        def sslwrap(func):
+            @wraps(func)
+            def bar(*args, **kw):
+                kw['ssl_version'] = ssl.PROTOCOL_TLSv1
+                return func(*args, **kw)
+            return bar
+
+        ssl.wrap_socket = sslwrap(ssl.wrap_socket)
+
         md5 = utils.md5_for_file(filename)
 
         # Guess mime-type - important for confirmation of MD5 sum by receiver
@@ -1598,7 +1630,7 @@ class Synapse:
         headers = { 'Content-MD5' : base64.b64encode(md5.digest()),
                     'Content-Type' : mimetype,
                     'x-amz-acl' : 'bucket-owner-full-control'}
-        headers.update(synapseclient.USER_AGENT)
+        headers.update(constants.USER_AGENT)
 
         # PUT file to S3
         with open(filename, 'rb') as f:
@@ -1850,6 +1882,17 @@ class Synapse:
         if not mimetype:
             mimetype = "application/octet-stream"
 
+        import ssl
+        from functools import wraps
+        def sslwrap(func):
+            @wraps(func)
+            def bar(*args, **kw):
+                kw['ssl_version'] = ssl.PROTOCOL_TLSv1
+                return func(*args, **kw)
+            return bar
+
+        ssl.wrap_socket = sslwrap(ssl.wrap_socket)
+
         # S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
         # 'transfer-encoding': 'chunked', which requests will add for you, if it
         # can't figure out content length. The errors given by S3 are not very
@@ -1860,10 +1903,10 @@ class Synapse:
         #   501 Server Error: Not Implemented
         #   A header you provided implies functionality that is not implemented
         headers = { 'Content-Type' : mimetype }
-        headers.update(synapseclient.USER_AGENT)
+        headers.update(constants.USER_AGENT)
 
         diagnostics['mimetype'] = mimetype
-        diagnostics['User-Agent'] = synapseclient.USER_AGENT
+        diagnostics['User-Agent'] = constants.USER_AGENT
 
         try:
 
@@ -1894,6 +1937,7 @@ class Synapse:
                         sys.stdout.flush()
 
                     # PUT the chunk to S3
+                    print(url, chunk, headers)
                     response = _with_retry(
                         lambda: requests.put(url, data=chunk, headers=headers),
                         **retry_policy)
@@ -1946,8 +1990,9 @@ class Synapse:
             diagnostics['fileHandle'] = fileHandle
 
         except Exception as ex:
+            print(ex)
             ex.diagnostics = diagnostics
-            raise sys.exc_info()[0], ex, sys.exc_info()[2]
+            raise ex
 
         # Print timing information
         if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
@@ -1966,11 +2011,11 @@ class Synapse:
         """
 
         if len(content)>5*MB:
-            raise ValueError('Maximum string length is 5 MB.')
+            raise ValueError
 
 
         headers = { 'Content-Type' : contentType }
-        headers.update(synapseclient.USER_AGENT)
+        headers.update(constants.USER_AGENT)
 
         try:
 
@@ -2019,13 +2064,13 @@ class Synapse:
                 status = self._completeUploadDaemonStatus(status)
 
             if status['state'] == 'FAILED':
-                raise SynapseError(status['errorMessage'])
+                raise SynapseError
 
             # Return a fileHandle
             fileHandle = self._getFileHandle(status['fileHandleId'])
 
         except Exception as ex:
-            raise sys.exc_info()[0], ex, sys.exc_info()[2]
+            raise sys.exc_info()[0]
 
         return fileHandle
 
@@ -2081,17 +2126,17 @@ class Synapse:
         # Move direct entities to subgroup "Content"
         if level == 0: 
             ## TODO: I am so sorry!  This is incredibly inefficient but I had no time to think through it.
-            contents = [group for group in tree if not group.has_key('records')]
+            contents = [group for group in tree if 'records' not in group]
             tree.append({'name':'Content', 'records':contents, 'targetId':'', 'targetVersionNumber':''})
-            for i in sorted([i for i, group in enumerate(tree) if not group.has_key('records')], reverse=True):
+            for i in sorted([i for i, group in enumerate(tree) if 'records' not in group], reverse=True):
                 tree.pop(i)
 
             # tree=[group for i, group in enumerate(tree) if i not in contents]
             self.printEntity(tree)
-            print "============================================"
+            print("============================================")
         
         for i, group in enumerate(tree):
-            if group.has_key('records'): #Means that it has subrecords
+            if 'records' in group: #Means that it has subrecords
                 self._flattenTree2Groups(group['records'], level+1, out)
             else:
                 out.append({'entityReference':group})
@@ -2112,7 +2157,7 @@ class Synapse:
         :param description: Description of created Entity
         """
         tree=self._traverseTree(id)[0]['records']
-        print self.printEntity(tree)
+        print((self.printEntity(tree)))
         
         ## TODO: Instead of doing a flatten just by the default hierarchy structure, 
         ##       I should be using an external group-by parameter that determines whether 
@@ -2155,7 +2200,7 @@ class Synapse:
         See: :py:mod:`synapseclient.evaluation`
         """
         
-        uri = Evaluation.getByNameURI(urllib.quote(name))
+        uri = Evaluation.getByNameURI(quote(name))
         return Evaluation(**self.restGET(uri))
         
     
@@ -2201,7 +2246,7 @@ class Synapse:
         unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
         if unmetRights['totalNumberOfResults'] > 0:
             accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
-            raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
+            raise SynapseAuthenticationError
         
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
@@ -2223,7 +2268,7 @@ class Synapse:
             if not(isinstance(evaluation, Evaluation)):
                 evaluation = self.getEvaluation(evaluation_id)
             if 'submissionReceiptMessage' in evaluation:
-                print evaluation['submissionReceiptMessage']
+                print((evaluation['submissionReceiptMessage']))
 
         #TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage']) like the R client
         return submitted
@@ -2254,7 +2299,7 @@ class Synapse:
                 self.getUserProfile(userId)
             except SynapseHTTPError as err:
                 if err.response.status_code == 404:
-                    raise SynapseError("The user (%s) does not exist" % str(userId))
+                    raise SynapseError
                 raise
                 
         except ValueError:
@@ -2330,7 +2375,7 @@ class Synapse:
 
         if status != None:
             if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
-                raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
+                raise SynapseError
             uri += "?status=%s" % status
 
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
@@ -2419,7 +2464,7 @@ class Synapse:
         enough to be a burden on the service they may be truncated.
         """
 
-        totalNumberOfResults = sys.maxint
+        totalNumberOfResults = sys.maxsize
         while offset < totalNumberOfResults:
             uri = utils._limit_and_offset(url, limit=limit, offset=offset)
             page = self.restGET(uri)
@@ -2531,7 +2576,7 @@ class Synapse:
                 # If already present we get an unhelpful SQL error
                 # TODO: implement createOrUpdate for Wikis, see SYNR-631
                 if err.response.status_code == 400 and "DuplicateKeyException" in err.message:
-                    raise SynapseHTTPError("Can't re-create a wiki that already exists. CreateOrUpdate not yet supported for wikis.", response=err.response)
+                    raise SynapseHTTPError
                 raise
 
         return wiki
@@ -2653,17 +2698,17 @@ class Synapse:
         """Generate headers signed with the API key."""
         
         if self.username is None or self.apiKey is None:
-            raise SynapseAuthenticationError("Please login")
+            raise SynapseAuthenticationError
             
         if headers is None:
             headers = dict(self.headers)
 
-        headers.update(synapseclient.USER_AGENT)
+        headers.update(constants.USER_AGENT)
             
         sig_timestamp = time.strftime(utils.ISO_FORMAT, time.gmtime())
-        url = urlparse.urlparse(url).path
+        url = urlparse(url).path
         sig_data = self.username + url + sig_timestamp
-        signature = base64.b64encode(hmac.new(self.apiKey, sig_data, hashlib.sha1).digest())
+        signature = base64.b64encode(hmac.new(self.apiKey, sig_data.encode(), hashlib.sha1).digest())
 
         sig_header = {'userId'             : self.username,
                       'signatureTimestamp' : sig_timestamp,
@@ -2760,7 +2805,7 @@ class Synapse:
         
         # Check to see if the URI is incomplete (i.e. a Synapse URL)
         # In that case, append a Synapse endpoint to the URI
-        parsedURL = urlparse.urlparse(uri)
+        parsedURL = urlparse(uri)
         if parsedURL.netloc == '':
             uri = endpoint + uri
             

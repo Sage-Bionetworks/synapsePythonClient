@@ -10,6 +10,7 @@ import uuid
 import os
 import  sys
 import shutil 
+import six
 
 from synapseclient import Entity, Project, Folder, File, Data, Evaluation
 import synapseclient
@@ -19,11 +20,11 @@ import synapseclient.utils as utils
 def setup_module(module):
     syn = synapseclient.Synapse(debug=False, skip_checks=True)
 
-    print "Testing against endpoints:"
-    print "  " + syn.repoEndpoint
-    print "  " + syn.authEndpoint
-    print "  " + syn.fileHandleEndpoint
-    print "  " + syn.portalEndpoint + "\n"
+    print("Testing against endpoints:")
+    print("  " + syn.repoEndpoint)
+    print("  " + syn.authEndpoint)
+    print("  " + syn.fileHandleEndpoint)
+    print("  " + syn.portalEndpoint + "\n")
 
     syn.login()
     module.syn = syn
@@ -55,15 +56,15 @@ def cleanup(items):
                 if hasattr(ex, 'response') and ex.response.status_code == 404:
                     pass
                 else:
-                    print "Error cleaning up entity: " + str(ex)
-        elif isinstance(item, basestring) and os.path.exists(item):
+                    print("Error cleaning up entity: " + str(ex))
+        elif isinstance(item, six.string_types) and os.path.exists(item):
             try:
                 if os.path.isdir(item):
                     shutil.rmtree(item)
                 else: #Assum that remove will work on antyhing besides folders
                     os.remove(item)
             except Exception as ex:
-                print ex
+                print(ex)
         else:
             sys.stderr.write('Don\'t know how to clean: %s' % str(item))
 

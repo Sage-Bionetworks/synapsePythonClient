@@ -15,13 +15,15 @@ Print release notes for installed version of client::
 .. automethod:: synapseclient.version_check.release_notes
 
 """
+from __future__ import unicode_literals
 
 import re
 import requests
 import json
 import sys
 import pkg_resources
-import synapseclient
+from . import constants
+#import synapseclient
 
 
 _VERSION_URL     = 'http://versions.synapse.sagebase.org/synapsePythonClient'
@@ -70,7 +72,7 @@ def version_check(current_version=None, version_url=_VERSION_URL, check_for_poin
                 sys.stderr.write(version_info['releaseNotes'] + '\n\n')
             return False
 
-    except Exception, e:
+    except Exception as e:
         # Don't prevent the client from running if something goes wrong
         sys.stderr.write("Exception in version check: %s\n" % (str(e),))
         return False
@@ -96,9 +98,9 @@ def check_for_updates():
     sys.stderr.write('latest development version: %s\n' % dev_version_info['latestVersion'])
 
     if _version_tuple(synapseclient.__version__, levels=3) < _version_tuple(release_version_info['latestVersion'], levels=3):
-        print ("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. "
+        print((("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. "
                "Your version (%s) can be upgraded by typing:\n"
-               "    pip install --upgrade synapseclient\n\n") % (release_version_info['latestVersion'], synapseclient.__version__,)
+               "    pip install --upgrade synapseclient\n\n") % (release_version_info['latestVersion'], synapseclient.__version__,)))
     else:
         sys.stderr.write('\nYour Synapse client is up to date!\n')
 
@@ -128,7 +130,7 @@ def _version_tuple(version, levels=2):
     Take a version number as a string delimited by periods and return a tuple
     with the desired number of levels. For example::
 
-        print version_tuple('0.5.1.dev1', levels=2)
+        print(version_tuple('0.5.1.dev1', levels=2))
         ('0', '5')
     """
     v = _strip_dev_suffix(version).split('.')
@@ -143,16 +145,16 @@ def _get_version_info(version_url=_VERSION_URL):
         return json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))
     else:
         headers = { 'Accept': 'application/json' }
-        headers.update(synapseclient.USER_AGENT)
+        headers.update(constants.USER_AGENT)
         return requests.get(version_url, headers=headers).json()
 
 
 # If this file is run as a script, print current version
 # then perform version check
 if __name__ == "__main__":
-    print "Version check"
-    print "============="
-    print("Python Synapse Client version %s" % synapseclient.__version__)
+    print("Version check")
+    print("=============")
+    print(("Python Synapse Client version %s" % synapseclient.__version__))
 
     print("Check against production version:")
     if version_check():

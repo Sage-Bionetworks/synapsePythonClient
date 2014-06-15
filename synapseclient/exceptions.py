@@ -11,6 +11,7 @@ Exceptions
 .. autoclass:: synapseclient.exceptions.SynapseHTTPError
 
 """
+from __future__ import unicode_literals
 
 import requests
 

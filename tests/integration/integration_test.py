@@ -1,6 +1,10 @@
 import tempfile, os, sys, filecmp, shutil, requests, json
 import uuid, random, base64
-import ConfigParser
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
 from datetime import datetime
 from nose.tools import assert_raises
 from nose.plugins.attrib import attr
@@ -20,10 +24,10 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
@@ -32,7 +36,7 @@ def test_login():
         # Test that we fail gracefully with wrong user
         assert_raises(SynapseAuthenticationError, syn.login, 'asdf', 'notarealpassword')
 
-        config = ConfigParser.ConfigParser()
+        config = configparser.ConfigParser()
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
@@ -46,7 +50,11 @@ def test_login():
         syn.logout(forgetMe=True)
         
         # Config file is read-only for the client, so it must be mocked!
-        with patch("ConfigParser.ConfigParser.has_option") as config_has_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
+        if (sys.version < '3'):
+            configparser_package_name = 'ConfigParser'
+        else:
+            configparser_package_name = 'configparser'
+        with patch("%s.ConfigParser.has_option" % configparser_package_name) as config_has_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
 
             config_has_mock.return_value = False
             read_session_mock.return_value = {}
@@ -62,7 +70,7 @@ def test_login():
             
             config_has_mock.reset_mock()
             config_has_mock.side_effect = lambda section, option: section == "authentication" and option == "sessiontoken"
-            with patch("ConfigParser.ConfigParser.get") as config_get_mock:
+            with patch("%s.ConfigParser.get" % configparser_package_name) as config_get_mock:
 
                 # Login with a session token from the config file
                 config_get_mock.return_value = sessionToken
@@ -87,8 +95,8 @@ def test_login():
         # Login with ID only
         syn.login(username, silent=True)
         syn.logout(forgetMe=True)
-    except ConfigParser.Error:
-        print "To fully test the login method, please supply a username and password in the configuration file"
+    except configparser.Error:
+        print("To fully test the login method, please supply a username and password in the configuration file")
 
     finally:
         # Login with config file
@@ -278,7 +286,7 @@ def test_provenance():
                  import random
                  random.seed(12345)
                  data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
-                 """)
+                 """.encode('utf-8'))
     os.close(fd)
     schedule_for_cleanup(path)
     code_entity = syn.createEntity(Code(parent=project['id']))

@@ -105,11 +105,15 @@ See also:
 
 """
 
+from __future__ import print_function
+from __future__ import unicode_literals
+from __future__ import division
 import collections
 import itertools
 
 from synapseclient.dict_object import DictObject
 import synapseclient.utils as utils
+from synapseclient.utils import u
 from synapseclient.utils import id_of, itersubclasses
 from synapseclient.exceptions import *
 import os
@@ -213,7 +217,7 @@ class Entity(collections.MutableMapping):
         if annotations:
             if isinstance(annotations, collections.Mapping):
                 self.__dict__['annotations'].update(annotations)
-            elif isinstance(annotations, basestring):
+            elif isinstance(annotations, str):
                 self.properties['annotations'] = annotations
             else:
                 raise SynapseMalformedEntityError('Unknown argument type: annotations is a %s' % str(type(annotations)))
@@ -241,7 +245,7 @@ class Entity(collections.MutableMapping):
 
         # Note: that this will work properly if derived classes declare their
         # internal state variable *before* invoking super(...).__init__(...)
-        for key, value in kwargs.items():
+        for key, value in list(kwargs.items()):
             self.__setitem__(key, value)
 
         if 'concreteType' not in self:
@@ -271,11 +275,11 @@ class Entity(collections.MutableMapping):
         :param state: A dictionary
         """
         if state:
-            for key,value in state.items():
+            for key,value in list(state.items()):
                 if key not in ['annotations','properties']:
                     self.__dict__[key] = value
         result = {}
-        for key,value in self.__dict__.items():
+        for key,value in list(self.__dict__.items()):
             if key not in ['annotations','properties'] and not key.startswith('__'):
                 result[key] = value
         return result
@@ -326,18 +330,18 @@ class Entity(collections.MutableMapping):
 
 
     def __iter__(self):
-        return iter(self.keys())
+        return iter(list(self.keys()))
 
 
     def __len__(self):
-        return len(self.keys())
+        return len(list(self.keys()))
 
 
     ## TODO shouldn't these include local_state as well? -jcb
     def keys(self):
         """Returns a set of property and annotation keys"""
         
-        return set(self.properties.keys() + self.annotations.keys())
+        return set(list(self.properties.keys()) + list(self.annotations.keys()))
 
     def has_key(self, key):
         """Is the given key a property or annotation?"""
@@ -345,7 +349,7 @@ class Entity(collections.MutableMapping):
         return key in self.properties or key in self.annotations
 
     def __str__(self):
-        from cStringIO import StringIO
+        from io import StringIO
         f = StringIO()
 
         f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'), self['id'] if 'id' in self else '-',))
@@ -356,7 +360,7 @@ class Entity(collections.MutableMapping):
                     f.write('  ')
                     f.write(key)
                     f.write('=')
-                    f.write(str(dictionary[key]))
+                    f.write(u(str(dictionary[key])))
                     f.write('\n')
 
         write_kvps(self.__dict__, lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))
@@ -372,18 +376,17 @@ class Entity(collections.MutableMapping):
     def __repr__(self):
         """Returns an eval-able representation of the Entity."""
         
-        from cStringIO import StringIO
+        from io import StringIO
         f = StringIO()
-        f.write(self.__class__.__name__)
-        f.write("(")
+        f.write(u(self.__class__.__name__))
+        f.write(u"(")
         f.write(", ".join(
             {"%s=%s" % (str(key), value.__repr__(),) for key, value in 
                 itertools.chain(
-                    filter(lambda (k,v): not (k in ['properties', 'annotations'] or k.startswith('__')), 
-                           self.__dict__.items()),
-                    self.properties.items(),
-                    self.annotations.items())}))
-        f.write(")")
+                    list([k_v for k_v in list(self.__dict__.items()) if not (k_v[0] in ['properties', 'annotations'] or k_v[0].startswith('__'))]),
+                    list(self.properties.items()),
+                    list(self.annotations.items()))}))
+        f.write(u")")
         return f.getvalue()
 
 
@@ -542,7 +545,7 @@ def split_entity_namespaces(entity):
 
     property_keys = entity_class._property_keys
     local_keys = entity_class._local_keys
-    for key, value in entity.items():
+    for key, value in list(entity.items()):
         if key in property_keys:
             properties[key] = value
         elif key in local_keys:
