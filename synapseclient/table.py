@@ -114,6 +114,13 @@ class Row(DictObject):
         self.versionNumber = versionNumber
 
 
+# limit
+# pagesize
+# does asRowSet return the whole thing? just parts?
+# convert columns back to their natural types?
+# import from CSV
+# download CSV
+
 class TableQueryResult(object):
 
     def __init__(self, synapse, query, countOnly=False, isConsistent=True, hard_limit=1000):
@@ -150,7 +157,7 @@ class TableQueryResult(object):
 
     def asInteger(self):
         try:
-            return long(self.rowset['rows'][0]['values'][0])
+            return int(self.rowset['rows'][0]['values'][0])
         except:
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
 

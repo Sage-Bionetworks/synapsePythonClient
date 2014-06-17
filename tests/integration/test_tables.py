@@ -120,10 +120,14 @@ def test_big_tables():
         for j in range(100):
             foo = cols[1].enumValues[random.randint(0,2)]
             rows.append(Row(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
+        print "added 100 rows"
         rowset1 = syn.store(RowSet(columns=cols, table=table1, rows=rows))
 
     result = syn.queryTable("select * from %s limit 100" % table1.id, countOnly=True)
-    print result.asInteger()
+    print "number of rows:", result.asInteger()
+    print "etag:", result.etag()
+    print "headers:", result.headers()
+    print "tableId:", result.tableId()
 
     result = syn.queryTable("select * from %s limit 100" % table1.id)
     for row in result:
