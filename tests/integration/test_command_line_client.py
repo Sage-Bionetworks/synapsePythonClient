@@ -357,7 +357,7 @@ def test_command_line_store_and_submit():
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
     # Tests shouldn't have external dependencies, but here it's required
-    ducky_url = 'http://upload.wikimedia.org/wikipedia/commons/9/93/Rubber_Duck.jpg'
+    ducky_url = 'https://www.synapse.org/Portal/clear.cache.gif'
 
 
     # Test external file handle

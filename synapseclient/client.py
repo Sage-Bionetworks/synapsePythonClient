@@ -136,11 +136,11 @@ class Synapse:
     """
 
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, 
-                 debug=DEBUG_DEFAULT, skip_checks=False):
+                 debug=DEBUG_DEFAULT, skip_checks=False, configPath=CONFIG_FILE):
         # Check for a config file
-        if os.path.isfile(CONFIG_FILE):
-            config = self.getConfigFile()
-            
+        if os.path.isfile(configPath):
+            self.configPath=configPath
+            config = self.getConfigFile(configPath)            
             if config.has_option('cache', 'location'):
                 cache.CACHE_DIR = os.path.expanduser(config.get('cache', 'location'))
                 
@@ -148,7 +148,7 @@ class Synapse:
                 debug = True
         else: 
             # Alert the user if no config is found
-            sys.stderr.write("Could not find a config file (%s).  Using defaults." % os.path.abspath(CONFIG_FILE))
+            sys.stderr.write("Could not find a config file (%s).  Using defaults." % os.path.abspath(configPath))
             
         # Create the cache directory if it does not exist
         try:
@@ -167,15 +167,15 @@ class Synapse:
         self.skip_checks = skip_checks
         
     
-    def getConfigFile(self):
+    def getConfigFile(self, configPath):
         """Returns a ConfigParser populated with properties from the user's configuration file."""
         
         try:
             config = ConfigParser.ConfigParser()
-            config.read(CONFIG_FILE) # Does not fail if the file does not exist
+            config.read(configPath) # Does not fail if the file does not exist
             return config
         except ConfigParser.Error:
-            sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
+            sys.stderr.write('Error parsing Synapse config file: %s' % configPath)
             raise
         
     
@@ -202,7 +202,7 @@ class Synapse:
                      'portalEndpoint'     : portalEndpoint}
         
         # For unspecified endpoints, first look in the config file
-        config = self.getConfigFile()
+        config = self.getConfigFile(self.configPath)
         for point in endpoints.keys():
             if endpoints[point] is None and config.has_option('endpoints', point):
                 endpoints[point] = config.get('endpoints', point)
@@ -298,9 +298,9 @@ class Synapse:
                 # Resort to checking the config file
                 config = ConfigParser.ConfigParser()
                 try:
-                    config.read(CONFIG_FILE)
+                    config.read(self.configPath)
                 except ConfigParser.Error:
-                    sys.stderr.write('Error parsing Synapse config file: %s' % CONFIG_FILE)
+                    sys.stderr.write('Error parsing Synapse config file: %s' % self.configPath)
                     raise
                     
                 if config.has_option('authentication', 'username'):
@@ -2304,7 +2304,8 @@ class Synapse:
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status. 
-                           One of {OPEN, CLOSED, SCORED, INVALID}
+                           One of {OPEN, CLOSED, SCORED,INVALID,VALIDATED,
+                           EVALUATION_IN_PROGRESS,RECEIVED, REJECTED, ACCEPTED}
         :param myOwn:      Determines if only your Submissions should be fetched.  
                            Defaults to False (all Submissions)
         :param limit:      Limits the number of submissions in a single response.
@@ -2622,7 +2623,7 @@ class Synapse:
     ############################################################
     ##                      Send Message                      ##
     ############################################################
-    def sendMessage(self, userIds, messageSubject, messageBody):
+    def sendMessage(self, userIds, messageSubject, messageBody, contentType="text/plain"):
         """
         send a message via Synapse.
         
@@ -2631,11 +2632,14 @@ class Synapse:
         :param messageSubject: The subject for the message
         
         :param messageBody: The body of the message
+
+        :param contentType: optional contentType of message body (default="text/plain")  
+                  Should be one of "text/plain" or "text/html"
         
         :returns: The metadata of the created message
         """
         
-        fileHandle = self._uploadStringToFile(messageBody)
+        fileHandle = self._uploadStringToFile(messageBody, contentType)
         message = dict()
         message['recipients']=userIds
         message['subject']=messageSubject

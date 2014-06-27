@@ -45,6 +45,7 @@ A few more commands (cat, create, update, associate)
 
 import argparse
 import os
+import collections
 import shutil
 import sys
 import synapseclient
@@ -68,8 +69,7 @@ def query(args, syn):
         pass
     ## TODO: Should use loop over multiple returned values if return is too long
     results = syn.chunkedQuery(' '.join(args.queryString))
-
-    headings = {}
+    headings = collections.OrderedDict()
     temp = [] # Since query returns a generator, the results must be stored locally
     for res in results:
         temp.append(res)
@@ -78,7 +78,6 @@ def query(args, syn):
     if len(headings) == 0: # No results found
         return 
     sys.stdout.write('%s\n' %'\t'.join(headings))
-    
     for res in temp:
         out = []
         for key in headings:
@@ -124,7 +123,7 @@ def store(args, syn):
                   'path': args.file}
     #Overide setting for parameters included in args
     entity['name'] =  args.name if args.name is not None else entity['name']
-    entity['description'] = args.description if args.description is not None else entity['description']
+    entity['description'] = args.description if args.description is not None else entity.get('description', None)
     entity['parentId'] = args.parentid if args.parentid is not None else entity['parentId']
     entity['path'] = args.file if args.file is not None else None
     if utils.is_url(args.file):
