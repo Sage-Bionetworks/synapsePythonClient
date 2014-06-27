@@ -6,6 +6,7 @@ from nose.tools import assert_raises
 from nose.plugins.attrib import attr
 from mock import MagicMock, patch
 
+import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
@@ -94,6 +95,17 @@ def test_login():
         # Login with config file
         syn.login(rememberMe=True, silent=True)
 
+
+def testCustomConfigFile():
+    configPath='./CONFIGFILE'
+    shutil.copyfile(client.CONFIG_FILE, configPath)
+    schedule_for_cleanup(configPath)
+
+    syn2 = synapseclient.Synapse(configPath=configPath)
+    syn2.login()
+
+
+    
 
 def test_entity_version():
     # Make an Entity and make sure the version is one
