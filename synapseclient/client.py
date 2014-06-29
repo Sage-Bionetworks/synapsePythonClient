@@ -344,7 +344,7 @@ class Synapse:
             
         if not silent:
             profile = self.getUserProfile(refresh=True)
-            sys.stderr.write("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
+            sys.stdout.write("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
         
         
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
