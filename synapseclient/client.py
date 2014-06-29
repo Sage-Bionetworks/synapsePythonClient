@@ -881,6 +881,11 @@ class Synapse:
                     # Need some fields from the existing entity: id, etag, and version info.
                     existing_entity = bundle['entity']
 
+                    # If we get passed an entity whose parentId is None,
+                    # we don't want to overwrite the existing parentId
+                    if 'parentId' in properties and properties['parentId'] is None:
+                        del properties['parentId']
+
                     # Update the conflicting Entity
                     existing_entity.update(properties)
                     properties = self._updateEntity(existing_entity, forceVersion, versionLabel)
