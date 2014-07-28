@@ -1,6 +1,9 @@
 import sys
 import time
 
+from synapseclient.utils import _is_json
+
+
 def _with_retry(function, verbose=False, \
         retry_status_codes=[502,503], retry_errors=[], retry_exceptions=[], \
         retries=3, wait=1, back_off=2):
@@ -46,8 +49,7 @@ def _with_retry(function, verbose=False, \
                 if response.status_code in retry_status_codes:
                     retry = True
                     
-                elif 'content-type' in response.headers \
-                        and response.headers['content-type'].lower().strip() == 'application/json':
+                elif _is_json(response.headers.get('content-type', None)):
                     try:
                         json = response.json()
                         if json.get('reason', None) in retry_errors:
