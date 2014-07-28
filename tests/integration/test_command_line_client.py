@@ -359,7 +359,6 @@ def test_command_line_store_and_submit():
     # Tests shouldn't have external dependencies, but here it's required
     ducky_url = 'https://www.synapse.org/Portal/clear.cache.gif'
 
-
     # Test external file handle
     output = run('synapse', 
                  '--skip-checks', 

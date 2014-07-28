@@ -210,7 +210,15 @@ Querying
 
 Synapse supports a `SQL-like query language <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_::
 
-    results = syn.query('select id, name from entity where parentId=="syn1899495"')
+    results = syn.query('SELECT id, name FROM entity WHERE parentId=="syn1899495"')
+
+    for result in results['results']:
+        print result['entity.id'], result['entity.name']
+
+Querying for my projects. Finding projects owned by the current user::
+
+    profile = syn.getUserProfile()
+    results = syn.query('SELECT id, name FROM project WHERE project.createdByPrincipalId==%s' % profile['ownerId'])
 
     for result in results['results']:
         print result['entity.id'], result['entity.name']
