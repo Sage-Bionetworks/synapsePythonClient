@@ -160,7 +160,7 @@ class Synapse:
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
         
         ## TODO: rename to defaultHeaders ?
-        self.headers = {'content-type': 'application/json', 'Accept': 'application/json'}
+        self.headers = {'content-type': 'application/json', 'Accept': 'application/json; charset=UTF-8'}
         self.username = None
         self.apiKey = None
         self.debug = debug

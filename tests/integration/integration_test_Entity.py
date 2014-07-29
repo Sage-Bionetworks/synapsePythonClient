@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import uuid, filecmp, os, sys, requests, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
@@ -50,20 +52,27 @@ def test_Entity():
     assert folder.description == 'The rejects from the other folder'
     assert folder.pi[0] == 3.14159265359
 
-    # Test CRUD on Files
+    # Test CRUD on Files, check unicode
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    a_file = File(path, parent=folder, description='Random data for testing',
+    a_file = File(path, parent=folder, description=u'Description with funny characters: Déjà vu, ประเทศไทย, 中国',
                   contentType='text/flapdoodle',
-                  foo='An arbitrary value', bar=[33,44,55], bday=Datetime(2013,3,15))
+                  foo='An arbitrary value',
+                  bar=[33,44,55],
+                  bday=Datetime(2013,3,15),
+                  band=u"Motörhead",
+                  lunch=u"すし")
     a_file = syn._createFileEntity(a_file)
     assert a_file.path == path
-    
+
     a_file = syn.getEntity(a_file)
+    assert a_file.description == u'Description with funny characters: Déjà vu, ประเทศไทย, 中国'
     assert a_file['foo'][0] == 'An arbitrary value'
     assert a_file['bar'] == [33,44,55]
     assert a_file['bday'][0] == Datetime(2013,3,15)
     assert a_file.contentType == 'text/flapdoodle'
+    assert a_file['band'][0] == u"Motörhead"
+    assert a_file['lunch'][0] == u"すし"
     
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
