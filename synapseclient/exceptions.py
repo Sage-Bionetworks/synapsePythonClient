@@ -13,6 +13,8 @@ Exceptions
 """
 
 import requests
+import synapseclient.utils as utils
+
 
 class SynapseError(Exception):
     """Generic exception thrown by the client."""
@@ -97,7 +99,7 @@ def _raise_for_status(response, verbose=False):
         message = '%s Server Error: %s' % (response.status_code, response.reason)
 
     if message is not None:
-        if response.headers.get('content-type',None) == 'application/json':
+        if utils._is_json(response.headers.get('content-type',None)):
             # Append the server's JSON error message
             message += "\n%s" % response.json()['reason']
 

@@ -45,7 +45,7 @@ import synapseclient.cache as cache
 import synapseclient.exceptions as exceptions
 from synapseclient.exceptions import *
 from synapseclient.version_check import version_check
-from synapseclient.utils import id_of, get_properties, KB, MB
+from synapseclient.utils import id_of, get_properties, KB, MB, _is_json
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
@@ -79,11 +79,11 @@ DEBUG_DEFAULT = False
 
 
 # Defines the standard retry policy applied to the rest methods
-STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503], 
-                         "retry_errors"      : [], 
-                         "retry_exceptions"  : ['Timeout', 'timeout'], 
-                         "retries"           : 3, 
-                         "wait"              : 1, 
+STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503],
+                         "retry_errors"      : ['Proxy Error'],
+                         "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
+                         "retries"           : 3,
+                         "wait"              : 1,
                          "back_off"          : 2}
 
 # Add additional mimetypes
@@ -159,8 +159,7 @@ class Synapse:
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
         
-        ## TODO: rename to defaultHeaders ?
-        self.headers = {'content-type': 'application/json', 'Accept': 'application/json'}
+        self.default_headers = {'content-type': 'application/json; charset=UTF-8', 'Accept': 'application/json; charset=UTF-8'}
         self.username = None
         self.apiKey = None
         self.debug = debug
@@ -353,7 +352,7 @@ class Synapse:
             # Login normally
             try:
                 req = {'email' : email, 'password' : password}
-                session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.headers)
+                session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.default_headers)
                 return session['sessionToken']
             except SynapseHTTPError as err:
                 if err.response.status_code == 403 or err.response.status_code == 404:
@@ -364,7 +363,7 @@ class Synapse:
             # Validate the session token
             try:
                 token = {'sessionToken' : sessionToken}
-                response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint, headers=self.headers)
+                response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint, headers=self.default_headers)
                 
                 # Success!
                 return sessionToken
@@ -973,7 +972,7 @@ class Synapse:
         
         # Avoid an exception from finding an ID from a NoneType
         try: id_of(entity)
-        except SynapseMalformedEntityError:
+        except ValueError:
             return None
         
         if version is not None:
@@ -2660,7 +2659,7 @@ class Synapse:
             raise SynapseAuthenticationError("Please login")
             
         if headers is None:
-            headers = dict(self.headers)
+            headers = dict(self.default_headers)
 
         headers.update(synapseclient.USER_AGENT)
             
@@ -2783,7 +2782,6 @@ class Synapse:
     
     def _return_rest_body(self, response):
         """Returns either a dictionary or a string depending on the 'content-type' of the response."""
-        
-        if response.headers.get('content-type', '').lower().strip() == 'application/json':
+        if _is_json(response.headers.get('content-type', None)):
             return response.json()
         return response.text

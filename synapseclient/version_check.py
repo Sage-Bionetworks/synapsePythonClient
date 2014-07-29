@@ -142,7 +142,7 @@ def _get_version_info(version_url=_VERSION_URL):
     if version_url is None:
         return json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))
     else:
-        headers = { 'Accept': 'application/json' }
+        headers = { 'Accept': 'application/json; charset=UTF-8' }
         headers.update(synapseclient.USER_AGENT)
         return requests.get(version_url, headers=headers).json()
 

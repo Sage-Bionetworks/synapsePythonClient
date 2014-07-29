@@ -162,10 +162,10 @@ def test_id_of():
     assert utils.id_of(1) == '1'
     assert utils.id_of('syn12345') == 'syn12345'
     assert utils.id_of({'foo':1, 'id':123}) == 123
-    assert_raises(SynapseMalformedEntityError, utils.id_of, {'foo':1, 'idzz':123})
+    assert_raises(ValueError, utils.id_of, {'foo':1, 'idzz':123})
     assert utils.id_of({'properties':{'id':123}}) == 123
-    assert_raises(SynapseMalformedEntityError, utils.id_of, {'properties':{'qq':123}})
-    assert_raises(SynapseMalformedEntityError, utils.id_of, object())
+    assert_raises(ValueError, utils.id_of, {'properties':{'qq':123}})
+    assert_raises(ValueError, utils.id_of, object())
 
     class Foo:
         def __init__(self, id):
@@ -254,5 +254,10 @@ def test_utils_extract_user_name():
     assert utils.extract_user_name(profile) == 'Assistant Professor Oscar the Grouch, PhD'
     profile['userName'] = 'otg'
     assert utils.extract_user_name(profile) == 'otg'
+
+def test_is_json():
+    assert utils._is_json('application/json')
+    assert utils._is_json('application/json;charset=ISO-8859-1')
+    assert not utils._is_json('application/flapdoodle;charset=ISO-8859-1')
 
 
