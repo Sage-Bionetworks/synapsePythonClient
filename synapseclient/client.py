@@ -159,8 +159,7 @@ class Synapse:
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
         
-        ## TODO: rename to defaultHeaders ?
-        self.headers = {'content-type': 'application/json', 'Accept': 'application/json; charset=UTF-8'}
+        self.default_headers = {'content-type': 'application/json; charset=UTF-8', 'Accept': 'application/json; charset=UTF-8'}
         self.username = None
         self.apiKey = None
         self.debug = debug
@@ -353,7 +352,7 @@ class Synapse:
             # Login normally
             try:
                 req = {'email' : email, 'password' : password}
-                session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.headers)
+                session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.default_headers)
                 return session['sessionToken']
             except SynapseHTTPError as err:
                 if err.response.status_code == 403 or err.response.status_code == 404:
@@ -364,7 +363,7 @@ class Synapse:
             # Validate the session token
             try:
                 token = {'sessionToken' : sessionToken}
-                response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint, headers=self.headers)
+                response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint, headers=self.default_headers)
                 
                 # Success!
                 return sessionToken
@@ -2660,7 +2659,7 @@ class Synapse:
             raise SynapseAuthenticationError("Please login")
             
         if headers is None:
-            headers = dict(self.headers)
+            headers = dict(self.default_headers)
 
         headers.update(synapseclient.USER_AGENT)
             
