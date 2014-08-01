@@ -52,6 +52,8 @@ import synapseclient
 from synapseclient import Activity
 import utils
 import signal
+from StringIO import StringIO
+import traceback
 import json
 import warnings
 from synapseclient.exceptions import *
@@ -306,19 +308,14 @@ def submit(args, syn):
         if not os.path.exists(args.file):
             raise IOError('file path %s not valid \n' % args.file)
         # //ideally this should be factored out
-        try:
-            synFile = syn.store(synapseclient.File(path=args.file,parent=args.parentId),
-                                used=_convertProvenanceList(args.used, args.limitSearch, syn),
-                                executed=_convertProvenanceList(args.executed, args.limitSearch, syn))
-            args.entity = synFile.id
-        except Exception as e:
-            raise SynapseError('Unable to upload file %s to synapse \n' % args.file)
-    try:    
-        submission = syn.submit(args.evaluationID, args.entity, name=args.name, teamName=args.teamName)
-        sys.stdout.write('Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' \
-            % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId']))
-    except Exception as e:
-        raise SynapseError('Unable to successfully submit to the evaluation %s \n' % args.evaluationID)
+        synFile = syn.store(synapseclient.File(path=args.file,parent=args.parentId),
+                            used=_convertProvenanceList(args.used, args.limitSearch, syn),
+                            executed=_convertProvenanceList(args.executed, args.limitSearch, syn))
+        args.entity = synFile.id
+
+    submission = syn.submit(args.evaluationID, args.entity, name=args.name, teamName=args.teamName)
+    sys.stdout.write('Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' \
+        % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId']))
         
         
 def login(args, syn):
