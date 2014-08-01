@@ -886,7 +886,7 @@ class Synapse:
                     properties = self._updateEntity(existing_entity, forceVersion, versionLabel)
 
                     # Merge new annotations with existing annotations
-                    existing_annos = bundle['annotations']
+                    existing_annos = from_synapse_annotations(bundle['annotations'])
                     existing_annos.update(annotations)
                     annotations = existing_annos
                 else:

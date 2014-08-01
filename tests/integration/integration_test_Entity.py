@@ -135,6 +135,15 @@ def test_store_with_flags():
     origBogus = File(filepath, name='Bogus Test File', parent=project)
     origBogus = syn.store(origBogus, createOrUpdate=True)
     assert origBogus.versionNumber == 1
+
+    # Modify existing annotations by createOrUpdate
+    del projUpdate['parentId']
+    del projUpdate['id']
+    projUpdate.updatedThing = 'Updated again'
+    projUpdate.addedThing = 'Something new'
+    projUpdate = syn.store(projUpdate, createOrUpdate=True)
+    assert project.id == projUpdate.id
+    assert projUpdate.updatedThing == ['Updated again']
     
     # -- ForceVersion flag --
     # Re-store the same thing and don't up the version
