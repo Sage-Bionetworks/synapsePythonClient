@@ -259,5 +259,7 @@ def test_is_json():
     assert utils._is_json('application/json')
     assert utils._is_json('application/json;charset=ISO-8859-1')
     assert not utils._is_json('application/flapdoodle;charset=ISO-8859-1')
+    assert not utils._is_json(None)
+    assert not utils._is_json('')
 
 
