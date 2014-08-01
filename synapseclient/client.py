@@ -881,11 +881,6 @@ class Synapse:
                     # Need some fields from the existing entity: id, etag, and version info.
                     existing_entity = bundle['entity']
 
-                    # If we get passed an entity whose parentId is None,
-                    # we don't want to overwrite the existing parentId
-                    if 'parentId' in properties and properties['parentId'] is None:
-                        del properties['parentId']
-
                     # Update the conflicting Entity
                     existing_entity.update(properties)
                     properties = self._updateEntity(existing_entity, forceVersion, versionLabel)
@@ -1644,12 +1639,10 @@ class Synapse:
             ## TODO: !!!FIX THIS TO BE PATH SAFE!  DON'T ALLOW ARBITRARY UNZIPING
             z = zipfile.ZipFile(filename, 'r')
             z.extractall(filepath) #WARNING!!!NOT SAFE
-            
-            ## TODO: fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
+
             results['cacheDir'] = filepath
             results['files'] = z.namelist()
         else:
-            ## TODO: fix - adding entries for 'files' and 'cacheDir' into entities causes an error in updateEntity
             results['cacheDir'] = os.path.dirname(filename)
             results['files'] = [os.path.basename(filename)]
         return results
