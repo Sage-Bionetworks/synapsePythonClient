@@ -578,5 +578,5 @@ def _is_json(content_type):
     """detect if a content-type is JSON"""
     ## The value of Content-Type defined here:
     ## http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
-    return content_type.lower().strip().startswith('application/json')
+    return content_type.lower().strip().startswith('application/json') if content_type else False
 
