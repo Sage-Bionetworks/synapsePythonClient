@@ -356,7 +356,7 @@ class Entity(collections.MutableMapping):
                     f.write('  ')
                     f.write(key)
                     f.write('=')
-                    f.write(str(dictionary[key]))
+                    f.write(unicode(dictionary[key]).encode('utf-8'))
                     f.write('\n')
 
         write_kvps(self.__dict__, lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))
@@ -614,6 +614,7 @@ def is_locationable(entity):
             return 'locations' in entity
     else:
         raise SynapseMalformedEntityError('Can\'t determine if %s is Locationable' % str(entity))
+
 
 def is_container(entity):
     """Test if an entity is a container (ie, a Project or a Folder)"""
