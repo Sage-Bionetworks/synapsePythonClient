@@ -2337,8 +2337,8 @@ class Synapse:
         uri = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
 
         if status != None:
-            if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
-                raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
+#            if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
+#                raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
             uri += "?status=%s" % status
 
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
