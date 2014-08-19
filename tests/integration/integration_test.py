@@ -350,3 +350,20 @@ def test_annotations():
     assert annotation['goobers'] == ['chris', 'jen', 'jane']
     assert annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == annote['present_time'].strftime('%Y-%m-%d %H:%M:%S')
 
+
+def test_get_user_profile():
+    p1 = syn.getUserProfile()
+
+    ## get by name
+    p2 = syn.getUserProfile(p1.userName)
+    assert p2.userName == p1.userName
+
+    ## get by user ID
+    p2 = syn.getUserProfile(p1.ownerId)
+    assert p2.userName == p1.userName
+
+    ## This is a bad test 'cause it relies on an account being in the system
+    # p = syn.getUserProfile('synapse-test')
+    # assert p.userName == 'synapse-test'
+    # p = syn.getUserProfile(p.ownerId)
+    # assert p.userName == 'synapse-test'

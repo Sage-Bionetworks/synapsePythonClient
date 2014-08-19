@@ -440,6 +440,7 @@ class File(Entity, Versionable):
     :param parent:       Project or Folder where this File is stored
     :param synapseStore: Whether the File should be uploaded or if only the path should be stored.
                          Defaults to True (file should be uploaded)
+    :param contentType:  Manually specify Content-type header, for example "application/png" or "application/json; charset=UTF-8"
 
     ::
     

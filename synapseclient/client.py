@@ -460,7 +460,7 @@ class Synapse:
         Get the details about a Synapse user.  
         Retrieves information on the current user if 'id' is omitted.
         
-        :param id:           The 'ownerId' of a user
+        :param id:           The 'userId' (aka 'ownerId') of a user or the userName
         :param sessionToken: The session token to use to find the user profile
         :param refresh:  If set to True will always fetch the data from Synape otherwise 
                          will used cached information
@@ -470,15 +470,26 @@ class Synapse:
         Example::
 
             my_profile = syn.getUserProfile()
-            print my_profile['displayName']
-            user_id = my_profile['ownerId']
+
+            freds_profile = syn.getUserProfile('fredcommo')
 
         """
-        
-        uri = '/userProfile/%s' % ('' if id is None else str(id))
-        if sessionToken is None:
-            return self.restGET(uri)
-        return self.restGET(uri, headers={'sessionToken' : sessionToken})
+        if id:
+            try:
+                # if id is a userID, this will succeed
+                int(id)
+            except ValueError:
+                principals = self._findPrincipals(id)
+                for principal in principals:
+                    if principal.get('userName', None).lower()==id.lower():
+                        id = principal['ownerId']
+                        break
+                else: # no break
+                    raise ValueError('Can''t find user "%s": ' % id)
+        else:
+            id = ''
+        uri = '/userProfile/%s' % id
+        return DictObject(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
 
 
     def _findPrincipals(self, query_string):
