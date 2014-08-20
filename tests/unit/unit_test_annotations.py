@@ -2,6 +2,7 @@
 ############################################################
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
+from math import pi
 import os
 
 import synapseclient.utils as utils
@@ -82,7 +83,6 @@ def test_idempotent_annotations():
     assert sa == sa2
 
 def test_submission_status_annotations_round_trip():
-    from math import pi
     april_28_1969 = Datetime(1969,4,28)
     a = dict(screen_name='Bullwinkle', species='Moose', lucky=13, pi=pi, birthday=april_28_1969)
     sa = to_submission_status_annotations(a)
@@ -102,8 +102,8 @@ def test_submission_status_annotations_round_trip():
         if key=='birthday':
             assert utils.from_unix_epoch_time(value) == april_28_1969
 
-    set(['pi']) == set([kvp['key'] for kvp in sa['doubleAnnos']])
-    set([pi]) == set([kvp['value'] for kvp in sa['doubleAnnos']])
+    assert set(['pi']) == set([kvp['key'] for kvp in sa['doubleAnnos']])
+    assert set([pi]) == set([kvp['value'] for kvp in sa['doubleAnnos']])
 
     set_privacy(sa, key='screen_name', is_private=False)
     assert_raises(KeyError, set_privacy, sa, key='this_key_does_not_exist', is_private=False)
@@ -119,3 +119,14 @@ def test_submission_status_annotations_round_trip():
 
     ## test idempotence
     assert a == from_submission_status_annotations(a)
+
+def test_submission_status_double_annos():
+    ssa = {'longAnnos':   [{'isPrivate': False, 'value':13, 'key':'lucky'}],
+           'doubleAnnos': [{'isPrivate': False, 'value':3, 'key': 'three'}, {'isPrivate': False, 'value':pi, 'key': 'pi'}]}
+    ## test that the double annotation 'three':3 is interpretted as a floating
+    ## point 3.0 rather than an integer 3
+    annotations = from_submission_status_annotations(ssa)
+    assert isinstance(annotations['three'], float)
+    ssa2 = to_submission_status_annotations(annotations)
+    assert set(['three', 'pi']) == set([kvp['key'] for kvp in ssa2['doubleAnnos']])
+    assert set(['lucky']) == set([kvp['key'] for kvp in ssa2['longAnnos']])

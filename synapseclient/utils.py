@@ -521,7 +521,7 @@ def normalize_whitespace(s):
     non-printable characters with a single space.
     """
     
-    assert isinstance(s, str) or isinstance(s, unicode)
+    assert isinstance(s, basestring)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
 
 
@@ -533,7 +533,7 @@ def _synapse_error_msg(ex):
     if isinstance(ex, basestring):
         return ex
 
-    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
+    return '\n' + ex.__class__.__name__ + ': ' + unicode(ex) + '\n\n'
 
 
 def _limit_and_offset(uri, limit=None, offset=None):
