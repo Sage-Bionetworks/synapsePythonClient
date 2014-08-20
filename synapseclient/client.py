@@ -474,20 +474,18 @@ class Synapse:
             freds_profile = syn.getUserProfile('fredcommo')
 
         """
-        if id:
-            try:
-                # if id is a userID, this will succeed
-                int(id)
-            except ValueError:
-                principals = self._findPrincipals(id)
-                for principal in principals:
-                    if principal.get('userName', None).lower()==id.lower():
-                        id = principal['ownerId']
-                        break
-                else: # no break
-                    raise ValueError('Can''t find user "%s": ' % id)
-        else:
-            id = ''
+
+        try:
+            ## if id is unset or a userID, this will succeed
+            id = '' if id is None else int(id)
+        except ValueError:
+            principals = self._findPrincipals(id)
+            for principal in principals:
+                if principal.get('userName', None).lower()==id.lower():
+                    id = principal['ownerId']
+                    break
+            else: # no break
+                raise ValueError('Can''t find user "%s": ' % id)
         uri = '/userProfile/%s' % id
         return DictObject(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
 
