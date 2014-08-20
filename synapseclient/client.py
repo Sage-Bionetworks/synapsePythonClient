@@ -94,6 +94,8 @@ mimetypes.add_type('text/tab-separated-values', '.bed5', strict=False)
 mimetypes.add_type('text/tab-separated-values', '.vcf', strict=False)
 mimetypes.add_type('text/tab-separated-values', '.sam', strict=False)
 mimetypes.add_type('text/yaml', '.yaml', strict=False)
+mimetypes.add_type('text/x-markdown', '.md', strict=False)
+mimetypes.add_type('text/x-markdown', '.markdown', strict=False)
 
 
 def login(*args, **kwargs):
