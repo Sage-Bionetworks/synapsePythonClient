@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 ## unit tests for python synapse client
 ############################################################
+from __future__ import unicode_literals
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
 import os
@@ -262,4 +264,6 @@ def test_is_json():
     assert not utils._is_json(None)
     assert not utils._is_json('')
 
-
+def test_unicode_output():
+    a = "ȧƈƈḗƞŧḗḓ uʍop-ǝpısdn ŧḗẋŧ ƒǿř ŧḗşŧīƞɠ"
+    print a.encode('utf-8')
