@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+from __future__ import unicode_literals
 import uuid, filecmp, os, sys, requests, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
