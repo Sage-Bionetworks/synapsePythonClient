@@ -62,13 +62,10 @@ def test_Entity():
                   bday=Datetime(2013,3,15),
                   band=u"Motörhead",
                   lunch=u"すし")
-    print a_file
     a_file = syn.store(a_file)
     assert a_file.path == path
 
     a_file = syn.getEntity(a_file)
-    print a_file
-    print "band=", a_file['band'][0]
     assert a_file.description == u'Description with funny characters: Déjà vu, ประเทศไทย, 中国', u'description= %s' % a_file.description
     assert a_file['foo'][0] == 'An arbitrary value', u'foo= %s' % a_file['foo'][0]
     assert a_file['bar'] == [33,44,55]
