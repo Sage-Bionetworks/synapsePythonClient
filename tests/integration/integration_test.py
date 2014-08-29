@@ -97,15 +97,16 @@ def test_login():
 
 
 def testCustomConfigFile():
-    configPath='./CONFIGFILE'
-    shutil.copyfile(client.CONFIG_FILE, configPath)
-    schedule_for_cleanup(configPath)
+    if os.path.isfile(client.CONFIG_FILE):
+        configPath='./CONFIGFILE'
+        shutil.copyfile(client.CONFIG_FILE, configPath)
+        schedule_for_cleanup(configPath)
 
-    syn2 = synapseclient.Synapse(configPath=configPath)
-    syn2.login()
+        syn2 = synapseclient.Synapse(configPath=configPath)
+        syn2.login()
+    else:
+        print "To fully test the login method a configuration file is required"
 
-
-    
 
 def test_entity_version():
     # Make an Entity and make sure the version is one

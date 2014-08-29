@@ -267,3 +267,10 @@ def test_is_json():
 def test_unicode_output():
     a = "ȧƈƈḗƞŧḗḓ uʍop-ǝpısdn ŧḗẋŧ ƒǿř ŧḗşŧīƞɠ"
     print a.encode('utf-8')
+
+def test_normalize_whitespace():
+    assert "zip tang pow a = 2" == utils.normalize_whitespace("   zip\ttang   pow   \n    a = 2   ")
+    result = utils.normalize_lines("   zip\ttang   pow   \n    a = 2   \n    b = 3   ")
+    assert "zip tang pow\na = 2\nb = 3" == result
+
+

@@ -141,15 +141,15 @@ class Synapse:
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, 
                  debug=DEBUG_DEFAULT, skip_checks=False, configPath=CONFIG_FILE):
         # Check for a config file
+        self.configPath=configPath
         if os.path.isfile(configPath):
-            self.configPath=configPath
             config = self.getConfigFile(configPath)            
             if config.has_option('cache', 'location'):
                 cache.CACHE_DIR = os.path.expanduser(config.get('cache', 'location'))
                 
             if config.has_section('debug'):
                 debug = True
-        else: 
+        elif debug:
             # Alert the user if no config is found
             sys.stderr.write("Could not find a config file (%s).  Using defaults." % os.path.abspath(configPath))
             
