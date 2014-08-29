@@ -520,9 +520,14 @@ def normalize_whitespace(s):
     Strips the string and replace all whitespace sequences and other
     non-printable characters with a single space.
     """
-    
     assert isinstance(s, basestring)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
+
+
+def normalize_lines(s):
+    assert isinstance(s, basestring)
+    s2 = re.sub(r'[\t ]*\n[\t ]*', '\n', s.strip())
+    return re.sub(r'[\t ]+', ' ', s2)
 
 
 def _synapse_error_msg(ex):
