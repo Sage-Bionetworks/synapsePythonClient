@@ -19,6 +19,7 @@ def setup(module):
     print os.path.basename(__file__)
     print '~' * 60
     module.syn = integration.syn
+    module.project = integration.project
     
     # Use the module-level syn object to communicate between main and child threads
     # - Read-only objects (for the children)
@@ -37,8 +38,42 @@ def teardown(module):
     del module.syn.test_errors
     del module.syn.test_runCountMutex
     del module.syn.test_threadsRunning
-    
-    
+
+
+def test_caching_of_locationables_containing_zip_files():
+    """Test for SYNR-728, cache.retrieve_local_file_info sets cacheDir and files incorrectly for zip files"""
+    data = Data(name='qwertyqwer', parent=project['id'])
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    zip_path = os.path.join(os.path.dirname(path), 'Archive.zip')
+    schedule_for_cleanup(zip_path)
+
+    import zipfile
+    with zipfile.ZipFile(zip_path, 'w') as zf:
+        zf.write(path, os.path.basename(path))
+
+    data['path'] = zip_path
+    data = syn.store(data)
+
+    assert data.path == zip_path
+    ## should cacheDir and files be filled in here?
+
+    ## remove the files
+    os.remove(path)
+    os.remove(zip_path)
+
+    ## get the file and store it in the cache. This also has the side
+    ## effect of unzipping archive files.
+    data2 = syn.get(data.id)
+
+    ## this time it's retreived from the cache. We should still get
+    ## the same cacheDir and files as before
+    data3 = syn.get(data.id)
+    assert data2.cacheDir == data3.cacheDir
+    assert data2.files == data3.files
+
+
 def test_slow_unlocker():
     """Manually grabs a lock and makes sure the get/store methods are blocked."""
     

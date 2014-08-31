@@ -17,6 +17,7 @@ Property Juggling
 .. automethod:: synapseclient.utils.to_unix_epoch_time
 .. automethod:: synapseclient.utils.from_unix_epoch_time
 .. automethod:: synapseclient.utils.format_time_interval
+.. automethod:: synapseclient.utils._is_json
 
 ~~~~~~~~~~~~~
 File Handling
@@ -48,6 +49,7 @@ Testing
 
 import os, sys, urllib, urlparse, hashlib, re
 import random
+import requests
 import collections
 import tempfile
 import platform
@@ -56,7 +58,7 @@ from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
 
-from synapseclient.exceptions import *
+
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
@@ -181,7 +183,7 @@ def id_of(obj):
         return str(obj)
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
-        raise SynapseMalformedEntityError('Invalid parameters: couldn\'t find id of ' + str(obj))
+        raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result
 
 def is_in_path(id, path):
@@ -518,9 +520,14 @@ def normalize_whitespace(s):
     Strips the string and replace all whitespace sequences and other
     non-printable characters with a single space.
     """
-    
-    assert isinstance(s, str) or isinstance(s, unicode)
+    assert isinstance(s, basestring)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
+
+
+def normalize_lines(s):
+    assert isinstance(s, basestring)
+    s2 = re.sub(r'[\t ]*\n[\t ]*', '\n', s.strip())
+    return re.sub(r'[\t ]+', ' ', s2)
 
 
 def _synapse_error_msg(ex):
@@ -531,7 +538,7 @@ def _synapse_error_msg(ex):
     if isinstance(ex, basestring):
         return ex
 
-    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
+    return '\n' + ex.__class__.__name__ + ': ' + unicode(ex) + '\n\n'
 
 
 def _limit_and_offset(uri, limit=None, offset=None):
@@ -570,3 +577,11 @@ def memoize(obj):
             cache[key] = obj(*args, **kwargs)
         return cache[key]
     return memoizer
+
+
+def _is_json(content_type):
+    """detect if a content-type is JSON"""
+    ## The value of Content-Type defined here:
+    ## http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
+    return content_type.lower().strip().startswith('application/json') if content_type else False
+

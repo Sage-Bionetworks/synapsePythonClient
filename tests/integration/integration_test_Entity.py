@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 import uuid, filecmp, os, sys, requests, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
@@ -50,20 +52,27 @@ def test_Entity():
     assert folder.description == 'The rejects from the other folder'
     assert folder.pi[0] == 3.14159265359
 
-    # Test CRUD on Files
+    # Test CRUD on Files, check unicode
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    a_file = File(path, parent=folder, description='Random data for testing',
+    a_file = File(path, parent=folder, description=u'Description with funny characters: Déjà vu, ประเทศไทย, 中国',
                   contentType='text/flapdoodle',
-                  foo='An arbitrary value', bar=[33,44,55], bday=Datetime(2013,3,15))
-    a_file = syn._createFileEntity(a_file)
+                  foo='An arbitrary value',
+                  bar=[33,44,55],
+                  bday=Datetime(2013,3,15),
+                  band=u"Motörhead",
+                  lunch=u"すし")
+    a_file = syn.store(a_file)
     assert a_file.path == path
-    
+
     a_file = syn.getEntity(a_file)
-    assert a_file['foo'][0] == 'An arbitrary value'
+    assert a_file.description == u'Description with funny characters: Déjà vu, ประเทศไทย, 中国', u'description= %s' % a_file.description
+    assert a_file['foo'][0] == 'An arbitrary value', u'foo= %s' % a_file['foo'][0]
     assert a_file['bar'] == [33,44,55]
     assert a_file['bday'][0] == Datetime(2013,3,15)
-    assert a_file.contentType == 'text/flapdoodle'
+    assert a_file.contentType == 'text/flapdoodle', u'contentType= %s' % a_file.contentType
+    assert a_file['band'][0] == u"Motörhead", u'band= %s' % a_file['band'][0]
+    assert a_file['lunch'][0] == u"すし", u'lunch= %s' % a_file['lunch'][0]
     
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
@@ -91,6 +100,21 @@ def test_Entity():
     # Make sure we can still get the older version of file
     old_random_data = syn.get(a_file.id, version=1)
     assert filecmp.cmp(old_random_data.path, path)
+
+
+def test_special_characters():
+    folder = syn.store(Folder(u'Special Characters Here',
+        parent=project,
+        description=u'A test for special characters such as Déjà vu, ประเทศไทย, and 中国',
+        hindi_annotation=u'बंदर बट',
+        russian_annotation=u'Обезьяна прикладом',
+        weird_german_thing=u'Völlerei lässt grüßen'))
+    assert folder.name == u'Special Characters Here'
+    assert folder.parentId == project.id
+    assert folder.description == u'A test for special characters such as Déjà vu, ประเทศไทย, and 中国', u'description= %s' % folder.description
+    assert folder.weird_german_thing[0] == u'Völlerei lässt grüßen'
+    assert folder.hindi_annotation[0] == u'बंदर बट'
+    assert folder.russian_annotation[0] == u'Обезьяна прикладом'
 
 
 def test_get_local_file():
@@ -135,6 +159,15 @@ def test_store_with_flags():
     origBogus = File(filepath, name='Bogus Test File', parent=project)
     origBogus = syn.store(origBogus, createOrUpdate=True)
     assert origBogus.versionNumber == 1
+
+    # Modify existing annotations by createOrUpdate
+    del projUpdate['parentId']
+    del projUpdate['id']
+    projUpdate.updatedThing = 'Updated again'
+    projUpdate.addedThing = 'Something new'
+    projUpdate = syn.store(projUpdate, createOrUpdate=True)
+    assert project.id == projUpdate.id
+    assert projUpdate.updatedThing == ['Updated again']
     
     # -- ForceVersion flag --
     # Re-store the same thing and don't up the version

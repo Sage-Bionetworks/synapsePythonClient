@@ -8,7 +8,7 @@ To run a single test      : nosetests -vs tests/integration/integration_test_Ent
 """
 import uuid
 import os
-import  sys
+import sys
 import shutil 
 
 from synapseclient import Entity, Project, Folder, File, Data, Evaluation
@@ -17,6 +17,8 @@ import synapseclient.utils as utils
 
 
 def setup_module(module):
+    print "Python version:", sys.version
+
     syn = synapseclient.Synapse(debug=False, skip_checks=True)
 
     print "Testing against endpoints:"

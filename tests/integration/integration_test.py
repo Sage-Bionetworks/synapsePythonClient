@@ -6,6 +6,7 @@ from nose.tools import assert_raises
 from nose.plugins.attrib import attr
 from mock import MagicMock, patch
 
+import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
@@ -93,6 +94,18 @@ def test_login():
     finally:
         # Login with config file
         syn.login(rememberMe=True, silent=True)
+
+
+def testCustomConfigFile():
+    if os.path.isfile(client.CONFIG_FILE):
+        configPath='./CONFIGFILE'
+        shutil.copyfile(client.CONFIG_FILE, configPath)
+        schedule_for_cleanup(configPath)
+
+        syn2 = synapseclient.Synapse(configPath=configPath)
+        syn2.login()
+    else:
+        print "To fully test the login method a configuration file is required"
 
 
 def test_entity_version():
@@ -338,3 +351,20 @@ def test_annotations():
     assert annotation['goobers'] == ['chris', 'jen', 'jane']
     assert annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == annote['present_time'].strftime('%Y-%m-%d %H:%M:%S')
 
+
+def test_get_user_profile():
+    p1 = syn.getUserProfile()
+
+    ## get by name
+    p2 = syn.getUserProfile(p1.userName)
+    assert p2.userName == p1.userName
+
+    ## get by user ID
+    p2 = syn.getUserProfile(p1.ownerId)
+    assert p2.userName == p1.userName
+
+    ## This is a bad test 'cause it relies on an account being in the system
+    # p = syn.getUserProfile('synapse-test')
+    # assert p.userName == 'synapse-test'
+    # p = syn.getUserProfile(p.ownerId)
+    # assert p.userName == 'synapse-test'

@@ -48,11 +48,10 @@ def test_with_retry():
     response.status_code.__eq__.side_effect = lambda x: x == 500
     response.headers.__contains__.reset_mock()
     response.headers.__contains__.side_effect = lambda x: x == 'content-type'
-    response.headers.__getitem__.side_effect = lambda x: "application/json" if x == 'content-type' else None
+    response.headers.get.side_effect = lambda x,default_value: "application/json" if x == 'content-type' else None
     response.json.return_value = {"reason": retryErrorMessages[0]}
     _with_retry(function, **retryParams)
-    assert response.headers.__getitem__.called
-    assert response.headers.__getitem__.called
+    assert response.headers.get.called
     assert function.call_count == 1 + 4 + 3 + 4
     
     # -- Propagate an error up --

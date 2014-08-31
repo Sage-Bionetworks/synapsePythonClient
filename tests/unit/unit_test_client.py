@@ -3,6 +3,7 @@ from nose.tools import assert_raises
 from mock import MagicMock, patch
 import unit
 import synapseclient
+from synapseclient import File
 from synapseclient.exceptions import *
 from synapseclient import Evaluation
 
@@ -52,9 +53,12 @@ def test_getWithEntityBundle(*mocks):
                               "dataFileHandleId": "-1337", 
                               "concreteType": "org.sagebionetworks.repo.model.FileEntity",
                               "parentId": "syn12345"},
-              "fileHandles": [], 
+              "fileHandles": [{u'concreteType': u'org.sagebionetworks.repo.model.file.S3FileHandle',
+                               u'fileName': u'anonymous',
+                               u'contentMd5': u'1698d26000d60816caab15169efcd23a',
+                               u'id': u'-1337'}],
               "annotations": {}}
-    
+
     # Make the cache point to some temporary location
     cacheDir = synapseclient.cache.determine_cache_directory(bundle['entity'])
     
@@ -77,11 +81,26 @@ def test_getWithEntityBundle(*mocks):
     if os.path.exists(cacheMap):
         os.remove(cacheMap)
     
-    syn._getWithEntityBundle(None, entityBundle=bundle, downloadLocation=cacheDir, ifcollision="overwrite.local")
-    syn._getWithEntityBundle(None, entityBundle=bundle, ifcollision="overwrite.local")
-    syn._getWithEntityBundle(None, entityBundle=bundle, downloadLocation=cacheDir, ifcollision="overwrite.local")
+    syn._getWithEntityBundle(entityBundle=bundle, entity=None, downloadLocation=cacheDir, ifcollision="overwrite.local")
+    syn._getWithEntityBundle(entityBundle=bundle, entity=None, ifcollision="overwrite.local")
+    e = syn._getWithEntityBundle(entityBundle=bundle, entity=None, downloadLocation=cacheDir, ifcollision="overwrite.local")
     assert download_file_mock.call_count == 1
-    
+
+    assert e.name == bundle["entity"]["name"]
+    assert e.parentId == bundle["entity"]["parentId"]
+    assert e.cacheDir == cacheDir
+    assert bundle['entity']['name'] in e.files
+    assert e.path == os.path.join(cacheDir, bundle["entity"]["name"])
+
+    ## test preservation of local state
+    url = 'http://foo.com/secretstuff.txt'
+    e = File(name='anonymous', parentId="syn12345", synapseStore=False, externalURL=url)
+    e.local_state({'zap':'pow'})
+    e = syn._getWithEntityBundle(entityBundle=bundle, entity=e)
+    assert e.local_state()['zap'] == 'pow'
+    assert e.synapseStore == False
+    assert e.externalURL == url
+
     ## TODO: add more test cases for flag combination of this method
 
 

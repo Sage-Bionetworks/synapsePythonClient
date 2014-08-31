@@ -104,9 +104,12 @@ def from_synapse_annotations(annotations):
         if key=='dateAnnotations':
             for k,v in value.iteritems():
                 annos.setdefault(k,[]).extend([from_unix_epoch_time(float(t)) for t in v])
-        elif key in ['stringAnnotations','longAnnotations','doubleAnnotations']:
+        elif key in ['stringAnnotations','longAnnotations']:
             for k,v in value.iteritems():
                 annos.setdefault(k,[]).extend(v)
+        elif key == 'doubleAnnotations':
+            for k,v in value.iteritems():
+                annos.setdefault(k,[]).extend(float(element) for element in v)
         elif key=='blobAnnotations':
             pass ## TODO: blob annotations not supported
         else:
@@ -171,6 +174,7 @@ def to_submission_status_annotations(annotations, is_private=True):
             synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':unicode(value), 'isPrivate':is_private })
     return synapseAnnos
 
+## TODO: this should accept a status object and return its annotations or an empty dict if there are none
 def from_submission_status_annotations(annotations):
     """
     Convert back from submission status annotation format to a normal dictionary.
@@ -181,8 +185,10 @@ def from_submission_status_annotations(annotations):
     """
     dictionary = {}
     for key, value in annotations.iteritems():
-        if key in ['stringAnnos','longAnnos','doubleAnnos']:
+        if key in ['stringAnnos','longAnnos']:
             dictionary.update( { kvp['key']:kvp['value'] for kvp in value } )
+        elif key == 'doubleAnnos':
+            dictionary.update( { kvp['key']:float(kvp['value']) for kvp in value } )
         else:
             dictionary[key] = value
     return dictionary

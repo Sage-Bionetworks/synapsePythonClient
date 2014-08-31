@@ -1,6 +1,6 @@
 {
   "client":"synapsePythonClient",
-  "latestVersion":"1.0.1",
+  "latestVersion":"1.0.3",
   "blacklist":["0.0.0", "0.4.1", "0.4.0", "0.3.0", "0.2.1", "0.2.0", "0.1.4"],
-  "releaseNotes":"See: http://versions.synapse.sagebase.org/release_notes_v1.0.html"
+  "releaseNotes":"Fixes to UTF-8 character encoding enabling handling of non-ascii characters"
 }
