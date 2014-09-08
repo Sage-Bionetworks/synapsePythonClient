@@ -26,7 +26,7 @@ def test_tables():
     cols.append(syn.store(ColumnModel(name='name', columnType='STRING', maximumSize=1000)))
     cols.append(syn.store(ColumnModel(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat'])))
     cols.append(syn.store(ColumnModel(name='x', columnType='DOUBLE')))
-    cols.append(syn.store(ColumnModel(name='n', columnType='LONG')))
+    cols.append(syn.store(ColumnModel(name='n', columnType='INTEGER')))
     cols.append(syn.store(ColumnModel(name='is_bogus', columnType='BOOLEAN')))
 
     table1 = Table(name='Foo Table', columns=cols, parent=project)
@@ -107,7 +107,7 @@ def test_big_tables():
     cols.append(syn.store(ColumnModel(name='name', columnType='STRING', maximumSize=1000)))
     cols.append(syn.store(ColumnModel(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat'])))
     cols.append(syn.store(ColumnModel(name='x', columnType='DOUBLE')))
-    cols.append(syn.store(ColumnModel(name='n', columnType='LONG')))
+    cols.append(syn.store(ColumnModel(name='n', columnType='INTEGER')))
     cols.append(syn.store(ColumnModel(name='is_bogus', columnType='BOOLEAN')))
 
     table1 = syn.store(Table(name='Big Table', columns=cols, parent=project))
