@@ -565,6 +565,36 @@ def _limit_and_offset(uri, limit=None, offset=None):
         fragment=parts.fragment))
 
 
+def query_limit_and_offset(query, hard_limit=1000):
+    """
+    Extract limit and offset from the end of a query string.
+
+    :returns: A triple containing the query with limit and offset removed, the
+              limit at most equal to the hard_limit, and the offset which
+              defaults to 1
+    """
+    # Regex a lower-case string to simplify matching
+    tempQueryStr = query.lower()
+    regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+
+    # Continue to strip off and save the last limit/offset
+    match = re.search(regex, tempQueryStr)
+    options = {}
+    while match is not None:
+        options[match.group(2)] = int(match.group(3))
+        tempQueryStr = match.group(1)
+        match = re.search(regex, tempQueryStr)
+
+    # Get a truncated version of the original query string (not in lower-case)
+    query = query[:len(tempQueryStr)].strip()
+
+    # Continue querying until the entire query has been fetched (or crash out)
+    limit = min(options.get('limit',hard_limit), hard_limit)
+    offset = options.get('offset',1)
+
+    return query, limit, offset
+
+
 #Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 def memoize(obj):
     cache = obj.cache = {}

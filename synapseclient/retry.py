@@ -6,7 +6,7 @@ from synapseclient.utils import _is_json
 
 def _with_retry(function, verbose=False, \
         retry_status_codes=[502,503], retry_errors=[], retry_exceptions=[], \
-        retries=3, wait=1, back_off=2):
+        retries=3, wait=1, back_off=2, max_wait=30):
     """
     Retries the given function under certain conditions.
     
@@ -45,11 +45,11 @@ def _with_retry(function, verbose=False, \
 
         # Check if we got a retry-able error
         if response is not None:
-            if response.status_code not in range(200,299):
-                if response.status_code in retry_status_codes:
-                    retry = True
-                    
-                elif _is_json(response.headers.get('content-type', None)):
+            if response.status_code in retry_status_codes:
+                retry = True
+
+            elif response.status_code not in range(200,299):
+                if _is_json(response.headers.get('content-type', None)):
                     try:
                         json = response.json()
                         if json.get('reason', None) in retry_errors:
@@ -70,7 +70,7 @@ def _with_retry(function, verbose=False, \
             if verbose:
                 sys.stderr.write('\n... Retrying in %d seconds...\n' % wait)
             time.sleep(wait)
-            wait *= back_off
+            wait = min(max_wait, wait*back_off)
             continue
 
         # Out of retries, re-raise the exception or return the response

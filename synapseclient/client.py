@@ -49,7 +49,8 @@ from synapseclient.utils import id_of, get_properties, KB, MB, _is_json
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
+from synapseclient.entity import Entity, File, Project, Folder, Table, split_entity_namespaces, is_versionable, is_locationable, is_container
+from synapseclient.table import ColumnModel, RowSet, Row, TableQueryResult
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -2425,9 +2426,9 @@ class Synapse:
             yield (Submission(**bundle['submission']), SubmissionStatus(**bundle['submissionStatus']))
 
 
-    def _GET_paginated(self, url, limit=20, offset=0):
+    def _GET_paginated(self, uri, limit=20, offset=0):
         """
-        :param url: A URL that returns paginated results
+        :param uri: A URI that returns paginated results
         :param limit: How many records should be returned per request
         :param offset: At what record offset from the first should
                        iteration start
@@ -2441,10 +2442,10 @@ class Synapse:
 
         totalNumberOfResults = sys.maxint
         while offset < totalNumberOfResults:
-            uri = utils._limit_and_offset(url, limit=limit, offset=offset)
+            uri = utils._limit_and_offset(uri, limit=limit, offset=offset)
             page = self.restGET(uri)
-            totalNumberOfResults = page['totalNumberOfResults']
             results = page['results'] if 'results' in page else page['children']
+            totalNumberOfResults = page.get('totalNumberOfResults', len(results))
             for result in results:
                 offset += 1
                 yield result
@@ -2565,7 +2566,63 @@ class Synapse:
     #     return self._downloadFile(url, destination)
 
 
-    
+
+    ############################################################
+    ##                     Tables                             ##
+    ############################################################
+
+    def getColumns(self, prefix=None, limit=100, offset=0):
+        uri = '/column'
+        if prefix:
+            uri += '?prefix=' + prefix
+        for result in self._GET_paginated(uri, limit=limit, offset=offset):
+            yield ColumnModel(**result)
+
+
+    def getTableColumns(self, table, limit=100, offset=0):
+        uri = '/entity/{id}/column'.format(id=id_of(table))
+        for result in self._GET_paginated(uri, limit=limit, offset=offset):
+            yield ColumnModel(**result)
+
+
+    def queryTable(self, query, countOnly=False, isConsistent=True):
+        return TableQueryResult(self, query, countOnly, isConsistent)
+
+        # query, limit, offset = query_limit_and_offset(query, hard_limit=QUERY_LIMIT)
+        # rowset = self._queryTable(query, countOnly=countOnly, isConsistent=isConsistent)
+        # return RowSet(**rowset)
+
+
+    def _queryTable(self, query, countOnly=False, isConsistent=True):
+        params = []
+        if ~isConsistent:
+            params.append("isConsistent=false")
+        if countOnly:
+            params.append("countOnly=true")
+        uri = "/table/query" + ("?" + "&".join(params) if params else "")
+
+        retryPolicy = self._build_retry_policy({
+            "retry_status_codes": [202, 502, 503],
+            "retry_exceptions"  : ['Timeout', 'timeout'],
+            "retries"           : 10,
+            "wait"              : 1,
+            "back_off"          : 2,
+            "max_wait"          : 10,
+            "verbose"           : True})
+
+        print "uri=", uri
+        print "query=", query
+
+        return self.restPOST(uri, body=json.dumps({'sql':query}), retryPolicy=retryPolicy)
+
+
+    ## This is redundant with syn.store(ColumnModel(...)) and will be removed
+    ## unless people prefer this method.
+    def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):
+        columnModel = ColumnModel(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValue)
+        return ColumnModel(**self.restPOST('/column', json.dumps(columnModel)))
+
+
     ############################################################
     ##             CRUD for Entities (properties)             ##
     ############################################################
