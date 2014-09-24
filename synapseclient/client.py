@@ -81,9 +81,9 @@ DEBUG_DEFAULT = False
 
 # Defines the standard retry policy applied to the rest methods
 STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503],
-                         "retry_errors"      : ['Proxy Error'],
+                         "retry_errors"      : ['Proxy Error', 'Please slow down'],
                          "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
-                         "retries"           : 3,
+                         "retries"           : 6,
                          "wait"              : 1,
                          "back_off"          : 2}
 
@@ -1895,8 +1895,18 @@ class Synapse:
                 sys.stdout.write('.')
                 sys.stdout.flush()
 
-            retry_policy=self._build_retry_policy(
-                {"retry_errors":['We encountered an internal error. Please try again.']})
+            retry_policy=self._build_retry_policy({
+                "retry_status_codes": [429,502,503],
+                "retry_errors"      : [
+                    'Proxy Error',
+                    'Please slow down',
+                    'Slowdown',
+                    'We encountered an internal error. Please try again.',
+                    'Max retries exceeded with url'],
+                "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
+                "retries"           : 6,
+                "wait"              : 1,
+                "back_off"          : 2})
 
             diagnostics['chunks'] = []
 
@@ -1906,17 +1916,17 @@ class Synapse:
                     i += 1
                     chunk_record = {'chunk-number':i}
 
-                    # Get the signed S3 URL
-                    url = self._createChunkedFileUploadChunkURL(i, token)
-                    chunk_record['url'] = url
-                    if progress:
-                        sys.stdout.write('.')
-                        sys.stdout.flush()
+                    def put_chunk():
+                        # Get the signed S3 URL
+                        url = self._createChunkedFileUploadChunkURL(i, token)
+                        chunk_record['url'] = url
+                        if progress:
+                            sys.stdout.write('.')
+                            sys.stdout.flush()
+                        return requests.put(url, data=chunk, headers=headers)
 
                     # PUT the chunk to S3
-                    response = _with_retry(
-                        lambda: requests.put(url, data=chunk, headers=headers),
-                        **retry_policy)
+                    response = _with_retry(put_chunk, **retry_policy)
 
                     if progress:
                         sys.stdout.write(',')

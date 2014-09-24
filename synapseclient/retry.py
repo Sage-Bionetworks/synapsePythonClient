@@ -39,7 +39,7 @@ def _with_retry(function, verbose=False, \
         except Exception as ex:
             exc_info = sys.exc_info()
             if verbose:
-                sys.stderr.write(ex.message+'\n') # This message will contain lots of info
+                sys.stderr.write(ex.message+'\n')
             if hasattr(ex, 'response'):
                 response = ex.response
 
