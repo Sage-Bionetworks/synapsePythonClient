@@ -215,13 +215,10 @@ class TableQueryResult(object):
         raise NotImplementedError
 
     def asRowSet(self):
-        rows = []
-        for row in self:
-            rows.append(row)
-        return RowSet(headers=self.rowset.headers,
-                      tableId=self.rowset.tableId,
-                      etag=self.rowset.etag,
-                      rows=rows)
+        return RowSet(headers=self.rowset['headers'],
+                      tableId=self.rowset['tableId'],
+                      etag=self.rowset['etag'],
+                      rows=[row for row in self])
 
     def asInteger(self):
         try:
