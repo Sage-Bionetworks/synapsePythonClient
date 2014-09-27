@@ -2675,20 +2675,50 @@ class Synapse:
         return result
 
 
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, seperator=",", header=True, includeRowIdAndRowVersion=True):
 
-        retryPolicy = self._build_retry_policy({
-            "retry_status_codes": [202, 502, 503],
-            "retry_exceptions"  : ['Timeout', 'timeout'],
-            "retries"           : 10,
-            "wait"              : 1,
-            "back_off"          : 2,
-            "max_wait"          : 10,
-            "verbose"           : True})
+        download_from_table_request = {
+            "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
+            "csvTableDescriptor": {
+                "isFirstLineHeader": header,
+                "quoteCharacter": quoteCharacter,
+                "escapeCharacter": escapeCharacter,
+                "lineEnd": lineEnd,
+                "separator": seperator},
+            "sql": query,
+            "writeHeader": header,
+            "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
 
-        print "uri=", uri
-        print "query=", query
+        # See: http://rest.synapse.org/POST/table/query/async/start.html
+        async_job_id = self.restPOST('/table/download/csv/async/start', body=json.dumps(download_from_table_request))
 
-        return self.restPOST(uri, body=json.dumps({'sql':query}), retryPolicy=retryPolicy)
+        # See: http://rest.synapse.org/GET/table/query/async/get/asyncToken.html
+        for i in range(MAX_QUERY_TABLE_RETRIES):
+            result = self.restGET("/table/download/csv/async/get/%s" % async_job_id['token'])
+            if result.get('jobState', None) == 'PROCESSING':
+                sys.stdout.write('.')
+                time.sleep(2)
+            else:
+                break
+        sys.stdout.write('\n')
+
+        # DownloadFromTableResult
+        # headers     ARRAY< STRING >     The list of ColumnModel IDs that describes the rows of this set.
+        # resultsFileHandleId     STRING  The resulting file handle ID can be used to download the CSV file created by this job. The file will contain all of the data requested in the query SQL provided when the job was started.
+        # concreteType    STRING
+        # etag    STRING  Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
+        # tableId     STRING  The ID of the table identified in the from clause of the table query.
+
+        url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, result['resultsFileHandleId'])
+        destination = cache.determine_cache_directory_from_file_handle(result['resultsFileHandleId'])
+
+        # Create the necessary directories
+        try:
+            os.makedirs(os.path.dirname(destination))
+        except OSError as exception:
+            if exception.errno != os.errno.EEXIST:
+                raise
+        return self._downloadFile(url, destination)
 
 
     ## This is redundant with syn.store(Column(...)) and will be removed
