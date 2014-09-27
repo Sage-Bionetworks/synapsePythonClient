@@ -19,7 +19,7 @@ import synapseclient.utils as utils
 def setup_module(module):
     print "Python version:", sys.version
 
-    syn = synapseclient.Synapse(debug=False, skip_checks=True)
+    syn = synapseclient.Synapse(debug=True, skip_checks=True)
 
     print "Testing against endpoints:"
     print "  " + syn.repoEndpoint
@@ -32,8 +32,7 @@ def setup_module(module):
     module._to_cleanup = []
     
     # Make one project for all the tests to use
-    project = Project(name=str(uuid.uuid4()))
-    project = syn.store(project)
+    project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project)
     module.project = project
 
