@@ -49,8 +49,8 @@ from synapseclient.utils import id_of, get_properties, KB, MB, _is_json
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, Folder, Table, split_entity_namespaces, is_versionable, is_locationable, is_container
-from synapseclient.table import ColumnModel, RowSet, Row, TableQueryResult
+from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
+from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -77,6 +77,7 @@ ROOT_ENTITY = 'syn4489'
 PUBLIC = 273949  #PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
+MAX_QUERY_TABLE_RETRIES = 10
 
 
 # Defines the standard retry policy applied to the rest methods
@@ -2582,34 +2583,98 @@ class Synapse:
     ############################################################
 
     def getColumns(self, prefix=None, limit=100, offset=0):
+        """
+        Get all columns defined in Synapse or those that start with a prefix.
+        """
         uri = '/column'
         if prefix:
             uri += '?prefix=' + prefix
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
-            yield ColumnModel(**result)
+            yield Column(**result)
 
 
     def getTableColumns(self, table, limit=100, offset=0):
+        """
+        Retrieve the column models used in the given table schema.
+        """
         uri = '/entity/{id}/column'.format(id=id_of(table))
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
-            yield ColumnModel(**result)
+            yield Column(**result)
 
 
-    def queryTable(self, query, countOnly=False, isConsistent=True):
-        return TableQueryResult(self, query, countOnly, isConsistent)
+    def queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+        """
+        Query for rows in a table using a SQL-like language.
+
+            results = syn.queryTable("select * from syn1234")
+            for row in results:
+                print row
+
+        """
+        return TableQueryResult(self, query, limit, offset, isConsistent, partMask)
 
         # query, limit, offset = query_limit_and_offset(query, hard_limit=QUERY_LIMIT)
         # rowset = self._queryTable(query, countOnly=countOnly, isConsistent=isConsistent)
         # return RowSet(**rowset)
 
 
-    def _queryTable(self, query, countOnly=False, isConsistent=True):
-        params = []
-        if ~isConsistent:
-            params.append("isConsistent=false")
-        if countOnly:
-            params.append("countOnly=true")
-        uri = "/table/query" + ("?" + "&".join(params) if params else "")
+    def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+        # partMask    INTEGER     Optional, default all. The 'partsMask' is an integer mask that can be combined into to request any desired part. The mask is defined as follows:
+
+        # Query Results (queryResults) = 0x1
+        # Query Count (queryCount) = 0x2
+        # Select Columns (selectColumns) = 0x4
+        # Max Rows Per Page (maxRowsPerPage) = 0x8
+
+        # See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+        query_bundle_request = {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
+            "query": {
+                "sql": query,
+                "isConsistent": isConsistent
+            }
+        }
+
+        if partMask:
+            query_bundle_request["partMask"] = partMask
+        if limit is not None:
+            query_bundle_request["query"]["limit"] = limit
+        if offset is not None:
+            query_bundle_request["query"]["offset"] = offset
+        query_bundle_request["query"]["isConsistent"] = isConsistent
+
+        # See: http://rest.synapse.org/POST/table/query/async/start.html
+        async_job_id = self.restPOST('/table/query/async/start', body=json.dumps(query_bundle_request))
+
+        # See: http://rest.synapse.org/GET/table/query/async/get/asyncToken.html
+        for i in range(MAX_QUERY_TABLE_RETRIES):
+            result = self.restGET('/table/query/async/get/%s'%async_job_id['token'])
+            if result.get('jobState', None) == 'PROCESSING':
+                sys.stdout.write('.')
+                time.sleep(2)
+            else:
+                break
+        sys.stdout.write('\n')
+
+        return result
+
+
+    def _queryTableNext(self, nextPageToken):
+
+        async_job_id = self.restPOST('/table/query/nextPage/async/start', body=json.dumps(nextPageToken))
+
+        for i in range(MAX_QUERY_TABLE_RETRIES):
+            result = self.restGET('/table/query/nextPage/async/get/%s'%async_job_id['token'])
+            if result.get('jobState', None) == 'PROCESSING':
+                sys.stdout.write('.')
+                time.sleep(2)
+            else:
+                break
+        sys.stdout.write('\n')
+
+        return result
+
+
 
         retryPolicy = self._build_retry_policy({
             "retry_status_codes": [202, 502, 503],
@@ -2626,11 +2691,11 @@ class Synapse:
         return self.restPOST(uri, body=json.dumps({'sql':query}), retryPolicy=retryPolicy)
 
 
-    ## This is redundant with syn.store(ColumnModel(...)) and will be removed
+    ## This is redundant with syn.store(Column(...)) and will be removed
     ## unless people prefer this method.
     def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):
-        columnModel = ColumnModel(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValue)
-        return ColumnModel(**self.restPOST('/column', json.dumps(columnModel)))
+        columnModel = Column(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValue)
+        return Column(**self.restPOST('/column', json.dumps(columnModel)))
 
 
     ############################################################

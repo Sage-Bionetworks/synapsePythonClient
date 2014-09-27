@@ -16,4 +16,4 @@ Synapse Python Client documentation
    Utilities
    Versions
    CommandLineClient
-
+   Table
