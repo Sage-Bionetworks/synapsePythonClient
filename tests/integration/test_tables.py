@@ -75,29 +75,26 @@ def test_tables():
         print row
     assert i==7 ## not 8 'cause it's zero based
 
+    ## to modify rows, we have to select *
+    result2 = syn.queryTable('select * from %s where n>1000'%schema1.id)
 
+    ## We'd like an object
+    rs = result2.asRowSet()
 
+    ## make a change
+    for row in rs['rows']:
+        row['values'][2] = 88.888
 
-    # ## to modify rows, we have to select *
-    # result2 = syn.queryTable('select * from %s where n>1000'%schema1.id)
+    row_reference_set = syn.store(rs)
 
-    # ## We'd like an object
-    # rs = result2.asRowSet() #RowSet(**rowset3)
+    result3 = syn.queryTable('select name, x, n from %s limit 100'%schema1.id)
+    rs = result3.asRowSet()
 
-    # ## make a change
-    # for row in rs['rows']:
-    #     row['values'][2] = 88.888
-
-    # row_reference_set = syn.store(rs)
-
-    # rowset4 = syn.queryTable('select name, x, n from %s limit 100'%schema1.id)
-    # rs = RowSet(**rowset4)
-
-    # ## don't forget that numeric values come back as strings
-    # for row in rs['rows']:
-    #     print row
-    #     if int(row['values'][2]) > 1000:
-    #         assert row['values'][1] == '88.888'
+    ## don't forget that numeric values come back as strings
+    for row in rs['rows']:
+        print row
+        if int(row['values'][2]) > 1000:
+            assert row['values'][1] == '88.888'
 
     ## todo: add a column
     ## todo: GET /column/{columnId}
