@@ -49,8 +49,8 @@ from synapseclient.utils import id_of, get_properties, KB, MB, _is_json
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, Folder, Table, split_entity_namespaces, is_versionable, is_locationable, is_container
-from synapseclient.table import ColumnModel, RowSet, Row, TableQueryResult
+from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
+from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -77,13 +77,14 @@ ROOT_ENTITY = 'syn4489'
 PUBLIC = 273949  #PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
+MAX_QUERY_TABLE_RETRIES = 10
 
 
 # Defines the standard retry policy applied to the rest methods
 STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503],
-                         "retry_errors"      : ['Proxy Error'],
+                         "retry_errors"      : ['Proxy Error', 'Please slow down'],
                          "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
-                         "retries"           : 3,
+                         "retries"           : 6,
                          "wait"              : 1,
                          "back_off"          : 2}
 
@@ -1007,9 +1008,13 @@ class Synapse:
         # Handle all strings as the Entity ID for backward compatibility
         if isinstance(obj, basestring):
             self.restDELETE(uri='/entity/%s' % id_of(obj))
+        elif hasattr(obj, "_synapse_delete"):
+            obj._synapse_delete(self)
         else:
-            self.restDELETE(obj.deleteURI())
-
+            try:
+                self.restDELETE(obj.deleteURI())
+            except AttributeError as ex1:
+                SynapseError("Can't delete a %s" % type(obj))
 
     _user_name_cache = {}
     def _get_user_name(self, user_id):
@@ -1895,8 +1900,18 @@ class Synapse:
                 sys.stdout.write('.')
                 sys.stdout.flush()
 
-            retry_policy=self._build_retry_policy(
-                {"retry_errors":['We encountered an internal error. Please try again.']})
+            retry_policy=self._build_retry_policy({
+                "retry_status_codes": [429,502,503],
+                "retry_errors"      : [
+                    'Proxy Error',
+                    'Please slow down',
+                    'Slowdown',
+                    'We encountered an internal error. Please try again.',
+                    'Max retries exceeded with url'],
+                "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
+                "retries"           : 6,
+                "wait"              : 1,
+                "back_off"          : 2})
 
             diagnostics['chunks'] = []
 
@@ -1906,17 +1921,17 @@ class Synapse:
                     i += 1
                     chunk_record = {'chunk-number':i}
 
-                    # Get the signed S3 URL
-                    url = self._createChunkedFileUploadChunkURL(i, token)
-                    chunk_record['url'] = url
-                    if progress:
-                        sys.stdout.write('.')
-                        sys.stdout.flush()
+                    def put_chunk():
+                        # Get the signed S3 URL
+                        url = self._createChunkedFileUploadChunkURL(i, token)
+                        chunk_record['url'] = url
+                        if progress:
+                            sys.stdout.write('.')
+                            sys.stdout.flush()
+                        return requests.put(url, data=chunk, headers=headers)
 
                     # PUT the chunk to S3
-                    response = _with_retry(
-                        lambda: requests.put(url, data=chunk, headers=headers),
-                        **retry_policy)
+                    response = _with_retry(put_chunk, **retry_policy)
 
                     if progress:
                         sys.stdout.write(',')
@@ -2572,55 +2587,161 @@ class Synapse:
     ############################################################
 
     def getColumns(self, prefix=None, limit=100, offset=0):
+        """
+        Get all columns defined in Synapse or those that start with a prefix.
+        """
         uri = '/column'
         if prefix:
             uri += '?prefix=' + prefix
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
-            yield ColumnModel(**result)
+            yield Column(**result)
 
 
     def getTableColumns(self, table, limit=100, offset=0):
+        """
+        Retrieve the column models used in the given table schema.
+        """
         uri = '/entity/{id}/column'.format(id=id_of(table))
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
-            yield ColumnModel(**result)
+            yield Column(**result)
 
 
-    def queryTable(self, query, countOnly=False, isConsistent=True):
-        return TableQueryResult(self, query, countOnly, isConsistent)
+    def queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+        """
+        Query for rows in a table using a SQL-like language::
+
+            results = syn.queryTable("select * from syn1234")
+            for row in results:
+                print row
+
+        """
+        return TableQueryResult(self, query, limit, offset, isConsistent, partMask)
 
         # query, limit, offset = query_limit_and_offset(query, hard_limit=QUERY_LIMIT)
         # rowset = self._queryTable(query, countOnly=countOnly, isConsistent=isConsistent)
         # return RowSet(**rowset)
 
 
-    def _queryTable(self, query, countOnly=False, isConsistent=True):
-        params = []
-        if ~isConsistent:
-            params.append("isConsistent=false")
-        if countOnly:
-            params.append("countOnly=true")
-        uri = "/table/query" + ("?" + "&".join(params) if params else "")
+    def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+        # partMask    INTEGER     Optional, default all. The 'partsMask' is an integer mask that can be combined into to request any desired part. The mask is defined as follows:
 
-        retryPolicy = self._build_retry_policy({
-            "retry_status_codes": [202, 502, 503],
-            "retry_exceptions"  : ['Timeout', 'timeout'],
-            "retries"           : 10,
-            "wait"              : 1,
-            "back_off"          : 2,
-            "max_wait"          : 10,
-            "verbose"           : True})
+        # Query Results (queryResults) = 0x1
+        # Query Count (queryCount) = 0x2
+        # Select Columns (selectColumns) = 0x4
+        # Max Rows Per Page (maxRowsPerPage) = 0x8
 
-        print "uri=", uri
-        print "query=", query
+        # See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+        query_bundle_request = {
+            "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
+            "query": {
+                "sql": query,
+                "isConsistent": isConsistent
+            }
+        }
 
-        return self.restPOST(uri, body=json.dumps({'sql':query}), retryPolicy=retryPolicy)
+        if partMask:
+            query_bundle_request["partMask"] = partMask
+        if limit is not None:
+            query_bundle_request["query"]["limit"] = limit
+        if offset is not None:
+            query_bundle_request["query"]["offset"] = offset
+        query_bundle_request["query"]["isConsistent"] = isConsistent
+
+        # See: http://rest.synapse.org/POST/table/query/async/start.html
+        async_job_id = self.restPOST('/table/query/async/start', body=json.dumps(query_bundle_request))
+
+        # See: http://rest.synapse.org/GET/table/query/async/get/asyncToken.html
+        for i in range(MAX_QUERY_TABLE_RETRIES):
+            result = self.restGET('/table/query/async/get/%s'%async_job_id['token'])
+            if result.get('jobState', None) == 'PROCESSING':
+                sys.stdout.write('.')
+                time.sleep(2)
+            else:
+                break
+        sys.stdout.write('\n')
+
+        return result
 
 
-    ## This is redundant with syn.store(ColumnModel(...)) and will be removed
+    def _queryTableNext(self, nextPageToken):
+
+        async_job_id = self.restPOST('/table/query/nextPage/async/start', body=json.dumps(nextPageToken))
+
+        for i in range(MAX_QUERY_TABLE_RETRIES):
+            result = self.restGET('/table/query/nextPage/async/get/%s'%async_job_id['token'])
+            if result.get('jobState', None) == 'PROCESSING':
+                sys.stdout.write('.')
+                time.sleep(2)
+            else:
+                break
+        sys.stdout.write('\n')
+
+        return result
+
+
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, seperator=",", header=True, includeRowIdAndRowVersion=True):
+
+        download_from_table_request = {
+            "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
+            "csvTableDescriptor": {
+                "isFirstLineHeader": header,
+                "quoteCharacter": quoteCharacter,
+                "escapeCharacter": escapeCharacter,
+                "lineEnd": lineEnd,
+                "separator": seperator},
+            "sql": query,
+            "writeHeader": header,
+            "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
+
+        # See: http://rest.synapse.org/POST/table/query/async/start.html
+        async_job_id = self.restPOST('/table/download/csv/async/start', body=json.dumps(download_from_table_request))
+
+        # See: http://rest.synapse.org/GET/table/query/async/get/asyncToken.html
+        for i in range(MAX_QUERY_TABLE_RETRIES):
+            result = self.restGET("/table/download/csv/async/get/%s" % async_job_id['token'])
+            if result.get('jobState', None) == 'PROCESSING':
+                sys.stdout.write('.')
+                time.sleep(2)
+            else:
+                break
+        sys.stdout.write('\n')
+
+        # DownloadFromTableResult
+        # headers     ARRAY< STRING >     The list of ColumnModel IDs that describes the rows of this set.
+        # resultsFileHandleId     STRING  The resulting file handle ID can be used to download the CSV file created by this job. The file will contain all of the data requested in the query SQL provided when the job was started.
+        # concreteType    STRING
+        # etag    STRING  Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
+        # tableId     STRING  The ID of the table identified in the from clause of the table query.
+
+        url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, result['resultsFileHandleId'])
+        destination = cache.determine_cache_directory_from_file_handle(result['resultsFileHandleId'])
+
+        # Create the necessary directories
+        try:
+            os.makedirs(os.path.dirname(destination))
+        except OSError as exception:
+            if exception.errno != os.errno.EEXIST:
+                raise
+        return self._downloadFile(url, destination)
+
+
+    ## This is redundant with syn.store(Column(...)) and will be removed
     ## unless people prefer this method.
     def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):
-        columnModel = ColumnModel(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValue)
-        return ColumnModel(**self.restPOST('/column', json.dumps(columnModel)))
+        columnModel = Column(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValue)
+        return Column(**self.restPOST('/column', json.dumps(columnModel)))
+
+    def getColumn(self, id):
+        """
+        Gets a Column object from Synapse by ID.
+
+        See: :py:mod:`synapseclient.table.Column`
+
+        Example::
+
+            column = syn.getColumn(123)
+        """
+        return Column(**self.restGET(Column.getURI(id_of(id))))
 
 
     ############################################################

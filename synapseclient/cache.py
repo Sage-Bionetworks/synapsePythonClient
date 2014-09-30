@@ -351,15 +351,18 @@ def is_lock_valid(cacheLock):
         raise
 
     
+def determine_cache_directory_from_file_handle(fileHandle):
+    return os.path.join(CACHE_DIR, str(int(fileHandle) % CACHE_FANOUT), fileHandle)
+
+
 def determine_cache_directory(entity):
     """Uses the properties of the Entity to determine where it would be cached by default."""
     
     if is_locationable(entity):
         return os.path.join(CACHE_DIR, entity['id'], str(entity['versionNumber']))
         
-    fileHandle = entity['dataFileHandleId']
-    return os.path.join(CACHE_DIR, str(int(fileHandle) % CACHE_FANOUT), fileHandle)
-        
+    return determine_cache_directory_from_file_handle(entity['dataFileHandleId'])
+
         
 strptimeLock = Lock()
 def parse_cache_entry_into_seconds(isoTime):
