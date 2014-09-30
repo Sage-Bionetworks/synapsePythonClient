@@ -177,6 +177,20 @@ See:
 
 - :py:class:`synapseclient.activity.Activity`
 
+Tables
+======
+
+Tables can be built up by adding sets of rows that follow a user-defined schema
+and queried using a SQL-like syntax.
+
+See:
+
+- :py:mod:`synapseclient.table`
+- :py:class:`synapseclient.table.Schema`
+- :py:class:`synapseclient.table.Column`
+- :py:func:`synapseclient.Synapse.getColumns`
+- :py:func:`synapseclient.Synapse.getTableColumns`
+
 Wikis
 =====
 
@@ -279,10 +293,10 @@ USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.
 
 from client import Synapse, login
 from activity import Activity
-from entity import Entity, Project, Folder, File, Table
+from entity import Entity, Project, Folder, File
 from entity import Analysis, Code, Data, Study, Summary
 from evaluation import Evaluation, Submission, SubmissionStatus
-from table import ColumnModel, RowSet, Row
+from table import Schema, Column, RowSet, Row
 from wiki import Wiki
 
 from version_check import check_for_updates
