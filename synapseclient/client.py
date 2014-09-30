@@ -1008,9 +1008,13 @@ class Synapse:
         # Handle all strings as the Entity ID for backward compatibility
         if isinstance(obj, basestring):
             self.restDELETE(uri='/entity/%s' % id_of(obj))
+        elif hasattr(obj, "_synapse_delete"):
+            obj._synapse_delete(self)
         else:
-            self.restDELETE(obj.deleteURI())
-
+            try:
+                self.restDELETE(obj.deleteURI())
+            except AttributeError as ex1:
+                SynapseError("Can't delete a %s" % type(obj))
 
     _user_name_cache = {}
     def _get_user_name(self, user_id):
@@ -2604,7 +2608,7 @@ class Synapse:
 
     def queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
         """
-        Query for rows in a table using a SQL-like language.
+        Query for rows in a table using a SQL-like language::
 
             results = syn.queryTable("select * from syn1234")
             for row in results:
@@ -2726,6 +2730,18 @@ class Synapse:
     def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):
         columnModel = Column(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValue)
         return Column(**self.restPOST('/column', json.dumps(columnModel)))
+
+    def getColumn(self, id):
+        """
+        Gets a Column object from Synapse by ID.
+
+        See: :py:mod:`synapseclient.table.Column`
+
+        Example::
+
+            column = syn.getColumn(123)
+        """
+        return Column(**self.restGET(Column.getURI(id_of(id))))
 
 
     ############################################################

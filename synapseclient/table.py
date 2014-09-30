@@ -22,6 +22,7 @@ See:
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
 """
+import json
 import synapseclient
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
@@ -88,6 +89,12 @@ class Schema(Entity, Versionable):
         super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties, 
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
+    def addColumn(self, column):
+        self.columnIds.append(id_of(column))
+
+    def removeColumn(self, column):
+        self.columnIds.remove(id_of(column))
+
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
 
 
@@ -137,10 +144,6 @@ class RowSet(DictObject):
     :type rows:      array of rows
     """
 
-    @classmethod
-    def getURI(cls, id):
-        return '/column/%s' % id
-
     def __init__(self, columns=None, schema=None, **kwargs):
         if columns:
             kwargs.setdefault('headers',[]).extend([id_of(column) for column in columns])
@@ -151,6 +154,18 @@ class RowSet(DictObject):
     def postURI(self):
         return '/entity/{id}/table'.format(id=self['tableId'])
 
+    def _synapse_delete(self, syn):
+        """
+        Delete the rows in the RowSet.
+        Example::
+            syn.delete(syn.queryTable('select name from %s where no_good = true' % schema1.id))
+        """
+        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
+        return syn.restPOST(uri, body=json.dumps(RowSelection(
+            rowIds=[row.rowId for row in self.rows],
+            etag=self.etag,
+            tableId=self.tableId)))
+
 
 # Row
 # org.sagebionetworks.repo.model.table.Row
@@ -159,12 +174,39 @@ class RowSet(DictObject):
 # versionNumber INTEGER        The version number of this row. Each row version is immutable, so when a row is updated a new version is created.
 
 class Row(DictObject):
-
+    """
+    A row in a Table.
+    """
     def __init__(self, values, rowId=None, versionNumber=None):
         super(Row, self).__init__()
         self.values = values
         self.rowId = rowId
         self.versionNumber = versionNumber
+
+
+class RowSelection(DictObject):
+    """
+    A set of rows to be deleted.
+    http://rest.synapse.org/POST/entity/id/table/deleteRows.html
+    """
+    def __init__(self, rowIds, etag, tableId):
+        super(RowSelection, self).__init__()
+        self.rowIds = rowIds
+        self.etag = etag
+        self.tableId = tableId
+
+    def _synapse_delete(self, syn):
+        """
+        Delete the rows.
+        Example::
+            row_selection = RowSelection(
+                rowIds=[1,2,3,4],
+                etag="64d265c0-ef5b-4598-a50d-ddcbe71abc61",
+                tableId="syn1234567")
+            syn.delete(row_selection)
+        """
+        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
+        return syn.restPOST(uri, body=json.dumps(self))
 
 
 # limit
@@ -215,7 +257,9 @@ class TableQueryResult(object):
         raise NotImplementedError
 
     def asRowSet(self):
-        return RowSet(headers=self.rowset['headers'],
+        ## Note that as of stack 60, an empty query will omit the headers field
+        ## see PLFM-3014
+        return RowSet(headers=self.rowset.get('headers', [col.id for col in self.columns]),
                       tableId=self.rowset['tableId'],
                       etag=self.rowset['etag'],
                       rows=[row for row in self])
@@ -225,6 +269,18 @@ class TableQueryResult(object):
             return int(self.rowset['rows'][0]['values'][0])
         except:
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
+
+    def _synapse_delete(self, syn):
+        """
+        Delete the rows that result from a table query.
+        Example::
+            syn.delete(syn.queryTable('select name from %s where no_good = true' % schema1.id))
+        """
+        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
+        return syn.restPOST(uri, body=json.dumps(RowSelection(
+            rowIds=[row['rowId'] for row in self.rowset['rows']],
+            etag=self.etag,
+            tableId=self.tableId)))
 
     def __iter__(self):
         return self
