@@ -22,7 +22,12 @@ See:
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
 """
+import csv
 import json
+import os
+import re
+from itertools import izip
+
 import synapseclient
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
@@ -72,6 +77,68 @@ def df2Table(df, syn,  tableName, parentProject):
         rowset1 = syn.store(rowset1)
 
     return schema1
+
+
+def to_boolean(value):
+    """
+    Convert a string to boolean, case insensitively, where true values are:
+    true, t, and 1 and false values are: false, f, 0. Raise a ValueError
+    for all other values.
+    """
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, basestring):
+        lower_value = value.lower()
+        if lower_value in ['true', 't', '1']:
+            return True
+        if lower_value in ['false', 'f', '0']:
+            return False
+
+    raise ValueError("Can't convert %s to boolean." % value)
+
+
+def cast_row(row, columns, headers):
+    """
+    Convert a row of table query results from strings to the correct column type.
+
+    See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/ColumnType.html
+    """
+    aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\(c(\d+)\)')
+    col_map = {col['id']:col for col in columns}
+
+    result = []
+    for header, field in izip(headers, row):
+
+        ## check for aggregate columns
+        m = aggregate_pattern.match(header.lower())
+        if m:
+            function = m.group(1)
+            column_id = m.group(2)
+            if function=='count':
+                type = 'INTEGER'
+            elif function=='avg':
+                type = 'DOUBLE'
+            else: ## max, min, sum
+                type = col_map[column_id]['columnType']
+        else:
+            type = col_map[header]['columnType']
+
+        ## convert field to column type
+        if type in ['STRING', 'DATE', 'ENTITYID']:
+            result.append(field)
+        elif type=='DOUBLE':
+            result.append(float(field))
+        elif type=='INTEGER':
+            result.append(int(field))
+        elif type=='BOOLEAN':
+            result.append(to_boolean(field))
+        elif type=='FILEHANDLEID':
+            result.append(field)
+        else:
+            raise ValueError("Unknown column type: %s" % type)
+
+    return result
 
 
 class Schema(Entity, Versionable):
@@ -260,8 +327,8 @@ class TableQueryResult(object):
         ## Note that as of stack 60, an empty query will omit the headers field
         ## see PLFM-3014
         return RowSet(headers=self.rowset.get('headers', [col.id for col in self.columns]),
-                      tableId=self.rowset['tableId'],
-                      etag=self.rowset['etag'],
+                      tableId=self.tableId,
+                      etag=self.etag,
                       rows=[row for row in self])
 
     def asInteger(self):
@@ -278,11 +345,12 @@ class TableQueryResult(object):
         """
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
-            rowIds=[row['rowId'] for row in self.rowset['rows']],
+            rowIds=[row['rowId'] for row in self],
             etag=self.etag,
             tableId=self.tableId)))
 
     def __iter__(self):
+        ## TODO works for single use only, fix me!
         return self
 
     def next(self):
@@ -296,4 +364,3 @@ class TableQueryResult(object):
             else:
                 raise StopIteration()
         return self.rowset['rows'][self.i]
-

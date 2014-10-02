@@ -2586,15 +2586,48 @@ class Synapse:
     ##                     Tables                             ##
     ############################################################
 
-    def getColumns(self, prefix=None, limit=100, offset=0):
+    def _waitForAsync(self, uri, request, max_retries=MAX_QUERY_TABLE_RETRIES, sleep_time=2):
+        async_job_id = self.restPOST(uri+'/start', body=json.dumps(request))
+
+        for i in range(max_retries):
+            result = self.restGET(uri+'/get/%s'%async_job_id['token'])
+            if result.get('jobState', None) == 'PROCESSING':
+                sys.stdout.write('.')
+                time.sleep(sleep_time)
+            else:
+                break
+        sys.stdout.write('\n')
+        return result
+
+
+    def getColumn(self, id):
         """
-        Get all columns defined in Synapse or those that start with a prefix.
+        Gets a Column object from Synapse by ID.
+
+        See: :py:mod:`synapseclient.table.Column`
+
+        Example::
+
+            column = syn.getColumn(123)
         """
-        uri = '/column'
-        if prefix:
-            uri += '?prefix=' + prefix
-        for result in self._GET_paginated(uri, limit=limit, offset=offset):
-            yield Column(**result)
+        return Column(**self.restGET(Column.getURI(id_of(id))))
+
+
+    def getColumns(self, ids=None, prefix=None, limit=100, offset=0):
+        """
+        Get all columns defined in Synapse, those with the given ids or those whose names start with a prefix.
+        """
+        if ids and prefix:
+            raise ValueError("Specify either ids or prefix, not both")
+        if ids:
+            for id in ids:
+                yield self.getColumn(id)
+        else:
+            uri = '/column'
+            if prefix:
+                uri += '?prefix=' + prefix
+            for result in self._GET_paginated(uri, limit=limit, offset=offset):
+                yield Column(**result)
 
 
     def getTableColumns(self, table, limit=100, offset=0):
@@ -2647,39 +2680,37 @@ class Synapse:
             query_bundle_request["query"]["offset"] = offset
         query_bundle_request["query"]["isConsistent"] = isConsistent
 
-        # See: http://rest.synapse.org/POST/table/query/async/start.html
-        async_job_id = self.restPOST('/table/query/async/start', body=json.dumps(query_bundle_request))
-
-        # See: http://rest.synapse.org/GET/table/query/async/get/asyncToken.html
-        for i in range(MAX_QUERY_TABLE_RETRIES):
-            result = self.restGET('/table/query/async/get/%s'%async_job_id['token'])
-            if result.get('jobState', None) == 'PROCESSING':
-                sys.stdout.write('.')
-                time.sleep(2)
-            else:
-                break
-        sys.stdout.write('\n')
-
-        return result
+        return self._waitForAsync(uri='/table/query/async', request=query_bundle_request)
 
 
     def _queryTableNext(self, nextPageToken):
-
-        async_job_id = self.restPOST('/table/query/nextPage/async/start', body=json.dumps(nextPageToken))
-
-        for i in range(MAX_QUERY_TABLE_RETRIES):
-            result = self.restGET('/table/query/nextPage/async/get/%s'%async_job_id['token'])
-            if result.get('jobState', None) == 'PROCESSING':
-                sys.stdout.write('.')
-                time.sleep(2)
-            else:
-                break
-        sys.stdout.write('\n')
-
-        return result
+        return self._waitForAsync(uri='/table/query/nextPage/async', request=nextPageToken)
 
 
-    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, seperator=",", header=True, includeRowIdAndRowVersion=True):
+    def _uploadCsv(self, filename, tableId, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, seperator=",", header=True, linesToSkip=0):
+
+        fileHandle = self._chunkedUploadFile(filename, mimetype="text/csv")
+
+        request = {
+            "concreteType":"org.sagebionetworks.repo.model.table.UploadToTableRequest",
+            "csvTableDescriptor": {
+                "isFirstLineHeader": header,
+                "quoteCharacter": quoteCharacter,
+                "escapeCharacter": escapeCharacter,
+                "lineEnd": lineEnd,
+                "separator": seperator},
+            "linesToSkip": linesToSkip,
+            "tableId": tableId,
+            "uploadFileHandleId": fileHandle['id']
+        }
+
+        if updateEtag:
+            request["updateEtag"] = updateEtag
+
+        return self._waitForAsync(uri='/table/upload/csv/async', request=request)
+
+
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, seperator=",", header=True, includeRowIdAndRowVersion=False):
 
         download_from_table_request = {
             "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
@@ -2693,18 +2724,7 @@ class Synapse:
             "writeHeader": header,
             "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
 
-        # See: http://rest.synapse.org/POST/table/query/async/start.html
-        async_job_id = self.restPOST('/table/download/csv/async/start', body=json.dumps(download_from_table_request))
-
-        # See: http://rest.synapse.org/GET/table/query/async/get/asyncToken.html
-        for i in range(MAX_QUERY_TABLE_RETRIES):
-            result = self.restGET("/table/download/csv/async/get/%s" % async_job_id['token'])
-            if result.get('jobState', None) == 'PROCESSING':
-                sys.stdout.write('.')
-                time.sleep(2)
-            else:
-                break
-        sys.stdout.write('\n')
+        download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request)
 
         # DownloadFromTableResult
         # headers     ARRAY< STRING >     The list of ColumnModel IDs that describes the rows of this set.
@@ -2713,8 +2733,8 @@ class Synapse:
         # etag    STRING  Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
         # tableId     STRING  The ID of the table identified in the from clause of the table query.
 
-        url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, result['resultsFileHandleId'])
-        destination = cache.determine_cache_directory_from_file_handle(result['resultsFileHandleId'])
+        url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, download_from_table_result['resultsFileHandleId'])
+        destination = cache.determine_cache_directory_from_file_handle(download_from_table_result['resultsFileHandleId'])
 
         # Create the necessary directories
         try:
@@ -2722,7 +2742,7 @@ class Synapse:
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
-        return self._downloadFile(url, destination)
+        return (download_from_table_result, self._downloadFile(url, destination))
 
 
     ## This is redundant with syn.store(Column(...)) and will be removed
@@ -2730,18 +2750,6 @@ class Synapse:
     def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):
         columnModel = Column(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValue)
         return Column(**self.restPOST('/column', json.dumps(columnModel)))
-
-    def getColumn(self, id):
-        """
-        Gets a Column object from Synapse by ID.
-
-        See: :py:mod:`synapseclient.table.Column`
-
-        Example::
-
-            column = syn.getColumn(123)
-        """
-        return Column(**self.restGET(Column.getURI(id_of(id))))
 
 
     ############################################################
