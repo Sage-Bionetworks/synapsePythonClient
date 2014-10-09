@@ -608,6 +608,17 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
+# http://stackoverflow.com/questions/5478351/python-time-measure-function
+def timing(f):
+    @functools.wraps(f)
+    def wrap(*args, **kwargs):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print 'function %s took %0.3f ms' % (f.func_name, (time2-time1)*1000.0)
+        return ret
+    return wrap
+
 
 def _is_json(content_type):
     """detect if a content-type is JSON"""
