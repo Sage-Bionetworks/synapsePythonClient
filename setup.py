@@ -41,6 +41,9 @@ setup(name='synapseclient',
     install_requires=[
         'requests>=1.2',
     ],
+    extras_require = {
+        'pandas':  ["pandas"],
+    }
     test_suite='nose.collector',
     tests_require=['nose', 'mock'],
     entry_points = {

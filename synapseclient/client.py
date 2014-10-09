@@ -50,7 +50,7 @@ from synapseclient.annotations import from_synapse_annotations, to_synapse_annot
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
-from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult
+from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, header_to_column_id
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -77,7 +77,9 @@ ROOT_ENTITY = 'syn4489'
 PUBLIC = 273949  #PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
-MAX_QUERY_TABLE_RETRIES = 10
+
+TABLE_QUERY_MAX_RETRIES = 100
+TABLE_QUERY_WAIT_TIME = 2
 
 
 # Defines the standard retry policy applied to the rest methods
@@ -806,6 +808,16 @@ class Synapse:
         forceVersion = kwargs.get('forceVersion', True)
         versionLabel = kwargs.get('versionLabel', None)
         isRestricted = kwargs.get('isRestricted', False)
+
+        ## _before_store hook
+        ## give objects a chance to do something before being stored
+        if hasattr(obj, '_before_store'):
+            obj._before_store(self)
+
+        ## _synapse_store hook
+        ## for objects that know how to store themselves
+        if hasattr(obj, '_synapse_store'):
+            return obj._synapse_store(self)
 
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
@@ -2010,7 +2022,7 @@ class Synapse:
         try:
 
             # Get token
-            md5 = hashlib.md5(content).hexdigest()
+            md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
             token = self._createChunkedUploadToken(md5, "message", contentType)
             
             retry_policy=self._build_retry_policy(
@@ -2024,7 +2036,7 @@ class Synapse:
 
             # PUT the chunk to S3
             response = _with_retry(
-                lambda: requests.put(url, data=content, headers=headers),
+                lambda: requests.put(url, data=content.encode("utf-8"), headers=headers),
                 **retry_policy)
 
             chunk_record['response-status-code'] = response.status_code
@@ -2586,16 +2598,19 @@ class Synapse:
     ##                     Tables                             ##
     ############################################################
 
-    def _waitForAsync(self, uri, request, max_retries=MAX_QUERY_TABLE_RETRIES, sleep_time=2):
+    def _waitForAsync(self, uri, request, max_retries=TABLE_QUERY_MAX_RETRIES, sleep_time=TABLE_QUERY_WAIT_TIME):
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request))
 
         for i in range(max_retries):
             result = self.restGET(uri+'/get/%s'%async_job_id['token'])
             if result.get('jobState', None) == 'PROCESSING':
                 sys.stdout.write('.')
+                sys.stdout.flush()
                 time.sleep(sleep_time)
             else:
                 break
+        else:
+            raise SynapseTimeoutError('Timeout while waiting for query results')
         sys.stdout.write('\n')
         return result
 
@@ -2610,18 +2625,19 @@ class Synapse:
 
             column = syn.getColumn(123)
         """
-        return Column(**self.restGET(Column.getURI(id_of(id))))
+        return Column(**self.restGET(Column.getURI(header_to_column_id(id))))
 
 
-    def getColumns(self, ids=None, prefix=None, limit=100, offset=0):
+    def getColumns(self, headers=None, prefix=None, limit=100, offset=0):
         """
-        Get all columns defined in Synapse, those with the given ids or those whose names start with a prefix.
+        Get all columns defined in Synapse, those corresponding to a set of column
+        headers or those whose names start with a given prefix.
         """
-        if ids and prefix:
+        if headers and prefix:
             raise ValueError("Specify either ids or prefix, not both")
-        if ids:
-            for id in ids:
-                yield self.getColumn(id)
+        if headers:
+            for header in headers:
+                yield self.getColumn(header)
         else:
             uri = '/column'
             if prefix:
@@ -2687,9 +2703,18 @@ class Synapse:
         return self._waitForAsync(uri='/table/query/nextPage/async', request=nextPageToken)
 
 
-    def _uploadCsv(self, filename, tableId, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, seperator=",", header=True, linesToSkip=0):
+    def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
+        """
+        Send an `UploadToTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
 
-        fileHandle = self._chunkedUploadFile(filename, mimetype="text/csv")
+        :param filepath: Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
+        :param schema: A table entity or its Synapse ID.
+        :param updateEtag: Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
+
+        :returns: `UploadToTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
+        """
+
+        fileHandle = self._chunkedUploadFile(filepath, mimetype="text/csv")
 
         request = {
             "concreteType":"org.sagebionetworks.repo.model.table.UploadToTableRequest",
@@ -2698,9 +2723,9 @@ class Synapse:
                 "quoteCharacter": quoteCharacter,
                 "escapeCharacter": escapeCharacter,
                 "lineEnd": lineEnd,
-                "separator": seperator},
+                "separator": separator},
             "linesToSkip": linesToSkip,
-            "tableId": tableId,
+            "tableId": id_of(schema),
             "uploadFileHandleId": fileHandle['id']
         }
 
@@ -2710,7 +2735,14 @@ class Synapse:
         return self._waitForAsync(uri='/table/upload/csv/async', request=request)
 
 
-    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, seperator=",", header=True, includeRowIdAndRowVersion=False):
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False):
+        """
+        Query a Synapse Table and download a CSV file containing the results.
+
+        Sends a `DownloadFromTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
+
+        :return: a tuple containing a `DownloadFromTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
+        """
 
         download_from_table_request = {
             "concreteType": "org.sagebionetworks.repo.model.table.DownloadFromTableRequest",
@@ -2719,7 +2751,7 @@ class Synapse:
                 "quoteCharacter": quoteCharacter,
                 "escapeCharacter": escapeCharacter,
                 "lineEnd": lineEnd,
-                "separator": seperator},
+                "separator": separator},
             "sql": query,
             "writeHeader": header,
             "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
@@ -2734,15 +2766,15 @@ class Synapse:
         # tableId     STRING  The ID of the table identified in the from clause of the table query.
 
         url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, download_from_table_result['resultsFileHandleId'])
-        destination = cache.determine_cache_directory_from_file_handle(download_from_table_result['resultsFileHandleId'])
+        cache_dir = cache.determine_cache_directory_from_file_handle(download_from_table_result['resultsFileHandleId'])
 
         # Create the necessary directories
         try:
-            os.makedirs(os.path.dirname(destination))
+            os.makedirs(cache_dir)
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
-        return (download_from_table_result, self._downloadFile(url, destination))
+        return (download_from_table_result, self._downloadFile(url, os.path.join(cache_dir, "query_results.csv")))
 
 
     ## This is redundant with syn.store(Column(...)) and will be removed
