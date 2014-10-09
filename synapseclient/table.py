@@ -364,3 +364,74 @@ class TableQueryResult(object):
             else:
                 raise StopIteration()
         return self.rowset['rows'][self.i]
+
+
+class TableCsvQueryResult(Table):
+    def __init__(self, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
+        self.syn = synapse
+        self.query = query
+        self.separator = separator
+        self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
+
+        download_from_table_result, file_info = self.syn._queryTableCsv(
+            query=query,
+            quoteCharacter=quoteCharacter,
+            escapeCharacter=escapeCharacter,
+            lineEnd=os.linesep,
+            separator=separator,
+            header=header,
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
+
+        self.download_from_table_result = download_from_table_result
+        self.filepath = file_info['path']
+        self.columns = list(self.syn.getColumns(download_from_table_result['headers']))
+        self.etag = download_from_table_result.get('etag', None)
+        self.tableId = download_from_table_result.get('tableId', None)
+        if includeRowIdAndRowVersion:
+            self.headers = ['ROW_ID', 'ROW_VERSION'] + download_from_table_result['headers']
+        else:
+            self.headers = download_from_table_result['headers']
+
+    def asDataFrame(self):
+        test_import_pandas()
+        import pandas as pd
+
+        if self.includeRowIdAndRowVersion:
+            df = pd.DataFrame.from_csv(self.filepath, header=0, sep=self.separator)
+            ## combine row-ids (in index) and row-versions (in column 0) to
+            ## make new row labels consisting of the row id and version
+            ## separated by a dash.
+            return pd.DataFrame(data=df.ix[:,1:], index=["%s-%s"%(r,v) for r,v in zip(df.index,df.ix[:,0])])
+        else:
+            return pd.DataFrame.from_csv(self.filepath, header=0, sep=self.separator)
+
+    def asRowSet(self):
+        return RowSet(headers=self.headers,
+                      tableId=self.tableId,
+                      etag=self.etag,
+                      rows=[row for row in self])
+
+    def asInteger(self):
+        raise NotImplementedError
+
+    def _synapse_delete(self, syn):
+        """
+        Delete the rows that result from a table query.
+        Example::
+            syn.delete(syn.queryTable('select name from %s where no_good = true' % schema1.id))
+        """
+        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
+        return syn.restPOST(uri, body=json.dumps(RowSelection(
+            rowIds=[row['rowId'] for row in self],
+            etag=self.etag,
+            tableId=self.tableId)))
+
+    def __iter__(self):
+        def iterate_rows(filepath, columns, headers):
+            with open(filepath) as f:
+                reader = csv.reader(f)
+                header = reader.next()
+                for row in reader:
+                    yield cast_row(row, columns, headers)
+        return iterate_rows(self.filepath, self.columns, self.headers)
+
