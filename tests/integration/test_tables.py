@@ -88,7 +88,7 @@ def test_tables():
         assert expected_values == row['values'], 'got %s but expected %s' % (row['values'], expected_values)
 
     ## To modify rows, we have to select then first.
-    result2 = syn.queryTable('select * from %s where age>18 and age<30'%schema1.id)
+    result2 = syn.queryTable('select * from %s where age>18 and age<30'%schema1.id, timeout=300)
 
     ## make a change
     rs = result2.asRowSet()
@@ -99,7 +99,7 @@ def test_tables():
     row_reference_set = syn.store(rs)
 
     ## check if the change sticks
-    result3 = syn.queryTable('select name, x, age from %s'%schema1.id)
+    result3 = syn.queryTable('select name, x, age from %s'%schema1.id, timeout=300)
     rs = result3.asRowSet()
 
     for row in rs['rows']:
@@ -143,32 +143,6 @@ def test_tables():
     assert set(["Jane", "Henry", "Chris", "Jen"]) == set([row['values'][0] for row in result])
 
 
-def test_automagically_store_columns():
-    print "Project ID:", project.id
-    del integration._to_cleanup[:]
-
-    cols = []
-    cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
-    cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
-    cols.append(Column(name='x', columnType='DOUBLE'))
-    cols.append(Column(name='age', columnType='INTEGER'))
-    cols.append(Column(name='cartoon', columnType='BOOLEAN'))
-
-    schema1 = syn.store(Schema(name='Foobar Table', columns=cols, parent=project))
-
-    print "Table Schema:", schema1.id
-
-    ## Get columns associated with the given table
-    retrieved_cols = list(syn.getTableColumns(schema1))
-    print retrieved_cols
-
-    ## Test that the columns we get are the same as the ones we stored
-    assert len(retrieved_cols) == len(cols)
-    for retrieved_col, col in izip(retrieved_cols, cols):
-        assert retrieved_col.name == col.name
-        assert retrieved_col.columnType == col.columnType
-
-
 def test_tables_csv():
 
     ## Define schema
@@ -204,6 +178,14 @@ def test_tables_csv():
     result = CsvFileTable.from_table_query(syn, 'select * from %s' % schema1.id, includeRowIdAndRowVersion=False)
     for expected_row, row in izip(data, result):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
+
+    from synapseclient.table import CsvFileTable
+    result = CsvFileTable.from_table_query(syn, 'select * from %s' % schema1.id, includeRowIdAndRowVersion=True)
+    print "result.filepath=", result.filepath
+    with open(result.filepath) as f:
+        print f.read()
+    df = result.asDataFrame()
+    print df
 
     expected = {
          True: [True, 1929, 3, 6.4],
@@ -248,46 +230,47 @@ def test_tables_pandas():
 
 
 def test_query_rowset_to_dataframe():
-    print "Project ID:", project.id
-    del integration._to_cleanup[:]
+    try:
+        import pandas as pd
 
-    cols = []
-    cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
-    cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
-    cols.append(Column(name='x', columnType='DOUBLE'))
-    cols.append(Column(name='n', columnType='INTEGER'))
-    cols.append(Column(name='is_bogus', columnType='BOOLEAN'))
+        print "Project ID:", project.id
+        del integration._to_cleanup[:]
 
-    table1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
+        cols = []
+        cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
+        cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
+        cols.append(Column(name='x', columnType='DOUBLE'))
+        cols.append(Column(name='n', columnType='INTEGER'))
+        cols.append(Column(name='is_bogus', columnType='BOOLEAN'))
 
-    print "Created table:", table1.id
-    print "with columns:", table1.columnIds
+        table1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
-    n = 3
-    m = 100
-    for i in range(n):
-        rows = []
-        for j in range(m):
-            foo = cols[1].enumValues[random.randint(0,2)]
-            rows.append(Row(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
-        print "added 100 rows"
-        rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
+        print "Created table:", table1.id
+        print "with columns:", table1.columnIds
 
-    for i in range(10):
-        try:
-            results = syn.queryTable("select * from %s" % table1.id)
-            break
-        except SynapseTimeoutError as ex1:
-            print "Timed out. Trying again."
+        n = 3
+        m = 100
+        for i in range(n):
+            rows = []
+            for j in range(m):
+                foo = cols[1].enumValues[random.randint(0,2)]
+                rows.append(Row(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
+            print "added 100 rows"
+            rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
-    print "number of rows:", results.count
-    print "etag:", results.etag
-    print "tableId:", results.tableId
+        results = syn.queryTable("select * from %s" % table1.id, timeout=360)
 
-    df = results.asDataFrame()
+        print "number of rows:", results.count
+        print "etag:", results.etag
+        print "tableId:", results.tableId
 
-    assert df.shape == (n*m, len(cols))
-    assert tuple(df.columns) == ('name', 'foo', 'x', 'n', 'is_bogus')
+        df = results.asDataFrame()
+
+        assert df.shape == (n*m, len(cols))
+        assert tuple(df.columns) == ('name', 'foo', 'x', 'n', 'is_bogus')
+
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping test_tables_pandas.\n\n')
 
 
 def dontruntest_big_tables():
@@ -311,7 +294,7 @@ def dontruntest_big_tables():
         print "added 100 rows"
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
-    results = syn.queryTable("select * from %s" % table1.id)
+    results = syn.queryTable("select * from %s" % table1.id, timeout=360)
     print "number of rows:", results.count
     print "etag:", results.etag
     print "tableId:", results.tableId
@@ -352,10 +335,10 @@ def dontruntest_big_csvs():
             print "wrote 100 rows to disk"
 
     ## upload CSV
-    UploadToTableResult = syn._uploadCsv(filepath=temp.name, schema=schema1)
+    UploadToTableResult = syn._uploadCsv(filepath=temp.name, schema=schema1, timeout=300)
 
     from synapseclient.table import CsvFileTable
-    results = CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
+    results = CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id, timeout=300)
     print "etag:", results.etag
     print "tableId:", results.tableId
 

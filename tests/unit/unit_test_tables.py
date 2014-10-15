@@ -2,8 +2,9 @@ import math
 import csv
 import os
 import tempfile
+from itertools import izip
 
-from synapseclient.table import Column, Schema, CsvFileTable, cast_row, as_table_columns
+from synapseclient.table import Column, Schema, CsvFileTable, cast_row, as_table_columns, create_table
 
 
 def test_cast_row():
@@ -66,6 +67,8 @@ def test_as_table_columns():
 
 
 def test_csv_table():
+    ## Maybe not truly a unit test, but here because it doesn't do
+    ## network IO to synapse
     data = [["John Coltrane",  1926, 8.65, False],
             ["Miles Davis",    1926, 9.87, False],
             ["Bill Evans",     1929, 7.65, False],
@@ -85,6 +88,9 @@ def test_csv_table():
 
     schema1 = Schema(name='Jazz Guys', columns=cols, parent="syn1000001")
 
+
+    #TODO: use StringIO.StringIO(data) rather than writing files
+
     try:
         ## create CSV file
         with tempfile.NamedTemporaryFile(delete=False) as temp:
@@ -94,12 +100,27 @@ def test_csv_table():
             for row in data:
                 writer.writerow(row)
 
-        csv_table = CsvFileTable(schema=schema1, filepath=filename)
-        csv_table.setColumns(cols)
+        table = create_table(schema1, filename)
+        assert isinstance(table, CsvFileTable)
+
+        ## need to set columns to read a CSV file
+        table.setColumns(cols)
 
         print "\n\nJazz Guys"
-        for row in csv_table:
-            print row
+        for table_row, expected_row in izip(table, data):
+            print table_row
+            assert table_row==expected_row
+
+        try:
+            import pandas as pd
+
+            print "\nasDataFrame"
+            df = table.asDataFrame()
+            print df
+
+        except ImportError as e1:
+            sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_csv_table.\n\n')
+
 
     except Exception as ex1:
         if filename:
@@ -112,4 +133,28 @@ def test_csv_table():
                 print ex
         raise
 
+
+def test_list_of_rows_table():
+    data = [["John Coltrane",  1926, 8.65, False],
+            ["Miles Davis",    1926, 9.87, False],
+            ["Bill Evans",     1929, 7.65, False],
+            ["Paul Chambers",  1935, 5.14, False],
+            ["Jimmy Cobb",     1929, 5.78, True],
+            ["Scott LaFaro",   1936, 4.21, False],
+            ["Sonny Rollins",  1930, 8.99, True],
+            ["Kenny Burrel",   1931, 4.37, True]]
+
+    cols = []
+    cols.append(Column(id='1', name='Name', columnType='STRING'))
+    cols.append(Column(id='2', name='Born', columnType='INTEGER'))
+    cols.append(Column(id='3', name='Hipness', columnType='DOUBLE'))
+    cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
+
+    schema1 = Schema(name='Jazz Guys', columns=cols, id="syn1000002", parent="syn1000001")
+
+    table = create_table(schema1, data)
+
+    for table_row, expected_row in izip(table, data):
+        print table_row['values']
+        assert table_row['values']==expected_row
 

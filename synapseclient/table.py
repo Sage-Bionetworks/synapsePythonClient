@@ -211,7 +211,16 @@ class Schema(Entity, Versionable):
     def removeColumn(self, column):
         self.columnIds.remove(id_of(column))
 
-    def _before_store(self, syn):
+    # def setColumns(self, columns):
+    #     for column in columns:
+    #         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
+    #             self.properties.setdefault('columnIds',[]).append(id_of(column))
+    #         elif isinstance(column, Column):
+    #             self.__dict__.setdefault('columns_to_store',[]).append(column)
+    #         else:
+    #             raise ValueError("Not a column? %s" % unicode(column))
+
+    def _before_synapse_store(self, syn):
         ## store any columns before storing table
         for column in self.columns_to_store:
             column = syn.store(column)
@@ -271,8 +280,12 @@ class RowSet(DictObject):
     def __init__(self, columns=None, schema=None, **kwargs):
         if columns:
             kwargs.setdefault('headers',[]).extend([id_of(column) for column in columns])
+        elif schema:
+            kwargs.setdefault('headers',[]).extend(schema["columnIds"])
         if schema:
             kwargs['tableId'] = id_of(schema)
+        if not kwargs.get('tableId',None) or not kwargs.get('headers',None):
+            raise ValueError("Table schema ID and column headers must be specified")
         super(RowSet, self).__init__(kwargs)
 
     def postURI(self):
@@ -335,7 +348,7 @@ class RowSelection(DictObject):
 
 def create_table(schema, values, **kwargs):
     """
-    Combine a table schema and a set of values into a type of Table object
+    Combine a table schema and a set of values into a type of Table object.
     """
 
     # could be a schema with
@@ -349,15 +362,24 @@ def create_table(schema, values, **kwargs):
     except ImportError as ex1:
         pandas_available = False
 
+    ## a RowSet
     if isinstance(values, RowSet):
-        return "RowSet"
+        return RowSetTable(schema, values)
+
+    ## a list of rows
+    elif isinstance(values, (list, tuple)):
+        return RowSetTable(schema, RowSet(schema=schema, rows=[Row(r) for r in values]))
 
     ## filename of a csv file
     elif isinstance(values, basestring):
-        return CsvFileTable(schema, filepath, **kwargs)
+        return CsvFileTable(schema, filepath=values, **kwargs)
 
     ## pandas DataFrame
     elif pandas_available and isinstance(values, pd.DataFrame):
+        ## figure out columns from data frame if not specified
+        # if not schema.columnIds and not schema.columns_to_store:
+        #     schema.setColumns(as_table_columns(values))
+
         f = None
         try:
             if 'filepath' in kwargs:
@@ -380,9 +402,87 @@ def create_table(schema, values, **kwargs):
 
 class Table(object):
     """
-    Abstract base class for Tables based on different data sources
+    Abstract base class for Tables based on different data containers.
     """
-    pass
+    def asDataFrame(self):
+        raise NotImplementedError()
+
+    def asInteger(self):
+        try:
+            first_row = self.__iter__().next()
+            return int(first_row[0])
+        except (KeyError, TypeError) as ex1:
+            raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
+
+    def asRowSet(self):
+        return RowSet(headers=self.headers,
+                      tableId=self.tableId,
+                      etag=self.etag,
+                      rows=[row for row in self])
+
+    def _synapse_store(self, syn):
+        raise NotImplementedError()
+
+    def _synapse_delete(self, syn):
+        """
+        Delete the rows that result from a table query.
+
+        Example::
+            syn.delete(syn.queryTable('select name from %s where no_good = true' % schema1.id))
+        """
+        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
+        return syn.restPOST(uri, body=json.dumps(RowSelection(
+            rowIds=[row['rowId'] for row in self],
+            etag=self.etag,
+            tableId=self.tableId)))
+
+    def __iter__(self):
+        raise NotImplementedError()
+
+
+class RowSetTable(Table):
+    """
+    A Table object that wraps a RowSet.
+    """
+    def __init__(self, schema, rowset, columns=None):
+        self.schema = schema
+        self.rowset = rowset
+
+        self.etag = rowset.get('etag', None)
+        self.tableId = rowset.get('tableId', None)
+        self.i = -1
+
+    def _synapse_store(self, syn):
+        syn.store(self.rowset)
+
+    def asDataFrame(self):
+        test_import_pandas()
+        import pandas as pd
+
+        colmap = {column['id']:column for column in self.columns}
+
+        rownames = ["%s-%s"%(row['rowId'], row['versionNumber']) for row in self.rowset['rows']]
+        series = OrderedDict()
+        for i, header in enumerate(self.rowset["headers"]):
+            column_name = colmap[header]['name']
+            series[column_name] = pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames)
+
+        return pd.DataFrame(data=series, index=rownames)
+
+    def asRowSet(self):
+        return self.rowset
+
+    def asInteger(self):
+        try:
+            return int(self.rowset['rows'][0]['values'][0])
+        except (KeyError, TypeError) as ex1:
+            raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
+
+    def __iter__(self):
+        def iterate_rows(rows):
+            for row in rows:
+                yield row
+        return iterate_rows(self.rowset['rows'])
 
 
 class TableQueryResult(Table):
@@ -402,21 +502,21 @@ class TableQueryResult(Table):
     # import from CSV
     # download CSV
     """
-    def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True, partMask=None):
+    def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True, timeout=synapseclient.TABLE_QUERY_TIMEOUT):
         self.syn = synapse
 
         self.query = query
         self.limit = limit
         self.offset = offset
         self.isConsistent = isConsistent
-        self.partMask = partMask
+        self.timeout = timeout
 
         result = self.syn._queryTable(
             query=query,
             limit=limit,
             offset=offset,
             isConsistent=isConsistent,
-            partMask=partMask)
+            timeout=timeout)
 
         self.rowset = result['queryResult']['queryResults']
         self.nextPageToken = result['queryResult'].get('nextPageToken', None)
@@ -473,20 +573,8 @@ class TableQueryResult(Table):
     def asInteger(self):
         try:
             return int(self.rowset['rows'][0]['values'][0])
-        except:
+        except (KeyError, TypeError) as ex1:
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
-
-    def _synapse_delete(self, syn):
-        """
-        Delete the rows that result from a table query.
-        Example::
-            syn.delete(syn.queryTable('select name from %s where no_good = true' % schema1.id))
-        """
-        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
-        return syn.restPOST(uri, body=json.dumps(RowSelection(
-            rowIds=[row['rowId'] for row in self],
-            etag=self.etag,
-            tableId=self.tableId)))
 
     def __iter__(self):
         return self
@@ -495,7 +583,7 @@ class TableQueryResult(Table):
         self.i += 1
         if self.i >= len(self.rowset['rows']):
             if self.nextPageToken:
-                result = self.syn._queryTableNext(self.nextPageToken)
+                result = self.syn._queryTableNext(self.nextPageToken, timeout=self.timeout)
                 self.rowset = result['queryResults']
                 self.nextPageToken = result.get('nextPageToken', None)
                 self.i = 0
@@ -511,7 +599,7 @@ class CsvFileTable(Table):
     """
 
     @classmethod
-    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
+    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True, timeout=synapseclient.TABLE_QUERY_TIMEOUT):
         """
         Create a Table object wrapping a CSV file resulting from querying a Synapse table.
         Mostly for internal use.
@@ -524,7 +612,8 @@ class CsvFileTable(Table):
             lineEnd=os.linesep,
             separator=separator,
             header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+            timeout=timeout)
 
         self = cls(
             filepath=file_info['path'],
@@ -535,7 +624,8 @@ class CsvFileTable(Table):
             lineEnd=os.linesep,
             separator=separator,
             header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+            timeout=timeout)
 
         self.setColumns(
             columns=list(synapse.getColumns(download_from_table_result['headers'])),
@@ -543,12 +633,14 @@ class CsvFileTable(Table):
 
         return self
 
-    def __init__(self, schema, filepath, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=True, columns=None):
+    def __init__(self, schema, filepath, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, columns=None, timeout=synapseclient.TABLE_QUERY_TIMEOUT):
         self.filepath = filepath
         self.schema = schema
         self.updateEtag = updateEtag
         self.linesToSkip = linesToSkip
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
+        self.timeout = timeout
+        self.columns = columns
 
         ## CsvTableDescriptor fields
         self.quoteCharacter = quoteCharacter
@@ -572,32 +664,39 @@ class CsvFileTable(Table):
             lineEnd=self.lineEnd,
             separator=self.separator,
             header=self.header,
-            linesToSkip=self.linesToSkip)
+            linesToSkip=self.linesToSkip,
+            timeout=self.timeout)
 
         self.updateEtag = upload_to_table_result['etag']
         return self
 
-    def asDataFrame(self):
+    def asDataFrame(self, putRowIdAndVersionInIndex=True):
         test_import_pandas()
         import pandas as pd
 
-        if self.includeRowIdAndRowVersion:
-            df = pd.DataFrame.from_csv(self.filepath, header=0, sep=self.separator)
-            ## combine row-ids (in index) and row-versions (in column 0) to
-            ## make new row labels consisting of the row id and version
-            ## separated by a dash.
-            return pd.DataFrame(data=df.ix[:,1:], index=["%s-%s"%(r,v) for r,v in zip(df.index,df.ix[:,0])])
+        df = pd.DataFrame.from_csv(self.filepath, header=0, sep=self.separator)
+
+        if not putRowIdAndVersionInIndex:
+            return df
+
+        ## file might be in three formats:
+        ##  1) already indexed by rowid-version
+        ##  2) row-id as index and row-version as 1st column
+        ##  3) no row-id and version information
+
+        row_id_version_pattern = re.compile(r'\d+\-\d+')
+
+        if df.index.dtype.char in ['S', 'U', 'O'] and all([row_id_version_pattern.match(unicode(row_name)) for row_name in df.index.values]):
+            return df
+        elif df.index.name=="ROW_ID" and "ROW_VERSION" == df.columns.values[0]:
+                ## combine row-ids (in index) and row-versions (in column 0) to
+                ## make new row labels consisting of the row id and version
+                ## separated by a dash.
+                df2 = df.ix[:,1:]
+                df2.index = ["%s-%s"%(r,v) for r,v in zip(df.index,df.ix[:,0])]
+                return df2
         else:
-            return pd.DataFrame.from_csv(self.filepath, header=0, sep=self.separator)
-
-    def asRowSet(self):
-        return RowSet(headers=self.headers,
-                      tableId=self.tableId,
-                      etag=self.etag,
-                      rows=[row for row in self])
-
-    def asInteger(self):
-        raise NotImplementedError
+            return df
 
     def setColumns(self, columns, headers=None):
         """
@@ -615,18 +714,6 @@ class CsvFileTable(Table):
             self._headers = headers
         else:
             self._headers = [id_of(column) for column in columns]
-
-    def _synapse_delete(self, syn):
-        """
-        Delete the rows that result from a table query.
-        Example::
-            syn.delete(syn.queryTable('select name from %s where no_good = true' % schema1.id))
-        """
-        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
-        return syn.restPOST(uri, body=json.dumps(RowSelection(
-            rowIds=[row['rowId'] for row in self],
-            etag=self.etag,
-            tableId=self.tableId)))
 
     def __iter__(self):
         def iterate_rows(filepath, columns, headers):

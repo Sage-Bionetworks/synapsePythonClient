@@ -43,6 +43,7 @@ import synapseclient
 import synapseclient.utils as utils
 import synapseclient.cache as cache
 import synapseclient.exceptions as exceptions
+from synapseclient import TABLE_QUERY_SLEEP, TABLE_QUERY_BACKOFF, TABLE_QUERY_MAX_SLEEP, TABLE_QUERY_TIMEOUT
 from synapseclient.exceptions import *
 from synapseclient.version_check import version_check
 from synapseclient.utils import id_of, get_properties, KB, MB, _is_json
@@ -77,9 +78,6 @@ ROOT_ENTITY = 'syn4489'
 PUBLIC = 273949  #PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
-
-TABLE_QUERY_MAX_RETRIES = 100
-TABLE_QUERY_WAIT_TIME = 2
 
 
 # Defines the standard retry policy applied to the rest methods
@@ -811,8 +809,8 @@ class Synapse:
 
         ## _before_store hook
         ## give objects a chance to do something before being stored
-        if hasattr(obj, '_before_store'):
-            obj._before_store(self)
+        if hasattr(obj, '_before_synapse_store'):
+            obj._before_synapse_store(self)
 
         ## _synapse_store hook
         ## for objects that know how to store themselves
@@ -2598,19 +2596,28 @@ class Synapse:
     ##                     Tables                             ##
     ############################################################
 
-    def _waitForAsync(self, uri, request, max_retries=TABLE_QUERY_MAX_RETRIES, sleep_time=TABLE_QUERY_WAIT_TIME):
+    def _waitForAsync(self, uri, request, timeout=TABLE_QUERY_TIMEOUT):
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request))
 
-        for i in range(max_retries):
+        # http://rest.synapse.org/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
+        sleep = TABLE_QUERY_SLEEP
+        start_time = time.time()
+        while time.time()-start_time < timeout:
             result = self.restGET(uri+'/get/%s'%async_job_id['token'])
             if result.get('jobState', None) == 'PROCESSING':
-                sys.stdout.write('.')
+                sys.stdout.write(result.get('progressMessage', ''))
+                sys.stdout.write('...')
+                sys.stdout.write(unicode(result.get('progressCurrent', '')))
+                sys.stdout.write('\n')
                 sys.stdout.flush()
-                time.sleep(sleep_time)
+                sleep = min(TABLE_QUERY_MAX_SLEEP, sleep * TABLE_QUERY_BACKOFF)
+                time.sleep(sleep)
             else:
                 break
         else:
-            raise SynapseTimeoutError('Timeout while waiting for query results')
+            raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
+        if result.get('jobState', None) == 'FAILED':
+            raise SynapseError(result.get('errorMessage', None) + '\n' + result.get('errorDetails', None), asynchronousJobStatus=result)
         sys.stdout.write('\n')
         return result
 
@@ -2655,29 +2662,31 @@ class Synapse:
             yield Column(**result)
 
 
-    def queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+    # TODO: make one queryTable method with a resultsAs="csv" or resultsAs="generator"
+    def queryTable(self, query, limit=None, offset=None, isConsistent=True, timeout=TABLE_QUERY_TIMEOUT):
         """
         Query for rows in a table using a SQL-like language::
 
             results = syn.queryTable("select * from syn1234")
             for row in results:
                 print row
-
         """
-        return TableQueryResult(self, query, limit, offset, isConsistent, partMask)
-
-        # query, limit, offset = query_limit_and_offset(query, hard_limit=QUERY_LIMIT)
-        # rowset = self._queryTable(query, countOnly=countOnly, isConsistent=isConsistent)
-        # return RowSet(**rowset)
+        return TableQueryResult(self, query, limit, offset, isConsistent, timeout)
 
 
-    def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
-        # partMask    INTEGER     Optional, default all. The 'partsMask' is an integer mask that can be combined into to request any desired part. The mask is defined as follows:
+    def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None, timeout=TABLE_QUERY_TIMEOUT):
+        """
+        Query a table and return the first page of results as a `QueryResultBundle <http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
+        If the result contains a *nextPageToken*, following pages a retrieved
+        by calling :py:meth:`~._queryTableNext`.
 
-        # Query Results (queryResults) = 0x1
-        # Query Count (queryCount) = 0x2
-        # Select Columns (selectColumns) = 0x4
-        # Max Rows Per Page (maxRowsPerPage) = 0x8
+        :param partMask: Optional, default all. The 'partsMask' is a bit field for requesting
+                         different elements in the resulting JSON bundle.
+                            Query Results (queryResults) = 0x1
+                            Query Count (queryCount) = 0x2
+                            Select Columns (selectColumns) = 0x4
+                            Max Rows Per Page (maxRowsPerPage) = 0x8
+        """
 
         # See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
         query_bundle_request = {
@@ -2696,14 +2705,14 @@ class Synapse:
             query_bundle_request["query"]["offset"] = offset
         query_bundle_request["query"]["isConsistent"] = isConsistent
 
-        return self._waitForAsync(uri='/table/query/async', request=query_bundle_request)
+        return self._waitForAsync(uri='/table/query/async', request=query_bundle_request, timeout=timeout)
 
 
-    def _queryTableNext(self, nextPageToken):
-        return self._waitForAsync(uri='/table/query/nextPage/async', request=nextPageToken)
+    def _queryTableNext(self, nextPageToken, timeout=TABLE_QUERY_TIMEOUT):
+        return self._waitForAsync(uri='/table/query/nextPage/async', request=nextPageToken, timeout=timeout)
 
 
-    def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
+    def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, timeout=TABLE_QUERY_TIMEOUT):
         """
         Send an `UploadToTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
 
@@ -2732,10 +2741,21 @@ class Synapse:
         if updateEtag:
             request["updateEtag"] = updateEtag
 
-        return self._waitForAsync(uri='/table/upload/csv/async', request=request)
+        return self._waitForAsync(uri='/table/upload/csv/async', request=request, timeout=timeout)
 
 
-    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False):
+    def queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False, timeout=TABLE_QUERY_TIMEOUT):
+        return CsvFileTable.from_table_query(self, query,
+            quoteCharacter=quoteCharacter,
+            escapeCharacter=escapeCharacter,
+            lineEnd=lineEnd,
+            separator=separator,
+            header=header,
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+            timeout=timeout)
+
+
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False, timeout=TABLE_QUERY_TIMEOUT):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
@@ -2756,7 +2776,7 @@ class Synapse:
             "writeHeader": header,
             "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
 
-        download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request)
+        download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request, timeout=timeout)
 
         # DownloadFromTableResult
         # headers     ARRAY< STRING >     The list of ColumnModel IDs that describes the rows of this set.

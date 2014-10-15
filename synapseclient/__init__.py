@@ -291,6 +291,11 @@ __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapse
 import requests
 USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
+TABLE_QUERY_SLEEP = 2
+TABLE_QUERY_BACKOFF = 1.1
+TABLE_QUERY_MAX_SLEEP = 20
+TABLE_QUERY_TIMEOUT = 60
+
 from client import Synapse, login
 from activity import Activity
 from entity import Entity, Project, Folder, File
