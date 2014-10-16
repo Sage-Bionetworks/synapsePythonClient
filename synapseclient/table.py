@@ -207,10 +207,27 @@ class Schema(Entity, Versionable):
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
     def addColumn(self, column):
-        self.columnIds.append(id_of(column))
+        if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
+            self.properties.columnIds.append(id_of(column))
+        elif isinstance(column, Column):
+            self.__dict__['columns_to_store'].append(column)
+        else:
+            raise ValueError("Not a column? %s" % unicode(column))
+
+    def addColumns(self, columns):
+        for column in columns:
+            self.addColumn(column)
 
     def removeColumn(self, column):
-        self.columnIds.remove(id_of(column))
+        if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
+            self.properties.columnIds.remove(id_of(column))
+        if isinstance(column, Column):
+            self.__dict__['columns_to_store'].remove(Column)
+
+
+    def has_columns(self):
+        """Does this schema have columns specified?"""
+        return bool(self.properties.get('columnIds',None) or self.__dict__.get('columns_to_store',None))
 
     # def setColumns(self, columns):
     #     for column in columns:
@@ -380,9 +397,9 @@ def create_table(schema, values, **kwargs):
 
     ## pandas DataFrame
     elif pandas_available and isinstance(values, pd.DataFrame):
-        ## figure out columns from data frame if not specified
-        # if not schema.columnIds and not schema.columns_to_store:
-        #     schema.setColumns(as_table_columns(values))
+        ## infer columns from data frame if not specified
+        if not schema.has_columns():
+            schema.addColumns(as_table_columns(values))
 
         f = None
         try:

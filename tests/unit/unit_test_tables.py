@@ -38,6 +38,27 @@ def test_cast_row():
     assert cast_row(row, columns, headers)==[True, 211, 1.61803398875, 1421365]
 
 
+def test_schema():
+    schema = Schema(name='My Table', parent="syn1000001")
+
+    assert not schema.has_columns()
+
+    schema.addColumn(Column(id='1', name='Name', columnType='STRING'))
+
+    assert schema.has_columns()
+    assert schema.properties.columnIds == ['1']
+
+    schema = Schema(name='Another Table', parent="syn1000001")
+
+    schema.addColumns([
+        Column(name='Name', columnType='STRING'),
+        Column(name='Born', columnType='INTEGER'),
+        Column(name='Hipness', columnType='DOUBLE'),
+        Column(name='Living', columnType='BOOLEAN')])
+
+    assert schema.has_columns()
+
+
 def test_as_table_columns():
     try:
         import pandas as pd
