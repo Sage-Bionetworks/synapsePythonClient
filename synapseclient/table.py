@@ -26,6 +26,7 @@ import csv
 import json
 import os
 import re
+import sys
 import tempfile
 from collections import OrderedDict
 from itertools import izip
@@ -348,13 +349,16 @@ class RowSelection(DictObject):
 
 def create_table(schema, values, **kwargs):
     """
-    Combine a table schema and a set of values into a type of Table object.
-    """
+    Combine a table schema and a set of values into some type of Table object
+    depending on what type of values are given.
 
-    # could be a schema with
-    # - rowset
-    # - csv file
-    # - DataFrame
+    :param schema: a table py:class:`Schema` object
+    :param value: an object that holds the content of the tables
+      - a py:class:`RowSet`
+      - a list of lists (or tuples) where each element is a row
+      - a string holding the path to a CSV file
+      - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+    """
 
     try:
         import pandas as pd

@@ -71,9 +71,9 @@ Once that's done, you'll be able to load the library, create a :py:class:`Synaps
 
 For more information, see:
 
-- :py:class:`synapseclient.Synapse`
-- :py:func:`synapseclient.Synapse.login`
-- :py:func:`synapseclient.Synapse.logout`
+- :py:class:`Synapse`
+- :py:func:`Synapse.login`
+- :py:func:`Synapse.logout`
 
 Imports
 =======

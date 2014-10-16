@@ -5,5 +5,13 @@ build
 dist
 virtualenvs
 examples_temp
+.DS_Store
+deploy.sh
 
 doc/_build
+junk/
+nose.cfg
+notes.md
+notes/
+examples/
+jenkins/
