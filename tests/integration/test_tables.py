@@ -30,6 +30,9 @@ def setup(module):
     module.syn = integration.syn
     module.project = integration.project
 
+    print "Crank up timeout on async calls"
+    module.syn.table_query_timeout = 423
+
 
 def test_tables():
 
@@ -89,7 +92,7 @@ def test_tables():
         assert expected_values == row['values'], 'got %s but expected %s' % (row['values'], expected_values)
 
     ## To modify rows, we have to select then first.
-    result2 = syn.queryTable('select * from %s where age>18 and age<30'%schema1.id, timeout=300)
+    result2 = syn.queryTable('select * from %s where age>18 and age<30'%schema1.id)
 
     ## make a change
     rs = result2.asRowSet()
@@ -100,7 +103,7 @@ def test_tables():
     row_reference_set = syn.store(rs)
 
     ## check if the change sticks
-    result3 = syn.queryTable('select name, x, age from %s'%schema1.id, timeout=300)
+    result3 = syn.queryTable('select name, x, age from %s'%schema1.id)
     rs = result3.asRowSet()
 
     for row in rs['rows']:
@@ -180,13 +183,17 @@ def test_tables_csv():
     for expected_row, row in izip(data, result):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
-    from synapseclient.table import CsvFileTable
-    result = CsvFileTable.from_table_query(syn, 'select * from %s' % schema1.id, includeRowIdAndRowVersion=True)
-    print "result.filepath=", result.filepath
-    with open(result.filepath) as f:
-        print f.read()
-    df = result.asDataFrame()
-    print df
+    try:
+        ## check if we have pandas
+        import pandas as pd
+        result = CsvFileTable.from_table_query(syn, "select * from %s where Name='Miles Davis'" % schema1.id, includeRowIdAndRowVersion=True)
+        df = result.asDataFrame()
+        assert df.ix[0,0] == 'Miles Davis'
+        assert df.ix[0,1] == 1926
+        assert df.ix[0,2] == 9.87
+        assert df.ix[0,3] == False
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for CSV tables.\n\n')
 
     expected = {
          True: [True, 1929, 3, 6.4],
@@ -259,7 +266,7 @@ def test_query_rowset_to_dataframe():
             print "added 100 rows"
             rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
-        results = syn.queryTable("select * from %s" % table1.id, timeout=360)
+        results = syn.queryTable("select * from %s" % table1.id)
 
         print "number of rows:", results.count
         print "etag:", results.etag
@@ -295,7 +302,7 @@ def dontruntest_big_tables():
         print "added 100 rows"
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
-    results = syn.queryTable("select * from %s" % table1.id, timeout=360)
+    results = syn.queryTable("select * from %s" % table1.id)
     print "number of rows:", results.count
     print "etag:", results.etag
     print "tableId:", results.tableId
@@ -336,10 +343,10 @@ def dontruntest_big_csvs():
             print "wrote 100 rows to disk"
 
     ## upload CSV
-    UploadToTableResult = syn._uploadCsv(filepath=temp.name, schema=schema1, timeout=300)
+    UploadToTableResult = syn._uploadCsv(filepath=temp.name, schema=schema1)
 
     from synapseclient.table import CsvFileTable
-    results = CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id, timeout=300)
+    results = CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
     print "etag:", results.etag
     print "tableId:", results.tableId
 

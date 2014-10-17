@@ -523,21 +523,19 @@ class TableQueryResult(Table):
     # import from CSV
     # download CSV
     """
-    def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True, timeout=synapseclient.TABLE_QUERY_TIMEOUT):
+    def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True):
         self.syn = synapse
 
         self.query = query
         self.limit = limit
         self.offset = offset
         self.isConsistent = isConsistent
-        self.timeout = timeout
 
         result = self.syn._queryTable(
             query=query,
             limit=limit,
             offset=offset,
-            isConsistent=isConsistent,
-            timeout=timeout)
+            isConsistent=isConsistent)
 
         self.rowset = result['queryResult']['queryResults']
         self.nextPageToken = result['queryResult'].get('nextPageToken', None)
@@ -604,7 +602,7 @@ class TableQueryResult(Table):
         self.i += 1
         if self.i >= len(self.rowset['rows']):
             if self.nextPageToken:
-                result = self.syn._queryTableNext(self.nextPageToken, timeout=self.timeout)
+                result = self.syn._queryTableNext(self.nextPageToken)
                 self.rowset = result['queryResults']
                 self.nextPageToken = result.get('nextPageToken', None)
                 self.i = 0
@@ -620,7 +618,7 @@ class CsvFileTable(Table):
     """
 
     @classmethod
-    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True, timeout=synapseclient.TABLE_QUERY_TIMEOUT):
+    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
         """
         Create a Table object wrapping a CSV file resulting from querying a Synapse table.
         Mostly for internal use.
@@ -633,8 +631,7 @@ class CsvFileTable(Table):
             lineEnd=os.linesep,
             separator=separator,
             header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
-            timeout=timeout)
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
         self = cls(
             filepath=file_info['path'],
@@ -645,8 +642,7 @@ class CsvFileTable(Table):
             lineEnd=os.linesep,
             separator=separator,
             header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
-            timeout=timeout)
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
         self.setColumns(
             columns=list(synapse.getColumns(download_from_table_result['headers'])),
@@ -654,13 +650,12 @@ class CsvFileTable(Table):
 
         return self
 
-    def __init__(self, schema, filepath, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, columns=None, timeout=synapseclient.TABLE_QUERY_TIMEOUT):
+    def __init__(self, schema, filepath, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, columns=None):
         self.filepath = filepath
         self.schema = schema
         self.updateEtag = updateEtag
         self.linesToSkip = linesToSkip
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
-        self.timeout = timeout
         self.columns = columns
 
         ## CsvTableDescriptor fields
@@ -685,8 +680,7 @@ class CsvFileTable(Table):
             lineEnd=self.lineEnd,
             separator=self.separator,
             header=self.header,
-            linesToSkip=self.linesToSkip,
-            timeout=self.timeout)
+            linesToSkip=self.linesToSkip)
 
         self.updateEtag = upload_to_table_result['etag']
         return self
