@@ -1118,28 +1118,6 @@ class Synapse:
         return self.store(entity, used=used, executed=executed, **kwargs)
 
 
-    ## TODO: This code is never used (except in a test). Remove?
-    def _createFileEntity(self, entity, filename=None, used=None, executed=None):
-        """Determine if we want to upload or store the URL."""
-        ## TODO: this should be determined by a parameter not based on magic
-        ## TODO: _createFileEntity() and uploadFile() are kinda redundant - pick one or fold into store()
-        
-        if filename is None:
-            if 'path' in entity:
-                filename = entity.path
-            else:
-                raise SynapseMalformedEntityError('can\'t create a File entity without a file path or URL')
-        if utils.is_url(filename):
-            fileHandle = self._addURLtoFileHandleService(filename)
-            entity['dataFileHandleId'] = fileHandle['id']
-        else:
-            fileHandle = self._chunkedUploadFile(filename)
-            entity['dataFileHandleId'] = fileHandle['id']
-        if 'concreteType' not in entity:
-            entity['concreteType'] = 'org.sagebionetworks.repo.model.FileEntity'
-        return self.createEntity(entity, used=used, executed=executed)
-
-
     def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
         """
         **Deprecated**
