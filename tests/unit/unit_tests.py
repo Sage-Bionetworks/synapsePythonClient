@@ -295,3 +295,10 @@ def test_query_limit_and_offset():
     assert query == "select foo from bar where zap > 2"
     assert limit == 1000
     assert offset == 1
+
+def test_as_urls():
+    assert utils.as_url("C:\\Users\\Administrator\\AppData\\Local\\Temp\\2\\tmpvixuld.txt") == "file:///C:/Users/Administrator/AppData/Local/Temp/2/tmpvixuld.txt"
+    assert utils.as_url("/foo/bar/bat/zoinks.txt") == "file:///foo/bar/bat/zoinks.txt"
+    assert utils.as_url("http://foo/bar/bat/zoinks.txt") == "http://foo/bar/bat/zoinks.txt"
+    assert utils.as_url("ftp://foo/bar/bat/zoinks.txt") == "ftp://foo/bar/bat/zoinks.txt"
+    assert utils.as_url("sftp://foo/bar/bat/zoinks.txt") == "sftp://foo/bar/bat/zoinks.txt"
