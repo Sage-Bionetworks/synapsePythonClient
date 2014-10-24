@@ -340,11 +340,11 @@ def test_synapseStore_flag():
     # Make sure the test runs on Windows and other OS's
     if path[0].isalpha() and path[1]==':':
         # A Windows file URL looks like this: file:///c:/foo/bar/bat.txt
-        expected_url = 'file:///' + path
+        expected_url = 'file:///' + path.replace("\\","/")
     else:
         expected_url = 'file://' + path
 
-    assert bogus.externalURL == expected_url, 'URL: %s\nExpected %s' % (bogus.externalURL, expected_URL)
+    assert bogus.externalURL == expected_url, 'URL: %s\nExpected %s' % (bogus.externalURL, expected_url)
 
     # A file path that doesn't exist should still work
     bogus = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)

@@ -225,11 +225,11 @@ def as_url(s):
     url_parts = urlparse.urlsplit(s)
     ## Windows drive letter?
     if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
-        return 'file:///%s' % str(s)
+        return 'file:///%s' % unicode(s).replace("\\","/")
     if url_parts.scheme:
         return url_parts.geturl()
     else:
-        return 'file://%s' % str(s)
+        return 'file://%s' % unicode(s)
 
 
 def guess_file_name(string):
