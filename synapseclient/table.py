@@ -69,13 +69,15 @@ Create a Synapse Table from a `DataFrame <http://pandas.pydata.org/pandas-docs/s
 
     import pandas as pd
 
+    filepath = '/path/to/samples.csv'
+
     df = pd.DataFrame.from_csv(filepath, header=0, sep='\t', index_col=False)
-    schema = Schema(name='Halo Genes 3', columns=as_table_columns(df), parent=project)
+    schema = Schema(name='Samples', columns=as_table_columns(df), parent=project)
     table = syn.store(create_table(schema, df))
 
 Get query results as a `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_::
 
-    results = syn.queryTable("select * from %s where Chromosome='chromosome' and Start < 900000 and End > 880000" % table.schema.id)
+    results = syn.queryTable("select * from %s where age > 90" % table.schema.id)
     df = results.asDataFrame()
 
 --------------
@@ -135,7 +137,6 @@ The query language is quite similar to SQL select statements, except that joins
 are not supported. The documentation for the Synapse API has lots of
 `query examples <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
 
-
 ~~~~~~
 Schema
 ~~~~~~
@@ -156,6 +157,13 @@ Row
 
 .. autoclass:: synapseclient.table.Row
    :members: __init__
+
+~~~~~~
+Table
+~~~~~~
+
+.. autoclass:: synapseclient.table.Table
+   :members:
 
 ~~~~~~~~~~~~~~~~~~~~
 Module level methods
@@ -191,7 +199,6 @@ from synapseclient.entity import Entity, Versionable
 
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\(c(\d+)\)')
-
 
 DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'd': 'DOUBLE', 'g': 'DOUBLE', 'e': 'DOUBLE', 'f': 'DOUBLE',
@@ -378,7 +385,9 @@ class Schema(Entity, Versionable):
         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
             self.properties.columnIds.append(id_of(column))
         elif isinstance(column, Column):
-            self.__dict__.setdefault('columns_to_store', []).append(column)
+            if not self.__dict__.get('columns_to_store', None):
+                self.__dict__['columns_to_store'] = []
+            self.__dict__['columns_to_store'].append(column)
         else:
             raise ValueError("Not a column? %s" % unicode(column))
 
@@ -394,8 +403,7 @@ class Schema(Entity, Versionable):
         :param column: a column object or its ID
         """
         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
-            colId = id_of(column)
-            self.properties.columnIds.remove(colId)
+            self.properties.columnIds.remove(id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
         else:
@@ -717,11 +725,12 @@ class TableQueryResult(Table):
         self.columns = [Column(**columnModel) for columnModel in result.get('selectColumns', [])]
         self.count = result.get('queryCount', None)
         self.maxRowsPerPage = result.get('maxRowsPerPage', None)
-        self.tableId = self.rowset['tableId']
         self.i = -1
 
-        super(TableQueryResult, self).__init__(self.tableId, etag=self.rowset.get('etag', None))
-
+        super(TableQueryResult, self).__init__(
+            schema=self.rowset.get('tableId', None),
+            headers=self.rowset.get("headers", None),
+            etag=self.rowset.get('etag', None))
 
     def _synapse_store(self, syn):
         raise SynapseError("A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a DataFrame or RowSet instead.")
@@ -833,6 +842,20 @@ class CsvFileTable(Table):
         if not schema.has_columns():
             schema.addColumns(as_table_columns(df))
 
+        ## convert row names in the format [row_id]-[version] back to columns
+        row_id_version_pattern = re.compile(r'(\d+)\-(\d+)')
+
+        row_id = []
+        row_version = []
+        for row_name in df.index.values:
+            m = row_id_version_pattern.match(unicode(row_name))
+            row_id.append(m.group(1) if m else None)
+            row_version.append(m.group(2) if m else None)
+
+        df2 = df.copy()
+        df2['ROW_ID'] = row_id
+        df2['ROW_VERSION'] = row_version
+
         f = None
         try:
             if filepath:
@@ -840,21 +863,6 @@ class CsvFileTable(Table):
             else:
                 f = tempfile.NamedTemporaryFile(delete=False)
                 filepath = f.name
-
-            ## convert row names in the format [row_id]-[version] back to columns
-            row_id_version_pattern = re.compile(r'(\d+)\-(\d+)')
-
-            row_id = []
-            row_version = []
-            for row_name in df.index.values:
-                m = row_id_version_pattern.match(unicode(row_name))
-                row_id.append(m.group(1) if m else None)
-                row_version.append(m.group(2) if m else None)
-
-            df2 = df.copy()
-
-            df2['ROW_ID'] = row_id
-            df2['ROW_VERSION'] = row_version
 
             df2.to_csv(f,
                 index=False,
