@@ -2258,7 +2258,8 @@ class Synapse:
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
             entity = self.get(entity)
-        entity_version = entity['versionNumber']
+        ## version defaults to 1 to hack around required version field and allow submission of files/folders
+        entity_version = entity.get('versionNumber', 1)
         entity_id = entity['id']
 
         name = entity['name'] if (name is None and 'name' in entity) else name
@@ -2502,7 +2503,7 @@ class Synapse:
                                 entity=submission['entityId'],
                                 submission=submission_id, **kwargs)
             submission.entity = related
-            submission.filePath = related['path']
+            submission.filePath = related.get('path', None)
             
         return submission
 
