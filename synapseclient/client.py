@@ -43,7 +43,6 @@ import synapseclient
 import synapseclient.utils as utils
 import synapseclient.cache as cache
 import synapseclient.exceptions as exceptions
-from synapseclient import TABLE_QUERY_SLEEP, TABLE_QUERY_BACKOFF, TABLE_QUERY_MAX_SLEEP, TABLE_QUERY_TIMEOUT
 from synapseclient.exceptions import *
 from synapseclient.version_check import version_check
 from synapseclient.utils import id_of, get_properties, KB, MB, _is_json
@@ -81,10 +80,12 @@ DEBUG_DEFAULT = False
 
 
 # Defines the standard retry policy applied to the rest methods
+## The retry period needs to span a minute because sending
+## messages is limited to 10 per 60 seconds.
 STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503],
                          "retry_errors"      : ['Proxy Error', 'Please slow down'],
                          "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
-                         "retries"           : 6,
+                         "retries"           : 8,
                          "wait"              : 1,
                          "back_off"          : 2}
 
@@ -169,6 +170,12 @@ class Synapse:
         self.apiKey = None
         self.debug = debug
         self.skip_checks = skip_checks
+
+        self.table_query_sleep = 2
+        self.table_query_backoff = 1.1
+        self.table_query_max_sleep = 20
+        self.table_query_timeout = 60
+
         
     
     def getConfigFile(self, configPath):
@@ -1019,7 +1026,7 @@ class Synapse:
         if isinstance(obj, basestring):
             self.restDELETE(uri='/entity/%s' % id_of(obj))
         elif hasattr(obj, "_synapse_delete"):
-            obj._synapse_delete(self)
+            return obj._synapse_delete(self)
         else:
             try:
                 self.restDELETE(obj.deleteURI())
@@ -2251,7 +2258,8 @@ class Synapse:
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
             entity = self.get(entity)
-        entity_version = entity['versionNumber']
+        ## version defaults to 1 to hack around required version field and allow submission of files/folders
+        entity_version = entity.get('versionNumber', 1)
         entity_id = entity['id']
 
         name = entity['name'] if (name is None and 'name' in entity) else name
@@ -2495,7 +2503,7 @@ class Synapse:
                                 entity=submission['entityId'],
                                 submission=submission_id, **kwargs)
             submission.entity = related
-            submission.filePath = related['path']
+            submission.filePath = related.get('path', None)
             
         return submission
 
@@ -2596,13 +2604,13 @@ class Synapse:
     ##                     Tables                             ##
     ############################################################
 
-    def _waitForAsync(self, uri, request, timeout=TABLE_QUERY_TIMEOUT):
+    def _waitForAsync(self, uri, request):
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request))
 
         # http://rest.synapse.org/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
-        sleep = TABLE_QUERY_SLEEP
+        sleep = self.table_query_sleep
         start_time = time.time()
-        while time.time()-start_time < timeout:
+        while time.time()-start_time < self.table_query_timeout:
             result = self.restGET(uri+'/get/%s'%async_job_id['token'])
             if result.get('jobState', None) == 'PROCESSING':
                 sys.stdout.write(result.get('progressMessage', ''))
@@ -2610,7 +2618,7 @@ class Synapse:
                 sys.stdout.write(unicode(result.get('progressCurrent', '')))
                 sys.stdout.write('\n')
                 sys.stdout.flush()
-                sleep = min(TABLE_QUERY_MAX_SLEEP, sleep * TABLE_QUERY_BACKOFF)
+                sleep = min(self.table_query_max_sleep, sleep * self.table_query_backoff)
                 time.sleep(sleep)
             else:
                 break
@@ -2635,22 +2643,31 @@ class Synapse:
         return Column(**self.restGET(Column.getURI(header_to_column_id(id))))
 
 
-    def getColumns(self, headers=None, prefix=None, limit=100, offset=0):
+    def getColumns(self, x, limit=100, offset=0):
         """
         Get all columns defined in Synapse, those corresponding to a set of column
         headers or those whose names start with a given prefix.
+
+        :param x: a list of column headers, a Schema, a TableSchema's Synapse ID, or a string prefix
+        :Return: a generator of Column objects
         """
-        if headers and prefix:
-            raise ValueError("Specify either ids or prefix, not both")
-        if headers:
-            for header in headers:
-                yield self.getColumn(header)
-        else:
+        if x is None:
             uri = '/column'
-            if prefix:
-                uri += '?prefix=' + prefix
             for result in self._GET_paginated(uri, limit=limit, offset=offset):
                 yield Column(**result)
+        elif isinstance(x, (list, tuple)):
+            for header in x:
+                yield self.getColumn(header)
+        elif isinstance(x, Schema) or utils.is_synapse_id(x):
+            uri = '/entity/{id}/column'.format(id=id_of(x))
+            for result in self._GET_paginated(uri, limit=limit, offset=offset):
+                yield Column(**result)
+        elif isinstance(x, basestring):
+            uri = '/column?prefix=' + x
+            for result in self._GET_paginated(uri, limit=limit, offset=offset):
+                yield Column(**result)
+        else:
+            ValueError("Can't get columns for a %s" % type(x))
 
 
     def getTableColumns(self, table, limit=100, offset=0):
@@ -2663,7 +2680,7 @@ class Synapse:
 
 
     # TODO: make one queryTable method with a resultsAs="csv" or resultsAs="generator"
-    def queryTable(self, query, limit=None, offset=None, isConsistent=True, timeout=TABLE_QUERY_TIMEOUT):
+    def queryTable(self, query, limit=None, offset=None, isConsistent=True):
         """
         Query for rows in a table using a SQL-like language::
 
@@ -2671,10 +2688,10 @@ class Synapse:
             for row in results:
                 print row
         """
-        return TableQueryResult(self, query, limit, offset, isConsistent, timeout)
+        return TableQueryResult(self, query, limit, offset, isConsistent)
 
 
-    def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None, timeout=TABLE_QUERY_TIMEOUT):
+    def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
         """
         Query a table and return the first page of results as a `QueryResultBundle <http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
         If the result contains a *nextPageToken*, following pages a retrieved
@@ -2705,14 +2722,14 @@ class Synapse:
             query_bundle_request["query"]["offset"] = offset
         query_bundle_request["query"]["isConsistent"] = isConsistent
 
-        return self._waitForAsync(uri='/table/query/async', request=query_bundle_request, timeout=timeout)
+        return self._waitForAsync(uri='/table/query/async', request=query_bundle_request)
 
 
-    def _queryTableNext(self, nextPageToken, timeout=TABLE_QUERY_TIMEOUT):
-        return self._waitForAsync(uri='/table/query/nextPage/async', request=nextPageToken, timeout=timeout)
+    def _queryTableNext(self, nextPageToken):
+        return self._waitForAsync(uri='/table/query/nextPage/async', request=nextPageToken)
 
 
-    def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, timeout=TABLE_QUERY_TIMEOUT):
+    def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
         """
         Send an `UploadToTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
 
@@ -2741,21 +2758,20 @@ class Synapse:
         if updateEtag:
             request["updateEtag"] = updateEtag
 
-        return self._waitForAsync(uri='/table/upload/csv/async', request=request, timeout=timeout)
+        return self._waitForAsync(uri='/table/upload/csv/async', request=request)
 
 
-    def queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False, timeout=TABLE_QUERY_TIMEOUT):
+    def queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False):
         return CsvFileTable.from_table_query(self, query,
             quoteCharacter=quoteCharacter,
             escapeCharacter=escapeCharacter,
             lineEnd=lineEnd,
             separator=separator,
             header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
-            timeout=timeout)
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
 
-    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False, timeout=TABLE_QUERY_TIMEOUT):
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
@@ -2776,7 +2792,7 @@ class Synapse:
             "writeHeader": header,
             "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
 
-        download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request, timeout=timeout)
+        download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request)
 
         # DownloadFromTableResult
         # headers     ARRAY< STRING >     The list of ColumnModel IDs that describes the rows of this set.

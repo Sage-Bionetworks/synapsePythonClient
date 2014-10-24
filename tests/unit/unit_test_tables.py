@@ -8,6 +8,13 @@ from itertools import izip
 from synapseclient.table import Column, Schema, CsvFileTable, cast_row, as_table_columns, create_table
 
 
+def setup(module):
+    print '\n'
+    print '~' * 60
+    print os.path.basename(__file__)
+    print '~' * 60
+
+
 def test_cast_row():
     columns = [{'id': '353',
                 'name': 'name',
@@ -48,6 +55,10 @@ def test_schema():
     assert schema.has_columns()
     assert schema.properties.columnIds == ['1']
 
+    schema.removeColumn('1')
+    assert not schema.has_columns()
+    assert schema.properties.columnIds == []
+
     schema = Schema(name='Another Table', parent="syn1000001")
 
     schema.addColumns([
@@ -55,8 +66,18 @@ def test_schema():
         Column(name='Born', columnType='INTEGER'),
         Column(name='Hipness', columnType='DOUBLE'),
         Column(name='Living', columnType='BOOLEAN')])
-
     assert schema.has_columns()
+    assert len(schema.columns_to_store) == 4
+    assert Column(name='Name', columnType='STRING') in schema.columns_to_store
+    assert Column(name='Born', columnType='INTEGER') in schema.columns_to_store
+    assert Column(name='Hipness', columnType='DOUBLE') in schema.columns_to_store
+    assert Column(name='Living', columnType='BOOLEAN') in schema.columns_to_store
+
+    schema.removeColumn(Column(name='Living', columnType='BOOLEAN'))
+    assert schema.has_columns()
+    assert len(schema.columns_to_store) == 3
+    assert Column(name='Living', columnType='BOOLEAN') not in schema.columns_to_store
+    assert Column(name='Hipness', columnType='DOUBLE') in schema.columns_to_store
 
 
 def test_as_table_columns():
@@ -108,8 +129,7 @@ def test_csv_table():
     cols.append(Column(id='3', name='Hipness', columnType='DOUBLE'))
     cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
 
-    schema1 = Schema(name='Jazz Guys', columns=cols, parent="syn1000001")
-
+    schema1 = Schema(id='syn1234', name='Jazz Guys', columns=cols, parent="syn1000001")
 
     #TODO: use StringIO.StringIO(data) rather than writing files
 
@@ -128,21 +148,26 @@ def test_csv_table():
         ## need to set columns to read a CSV file
         table.setColumns(cols)
 
-        print "\n\nJazz Guys"
+        ## test iterator
+        #print "\n\nJazz Guys"
         for table_row, expected_row in izip(table, data):
-            print table_row
+            # print table_row
             assert table_row==expected_row
 
+        ## test asRowSet
+        rowset = table.asRowSet()
+        for rowset_row, expected_row in izip(rowset.rows, data):
+            assert rowset_row['values']==expected_row
+
+        ## test asDataFrame
         try:
             import pandas as pd
 
-            print "\nasDataFrame"
             df = table.asDataFrame()
-            print df
+            assert all(df['Born'] == [row[1] for row in data])
 
         except ImportError as e1:
             sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_csv_table.\n\n')
-
 
     except Exception as ex1:
         if filename:
@@ -177,6 +202,20 @@ def test_list_of_rows_table():
     table = create_table(schema1, data)
 
     for table_row, expected_row in izip(table, data):
-        print table_row['values']
         assert table_row['values']==expected_row
 
+    rowset = table.asRowSet()
+    for rowset_row, expected_row in izip(rowset.rows, data):
+        assert rowset_row['values']==expected_row
+
+    table.columns = cols
+
+    ## test asDataFrame
+    try:
+        import pandas as pd
+
+        df = table.asDataFrame()
+        assert all(df['Name'] == [r[0] for r in data])
+
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_list_of_rows_table.\n\n')
