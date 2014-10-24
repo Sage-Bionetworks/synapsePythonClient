@@ -80,10 +80,12 @@ DEBUG_DEFAULT = False
 
 
 # Defines the standard retry policy applied to the rest methods
+## The retry period needs to span a minute because sending
+## messages is limited to 10 per 60 seconds.
 STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503],
                          "retry_errors"      : ['Proxy Error', 'Please slow down'],
                          "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
-                         "retries"           : 6,
+                         "retries"           : 8,
                          "wait"              : 1,
                          "back_off"          : 2}
 
@@ -1024,7 +1026,7 @@ class Synapse:
         if isinstance(obj, basestring):
             self.restDELETE(uri='/entity/%s' % id_of(obj))
         elif hasattr(obj, "_synapse_delete"):
-            obj._synapse_delete(self)
+            return obj._synapse_delete(self)
         else:
             try:
                 self.restDELETE(obj.deleteURI())
@@ -2640,22 +2642,31 @@ class Synapse:
         return Column(**self.restGET(Column.getURI(header_to_column_id(id))))
 
 
-    def getColumns(self, headers=None, prefix=None, limit=100, offset=0):
+    def getColumns(self, x, limit=100, offset=0):
         """
         Get all columns defined in Synapse, those corresponding to a set of column
         headers or those whose names start with a given prefix.
+
+        :param x: a list of column headers, a Schema, a TableSchema's Synapse ID, or a string prefix
+        :Return: a generator of Column objects
         """
-        if headers and prefix:
-            raise ValueError("Specify either ids or prefix, not both")
-        if headers:
-            for header in headers:
-                yield self.getColumn(header)
-        else:
+        if x is None:
             uri = '/column'
-            if prefix:
-                uri += '?prefix=' + prefix
             for result in self._GET_paginated(uri, limit=limit, offset=offset):
                 yield Column(**result)
+        elif isinstance(x, (list, tuple)):
+            for header in x:
+                yield self.getColumn(header)
+        elif isinstance(x, Schema) or utils.is_synapse_id(x):
+            uri = '/entity/{id}/column'.format(id=id_of(x))
+            for result in self._GET_paginated(uri, limit=limit, offset=offset):
+                yield Column(**result)
+        elif isinstance(x, basestring):
+            uri = '/column?prefix=' + x
+            for result in self._GET_paginated(uri, limit=limit, offset=offset):
+                yield Column(**result)
+        else:
+            ValueError("Can't get columns for a %s" % type(x))
 
 
     def getTableColumns(self, table, limit=100, offset=0):
