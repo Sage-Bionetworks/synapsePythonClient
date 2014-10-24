@@ -3,8 +3,145 @@
 Tables
 ******
 
-Table entity
+Synapse Tables enable storage of tabular data in Synapse in a form that can be
+queried using a SQL-like query language.
 
+A table has a :py:class:`Schema` defined in terms of :py:class:`Column` objects
+that specify types from the following choices: STRING, DOUBLE, INTEGER,
+BOOLEAN, DATE, ENTITYID, FILEHANDLEID. Tables hold sets of rows that conform to
+the schema.
+
+~~~~~~~
+Example
+~~~~~~~
+
+Preliminaries::
+
+    import synapseclient
+    from synapseclient import Project, File, Folder, Schema
+    from synapseclient.table import Column, as_table_columns, create_table
+
+    syn = synapseclient.Synapse()
+    syn.login()
+
+    project = syn.get('syn123')
+
+To create a Table, you first need to create a Table :py:class:`Schema`. This
+defines the columns of the table::
+
+    cols = [
+        Column(name='Name', columnType='STRING', maximumSize=20),
+        Column(name='Chromosome', columnType='STRING', maximumSize=20),
+        Column(name='Start', columnType='INTEGER'),
+        Column(name='End', columnType='INTEGER'),
+        Column(name='Strand', columnType='STRING', enumValues=['+', '-'], maximumSize=1),
+        Column(name='TranscriptionFactor', columnType='BOOLEAN')]
+
+    schema = Schema(name='My Favorite Genes', columns=cols, parent=project)
+
+Next, let's load some data into the table from a CSV file::
+
+    table = create_table(schema, "/path/to/genes.csv")
+    table = syn.store(table)
+
+The :py:func:`create_table` function takes two arguments, a schema object and
+data in some form, which can be:
+
+  * a path to a CSV file
+  * a `Pandas <http://pandas.pydata.org/>`_ `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+  * a :py:class:`RowSet` object
+
+With a bit of luck, we now have a table populated with data. Let's try to query::
+
+    results = syn.queryTable("select * from %s where Chromosome='1' and Start < 900000 and End > 880000" % table.schema.id)
+    for row in results:
+        print row['values']
+
+------
+Pandas
+------
+
+`Pandas <http://pandas.pydata.org/>`_ is a popular library for working with
+tabular data. If you have Pandas installed, the goal is that Synapse Tables
+will play nice with it.
+
+Create a Synapse Table from a `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_::
+
+    import pandas as pd
+
+    df = pd.DataFrame.from_csv(filepath, header=0, sep='\t', index_col=False)
+    schema = Schema(name='Halo Genes 3', columns=as_table_columns(df), parent=project)
+    table = syn.store(create_table(schema, df))
+
+Get query results as a `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_::
+
+    results = syn.queryTable("select * from %s where Chromosome='chromosome' and Start < 900000 and End > 880000" % table.schema.id)
+    df = results.asDataFrame()
+
+--------------
+Making changes
+--------------
+
+Updates come in two flavors: appending new rows and updating existing ones.
+
+**Appending** new rows is fairly straightforward. To continue the previous
+example, we might add some new genes from another file::
+
+    table = syn.store(create_table(table.schema.id, "/path/to/more_genes.csv"))
+
+**Updating** rows requires an etag, which identifies the most recent change
+set plus row IDs and version numbers for each row to be modified. We get
+those by querying before updating. Minimizing changesets to contain only rows
+that actually change will make the process faster.
+
+For example, let's update the names of some of our favorite genes::
+
+    results = syn.queryTable("select * from %s where Chromosome='3'" %table.schema.id)
+    df = results.asDataFrame()
+    df['Name'] = ['rzing', 'zing1', 'zing2', 'zing3', 'zing4']
+
+Note that we're propagating the etag from the query results. Without it, we'd
+get an error saying something about an "Invalid etag"::
+
+    table = syn.store(create_table(schema, df, etag=results.etag))
+
+The etag is used by the server to prevent concurrent users from making
+conflicting changes, a technique called optimistic concurrency control. In case
+of a conflict, your update may be rejected. You then have to do another query
+an try your update again.
+
+-------------
+Deleting rows
+-------------
+
+Query for the rows you want to delete and call syn.delete on the results::
+
+    results = syn.queryTable("select * from %s where Chromosome='3'" %table.schema.id)
+    a = syn.delete(results)
+
+------------------------
+Deleting the whole table
+------------------------
+
+Deleting the schema deletes the whole table and all rows::
+
+    syn.delete(schema)
+
+~~~~~~~
+Queries
+~~~~~~~
+
+The query language is quite similar to SQL select statements, except that joins
+are not supported. The documentation for the Synapse API has lots of
+`query examples <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
+
+
+~~~~~~
+Schema
+~~~~~~
+
+.. autoclass:: synapseclient.table.Schema
+   :members:
 
 ~~~~~~
 Column
@@ -13,11 +150,25 @@ Column
 .. autoclass:: synapseclient.table.Column
    :members: __init__
 
+~~~~~~
+Row
+~~~~~~
 
-See:
+.. autoclass:: synapseclient.table.Row
+   :members: __init__
 
+~~~~~~~~~~~~~~~~~~~~
+Module level methods
+~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: as_table_columns
+
+.. autofunction:: create_table
+
+See also:
  - :py:meth:`synapseclient.Synapse.getColumns`
  - :py:meth:`synapseclient.Synapse.getTableColumns`
+ - :py:meth:`synapseclient.Synapse.queryTable`
  - :py:meth:`synapseclient.Synapse.get`
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
@@ -40,6 +191,7 @@ from synapseclient.entity import Entity, Versionable
 
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\(c(\d+)\)')
+
 
 DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'd': 'DOUBLE', 'g': 'DOUBLE', 'e': 'DOUBLE', 'f': 'DOUBLE',
@@ -64,11 +216,11 @@ def test_import_pandas():
 
 def as_table_columns(df):
     """
-    Return a list of Synapse table :py:class:`synapseclient.table.Column` objects that correspond to
+    Return a list of Synapse table :py:class:`Column` objects that correspond to
     the columns in the given `Pandas DataFrame <http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html>`_.
 
     :params df: `Pandas DataFrame <http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html>`_
-    :returns: A list of Synapse table :py:class:`synapseclient.table.Column` objects
+    :returns: A list of Synapse table :py:class:`Column` objects
     """
     # TODO: support Categorical when fully supported in Pandas Data Frames
     cols = list()
@@ -185,7 +337,21 @@ def header_to_column_id(obj):
 
 class Schema(Entity, Versionable):
     """
-    A schema defines the set of columns in a table.
+    A Schema is a :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
+
+    :param name: give the Table Schema object a name
+    :param description:
+    :param columns: a list of :py:class:`Column` objects or their IDs
+    :param parent: the project (file a bug if you'd like folders supported) in Synapse to which this table belongs
+
+    ::
+
+        cols = [Column(name='Isotope', columnType='STRING'),
+                Column(name='Atomic Mass', columnType='INTEGER'),
+                Column(name='Halflife', columnType='DOUBLE'),
+                Column(name='Discovered', columnType='DATE')]
+
+        schema = syn.store(Schema(name='MyTable', columns=cols, parent=project))
     """
     _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
     _local_keys = Entity._local_keys + ['columns_to_store']
@@ -193,7 +359,6 @@ class Schema(Entity, Versionable):
 
     def __init__(self, name=None, columns=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
         self.properties.setdefault('columnIds',[])
-        self.__dict__.setdefault('columns_to_store',[])
         if name: kwargs['name'] = name
         if columns:
             for column in columns:
@@ -207,43 +372,46 @@ class Schema(Entity, Versionable):
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
     def addColumn(self, column):
+        """
+        :param column: a column object or its ID
+        """
         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
             self.properties.columnIds.append(id_of(column))
         elif isinstance(column, Column):
-            self.__dict__['columns_to_store'].append(column)
+            self.__dict__.setdefault('columns_to_store', []).append(column)
         else:
             raise ValueError("Not a column? %s" % unicode(column))
 
     def addColumns(self, columns):
+        """
+        :param columns: a list of column objects or their ID
+        """
         for column in columns:
             self.addColumn(column)
 
     def removeColumn(self, column):
+        """
+        :param column: a column object or its ID
+        """
         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.remove(id_of(column))
-        if isinstance(column, Column):
-            self.__dict__['columns_to_store'].remove(Column)
-
+            colId = id_of(column)
+            self.properties.columnIds.remove(colId)
+        elif isinstance(column, Column) and self.columns_to_store:
+            self.columns_to_store.remove(column)
+        else:
+            ValueError("Can't remove column %s" + unicode(column))
 
     def has_columns(self):
         """Does this schema have columns specified?"""
         return bool(self.properties.get('columnIds',None) or self.__dict__.get('columns_to_store',None))
 
-    # def setColumns(self, columns):
-    #     for column in columns:
-    #         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
-    #             self.properties.setdefault('columnIds',[]).append(id_of(column))
-    #         elif isinstance(column, Column):
-    #             self.__dict__.setdefault('columns_to_store',[]).append(column)
-    #         else:
-    #             raise ValueError("Not a column? %s" % unicode(column))
-
     def _before_synapse_store(self, syn):
         ## store any columns before storing table
-        for column in self.columns_to_store:
-            column = syn.store(column)
-            self.properties.columnIds.append(column.id)
-        self.__dict__['columns_to_store'][:] = []
+        if self.columns_to_store:
+            for column in self.columns_to_store:
+                column = syn.store(column)
+                self.properties.columnIds.append(column.id)
+            self.__dict__['columns_to_store'] = None
 
 
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
@@ -302,8 +470,11 @@ class RowSet(DictObject):
             kwargs.setdefault('headers',[]).extend(schema["columnIds"])
         if schema:
             kwargs['tableId'] = id_of(schema)
-        if not kwargs.get('tableId',None) or not kwargs.get('headers',None):
-            raise ValueError("Table schema ID and column headers must be specified")
+        if not kwargs.get('tableId',None):
+            raise ValueError("Table schema ID must be defined to create a RowSet")
+        if not kwargs.get('headers',None):
+            raise ValueError("Column headers must be defined to create a RowSet")
+
         super(RowSet, self).__init__(kwargs)
 
     def postURI(self):
@@ -322,15 +493,13 @@ class RowSet(DictObject):
             tableId=self.tableId)))
 
 
-# Row
-# org.sagebionetworks.repo.model.table.Row
-# values        ARRAY<STRING>  The values for each column of this row.
-# rowId         INTEGER        The immutable ID issued to a new row.
-# versionNumber INTEGER        The version number of this row. Each row version is immutable, so when a row is updated a new version is created.
-
 class Row(DictObject):
     """
-    A row in a Table.
+    A `row <http://rest.synapse.org/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
+
+    :param values:         A list of values
+    :param rowId:          The immutable ID issued to a new row
+    :param versionNumber:  The version number of this row. Each row version is immutable, so when a row is updated a new version is created.
     """
     def __init__(self, values, rowId=None, versionNumber=None):
         super(Row, self).__init__()
@@ -341,8 +510,11 @@ class Row(DictObject):
 
 class RowSelection(DictObject):
     """
-    A set of rows to be deleted.
-    http://rest.synapse.org/POST/entity/id/table/deleteRows.html
+    A set of rows to be `deleted <http://rest.synapse.org/POST/entity/id/table/deleteRows.html>`_.
+
+    :param rowIds: list of row ids
+    :param etag: etag of latest change set
+    :param tableId: synapse ID of the table schema
     """
     def __init__(self, rowIds, etag, tableId):
         super(RowSelection, self).__init__()
@@ -397,34 +569,27 @@ def create_table(schema, values, **kwargs):
 
     ## pandas DataFrame
     elif pandas_available and isinstance(values, pd.DataFrame):
-        ## infer columns from data frame if not specified
-        if not schema.has_columns():
-            schema.addColumns(as_table_columns(values))
-
-        f = None
-        try:
-            if 'filepath' in kwargs:
-                f = open(kwargs['filepath'])
-            else:
-                f = tempfile.NamedTemporaryFile(delete=False)
-                filepath = f.name
-            values.to_csv(f,
-                index=False,
-                sep=kwargs.get("separator", ","),
-                header=kwargs.get("header", True),
-                quotechar=kwargs.get("quoteCharacter", '"'),
-                escapechar=kwargs.get("escapeCharacter", "\\"),
-                line_terminator=kwargs.get("lineEnd", os.linesep))
-        finally:
-            if f: f.close()
-
-        return CsvFileTable(schema, filepath, **kwargs)
+        return CsvFileTable.from_data_frame(schema, values, **kwargs)
 
 
 class Table(object):
     """
     Abstract base class for Tables based on different data containers.
     """
+    def __init__(self, schema, headers=None, etag=None):
+        if isinstance(schema, Schema):
+            self.schema = schema
+            self.tableId = schema.id if schema and 'id' in schema else None
+            self.headers = headers if headers else schema.columnIds
+            self.etag = etag
+        elif isinstance(schema, basestring):
+            self.schema = None
+            self.tableId = schema
+            self.headers = headers
+            self.etag = etag
+        else:
+            ValueError("Must provide a schema or a synapse ID of a Table Entity")
+
     def asDataFrame(self):
         raise NotImplementedError()
 
@@ -439,7 +604,7 @@ class Table(object):
         return RowSet(headers=self.headers,
                       tableId=self.tableId,
                       etag=self.etag,
-                      rows=[row for row in self])
+                      rows=[row if isinstance(row, Row) else Row(row) for row in self])
 
     def _synapse_store(self, syn):
         raise NotImplementedError()
@@ -457,6 +622,19 @@ class Table(object):
             etag=self.etag,
             tableId=self.tableId)))
 
+    def _get_headers(self):
+        """
+        Determine column headers, which are returned as a list of column IDs
+        """
+        if hasattr(self, "_headers"):
+            return self._headers
+        elif hasattr(self, "columns") and self.columns:
+            return [id_of(column) for column in columns]
+        elif self.schema:
+            return self.schema.columnIds
+        else:
+            AttributeError("Unable to determine column headers")
+
     def __iter__(self):
         raise NotImplementedError()
 
@@ -466,11 +644,9 @@ class RowSetTable(Table):
     A Table object that wraps a RowSet.
     """
     def __init__(self, schema, rowset, columns=None):
-        self.schema = schema
+        super(RowSetTable, self).__init__(schema, etag=rowset.get('etag', None))
         self.rowset = rowset
-
-        self.etag = rowset.get('etag', None)
-        self.tableId = rowset.get('tableId', None)
+        self.columns = columns
         self.i = -1
 
     def _synapse_store(self, syn):
@@ -480,9 +656,15 @@ class RowSetTable(Table):
         test_import_pandas()
         import pandas as pd
 
+        if not self.columns:
+            raise AttributeError('Need to set columns before calling asDataFrame')
         colmap = {column['id']:column for column in self.columns}
 
-        rownames = ["%s-%s"%(row['rowId'], row['versionNumber']) for row in self.rowset['rows']]
+        if any([row['rowId'] for row in self.rowset['rows']]):
+            rownames = ["%s-%s"%(row['rowId'], row['versionNumber']) for row in self.rowset['rows']]
+        else:
+            rownames = None
+
         series = OrderedDict()
         for i, header in enumerate(self.rowset["headers"]):
             column_name = colmap[header]['name']
@@ -515,13 +697,6 @@ class TableQueryResult(Table):
         results = syn.queryTable("select * from syn1234")
         for row in results:
             print row
-
-    # limit
-    # pagesize
-    # does asRowSet return the whole thing? just parts?
-    # convert columns back to their natural types?
-    # import from CSV
-    # download CSV
     """
     def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True):
         self.syn = synapse
@@ -542,9 +717,11 @@ class TableQueryResult(Table):
         self.columns = [Column(**columnModel) for columnModel in result.get('selectColumns', [])]
         self.count = result.get('queryCount', None)
         self.maxRowsPerPage = result.get('maxRowsPerPage', None)
-        self.etag = self.rowset.get('etag', None)
-        self.tableId = self.rowset.get('tableId', None)
+        self.tableId = self.rowset['tableId']
         self.i = -1
+
+        super(TableQueryResult, self).__init__(self.tableId, etag=self.rowset.get('etag', None))
+
 
     def _synapse_store(self, syn):
         raise SynapseError("A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a DataFrame or RowSet instead.")
@@ -636,7 +813,7 @@ class CsvFileTable(Table):
         self = cls(
             filepath=file_info['path'],
             schema=download_from_table_result.get('tableId', None),
-            updateEtag=download_from_table_result.get('etag', None),
+            etag=download_from_table_result.get('etag', None),
             quoteCharacter=quoteCharacter,
             escapeCharacter=escapeCharacter,
             lineEnd=os.linesep,
@@ -650,21 +827,72 @@ class CsvFileTable(Table):
 
         return self
 
-    def __init__(self, schema, filepath, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, columns=None):
+    @classmethod
+    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, columns=None):
+                ## infer columns from data frame if not specified
+        if not schema.has_columns():
+            schema.addColumns(as_table_columns(df))
+
+        f = None
+        try:
+            if filepath:
+                f = open(filepath)
+            else:
+                f = tempfile.NamedTemporaryFile(delete=False)
+                filepath = f.name
+
+            ## convert row names in the format [row_id]-[version] back to columns
+            row_id_version_pattern = re.compile(r'(\d+)\-(\d+)')
+
+            row_id = []
+            row_version = []
+            for row_name in df.index.values:
+                m = row_id_version_pattern.match(unicode(row_name))
+                row_id.append(m.group(1) if m else None)
+                row_version.append(m.group(2) if m else None)
+
+            df2 = df.copy()
+
+            df2['ROW_ID'] = row_id
+            df2['ROW_VERSION'] = row_version
+
+            df2.to_csv(f,
+                index=False,
+                sep=separator,
+                header=header,
+                quotechar=quoteCharacter,
+                escapechar=escapeCharacter,
+                line_terminator=lineEnd)
+        finally:
+            if f: f.close()
+
+        return cls(
+            schema=schema,
+            filepath=filepath,
+            etag=etag,
+            quoteCharacter=quoteCharacter,
+            escapeCharacter=escapeCharacter,
+            lineEnd=lineEnd,
+            separator=separator,
+            header=header,
+            columns=columns)
+
+
+    def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, columns=None):
         self.filepath = filepath
-        self.schema = schema
-        self.updateEtag = updateEtag
-        self.linesToSkip = linesToSkip
+
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
         self.columns = columns
 
         ## CsvTableDescriptor fields
+        self.linesToSkip = linesToSkip
         self.quoteCharacter = quoteCharacter
         self.escapeCharacter = escapeCharacter
         self.lineEnd = lineEnd
         self.separator = separator
         self.header = header
 
+        super(CsvFileTable, self).__init__(schema, headers=[col.id for col in columns] if columns else None, etag=etag)
 
     def _synapse_store(self, syn):
         if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
@@ -674,7 +902,7 @@ class CsvFileTable(Table):
         upload_to_table_result = syn._uploadCsv(
             self.filepath,
             self.schema,
-            updateEtag=self.updateEtag,
+            updateEtag=self.etag,
             quoteCharacter=self.quoteCharacter,
             escapeCharacter=self.escapeCharacter,
             lineEnd=self.lineEnd,
@@ -682,7 +910,7 @@ class CsvFileTable(Table):
             header=self.header,
             linesToSkip=self.linesToSkip)
 
-        self.updateEtag = upload_to_table_result['etag']
+        self.etag = upload_to_table_result['etag']
         return self
 
     def asDataFrame(self, putRowIdAndVersionInIndex=True):
@@ -737,4 +965,4 @@ class CsvFileTable(Table):
                 header = reader.next()
                 for row in reader:
                     yield cast_row(row, columns, headers)
-        return iterate_rows(self.filepath, self.columns, self._headers)
+        return iterate_rows(self.filepath, self.columns, self._get_headers())
