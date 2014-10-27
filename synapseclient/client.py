@@ -2640,7 +2640,7 @@ class Synapse:
 
             column = syn.getColumn(123)
         """
-        return Column(**self.restGET(Column.getURI(header_to_column_id(id))))
+        return Column(**self.restGET(Column.getURI(id)))
 
 
     def getColumns(self, x, limit=100, offset=0):
@@ -2657,7 +2657,11 @@ class Synapse:
                 yield Column(**result)
         elif isinstance(x, (list, tuple)):
             for header in x:
-                yield self.getColumn(header)
+                try:
+                    int(header)
+                    yield self.getColumn(header)
+                except ValueError:
+                    pass
         elif isinstance(x, Schema) or utils.is_synapse_id(x):
             uri = '/entity/{id}/column'.format(id=id_of(x))
             for result in self._GET_paginated(uri, limit=limit, offset=offset):

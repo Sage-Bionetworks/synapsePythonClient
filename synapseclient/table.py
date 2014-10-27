@@ -198,7 +198,7 @@ from synapseclient.entity import Entity, Versionable
 
 
 
-aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\(c(\d+)\)')
+aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 
 DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'd': 'DOUBLE', 'g': 'DOUBLE', 'e': 'DOUBLE', 'f': 'DOUBLE',
@@ -296,7 +296,11 @@ def cast_row(row, columns, headers):
     """
     if len(row) != len(headers):
         raise ValueError('Each field in the row must have a matching header.')
-    col_map = {col['id']:col for col in columns}
+
+    if columns:
+        col_map = {col['id']:col for col in columns}
+    else:
+        col_map = {}
 
     result = []
     for header, field in izip(headers, row):
@@ -311,12 +315,14 @@ def cast_row(row, columns, headers):
                 column_id = m.group(2)
                 if function=='count':
                     type = 'INTEGER'
-                elif function=='avg':
+                elif function in ['avg', 'max', 'min', 'sum']:
                     type = 'DOUBLE'
-                else: ## max, min, sum
-                    type = col_map[column_id]['columnType']
+                # else: ## max, min, sum
+                #     type = col_map[column_id]['columnType']
+                else:
+                    type = 'STRING'
             else:
-                type = col_map[header]['columnType']
+                type = col_map[header]['columnType'] if header in col_map else 'STRING'
 
             ## convert field to column type
             if type in ['STRING', 'DATE', 'ENTITYID', 'FILEHANDLEID']:
@@ -832,7 +838,7 @@ class CsvFileTable(Table):
 
         self.setColumns(
             columns=list(synapse.getColumns(download_from_table_result['headers'])),
-            headers= ['ROW_ID', 'ROW_VERSION'] + download_from_table_result['headers'] if includeRowIdAndRowVersion else download_from_table_result['headers'])
+            headers=['ROW_ID', 'ROW_VERSION'] + download_from_table_result['headers'] if includeRowIdAndRowVersion else download_from_table_result['headers'])
 
         return self
 
