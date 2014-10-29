@@ -315,6 +315,7 @@ def cast_row(row, columns, headers):
                 column_id = m.group(2)
                 if function=='count':
                     type = 'INTEGER'
+                ## TODO re-address this after PLFM-3073 is fixed
                 elif function in ['avg', 'max', 'min', 'sum']:
                     type = 'DOUBLE'
                 # else: ## max, min, sum
@@ -751,11 +752,17 @@ class TableQueryResult(Table):
         ## at a time on the untested theory that it's more efficient than
         ## adding a single row at a time to the data frame.
 
+        def construct_rownames(rowset, i=0):
+            try:
+                return (["%s-%s"%(row['rowId'], row['versionNumber']) for row in rowset['rows']], i+len(rowset['rows']))
+            except KeyError:
+                return (range(i,i+len(rowset['rows'])), i+len(rowset['rows']))
+
         ## first page of rows
-        rownames = ["%s-%s"%(row['rowId'], row['versionNumber']) for row in self.rowset['rows']]
+        rownames, row_count = construct_rownames(self.rowset)
         series = OrderedDict()
         for i, header in enumerate(self.rowset["headers"]):
-            column_name = colmap[header]['name']
+            column_name = colmap[header]['name'] if header in colmap else header
             series[column_name] = pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames)
 
         # subsequent pages of rows
@@ -765,13 +772,12 @@ class TableQueryResult(Table):
             self.nextPageToken = result.get('nextPageToken', None)
             self.i = 0
 
-            new_rownames = ["%s-%s"%(row['rowId'], row['versionNumber']) for row in self.rowset['rows']]
-            rownames.extend(new_rownames)
+            new_rownames, row_count = construct_rownames(self.rowset, i=row_count)
             for i, header in enumerate(self.rowset["headers"]):
-                column_name = colmap[header]['name']
-                series[column_name].append(pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=new_rownames))
+                column_name = colmap[header]['name'] if header in colmap else header
+                series[column_name] = series[column_name].append(pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=new_rownames), verify_integrity=True)
 
-        return pd.DataFrame(data=series, index=rownames)
+        return pd.DataFrame(data=series)
 
     def asRowSet(self):
         ## Note that as of stack 60, an empty query will omit the headers field

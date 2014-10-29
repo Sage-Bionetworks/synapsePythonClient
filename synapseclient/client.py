@@ -2658,6 +2658,8 @@ class Synapse:
         elif isinstance(x, (list, tuple)):
             for header in x:
                 try:
+                    ## if header is an integer, it's a columnID, otherwise it's
+                    ## an aggregate column, like "AVG(Foo)"
                     int(header)
                     yield self.getColumn(header)
                 except ValueError:

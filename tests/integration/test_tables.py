@@ -310,6 +310,12 @@ def dontruntest_big_tables():
     for row in results:
         print row
 
+    results = syn.queryTable("select n, COUNT(n), MIN(x), AVG(x), MAX(x), SUM(x) from %s group by n" % table1.id)
+    df = results.asDataFrame()
+
+    print df.shape
+    print df
+
     ## should count only queries return just the value?
     # result = syn.restPOST('/table/query?isConsistent=true&countOnly=true', body=json.dumps({'sql':'select * from %s limit 100'%table1.id}), retryPolicy=retryPolicy)
     # result_count = result['rows'][0]['values'][0]

@@ -5,7 +5,7 @@ import sys
 import tempfile
 from itertools import izip
 
-from synapseclient.table import Column, Schema, CsvFileTable, cast_row, as_table_columns, create_table
+from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_row, as_table_columns, create_table
 
 
 def setup(module):
@@ -219,3 +219,47 @@ def test_list_of_rows_table():
 
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_list_of_rows_table.\n\n')
+
+
+def test_aggregate_query_result_to_data_frame():
+
+    class Synapse(object):
+        def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+            return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
+                    'maxRowsPerPage': 2,
+                    'queryCount': 4,
+                    'queryResult': {
+                     'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                     'nextPageToken': 'aaaaaaaa',
+                     'queryResults': {'etag': '8c568c77-3827-44a0-8e46-711aeb0fff9b',
+                      'headers': ['1387', 'MIN(Born)', 'COUNT(State)', 'AVG(Hipness)'],
+                      'rows': [
+                       {'values': ['PA', '1935', '2', '1.1']},
+                       {'values': ['MO', '1928', '3', '2.38']}],
+                      'tableId': 'syn2757980'}},
+                    'selectColumns': [{
+                     'columnType': 'BOOLEAN',
+                     'id': '1387',
+                     'name': 'State'}]}
+        def _queryTableNext(self, nextPageToken):
+            return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                    'queryResults': {'etag': '8c568c77-3827-44a0-8e46-711aeb0fff9b',
+                     'headers': ['1387', 'MIN(Born)', 'COUNT(State)', 'AVG(Hipness)'],
+                     'rows': [
+                      {'values': ['DC', '1929', '1', '3.14']},
+                      {'values': ['NC', '1926', '1', '4.38']}],
+                     'tableId': 'syn2757980'}}
+
+    result = TableQueryResult(synapse=Synapse(), query="select Living, min(Born), count(Living), avg(Hipness) from syn2757980 group by Living")
+    df = result.asDataFrame()
+
+    print df
+    assert df.shape == (4,4)
+    assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
+
+    ## check integer, double and boolean types after PLFM-3073 is fixed
+    # assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + unicode(df['MIN(Born)'].values)
+    # assert all(df['COUNT(State)'].values == [2,3,1,1])
+    # assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
+
+
