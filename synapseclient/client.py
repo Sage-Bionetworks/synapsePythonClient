@@ -38,6 +38,7 @@ import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
 import warnings
+import getpass
 
 import synapseclient
 import synapseclient.utils as utils
@@ -874,9 +875,13 @@ class Synapse:
                 
                     # A file has been uploaded, so version should not be incremented if possible
                     forceVersion = False
-                    
                 else:
-                    fileHandle = self._uploadToFileHandleService(entity['path'], \
+                    #TODO LARSSON: 
+                    #Determine upload location and either push to uploadFileHandleService or _sftpUpload
+                    #Alternatively make the sftp upload part of the uploadToFileHandleService and expand
+                    #the parameter list to include the parentId
+                    fileLocation = entity['path'] #self.__uploadExternallyStoringProjects(entity)
+                    fileHandle = self._uploadToFileHandleService(fileLocation, \
                                             synapseStore=entity.get('synapseStore', True),
                                             mimetype=local_state.get('contentType', None))
                     properties['dataFileHandleId'] = fileHandle['id']
@@ -1696,6 +1701,8 @@ class Synapse:
         """
 
         # We expect to be redirected to a signed S3 URL
+        #TODO LARSSON check what kind of URL it is and do other things than blindly calling requests
+        #I.e. if it is a sftp you should fetch the file using sftp.
         response = requests.get(url, headers=self._generateSignedHeaders(url), allow_redirects=False)
         if response.status_code in [301,302,303,307,308]:
             url = response.headers['location']
@@ -1742,10 +1749,9 @@ class Synapse:
         
         if filename is None:
             raise ValueError('No filename given')
-
         elif utils.is_url(filename):
             if synapseStore:
-                raise NotImplementedError('Automatic downloading and storing of external files is not supported.  Please try downloading the file locally first before storing it.')
+                raise NotImplementedError('Automatic downloading and storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
             return self._addURLtoFileHandleService(filename)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
@@ -1983,6 +1989,50 @@ class Synapse:
         if progress: sys.stdout.write("Upload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
 
         return fileHandle
+
+
+    def __uploadExternallyStoringProjects(self, entity):
+        """Determines the upload location of the file and if an external location performs upload and 
+        returns the new url else returns the original path
+ 
+        :param entity: An entity with path.
+
+        :returns: A URL or local file path to add to Synapse
+        """
+        synapseStore=entity.get('synapseStore', True)
+        #TODO Larsson Update the REST call after the update.
+        storageLocations =  self.restGET('/uploadDestinations/%s'% entity.parentId, endpoint=self.fileHandleEndpoint)
+        storageLocations = storageLocations['list']
+        if len(storageLocation)>1 :
+            sys.write.stdout('The file you are uploading can be uploaded to multiple locations',
+                             'please pick one of:')
+            #Should check for prompt!! before halting execution
+            for location in storageLocations:
+                print location['url']
+                pass
+                
+  #             {
+  #   "banner": "This is some banner text", 
+  #   "concreteType": "org.sagebionetworks.repo.model.file.ExternalUploadDestination", 
+  #   "uploadType": "SFTP", 
+  #   "url": "sftp://tcgaftps.nci.nih.gov/tcgapancantestdir/synapse/Larsson-project-settings-test/c97a8570-6dc7-4f42-8d61-38b4b097165c"
+  # }
+  # {
+  #   "concreteType": "org.sagebionetworks.repo.model.file.S3UploadDestination", 
+  #   "uploadType": "S3"
+  # }
+
+            
+
+        self.printEntity(self.restGET('/uploadDestinations/syn2759691', endpoint=self.fileHandleEndpoint)['list'])
+        self.printEntity(storageLocations)
+
+        #If more than 1 item ask which one to use
+        #Print where the upload is going
+        #if S3 synapse storage
+        return entity['path']
+        #Upload to externally stored location
+        
 
     def _uploadStringToFile(self, content, contentType="text/plain"):
         """

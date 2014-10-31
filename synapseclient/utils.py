@@ -28,6 +28,8 @@ File Handling
 .. automethod:: synapseclient.utils.extract_filename
 .. automethod:: synapseclient.utils.file_url_to_path
 .. automethod:: synapseclient.utils.normalize_whitespace
+.. automethod:: synapseclient.utils.sftpUpload
+
 
 ~~~~~~~~
 Chunking
@@ -44,7 +46,6 @@ Testing
 .. automethod:: synapseclient.utils.make_bogus_binary_file
 
 """
-
 #!/usr/bin/env python2.7
 
 import os, sys, urllib, urlparse, hashlib, re
@@ -58,6 +59,7 @@ from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
 
+import pysftp
 
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
@@ -119,6 +121,53 @@ def download_file(url, localFilepath=None):
 
     return localFilepath
 
+
+def sftpUpload(filepath, url, username=None, password=None, progress=True):
+        """
+        Upload a file to be stored on an external sftp server.
+        
+        :param filepath: The file to be uploaded
+
+        :param url: URL where file will be deposited.  Path will be chopped out.
+
+        :param username: username on sftp server
+
+        :param password: password for authentication on the sftp server
+
+        :param progress: Displays progress bar of upload
+        
+        :returns: A URL where file is stored
+        """
+        #TODO LARSSON put the code to upload the file
+        if username is None:
+            getpass.getuser()
+
+        if password is None:
+            password = getpass.getpass()
+
+
+        parsedURL = urlparse.urlparse(url)
+        if parsedURL.scheme!='sftp':
+            raise(NotImplementedError('sftpUpload only supports uploads to URLs of type sftp'))
+        
+
+        with pysftp.Connection(parsedURL.hostname, username='user', password='secret') as sftp:
+            sftp.listdir()
+            #sftp.cd('public') # temporarily chdir to public
+            #sftp.makdirs('pub/show/off') 
+            #sftp.put('/my/local/filename') # upload file to public/ on remote
+            #sftp.get_r('myfiles', '/backup') # recursively copy myfiles/ to local
+
+        return 
+        #scheme='http', 
+        #netloc='netloc', 
+        #path='/path', 
+        #params='parameters', 
+        # query='query=argument', 
+        #fragment='fragment'
+
+
+    
 
 def extract_filename(content_disposition):
     """
