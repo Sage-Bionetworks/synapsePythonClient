@@ -50,7 +50,7 @@ from synapseclient.annotations import from_synapse_annotations, to_synapse_annot
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
-from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, header_to_column_id
+from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable, header_to_column_id
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -2685,6 +2685,50 @@ class Synapse:
             yield Column(**result)
 
 
+    def tableQuery(self, query, resultsAs="csv", **kwargs):
+        """
+        Query a Synapse Table.
+
+        :param query: query string in a `SQL-like syntax <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_::
+
+            SELECT * from syn12345
+
+        :param resultsAs: select whether results are returned as a CSV file or incrementally
+                          downloaded as sets of rows.
+
+        :return: A Table object that serves as a wrapper around a CSV file (or generator if
+                 resultsAs="generator")
+
+        You can receive query results either as a generator over rows or as a CSV file. For
+        smallish tables, either method will work equally well. The generator method allows
+        rows to be processed one at a time and processing may be stopped before downloading
+        the entire table.
+
+        Optional keyword arguments differ for the two return types. For the generator option,
+
+        :param  limit: specify the maximum number of rows to be returned, defaults to None
+        :param offset: don't return the first n rows, defaults to None
+        :param isConsistent: defaults to True. If set to False, return results based on current
+                             state of the index without waiting for pending writes to complete.
+                             Only use this if you know what you're doing.
+
+        For CSV files, there are several parameters to control the format of the resulting file:
+
+        :param quoteCharacter: default double quote
+        :param escapeCharacter: default backslash
+        :param lineEnd: defaults to os.linesep
+        :param separator: defaults to comma
+        :param header: True by default
+        :param includeRowIdAndRowVersion: True by default
+        """
+        if resultsAs.lower()=="generator":
+            return TableQueryResult(self, query, **kwargs)
+        elif resultsAs.lower()=="csv":
+            return CsvFileTable.from_table_query(self, query, **kwargs)
+        else:
+            raise ValueError("Unknown return type requested from tableQuery: " + unicode(resultsAs))
+
+    # TODO: remove
     # TODO: make one queryTable method with a resultsAs="csv" or resultsAs="generator"
     def queryTable(self, query, limit=None, offset=None, isConsistent=True):
         """

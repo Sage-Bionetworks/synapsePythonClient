@@ -59,10 +59,10 @@ def test_tables():
         assert retrieved_col.name == col.name
         assert retrieved_col.columnType == col.columnType
 
-    data1 =[('Chris',  'bar', 11.23, 45, False),
-            ('Jen',    'bat', 14.56, 40, False),
-            ('Jane',   'bat', 17.89,  6, False),
-            ('Henry',  'bar', 10.12,  1, False)]
+    data1 =[['Chris',  'bar', 11.23, 45, False],
+            ['Jen',    'bat', 14.56, 40, False],
+            ['Jane',   'bat', 17.89,  6, False],
+            ['Henry',  'bar', 10.12,  1, False]]
     row_reference_set1 = syn.store(
         RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data1]))
 
@@ -70,10 +70,10 @@ def test_tables():
 
     ## add more new rows
     ## TODO: use 'NaN', '+Infinity', '-Infinity' when supported by server
-    data2 =[('Fred',   'bat', 21.45, 20, True),
-            ('Daphne', 'foo', 27.89, 20, True),
-            ('Shaggy', 'foo', 23.45, 20, True),
-            ('Velma',  'bar', 25.67, 20, True)]
+    data2 =[['Fred',   'bat', 21.45, 20, True],
+            ['Daphne', 'foo', 27.89, 20, True],
+            ['Shaggy', 'foo', 23.45, 20, True],
+            ['Velma',  'bar', 25.67, 20, True]]
     syn.store(
         RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data2]))
 
@@ -82,12 +82,8 @@ def test_tables():
     assert results.count==8
     assert results.tableId==schema1.id
 
-    ## Synapse converts all values to strings
-    def fields_to_strings(fields):
-        return [unicode(a).lower() if isinstance(a, bool) else unicode(a) for a in fields]
-
     ## test that the values made the round trip
-    expected = tuple(fields_to_strings(a) for a in sorted(data1 + data2))
+    expected = sorted(data1 + data2)
     for expected_values, row in izip(expected, results):
         assert expected_values == row['values'], 'got %s but expected %s' % (row['values'], expected_values)
 
@@ -108,10 +104,9 @@ def test_tables():
 
     for row in rs['rows']:
         if int(row['values'][2]) == 20:
-            ## don't forget that numeric values come back as strings
-            assert row['values'][1] == '88.888'
+            assert row['values'][1] == 88.888
 
-    ## add a column
+    ## Add a column
     bday_column = syn.store(Column(name='birthday', columnType='DATE'))
 
     column = syn.getColumn(bday_column.id)
@@ -125,6 +120,7 @@ def test_tables():
     assert results.count==4
     rs = results.asRowSet()
 
+    ## put data in new column
     bdays = ('2013-3-15', '2008-1-3', '1973-12-8', '1969-4-28')
     for bday, row in izip(bdays, rs.rows):
         row['values'][5] = bday
@@ -132,19 +128,38 @@ def test_tables():
 
     ## query by date and check that we get back two kids
     date_2008_jan_1 = utils.to_unix_epoch_time(datetime(2008,1,1))
-    results = syn.queryTable('select name from %s where birthday > %d' % (schema1.id, date_2008_jan_1))
-    assert set(["Jane", "Henry"]) == set([row['values'][0] for row in results])
+    results = syn.queryTable('select name from %s where birthday > %d order by birthday' % (schema1.id, date_2008_jan_1))
+    assert ["Jane", "Henry"] == [row['values'][0] for row in results]
+
+    try:
+        import pandas as pd
+        df = results.asDataFrame()
+        assert all(df.ix[:,"name"] == ["Jane", "Henry"])
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables.\n\n')
 
     results = syn.queryTable('select birthday from %s where cartoon=false order by age' % schema1.id)
     for bday, row in izip(bdays, results):
         expected = str(utils.to_unix_epoch_time(datetime.strptime(bday, '%Y-%m-%d')))
         assert row['values'][0] == expected, "got %s but expected %s" % (row['values'][0], expected)
 
+    try:
+        import pandas as pd
+        results = syn.queryTable("select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id)
+        df = results.asDataFrame()
+        print df
+        assert df.shape == (3,4)
+        assert all(df.iloc[:,0] == ["bar", "bat", "foo"])
+        assert all(df.iloc[:,1] == [88.888, 88.888, 88.888])
+        assert all(df.iloc[:,2] == [3, 3, 2])
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables.\n\n')
+
     ## test delete rows by deleting cartoon characters
     syn.delete(syn.queryTable('select name from %s where cartoon = true'%schema1.id))
 
-    result = syn.queryTable('select name from %s' % schema1.id)
-    assert set(["Jane", "Henry", "Chris", "Jen"]) == set([row['values'][0] for row in result])
+    result = syn.queryTable('select name from %s order by birthday' % schema1.id)
+    assert ["Chris", "Jen", "Jane", "Henry"] == [row['values'][0] for row in result]
 
 
 def test_tables_csv():
@@ -156,7 +171,7 @@ def test_tables_csv():
     cols.append(Column(name='Hipness', columnType='DOUBLE'))
     cols.append(Column(name='Living', columnType='BOOLEAN'))
 
-    schema1 = syn.store(Schema(name='Jazz Guys', columns=cols, parent=project))
+    schema = Schema(name='Jazz Guys', columns=cols, parent=project)
 
     data = [["John Coltrane",  1926, 8.65, False],
             ["Miles Davis",    1926, 9.87, False],
@@ -171,38 +186,82 @@ def test_tables_csv():
     with tempfile.NamedTemporaryFile(delete=False) as temp:
         schedule_for_cleanup(temp.name)
         writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC)
+
+        ## write headers
         writer.writerow([col.name for col in cols])
+
+        ## write data
         for row in data:
             writer.writerow(row)
 
-    ## upload CSV
-    UploadToTableResult = syn._uploadCsv(filepath=temp.name, schema=schema1)
+    ## Upload CSV
+    table = syn.store(create_table(schema, temp.name))
 
-    from synapseclient.table import CsvFileTable
-    result = CsvFileTable.from_table_query(syn, 'select * from %s' % schema1.id, includeRowIdAndRowVersion=False)
-    for expected_row, row in izip(data, result):
+    ## Query and download an identical CSV
+    results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
+
+    ## Test that CSV file came back as expected
+    for expected_row, row in izip(data, results):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
     try:
         ## check if we have pandas
         import pandas as pd
-        result = CsvFileTable.from_table_query(syn, "select * from %s where Name='Miles Davis'" % schema1.id, includeRowIdAndRowVersion=True)
-        df = result.asDataFrame()
-        assert df.ix[0,0] == 'Miles Davis'
-        assert df.ix[0,1] == 1926
-        assert df.ix[0,2] == 9.87
-        assert df.ix[0,3] == False
+
+        df = results.asDataFrame()
+        assert all(df.iloc[1,[0,1,3]] == ['Miles Davis', 1926, False]), "Wasn't expecting:" + unicode(df.iloc[1,[0,1,3]])
+        assert df.iloc[1,2] - 9.87 < 0.0001
+
+        results = syn.tableQuery("select * from %s where Name='Miles Davis'" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=True)
+        df = results.asDataFrame()
+        assert all(df.iloc[0,[0,1,3]] == ['Miles Davis', 1926, False]), "Wasn't expecting:" + unicode(df.iloc[0,[0,1,3]])
+        assert df.iloc[0,2] - 9.87 < 0.0001
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for CSV tables.\n\n')
 
+    ## Aggregate query
     expected = {
-         True: [True, 1929, 3, 6.4],
-        False: [False, 1926, 5, 7.1]}
-    result = CsvFileTable.from_table_query(syn, 'select Living, min(Born), count(Living), avg(Hipness) from %s group by Living' % schema1.id, includeRowIdAndRowVersion=False)
-    for row in result:
+         True: [True, 1929, 3, 6.38],
+        False: [False, 1926, 5, 7.104]}
+
+    results = syn.tableQuery('select Living, min(Born), count(Living), avg(Hipness) from %s group by Living' % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
+    for row in results:
         assert expected[row[0]][1] == row[1]
         assert expected[row[0]][2] == row[2]
-        assert expected[row[0]][3] - row[3] < 0.05
+        assert abs(expected[row[0]][3] - row[3]) < 0.0001
+
+    ## Aggregate query results to DataFrame
+    try:
+        ## check if we have pandas
+        import pandas as pd
+
+        df = results.asDataFrame()
+        assert all(expected[df.iloc[0,0]][0:3] == df.iloc[0,0:3])
+        assert abs(expected[df.iloc[1,0]][3] - df.iloc[1,3]) < 0.0001
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for aggregate queries as CSV tables.\n\n')
+
+    ## Append rows from headerless csv
+    more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
+                      ["Hank Mobley", 1930, 5.67, False]]
+
+    with tempfile.NamedTemporaryFile(delete=False) as temp:
+        schedule_for_cleanup(temp.name)
+        writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC)
+        for row in more_jazz_guys:
+            writer.writerow(row)
+
+    table = syn.store(create_table(table.schema, temp.name, header=False))
+
+    ## query and download
+    results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
+
+    ## test that CSV file now has more jazz guys
+    for expected_row, row in izip(data+more_jazz_guys, results):
+        assert expected_row == row, "expected %s but got %s" % (expected_row, row)
+
+
+# select Category, avg(value1), avg(value2) from syn2791668 group by Category
 
 
 def test_tables_pandas():
@@ -219,7 +278,6 @@ def test_tables_pandas():
 
         cols = as_table_columns(df)
         cols[0].maximumSize = 20
-        print "cols=",cols
         schema = Schema(name="Nifty Table", columns=cols, parent=project)
 
         ## store in Synapse
@@ -232,50 +290,6 @@ def test_tables_pandas():
         ## simulate rowId-version rownames for comparison
         df.index = ['%s-0'%i for i in range(5)]
         assert all(df2 == df)
-
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test_tables_pandas.\n\n')
-
-
-def test_query_rowset_to_dataframe():
-    try:
-        import pandas as pd
-
-        print "Project ID:", project.id
-        del integration._to_cleanup[:]
-
-        cols = []
-        cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
-        cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
-        cols.append(Column(name='x', columnType='DOUBLE'))
-        cols.append(Column(name='n', columnType='INTEGER'))
-        cols.append(Column(name='is_bogus', columnType='BOOLEAN'))
-
-        table1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
-
-        print "Created table:", table1.id
-        print "with columns:", table1.columnIds
-
-        n = 3
-        m = 100
-        for i in range(n):
-            rows = []
-            for j in range(m):
-                foo = cols[1].enumValues[random.randint(0,2)]
-                rows.append(Row(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
-            print "added 100 rows"
-            rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
-
-        results = syn.queryTable("select * from %s" % table1.id)
-
-        print "number of rows:", results.count
-        print "etag:", results.etag
-        print "tableId:", results.tableId
-
-        df = results.asDataFrame()
-
-        assert df.shape == (n*m, len(cols))
-        assert tuple(df.columns) == ('name', 'foo', 'x', 'n', 'is_bogus')
 
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test_tables_pandas.\n\n')

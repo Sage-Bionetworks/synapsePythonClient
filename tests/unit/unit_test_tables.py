@@ -238,7 +238,7 @@ def test_aggregate_query_result_to_data_frame():
                        {'values': ['MO', '1928', '3', '2.38']}],
                       'tableId': 'syn2757980'}},
                     'selectColumns': [{
-                     'columnType': 'BOOLEAN',
+                     'columnType': 'STRING',
                      'id': '1387',
                      'name': 'State'}]}
         def _queryTableNext(self, nextPageToken):
@@ -250,10 +250,9 @@ def test_aggregate_query_result_to_data_frame():
                       {'values': ['NC', '1926', '1', '4.38']}],
                      'tableId': 'syn2757980'}}
 
-    result = TableQueryResult(synapse=Synapse(), query="select Living, min(Born), count(Living), avg(Hipness) from syn2757980 group by Living")
+    result = TableQueryResult(synapse=Synapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
     df = result.asDataFrame()
 
-    print df
     assert df.shape == (4,4)
     assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
 

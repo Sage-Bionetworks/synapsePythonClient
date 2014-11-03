@@ -71,7 +71,7 @@ Create a Synapse Table from a `DataFrame <http://pandas.pydata.org/pandas-docs/s
 
     filepath = '/path/to/samples.csv'
 
-    df = pd.DataFrame.from_csv(filepath, header=0, sep='\t', index_col=False)
+    df = pd.read_csv(filepath, header=0, sep='\t', index_col=False)
     schema = Schema(name='Samples', columns=as_table_columns(df), parent=project)
     table = syn.store(create_table(schema, df))
 
@@ -295,6 +295,8 @@ def cast_row(row, columns, headers):
     See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/ColumnType.html
     """
     if len(row) != len(headers):
+        print "row=", row
+        print "headers=", headers
         raise ValueError('Each field in the row must have a matching header.')
 
     if columns:
@@ -338,6 +340,12 @@ def cast_row(row, columns, headers):
                 raise ValueError("Unknown column type: %s" % type)
 
     return result
+
+
+def cast_row_set(rowset, columns):
+    for i, row in enumerate(rowset['rows']):
+        rowset['rows'][i]['values'] = cast_row(row['values'], columns, rowset['headers'])
+    return rowset
 
 
 def header_to_column_id(obj):
@@ -479,10 +487,11 @@ class RowSet(DictObject):
     """
 
     def __init__(self, columns=None, schema=None, **kwargs):
-        if columns:
-            kwargs.setdefault('headers',[]).extend([id_of(column) for column in columns])
-        elif schema:
-            kwargs.setdefault('headers',[]).extend(schema["columnIds"])
+        if not 'headers' in kwargs:
+            if columns:
+                kwargs.setdefault('headers',[]).extend([id_of(column) for column in columns])
+            elif schema and isinstance(schema, Schema):
+                kwargs.setdefault('headers',[]).extend(schema["columnIds"])
         if schema:
             kwargs['tableId'] = id_of(schema)
         if not kwargs.get('tableId',None):
@@ -572,11 +581,11 @@ def create_table(schema, values, **kwargs):
 
     ## a RowSet
     if isinstance(values, RowSet):
-        return RowSetTable(schema, values)
+        return RowSetTable(schema, values, **kwargs)
 
     ## a list of rows
     elif isinstance(values, (list, tuple)):
-        return RowSetTable(schema, RowSet(schema=schema, rows=[Row(r) for r in values]))
+        return RowSetTable(schema, RowSet(schema=schema, rows=[Row(r) for r in values], **kwargs))
 
     ## filename of a csv file
     elif isinstance(values, basestring):
@@ -727,9 +736,9 @@ class TableQueryResult(Table):
             offset=offset,
             isConsistent=isConsistent)
 
-        self.rowset = result['queryResult']['queryResults']
-        self.nextPageToken = result['queryResult'].get('nextPageToken', None)
         self.columns = [Column(**columnModel) for columnModel in result.get('selectColumns', [])]
+        self.rowset = cast_row_set(result['queryResult']['queryResults'], columns=self.columns)
+        self.nextPageToken = result['queryResult'].get('nextPageToken', None)
         self.count = result.get('queryCount', None)
         self.maxRowsPerPage = result.get('maxRowsPerPage', None)
         self.i = -1
@@ -743,6 +752,9 @@ class TableQueryResult(Table):
         raise SynapseError("A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a DataFrame or RowSet instead.")
 
     def asDataFrame(self):
+        """
+        Convert query result to a Pandas DataFrame.
+        """
         test_import_pandas()
         import pandas as pd
 
@@ -768,7 +780,7 @@ class TableQueryResult(Table):
         # subsequent pages of rows
         while self.nextPageToken:
             result = self.syn._queryTableNext(self.nextPageToken)
-            self.rowset = result['queryResults']
+            self.rowset = cast_row_set(result['queryResults'], self.columns)
             self.nextPageToken = result.get('nextPageToken', None)
             self.i = 0
 
@@ -801,7 +813,7 @@ class TableQueryResult(Table):
         if self.i >= len(self.rowset['rows']):
             if self.nextPageToken:
                 result = self.syn._queryTableNext(self.nextPageToken)
-                self.rowset = result['queryResults']
+                self.rowset = cast_row_set(result['queryResults'])
                 self.nextPageToken = result.get('nextPageToken', None)
                 self.i = 0
             else:
@@ -850,8 +862,8 @@ class CsvFileTable(Table):
 
     @classmethod
     def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, columns=None):
-                ## infer columns from data frame if not specified
-        if not schema.has_columns():
+        ## infer columns from data frame if not specified
+        if isinstance(schema, Schema) and not schema.has_columns():
             schema.addColumns(as_table_columns(df))
 
         ## convert row names in the format [row_id]-[version] back to columns
@@ -921,7 +933,7 @@ class CsvFileTable(Table):
 
         upload_to_table_result = syn._uploadCsv(
             self.filepath,
-            self.schema,
+            self.schema if self.schema else self.tableId,
             updateEtag=self.etag,
             quoteCharacter=self.quoteCharacter,
             escapeCharacter=self.escapeCharacter,
@@ -933,33 +945,27 @@ class CsvFileTable(Table):
         self.etag = upload_to_table_result['etag']
         return self
 
-    def asDataFrame(self, putRowIdAndVersionInIndex=True):
+    def asDataFrame(self, rowIdAndVersionInIndex=True):
         test_import_pandas()
         import pandas as pd
 
-        df = pd.DataFrame.from_csv(self.filepath, header=0, sep=self.separator)
+        df = pd.read_csv(self.filepath,
+                sep=self.separator,
+                lineterminator=self.lineEnd,
+                quotechar=self.quoteCharacter,
+                escapechar=self.escapeCharacter,
+                header = 0 if self.header else None,
+                skiprows=self.linesToSkip)
 
-        if not putRowIdAndVersionInIndex:
-            return df
+        if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
+            ## combine row-ids (in index) and row-versions (in column 0) to
+            ## make new row labels consisting of the row id and version
+            ## separated by a dash.
+            df.index = ["%s-%s"%(r,v) for r,v in izip(df["ROW_ID"], df["ROW_VERSION"])]
+            del df["ROW_ID"]
+            del df["ROW_VERSION"]
 
-        ## file might be in three formats:
-        ##  1) already indexed by rowid-version
-        ##  2) row-id as index and row-version as 1st column
-        ##  3) no row-id and version information
-
-        row_id_version_pattern = re.compile(r'\d+\-\d+')
-
-        if df.index.dtype.char in ['S', 'U', 'O'] and all([row_id_version_pattern.match(unicode(row_name)) for row_name in df.index.values]):
-            return df
-        elif df.index.name=="ROW_ID" and "ROW_VERSION" == df.columns.values[0]:
-                ## combine row-ids (in index) and row-versions (in column 0) to
-                ## make new row labels consisting of the row id and version
-                ## separated by a dash.
-                df2 = df.ix[:,1:]
-                df2.index = ["%s-%s"%(r,v) for r,v in zip(df.index,df.ix[:,0])]
-                return df2
-        else:
-            return df
+        return df
 
     def setColumns(self, columns, headers=None):
         """
