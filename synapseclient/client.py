@@ -877,11 +877,7 @@ class Synapse:
                     # A file has been uploaded, so version should not be incremented if possible
                     forceVersion = False
                 else:
-                    #TODO LARSSON: 
-                    #Determine upload location and either push to uploadFileHandleService or _sftpUpload
-                    #Alternatively make the sftp upload part of the uploadToFileHandleService and expand
-                    #the parameter list to include the parentId
-                    fileLocation = entity['path'] #self.__uploadExternallyStoringProjects(entity)
+                    fileLocation =  self.__uploadExternallyStoringProjects(entity)
                     fileHandle = self._uploadToFileHandleService(fileLocation, \
                                             synapseStore=entity.get('synapseStore', True),
                                             mimetype=local_state.get('contentType', None))
@@ -944,7 +940,6 @@ class Synapse:
         
         if used or executed:
             if activity is not None:
-                ## TODO: move this argument check closer to the front of the method
                 raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
             activityName = kwargs.get('activityName', None)
             activityDescription = kwargs.get('activityDescription', None)
@@ -1993,47 +1988,39 @@ class Synapse:
 
 
     def __uploadExternallyStoringProjects(self, entity):
-        """Determines the upload location of the file and if an external location performs upload and 
-        returns the new url else returns the original path
+        """Determines the upload location of the file based on project settings and if it is 
+        an external location performs upload and returns the new url and sets synapseStore=False. 
+        It not an external storage location returns the  original path.
  
         :param entity: An entity with path.
 
         :returns: A URL or local file path to add to Synapse
         """
-        synapseStore=entity.get('synapseStore', True)
-        #TODO Larsson Update the REST call after the update.
-        #syn.restGET('/entity/syn2790692/uploadDestinations'
-        storageLocations =  self.restGET('/uploadDestinations/%s'% entity.parentId, endpoint=self.fileHandleEndpoint)
+        storageLocations =  self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
+                                         endpoint=self.fileHandleEndpoint)
         storageLocations = storageLocations['list']
-        if len(storageLocation)>1 :
-            sys.write.stdout('The file you are uploading can be uploaded to multiple locations',
-                             'please pick one of:')
-            #Should check for prompt!! before halting execution
-            for location in storageLocations:
-                print location['url']
-                pass
-                
-  #             {
-  #   "banner": "This is some banner text", 
-  #   "concreteType": "org.sagebionetworks.repo.model.file.ExternalUploadDestination", 
-  #   "uploadType": "SFTP", 
-  #   "url": "sftp://tcgaftps.nci.nih.gov/tcgapancantestdir/synapse/Larsson-project-settings-test/c97a8570-6dc7-4f42-8d61-38b4b097165c"
-  # }
-  # {
-  #   "concreteType": "org.sagebionetworks.repo.model.file.S3UploadDestination", 
-  #   "uploadType": "S3"
-  # }
-
-            
-
-        self.printEntity(self.restGET('/uploadDestinations/syn2759691', endpoint=self.fileHandleEndpoint)['list'])
-        self.printEntity(storageLocations)
-
-        #If more than 1 item ask which one to use
-        #Print where the upload is going
-        #if S3 synapse storage
-        return entity['path']
-        #Upload to externally stored location
+        if len(storageLocations)>1 :
+            sys.stderr.stdout('You are uploading to a project that supports multiple storage '
+                              'locations. Default upload location is...\n')
+            #TODO Should check for prompt and perhaps ask for the desired location...
+            #for location in storageLocations:
+            #    ...
+        location = storageLocations[0]
+        #write banner
+        if location['uploadType'] == 'S3':
+            sys.stdout.write('\n' + '#'*50+'\n')
+            sys.stdout.write('Uploading file to Synapse storage')
+            sys.stdout.write('\n'+'#'*50+'\n')
+            return entity['path']
+        elif location['uploadType'] == 'SFTP':
+            entity['synapseStore'] = False
+            sys.stdout.write('\n' + '#'*50+'\n')
+            sys.stdout.write(location.get('banner', '')+'\n')
+            sys.stdout.write('Uploading to: '+urlparse.urlparse(location['url'].netloc))
+            sys.stdout.write('\n#'*50+'\n')
+            return self._sftpUploadFile(entity.path, location['url'])
+        else:
+            raise NotImplementedError('Can only handle S3 and SFTP upload locations.')
         
 
     def __getUserCredentials(self, url, username=None, password=None):
@@ -2079,11 +2066,11 @@ class Synapse:
 
         :returns: A URL where file is stored
         """
-        username, password = self.__getUserCredentials(url, username, password)
         parsedURL = urlparse.urlparse(url)
         if parsedURL.scheme!='sftp':
             raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
                                       " form sftp://..."))
+        username, password = self.__getUserCredentials(url, username, password)
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.makedirs(parsedURL.path)
             with sftp.cd(parsedURL.path):
