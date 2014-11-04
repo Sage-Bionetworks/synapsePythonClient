@@ -692,11 +692,9 @@ class Synapse:
                         if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                             entity['externalURL'] = handle['externalURL']
                             entity['synapseStore'] = False
-                            
                             # It is unnecessary to hit the caching logic for external URLs not being downloaded
                             if not downloadFile:
                                 return entity
-
             # Make sure the download location is fully resolved
             downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
             if downloadLocation is not None and os.path.isfile(downloadLocation):
@@ -706,7 +704,6 @@ class Synapse:
             downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
             if downloadFile: 
                 downloadFile = cache.local_file_has_changed(entityBundle, True, downloadPath)
-                
             # Determine where the file should be downloaded to
             if downloadFile:
                 _, localPath, _ = cache.determine_local_file_location(entityBundle)
@@ -723,15 +720,13 @@ class Synapse:
                 elif os.path.exists(downloadPath):
                     if ifcollision == "overwrite.local":
                         pass
-                        
                     elif ifcollision == "keep.local":
                         downloadFile = False
-                        
                     elif ifcollision == "keep.both":
                         downloadPath = cache.get_alternate_file_name(downloadPath)
-                        
                     else:
-                        raise ValueError('Invalid parameter: "%s" is not a valid value for "ifcollision"' % ifcollision)
+                        raise ValueError('Invalid parameter: "%s" is not a valid value '
+                                         'for "ifcollision"' % ifcollision)
 
             if downloadFile:
                 if isLocationable:
@@ -751,7 +746,7 @@ class Synapse:
                         and 'path' in entity \
                         and (entity['path'] is None or not os.path.exists(entity['path'])):
                     entity['synapseStore'] = False
-                    
+
             # Send the Entity's dictionary to the update the file cache
             if 'path' in entity.keys():
                 cache.add_local_file_to_cache(**entity)
@@ -759,7 +754,6 @@ class Synapse:
                 cache.add_local_file_to_cache(path=entity['path'], **entity)
             elif downloadPath is not None:
                 cache.add_local_file_to_cache(path=downloadPath, **entity)
-
         return entity
 
 
@@ -810,7 +804,6 @@ class Synapse:
             test_entity = syn.store(test_entity, activity=activity)
 
         """
-        
         createOrUpdate = kwargs.get('createOrUpdate', True)
         forceVersion = kwargs.get('forceVersion', True)
         versionLabel = kwargs.get('versionLabel', None)
@@ -854,12 +847,10 @@ class Synapse:
         properties, annotations, local_state = split_entity_namespaces(entity)
         isLocationable = is_locationable(properties)
         bundle = None
-
         # Anything with a path is treated as a cache-able item (FileEntity or Locationable)
         if entity.get('path', False):
             if 'concreteType' not in properties:
                 properties['concreteType'] = File._synapse_entity_type
-                
             # Make sure the path is fully resolved
             entity['path'] = os.path.expanduser(entity['path'])
             
@@ -1751,17 +1742,17 @@ class Synapse:
         elif utils.is_url(filename):
             if synapseStore:
                 raise NotImplementedError('Automatic downloading and storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
-            return self._addURLtoFileHandleService(filename)
+            return self._addURLtoFileHandleService(filename, mimetype=mimetype)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
             if synapseStore:
                 return self._chunkedUploadFile(filename, mimetype=mimetype)
             else:
-                return self._addURLtoFileHandleService(filename)
+                return self._addURLtoFileHandleService(filename, mimetype=mimetype)
 
         
-    def _addURLtoFileHandleService(self, externalURL):
+    def _addURLtoFileHandleService(self, externalURL, mimetype=None):
         """Create a new FileHandle representing an external URL."""
         
         fileName = externalURL.split('/')[-1]
@@ -1769,8 +1760,9 @@ class Synapse:
         fileHandle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
                       'fileName'    : fileName,
                       'externalURL' : externalURL}
-        (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
-        if mimetype:
+        if mimetype is None:
+            (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
+        if mimetype is not None:
             fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
 
@@ -1990,15 +1982,21 @@ class Synapse:
         return fileHandle
 
 
-    def __uploadExternallyStoringProjects(self, entity):
+    def __uploadExternallyStoringProjects(self, entity, local_state):
         """Determines the upload location of the file based on project settings and if it is 
         an external location performs upload and returns the new url and sets synapseStore=False. 
         It not an external storage location returns the  original path.
  
         :param entity: An entity with path.
 
-        :returns: A URL or local file path to add to Synapse
+        :returns: A URL or local file path to add to Synapse along with an update local_state
+                  containing externalURL and content-type
         """
+        #If it is already an exteranal URL just return
+        if utils.is_url(entity['path']):
+            local_state['externalURL'] = entity['path']
+            return entity['path'], local_state
+
         storageLocations =  self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
                                          endpoint=self.fileHandleEndpoint)
         storageLocations = storageLocations['list']
@@ -2009,19 +2007,25 @@ class Synapse:
             #for location in storageLocations:
             #    ...
         location = storageLocations[0]
-        #write banner
         if location['uploadType'] == 'S3':
             sys.stdout.write('\n' + '#'*50+'\n')
             sys.stdout.write('Uploading file to Synapse storage')
             sys.stdout.write('\n'+'#'*50+'\n')
-            return entity['path']
+            return entity['path'], local_state
         elif location['uploadType'] == 'SFTP':
             entity['synapseStore'] = False
             sys.stdout.write('\n' + '#'*50+'\n')
-            sys.stdout.write(location.get('banner', '')+'\n')
-            sys.stdout.write('Uploading to: '+urlparse.urlparse(location['url'].netloc))
-            sys.stdout.write('\n#'*50+'\n')
-            return self._sftpUploadFile(entity.path, location['url'])
+            sys.stdout.write(location.get('banner', ''))
+            sys.stdout.write('Uploading to: '+urlparse.urlparse(location['url']).netloc)
+            sys.stdout.write('\n'+'#'*50+'\n')
+            #Fill out local_state with fileSize, externalURL etc...
+            uploadLocation = self._sftpUploadFile(entity['path'], location['url'])
+            local_state['externalURL'] = uploadLocation
+            local_state['fileSize'] = os.stat(entity['path']).st_size
+            if local_state.get('contentType') is None:
+                mimetype, enc = mimetypes.guess_type(entity['path'], strict=False)
+                local_state['contentType'] = mimetype
+            return uploadLocation, local_state
         else:
             raise NotImplementedError('Can only handle S3 and SFTP upload locations.')
         
