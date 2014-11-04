@@ -39,6 +39,7 @@ import zipfile
 import mimetypes
 import warnings
 import getpass
+import pysftp
 
 import synapseclient
 import synapseclient.utils as utils
@@ -2001,6 +2002,7 @@ class Synapse:
         """
         synapseStore=entity.get('synapseStore', True)
         #TODO Larsson Update the REST call after the update.
+        #syn.restGET('/entity/syn2790692/uploadDestinations'
         storageLocations =  self.restGET('/uploadDestinations/%s'% entity.parentId, endpoint=self.fileHandleEndpoint)
         storageLocations = storageLocations['list']
         if len(storageLocation)>1 :
@@ -2032,6 +2034,63 @@ class Synapse:
         #if S3 synapse storage
         return entity['path']
         #Upload to externally stored location
+        
+
+    def __getUserCredentials(self, url, username=None, password=None):
+        """Get user credentials for a specified URL by either looking in the configFile
+        or querying the user.
+
+        :param username: username on server (optionally specified)
+
+        :param password: password for authentication on the server (optionally specified)
+
+        :returns: tuple of username, password
+        """
+        parsedURL = urlparse.urlparse(url)
+
+        #Get authentication information from configFile
+        config = self.getConfigFile(self.configPath)
+        if username is None and config.has_option(parsedURL.netloc, 'username'):
+            username = config.get(parsedURL.netloc, 'username') 
+        if password is None and config.has_option(parsedURL.netloc, 'password'):
+            password = config.get(parsedURL.netloc, 'password')
+        #If I still don't have a username and password prompt for it
+        if username is None:
+            username = getpass.getuser()  #Default to login name
+            user =  raw_input('Username (%s):' %username)
+            username = username if user=='' else user
+        if password is None:
+            password = getpass.getpass()
+        return username, password
+
+
+    def _sftpUploadFile(self, filepath, url, username=None, password=None):
+        """
+        Performs upload of a local file to an sftp server.
+        
+        :param filepath: The file to be uploaded
+
+        :param url: URL where file will be deposited. Should inclue path and protocol. e.g.
+                    sftp://sftp.example.com/path/to/file/store
+
+        :param username: username on sftp server
+
+        :param password: password for authentication on the sftp server
+
+        :returns: A URL where file is stored
+        """
+        username, password = self.__getUserCredentials(url, username, password)
+        parsedURL = urlparse.urlparse(url)
+        if parsedURL.scheme!='sftp':
+            raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
+                                      " form sftp://..."))
+        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
+            sftp.makedirs(parsedURL.path)
+            with sftp.cd(parsedURL.path):
+                sftp.put(filepath, preserve_mtime=True)
+
+        parsedURL = parsedURL._replace(path=parsedURL.path+'/'+os.path.split(filepath)[-1])
+        return urlparse.urlunparse(parsedURL)
         
 
     def _uploadStringToFile(self, content, contentType="text/plain"):
