@@ -1264,7 +1264,7 @@ class Synapse:
         
         Example::
         
-            results = syn.query("select id, name from entity where entity.parentId=='syn449742'")
+            results = syn.chunkedQuery("select id, name from entity where entity.parentId=='syn449742'")
             for res in results:
                 print res['entity.id']
         
