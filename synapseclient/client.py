@@ -1664,7 +1664,8 @@ class Synapse:
         """
         
         if submission is not None:
-            url = '%s/evaluation/submission/%s/file/%s' % (self.repoEndpoint, id_of(submission), entity['dataFileHandleId'])
+            url = '%s/evaluation/submission/%s/file/%s' % (self.repoEndpoint, id_of(submission), 
+                                                           entity['dataFileHandleId'])
         elif 'versionNumber' in entity:
             url = '%s/entity/%s/version/%s/file' % (self.repoEndpoint, id_of(entity), entity['versionNumber'])
         else:
@@ -1686,6 +1687,9 @@ class Synapse:
         :returns: A file info dictionary with keys path, cacheDir, files
         """
         # We expect to be redirected to a signed S3 URL or externalURL
+        #The assumption is wrong - we always try to read either the outer or inner requests.get
+        #but sometimes we don't have something to read.  I.e. when the type is ftp at which point
+        #we still set the cache and filepath based on destination which is wrong because nothing was fetched
         response = requests.get(url, headers=self._generateSignedHeaders(url), allow_redirects=False)
         if response.status_code in [301,302,303,307,308]:
             url = response.headers['location']
@@ -1707,6 +1711,12 @@ class Synapse:
             elif scheme == 'http' or scheme == 'https':
                 #TODO add support for username/password
                 response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
+            #TODO LARSSON add support of ftp download
+            else:
+                sys.stderr.write('Unable to download this type of URL.  ')
+                return {'path': None,
+                        'files': [None],
+                        'cacheDir': None }
         try:
             exceptions._raise_for_status(response, verbose=self.debug)
         except SynapseHTTPError as err:
