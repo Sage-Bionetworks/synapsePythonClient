@@ -99,53 +99,5 @@ def test_utils_sftp_upload_and_download():
             print traceback.format_exc()
         
 
-    #sftp://tcgaftps.nci.nih.gov/tcgapancantestdir/synapse/Larsson-project-settings-test/', username='PetersM')
-
-
-# def test_round_trip():
-#      fh = None
-#      filepath = utils.make_bogus_binary_file(2*MB + 777771)
-#      print 'Made bogus file: ', filepath
-#      try:
-#          fh = syn._chunkedUploadFile(filepath)
-
-# #         # Download the file and compare it with the original
-# #         junk = File(filepath, parent=project, dataFileHandleId=fh['id'])
-# #         junk.properties.update(syn._createEntity(junk.properties))
-# #         junk.update(syn._downloadFileEntity(junk, filepath))
-# #         assert filecmp.cmp(filepath, junk.path)
-
-#      finally:
-#          try:
-#              if 'junk' in locals():
-#                  syn.delete(junk)
-#          except Exception:
-#              print traceback.format_exc()
-#          try:
-#              os.remove(filepath)
-#          except Exception:
-#              print traceback.format_exc()
-#          if fh:
-#              print 'Deleting fileHandle', fh['id']
-#              syn._deleteFileHandle(fh)
-
-
-# def testSFTPUpload():
-#     """
-#     """
-#     return
-#     filepath = utils.make_bogus_binary_file(6*MB + 777771)
-#     print 'Made bogus file: ', filepath
-#     try:
-#         fh = syn._sftpUploadFile(filepath, url='www.google.com')
-#     finally:
-#         try:
-#             os.remove(filepath)
-#         except Exception:
-#             print traceback.format_exc()
-#         if fh:
-#             # print 'Deleting fileHandle', fh['id']
-#             syn._deleteFileHandle(fh)
-
 
     
