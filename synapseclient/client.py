@@ -2093,6 +2093,42 @@ class Synapse:
         return urlparse.urlunparse(parsedURL)
         
 
+    def _sftpDownloadFile(self, url, localFilepath=None,  username=None, password=None):
+        """
+        Performs actual upload of a file to an sftp server.
+        
+        :param url: URL where file will be deposited.  Path will be chopped out.
+
+        :param localFilepath: location where to store file
+
+        :param username: username on sftp server
+
+        :param password: password for authentication on the sftp server
+
+        :returns: localFilePath
+
+        """
+        username, password = self.__getUserCredentials(url, username, password)
+        parsedURL = urlparse.urlparse(url)
+        if parsedURL.scheme!='sftp':
+            raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
+                                      " form sftp://..."))
+        #Create the local file path if it doesn't exist
+        if localFilepath is None:
+            localFilepath = os.getcwd() 
+        if os.path.isdir(localFilepath):
+            localFilepath = os.path.join(localFilepath, parsedURL.path.split('/')[-1])
+        #Check and create the directory 
+        dir = os.path.dirname(localFilepath)
+        if not os.path.exists(dir):
+            os.makedirs(dir)
+
+        #Download file
+        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
+            sftp.get(parsedURL.path, localFilepath, preserve_mtime=True)
+        return localFilepath
+
+
     def _uploadStringToFile(self, content, contentType="text/plain"):
         """
         Upload a string to be stored in Synapse, as a single upload chunk
