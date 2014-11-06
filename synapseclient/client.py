@@ -2044,10 +2044,11 @@ class Synapse:
 
         #Get authentication information from configFile
         config = self.getConfigFile(self.configPath)
-        if username is None and config.has_option(parsedURL.netloc, 'username'):
-            username = config.get(parsedURL.netloc, 'username') 
-        if password is None and config.has_option(parsedURL.netloc, 'password'):
-            password = config.get(parsedURL.netloc, 'password')
+        configSection = parsedURL.scheme+'://'+parsedURL.netloc
+        if username is None and config.has_option(configSection, 'username'):
+            username = config.get(configSection, 'username') 
+        if password is None and config.has_option(configSection, 'password'):
+            password = config.get(configSection, 'password')
         #If I still don't have a username and password prompt for it
         if username is None:
             username = getpass.getuser()  #Default to login name
