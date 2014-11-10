@@ -257,7 +257,9 @@ def getProvenance(args, syn):
             f.write(json.dumps(activity))
             f.write('\n')
     
-    
+def setAnnotations(args, syn):
+    pass
+
 def submit(args, syn):
     '''
     Method to allow challenge participants to submit to an evaluation queue
