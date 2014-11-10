@@ -35,6 +35,7 @@ Commands
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
   * **get-provenance**   - show provenance records
+  * **set-annotations**   - create annotations
   * **show**             - show metadata for an entity
   * **onweb**            - opens Synapse website for Entity
   * **show**             - Displays information about a Entity
@@ -258,6 +259,14 @@ def getProvenance(args, syn):
             f.write('\n')
     
 def setAnnotations(args, syn):
+    """Method to set annotations on an entity.
+
+    Requires a JSON-formatted string that evaluates to a dict.
+
+    Annotations can be updated or overwritten completely.
+    
+    """
+    
     newannots = json.loads(args.annotations)
     
     if type(newannots) is not dict:
