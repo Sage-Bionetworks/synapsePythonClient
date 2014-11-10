@@ -278,7 +278,7 @@ def setAnnotations(args, syn):
         conflicting_keys = set(annots.keys()).difference(newannots.keys())
         
         if len(conflicting_keys) > 0:
-            raise KeyError("Keys between new and existing annotations are conflicting, and overwriting or replacing not set. Offending keys: %s" % (conflicting_keys,))
+            raise KeyError("Keys between new and existing annotations are conflicting, and overwriting or replacing not set. Offending keys: %s" % (list(conflicting_keys),))
         else:
             annots.update(newannots)
     
@@ -544,7 +544,7 @@ def build_parser():
     parser_set_annotations.add_argument('--overwrite', action='store_true', default=False,
             help='Overwrite any existing annotations (keeps existing non-conflicting annotations)')
     parser_set_annotations.add_argument('--replace', action='store_true', default=False,
-            help='Replace any existing annotations with the given annotations')
+            help='Replace all existing annotations with the given annotations')
 
     # parser_set_annotations.add_argument('-description',
     #         metavar='DESCRIPTION', type=str, required=False,
