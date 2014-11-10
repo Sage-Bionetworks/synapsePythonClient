@@ -258,7 +258,33 @@ def getProvenance(args, syn):
             f.write('\n')
     
 def setAnnotations(args, syn):
-    pass
+    newannots = json.loads(args.annotations)
+    
+    if type(newannots) is not dict:
+        raise TypeError("JSON string does not make a dict (required).")
+
+    entity = syn.get(args.id)
+
+    if args.overwrite and args.replace:
+        raise Exception("Cannot overwrite and replace, please select only one.")
+
+    if args.overwrite:
+        annots = syn.getAnnotations(entity)
+        annots.update(newannots)
+    elif args.replace:
+        annots = newannots
+    else:
+        annots = syn.getAnnotations(entity)
+        conflicting_keys = set(annots.keys()).difference(newannots.keys())
+        
+        if len(conflicting_keys) > 0:
+            raise KeyError("Keys between new and existing annotations are conflicting, and overwriting or replacing not set. Offending keys: %s" % (conflicting_keys,))
+        else:
+            annots.update(newannots)
+    
+    syn.setAnnotations(entity, annots)
+    
+    print 'Set annotations on entity %s\n' % (args.id, )
 
 def submit(args, syn):
     '''
@@ -509,6 +535,32 @@ def build_parser():
             help='Output the provenance record in JSON format')
     parser_get_provenance.set_defaults(func=getProvenance)
 
+    parser_set_annotations = subparsers.add_parser('set-annotations',
+            help='create annotations records')
+    parser_set_annotations.add_argument('-id', "--id", metavar='syn123', type=str, required=True,
+            help='Synapse ID of entity whose annotations we are accessing.')
+    parser_set_annotations.add_argument('-annotations', metavar='ANNOTATIONS', type=str, required=True,
+            help='Annotations to add as a JSON formatted string.')
+    parser_set_annotations.add_argument('--overwrite', action='store_true', default=False,
+            help='Overwrite any existing annotations (keeps existing non-conflicting annotations)')
+    parser_set_annotations.add_argument('--replace', action='store_true', default=False,
+            help='Replace any existing annotations with the given annotations')
+
+    # parser_set_annotations.add_argument('-description',
+    #         metavar='DESCRIPTION', type=str, required=False,
+    #         help='Description of the activity that generated the entity')
+    # parser_set_annotations.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+    #         const='STDOUT', nargs='?', type=str,
+    #         help='Output the annotations record in JSON format')
+    # parser_set_annotations.add_argument('-used', metavar='target', type=str, nargs='*',
+    #         help=('Synapse ID of a data entity, a url, or a file path from which the '
+    #               'specified entity is derived'))
+    # parser_set_annotations.add_argument('-executed', metavar='target', type=str, nargs='*',
+    #         help=('Synapse ID of a data entity, a url, or a file path that was executed '
+    #               'to generate the specified entity is derived'))
+    # parser_set_annotations.add_argument('-limitSearch', metavar='projId', type=str, 
+    #         help='Synapse ID of a container such as project or folder to limit search for annotations files.')
+    parser_set_annotations.set_defaults(func=setAnnotations)
 
     parser_create = subparsers.add_parser('create',
             help='Creates folders or projects on Synapse')
