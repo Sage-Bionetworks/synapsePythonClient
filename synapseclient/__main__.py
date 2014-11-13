@@ -168,7 +168,7 @@ def cat(args, syn):
                     print line
 
 
-def synlist(args, syn):
+def ls(args, syn):
     """List entities in a Project or Folder"""
     syn._list(args.id, recursive=args.recursive, long_format=args.long, show_modified=args.modified)
 
@@ -511,7 +511,7 @@ def build_parser():
             help='List synapse entities in long format')
     parser_list.add_argument('-m', '--modified', action='store_true', default=False, required=False,
             help='List modified by and modified date')
-    parser_list.set_defaults(func=synlist)
+    parser_list.set_defaults(func=ls)
 
     parser_set_provenance = subparsers.add_parser('set-provenance',
             help='create provenance records')
