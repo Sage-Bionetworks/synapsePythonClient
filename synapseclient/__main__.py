@@ -542,8 +542,8 @@ def build_parser():
     parser_set_annotations.add_argument("--id", metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose annotations we are accessing.')
     parser_set_annotations.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=True,
-            help='Annotations to add as a JSON formatted string.')
-    parser_set_annotations.add_argument('-r', '--replace', action='store_true', default=False,
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+    parser_set_annotations.add_argument('-r', '--replace', action='store_true',default=False,
             help='Replace all existing annotations with the given annotations')
     parser_set_annotations.set_defaults(func=setAnnotations)
 
