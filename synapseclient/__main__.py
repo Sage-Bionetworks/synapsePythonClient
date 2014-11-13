@@ -276,8 +276,8 @@ def setAnnotations(args, syn):
     if type(newannots) is not dict:
         raise TypeError("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
     
-    entity = syn.get(args.id)
-
+    entity = syn.get(args.id, downloadFile=False)
+    
     if args.overwrite and args.replace:
         raise Exception("Cannot overwrite and replace, please select only one.")
 
