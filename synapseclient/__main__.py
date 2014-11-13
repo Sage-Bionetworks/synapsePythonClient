@@ -266,12 +266,16 @@ def setAnnotations(args, syn):
     Annotations can be updated or overwritten completely.
     
     """
-    
-    newannots = json.loads(args.annotations)
+
+    try:
+        newannots = json.loads(args.annotations)
+    except Exception as e:
+        sys.stderr.write("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
+        raise e
     
     if type(newannots) is not dict:
         raise TypeError("JSON string does not make a dict (required).")
-
+    
     entity = syn.get(args.id)
 
     if args.overwrite and args.replace:
