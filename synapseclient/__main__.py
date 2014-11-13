@@ -278,26 +278,15 @@ def setAnnotations(args, syn):
     
     entity = syn.get(args.id, downloadFile=False)
     
-    if args.overwrite and args.replace:
-        raise Exception("Cannot overwrite and replace, please select only one.")
-
-    if args.overwrite:
-        annots = syn.getAnnotations(entity)
-        annots.update(newannots)
-    elif args.replace:
+    if args.replace:
         annots = newannots
     else:
         annots = syn.getAnnotations(entity)
-        conflicting_keys = set(annots.keys()).difference(newannots.keys())
-        
-        if len(conflicting_keys) > 0:
-            raise KeyError("Keys between new and existing annotations are conflicting, and overwriting or replacing not set. Offending keys: %s" % (list(conflicting_keys),))
-        else:
-            annots.update(newannots)
+        annots.update(newannots)
     
     syn.setAnnotations(entity, annots)
     
-    print 'Set annotations on entity %s\n' % (args.id, )
+    sys.stderr.write('Set annotations on entity %s\n' % (args.id, ))
 
 def submit(args, syn):
     '''
@@ -554,8 +543,6 @@ def build_parser():
             help='Synapse ID of entity whose annotations we are accessing.')
     parser_set_annotations.add_argument('-annotations', metavar='ANNOTATIONS', type=str, required=True,
             help='Annotations to add as a JSON formatted string.')
-    parser_set_annotations.add_argument('--overwrite', action='store_true', default=False,
-            help='Overwrite any existing annotations (keeps existing non-conflicting annotations)')
     parser_set_annotations.add_argument('--replace', action='store_true', default=False,
             help='Replace all existing annotations with the given annotations')
 
