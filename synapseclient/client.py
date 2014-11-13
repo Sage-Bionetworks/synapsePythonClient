@@ -633,7 +633,7 @@ class Synapse:
             results = [ent for ent, path in zip(results, paths) if
                        utils.is_in_path(limitSearch, path)]
         if len(results)==0: #None found 
-            raise SynapseError('File not found in Synapse')
+            raise SynapseError('File %s not found in Synapse' % (filepath,))
         elif len(results)>1:
             sys.stderr.write('\nWARNING: The file %s is associated with many entities in Synapse. '
                           'You can limit to a specific project or folder by setting the '
