@@ -530,7 +530,7 @@ def build_parser():
 
     parser_get_provenance = subparsers.add_parser('get-provenance',
             help='show provenance records')
-    parser_get_provenance.add_argument('-id', metavar='syn123', type=str, required=True,
+    parser_get_provenance.add_argument('--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
     parser_get_provenance.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
@@ -539,27 +539,12 @@ def build_parser():
 
     parser_set_annotations = subparsers.add_parser('set-annotations',
             help='create annotations records')
-    parser_set_annotations.add_argument('-id', "--id", metavar='syn123', type=str, required=True,
+    parser_set_annotations.add_argument("--id", metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose annotations we are accessing.')
-    parser_set_annotations.add_argument('-annotations', metavar='ANNOTATIONS', type=str, required=True,
+    parser_set_annotations.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=True,
             help='Annotations to add as a JSON formatted string.')
-    parser_set_annotations.add_argument('--replace', action='store_true', default=False,
+    parser_set_annotations.add_argument('-r', '--replace', action='store_true', default=False,
             help='Replace all existing annotations with the given annotations')
-
-    # parser_set_annotations.add_argument('-description',
-    #         metavar='DESCRIPTION', type=str, required=False,
-    #         help='Description of the activity that generated the entity')
-    # parser_set_annotations.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
-    #         const='STDOUT', nargs='?', type=str,
-    #         help='Output the annotations record in JSON format')
-    # parser_set_annotations.add_argument('-used', metavar='target', type=str, nargs='*',
-    #         help=('Synapse ID of a data entity, a url, or a file path from which the '
-    #               'specified entity is derived'))
-    # parser_set_annotations.add_argument('-executed', metavar='target', type=str, nargs='*',
-    #         help=('Synapse ID of a data entity, a url, or a file path that was executed '
-    #               'to generate the specified entity is derived'))
-    # parser_set_annotations.add_argument('-limitSearch', metavar='projId', type=str, 
-    #         help='Synapse ID of a container such as project or folder to limit search for annotations files.')
     parser_set_annotations.set_defaults(func=setAnnotations)
 
     parser_create = subparsers.add_parser('create',
