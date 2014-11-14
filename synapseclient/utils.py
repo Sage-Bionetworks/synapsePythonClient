@@ -27,6 +27,7 @@ File Handling
 .. automethod:: synapseclient.utils.download_file
 .. automethod:: synapseclient.utils.extract_filename
 .. automethod:: synapseclient.utils.file_url_to_path
+.. automethod:: synapseclient.utils.is_same_base_url
 .. automethod:: synapseclient.utils.normalize_whitespace
 
 
@@ -281,6 +282,23 @@ def file_url_to_path(url, verify_exists=False):
                 'files': [os.path.basename(path)],
                 'cacheDir': os.path.dirname(path) }
     return {}
+
+
+
+def is_same_base_url(url1, url2):
+    """Compares two urls to see if they are the same excluding up to the base path
+
+    :param url1: a URL
+    :param url2: a second URL
+
+    :returns: Boolean
+    """
+    url1 = urlparse.urlsplit(url1)
+    url2 = urlparse.urlsplit(url2)
+    return (url1.scheme==url2.scheme and 
+            url1.netloc==url2.netloc)
+    
+
 
 
 def is_synapse_id(obj):

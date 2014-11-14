@@ -691,7 +691,11 @@ class Synapse:
                         fileName = handle['fileName']
                         if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                             entity['externalURL'] = handle['externalURL']
-                            entity['synapseStore'] = False
+                            #Determine if storage location for this entity matches the url of the project
+                            #uploadDestination to determine if I should synapseStore it in the future.
+                            storageURL = self.__getStorageLocations(entity).get('url', 'S3')
+                            entity['synapseStore'] = utils.is_same_base_url(storageURL, entity['externalURL'])
+                            entity['uploadDestination'] = storageURL
                             # It is unnecessary to hit the caching logic for external URLs not being downloaded
                             if not downloadFile:
                                 return entity
@@ -1982,6 +1986,27 @@ class Synapse:
         return fileHandle
 
 
+    def __getStorageLocations(self, entity):
+        storageLocations = self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
+                     endpoint=self.fileHandleEndpoint)['list']
+        uploadDestination = entity.get('uploadDestination', None)
+        if uploadDestination is None:
+            return storageLocations[0]
+        locations = [l.get('url', 'S3') for l in storageLocations]
+
+        for location in storageLocations:
+            #location can either be of  uploadType S3 or SFTP where the latter has a URL
+            if location['uploadType'] == 'S3' and uploadDestination == 'S3':
+                return location
+            elif (location['uploadType'] == 'SFTP' and uploadDestination != 'S3' and
+                  utils.is_same_base_url(uploadDestination, location['url'])):
+                return location
+        raise SynapseError('You are uploading to a project that supports multiple storage '
+                           'locations but have specified the location of %s which is not '
+                           'supported by this project.  Please choose one of:\n %s' 
+                           %(uploadDestination, '\n\t'.join(locations)))
+
+
     def __uploadExternallyStoringProjects(self, entity, local_state):
         """Determines the upload location of the file based on project settings and if it is 
         an external location performs upload and returns the new url and sets synapseStore=False. 
@@ -1996,17 +2021,7 @@ class Synapse:
         if utils.is_url(entity['path']):
             local_state['externalURL'] = entity['path']
             return entity['path'], local_state
-
-        storageLocations =  self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
-                                         endpoint=self.fileHandleEndpoint)
-        storageLocations = storageLocations['list']
-        if len(storageLocations)>1 :
-            sys.stderr.stdout('You are uploading to a project that supports multiple storage '
-                              'locations. Default upload location is...\n')
-            #TODO Should check for prompt and perhaps ask for the desired location...
-            #for location in storageLocations:
-            #    ...
-        location = storageLocations[0]
+        location =  self.__getStorageLocations(entity)
         if location['uploadType'] == 'S3':
             sys.stdout.write('\n' + '#'*50+'\n')
             sys.stdout.write('Uploading file to Synapse storage')
@@ -2019,7 +2034,7 @@ class Synapse:
             sys.stdout.write('Uploading to: '+urlparse.urlparse(location['url']).netloc)
             sys.stdout.write('\n'+'#'*50+'\n')
             #Fill out local_state with fileSize, externalURL etc...
-            uploadLocation = self._sftpUploadFile(entity['path'], location['url'])
+            uploadLocation = self._sftpUploadFile(entity['path'], urllib.unquote(location['url']))
             local_state['externalURL'] = uploadLocation
             local_state['fileSize'] = os.stat(entity['path']).st_size
             if local_state.get('contentType') is None:
@@ -2084,21 +2099,22 @@ class Synapse:
             with sftp.cd(parsedURL.path):
                 sftp.put(filepath, preserve_mtime=True)
 
-        parsedURL = parsedURL._replace(path=parsedURL.path+'/'+os.path.split(filepath)[-1])
+        path = urllib.quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
+        parsedURL = parsedURL._replace(path=path)
         return urlparse.urlunparse(parsedURL)
         
 
     def _sftpDownloadFile(self, url, localFilepath=None,  username=None, password=None):
         """
-        Performs actual upload of a file to an sftp server.
+        Performs download of a file from an sftp server.
         
         :param url: URL where file will be deposited.  Path will be chopped out.
 
         :param localFilepath: location where to store file
 
-        :param username: username on sftp server
+        :param username: username on server
 
-        :param password: password for authentication on the sftp server
+        :param password: password for authentication on  server
 
         :returns: localFilePath
 
@@ -2109,10 +2125,11 @@ class Synapse:
             raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
                                       " form sftp://..."))
         #Create the local file path if it doesn't exist
+        path = urllib.unquote(parsedURL.path)
         if localFilepath is None:
             localFilepath = os.getcwd() 
         if os.path.isdir(localFilepath):
-            localFilepath = os.path.join(localFilepath, parsedURL.path.split('/')[-1])
+            localFilepath = os.path.join(localFilepath, path.split('/')[-1])
         #Check and create the directory 
         dir = os.path.dirname(localFilepath)
         if not os.path.exists(dir):
@@ -2120,7 +2137,7 @@ class Synapse:
 
         #Download file
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.get(parsedURL.path, localFilepath, preserve_mtime=True)
+            sftp.get(path, localFilepath, preserve_mtime=True)
         return localFilepath
 
 

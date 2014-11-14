@@ -3,6 +3,8 @@ import os, sys, traceback
 import json
 import uuid 
 import urlparse
+from nose.tools import assert_raises
+from synapseclient.exceptions import *
 
 import synapseclient
 import synapseclient.utils as utils
@@ -13,13 +15,19 @@ import tempfile
 import integration
 from integration import schedule_for_cleanup
 
-upload_destination = {"concreteType": "org.sagebionetworks.repo.model.project.UploadDestinationListSetting", 
+upload_destination = {"concreteType": "org.sagebionetworks.repo.model.project.UploadDestinationListSetting",
   "destinations": [
-        {"banner": "Uploading file to EC2\n", 
+        {"uploadType": "SFTP", 
+         "banner": "Uploading file to EC2\n", 
          "concreteType": "org.sagebionetworks.repo.model.project.ExternalUploadDestinationSetting", 
-         "uploadType": "SFTP", 
-         "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration"
-        }], 
+         "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space",
+         "supportsSubfolders": True}, 
+        {"uploadType": "SFTP", 
+         "banner": "Uploading file to EC2 version 2\n", 
+         "concreteType": "org.sagebionetworks.repo.model.project.ExternalUploadDestinationSetting", 
+         "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/another_location",
+         "supportsSubfolders": True}, 
+        ], 
   "projectId": '', 
   "settingsType": "upload"
 }
@@ -32,6 +40,7 @@ def setup(module):
     print '~' * 60
     module.syn = integration.syn
     module.project = integration.project
+    upload_destination['projectId'] = module.project.id
     upload_destination['projectId'] = module.project.id
     syn.restPOST('/projectSettings', body = json.dumps(upload_destination))
 
@@ -49,6 +58,26 @@ def test_synStore_sftpIntegration():
         except Exception:
             print traceback.format_exc()
 
+def test_sftpStorageLocation():
+    filepath = utils.make_bogus_binary_file(1*MB - 777771)
+    file = File(filepath, parent=project, synapseStore=True, 
+                uploadDestination='sftp://sftp.example.com')
+    #Verify that if the URL is not in the uploadDestinations list it raises a Synapse error
+    assert_raises(SynapseError, syn.store, file)
+
+    #Verify that we can chose S3 as well
+    file = File(filepath, parent=project, synapseStore=True, 
+                uploadDestination='S3')
+    assert_raises(SynapseError, syn.store, file)
+
+
+
+    #Verify that after fetching a file that is externally managed by Synapse that synapseStore==True
+    file = File(filepath, parent=project, synapseStore=True, 
+                uploadDestination='sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space')
+    file = syn.store(file)
+    assert file.synapseStore == True
+
 
 def test_synGet_sftpIntegration():
     #Create file by uploading directly to sftp and creating entity from URL
@@ -62,8 +91,7 @@ def test_synGet_sftpIntegration():
     print '\nDownloading file', os.getcwd(), filepath
     junk = syn.get(file, downloadLocation=os.getcwd(), downloadFile=True)
     filecmp.cmp(filepath, junk.path)
-    
-    
+
 
 def test_utils_sftp_upload_and_download():
     """Tries to upload a file to an sftp file """
