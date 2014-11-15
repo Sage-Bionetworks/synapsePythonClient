@@ -693,10 +693,9 @@ class Synapse:
                             entity['externalURL'] = handle['externalURL']
                             #Determine if storage location for this entity matches the url of the project
                             #uploadDestination to determine if I should synapseStore it in the future.
-                            storageURL = self.__getStorageLocations(entity).get('url', 'S3')
-                            entity['synapseStore'] = utils.is_same_base_url(storageURL, entity['externalURL'])
-                            entity['uploadDestination'] = storageURL
-                            # It is unnecessary to hit the caching logic for external URLs not being downloaded
+                            storageLoation = self.__getStorageLocation(entity)
+                            entity['synapseStore'] = utils.is_same_base_url(storageLocation.get('url', 'S3'), entity['externalURL'])
+                            entity['uploadDestination'] = storagelocation.get('url', 'S3')
                             if not downloadFile:
                                 return entity
             # Make sure the download location is fully resolved
@@ -1986,7 +1985,7 @@ class Synapse:
         return fileHandle
 
 
-    def __getStorageLocations(self, entity):
+    def __getStorageLocation(self, entity):
         storageLocations = self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
                      endpoint=self.fileHandleEndpoint)['list']
         uploadDestination = entity.get('uploadDestination', None)
@@ -2021,7 +2020,7 @@ class Synapse:
         if utils.is_url(entity['path']):
             local_state['externalURL'] = entity['path']
             return entity['path'], local_state
-        location =  self.__getStorageLocations(entity)
+        location =  self.__getStorageLocation(entity)
         if location['uploadType'] == 'S3':
             sys.stdout.write('\n' + '#'*50+'\n')
             sys.stdout.write('Uploading file to Synapse storage')
