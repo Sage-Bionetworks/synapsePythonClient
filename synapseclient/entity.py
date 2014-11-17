@@ -455,7 +455,7 @@ class File(Entity, Versionable):
     """
     
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
-    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize', 'contentType', 'uploadHost']
+    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize', 'contentType']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
     ## TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
@@ -483,7 +483,7 @@ class File(Entity, Versionable):
 # old-style Data, Code, Study, etc. entities
 class Locationable(Versionable):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Locationable'
-    _local_keys = Entity._local_keys + ['cacheDir', 'files', 'path', 'uploadHost']
+    _local_keys = Entity._local_keys + ['cacheDir', 'files', 'path']
     _property_keys = Versionable._property_keys + ['locations', 'md5', 'contentType', 's3Token']
 
 
