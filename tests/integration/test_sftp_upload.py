@@ -61,20 +61,20 @@ def test_synStore_sftpIntegration():
 def test_sftpStorageLocation():
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
     file = File(filepath, parent=project, synapseStore=True, 
-                uploadDestination='sftp://sftp.example.com')
+                uploadHost='sftp://sftp.example.com')
     #Verify that if the URL is not in the uploadDestinations list it raises a Synapse error
     assert_raises(SynapseError, syn.store, file)
 
     #Verify that we can chose S3 as well
     file = File(filepath, parent=project, synapseStore=True, 
-                uploadDestination='S3')
+                uploadHost='S3')
     assert_raises(SynapseError, syn.store, file)
 
 
 
     #Verify that after fetching a file that is externally managed by Synapse that synapseStore==True
     file = File(filepath, parent=project, synapseStore=True, 
-                uploadDestination='sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space')
+                uploadHost='sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space')
     file = syn.store(file)
     assert file.synapseStore == True
 

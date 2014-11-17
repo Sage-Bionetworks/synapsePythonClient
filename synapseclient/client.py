@@ -691,11 +691,11 @@ class Synapse:
                         fileName = handle['fileName']
                         if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                             entity['externalURL'] = handle['externalURL']
-                            #Determine if storage location for this entity matches the url of the project
-                            #uploadDestination to determine if I should synapseStore it in the future.
-                            storageLoation = self.__getStorageLocation(entity)
+                            #Determine if storage location for this entity matches the url of the 
+                            #project to determine if I should synapseStore it in the future.
+                            storageLocation = self.__getStorageLocation(entity)
                             entity['synapseStore'] = utils.is_same_base_url(storageLocation.get('url', 'S3'), entity['externalURL'])
-                            entity['uploadDestination'] = storagelocation.get('url', 'S3')
+                            entity['uploadHost'] = storageLocation.get('url', 'S3')
                             if not downloadFile:
                                 return entity
             # Make sure the download location is fully resolved
@@ -1988,22 +1988,22 @@ class Synapse:
     def __getStorageLocation(self, entity):
         storageLocations = self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
                      endpoint=self.fileHandleEndpoint)['list']
-        uploadDestination = entity.get('uploadDestination', None)
-        if uploadDestination is None:
+        uploadHost = entity.get('uploadHost', None)
+        if uploadHost is None:
             return storageLocations[0]
         locations = [l.get('url', 'S3') for l in storageLocations]
 
         for location in storageLocations:
             #location can either be of  uploadType S3 or SFTP where the latter has a URL
-            if location['uploadType'] == 'S3' and uploadDestination == 'S3':
+            if location['uploadType'] == 'S3' and uploadHost == 'S3':
                 return location
-            elif (location['uploadType'] == 'SFTP' and uploadDestination != 'S3' and
-                  utils.is_same_base_url(uploadDestination, location['url'])):
+            elif (location['uploadType'] == 'SFTP' and uploadHost != 'S3' and
+                  utils.is_same_base_url(uploadHost, location['url'])):
                 return location
         raise SynapseError('You are uploading to a project that supports multiple storage '
                            'locations but have specified the location of %s which is not '
                            'supported by this project.  Please choose one of:\n %s' 
-                           %(uploadDestination, '\n\t'.join(locations)))
+                           %(uploadHost, '\n\t'.join(locations)))
 
 
     def __uploadExternallyStoringProjects(self, entity, local_state):
