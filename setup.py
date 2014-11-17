@@ -40,6 +40,7 @@ setup(name='synapseclient',
     packages=['synapseclient'],
     install_requires=[
         'requests>=1.2',
+        'pysftp>=0.2.8'
     ],
     extras_require = {
         'pandas':  ["pandas"],

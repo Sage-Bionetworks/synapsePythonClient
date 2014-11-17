@@ -27,7 +27,9 @@ File Handling
 .. automethod:: synapseclient.utils.download_file
 .. automethod:: synapseclient.utils.extract_filename
 .. automethod:: synapseclient.utils.file_url_to_path
+.. automethod:: synapseclient.utils.is_same_base_url
 .. automethod:: synapseclient.utils.normalize_whitespace
+
 
 ~~~~~~~~
 Chunking
@@ -44,7 +46,6 @@ Testing
 .. automethod:: synapseclient.utils.make_bogus_binary_file
 
 """
-
 #!/usr/bin/env python2.7
 
 import os, sys, urllib, urlparse, hashlib, re
@@ -57,7 +58,6 @@ import functools
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
-
 
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
@@ -119,7 +119,7 @@ def download_file(url, localFilepath=None):
 
     return localFilepath
 
-
+    
 def extract_filename(content_disposition):
     """
     Extract a filename from an HTTP content-disposition header field.
@@ -282,6 +282,23 @@ def file_url_to_path(url, verify_exists=False):
                 'files': [os.path.basename(path)],
                 'cacheDir': os.path.dirname(path) }
     return {}
+
+
+
+def is_same_base_url(url1, url2):
+    """Compares two urls to see if they are the same excluding up to the base path
+
+    :param url1: a URL
+    :param url2: a second URL
+
+    :returns: Boolean
+    """
+    url1 = urlparse.urlsplit(url1)
+    url2 = urlparse.urlsplit(url2)
+    return (url1.scheme==url2.scheme and 
+            url1.netloc==url2.netloc)
+    
+
 
 
 def is_synapse_id(obj):
