@@ -131,7 +131,9 @@ class Synapse:
     :param serviceTimeoutSeconds: Wait time before timeout (currently unused) 
     :param debug:                 Print debugging messages if True
     :param skip_checks:           Skip version and endpoint checks
-    
+    :param configPath:            Path to config File with setting for Synapse
+                                  defaults to ~/.synapseConfig
+
     Typically, no parameters are needed::
     
         import synapseclient
