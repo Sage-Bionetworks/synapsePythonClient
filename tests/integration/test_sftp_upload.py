@@ -97,8 +97,8 @@ def test_utils_sftp_upload_and_download():
     finally:
         try:
             if 'junk' in locals(): os.remove(junk)
-            if 'junk' in locals(): os.remove(junk2)
-            if 'junk' in locals(): os.remove(junk3)
+            if 'junk2' in locals(): os.remove(junk2)
+            if 'junk3' in locals(): os.remove(junk3)
         except Exception:
             print traceback.format_exc()
         try:
