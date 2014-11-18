@@ -674,7 +674,8 @@ class RowSetTable(Table):
         self.i = -1
 
     def _synapse_store(self, syn):
-        syn.store(self.rowset)
+        row_reference_set = syn.store(self.rowset)
+        return self
 
     def asDataFrame(self):
         test_import_pandas()
