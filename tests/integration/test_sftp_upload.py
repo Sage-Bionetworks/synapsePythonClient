@@ -4,13 +4,14 @@ import json
 import uuid 
 import urlparse
 from nose.tools import assert_raises
-from synapseclient.exceptions import *
+import tempfile
+import shutil
 
+from synapseclient.exceptions import *
 import synapseclient
 import synapseclient.utils as utils
 from synapseclient.utils import MB, GB
 from synapseclient import Activity, Entity, Project, Folder, File, Data
-import tempfile
 
 import integration
 from integration import schedule_for_cleanup
@@ -78,20 +79,25 @@ def test_utils_sftp_upload_and_download():
     serverURL='sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/'+str(uuid.uuid1())
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
 
+    tempdir = tempfile.mkdtemp()
+
     try:
         print '\n\tMade bogus file: ', filepath
         url = syn._sftpUploadFile(filepath, url=serverURL)
         print '\tStored URL:', url
         print '\tDownloading',
         #Get with a specified localpath
-        junk = syn._sftpDownloadFile(url, '/tmp/')
+        junk = syn._sftpDownloadFile(url, tempdir)
         print '\tComparing:', junk, filepath
         filecmp.cmp(filepath, junk)
         #Get without specifying path
+        print '\tDownloading',
         junk2 = syn._sftpDownloadFile(url)
+        print '\tComparing:', junk2, filepath
         filecmp.cmp(filepath, junk2)
         #Get with a specified localpath as file
-        junk3 = syn._sftpDownloadFile(url, '/tmp/bar.dat')
+        print '\tDownloading',
+        junk3 = syn._sftpDownloadFile(url, os.path.join(tempdir, 'bar.dat'))
         print '\tComparing:', junk3, filepath
         filecmp.cmp(filepath, junk3)
     finally:
@@ -105,7 +111,11 @@ def test_utils_sftp_upload_and_download():
             os.remove(filepath)
         except Exception:
             print traceback.format_exc()
-        
+        try:
+            shutil.rmtree(tempdir)
+        except Exception:
+            print traceback.format_exc()
+
 
 
     
