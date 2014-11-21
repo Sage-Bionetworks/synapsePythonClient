@@ -96,8 +96,7 @@ def test_getWithEntityBundle(download_file_mock):
 
     assert e.name == bundle["entity"]["name"]
     assert e.parentId == bundle["entity"]["parentId"]
-    ## what's the right behavior for cacheDir?
-    ##assert e.cacheDir == os.path.dirname(temp_file_path)
+    assert e.cacheDir == temp_dir1
     assert bundle["fileHandles"][0]["fileName"] in e.files
     assert e.path == os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])
 
@@ -112,8 +111,8 @@ def test_getWithEntityBundle(download_file_mock):
     assert bundle["fileHandles"][0]["fileName"] in e.files
 
     # should this put the file in the cache?
-    # assert e.cacheDir == cacheDir
-    # assert e.path == os.path.join(cacheDir, bundle["entity"]["name"])
+    assert e.cacheDir == cacheDir
+    assert e.path == os.path.join(cacheDir, bundle["entity"]["name"])
 
     # 3. ----------------------------------------------------------------------
     # download to another location
@@ -125,13 +124,9 @@ def test_getWithEntityBundle(download_file_mock):
     print "temp_dir2=", temp_dir2
     print e
 
-    # TODO fails
-    # assert bundle["fileHandles"][0]["fileName"] in e.files
-
-    # this should put the file where we tell it to
-    # TODO fails
-    # assert e.path is not None
-    # assert os.path.dirname(e.path) == temp_dir2
+    assert bundle["fileHandles"][0]["fileName"] in e.files
+    assert e.path is not None
+    assert os.path.dirname(e.path) == temp_dir2
 
     # 4. ----------------------------------------------------------------------
     ## test preservation of local state
