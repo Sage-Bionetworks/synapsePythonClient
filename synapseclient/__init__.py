@@ -36,7 +36,11 @@ Installation
 The `synapseclient <https://pypi.python.org/pypi/synapseclient/>`_ package is available from PyPI. It can
 be installed or upgraded with pip::
 
-    (sudo) pip install (--upgrade) synapseclient
+    (sudo) pip install (--upgrade) synapseclient[pandas,pysftp]
+
+The dependencies on pandas and pysftp are optional. The Synapse :py:mod:`synapseclient.table`
+feature integrates with Pandas. Support for sftp is required for users of SFTP file storage.
+Both require native libraries to be compiled or installed separately from prebuilt binaries.
 
 Source code and development versions are `available on Github <https://github.com/Sage-Bionetworks/synapsePythonClient>`_.
 Installing from source::

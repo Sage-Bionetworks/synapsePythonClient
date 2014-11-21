@@ -17,3 +17,4 @@ Synapse Python Client documentation
    Versions
    CommandLineClient
    Table
+   sftp
