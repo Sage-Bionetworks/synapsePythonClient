@@ -6,6 +6,13 @@ Tables
 Synapse Tables enable storage of tabular data in Synapse in a form that can be
 queried using a SQL-like query language.
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Tables is an ALPHA feature
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+The tables feature is in the alpha stage. Please expect bugs and changes
+to some interface elements. Report bugs via 
+`JIRA <https://sagebionetworks.jira.com/>`_.
+
 A table has a :py:class:`Schema` defined in terms of :py:class:`Column` objects
 that specify types from the following choices: STRING, DOUBLE, INTEGER,
 BOOLEAN, DATE, ENTITYID, FILEHANDLEID. Tables hold sets of rows that conform to

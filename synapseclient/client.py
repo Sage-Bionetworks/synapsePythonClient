@@ -39,7 +39,6 @@ import zipfile
 import mimetypes
 import warnings
 import getpass
-import pysftp
 
 import synapseclient
 import synapseclient.utils as utils
@@ -118,6 +117,28 @@ def login(*args, **kwargs):
     syn = Synapse()
     syn.login(*args, **kwargs)
     return syn
+
+
+
+def _test_import_sftp():
+    """
+    Check if pysftp is installed and give instructions if not.
+    """
+    try:
+        import pysftp
+    except ImportError as e1:
+        sys.stderr.write("\n\Libraries required for SFTP not installed!\n" \
+        "The Synapse client uses pysftp in order to access SFTP storage locations. This" \
+        "library in turn depends on pycrypto.\n" \
+        "To install these libraries on Unix variants including OS X, make sure the python" \
+        "devel libraries are installed, then::\n" \
+        "    (sudo) pip install pysftp\n\n" \
+        "For Windows systems without a C/C++ compiler, install the appropriate binary" \
+        "distribution of pycrypto from::\n" \
+        "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n" \
+        "For more information, see: http://python-docs.synapse.org/sftp.html" \
+        "\n\n\n""")
+        raise
 
 
 class Synapse:
@@ -663,7 +684,7 @@ class Synapse:
         See :py:func:`synapseclient.Synapse._getEntityBundle`.
         See :py:mod:`synapseclient.Entity`.
         """
-        
+
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
         version = kwargs.get('version', None)
         downloadFile = kwargs.get('downloadFile', True)
@@ -681,7 +702,7 @@ class Synapse:
         isLocationable = is_locationable(entity)
         if isinstance(entity, File) or isLocationable:
             fileName = entity['name']
-            
+
             if not isLocationable:
                 # Fill in information about the file, even if we don't download it
                 # Note: fileHandles will be an empty list if there are unmet access requirements
@@ -693,12 +714,18 @@ class Synapse:
                         fileName = handle['fileName']
                         if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                             entity['externalURL'] = handle['externalURL']
+
                             #Determine if storage location for this entity matches the url of the 
                             #project to determine if I should synapseStore it in the future.
-                            storageLocation = self.__getStorageLocation(entity)
-                            entity['synapseStore'] = utils.is_same_base_url(storageLocation.get('url', 'S3'), entity['externalURL'])
+                            #This can fail with a 404 for submissions who's original entity is deleted
+                            try:
+                                storageLocation = self.__getStorageLocation(entity)
+                                entity['synapseStore'] = utils.is_same_base_url(storageLocation.get('url', 'S3'), entity['externalURL'])
+                            except SynapseHTTPError:
+                                warnings.warn("Can't get storage location for entity %s" % entity['id'])
                             if not downloadFile:
                                 return entity
+
             # Make sure the download location is fully resolved
             downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
             if downloadLocation is not None and os.path.isfile(downloadLocation):
@@ -1994,6 +2021,85 @@ class Synapse:
         return fileHandle
 
 
+    def _uploadStringToFile(self, content, contentType="text/plain"):
+        """
+        Upload a string to be stored in Synapse, as a single upload chunk
+
+        :param content: The content to be uploaded
+        :param contentType: The content type to be stored with the file
+
+        :returns: An `S3 FileHandle <http://rest.synapse.org/org/sagebionetworks/repo/model/file/S3FileHandle.html>`_
+        """
+
+        if len(content)>5*MB:
+            raise ValueError('Maximum string length is 5 MB.')
+
+        headers = { 'Content-Type' : contentType }
+        headers.update(synapseclient.USER_AGENT)
+
+        try:
+
+            # Get token
+            md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
+            token = self._createChunkedUploadToken(md5, "message", contentType)
+
+            retry_policy=self._build_retry_policy(
+                {"retry_errors":['We encountered an internal error. Please try again.']})
+
+            i = 1
+            chunk_record = {'chunk-number':i}
+
+            # Get the signed S3 URL
+            url = self._createChunkedFileUploadChunkURL(i, token)
+
+            # PUT the chunk to S3
+            response = _with_retry(
+                lambda: requests.put(url, data=content.encode("utf-8"), headers=headers),
+                **retry_policy)
+
+            chunk_record['response-status-code'] = response.status_code
+            chunk_record['response-headers'] = response.headers
+            if response.text:
+                chunk_record['response-body'] = response.text
+
+            # Is requests closing response stream? Let's make sure:
+            # "Note that connections are only released back to
+            #  the pool for reuse once all body data has been
+            #  read; be sure to either set stream to False or
+            #  read the content property of the Response object."
+            # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
+            try:
+                if response:
+                    throw_away = response.content
+            except Exception as ex:
+                sys.stderr.write('error reading response: '+str(ex))
+
+            exceptions._raise_for_status(response, verbose=self.debug)
+
+            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+
+            # Poll until concatenating chunks is complete
+            while (status['state']=='PROCESSING'):
+                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+                status = self._completeUploadDaemonStatus(status)
+
+            if status['state'] == 'FAILED':
+                raise SynapseError(status['errorMessage'])
+
+            # Return a fileHandle
+            fileHandle = self._getFileHandle(status['fileHandleId'])
+
+        except Exception as ex:
+            raise sys.exc_info()[0], ex, sys.exc_info()[2]
+
+        return fileHandle
+
+
+
+    ############################################################
+    ##                   SFTP                                 ##
+    ############################################################
+
     def __getStorageLocation(self, entity):
         storageLocations = self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
                      endpoint=self.fileHandleEndpoint)['list']
@@ -2053,7 +2159,8 @@ class Synapse:
             return uploadLocation, local_state
         else:
             raise NotImplementedError('Can only handle S3 and SFTP upload locations.')
-        
+
+
     @utils.memoize
     def __getUserCredentials(self, baseURL, username=None, password=None):
         """Get user credentials for a specified URL by either looking in the configFile
@@ -2096,6 +2203,9 @@ class Synapse:
 
         :returns: A URL where file is stored
         """
+        _test_import_sftp()
+        import pysftp
+
         parsedURL = urlparse.urlparse(url)
         if parsedURL.scheme!='sftp':
             raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
@@ -2126,6 +2236,10 @@ class Synapse:
         :returns: localFilePath
 
         """
+        _test_import_sftp()
+        import pysftp
+
+        username, password = self.__getUserCredentials(url, username, password)
         parsedURL = urlparse.urlparse(url)
         if parsedURL.scheme!='sftp':
             raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
@@ -2146,82 +2260,6 @@ class Synapse:
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.get(path, localFilepath, preserve_mtime=True)
         return localFilepath
-
-
-    def _uploadStringToFile(self, content, contentType="text/plain"):
-        """
-        Upload a string to be stored in Synapse, as a single upload chunk
-        
-        :param content: The content to be uploaded
-        
-        :param contentType: The content type to be stored with the file
-       
-        :returns: An `S3 FileHandle <http://rest.synapse.org/org/sagebionetworks/repo/model/file/S3FileHandle.html>`_
-        """
-
-        if len(content)>5*MB:
-            raise ValueError('Maximum string length is 5 MB.')
-
-
-        headers = { 'Content-Type' : contentType }
-        headers.update(synapseclient.USER_AGENT)
-
-        try:
-
-            # Get token
-            md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
-            token = self._createChunkedUploadToken(md5, "message", contentType)
-            
-            retry_policy=self._build_retry_policy(
-                {"retry_errors":['We encountered an internal error. Please try again.']})
-
-            i = 1
-            chunk_record = {'chunk-number':i}
-
-            # Get the signed S3 URL
-            url = self._createChunkedFileUploadChunkURL(i, token)
-
-            # PUT the chunk to S3
-            response = _with_retry(
-                lambda: requests.put(url, data=content.encode("utf-8"), headers=headers),
-                **retry_policy)
-
-            chunk_record['response-status-code'] = response.status_code
-            chunk_record['response-headers'] = response.headers
-            if response.text:
-                chunk_record['response-body'] = response.text
- 
-            # Is requests closing response stream? Let's make sure:
-            # "Note that connections are only released back to
-            #  the pool for reuse once all body data has been
-            #  read; be sure to either set stream to False or
-            #  read the content property of the Response object."
-            # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
-            try:
-                if response:
-                    throw_away = response.content
-            except Exception as ex:
-                sys.stderr.write('error reading response: '+str(ex))
-
-            exceptions._raise_for_status(response, verbose=self.debug)
-
-            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
-
-            # Poll until concatenating chunks is complete
-            while (status['state']=='PROCESSING'):
-                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
-                status = self._completeUploadDaemonStatus(status)
-
-            if status['state'] == 'FAILED':
-                raise SynapseError(status['errorMessage'])
-
-            # Return a fileHandle
-            fileHandle = self._getFileHandle(status['fileHandleId'])
-
-        except Exception as ex:
-            raise sys.exc_info()[0], ex, sys.exc_info()[2]
-
-        return fileHandle
 
 
 

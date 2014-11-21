@@ -40,10 +40,10 @@ setup(name='synapseclient',
     packages=['synapseclient'],
     install_requires=[
         'requests>=1.2',
-        'pysftp>=0.2.8'
     ],
     extras_require = {
         'pandas':  ["pandas"],
+        'pysftp': ["pysftp>=0.2.8"]
     },
     test_suite='nose.collector',
     tests_require=['nose', 'mock'],
@@ -53,7 +53,7 @@ setup(name='synapseclient',
     zip_safe=False,
     package_data={'synapseclient': ['synapsePythonClient']},
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Intended Audience :: Developers',

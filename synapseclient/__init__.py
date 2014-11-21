@@ -36,7 +36,11 @@ Installation
 The `synapseclient <https://pypi.python.org/pypi/synapseclient/>`_ package is available from PyPI. It can
 be installed or upgraded with pip::
 
-    (sudo) pip install (--upgrade) synapseclient
+    (sudo) pip install (--upgrade) synapseclient[pandas,pysftp]
+
+The dependencies on pandas and pysftp are optional. The Synapse :py:mod:`synapseclient.table`
+feature integrates with Pandas. Support for sftp is required for users of SFTP file storage.
+Both require native libraries to be compiled or installed separately from prebuilt binaries.
 
 Source code and development versions are `available on Github <https://github.com/Sage-Bionetworks/synapsePythonClient>`_.
 Installing from source::
@@ -179,6 +183,13 @@ See:
 
 Tables
 ======
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Tables is an ALPHA feature
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+The tables feature is in the alpha stage. Please expect bugs and changes
+to some interface elements. Report bugs via 
+`JIRA <https://sagebionetworks.jira.com/>`_.
 
 Tables can be built up by adding sets of rows that follow a user-defined schema
 and queried using a SQL-like syntax.
