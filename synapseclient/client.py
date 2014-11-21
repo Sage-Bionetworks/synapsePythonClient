@@ -702,7 +702,7 @@ class Synapse:
         isLocationable = is_locationable(entity)
         if isinstance(entity, File) or isLocationable:
             fileName = entity['name']
-            
+
             if not isLocationable:
                 # Fill in information about the file, even if we don't download it
                 # Note: fileHandles will be an empty list if there are unmet access requirements

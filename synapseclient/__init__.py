@@ -184,6 +184,13 @@ See:
 Tables
 ======
 
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Tables is an ALPHA feature
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+The tables feature is in the alpha stage. Please expect bugs and changes
+to some interface elements. Report bugs via 
+`JIRA <https://sagebionetworks.jira.com/>`_.
+
 Tables can be built up by adding sets of rows that follow a user-defined schema
 and queried using a SQL-like syntax.
 
