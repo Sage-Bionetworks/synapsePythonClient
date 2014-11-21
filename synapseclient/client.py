@@ -2054,8 +2054,8 @@ class Synapse:
         else:
             raise NotImplementedError('Can only handle S3 and SFTP upload locations.')
         
-
-    def __getUserCredentials(self, url, username=None, password=None):
+    @utils.memoize
+    def __getUserCredentials(self, baseURL, username=None, password=None):
         """Get user credentials for a specified URL by either looking in the configFile
         or querying the user.
 
@@ -2065,22 +2065,19 @@ class Synapse:
 
         :returns: tuple of username, password
         """
-        parsedURL = urlparse.urlparse(url)
-
         #Get authentication information from configFile
         config = self.getConfigFile(self.configPath)
-        configSection = parsedURL.scheme+'://'+parsedURL.netloc
-        if username is None and config.has_option(configSection, 'username'):
-            username = config.get(configSection, 'username') 
-        if password is None and config.has_option(configSection, 'password'):
-            password = config.get(configSection, 'password')
+        if username is None and config.has_option(baseURL, 'username'):
+            username = config.get(baseURL, 'username') 
+        if password is None and config.has_option(baseURL, 'password'):
+            password = config.get(baseURL, 'password')
         #If I still don't have a username and password prompt for it
         if username is None:
             username = getpass.getuser()  #Default to login name
-            user =  raw_input('Username (%s):' %username)
+            user =  raw_input('Username for %s (%s):' %(baseURL, username))
             username = username if user=='' else user
         if password is None:
-            password = getpass.getpass()
+            password = getpass.getpass('Password for %s:' %baseURL)
         return username, password
 
 
@@ -2103,7 +2100,7 @@ class Synapse:
         if parsedURL.scheme!='sftp':
             raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
                                       " form sftp://..."))
-        username, password = self.__getUserCredentials(url, username, password)
+        username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.makedirs(parsedURL.path)
             with sftp.cd(parsedURL.path):
@@ -2129,12 +2126,12 @@ class Synapse:
         :returns: localFilePath
 
         """
-        username, password = self.__getUserCredentials(url, username, password)
         parsedURL = urlparse.urlparse(url)
         if parsedURL.scheme!='sftp':
             raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
                                       " form sftp://..."))
         #Create the local file path if it doesn't exist
+        username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
         path = urllib.unquote(parsedURL.path)
         if localFilepath is None:
             localFilepath = os.getcwd() 
