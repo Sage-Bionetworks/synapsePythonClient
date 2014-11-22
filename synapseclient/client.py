@@ -2160,8 +2160,8 @@ class Synapse:
         else:
             raise NotImplementedError('Can only handle S3 and SFTP upload locations.')
 
-
-    @utils.memoize
+        
+    #@utils.memoize  #To memoize we need to be able to back out faulty credentials
     def __getUserCredentials(self, baseURL, username=None, password=None):
         """Get user credentials for a specified URL by either looking in the configFile
         or querying the user.
