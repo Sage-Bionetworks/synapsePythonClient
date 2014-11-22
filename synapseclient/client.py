@@ -127,7 +127,7 @@ def _test_import_sftp():
     try:
         import pysftp
     except ImportError as e1:
-        sys.stderr.write("\n\Libraries required for SFTP not installed!\n" \
+        sys.stderr.write("\n\nLibraries required for SFTP not installed!\n" \
         "The Synapse client uses pysftp in order to access SFTP storage locations. This" \
         "library in turn depends on pycrypto.\n" \
         "To install these libraries on Unix variants including OS X, make sure the python" \
@@ -2239,7 +2239,6 @@ class Synapse:
         _test_import_sftp()
         import pysftp
 
-        username, password = self.__getUserCredentials(url, username, password)
         parsedURL = urlparse.urlparse(url)
         if parsedURL.scheme!='sftp':
             raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
