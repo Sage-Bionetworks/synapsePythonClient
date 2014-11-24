@@ -37,6 +37,7 @@ import base64, hashlib, hmac
 import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
+import tempfile
 import warnings
 
 import synapseclient
@@ -2592,12 +2593,42 @@ class Synapse:
         return wiki
 
         
-    # # Need to test functionality of this
-    # def _downloadWikiAttachment(self, owner, wiki, filename, destination=None):
-    #     # Download a file attached to a wiki page
-    #     url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(owner), id_of(wiki), filename,)
-    #     return self._downloadFile(url, destination)
+    def _downloadWikiAttachment(self, owner, wiki, filename, destination=None):
+        """
+        Download a file attached to a wiki page
+        """
+        url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(owner), id_of(wiki), filename,)
+        if not destination:
+            destination = filename
+        elif os.path.isdir(destination):
+            destination = os.path.join(destination, filename)
+        return self._downloadFile(url, destination)
 
+
+    def _copyWiki(self, wiki, destWiki):
+        """
+        Copy wiki contents including attachments from one wiki to another.
+
+        :param wiki: source :py:class:`synapseclient.wiki.Wiki`
+        :param destWiki: destination :py:class:`synapseclient.wiki.Wiki`
+
+        Both Wikis must already exist.
+        """
+        uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
+        results = self.restGET(uri)
+
+        file_handles = {fh['id']:fh for fh in results['list']}
+
+        ## need to download an re-upload wiki attachments, ug!
+        attachments = []
+        tempdir = tempfile.gettempdir()
+        for fhid in wiki.attachmentFileHandleIds:
+            file_info = self._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
+            attachments.append(file_info['path'])
+
+        destWiki.update({'attachments':attachments, 'markdown':wiki.markdown, 'title':wiki.title})
+
+        return self._storeWiki(destWiki)
 
 
     ############################################################
