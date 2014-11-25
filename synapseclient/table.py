@@ -19,7 +19,7 @@ Preliminaries::
 
     import synapseclient
     from synapseclient import Project, File, Folder, Schema
-    from synapseclient.table import Column, as_table_columns, create_table
+    from synapseclient.table import Column, as_table_columns, Table
 
     syn = synapseclient.Synapse()
     syn.login()
@@ -41,10 +41,10 @@ defines the columns of the table::
 
 Next, let's load some data into the table from a CSV file::
 
-    table = create_table(schema, "/path/to/genes.csv")
+    table = Table(schema, "/path/to/genes.csv")
     table = syn.store(table)
 
-The :py:func:`create_table` function takes two arguments, a schema object and
+The :py:func:`Table` function takes two arguments, a schema object and
 data in some form, which can be:
 
   * a path to a CSV file
@@ -73,7 +73,7 @@ Create a Synapse Table from a `DataFrame <http://pandas.pydata.org/pandas-docs/s
 
     df = pd.read_csv(filepath, header=0, sep='\t', index_col=False)
     schema = Schema(name='Samples', columns=as_table_columns(df), parent=project)
-    table = syn.store(create_table(schema, df))
+    table = syn.store(Table(schema, df))
 
 Get query results as a `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_::
 
@@ -89,7 +89,7 @@ Updates come in two flavors: appending new rows and updating existing ones.
 **Appending** new rows is fairly straightforward. To continue the previous
 example, we might add some new genes from another file::
 
-    table = syn.store(create_table(table.schema.id, "/path/to/more_genes.csv"))
+    table = syn.store(Table(table.schema.id, "/path/to/more_genes.csv"))
 
 **Updating** rows requires an etag, which identifies the most recent change
 set plus row IDs and version numbers for each row to be modified. We get
@@ -105,7 +105,7 @@ For example, let's update the names of some of our favorite genes::
 Note that we're propagating the etag from the query results. Without it, we'd
 get an error saying something about an "Invalid etag"::
 
-    table = syn.store(create_table(schema, df, etag=results.etag))
+    table = syn.store(Table(schema, df, etag=results.etag))
 
 The etag is used by the server to prevent concurrent users from making
 conflicting changes, a technique called optimistic concurrency control. In case
@@ -171,7 +171,7 @@ Module level methods
 
 .. autofunction:: as_table_columns
 
-.. autofunction:: create_table
+.. autofunction:: Table
 
 See also:
  - :py:meth:`synapseclient.Synapse.getColumns`
@@ -561,7 +561,7 @@ class RowSelection(DictObject):
         return syn.restPOST(uri, body=json.dumps(self))
 
 
-def create_table(schema, values, **kwargs):
+def Table(schema, values, **kwargs):
     """
     Combine a table schema and a set of values into some type of Table object
     depending on what type of values are given.

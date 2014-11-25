@@ -15,7 +15,7 @@ import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient import Project, File, Folder, Schema
-from synapseclient.table import Column, RowSet, Row, cast_row, as_table_columns, create_table
+from synapseclient.table import Column, RowSet, Row, cast_row, as_table_columns, Table
 import synapseclient.exceptions as exceptions
 
 import integration
@@ -183,7 +183,7 @@ def test_tables_csv():
             ["Kenny Burrel",   1931, 4.37, True]]
 
     ## the following creates a CSV file and uploads it to create a new table
-    table = syn.store(create_table(schema, data))
+    table = syn.store(Table(schema, data))
 
     ## Query and download an identical CSV
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
@@ -232,7 +232,7 @@ def test_tables_csv():
     ## Append rows
     more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
                       ["Hank Mobley", 1930, 5.67, False]]
-    table = syn.store(create_table(table.schema, more_jazz_guys))
+    table = syn.store(Table(table.schema, more_jazz_guys))
 
     ## query and download
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
@@ -259,7 +259,7 @@ def test_tables_pandas():
         schema = Schema(name="Nifty Table", columns=cols, parent=project)
 
         ## store in Synapse
-        table = syn.store(create_table(schema, df))
+        table = syn.store(Table(schema, df))
 
         ## retrieve the table and verify
         results = syn.queryTable('select * from %s'%table.schema.id)

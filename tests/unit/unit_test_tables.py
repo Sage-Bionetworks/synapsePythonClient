@@ -5,7 +5,7 @@ import sys
 import tempfile
 from itertools import izip
 
-from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_row, as_table_columns, create_table
+from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_row, as_table_columns, Table
 
 
 def setup(module):
@@ -142,7 +142,7 @@ def test_csv_table():
             for row in data:
                 writer.writerow(row)
 
-        table = create_table(schema1, filename)
+        table = Table(schema1, filename)
         assert isinstance(table, CsvFileTable)
 
         ## need to set columns to read a CSV file
@@ -199,7 +199,7 @@ def test_list_of_rows_table():
 
     schema1 = Schema(name='Jazz Guys', columns=cols, id="syn1000002", parent="syn1000001")
 
-    table = create_table(schema1, data)
+    table = Table(schema1, data)
 
     for table_row, expected_row in izip(table, data):
         assert table_row['values']==expected_row
