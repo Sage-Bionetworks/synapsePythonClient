@@ -437,6 +437,7 @@ class Schema(Entity, Versionable):
             self.__dict__['columns_to_store'] = None
 
 
+## add Schema to the map of synapse entity types to their Python representations
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
 
 
@@ -585,7 +586,7 @@ def create_table(schema, values, **kwargs):
 
     ## a list of rows
     elif isinstance(values, (list, tuple)):
-        return RowSetTable(schema, RowSet(schema=schema, rows=[Row(r) for r in values], **kwargs))
+        return CsvFileTable.from_list_of_rows(schema, values, **kwargs)
 
     ## filename of a csv file
     elif isinstance(values, basestring):
@@ -896,6 +897,58 @@ class CsvFileTable(Table):
                 quotechar=quoteCharacter,
                 escapechar=escapeCharacter,
                 line_terminator=lineEnd)
+        finally:
+            if f: f.close()
+
+        return cls(
+            schema=schema,
+            filepath=filepath,
+            etag=etag,
+            quoteCharacter=quoteCharacter,
+            escapeCharacter=escapeCharacter,
+            lineEnd=lineEnd,
+            separator=separator,
+            header=header,
+            columns=columns)
+
+    @classmethod
+    def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", linesToSkip=0, columns=None):
+
+        ## create CSV file
+        f = None
+        try:
+            if filepath:
+                f = open(filepath)
+            else:
+                f = tempfile.NamedTemporaryFile(delete=False)
+                filepath = f.name
+
+            writer = csv.writer(f,
+                quoting=csv.QUOTE_NONNUMERIC,
+                delimiter=separator,
+                escapechar=escapeCharacter,
+                lineterminator=lineEnd,
+                quotechar=quoteCharacter,
+                skipinitialspace=linesToSkip)
+
+            ## if we haven't explicitly set columns, try to grab them from
+            ## the schema object
+            if not columns and "columns_to_store" in schema:
+                cols = schema.columns_to_store
+            else:
+                cols = columns
+
+            ## write headers?
+            if cols:
+                writer.writerow([col.name for col in cols])
+                header = True
+            else:
+                header = False
+
+            ## write row data
+            for row in values:
+                writer.writerow(row)
+
         finally:
             if f: f.close()
 

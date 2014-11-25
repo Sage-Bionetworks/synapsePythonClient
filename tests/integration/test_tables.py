@@ -182,20 +182,8 @@ def test_tables_csv():
             ["Sonny Rollins",  1930, 8.99, True],
             ["Kenny Burrel",   1931, 4.37, True]]
 
-    ## create CSV file
-    with tempfile.NamedTemporaryFile(delete=False) as temp:
-        schedule_for_cleanup(temp.name)
-        writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC)
-
-        ## write headers
-        writer.writerow([col.name for col in cols])
-
-        ## write data
-        for row in data:
-            writer.writerow(row)
-
-    ## Upload CSV
-    table = syn.store(create_table(schema, temp.name))
+    ## the following creates a CSV file and uploads it to create a new table
+    table = syn.store(create_table(schema, data))
 
     ## Query and download an identical CSV
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
@@ -241,17 +229,10 @@ def test_tables_csv():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for aggregate queries as CSV tables.\n\n')
 
-    ## Append rows from headerless csv
+    ## Append rows
     more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
                       ["Hank Mobley", 1930, 5.67, False]]
-
-    with tempfile.NamedTemporaryFile(delete=False) as temp:
-        schedule_for_cleanup(temp.name)
-        writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC)
-        for row in more_jazz_guys:
-            writer.writerow(row)
-
-    table = syn.store(create_table(table.schema, temp.name, header=False))
+    table = syn.store(create_table(table.schema, more_jazz_guys))
 
     ## query and download
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
@@ -259,9 +240,6 @@ def test_tables_csv():
     ## test that CSV file now has more jazz guys
     for expected_row, row in izip(data+more_jazz_guys, results):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
-
-
-# select Category, avg(value1), avg(value2) from syn2791668 group by Category
 
 
 def test_tables_pandas():
