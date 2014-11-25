@@ -597,7 +597,7 @@ def create_table(schema, values, **kwargs):
         return CsvFileTable.from_data_frame(schema, values, **kwargs)
 
 
-class Table(object):
+class TableAbstractBaseClass(object):
     """
     Abstract base class for Tables based on different data containers.
     """
@@ -664,7 +664,7 @@ class Table(object):
         raise NotImplementedError()
 
 
-class RowSetTable(Table):
+class RowSetTable(TableAbstractBaseClass):
     """
     A Table object that wraps a RowSet.
     """
@@ -714,7 +714,7 @@ class RowSetTable(Table):
         return iterate_rows(self.rowset['rows'])
 
 
-class TableQueryResult(Table):
+class TableQueryResult(TableAbstractBaseClass):
     """
     An object to wrap rows returned as a result of a table query.
 
@@ -823,7 +823,7 @@ class TableQueryResult(Table):
         return self.rowset['rows'][self.i]
 
 
-class CsvFileTable(Table):
+class CsvFileTable(TableAbstractBaseClass):
     """
     An object to wrap a CSV file that may be stored into a Synapse table or
     returned as a result of a table query.
