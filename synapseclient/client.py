@@ -127,17 +127,18 @@ def _test_import_sftp():
     try:
         import pysftp
     except ImportError as e1:
-        sys.stderr.write("\n\nLibraries required for SFTP not installed!\n" \
-        "The Synapse client uses pysftp in order to access SFTP storage locations. This" \
-        "library in turn depends on pycrypto.\n" \
-        "To install these libraries on Unix variants including OS X, make sure the python" \
-        "devel libraries are installed, then::\n" \
-        "    (sudo) pip install pysftp\n\n" \
-        "For Windows systems without a C/C++ compiler, install the appropriate binary" \
-        "distribution of pycrypto from::\n" \
-        "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n" \
-        "For more information, see: http://python-docs.synapse.org/sftp.html" \
-        "\n\n\n""")
+        sys.stderr.write(
+            ("\n\nLibraries required for SFTP are not installed!\n" 
+             "The Synapse client uses pysftp in order to access SFTP storage "
+             "locations.  This library in turn depends on pycrypto.\n" 
+             "To install these libraries on Unix variants including OS X, make "
+             "sure the python devel libraries are installed, then:\n" 
+             "    (sudo) pip install pysftp\n\n" 
+             "For Windows systems without a C/C++ compiler, install the appropriate "
+             "binary distribution of pycrypto from:\n" 
+             "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n" 
+             "For more information, see: http://python-docs.synapse.org/sftp.html" 
+             "\n\n\n"))
         raise
 
 
