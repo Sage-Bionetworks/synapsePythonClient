@@ -110,9 +110,11 @@ def download_file(url, localFilepath=None):
             localFilepath = f.name
 
         r = requests.get(url, stream=True)
-        for chunk in r.iter_content(chunk_size=1024):
+        toBeTransferred = float(r.headers['content-length'])
+        for nChunks, chunk in enumerate(r.iter_content(chunk_size=1024*10)):
             if chunk:
                 f.write(chunk)
+                printTransferProgress(nChunks*1024*10 ,toBeTransferred)
     finally:
         if f:
             f.close()
