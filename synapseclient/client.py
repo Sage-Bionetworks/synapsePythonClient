@@ -2214,7 +2214,7 @@ class Synapse:
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.makedirs(parsedURL.path)
             with sftp.cd(parsedURL.path):
-                sftp.put(filepath, preserve_mtime=True)
+                sftp.put(filepath, preserve_mtime=True, callback=utils.printTransferProgress)
 
         path = urllib.quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
         parsedURL = parsedURL._replace(path=path)
@@ -2257,7 +2257,7 @@ class Synapse:
 
         #Download file
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.get(path, localFilepath, preserve_mtime=True)
+            sftp.get(path, localFilepath, preserve_mtime=True, callback=utils.printTransferProgress)
         return localFilepath
 
 

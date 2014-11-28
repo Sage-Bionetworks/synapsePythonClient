@@ -637,6 +637,33 @@ def timing(f):
     return wrap
 
 
+def printTransferProgress(transferred, toBeTransferred):
+    barLength = 20 # Modify this to change the length of the progress bar
+    progress = float(transferred)/toBeTransferred
+    status = ""
+    if progress >= 1:
+        progress = 1
+        status = "Done...\r\n"
+    block = int(round(barLength*progress))
+    text = "\r [%s]%4.2f%% \t%s/%s %s" %("#"*block + "-"*(barLength-block), 
+                                                 progress*100, 
+                                                 humanizeBytes(transferred),
+                                                 humanizeBytes(toBeTransferred),
+                                                 status)
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
+
+def humanizeBytes(bytes):
+    units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
+    for i, unit in enumerate(units):
+        if bytes<1024:
+            return '%3.1f%s' %(bytes, units[i])
+        else:
+            bytes /= 1024
+    return 'Oops larger than Exabytes'
+
+
 def _is_json(content_type):
     """detect if a content-type is JSON"""
     ## The value of Content-Type defined here:
