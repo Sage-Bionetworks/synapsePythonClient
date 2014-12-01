@@ -127,17 +127,18 @@ def _test_import_sftp():
     try:
         import pysftp
     except ImportError as e1:
-        sys.stderr.write("\n\nLibraries required for SFTP not installed!\n" \
-        "The Synapse client uses pysftp in order to access SFTP storage locations. This" \
-        "library in turn depends on pycrypto.\n" \
-        "To install these libraries on Unix variants including OS X, make sure the python" \
-        "devel libraries are installed, then::\n" \
-        "    (sudo) pip install pysftp\n\n" \
-        "For Windows systems without a C/C++ compiler, install the appropriate binary" \
-        "distribution of pycrypto from::\n" \
-        "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n" \
-        "For more information, see: http://python-docs.synapse.org/sftp.html" \
-        "\n\n\n""")
+        sys.stderr.write(
+            ("\n\nLibraries required for SFTP are not installed!\n" 
+             "The Synapse client uses pysftp in order to access SFTP storage "
+             "locations.  This library in turn depends on pycrypto.\n" 
+             "To install these libraries on Unix variants including OS X, make "
+             "sure the python devel libraries are installed, then:\n" 
+             "    (sudo) pip install pysftp\n\n" 
+             "For Windows systems without a C/C++ compiler, install the appropriate "
+             "binary distribution of pycrypto from:\n" 
+             "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n" 
+             "For more information, see: http://python-docs.synapse.org/sftp.html" 
+             "\n\n\n"))
         raise
 
 
@@ -1757,11 +1758,11 @@ class Synapse:
             raise
 
         # Stream the file to disk
-        with open(destination, "wb") as f:
-            data = response.raw.read(FILE_BUFFER_SIZE)
-            while data:
-                f.write(data)
-                data = response.raw.read(FILE_BUFFER_SIZE)
+        toBeTransferred = float(response.headers['content-length'])
+        with open(destination, 'wb') as fd:
+            for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
+                fd.write(chunk)
+                utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred)
 
         destination = os.path.abspath(destination)
         return returnDict(destination)
@@ -2214,7 +2215,7 @@ class Synapse:
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.makedirs(parsedURL.path)
             with sftp.cd(parsedURL.path):
-                sftp.put(filepath, preserve_mtime=True)
+                sftp.put(filepath, preserve_mtime=True, callback=utils.printTransferProgress)
 
         path = urllib.quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
         parsedURL = parsedURL._replace(path=path)
@@ -2257,7 +2258,7 @@ class Synapse:
 
         #Download file
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.get(path, localFilepath, preserve_mtime=True)
+            sftp.get(path, localFilepath, preserve_mtime=True, callback=utils.printTransferProgress)
         return localFilepath
 
 
