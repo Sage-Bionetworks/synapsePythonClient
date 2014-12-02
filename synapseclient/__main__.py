@@ -292,7 +292,7 @@ def getAnnotations(args, syn):
     annotations = syn.getAnnotations(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        print json.dumps(activity,sort_keys=True, indent=2)
+        print json.dumps(annotations,sort_keys=True, indent=2)
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
