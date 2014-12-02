@@ -219,7 +219,55 @@ def test_command_line_client():
     assert used['url'] == repo_url
     assert used['wasExecuted'] == True
 
+    # Test setting annotations
+    output = run('synapse', 
+                 '--skip-checks',
+                 'set-annotations', 
+                 '--id', 
+                 file_entity_id, 
+                 '--annotations',
+                 '{"foo": 1, "bar": "1", "baz": [1, 2, 3]}',
+    )
+    assert output == "Set annotations on entity %s" % (file_entity_id,)
 
+    # Test getting annotations
+    # check that the three things set are correct
+
+    output = run('synapse', 
+                 '--skip-checks',
+                 'get-annotations', 
+                 '--id', 
+                 file_entity_id
+             )
+
+    annotations = json.loads(output)
+    assert annotations['foo'] == 1
+    assert annotations['bar'] == "1"
+    assert annotations['baz'] == [1, 2, 3]
+    
+    # Test setting annotations by replacing existing ones.
+    output = run('synapse', 
+                 '--skip-checks',
+                 'set-annotations', 
+                 '--id', 
+                 file_entity_id, 
+                 '--annotations',
+                 '{"foo": 2}',
+                 '--replace'
+    )
+    assert output == "Set annotations on entity %s" % (file_entity_id,)
+
+    # Test that the annotation was updated
+    output = run('synapse', 
+                 '--skip-checks',
+                 'get-annotations', 
+                 '--id', 
+                 file_entity_id
+             )
+
+    annotations = json.loads(output)
+    assert annotations['foo'] == 2
+    
     # Note: Tests shouldn't have external dependencies
     #       but this is a pretty picture of Singapore
     singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/' \
