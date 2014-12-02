@@ -288,6 +288,16 @@ def setAnnotations(args, syn):
     
     sys.stderr.write('Set annotations on entity %s\n' % (args.id, ))
 
+def getAnnotations(args, syn):
+    annotations = syn.getAnnotations(args.id)
+
+    if args.output is None or args.output=='STDOUT':
+        print json.dumps(activity,sort_keys=True, indent=2)
+    else:
+        with open(args.output, 'w') as f:
+            f.write(json.dumps(annotations))
+            f.write('\n')
+
 def submit(args, syn):
     '''
     Method to allow challenge participants to submit to an evaluation queue
@@ -547,6 +557,15 @@ def build_parser():
             help='Replace all existing annotations with the given annotations')
     parser_set_annotations.set_defaults(func=setAnnotations)
 
+    parser_get_annotations = subparsers.add_parser('get-annotations',
+            help='show annotations records')
+    parser_get_annotations.add_argument('--id', metavar='syn123', type=str, required=True,
+            help='Synapse ID of entity whose annotations we are accessing.')
+    parser_get_annotations.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+            const='STDOUT', nargs='?', type=str,
+            help='Output the annotations record in JSON format')
+    parser_get_annotations.set_defaults(func=getAnnotations)
+    
     parser_create = subparsers.add_parser('create',
             help='Creates folders or projects on Synapse')
     parser_create.add_argument('-parentid', '-parentId', metavar='syn123', type=str, required=False,
