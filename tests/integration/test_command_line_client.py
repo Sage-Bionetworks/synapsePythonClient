@@ -228,7 +228,6 @@ def test_command_line_client():
                  '--annotations',
                  '{"foo": 1, "bar": "1", "baz": [1, 2, 3]}',
     )
-    assert output == "Set annotations on entity %s" % (file_entity_id,)
 
     # Test getting annotations
     # check that the three things set are correct
@@ -241,8 +240,8 @@ def test_command_line_client():
              )
 
     annotations = json.loads(output)
-    assert annotations['foo'] == 1
-    assert annotations['bar'] == "1"
+    assert annotations['foo'] == [1]
+    assert annotations['bar'] == [u"1"]
     assert annotations['baz'] == [1, 2, 3]
     
     # Test setting annotations by replacing existing ones.
@@ -255,7 +254,6 @@ def test_command_line_client():
                  '{"foo": 2}',
                  '--replace'
     )
-    assert output == "Set annotations on entity %s" % (file_entity_id,)
 
     # Test that the annotation was updated
     output = run('synapse', 
@@ -266,7 +264,7 @@ def test_command_line_client():
              )
 
     annotations = json.loads(output)
-    assert annotations['foo'] == 2
+    assert annotations['foo'] == [2]
     
     # Note: Tests shouldn't have external dependencies
     #       but this is a pretty picture of Singapore
