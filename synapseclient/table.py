@@ -50,6 +50,7 @@ data in some form, which can be:
   * a path to a CSV file
   * a `Pandas <http://pandas.pydata.org/>`_ `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
   * a :py:class:`RowSet` object
+  * a list of lists where each of the inner lists is a row
 
 With a bit of luck, we now have a table populated with data. Let's try to query::
 
@@ -69,32 +70,36 @@ Create a Synapse Table from a `DataFrame <http://pandas.pydata.org/pandas-docs/s
 
     import pandas as pd
 
-    filepath = '/path/to/samples.csv'
-
-    df = pd.read_csv(filepath, header=0, sep='\t', index_col=False)
-    schema = Schema(name='Samples', columns=as_table_columns(df), parent=project)
+    df = pd.read_csv("/path/to/genes.csv", index_col=False)
+    schema = Schema(name='My Favorite Genes', columns=as_table_columns(df), parent=project)
     table = syn.store(Table(schema, df))
 
 Get query results as a `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_::
 
-    results = syn.queryTable("select * from %s where age > 90" % table.schema.id)
+    results = syn.queryTable("select * from %s where Chromosome='3'" % table.schema.id)
     df = results.asDataFrame()
 
 --------------
 Making changes
 --------------
 
-Updates come in two flavors: appending new rows and updating existing ones.
+Changes come in two flavors: appending new rows and updating existing ones.
 
 **Appending** new rows is fairly straightforward. To continue the previous
 example, we might add some new genes from another file::
 
     table = syn.store(Table(table.schema.id, "/path/to/more_genes.csv"))
 
+To quickly add a few rows, use a list of row data::
+
+    new_rows = [["Qux1", "4", 201001001, 201002001, "+", False],
+                ["Qux2", "4", 201003001, 201004001, "+", False]]
+    table = syn.store(Table(table.schema.id, new_rows))
+
 **Updating** rows requires an etag, which identifies the most recent change
 set plus row IDs and version numbers for each row to be modified. We get
 those by querying before updating. Minimizing changesets to contain only rows
-that actually change will make the process faster.
+that actually change will make processing faster.
 
 For example, let's update the names of some of our favorite genes::
 
@@ -108,7 +113,7 @@ get an error saying something about an "Invalid etag"::
     table = syn.store(Table(schema, df, etag=results.etag))
 
 The etag is used by the server to prevent concurrent users from making
-conflicting changes, a technique called optimistic concurrency control. In case
+conflicting changes, a technique called optimistic concurrency. In case
 of a conflict, your update may be rejected. You then have to do another query
 an try your update again.
 
@@ -572,6 +577,17 @@ def Table(schema, values, **kwargs):
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+
+    Usually, the immediate next step after creating a Table object is to store it::
+
+        table = syn.store(Table(schema, values))
+
+    End users should not need to know the details of these Table subclasses:
+
+      - :py:class:`TableAbstractBaseClass`
+      - :py:class:`RowSetTable`
+      - :py:class:`TableQueryResult`
+      - :py:class:`CsvFileTable`
     """
 
     try:
@@ -1042,7 +1058,8 @@ class CsvFileTable(TableAbstractBaseClass):
         def iterate_rows(filepath, columns, headers):
             with open(filepath) as f:
                 reader = csv.reader(f)
-                header = reader.next()
+                if self.header:
+                    header = reader.next()
                 for row in reader:
                     yield cast_row(row, columns, headers)
         return iterate_rows(self.filepath, self.columns, self._get_headers())
