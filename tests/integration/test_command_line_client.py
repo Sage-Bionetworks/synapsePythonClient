@@ -206,7 +206,7 @@ def test_command_line_client():
     output = run('synapse', 
                  '--skip-checks', 
                  'get-provenance', 
-                 '-id', 
+                 '--id', 
                  file_entity_id)
     activity = json.loads(output)
     assert activity['name'] == 'TestActivity'
