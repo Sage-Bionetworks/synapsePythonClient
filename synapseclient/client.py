@@ -381,9 +381,9 @@ class Synapse:
             
         if not silent:
             profile = self.getUserProfile(refresh=True)
-            sys.stdout.write("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
-        
-        
+            sys.stdout.write(("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username)).encode('utf-8'))
+
+
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
         """Returns a validated session token."""
         if email is not None and password is not None:
