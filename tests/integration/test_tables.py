@@ -34,7 +34,7 @@ def setup(module):
     module.syn.table_query_timeout = 423
 
 
-def test_tables():
+def test_rowset_tables():
 
     # print "Project ID:", project.id
     # del integration._to_cleanup[:]
@@ -77,7 +77,7 @@ def test_tables():
     syn.store(
         RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data2]))
 
-    results = syn.queryTable("select * from %s order by name" % schema1.id)
+    results = syn.tableQuery("select * from %s order by name" % schema1.id, resultsAs="rowset")
 
     assert results.count==8
     assert results.tableId==schema1.id
@@ -88,7 +88,7 @@ def test_tables():
         assert expected_values == row['values'], 'got %s but expected %s' % (row['values'], expected_values)
 
     ## To modify rows, we have to select then first.
-    result2 = syn.queryTable('select * from %s where age>18 and age<30'%schema1.id)
+    result2 = syn.tableQuery('select * from %s where age>18 and age<30'%schema1.id, resultsAs="rowset")
 
     ## make a change
     rs = result2.asRowSet()
@@ -99,10 +99,8 @@ def test_tables():
     row_reference_set = syn.store(rs)
 
     ## check if the change sticks
-    result3 = syn.queryTable('select name, x, age from %s'%schema1.id)
-    rs = result3.asRowSet()
-
-    for row in rs['rows']:
+    result3 = syn.tableQuery('select name, x, age from %s'%schema1.id, resultsAs="rowset")
+    for row in result3:
         if int(row['values'][2]) == 20:
             assert row['values'][1] == 88.888
 
@@ -116,8 +114,7 @@ def test_tables():
     schema1.addColumn(bday_column)
     schema1 = syn.store(schema1)
 
-    results = syn.queryTable('select * from %s where cartoon=false order by age'%schema1.id)
-    assert results.count==4
+    results = syn.tableQuery('select * from %s where cartoon=false order by age'%schema1.id, resultsAs="rowset")
     rs = results.asRowSet()
 
     ## put data in new column
@@ -128,7 +125,7 @@ def test_tables():
 
     ## query by date and check that we get back two kids
     date_2008_jan_1 = utils.to_unix_epoch_time(datetime(2008,1,1))
-    results = syn.queryTable('select name from %s where birthday > %d order by birthday' % (schema1.id, date_2008_jan_1))
+    results = syn.tableQuery('select name from %s where birthday > %d order by birthday' % (schema1.id, date_2008_jan_1), resultsAs="rowset")
     assert ["Jane", "Henry"] == [row['values'][0] for row in results]
 
     try:
@@ -138,14 +135,14 @@ def test_tables():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables.\n\n')
 
-    results = syn.queryTable('select birthday from %s where cartoon=false order by age' % schema1.id)
+    results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id, resultsAs="rowset")
     for bday, row in izip(bdays, results):
         expected = str(utils.to_unix_epoch_time(datetime.strptime(bday, '%Y-%m-%d')))
         assert row['values'][0] == expected, "got %s but expected %s" % (row['values'][0], expected)
 
     try:
         import pandas as pd
-        results = syn.queryTable("select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id)
+        results = syn.tableQuery("select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id, resultsAs="rowset")
         df = results.asDataFrame()
         print df
         assert df.shape == (3,4)
@@ -156,9 +153,9 @@ def test_tables():
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables.\n\n')
 
     ## test delete rows by deleting cartoon characters
-    syn.delete(syn.queryTable('select name from %s where cartoon = true'%schema1.id))
+    syn.delete(syn.tableQuery('select name from %s where cartoon = true'%schema1.id, resultsAs="rowset"))
 
-    result = syn.queryTable('select name from %s order by birthday' % schema1.id)
+    result = syn.tableQuery('select name from %s order by birthday' % schema1.id, resultsAs="rowset")
     assert ["Chris", "Jen", "Jane", "Henry"] == [row['values'][0] for row in result]
 
 
@@ -197,13 +194,9 @@ def test_tables_csv():
         import pandas as pd
 
         df = results.asDataFrame()
+        assert all(df.columns.values == ['Name', 'Born', 'Hipness', 'Living'])
         assert all(df.iloc[1,[0,1,3]] == ['Miles Davis', 1926, False]), "Wasn't expecting:" + unicode(df.iloc[1,[0,1,3]])
         assert df.iloc[1,2] - 9.87 < 0.0001
-
-        results = syn.tableQuery("select * from %s where Name='Miles Davis'" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=True)
-        df = results.asDataFrame()
-        assert all(df.iloc[0,[0,1,3]] == ['Miles Davis', 1926, False]), "Wasn't expecting:" + unicode(df.iloc[0,[0,1,3]])
-        assert df.iloc[0,2] - 9.87 < 0.0001
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for CSV tables.\n\n')
 
@@ -214,9 +207,10 @@ def test_tables_csv():
 
     results = syn.tableQuery('select Living, min(Born), count(Living), avg(Hipness) from %s group by Living' % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
     for row in results:
-        assert expected[row[0]][1] == row[1]
-        assert expected[row[0]][2] == row[2]
-        assert abs(expected[row[0]][3] - row[3]) < 0.0001
+        living = row[0]
+        assert expected[living][1] == row[1]
+        assert expected[living][2] == row[2]
+        assert abs(expected[living][3] - row[3]) < 0.0001
 
     ## Aggregate query results to DataFrame
     try:
@@ -234,12 +228,32 @@ def test_tables_csv():
                       ["Hank Mobley", 1930, 5.67, False]]
     table = syn.store(Table(table.schema, more_jazz_guys))
 
-    ## query and download
-    results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
-
     ## test that CSV file now has more jazz guys
+    results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
     for expected_row, row in izip(data+more_jazz_guys, results):
-        assert expected_row == row, "expected %s but got %s" % (expected_row, row)
+        assert expected_row == row[2:], "expected %s but got %s" % (expected_row, row)
+
+    ## Update as a RowSet
+    rowset = results.asRowSet()
+    for row in rowset['rows']:
+        if row['values'][1] == 1930:
+            row['values'][2] += 8.5
+    row_reference_set = syn.store(rowset)
+
+    results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
+    df = results.asDataFrame()
+    print df
+    all(df['Born'].values == 1930)
+    all(df['Hipness'].values == 8.5)
+
+    ## Update via a Data Frame
+    df['Hipness'] = 9.75
+    table = syn.store(Table(results.tableId, df, etag=results.etag))
+
+    results = syn.tableQuery("select * from %s where Born=1930" % table.tableId, resultsAs="csv")
+    for row in results:
+        print row
+        assert row[4] == 9.75
 
 
 def test_tables_pandas():
@@ -262,7 +276,7 @@ def test_tables_pandas():
         table = syn.store(Table(schema, df))
 
         ## retrieve the table and verify
-        results = syn.queryTable('select * from %s'%table.schema.id)
+        results = syn.tableQuery('select * from %s'%table.schema.id)
         df2 = results.asDataFrame()
 
         ## simulate rowId-version rownames for comparison
@@ -294,7 +308,7 @@ def dontruntest_big_tables():
         print "added 100 rows"
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
-    results = syn.queryTable("select * from %s" % table1.id)
+    results = syn.tableQuery("select * from %s" % table1.id)
     print "number of rows:", results.count
     print "etag:", results.etag
     print "tableId:", results.tableId
@@ -302,7 +316,7 @@ def dontruntest_big_tables():
     for row in results:
         print row
 
-    results = syn.queryTable("select n, COUNT(n), MIN(x), AVG(x), MAX(x), SUM(x) from %s group by n" % table1.id)
+    results = syn.tableQuery("select n, COUNT(n), MIN(x), AVG(x), MAX(x), SUM(x) from %s group by n" % table1.id)
     df = results.asDataFrame()
 
     print df.shape

@@ -112,14 +112,14 @@ def test_as_table_columns():
 def test_csv_table():
     ## Maybe not truly a unit test, but here because it doesn't do
     ## network IO to synapse
-    data = [["John Coltrane",  1926, 8.65, False],
-            ["Miles Davis",    1926, 9.87, False],
-            ["Bill Evans",     1929, 7.65, False],
-            ["Paul Chambers",  1935, 5.14, False],
-            ["Jimmy Cobb",     1929, 5.78, True],
-            ["Scott LaFaro",   1936, 4.21, False],
-            ["Sonny Rollins",  1930, 8.99, True],
-            ["Kenny Burrel",   1931, 4.37, True]]
+    data = [["1", "1", "John Coltrane",  1926, 8.65, False],
+            ["2", "1", "Miles Davis",    1926, 9.87, False],
+            ["3", "1", "Bill Evans",     1929, 7.65, False],
+            ["4", "1", "Paul Chambers",  1935, 5.14, False],
+            ["5", "1", "Jimmy Cobb",     1929, 5.78, True],
+            ["6", "1", "Scott LaFaro",   1936, 4.21, False],
+            ["7", "1", "Sonny Rollins",  1930, 8.99, True],
+            ["8", "1", "Kenny Burrel",   1931, 4.37, True]]
 
     filename = None
 
@@ -146,25 +146,27 @@ def test_csv_table():
         assert isinstance(table, CsvFileTable)
 
         ## need to set columns to read a CSV file
-        table.setColumns(cols)
+        table.setColumns(cols, headers = ['ROW_ID', 'ROW_VERSION'] + [col.id for col in cols])
 
         ## test iterator
-        #print "\n\nJazz Guys"
+        # print "\n\nJazz Guys"
         for table_row, expected_row in izip(table, data):
-            # print table_row
+            # print table_row, expected_row
             assert table_row==expected_row
 
         ## test asRowSet
         rowset = table.asRowSet()
         for rowset_row, expected_row in izip(rowset.rows, data):
-            assert rowset_row['values']==expected_row
+            assert rowset_row['values']==expected_row[2:]
+            assert rowset_row['rowId']==expected_row[0]
+            assert rowset_row['versionNumber']==expected_row[1]
 
         ## test asDataFrame
         try:
             import pandas as pd
 
             df = table.asDataFrame()
-            assert all(df['Born'] == [row[1] for row in data])
+            assert all(df['Born'] == [row[3] for row in data])
 
         except ImportError as e1:
             sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_csv_table.\n\n')
@@ -199,10 +201,11 @@ def test_list_of_rows_table():
 
     schema1 = Schema(name='Jazz Guys', columns=cols, id="syn1000002", parent="syn1000001")
 
-    table = Table(schema1, data)
+    ## need columns to do cast_rows w/o storing
+    table = Table(schema1, data, columns=cols)
 
     for table_row, expected_row in izip(table, data):
-        assert table_row['values']==expected_row
+        assert table_row==expected_row
 
     rowset = table.asRowSet()
     for rowset_row, expected_row in izip(rowset.rows, data):
@@ -260,5 +263,3 @@ def test_aggregate_query_result_to_data_frame():
     # assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + unicode(df['MIN(Born)'].values)
     # assert all(df['COUNT(State)'].values == [2,3,1,1])
     # assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
-
-

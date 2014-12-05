@@ -2724,18 +2724,18 @@ class Synapse:
 
             SELECT * from syn12345
 
-        :param resultsAs: select whether results are returned as a CSV file or incrementally
-                          downloaded as sets of rows.
+        :param resultsAs: select whether results are returned as a CSV file ("csv") or incrementally
+                          downloaded as sets of rows ("rowset").
 
-        :return: A Table object that serves as a wrapper around a CSV file (or generator if
-                 resultsAs="generator")
+        :return: A Table object that serves as a wrapper around a CSV file (or generator over
+                 Row objects if resultsAs="rowset").
 
         You can receive query results either as a generator over rows or as a CSV file. For
-        smallish tables, either method will work equally well. The generator method allows
+        smallish tables, either method will work equally well. Use of a "rowset" generator allows
         rows to be processed one at a time and processing may be stopped before downloading
         the entire table.
 
-        Optional keyword arguments differ for the two return types. For the generator option,
+        Optional keyword arguments differ for the two return types. For the "rowset" option,
 
         :param  limit: specify the maximum number of rows to be returned, defaults to None
         :param offset: don't return the first n rows, defaults to None
@@ -2752,24 +2752,12 @@ class Synapse:
         :param header: True by default
         :param includeRowIdAndRowVersion: True by default
         """
-        if resultsAs.lower()=="generator":
+        if resultsAs.lower()=="rowset":
             return TableQueryResult(self, query, **kwargs)
         elif resultsAs.lower()=="csv":
             return CsvFileTable.from_table_query(self, query, **kwargs)
         else:
             raise ValueError("Unknown return type requested from tableQuery: " + unicode(resultsAs))
-
-    # TODO: remove
-    # TODO: make one queryTable method with a resultsAs="csv" or resultsAs="generator"
-    def queryTable(self, query, limit=None, offset=None, isConsistent=True):
-        """
-        Query for rows in a table using a SQL-like language::
-
-            results = syn.queryTable("select * from syn1234")
-            for row in results:
-                print row
-        """
-        return TableQueryResult(self, query, limit, offset, isConsistent)
 
 
     def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
@@ -2859,6 +2847,13 @@ class Synapse:
         Sends a `DownloadFromTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
 
         :return: a tuple containing a `DownloadFromTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
+
+        The DownloadFromTableResult object contains these fields:
+         * headers: ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
+         * resultsFileHandleId: STRING, The resulting file handle ID can be used to download the CSV file created by this query.
+         * concreteType: STRING
+         * etag: STRING, Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
+         * tableId: STRING, The ID of the table identified in the from clause of the table query.
         """
 
         download_from_table_request = {
@@ -2874,13 +2869,6 @@ class Synapse:
             "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
 
         download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request)
-
-        # DownloadFromTableResult
-        # headers     ARRAY< STRING >     The list of ColumnModel IDs that describes the rows of this set.
-        # resultsFileHandleId     STRING  The resulting file handle ID can be used to download the CSV file created by this job. The file will contain all of the data requested in the query SQL provided when the job was started.
-        # concreteType    STRING
-        # etag    STRING  Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
-        # tableId     STRING  The ID of the table identified in the from clause of the table query.
 
         url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, download_from_table_result['resultsFileHandleId'])
         cache_dir = cache.determine_cache_directory_from_file_handle(download_from_table_result['resultsFileHandleId'])

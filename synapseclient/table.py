@@ -39,7 +39,17 @@ defines the columns of the table::
 
     schema = Schema(name='My Favorite Genes', columns=cols, parent=project)
 
-Next, let's load some data into the table from a CSV file::
+Next, let's load some data. Let's say we had a file, genes.csv::
+
+    Name,Chromosome,Start,End,Strand,TranscriptionFactor
+    foo,1,12345,12600,+,False
+    arg,2,20001,20200,+,False
+    zap,2,30033,30999,-,False
+    bah,1,40444,41444,-,False
+    bnk,1,51234,54567,+,True
+    xyz,1,61234,68686,+,False
+
+Let's store that in Synapse::
 
     table = Table(schema, "/path/to/genes.csv")
     table = syn.store(table)
@@ -54,7 +64,7 @@ data in some form, which can be:
 
 With a bit of luck, we now have a table populated with data. Let's try to query::
 
-    results = syn.queryTable("select * from %s where Chromosome='1' and Start < 900000 and End > 880000" % table.schema.id)
+    results = syn.tableQuery("select * from %s where Chromosome='1' and Start < 41000 and End > 20000" % table.schema.id)
     for row in results:
         print row['values']
 
@@ -76,7 +86,7 @@ Create a Synapse Table from a `DataFrame <http://pandas.pydata.org/pandas-docs/s
 
 Get query results as a `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_::
 
-    results = syn.queryTable("select * from %s where Chromosome='3'" % table.schema.id)
+    results = syn.tableQuery("select * from %s where Chromosome='2'" % table.schema.id)
     df = results.asDataFrame()
 
 --------------
@@ -92,9 +102,9 @@ example, we might add some new genes from another file::
 
 To quickly add a few rows, use a list of row data::
 
-    new_rows = [["Qux1", "4", 201001001, 201002001, "+", False],
-                ["Qux2", "4", 201003001, 201004001, "+", False]]
-    table = syn.store(Table(table.schema.id, new_rows))
+    new_rows = [["Qux1", "4", 201001, 202001, "+", False],
+                ["Qux2", "4", 203001, 204001, "+", False]]
+    table = syn.store(Table(schema, new_rows))
 
 **Updating** rows requires an etag, which identifies the most recent change
 set plus row IDs and version numbers for each row to be modified. We get
@@ -103,9 +113,9 @@ that actually change will make processing faster.
 
 For example, let's update the names of some of our favorite genes::
 
-    results = syn.queryTable("select * from %s where Chromosome='3'" %table.schema.id)
+    results = syn.tableQuery("select * from %s where Chromosome='1'" %table.schema.id)
     df = results.asDataFrame()
-    df['Name'] = ['rzing', 'zing1', 'zing2', 'zing3', 'zing4']
+    df['Name'] = ['rzing', 'zing1', 'zing2', 'zing3']
 
 Note that we're propagating the etag from the query results. Without it, we'd
 get an error saying something about an "Invalid etag"::
@@ -123,8 +133,8 @@ Deleting rows
 
 Query for the rows you want to delete and call syn.delete on the results::
 
-    results = syn.queryTable("select * from %s where Chromosome='3'" %table.schema.id)
-    a = syn.delete(results)
+    results = syn.tableQuery("select * from %s where Chromosome='2'" %table.schema.id)
+    a = syn.delete(results.asRowSet())
 
 ------------------------
 Deleting the whole table
@@ -181,7 +191,7 @@ Module level methods
 See also:
  - :py:meth:`synapseclient.Synapse.getColumns`
  - :py:meth:`synapseclient.Synapse.getTableColumns`
- - :py:meth:`synapseclient.Synapse.queryTable`
+ - :py:meth:`synapseclient.Synapse.tableQuery`
  - :py:meth:`synapseclient.Synapse.get`
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
@@ -291,6 +301,12 @@ def to_boolean(value):
             return False
 
     raise ValueError("Can't convert %s to boolean." % value)
+
+
+def column_ids(columns):
+    if columns is None:
+        return []
+    return [col.id for col in columns if 'id' in col]
 
 
 def cast_row(row, columns, headers):
@@ -514,7 +530,7 @@ class RowSet(DictObject):
         """
         Delete the rows in the RowSet.
         Example::
-            syn.delete(syn.queryTable('select name from %s where no_good = true' % schema1.id))
+            syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
@@ -655,7 +671,7 @@ class TableAbstractBaseClass(object):
         Delete the rows that result from a table query.
 
         Example::
-            syn.delete(syn.queryTable('select name from %s where no_good = true' % schema1.id))
+            syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
@@ -667,10 +683,10 @@ class TableAbstractBaseClass(object):
         """
         Determine column headers, which are returned as a list of column IDs
         """
-        if hasattr(self, "_headers"):
-            return self._headers
+        if hasattr(self, "headers"):
+            return self.headers
         elif hasattr(self, "columns") and self.columns:
-            return [id_of(column) for column in columns]
+            return column_ids(self.columns)
         elif self.schema:
             return self.schema.columnIds
         else:
@@ -688,7 +704,6 @@ class RowSetTable(TableAbstractBaseClass):
         super(RowSetTable, self).__init__(schema, etag=rowset.get('etag', None))
         self.rowset = rowset
         self.columns = columns
-        self.i = -1
 
     def _synapse_store(self, syn):
         row_reference_set = syn.store(self.rowset)
@@ -736,7 +751,7 @@ class TableQueryResult(TableAbstractBaseClass):
 
     The TableQueryResult object can be used to iterate over results of a query:
 
-        results = syn.queryTable("select * from syn1234")
+        results = syn.tableQuery("select * from syn1234")
         for row in results:
             print row
     """
@@ -872,9 +887,11 @@ class CsvFileTable(TableAbstractBaseClass):
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
-        self.setColumns(
-            columns=list(synapse.getColumns(download_from_table_result['headers'])),
-            headers=['ROW_ID', 'ROW_VERSION'] + download_from_table_result['headers'] if includeRowIdAndRowVersion else download_from_table_result['headers'])
+        ## download_from_table_result has no 'headers' field when query comes back empty
+        if 'headers' in download_from_table_result:
+            self.setColumns(
+                columns=list(synapse.getColumns(download_from_table_result['headers'])),
+                headers=['ROW_ID', 'ROW_VERSION'] + download_from_table_result['headers'] if includeRowIdAndRowVersion else download_from_table_result['headers'])
 
         return self
 
@@ -950,13 +967,11 @@ class CsvFileTable(TableAbstractBaseClass):
             ## if we haven't explicitly set columns, try to grab them from
             ## the schema object
             if not columns and "columns_to_store" in schema:
-                cols = schema.columns_to_store
-            else:
-                cols = columns
+                columns = schema.columns_to_store
 
             ## write headers?
-            if cols:
-                writer.writerow([col.name for col in cols])
+            if columns:
+                writer.writerow([col.name for col in columns])
                 header = True
             else:
                 header = False
@@ -994,12 +1009,13 @@ class CsvFileTable(TableAbstractBaseClass):
         self.separator = separator
         self.header = header
 
-        super(CsvFileTable, self).__init__(schema, headers=[col.id for col in columns] if columns else None, etag=etag)
+        super(CsvFileTable, self).__init__(schema, headers=column_ids(columns), etag=etag)
 
     def _synapse_store(self, syn):
         if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
             ## store schema
             self.schema = syn.store(self.schema)
+            self.tableId = self.schema.id
 
         upload_to_table_result = syn._uploadCsv(
             self.filepath,
@@ -1037,6 +1053,24 @@ class CsvFileTable(TableAbstractBaseClass):
 
         return df
 
+    def asRowSet(self):
+        ## Extract row id and version, if present in rows
+        row_id_col = self.headers.index('ROW_ID') if 'ROW_ID' in self.headers else None
+        row_ver_col = self.headers.index('ROW_VERSION') if 'ROW_VERSION' in self.headers else None
+
+        def to_row_object(row, row_id_col=None, row_ver_col=None):
+            if isinstance(row, Row):
+                return row
+            rowId = row[row_id_col] if row_id_col is not None else None
+            versionNumber = row[row_ver_col] if row_ver_col is not None else None
+            values = [elem for i, elem in enumerate(row) if i not in [row_id_col, row_ver_col]]
+            return Row(values, rowId=rowId, versionNumber=versionNumber)
+
+        return RowSet(headers=[elem for i, elem in enumerate(self.headers) if i not in [row_id_col, row_ver_col]],
+                      tableId=self.tableId,
+                      etag=self.etag,
+                      rows=[to_row_object(row, row_id_col, row_ver_col) for row in self])
+
     def setColumns(self, columns, headers=None):
         """
         Set the list of :py:class:`synapseclient.table.Column` objects that
@@ -1050,9 +1084,9 @@ class CsvFileTable(TableAbstractBaseClass):
         ## otherwise, we should be given a list of columns in the
         ## order they appear in the table
         if headers:
-            self._headers = headers
+            self.headers = headers
         else:
-            self._headers = [id_of(column) for column in columns]
+            self.headers = column_ids(columns)
 
     def __iter__(self):
         def iterate_rows(filepath, columns, headers):
