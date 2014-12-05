@@ -18,8 +18,8 @@ Example
 Preliminaries::
 
     import synapseclient
-    from synapseclient import Project, File, Folder, Schema
-    from synapseclient.table import Column, as_table_columns, Table
+    from synapseclient import Project, File, Folder
+    from synapseclient import Schema, Column, Table, Row, RowSet, as_table_columns
 
     syn = synapseclient.Synapse()
     syn.login()
