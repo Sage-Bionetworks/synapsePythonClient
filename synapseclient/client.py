@@ -37,6 +37,7 @@ import base64, hashlib, hmac
 import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
+import tempfile
 import warnings
 import getpass
 
@@ -51,7 +52,7 @@ from synapseclient.annotations import from_synapse_annotations, to_synapse_annot
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
-from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, header_to_column_id
+from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable, header_to_column_id
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -2772,12 +2773,42 @@ class Synapse:
         return wiki
 
         
-    # # Need to test functionality of this
-    # def _downloadWikiAttachment(self, owner, wiki, filename, destination=None):
-    #     # Download a file attached to a wiki page
-    #     url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(owner), id_of(wiki), filename,)
-    #     return self._downloadFile(url, destination)
+    def _downloadWikiAttachment(self, owner, wiki, filename, destination=None):
+        """
+        Download a file attached to a wiki page
+        """
+        url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(owner), id_of(wiki), filename,)
+        if not destination:
+            destination = filename
+        elif os.path.isdir(destination):
+            destination = os.path.join(destination, filename)
+        return self._downloadFile(url, destination)
 
+
+    def _copyWiki(self, wiki, destWiki):
+        """
+        Copy wiki contents including attachments from one wiki to another.
+
+        :param wiki: source :py:class:`synapseclient.wiki.Wiki`
+        :param destWiki: destination :py:class:`synapseclient.wiki.Wiki`
+
+        Both Wikis must already exist.
+        """
+        uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
+        results = self.restGET(uri)
+
+        file_handles = {fh['id']:fh for fh in results['list']}
+
+        ## need to download an re-upload wiki attachments, ug!
+        attachments = []
+        tempdir = tempfile.gettempdir()
+        for fhid in wiki.attachmentFileHandleIds:
+            file_info = self._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
+            attachments.append(file_info['path'])
+
+        destWiki.update({'attachments':attachments, 'markdown':wiki.markdown, 'title':wiki.title})
+
+        return self._storeWiki(destWiki)
 
 
     ############################################################
@@ -2838,6 +2869,8 @@ class Synapse:
         elif isinstance(x, (list, tuple)):
             for header in x:
                 try:
+                    ## if header is an integer, it's a columnID, otherwise it's
+                    ## an aggregate column, like "AVG(Foo)"
                     int(header)
                     yield self.getColumn(header)
                 except ValueError:
@@ -2863,16 +2896,48 @@ class Synapse:
             yield Column(**result)
 
 
-    # TODO: make one queryTable method with a resultsAs="csv" or resultsAs="generator"
-    def queryTable(self, query, limit=None, offset=None, isConsistent=True):
+    def tableQuery(self, query, resultsAs="csv", **kwargs):
         """
-        Query for rows in a table using a SQL-like language::
+        Query a Synapse Table.
 
-            results = syn.queryTable("select * from syn1234")
-            for row in results:
-                print row
+        :param query: query string in a `SQL-like syntax <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_::
+
+            SELECT * from syn12345
+
+        :param resultsAs: select whether results are returned as a CSV file ("csv") or incrementally
+                          downloaded as sets of rows ("rowset").
+
+        :return: A Table object that serves as a wrapper around a CSV file (or generator over
+                 Row objects if resultsAs="rowset").
+
+        You can receive query results either as a generator over rows or as a CSV file. For
+        smallish tables, either method will work equally well. Use of a "rowset" generator allows
+        rows to be processed one at a time and processing may be stopped before downloading
+        the entire table.
+
+        Optional keyword arguments differ for the two return types. For the "rowset" option,
+
+        :param  limit: specify the maximum number of rows to be returned, defaults to None
+        :param offset: don't return the first n rows, defaults to None
+        :param isConsistent: defaults to True. If set to False, return results based on current
+                             state of the index without waiting for pending writes to complete.
+                             Only use this if you know what you're doing.
+
+        For CSV files, there are several parameters to control the format of the resulting file:
+
+        :param quoteCharacter: default double quote
+        :param escapeCharacter: default backslash
+        :param lineEnd: defaults to os.linesep
+        :param separator: defaults to comma
+        :param header: True by default
+        :param includeRowIdAndRowVersion: True by default
         """
-        return TableQueryResult(self, query, limit, offset, isConsistent)
+        if resultsAs.lower()=="rowset":
+            return TableQueryResult(self, query, **kwargs)
+        elif resultsAs.lower()=="csv":
+            return CsvFileTable.from_table_query(self, query, **kwargs)
+        else:
+            raise ValueError("Unknown return type requested from tableQuery: " + unicode(resultsAs))
 
 
     def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
@@ -2962,6 +3027,13 @@ class Synapse:
         Sends a `DownloadFromTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
 
         :return: a tuple containing a `DownloadFromTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
+
+        The DownloadFromTableResult object contains these fields:
+         * headers: ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
+         * resultsFileHandleId: STRING, The resulting file handle ID can be used to download the CSV file created by this query.
+         * concreteType: STRING
+         * etag: STRING, Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
+         * tableId: STRING, The ID of the table identified in the from clause of the table query.
         """
 
         download_from_table_request = {
@@ -2977,13 +3049,6 @@ class Synapse:
             "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
 
         download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request)
-
-        # DownloadFromTableResult
-        # headers     ARRAY< STRING >     The list of ColumnModel IDs that describes the rows of this set.
-        # resultsFileHandleId     STRING  The resulting file handle ID can be used to download the CSV file created by this job. The file will contain all of the data requested in the query SQL provided when the job was started.
-        # concreteType    STRING
-        # etag    STRING  Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
-        # tableId     STRING  The ID of the table identified in the from clause of the table query.
 
         url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, download_from_table_result['resultsFileHandleId'])
         cache_dir = cache.determine_cache_directory_from_file_handle(download_from_table_result['resultsFileHandleId'])

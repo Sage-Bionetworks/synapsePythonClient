@@ -88,7 +88,7 @@ def query(args, syn):
 
         
 def get(args, syn):
-    entity = syn.get(args.id, limitSearch=args.limitSearch)
+    entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch)
     
     ## TODO: Is this part even necessary?
     ## (Other than the print statements)
@@ -343,6 +343,8 @@ def build_parser():
 
     parser_get = subparsers.add_parser('get',
             help='downloads a dataset from Synapse')
+    parser_get.add_argument('-v', '--version', metavar='VERSION', type=int, default=None,
+            help='Synapse version number of entity to retrieve. Defaults to most recent version.')
     parser_get.add_argument('--limitSearch', metavar='projId', type=str, 
             help='Synapse ID of a container such as project or folder to limit search for files if using a path.')
     parser_get.add_argument('id',  metavar='syn123', type=str,

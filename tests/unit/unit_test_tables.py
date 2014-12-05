@@ -5,7 +5,7 @@ import sys
 import tempfile
 from itertools import izip
 
-from synapseclient.table import Column, Schema, CsvFileTable, cast_row, as_table_columns, create_table
+from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_row, as_table_columns, Table
 
 
 def setup(module):
@@ -112,14 +112,14 @@ def test_as_table_columns():
 def test_csv_table():
     ## Maybe not truly a unit test, but here because it doesn't do
     ## network IO to synapse
-    data = [["John Coltrane",  1926, 8.65, False],
-            ["Miles Davis",    1926, 9.87, False],
-            ["Bill Evans",     1929, 7.65, False],
-            ["Paul Chambers",  1935, 5.14, False],
-            ["Jimmy Cobb",     1929, 5.78, True],
-            ["Scott LaFaro",   1936, 4.21, False],
-            ["Sonny Rollins",  1930, 8.99, True],
-            ["Kenny Burrel",   1931, 4.37, True]]
+    data = [["1", "1", "John Coltrane",  1926, 8.65, False],
+            ["2", "1", "Miles Davis",    1926, 9.87, False],
+            ["3", "1", "Bill Evans",     1929, 7.65, False],
+            ["4", "1", "Paul Chambers",  1935, 5.14, False],
+            ["5", "1", "Jimmy Cobb",     1929, 5.78, True],
+            ["6", "1", "Scott LaFaro",   1936, 4.21, False],
+            ["7", "1", "Sonny Rollins",  1930, 8.99, True],
+            ["8", "1", "Kenny Burrel",   1931, 4.37, True]]
 
     filename = None
 
@@ -136,35 +136,41 @@ def test_csv_table():
     try:
         ## create CSV file
         with tempfile.NamedTemporaryFile(delete=False) as temp:
-            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC)
-            writer.writerow([col.name for col in cols])
+            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=os.linesep)
+            writer.writerow(['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols])
             filename = temp.name
             for row in data:
                 writer.writerow(row)
 
-        table = create_table(schema1, filename)
+        table = Table(schema1, filename)
         assert isinstance(table, CsvFileTable)
 
         ## need to set columns to read a CSV file
-        table.setColumns(cols)
+        table.setColumns(cols, headers = ['ROW_ID', 'ROW_VERSION'] + [col.id for col in cols])
 
         ## test iterator
-        #print "\n\nJazz Guys"
+        # print "\n\nJazz Guys"
         for table_row, expected_row in izip(table, data):
-            # print table_row
+            # print table_row, expected_row
             assert table_row==expected_row
 
         ## test asRowSet
         rowset = table.asRowSet()
         for rowset_row, expected_row in izip(rowset.rows, data):
-            assert rowset_row['values']==expected_row
+            assert rowset_row['values']==expected_row[2:]
+            assert rowset_row['rowId']==expected_row[0]
+            assert rowset_row['versionNumber']==expected_row[1]
 
         ## test asDataFrame
         try:
             import pandas as pd
 
             df = table.asDataFrame()
-            assert all(df['Born'] == [row[1] for row in data])
+            assert all(df['Name'] == [row[2] for row in data])
+            assert all(df['Born'] == [row[3] for row in data])
+            assert all(df['Living'] == [row[5] for row in data])
+            assert all(df.index == ['%s-%s'%tuple(row[0:2]) for row in data])
+            assert df.shape == (8,4)
 
         except ImportError as e1:
             sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_csv_table.\n\n')
@@ -199,10 +205,11 @@ def test_list_of_rows_table():
 
     schema1 = Schema(name='Jazz Guys', columns=cols, id="syn1000002", parent="syn1000001")
 
-    table = create_table(schema1, data)
+    ## need columns to do cast_rows w/o storing
+    table = Table(schema1, data, columns=cols)
 
     for table_row, expected_row in izip(table, data):
-        assert table_row['values']==expected_row
+        assert table_row==expected_row
 
     rowset = table.asRowSet()
     for rowset_row, expected_row in izip(rowset.rows, data):
@@ -219,3 +226,44 @@ def test_list_of_rows_table():
 
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_list_of_rows_table.\n\n')
+
+
+def test_aggregate_query_result_to_data_frame():
+
+    class Synapse(object):
+        def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+            return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
+                    'maxRowsPerPage': 2,
+                    'queryCount': 4,
+                    'queryResult': {
+                     'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                     'nextPageToken': 'aaaaaaaa',
+                     'queryResults': {'etag': '8c568c77-3827-44a0-8e46-711aeb0fff9b',
+                      'headers': ['1387', 'MIN(Born)', 'COUNT(State)', 'AVG(Hipness)'],
+                      'rows': [
+                       {'values': ['PA', '1935', '2', '1.1']},
+                       {'values': ['MO', '1928', '3', '2.38']}],
+                      'tableId': 'syn2757980'}},
+                    'selectColumns': [{
+                     'columnType': 'STRING',
+                     'id': '1387',
+                     'name': 'State'}]}
+        def _queryTableNext(self, nextPageToken):
+            return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                    'queryResults': {'etag': '8c568c77-3827-44a0-8e46-711aeb0fff9b',
+                     'headers': ['1387', 'MIN(Born)', 'COUNT(State)', 'AVG(Hipness)'],
+                     'rows': [
+                      {'values': ['DC', '1929', '1', '3.14']},
+                      {'values': ['NC', '1926', '1', '4.38']}],
+                     'tableId': 'syn2757980'}}
+
+    result = TableQueryResult(synapse=Synapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
+    df = result.asDataFrame()
+
+    assert df.shape == (4,4)
+    assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
+
+    ## check integer, double and boolean types after PLFM-3073 is fixed
+    # assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + unicode(df['MIN(Born)'].values)
+    # assert all(df['COUNT(State)'].values == [2,3,1,1])
+    # assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
