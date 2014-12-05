@@ -136,8 +136,8 @@ def test_csv_table():
     try:
         ## create CSV file
         with tempfile.NamedTemporaryFile(delete=False) as temp:
-            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC)
-            writer.writerow([col.name for col in cols])
+            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=os.linesep)
+            writer.writerow(['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols])
             filename = temp.name
             for row in data:
                 writer.writerow(row)
@@ -166,7 +166,11 @@ def test_csv_table():
             import pandas as pd
 
             df = table.asDataFrame()
+            assert all(df['Name'] == [row[2] for row in data])
             assert all(df['Born'] == [row[3] for row in data])
+            assert all(df['Living'] == [row[5] for row in data])
+            assert all(df.index == ['%s-%s'%tuple(row[0:2]) for row in data])
+            assert df.shape == (8,4)
 
         except ImportError as e1:
             sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_csv_table.\n\n')

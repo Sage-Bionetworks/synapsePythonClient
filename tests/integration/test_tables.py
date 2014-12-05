@@ -345,7 +345,7 @@ def dontruntest_big_csvs():
     ## write rows to CSV file
     with tempfile.NamedTemporaryFile(delete=False) as temp:
         schedule_for_cleanup(temp.name)
-        writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC)
+        writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=os.linesep)
         writer.writerow([col.name for col in cols])
 
         for i in range(10):

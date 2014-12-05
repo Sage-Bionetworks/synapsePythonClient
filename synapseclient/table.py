@@ -316,9 +316,7 @@ def cast_row(row, columns, headers):
     See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/ColumnType.html
     """
     if len(row) != len(headers):
-        print "row=", row
-        print "headers=", headers
-        raise ValueError('Each field in the row must have a matching header.')
+        raise ValueError('Each field in the row must have a matching header. headers=%s, row=%s' % (unicode(headers), unicode(row)))
 
     if columns:
         col_map = {col['id']:col for col in columns}
