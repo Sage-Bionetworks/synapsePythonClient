@@ -316,6 +316,12 @@ def column_ids(columns):
     return [col.id for col in columns if 'id' in col]
 
 
+def row_labels_from_id_and_version(rows):
+    return ["%s_%s"%(id, version) for id, version in rows]
+
+def row_labels_from_rows(rows):
+    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber']) for row in rows])
+
 def cast_row(row, columns, headers):
     """
     Convert a row of table query results from strings to the correct column type.
@@ -723,7 +729,7 @@ class RowSetTable(TableAbstractBaseClass):
         colmap = {column['id']:column for column in self.columns}
 
         if any([row['rowId'] for row in self.rowset['rows']]):
-            rownames = ["%s-%s"%(row['rowId'], row['versionNumber']) for row in self.rowset['rows']]
+            rownames = row_labels_from_rows(self.rowset['rows'])
         else:
             rownames = None
 
@@ -804,7 +810,7 @@ class TableQueryResult(TableAbstractBaseClass):
 
         def construct_rownames(rowset, i=0):
             try:
-                return (["%s-%s"%(row['rowId'], row['versionNumber']) for row in rowset['rows']], i+len(rowset['rows']))
+                return (row_labels_from_rows(rowset['rows']), i+len(rowset['rows']))
             except KeyError:
                 return (range(i,i+len(rowset['rows'])), i+len(rowset['rows']))
 
@@ -1052,7 +1058,7 @@ class CsvFileTable(TableAbstractBaseClass):
             ## combine row-ids (in index) and row-versions (in column 0) to
             ## make new row labels consisting of the row id and version
             ## separated by a dash.
-            df.index = ["%s-%s"%(r,v) for r,v in izip(df["ROW_ID"], df["ROW_VERSION"])]
+            df.index = row_labels_from_id_and_version(izip(df["ROW_ID"], df["ROW_VERSION"]))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
 

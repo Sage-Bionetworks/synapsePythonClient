@@ -169,7 +169,7 @@ def test_csv_table():
             assert all(df['Name'] == [row[2] for row in data])
             assert all(df['Born'] == [row[3] for row in data])
             assert all(df['Living'] == [row[5] for row in data])
-            assert all(df.index == ['%s-%s'%tuple(row[0:2]) for row in data])
+            assert all(df.index == ['%s_%s'%tuple(row[0:2]) for row in data])
             assert df.shape == (8,4)
 
         except ImportError as e1:
