@@ -220,67 +220,6 @@ def test_command_line_client():
     assert used['url'] == repo_url
     assert used['wasExecuted'] == True
 
-    # Test setting annotations
-    output = run('synapse', 
-                 '--skip-checks',
-                 'set-annotations', 
-                 '--id', 
-                 file_entity_id, 
-                 '--annotations',
-                 '{"foo": 1, "bar": "1", "baz": [1, 2, 3]}',
-    )
-
-    # Test getting annotations
-    # check that the three things set are correct
-    # This test should be adjusted to check for equality of the
-    # whole annotation dictionary once the issue of other
-    # attributes (creationDate, eTag, id, uri) being returned is resolved
-    # See: https://sagebionetworks.jira.com/browse/SYNPY-175
-    
-    output = run('synapse', 
-                 '--skip-checks',
-                 'get-annotations', 
-                 '--id', 
-                 file_entity_id
-             )
-
-    annotations = json.loads(output)
-    assert annotations['foo'] == [1]
-    assert annotations['bar'] == [u"1"]
-    assert annotations['baz'] == [1, 2, 3]
-    
-    # Test setting annotations by replacing existing ones.
-    output = run('synapse', 
-                 '--skip-checks',
-                 'set-annotations', 
-                 '--id', 
-                 file_entity_id, 
-                 '--annotations',
-                 '{"foo": 2}',
-                 '--replace'
-    )
-    
-    # Test that the annotation was updated
-    output = run('synapse', 
-                 '--skip-checks',
-                 'get-annotations', 
-                 '--id', 
-                 file_entity_id
-             )
-
-    annotations = json.loads(output)
-    assert annotations['foo'] == [2]
-
-    try:
-        bar = annotations['bar']
-    except KeyError:
-        pass
-    
-    try:
-        baz = annotations['baz']
-    except KeyError:
-        pass
-    
     # Note: Tests shouldn't have external dependencies
     #       but this is a pretty picture of Singapore
     singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/' \
