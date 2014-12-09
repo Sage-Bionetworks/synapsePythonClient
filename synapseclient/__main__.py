@@ -35,7 +35,8 @@ Commands
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
   * **get-provenance**   - show provenance records
-  * **set-annotations**   - create annotations
+  * **set-annotations**  - create annotations
+  * **get-annotations**  - show annotations
   * **show**             - show metadata for an entity
   * **onweb**            - opens Synapse website for Entity
   * **show**             - Displays information about a Entity
