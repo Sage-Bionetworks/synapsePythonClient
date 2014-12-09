@@ -35,6 +35,8 @@ Commands
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
   * **get-provenance**   - show provenance records
+  * **set-annotations**  - create annotations
+  * **get-annotations**  - show annotations
   * **show**             - show metadata for an entity
   * **onweb**            - opens Synapse website for Entity
   * **show**             - Displays information about a Entity
@@ -257,7 +259,46 @@ def getProvenance(args, syn):
             f.write(json.dumps(activity))
             f.write('\n')
     
+def setAnnotations(args, syn):
+    """Method to set annotations on an entity.
+
+    Requires a JSON-formatted string that evaluates to a dict.
+
+    Annotations can be updated or overwritten completely.
     
+    """
+
+    try:
+        newannots = json.loads(args.annotations)
+    except Exception as e:
+        sys.stderr.write("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
+        raise e
+    
+    if type(newannots) is not dict:
+        raise TypeError("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
+    
+    entity = syn.get(args.id, downloadFile=False)
+    
+    if args.replace:
+        annots = newannots
+    else:
+        annots = syn.getAnnotations(entity)
+        annots.update(newannots)
+    
+    syn.setAnnotations(entity, annots)
+    
+    sys.stderr.write('Set annotations on entity %s\n' % (args.id, ))
+
+def getAnnotations(args, syn):
+    annotations = syn.getAnnotations(args.id)
+
+    if args.output is None or args.output=='STDOUT':
+        print json.dumps(annotations,sort_keys=True, indent=2)
+    else:
+        with open(args.output, 'w') as f:
+            f.write(json.dumps(annotations))
+            f.write('\n')
+
 def submit(args, syn):
     '''
     Method to allow challenge participants to submit to an evaluation queue
@@ -502,14 +543,32 @@ def build_parser():
 
     parser_get_provenance = subparsers.add_parser('get-provenance',
             help='show provenance records')
-    parser_get_provenance.add_argument('-id', metavar='syn123', type=str, required=True,
+    parser_get_provenance.add_argument('--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
     parser_get_provenance.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
     parser_get_provenance.set_defaults(func=getProvenance)
 
+    parser_set_annotations = subparsers.add_parser('set-annotations',
+            help='create annotations records')
+    parser_set_annotations.add_argument("--id", metavar='syn123', type=str, required=True,
+            help='Synapse ID of entity whose annotations we are accessing.')
+    parser_set_annotations.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=True,
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+    parser_set_annotations.add_argument('-r', '--replace', action='store_true',default=False,
+            help='Replace all existing annotations with the given annotations')
+    parser_set_annotations.set_defaults(func=setAnnotations)
 
+    parser_get_annotations = subparsers.add_parser('get-annotations',
+            help='show annotations records')
+    parser_get_annotations.add_argument('--id', metavar='syn123', type=str, required=True,
+            help='Synapse ID of entity whose annotations we are accessing.')
+    parser_get_annotations.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+            const='STDOUT', nargs='?', type=str,
+            help='Output the annotations record in JSON format')
+    parser_get_annotations.set_defaults(func=getAnnotations)
+    
     parser_create = subparsers.add_parser('create',
             help='Creates folders or projects on Synapse')
     parser_create.add_argument('-parentid', '-parentId', metavar='syn123', type=str, required=False,
