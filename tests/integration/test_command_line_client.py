@@ -231,7 +231,11 @@ def test_command_line_client():
 
     # Test getting annotations
     # check that the three things set are correct
-
+    # This test should be adjusted to check for equality of the
+    # whole annotation dictionary once the issue of other
+    # attributes (creationDate, eTag, id, uri) being returned is resolved
+    # See: https://sagebionetworks.jira.com/browse/SYNPY-175
+    
     output = run('synapse', 
                  '--skip-checks',
                  'get-annotations', 
@@ -254,7 +258,7 @@ def test_command_line_client():
                  '{"foo": 2}',
                  '--replace'
     )
-
+    
     # Test that the annotation was updated
     output = run('synapse', 
                  '--skip-checks',
@@ -265,6 +269,8 @@ def test_command_line_client():
 
     annotations = json.loads(output)
     assert annotations['foo'] == [2]
+    assert annotations['bar'] == [u"1"]
+    assert annotations['baz'] == [1, 2, 3]
     
     # Note: Tests shouldn't have external dependencies
     #       but this is a pretty picture of Singapore
