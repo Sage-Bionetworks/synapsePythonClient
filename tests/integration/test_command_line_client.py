@@ -338,18 +338,14 @@ def test_command_line_client_annotations():
              )
 
     annotations = json.loads(output)
+
     assert annotations['foo'] == [2]
 
-    try:
-        bar = annotations['bar']
-    except KeyError:
-        pass
-
-    try:
-        baz = annotations['baz']
-    except KeyError:
-        pass
-
+    # Since this replaces the existing annotations, previous values
+    # Should not be available.
+    assert_raises(KeyError, lambda key: annotations[key], 'bar')
+    assert_raises(KeyError, lambda key: annotations[key], 'baz')
+    
     # Test running add command to set annotations on a new object
     filename2 = utils.make_bogus_data_file()
     schedule_for_cleanup(filename2)
