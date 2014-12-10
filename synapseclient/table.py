@@ -642,6 +642,9 @@ def Table(schema, values, **kwargs):
     elif pandas_available and isinstance(values, pd.DataFrame):
         return CsvFileTable.from_data_frame(schema, values, **kwargs)
 
+    else:
+        raise ValueError("Don't know how to make tables from values of type %s." % type(values))
+
 
 class TableAbstractBaseClass(object):
     """

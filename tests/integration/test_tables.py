@@ -272,7 +272,7 @@ def test_tables_csv():
 
     try:
         import pandas as pd
-        results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="rowset")
+        results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
         df = results.asDataFrame()
         assert df.shape[0] == 0
     except ImportError as e1:
