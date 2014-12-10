@@ -133,7 +133,7 @@ def test_rowset_tables():
         df = results.asDataFrame()
         assert all(df.ix[:,"name"] == ["Jane", "Henry"])
     except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables.\n\n')
+        sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
     results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id, resultsAs="rowset")
     for bday, row in izip(bdays, results):
@@ -150,13 +150,26 @@ def test_rowset_tables():
         assert all(df.iloc[:,1] == [88.888, 88.888, 88.888])
         assert all(df.iloc[:,2] == [3, 3, 2])
     except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables.\n\n')
+        sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
     ## test delete rows by deleting cartoon characters
     syn.delete(syn.tableQuery('select name from %s where cartoon = true'%schema1.id, resultsAs="rowset"))
 
-    result = syn.tableQuery('select name from %s order by birthday' % schema1.id, resultsAs="rowset")
-    assert ["Chris", "Jen", "Jane", "Henry"] == [row['values'][0] for row in result]
+    results = syn.tableQuery('select name from %s order by birthday' % schema1.id, resultsAs="rowset")
+    assert ["Chris", "Jen", "Jane", "Henry"] == [row['values'][0] for row in results]
+
+    ## check what happens when query result is empty
+    results = syn.tableQuery('select * from %s where age > 1000' % schema1.id, resultsAs="rowset")
+    assert len(list(results)) == 0
+
+    try:
+        import pandas as pd
+        results = syn.tableQuery('select * from %s where age > 1000' % schema1.id, resultsAs="rowset")
+        df = results.asDataFrame()
+        assert df.shape[0] == 0
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
+
 
 
 def test_tables_csv():
@@ -237,23 +250,34 @@ def test_tables_csv():
     rowset = results.asRowSet()
     for row in rowset['rows']:
         if row['values'][1] == 1930:
-            row['values'][2] += 8.5
+            row['values'][2] = 8.5
     row_reference_set = syn.store(rowset)
 
     results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
     df = results.asDataFrame()
-    print df
+    print "\nUpdated hipness to 8.5", df
     all(df['Born'].values == 1930)
     all(df['Hipness'].values == 8.5)
 
     ## Update via a Data Frame
     df['Hipness'] = 9.75
-    table = syn.store(Table(results.tableId, df, etag=results.etag))
+    table = syn.store(Table(table.tableId, df, etag=results.etag))
 
     results = syn.tableQuery("select * from %s where Born=1930" % table.tableId, resultsAs="csv")
     for row in results:
-        print row
         assert row[4] == 9.75
+
+    ## check what happens when query result is empty
+    results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
+    assert len(list(results)) == 0
+
+    try:
+        import pandas as pd
+        results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="rowset")
+        df = results.asDataFrame()
+        assert df.shape[0] == 0
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
 
 
 def test_tables_pandas():
@@ -280,7 +304,7 @@ def test_tables_pandas():
         df2 = results.asDataFrame()
 
         ## simulate rowId-version rownames for comparison
-        df.index = ['%s-0'%i for i in range(5)]
+        df.index = ['%s_0'%i for i in range(5)]
         assert all(df2 == df)
 
     except ImportError as e1:

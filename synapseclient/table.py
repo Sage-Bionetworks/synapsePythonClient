@@ -360,7 +360,9 @@ def cast_row(row, columns, headers):
                 type = col_map[header]['columnType'] if header in col_map else 'STRING'
 
             ## convert field to column type
-            if type in ['STRING', 'DATE', 'ENTITYID', 'FILEHANDLEID']:
+            if field is None or field=='':
+                result.append(None)
+            elif type in ['STRING', 'DATE', 'ENTITYID', 'FILEHANDLEID']:
                 result.append(field)
             elif type=='DOUBLE':
                 result.append(float(field))
@@ -804,6 +806,10 @@ class TableQueryResult(TableAbstractBaseClass):
 
         colmap = {column['id']:column for column in self.columns}
 
+        ## in case of empty query results, headers don't exist
+        if 'headers' not in self.rowset:
+            return pd.DataFrame()
+
         ## To turn a TableQueryResult into a data frame, we add a page of rows
         ## at a time on the untested theory that it's more efficient than
         ## adding a single row at a time to the data frame.
@@ -907,13 +913,13 @@ class CsvFileTable(TableAbstractBaseClass):
         return self
 
     @classmethod
-    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, columns=None):
+    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, columns=None, **kwargs):
         ## infer columns from data frame if not specified
         if isinstance(schema, Schema) and not schema.has_columns():
             schema.addColumns(as_table_columns(df))
 
         ## convert row names in the format [row_id]-[version] back to columns
-        row_id_version_pattern = re.compile(r'(\d+)\-(\d+)')
+        row_id_version_pattern = re.compile(r'(\d+)_(\d+)')
 
         row_id = []
         row_version = []
@@ -940,7 +946,8 @@ class CsvFileTable(TableAbstractBaseClass):
                 header=header,
                 quotechar=quoteCharacter,
                 escapechar=escapeCharacter,
-                line_terminator=lineEnd)
+                line_terminator=lineEnd,
+                na_rep=kwargs.get('na_rep',''))
         finally:
             if f: f.close()
 
@@ -1046,13 +1053,16 @@ class CsvFileTable(TableAbstractBaseClass):
         test_import_pandas()
         import pandas as pd
 
-        df = pd.read_csv(self.filepath,
-                sep=self.separator,
-                lineterminator=self.lineEnd,
-                quotechar=self.quoteCharacter,
-                escapechar=self.escapeCharacter,
-                header = 0 if self.header else None,
-                skiprows=self.linesToSkip)
+        try:
+            df = pd.read_csv(self.filepath,
+                    sep=self.separator,
+                    lineterminator=self.lineEnd,
+                    quotechar=self.quoteCharacter,
+                    escapechar=self.escapeCharacter,
+                    header = 0 if self.header else None,
+                    skiprows=self.linesToSkip)
+        except pd.parser.CParserError as ex1:
+            df = pd.DataFrame()
 
         if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
             ## combine row-ids (in index) and row-versions (in column 0) to
