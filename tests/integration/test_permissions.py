@@ -76,6 +76,11 @@ def test_ACL():
     permissions = syn.getPermissions(project, username)
     assert 'READ' in permissions and len(permissions)==1
 
+    ## test remove user from ACL
+    acl = syn.setPermissions(project, username, None)
+    permissions = syn.getPermissions(project, username)
+    assert permissions == []
+
     #Get permissions of PUBLIC user
     permissions = syn.getPermissions(project)
     assert len(permissions)==0
