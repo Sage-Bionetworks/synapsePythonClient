@@ -623,7 +623,7 @@ def Table(schema, values, **kwargs):
     try:
         import pandas as pd
         pandas_available = True
-    except ImportError as ex1:
+    except:
         pandas_available = False
 
     ## a RowSet
