@@ -390,7 +390,10 @@ def to_unix_epoch_time(dt):
 
 def from_unix_epoch_time(ms):
     """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
-    
+
+    if isinstance(ms, basestring):
+        ms = int(ms)
+
     # utcfromtimestamp() fails for negative values (dates before 1970-1-1) on Windows
     # so, here's a hack that enables ancient events, such as Chris's birthday to be
     # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!

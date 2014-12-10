@@ -1440,7 +1440,11 @@ class Synapse:
             totalResults = userProfiles['totalNumberOfResults']
             if totalResults == 1:
                 return int(userProfiles['children'][0]['ownerId'])
-            
+            elif totalResults > 0:
+                for profile in userProfiles['children']:
+                    if profile['userName'] == principalId:
+                        return int(profile['ownerId'])
+
             supplementalMessage = 'Please be more specific' if totalResults > 1 else 'No matches'
             raise SynapseError('Unknown Synapse user (%s).  %s.' % (principalId, supplementalMessage))
 
@@ -1506,13 +1510,21 @@ class Synapse:
         for permissions in acl['resourceAccess']:
             if 'principalId' in permissions and permissions['principalId'] == principalId:
                 permissions_to_update = permissions
-        if not permissions_to_update:
-            permissions_to_update = {u'accessType': [], u'principalId': principalId}
-            acl['resourceAccess'].append(permissions_to_update)
-        if overwrite:
-            permissions_to_update['accessType'] = accessType
+                break
+
+        if accessType is None or accessType==[]:
+            ## remove permissions
+            if permissions_to_update and overwrite:
+                acl['resourceAccess'].remove(permissions_to_update)
         else:
-            permissions_to_update['accessType'] = list(set(permissions_to_update['accessType']) | set(accessType))
+            ## add a 'resourceAccess' entry, if necessary
+            if not permissions_to_update:
+                permissions_to_update = {u'accessType': [], u'principalId': principalId}
+                acl['resourceAccess'].append(permissions_to_update)
+            if overwrite:
+                permissions_to_update['accessType'] = accessType
+            else:
+                permissions_to_update['accessType'] = list(set(permissions_to_update['accessType']) | set(accessType))
         return self._storeACL(entity, acl)
 
 

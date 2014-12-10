@@ -213,11 +213,10 @@ from collections import OrderedDict
 from itertools import izip
 
 import synapseclient
+import synapseclient.utils
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of, query_limit_and_offset, normalize_whitespace
 from synapseclient.entity import Entity, Versionable
-
 
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
@@ -316,6 +315,12 @@ def column_ids(columns):
     return [col.id for col in columns if 'id' in col]
 
 
+def row_labels_from_id_and_version(rows):
+    return ["%s_%s"%(id, version) for id, version in rows]
+
+def row_labels_from_rows(rows):
+    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber']) for row in rows])
+
 def cast_row(row, columns, headers):
     """
     Convert a row of table query results from strings to the correct column type.
@@ -354,7 +359,9 @@ def cast_row(row, columns, headers):
                 type = col_map[header]['columnType'] if header in col_map else 'STRING'
 
             ## convert field to column type
-            if type in ['STRING', 'DATE', 'ENTITYID', 'FILEHANDLEID']:
+            if field is None or field=='':
+                result.append(None)
+            elif type in ['STRING', 'ENTITYID', 'FILEHANDLEID']:
                 result.append(field)
             elif type=='DOUBLE':
                 result.append(float(field))
@@ -362,6 +369,8 @@ def cast_row(row, columns, headers):
                 result.append(int(field))
             elif type=='BOOLEAN':
                 result.append(to_boolean(field))
+            elif type=='DATE':
+                result.append(utils.from_unix_epoch_time(field))
             else:
                 raise ValueError("Unknown column type: %s" % type)
 
@@ -411,7 +420,7 @@ class Schema(Entity, Versionable):
         if columns:
             for column in columns:
                 if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
-                    kwargs.setdefault('columnIds',[]).append(id_of(column))
+                    kwargs.setdefault('columnIds',[]).append(utils.id_of(column))
                 elif isinstance(column, Column):
                     kwargs.setdefault('columns_to_store',[]).append(column)
                 else:
@@ -424,7 +433,7 @@ class Schema(Entity, Versionable):
         :param column: a column object or its ID
         """
         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.append(id_of(column))
+            self.properties.columnIds.append(utils.id_of(column))
         elif isinstance(column, Column):
             if not self.__dict__.get('columns_to_store', None):
                 self.__dict__['columns_to_store'] = []
@@ -444,7 +453,7 @@ class Schema(Entity, Versionable):
         :param column: a column object or its ID
         """
         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.remove(id_of(column))
+            self.properties.columnIds.remove(utils.id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
         else:
@@ -516,11 +525,11 @@ class RowSet(DictObject):
     def __init__(self, columns=None, schema=None, **kwargs):
         if not 'headers' in kwargs:
             if columns:
-                kwargs.setdefault('headers',[]).extend([id_of(column) for column in columns])
+                kwargs.setdefault('headers',[]).extend([utils.id_of(column) for column in columns])
             elif schema and isinstance(schema, Schema):
                 kwargs.setdefault('headers',[]).extend(schema["columnIds"])
         if schema:
-            kwargs['tableId'] = id_of(schema)
+            kwargs['tableId'] = utils.id_of(schema)
         if not kwargs.get('tableId',None):
             raise ValueError("Table schema ID must be defined to create a RowSet")
         if not kwargs.get('headers',None):
@@ -614,7 +623,7 @@ def Table(schema, values, **kwargs):
     try:
         import pandas as pd
         pandas_available = True
-    except ImportError as ex1:
+    except:
         pandas_available = False
 
     ## a RowSet
@@ -632,6 +641,9 @@ def Table(schema, values, **kwargs):
     ## pandas DataFrame
     elif pandas_available and isinstance(values, pd.DataFrame):
         return CsvFileTable.from_data_frame(schema, values, **kwargs)
+
+    else:
+        raise ValueError("Don't know how to make tables from values of type %s." % type(values))
 
 
 class TableAbstractBaseClass(object):
@@ -723,7 +735,7 @@ class RowSetTable(TableAbstractBaseClass):
         colmap = {column['id']:column for column in self.columns}
 
         if any([row['rowId'] for row in self.rowset['rows']]):
-            rownames = ["%s-%s"%(row['rowId'], row['versionNumber']) for row in self.rowset['rows']]
+            rownames = row_labels_from_rows(self.rowset['rows'])
         else:
             rownames = None
 
@@ -798,13 +810,17 @@ class TableQueryResult(TableAbstractBaseClass):
 
         colmap = {column['id']:column for column in self.columns}
 
+        ## in case of empty query results, headers don't exist
+        if 'headers' not in self.rowset:
+            return pd.DataFrame()
+
         ## To turn a TableQueryResult into a data frame, we add a page of rows
         ## at a time on the untested theory that it's more efficient than
         ## adding a single row at a time to the data frame.
 
         def construct_rownames(rowset, i=0):
             try:
-                return (["%s-%s"%(row['rowId'], row['versionNumber']) for row in rowset['rows']], i+len(rowset['rows']))
+                return (row_labels_from_rows(rowset['rows']), i+len(rowset['rows']))
             except KeyError:
                 return (range(i,i+len(rowset['rows'])), i+len(rowset['rows']))
 
@@ -901,13 +917,13 @@ class CsvFileTable(TableAbstractBaseClass):
         return self
 
     @classmethod
-    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, columns=None):
+    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, columns=None, **kwargs):
         ## infer columns from data frame if not specified
         if isinstance(schema, Schema) and not schema.has_columns():
             schema.addColumns(as_table_columns(df))
 
         ## convert row names in the format [row_id]-[version] back to columns
-        row_id_version_pattern = re.compile(r'(\d+)\-(\d+)')
+        row_id_version_pattern = re.compile(r'(\d+)_(\d+)')
 
         row_id = []
         row_version = []
@@ -934,7 +950,8 @@ class CsvFileTable(TableAbstractBaseClass):
                 header=header,
                 quotechar=quoteCharacter,
                 escapechar=escapeCharacter,
-                line_terminator=lineEnd)
+                line_terminator=lineEnd,
+                na_rep=kwargs.get('na_rep',''))
         finally:
             if f: f.close()
 
@@ -1040,19 +1057,22 @@ class CsvFileTable(TableAbstractBaseClass):
         test_import_pandas()
         import pandas as pd
 
-        df = pd.read_csv(self.filepath,
-                sep=self.separator,
-                lineterminator=self.lineEnd,
-                quotechar=self.quoteCharacter,
-                escapechar=self.escapeCharacter,
-                header = 0 if self.header else None,
-                skiprows=self.linesToSkip)
+        try:
+            df = pd.read_csv(self.filepath,
+                    sep=self.separator,
+                    lineterminator=self.lineEnd,
+                    quotechar=self.quoteCharacter,
+                    escapechar=self.escapeCharacter,
+                    header = 0 if self.header else None,
+                    skiprows=self.linesToSkip)
+        except pd.parser.CParserError as ex1:
+            df = pd.DataFrame()
 
         if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
             ## combine row-ids (in index) and row-versions (in column 0) to
             ## make new row labels consisting of the row id and version
             ## separated by a dash.
-            df.index = ["%s-%s"%(r,v) for r,v in izip(df["ROW_ID"], df["ROW_VERSION"])]
+            df.index = row_labels_from_id_and_version(izip(df["ROW_ID"], df["ROW_VERSION"]))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
 
