@@ -6,6 +6,7 @@ import uuid
 import json
 from cStringIO import StringIO
 from nose.plugins.attrib import attr
+from nose.tools import assert_raises
 import tempfile
 import shutil
 
@@ -219,6 +220,75 @@ def test_command_line_client():
     assert used['url'] == repo_url
     assert used['wasExecuted'] == True
 
+    # Note: Tests shouldn't have external dependencies
+    #       but this is a pretty picture of Singapore
+    singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/' \
+                    'thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg' \
+                    '/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
+
+    # Test external file handle
+    output = run('synapse', 
+                 '--skip-checks', 
+                 'add', 
+                 '-name', 
+                 'Singapore', 
+                 '-description', 
+                 'A nice picture of Singapore', 
+                 '-type', 
+                 'File', 
+                 '-parentid', 
+                 project_id, 
+                 singapore_url)
+    exteral_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+
+    # Verify that we created an external file handle
+    f2 = syn.get(exteral_entity_id)
+    fh = syn._getFileHandle(f2.dataFileHandleId)
+    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
+
+    output = run('synapse', 
+                 '--skip-checks', 
+                 'get', 
+                 exteral_entity_id)
+    downloaded_filename = parse(r'Creating\s+(.*)', output)
+    schedule_for_cleanup(downloaded_filename)
+    assert os.path.exists(downloaded_filename)
+
+    # Delete the Project
+    output = run('synapse', 
+                 '--skip-checks', 
+                 'delete', 
+                 project_id)
+
+
+def test_command_line_client_annotations():
+    # Create a Project
+    output = run('synapse', 
+                 '--skip-checks',
+                 'create',
+                 '-name',
+                 str(uuid.uuid4()), 
+                 '-description', 
+                 'test of command line client', 
+                 'Project')
+    project_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    schedule_for_cleanup(project_id)
+
+    # Create a File
+    filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    output = run('synapse', 
+                 '--skip-checks', 
+                 'add', 
+                 '-name', 
+                 'BogusFileEntity', 
+                 '-description', 
+                 'Bogus data to test file upload', 
+                 '-parentid', 
+                 project_id, 
+                 filename)
+    file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+
     # Test setting annotations
     output = run('synapse', 
                  '--skip-checks',
@@ -274,51 +344,73 @@ def test_command_line_client():
         bar = annotations['bar']
     except KeyError:
         pass
-    
+
     try:
         baz = annotations['baz']
     except KeyError:
         pass
-    
-    # Note: Tests shouldn't have external dependencies
-    #       but this is a pretty picture of Singapore
-    singapore_url = 'http://upload.wikimedia.org/wikipedia/commons/' \
-                    'thumb/3/3e/1_singapore_city_skyline_dusk_panorama_2011.jpg' \
-                    '/1280px-1_singapore_city_skyline_dusk_panorama_2011.jpg'
 
-    # Test external file handle
+    # Test running add command to set annotations on a new object
+    filename2 = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename2)
     output = run('synapse', 
                  '--skip-checks', 
                  'add', 
                  '-name', 
-                 'Singapore', 
+                 'BogusData2', 
                  '-description', 
-                 'A nice picture of Singapore', 
+                 'Bogus data to test file upload with add and add annotations',
                  '-type', 
-                 'File', 
+                 'Data', 
                  '-parentid', 
                  project_id, 
-                 singapore_url)
-    exteral_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+                 '--annotations',
+                 '{"foo": 123}',
+                 filename2)
 
-    # Verify that we created an external file handle
-    f2 = syn.get(exteral_entity_id)
-    fh = syn._getFileHandle(f2.dataFileHandleId)
-    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
+    file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
 
+    # Test that the annotation was updated
+    output = run('synapse', 
+                 '--skip-checks',
+                 'get-annotations', 
+                 '--id', 
+                 file_entity_id
+             )
+
+    annotations = json.loads(output)
+    assert annotations['foo'] == [123]
+
+    # Test running store command to set annotations on a new object
+    filename3 = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename3)
     output = run('synapse', 
                  '--skip-checks', 
-                 'get', 
-                 exteral_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
-    schedule_for_cleanup(downloaded_filename)
-    assert os.path.exists(downloaded_filename)
+                 'store', 
+                 '--name', 
+                 'BogusData3', 
+                 '--description', 
+                 '\"Bogus data to test file upload with store and add annotations\"',
+                 '--type', 
+                 'File', 
+                 '--parentid', 
+                 project_id, 
+                 '--annotations',
+                 '{"foo": 456}',
+                 filename3)
 
-    # Delete the Project
+    file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+
+    # Test that the annotation was updated
     output = run('synapse', 
-                 '--skip-checks', 
-                 'delete', 
-                 project_id)
+                 '--skip-checks',
+                 'get-annotations', 
+                 '--id', 
+                 file_entity_id
+             )
+
+    annotations = json.loads(output)
+    assert annotations['foo'] == [456]
 
     
 def test_command_line_store_and_submit():

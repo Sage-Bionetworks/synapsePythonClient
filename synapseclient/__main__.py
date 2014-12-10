@@ -138,6 +138,12 @@ def store(args, syn):
     entity = syn.store(entity, used=used, executed=executed)
     print 'Created/Updated entity: %s\t%s' %(entity['id'], entity['name'])
 
+    # After creating/updating, if there are annotations to add then
+    # add them
+    if args.annotations is not None:
+        # Need to override the args id parameter
+        setattr(args, 'id', entity['id'])
+        setAnnotations(args, syn)
 
 def associate(args, syn):
     if args.r:
@@ -267,7 +273,7 @@ def setAnnotations(args, syn):
     Annotations can be updated or overwritten completely.
     
     """
-
+    
     try:
         newannots = json.loads(args.annotations)
     except Exception as e:
@@ -413,6 +419,12 @@ def build_parser():
                   'to generate the specified entity is derived'))
     parser_store.add_argument('--limitSearch', metavar='projId', type=str, 
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
+
+    parser_store.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+    parser_store.add_argument('--replace', action='store_true',default=False,
+            help='Replace all existing annotations with the given annotations')
+
     parser_store.add_argument('--file', type=str, help=argparse.SUPPRESS)
     parser_store.add_argument('FILE', nargs='?', type=str,
             help='file to be added to synapse.')
@@ -437,6 +449,10 @@ def build_parser():
                   'to generate the specified entity is derived'))
     parser_add.add_argument('--limitSearch', metavar='projId', type=str, 
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
+    parser_add.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+    parser_add.add_argument('--replace', action='store_true',default=False,
+            help='Replace all existing annotations with the given annotations')
     parser_add.add_argument('--file', type=str, help=argparse.SUPPRESS)
     parser_add.add_argument('FILE', nargs='?', type=str,
             help='file to be added to synapse.')
