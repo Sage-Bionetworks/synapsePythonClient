@@ -137,8 +137,7 @@ def test_rowset_tables():
 
     results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id, resultsAs="rowset")
     for bday, row in izip(bdays, results):
-        expected = str(utils.to_unix_epoch_time(datetime.strptime(bday, '%Y-%m-%d')))
-        assert row['values'][0] == expected, "got %s but expected %s" % (row['values'][0], expected)
+        assert row['values'][0] == datetime.strptime(bday, "%Y-%m-%d"), "got %s but expected %s" % (row['values'][0], bday)
 
     try:
         import pandas as pd

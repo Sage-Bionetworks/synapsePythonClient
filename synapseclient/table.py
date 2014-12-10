@@ -213,11 +213,10 @@ from collections import OrderedDict
 from itertools import izip
 
 import synapseclient
+import synapseclient.utils
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of, query_limit_and_offset, normalize_whitespace
 from synapseclient.entity import Entity, Versionable
-
 
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
@@ -362,7 +361,7 @@ def cast_row(row, columns, headers):
             ## convert field to column type
             if field is None or field=='':
                 result.append(None)
-            elif type in ['STRING', 'DATE', 'ENTITYID', 'FILEHANDLEID']:
+            elif type in ['STRING', 'ENTITYID', 'FILEHANDLEID']:
                 result.append(field)
             elif type=='DOUBLE':
                 result.append(float(field))
@@ -370,6 +369,8 @@ def cast_row(row, columns, headers):
                 result.append(int(field))
             elif type=='BOOLEAN':
                 result.append(to_boolean(field))
+            elif type=='DATE':
+                result.append(utils.from_unix_epoch_time(field))
             else:
                 raise ValueError("Unknown column type: %s" % type)
 
@@ -419,7 +420,7 @@ class Schema(Entity, Versionable):
         if columns:
             for column in columns:
                 if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
-                    kwargs.setdefault('columnIds',[]).append(id_of(column))
+                    kwargs.setdefault('columnIds',[]).append(utils.id_of(column))
                 elif isinstance(column, Column):
                     kwargs.setdefault('columns_to_store',[]).append(column)
                 else:
@@ -432,7 +433,7 @@ class Schema(Entity, Versionable):
         :param column: a column object or its ID
         """
         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.append(id_of(column))
+            self.properties.columnIds.append(utils.id_of(column))
         elif isinstance(column, Column):
             if not self.__dict__.get('columns_to_store', None):
                 self.__dict__['columns_to_store'] = []
@@ -452,7 +453,7 @@ class Schema(Entity, Versionable):
         :param column: a column object or its ID
         """
         if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.remove(id_of(column))
+            self.properties.columnIds.remove(utils.id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
         else:
@@ -524,11 +525,11 @@ class RowSet(DictObject):
     def __init__(self, columns=None, schema=None, **kwargs):
         if not 'headers' in kwargs:
             if columns:
-                kwargs.setdefault('headers',[]).extend([id_of(column) for column in columns])
+                kwargs.setdefault('headers',[]).extend([utils.id_of(column) for column in columns])
             elif schema and isinstance(schema, Schema):
                 kwargs.setdefault('headers',[]).extend(schema["columnIds"])
         if schema:
-            kwargs['tableId'] = id_of(schema)
+            kwargs['tableId'] = utils.id_of(schema)
         if not kwargs.get('tableId',None):
             raise ValueError("Table schema ID must be defined to create a RowSet")
         if not kwargs.get('headers',None):
