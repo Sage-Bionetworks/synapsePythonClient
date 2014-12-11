@@ -490,7 +490,7 @@ def build_parser():
             help='Evaluation Name where the entity/file will be submitted')
     parser_submit.add_argument('--evaluation', type=str,
             help=argparse.SUPPRESS)  #mainly to maintain the backward compatibility
-    parser_submit.add_argument('--entity', '--eid', type=str,
+    parser_submit.add_argument('--entity', '--eid', '--entityId', type=str,
             help='Synapse ID of the entity to be submitted')
     parser_submit.add_argument('--file', '-f', type=str,
             help='File to be submitted to the challenge')
@@ -537,31 +537,31 @@ def build_parser():
 
     parser_set_provenance = subparsers.add_parser('set-provenance',
             help='create provenance records')
-    parser_set_provenance.add_argument('-id', metavar='syn123', type=str, required=True,
+    parser_set_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
-    parser_set_provenance.add_argument('-name', metavar='NAME', type=str, required=False,
+    parser_set_provenance.add_argument('-name', '--name', metavar='NAME', type=str, required=False,
             help='Name of the activity that generated the entity')
-    parser_set_provenance.add_argument('-description',
+    parser_set_provenance.add_argument('-description', '--description',
             metavar='DESCRIPTION', type=str, required=False,
             help='Description of the activity that generated the entity')
-    parser_set_provenance.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+    parser_set_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
-    parser_set_provenance.add_argument('-used', metavar='target', type=str, nargs='*',
+    parser_set_provenance.add_argument('-used', '--used', metavar='target', type=str, nargs='*',
             help=('Synapse ID of a data entity, a url, or a file path from which the '
                   'specified entity is derived'))
-    parser_set_provenance.add_argument('-executed', metavar='target', type=str, nargs='*',
+    parser_set_provenance.add_argument('-executed', '--executed', metavar='target', type=str, nargs='*',
             help=('Synapse ID of a data entity, a url, or a file path that was executed '
                   'to generate the specified entity is derived'))
-    parser_set_provenance.add_argument('-limitSearch', metavar='projId', type=str, 
+    parser_set_provenance.add_argument('-limitSearch', '--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_set_provenance.set_defaults(func=setProvenance)
 
     parser_get_provenance = subparsers.add_parser('get-provenance',
             help='show provenance records')
-    parser_get_provenance.add_argument('--id', metavar='syn123', type=str, required=True,
+    parser_get_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
-    parser_get_provenance.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+    parser_get_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
     parser_get_provenance.set_defaults(func=getProvenance)
@@ -580,18 +580,18 @@ def build_parser():
             help='show annotations records')
     parser_get_annotations.add_argument('--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose annotations we are accessing.')
-    parser_get_annotations.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+    parser_get_annotations.add_argument('-o', '--output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the annotations record in JSON format')
     parser_get_annotations.set_defaults(func=getAnnotations)
     
     parser_create = subparsers.add_parser('create',
             help='Creates folders or projects on Synapse')
-    parser_create.add_argument('-parentid', '-parentId', metavar='syn123', type=str, required=False,
+    parser_create.add_argument('-parentid', '-parentId', '--parentid', '--parentId', metavar='syn123', type=str, dest='parentid', required=False,
             help='Synapse ID of project or folder where to place folder [not used with project]')
-    parser_create.add_argument('-name', metavar='NAME', type=str, required=True,
+    parser_create.add_argument('-name', '--name', metavar='NAME', type=str, required=True,
             help='Name of folder/project.')
-    parser_create.add_argument('-description', metavar='DESCRIPTION', type=str,
+    parser_create.add_argument('-description', '--description', metavar='DESCRIPTION', type=str,
             help='Description of project/folder')
     parser_create.add_argument('type', type=str,
             help='Type of object to create in synapse one of {Project, Folder}')

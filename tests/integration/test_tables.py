@@ -252,19 +252,23 @@ def test_tables_csv():
             row['values'][2] = 8.5
     row_reference_set = syn.store(rowset)
 
-    results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
-    df = results.asDataFrame()
-    print "\nUpdated hipness to 8.5", df
-    all(df['Born'].values == 1930)
-    all(df['Hipness'].values == 8.5)
+    try:
+        import pandas as pd
+        results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
+        df = results.asDataFrame()
+        print "\nUpdated hipness to 8.5", df
+        all(df['Born'].values == 1930)
+        all(df['Hipness'].values == 8.5)
 
-    ## Update via a Data Frame
-    df['Hipness'] = 9.75
-    table = syn.store(Table(table.tableId, df, etag=results.etag))
+        ## Update via a Data Frame
+        df['Hipness'] = 9.75
+        table = syn.store(Table(table.tableId, df, etag=results.etag))
 
-    results = syn.tableQuery("select * from %s where Born=1930" % table.tableId, resultsAs="csv")
-    for row in results:
-        assert row[4] == 9.75
+        results = syn.tableQuery("select * from %s where Born=1930" % table.tableId, resultsAs="csv")
+        for row in results:
+            assert row[4] == 9.75
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
 
     ## check what happens when query result is empty
     results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
