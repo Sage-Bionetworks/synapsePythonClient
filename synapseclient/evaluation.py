@@ -95,6 +95,17 @@ class Evaluation(DictObject):
     :param submissionReceiptMessage: Message to display to users upon submission
     :param submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions
 
+    `To create an Evaluation <http://rest.synapse.org/org/sagebionetworks/evaluation/model/Evaluation.html>`_
+    and store it in Synapse::
+
+        evaluation = syn.store(Evaluation(
+            name="Q1 Final",
+            description="Predict progression of MMSE scores for final scoring",
+            contentSource="syn2290704"))
+
+    The contentSource field links the evaluation to its :py:class:`synapseclient.entity.Project`.
+    (Or, really, any synapse ID, but sticking to projects is a good idea.)
+
     `Evaluations <http://rest.synapse.org/org/sagebionetworks/evaluation/model/Evaluation.html>`_
     can be retrieved from Synapse by ID::
 

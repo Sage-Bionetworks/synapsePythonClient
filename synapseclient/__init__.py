@@ -36,7 +36,11 @@ Installation
 The `synapseclient <https://pypi.python.org/pypi/synapseclient/>`_ package is available from PyPI. It can
 be installed or upgraded with pip::
 
-    (sudo) pip install (--upgrade) synapseclient
+    (sudo) pip install (--upgrade) synapseclient[pandas,pysftp]
+
+The dependencies on pandas and pysftp are optional. The Synapse :py:mod:`synapseclient.table`
+feature integrates with Pandas. Support for sftp is required for users of SFTP file storage.
+Both require native libraries to be compiled or installed separately from prebuilt binaries.
 
 Source code and development versions are `available on Github <https://github.com/Sage-Bionetworks/synapsePythonClient>`_.
 Installing from source::
@@ -71,9 +75,9 @@ Once that's done, you'll be able to load the library, create a :py:class:`Synaps
 
 For more information, see:
 
-- :py:class:`synapseclient.Synapse`
-- :py:func:`synapseclient.Synapse.login`
-- :py:func:`synapseclient.Synapse.logout`
+- :py:class:`Synapse`
+- :py:func:`Synapse.login`
+- :py:func:`Synapse.logout`
 
 Imports
 =======
@@ -176,6 +180,27 @@ code used to perform the transformation.
 See:
 
 - :py:class:`synapseclient.activity.Activity`
+
+Tables
+======
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+Tables is an ALPHA feature
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+The tables feature is in the alpha stage. Please expect bugs and changes
+to some interface elements. Report bugs via 
+`JIRA <https://sagebionetworks.jira.com/>`_.
+
+Tables can be built up by adding sets of rows that follow a user-defined schema
+and queried using a SQL-like syntax.
+
+See:
+
+- :py:mod:`synapseclient.table`
+- :py:class:`synapseclient.table.Schema`
+- :py:class:`synapseclient.table.Column`
+- :py:func:`synapseclient.Synapse.getColumns`
+- :py:func:`synapseclient.Synapse.getTableColumns`
 
 Wikis
 =====
@@ -282,6 +307,7 @@ from activity import Activity
 from entity import Entity, Project, Folder, File
 from entity import Analysis, Code, Data, Study, Summary
 from evaluation import Evaluation, Submission, SubmissionStatus
+from table import Schema, Column, RowSet, Row
 from wiki import Wiki
 
 from version_check import check_for_updates

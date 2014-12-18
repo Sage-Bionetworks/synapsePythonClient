@@ -9,28 +9,36 @@ There's also a [Synapse client for R](https://sagebionetworks.jira.com/wiki/disp
 Documentation
 -------------
 
-Please visit these pages for more information about the Python client and Synapse:
+For more information about the Python client, see:
 
- * [Getting started with the Synapse python client](https://www.synapse.org/#!Help:PythonClient)
- * [Python client API docs](http://python-docs.synapse.org/)
+ * [Python client API docs](http://python-docs.synapse.org/) 
+
+For more information about interacting with Synapse, see:
+
  * [Synapse API docs](http://rest.synapse.org/)
+ * [Getting started with the Synapse python client](https://www.synapse.org/#!Help:PythonClient)
  * [Getting Started Guide to Synapse](https://www.synapse.org/#!Help:GettingStarted)
 
 
 Installation
 ------------
 
-The python synapse client has been tested on python 2.7 on Mac OS X, Ubuntu Linux and Windows 2008.
+The python synapse client has been tested on python 2.7 on Mac OS X, Ubuntu Linux and Windows.
 
 ### Install using pip
 
 The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclient) and can be installed with pip:
 
-    pip install synapseclient
+    (sudo) pip install synapseclient[pandas,pysftp]
 
 ...or to upgrade an existing installation of the Synapse client:
 
-    pip install --upgrade synapseclient
+    (sudo) pip install --upgrade synapseclient
+
+The dependencies on pandas and pysftp are optional. Synapse [Tables](http://python-docs.synapse.org/Table.html) integrate
+with [Pandas](http://pandas.pydata.org/). The library pysftp is required for users of
+[SFTP](http://python-docs.synapse.org/sftp.html) file storage. Both libraries require native code
+to be compiled or installed separately from prebuilt binaries.
 
 ### Install from source
 
@@ -97,11 +105,9 @@ The synapse client can be used to write software that interacts with the Sage Sy
     import synapseclient
 
     syn = synapseclient.Synapse()
-    syn.login('me@nowhere.com', 'secret')
 
-    ## credentials may also be specified in .synapseConfig,
-    ## in which case you can do:
-    # syn.login()
+    ## log in using cached API key
+    syn.login('joeuser')
 
     ## retrieve a 100 by 4 matrix
     matrix = syn.get('syn1901033')
@@ -146,13 +152,13 @@ Authentication toward [synapse](https://www.synapse.org/#RegisterAccount:0) can 
     syn = synapseclient.Synapse()
     syn.login('me@nowhere.com', 'secret')
 
-It is much more convenient to use an API key, which can be generated and cached locally by adding the rememberMe=True flag:
+It is much more convenient to use an API key, which can be generated and cached locally by doing the following _once_:
 
     syn.login('me@nowhere.com', 'secret', rememberMe=True)
 
 Then, in subsequent interactions, specifying username and password is optional and only needed to login as a different user. Calling `login` with no arguments uses cached credentials when they are available.
 
-    syn.login()
+    syn.login('me@nowhere.com')
 
 As a short-cut, creating the `Synapse` object and logging in can be done in one step:
 

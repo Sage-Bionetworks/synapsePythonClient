@@ -91,9 +91,15 @@ def local_file_has_changed(entityBundle, checkIndirect, path=None):
         if path == file and os.path.exists(path):
             return not fileMTime == cacheTime
             
+        ## These lines look to be the cause of SYNPY-12, in which calls to
+        ## syn.get giving a second downloadLocationFile results in a File
+        ## object with empty file information. Returning False when a copy
+        ## exists in a location other than that requested, is not good
+        ## because we don't copy local files (and probably don't want to).
+
         # If there is no direct match, but a pristine copy exists, return False (after checking all entries)
-        if checkIndirect and cachedFileMTime == cacheTime:
-            unmodifiedFileExists = True
+        # if checkIndirect and cachedFileMTime == cacheTime:
+        #     unmodifiedFileExists = True
             
     # The file is not cached or has been changed
     return not unmodifiedFileExists
@@ -351,15 +357,18 @@ def is_lock_valid(cacheLock):
         raise
 
     
+def determine_cache_directory_from_file_handle(fileHandle):
+    return os.path.join(CACHE_DIR, str(int(fileHandle) % CACHE_FANOUT), fileHandle)
+
+
 def determine_cache_directory(entity):
     """Uses the properties of the Entity to determine where it would be cached by default."""
     
     if is_locationable(entity):
         return os.path.join(CACHE_DIR, entity['id'], str(entity['versionNumber']))
         
-    fileHandle = entity['dataFileHandleId']
-    return os.path.join(CACHE_DIR, str(int(fileHandle) % CACHE_FANOUT), fileHandle)
-        
+    return determine_cache_directory_from_file_handle(entity['dataFileHandleId'])
+
         
 strptimeLock = Lock()
 def parse_cache_entry_into_seconds(isoTime):

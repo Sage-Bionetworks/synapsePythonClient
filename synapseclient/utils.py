@@ -27,7 +27,9 @@ File Handling
 .. automethod:: synapseclient.utils.download_file
 .. automethod:: synapseclient.utils.extract_filename
 .. automethod:: synapseclient.utils.file_url_to_path
+.. automethod:: synapseclient.utils.is_same_base_url
 .. automethod:: synapseclient.utils.normalize_whitespace
+
 
 ~~~~~~~~
 Chunking
@@ -44,7 +46,6 @@ Testing
 .. automethod:: synapseclient.utils.make_bogus_binary_file
 
 """
-
 #!/usr/bin/env python2.7
 
 import os, sys, urllib, urlparse, hashlib, re
@@ -57,7 +58,6 @@ import functools
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
-
 
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
@@ -119,7 +119,7 @@ def download_file(url, localFilepath=None):
 
     return localFilepath
 
-
+    
 def extract_filename(content_disposition):
     """
     Extract a filename from an HTTP content-disposition header field.
@@ -225,11 +225,11 @@ def as_url(s):
     url_parts = urlparse.urlsplit(s)
     ## Windows drive letter?
     if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
-        return 'file:///%s' % str(s)
+        return 'file:///%s' % unicode(s).replace("\\","/")
     if url_parts.scheme:
         return url_parts.geturl()
     else:
-        return 'file://%s' % str(s)
+        return 'file://%s' % unicode(s)
 
 
 def guess_file_name(string):
@@ -282,6 +282,23 @@ def file_url_to_path(url, verify_exists=False):
                 'files': [os.path.basename(path)],
                 'cacheDir': os.path.dirname(path) }
     return {}
+
+
+
+def is_same_base_url(url1, url2):
+    """Compares two urls to see if they are the same excluding up to the base path
+
+    :param url1: a URL
+    :param url2: a second URL
+
+    :returns: Boolean
+    """
+    url1 = urlparse.urlsplit(url1)
+    url2 = urlparse.urlsplit(url2)
+    return (url1.scheme==url2.scheme and 
+            url1.netloc==url2.netloc)
+    
+
 
 
 def is_synapse_id(obj):
@@ -565,6 +582,36 @@ def _limit_and_offset(uri, limit=None, offset=None):
         fragment=parts.fragment))
 
 
+def query_limit_and_offset(query, hard_limit=1000):
+    """
+    Extract limit and offset from the end of a query string.
+
+    :returns: A triple containing the query with limit and offset removed, the
+              limit at most equal to the hard_limit, and the offset which
+              defaults to 1
+    """
+    # Regex a lower-case string to simplify matching
+    tempQueryStr = query.lower()
+    regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+
+    # Continue to strip off and save the last limit/offset
+    match = re.search(regex, tempQueryStr)
+    options = {}
+    while match is not None:
+        options[match.group(2)] = int(match.group(3))
+        tempQueryStr = match.group(1)
+        match = re.search(regex, tempQueryStr)
+
+    # Get a truncated version of the original query string (not in lower-case)
+    query = query[:len(tempQueryStr)].strip()
+
+    # Continue querying until the entire query has been fetched (or crash out)
+    limit = min(options.get('limit',hard_limit), hard_limit)
+    offset = options.get('offset',1)
+
+    return query, limit, offset
+
+
 #Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 def memoize(obj):
     cache = obj.cache = {}
@@ -577,6 +624,17 @@ def memoize(obj):
             cache[key] = obj(*args, **kwargs)
         return cache[key]
     return memoizer
+
+# http://stackoverflow.com/questions/5478351/python-time-measure-function
+def timing(f):
+    @functools.wraps(f)
+    def wrap(*args, **kwargs):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print 'function %s took %0.3f ms' % (f.func_name, (time2-time1)*1000.0)
+        return ret
+    return wrap
 
 
 def _is_json(content_type):

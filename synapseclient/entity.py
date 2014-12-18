@@ -37,6 +37,12 @@ File
 
 .. autoclass:: synapseclient.entity.File
 
+~~~~~~~~~~~~
+Table Schema
+~~~~~~~~~~~~
+
+.. autoclass:: synapseclient.table.Schema
+
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Properties and annotations, implementation details
@@ -576,7 +582,8 @@ ENTITY_TYPES = LOCATIONABLE_TYPES + [
     'org.sagebionetworks.repo.model.Preview',
     'org.sagebionetworks.repo.model.Project',
     'org.sagebionetworks.repo.model.Step',
-    'org.sagebionetworks.repo.model.Summary'
+    'org.sagebionetworks.repo.model.Summary',
+    'org.sagebionetworks.repo.model.table.TableEntity'
 ]
 
 def is_synapse_entity(entity):

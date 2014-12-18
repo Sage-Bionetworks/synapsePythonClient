@@ -274,3 +274,31 @@ def test_normalize_whitespace():
     assert "zip tang pow\na = 2\nb = 3" == result
 
 
+def test_query_limit_and_offset():
+    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 123 offset 456")
+    print query, limit, offset
+    assert query == "select foo from bar where zap > 2"
+    assert limit == 123
+    assert offset == 456
+
+    query, limit, offset = utils.query_limit_and_offset("select limit from offset where limit==2 limit 123 offset 456")
+    assert query == "select limit from offset where limit==2"
+    assert limit == 123
+    assert offset == 456
+
+    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 123")
+    assert query == "select foo from bar where zap > 2"
+    assert limit == 123
+    assert offset == 1
+
+    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 65535", hard_limit=1000)
+    assert query == "select foo from bar where zap > 2"
+    assert limit == 1000
+    assert offset == 1
+
+def test_as_urls():
+    assert utils.as_url("C:\\Users\\Administrator\\AppData\\Local\\Temp\\2\\tmpvixuld.txt") == "file:///C:/Users/Administrator/AppData/Local/Temp/2/tmpvixuld.txt"
+    assert utils.as_url("/foo/bar/bat/zoinks.txt") == "file:///foo/bar/bat/zoinks.txt"
+    assert utils.as_url("http://foo/bar/bat/zoinks.txt") == "http://foo/bar/bat/zoinks.txt"
+    assert utils.as_url("ftp://foo/bar/bat/zoinks.txt") == "ftp://foo/bar/bat/zoinks.txt"
+    assert utils.as_url("sftp://foo/bar/bat/zoinks.txt") == "sftp://foo/bar/bat/zoinks.txt"

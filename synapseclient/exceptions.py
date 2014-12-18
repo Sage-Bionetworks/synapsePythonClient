@@ -19,6 +19,9 @@ import synapseclient.utils as utils
 class SynapseError(Exception):
     """Generic exception thrown by the client."""
 
+class SynapseTimeoutError(SynapseError):
+    """Timed out waiting for response from Synapse."""
+
 class SynapseAuthenticationError(SynapseError):
     """Unauthorized access."""
 
