@@ -15,7 +15,7 @@ import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient import Project, File, Folder, Schema
-from synapseclient.table import Column, RowSet, Row, cast_row, as_table_columns, Table
+from synapseclient.table import Column, RowSet, Row, cast_values, as_table_columns, Table
 import synapseclient.exceptions as exceptions
 
 import integration

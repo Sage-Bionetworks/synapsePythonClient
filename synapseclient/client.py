@@ -52,7 +52,7 @@ from synapseclient.annotations import from_synapse_annotations, to_synapse_annot
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
-from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable, header_to_column_id
+from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
