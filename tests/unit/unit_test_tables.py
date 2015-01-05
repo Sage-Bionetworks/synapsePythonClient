@@ -5,7 +5,7 @@ import sys
 import tempfile
 from itertools import izip
 
-from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_row, as_table_columns, Table
+from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn
 
 
 def setup(module):
@@ -15,34 +15,37 @@ def setup(module):
     print '~' * 60
 
 
-def test_cast_row():
-    columns = [{'id': '353',
-                'name': 'name',
-                'columnType': 'STRING',
-                'maximumSize': 1000},
-               {'id': '354',
-                'name': 'foo',
-                'columnType': 'STRING',
-                'enumValues': ['bar', 'bat', 'foo'],
-                'maximumSize': 50},
-               {'id': '355',
-                'name': 'x',
-                'columnType': 'DOUBLE'},
-               {'id': '356',
-                'name': 'n',
-                'columnType': 'INTEGER'},
-               {'id': '357',
-                'name': 'bonk',
-                'columnType': 'BOOLEAN'}]
+def test_cast_values():
+    selectColumns = [{'id': '353',
+                      'name': 'name',
+                      'columnType': 'STRING'},
+                     {'id': '354',
+                      'name': 'foo',
+                      'columnType': 'STRING'},
+                     {'id': '355',
+                      'name': 'x',
+                      'columnType': 'DOUBLE'},
+                     {'id': '356',
+                      'name': 'n',
+                      'columnType': 'INTEGER'},
+                     {'id': '357',
+                      'name': 'bonk',
+                      'columnType': 'BOOLEAN'}]
 
     row = ('Finklestein', 'bat', '3.14159', '65535', 'true')
-    headers = ['353', '354', '355', '356', '357']
-    assert cast_row(row, columns, headers)==['Finklestein', 'bat', 3.14159, 65535, True]
+    assert cast_values(row, selectColumns)==['Finklestein', 'bat', 3.14159, 65535, True]
 
     ## group by
+    selectColumns = [{'name': 'bonk',
+                      'columnType': 'BOOLEAN'},
+                     {'name': 'COUNT(name)',
+                      'columnType': 'INTEGER'},
+                     {'name': 'AVG(x)',
+                      'columnType': 'DOUBLE'},
+                     {'name': 'SUM(n)',
+                      'columnType': 'INTEGER'}]
     row = ('true', '211', '1.61803398875', '1421365')
-    headers = ['357', 'COUNT(C353)', 'AVG(C355)', 'SUM(C356)']
-    assert cast_row(row, columns, headers)==[True, 211, 1.61803398875, 1421365]
+    assert cast_values(row, selectColumns)==[True, 211, 1.61803398875, 1421365]
 
 
 def test_schema():
@@ -78,6 +81,56 @@ def test_schema():
     assert len(schema.columns_to_store) == 3
     assert Column(name='Living', columnType='BOOLEAN') not in schema.columns_to_store
     assert Column(name='Hipness', columnType='DOUBLE') in schema.columns_to_store
+
+
+def test_RowSetTable():
+    row_set_json = {
+        'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        'headers': [
+         {'columnType': 'STRING', 'id': '353', 'name': 'name'},
+         {'columnType': 'DOUBLE', 'id': '355', 'name': 'x'},
+         {'columnType': 'DOUBLE', 'id': '3020', 'name': 'y'},
+         {'columnType': 'INTEGER', 'id': '891', 'name': 'n'}],
+        'rows': [{
+          'rowId': 5,
+          'values': ['foo', '1.23', '2.2', '101'],
+          'versionNumber': 3},
+         {'rowId': 6,
+          'values': ['bar', '1.34', '2.4', '101'],
+          'versionNumber': 3},
+         {'rowId': 7,
+          'values': ['foo', '1.23', '2.2', '101'],
+          'versionNumber': 4},
+         {'rowId': 8,
+          'values': ['qux', '1.23', '2.2', '102'],
+          'versionNumber': 3}],
+        'tableId': 'syn2976298'}
+
+    row_set = RowSet.from_json(row_set_json)
+
+    assert row_set.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    assert row_set.tableId == 'syn2976298'
+    assert len(row_set.headers) == 4
+    assert len(row_set.rows) == 4
+
+    schema = Schema(id="syn2976298", name="Bogus Schema", columns=[353,355,3020,891], parent="syn1000001")
+
+    table = Table(schema, row_set)
+
+    assert table.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    assert table.tableId == 'syn2976298'
+    assert len(table.headers) == 4
+    assert len(table.asRowSet().rows) == 4
+
+    try:
+        import pandas as pd
+
+        df = table.asDataFrame()
+        assert df.shape == (4,4)
+        assert all(df['name'] == ['foo', 'bar', 'foo', 'qux'])
+
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping part of test_RowSetTable.\n\n')
 
 
 def test_as_table_columns():
@@ -145,8 +198,11 @@ def test_csv_table():
         table = Table(schema1, filename)
         assert isinstance(table, CsvFileTable)
 
-        ## need to set columns to read a CSV file
-        table.setColumns(cols, headers = ['ROW_ID', 'ROW_VERSION'] + [col.id for col in cols])
+        ## need to set column headers to read a CSV file
+        table.setColumnHeaders(
+            [SelectColumn(name="ROW_ID", columnType="STRING"),
+             SelectColumn(name="ROW_VERSION", columnType="STRING")] +
+            [SelectColumn.from_column(col) for col in cols])
 
         ## test iterator
         # print "\n\nJazz Guys"
@@ -157,6 +213,7 @@ def test_csv_table():
         ## test asRowSet
         rowset = table.asRowSet()
         for rowset_row, expected_row in izip(rowset.rows, data):
+            #print rowset_row, expected_row
             assert rowset_row['values']==expected_row[2:]
             assert rowset_row['rowId']==expected_row[0]
             assert rowset_row['versionNumber']==expected_row[1]
@@ -205,8 +262,8 @@ def test_list_of_rows_table():
 
     schema1 = Schema(name='Jazz Guys', columns=cols, id="syn1000002", parent="syn1000001")
 
-    ## need columns to do cast_rows w/o storing
-    table = Table(schema1, data, columns=cols)
+    ## need columns to do cast_values w/o storing
+    table = Table(schema1, data, headers=[SelectColumn.from_column(col) for col in cols])
 
     for table_row, expected_row in izip(table, data):
         assert table_row==expected_row
@@ -233,7 +290,7 @@ def test_aggregate_query_result_to_data_frame():
     try:
         import pandas as pd
 
-        class Synapse(object):
+        class MockSynapse(object):
             def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
                 return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
                         'maxRowsPerPage': 2,
@@ -241,8 +298,12 @@ def test_aggregate_query_result_to_data_frame():
                         'queryResult': {
                          'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
                          'nextPageToken': 'aaaaaaaa',
-                         'queryResults': {'etag': '8c568c77-3827-44a0-8e46-711aeb0fff9b',
-                          'headers': ['1387', 'MIN(Born)', 'COUNT(State)', 'AVG(Hipness)'],
+                         'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                         'headers': [
+                          {'columnType': 'STRING',  'name': 'State'},
+                          {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
+                          {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
+                          {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
                           'rows': [
                            {'values': ['PA', '1935', '2', '1.1']},
                            {'values': ['MO', '1928', '3', '2.38']}],
@@ -253,14 +314,27 @@ def test_aggregate_query_result_to_data_frame():
                          'name': 'State'}]}
             def _queryTableNext(self, nextPageToken):
                 return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
-                        'queryResults': {'etag': '8c568c77-3827-44a0-8e46-711aeb0fff9b',
-                         'headers': ['1387', 'MIN(Born)', 'COUNT(State)', 'AVG(Hipness)'],
+                        'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                         'headers': [
+                          {'columnType': 'STRING',  'name': 'State'},
+                          {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
+                          {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
+                          {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
                          'rows': [
                           {'values': ['DC', '1929', '1', '3.14']},
                           {'values': ['NC', '1926', '1', '4.38']}],
                          'tableId': 'syn2757980'}}
 
-        result = TableQueryResult(synapse=Synapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
+        result = TableQueryResult(synapse=MockSynapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
+
+        assert result.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+        assert result.tableId == 'syn2757980'
+        assert len(result.headers) == 4
+
+        rs = result.asRowSet()
+        assert len(rs.rows) == 4
+
+        result = TableQueryResult(synapse=MockSynapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
         df = result.asDataFrame()
 
         assert df.shape == (4,4)

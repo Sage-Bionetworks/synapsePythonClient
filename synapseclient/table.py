@@ -321,75 +321,48 @@ def row_labels_from_id_and_version(rows):
 def row_labels_from_rows(rows):
     return row_labels_from_id_and_version([(row['rowId'], row['versionNumber']) for row in rows])
 
-def cast_row(row, columns, headers):
+def cast_values(values, headers):
     """
     Convert a row of table query results from strings to the correct column type.
 
     See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/ColumnType.html
     """
-    if len(row) != len(headers):
-        raise ValueError('Each field in the row must have a matching header. headers=%s, row=%s' % (unicode(headers), unicode(row)))
-
-    if columns:
-        col_map = {col['id']:col for col in columns}
-    else:
-        col_map = {}
+    if len(values) != len(headers):
+        raise ValueError('Each field in the row must have a matching column header. %d fields, %d headers' % (len(values), len(headers)))
 
     result = []
-    for header, field in izip(headers, row):
+    for header, field in izip(headers, values):
 
-        if header in ('ROW_ID', 'ROW_VERSION'):
+        columnType = header.get('columnType', 'STRING')
+
+        ## convert field to column type
+        if field is None or field=='':
+            result.append(None)
+        elif columnType in ['STRING', 'ENTITYID', 'FILEHANDLEID']:
             result.append(field)
+        elif columnType=='DOUBLE':
+            result.append(float(field))
+        elif columnType=='INTEGER':
+            result.append(int(field))
+        elif columnType=='BOOLEAN':
+            result.append(to_boolean(field))
+        elif columnType=='DATE':
+            result.append(utils.from_unix_epoch_time(field))
         else:
-            ## check for aggregate columns
-            m = aggregate_pattern.match(header.lower())
-            if m:
-                function = m.group(1)
-                column_id = m.group(2)
-                if function=='count':
-                    type = 'INTEGER'
-                ## TODO re-address this after PLFM-3073 is fixed
-                elif function in ['avg', 'max', 'min', 'sum']:
-                    type = 'DOUBLE'
-                # else: ## max, min, sum
-                #     type = col_map[column_id]['columnType']
-                else:
-                    type = 'STRING'
-            else:
-                type = col_map[header]['columnType'] if header in col_map else 'STRING'
-
-            ## convert field to column type
-            if field is None or field=='':
-                result.append(None)
-            elif type in ['STRING', 'ENTITYID', 'FILEHANDLEID']:
-                result.append(field)
-            elif type=='DOUBLE':
-                result.append(float(field))
-            elif type=='INTEGER':
-                result.append(int(field))
-            elif type=='BOOLEAN':
-                result.append(to_boolean(field))
-            elif type=='DATE':
-                result.append(utils.from_unix_epoch_time(field))
-            else:
-                raise ValueError("Unknown column type: %s" % type)
+            raise ValueError("Unknown column type: %s" % columnType)
 
     return result
 
 
-def cast_row_set(rowset, columns):
+def cast_row(row, headers):
+    row['values'] = cast_values(row['values'], headers)
+    return row
+
+
+def cast_row_set(rowset):
     for i, row in enumerate(rowset['rows']):
-        rowset['rows'][i]['values'] = cast_row(row['values'], columns, rowset['headers'])
+        rowset['rows'][i]['values'] = cast_row(row, rowset['headers'])
     return rowset
-
-
-def header_to_column_id(obj):
-    """
-    Get the column ID referred to by a column header, which might be
-    a column ID or an aggregate function such as AVG(C1384)
-    """
-    m = aggregate_pattern.match(obj.lower())
-    return m.group(2) if m else obj
 
 
 class Schema(Entity, Versionable):
@@ -476,6 +449,41 @@ class Schema(Entity, Versionable):
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
 
 
+## allowed column types
+## see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
+ColumnTypes = ['STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK']
+
+
+class SelectColumn(DictObject):
+    """
+    Defines a column to be used in a table :py:class:`synapseclient.table.Schema`.
+
+    :var id:              An immutable ID issued by the platform
+    :param columnType:    Can be any of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID"
+    :param name:          The display name of the column
+
+    :type id: string
+    :type columnType: string
+    :type name: string
+    """
+    def __init__(self, id=None, columnType=None, name=None):
+        super(SelectColumn, self).__init__()
+        if id:
+            self.id = id
+
+        if name:
+            self.name = name
+
+        if columnType:
+            if columnType not in ColumnTypes:
+                raise ValueError('Unrecognized columnType: %s' % columnType)
+            self.columnType = columnType
+
+    @classmethod
+    def from_column(cls, column):
+        return cls(column.get('id', None), column.get('columnType', None), column.get('name', None))
+
+
 class Column(DictObject):
     """
     Defines a column to be used in a table :py:class:`synapseclient.table.Schema`.
@@ -511,24 +519,31 @@ class RowSet(DictObject):
     A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://rest.synapse.org/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId    
-    :param headers:  The list of Column IDs that describe the rows of this set.
+    :param headers:  The list of SelectColumn objects that describe the rows of this set.
     :param tableId:  The ID of the TableEntity than owns these rows
     :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
     :var etag:       Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
 
-    :type headers:   array of string
+    :type headers:   array of SelectColumns
     :type etag:      string
     :type tableId:   string
     :type rows:      array of rows
     """
 
+    @classmethod
+    def from_json(cls, json):
+        headers=[SelectColumn(**header) for header in json.get('headers', [])]
+        rows=[cast_row(Row(**row), headers) for row in json.get('rows', [])]
+        return cls(headers=headers, rows=rows,
+            **{ key: json[key] for key in json.keys() if key not in ['headers', 'rows'] })
+
     def __init__(self, columns=None, schema=None, **kwargs):
         if not 'headers' in kwargs:
             if columns:
-                kwargs.setdefault('headers',[]).extend([utils.id_of(column) for column in columns])
+                kwargs.setdefault('headers',[]).extend([SelectColumn.from_column(column) for column in columns])
             elif schema and isinstance(schema, Schema):
-                kwargs.setdefault('headers',[]).extend(schema["columnIds"])
-        if schema:
+                kwargs.setdefault('headers',[]).extend([SelectColumn(id=id) for id in schema["columnIds"]])
+        if ('tableId' not in kwargs) and schema:
             kwargs['tableId'] = utils.id_of(schema)
         if not kwargs.get('tableId',None):
             raise ValueError("Table schema ID must be defined to create a RowSet")
@@ -564,8 +579,10 @@ class Row(DictObject):
     def __init__(self, values, rowId=None, versionNumber=None):
         super(Row, self).__init__()
         self.values = values
-        self.rowId = rowId
-        self.versionNumber = versionNumber
+        if rowId is not None:
+            self.rowId = rowId
+        if versionNumber is not None:
+            self.versionNumber = versionNumber
 
 
 class RowSelection(DictObject):
@@ -654,7 +671,7 @@ class TableAbstractBaseClass(object):
         if isinstance(schema, Schema):
             self.schema = schema
             self.tableId = schema.id if schema and 'id' in schema else None
-            self.headers = headers if headers else schema.columnIds
+            self.headers = headers if headers else [SelectColumn(id=id) for id in schema.columnIds]
             self.etag = etag
         elif isinstance(schema, basestring):
             self.schema = None
@@ -696,19 +713,6 @@ class TableAbstractBaseClass(object):
             etag=self.etag,
             tableId=self.tableId)))
 
-    def _get_headers(self):
-        """
-        Determine column headers, which are returned as a list of column IDs
-        """
-        if hasattr(self, "headers"):
-            return self.headers
-        elif hasattr(self, "columns") and self.columns:
-            return column_ids(self.columns)
-        elif self.schema:
-            return self.schema.columnIds
-        else:
-            AttributeError("Unable to determine column headers")
-
     def __iter__(self):
         raise NotImplementedError()
 
@@ -717,10 +721,9 @@ class RowSetTable(TableAbstractBaseClass):
     """
     A Table object that wraps a RowSet.
     """
-    def __init__(self, schema, rowset, columns=None):
+    def __init__(self, schema, rowset):
         super(RowSetTable, self).__init__(schema, etag=rowset.get('etag', None))
         self.rowset = rowset
-        self.columns = columns
 
     def _synapse_store(self, syn):
         row_reference_set = syn.store(self.rowset)
@@ -730,10 +733,6 @@ class RowSetTable(TableAbstractBaseClass):
         test_import_pandas()
         import pandas as pd
 
-        if not self.columns:
-            raise AttributeError('Need to set columns before calling asDataFrame')
-        colmap = {column['id']:column for column in self.columns}
-
         if any([row['rowId'] for row in self.rowset['rows']]):
             rownames = row_labels_from_rows(self.rowset['rows'])
         else:
@@ -741,8 +740,7 @@ class RowSetTable(TableAbstractBaseClass):
 
         series = OrderedDict()
         for i, header in enumerate(self.rowset["headers"]):
-            column_name = colmap[header]['name']
-            series[column_name] = pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames)
+            series[header.name] = pd.Series(name=header.name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames)
 
         return pd.DataFrame(data=series, index=rownames)
 
@@ -756,10 +754,10 @@ class RowSetTable(TableAbstractBaseClass):
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
 
     def __iter__(self):
-        def iterate_rows(rows):
+        def iterate_rows(rows, headers):
             for row in rows:
-                yield row
-        return iterate_rows(self.rowset['rows'])
+                yield cast_values(row, headers)
+        return iterate_rows(self.rowset['rows'], self.rowset['headers'])
 
 
 class TableQueryResult(TableAbstractBaseClass):
@@ -786,8 +784,9 @@ class TableQueryResult(TableAbstractBaseClass):
             offset=offset,
             isConsistent=isConsistent)
 
-        self.columns = [Column(**columnModel) for columnModel in result.get('selectColumns', [])]
-        self.rowset = cast_row_set(result['queryResult']['queryResults'], columns=self.columns)
+        self.rowset = RowSet.from_json(result['queryResult']['queryResults'])
+
+        self.columnModels = [Column(**col) for col in result.get('columnModels', [])]
         self.nextPageToken = result['queryResult'].get('nextPageToken', None)
         self.count = result.get('queryCount', None)
         self.maxRowsPerPage = result.get('maxRowsPerPage', None)
@@ -795,7 +794,7 @@ class TableQueryResult(TableAbstractBaseClass):
 
         super(TableQueryResult, self).__init__(
             schema=self.rowset.get('tableId', None),
-            headers=self.rowset.get("headers", None),
+            headers=self.rowset.headers,
             etag=self.rowset.get('etag', None))
 
     def _synapse_store(self, syn):
@@ -808,47 +807,45 @@ class TableQueryResult(TableAbstractBaseClass):
         test_import_pandas()
         import pandas as pd
 
-        colmap = {column['id']:column for column in self.columns}
-
-        ## in case of empty query results, headers don't exist
-        if 'headers' not in self.rowset:
-            return pd.DataFrame()
-
         ## To turn a TableQueryResult into a data frame, we add a page of rows
         ## at a time on the untested theory that it's more efficient than
         ## adding a single row at a time to the data frame.
 
-        def construct_rownames(rowset, i=0):
+        def construct_rownames(rowset, offset=0):
             try:
-                return (row_labels_from_rows(rowset['rows']), i+len(rowset['rows']))
+                return row_labels_from_rows(rowset['rows'])
             except KeyError:
-                return (range(i,i+len(rowset['rows'])), i+len(rowset['rows']))
+                ## if we don't have row id and version, just number the rows
+                return range(offset,offset+len(rowset['rows']))
 
         ## first page of rows
-        rownames, row_count = construct_rownames(self.rowset)
+        offset = 0
+        rownames = construct_rownames(self.rowset, offset)
+        offset += len(self.rowset['rows'])
         series = OrderedDict()
         for i, header in enumerate(self.rowset["headers"]):
-            column_name = colmap[header]['name'] if header in colmap else header
+            column_name = header.name
             series[column_name] = pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames)
 
         # subsequent pages of rows
         while self.nextPageToken:
             result = self.syn._queryTableNext(self.nextPageToken)
-            self.rowset = cast_row_set(result['queryResults'], self.columns)
+            self.rowset = RowSet.from_json(result['queryResults'])
             self.nextPageToken = result.get('nextPageToken', None)
             self.i = 0
 
-            new_rownames, row_count = construct_rownames(self.rowset, i=row_count)
+            rownames = construct_rownames(self.rowset, offset)
+            offset += len(self.rowset['rows'])
             for i, header in enumerate(self.rowset["headers"]):
-                column_name = colmap[header]['name'] if header in colmap else header
-                series[column_name] = series[column_name].append(pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=new_rownames), verify_integrity=True)
+                column_name = header.name
+                series[column_name] = series[column_name].append(pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames), verify_integrity=True)
 
         return pd.DataFrame(data=series)
 
     def asRowSet(self):
         ## Note that as of stack 60, an empty query will omit the headers field
         ## see PLFM-3014
-        return RowSet(headers=self.rowset.get('headers', [col.id for col in self.columns]),
+        return RowSet(headers=self.headers,
                       tableId=self.tableId,
                       etag=self.etag,
                       rows=[row for row in self])
@@ -867,7 +864,7 @@ class TableQueryResult(TableAbstractBaseClass):
         if self.i >= len(self.rowset['rows']):
             if self.nextPageToken:
                 result = self.syn._queryTableNext(self.nextPageToken)
-                self.rowset = cast_row_set(result['queryResults'])
+                self.rowset = RowSet.from_json(result['queryResults'])
                 self.nextPageToken = result.get('nextPageToken', None)
                 self.i = 0
             else:
@@ -906,21 +903,21 @@ class CsvFileTable(TableAbstractBaseClass):
             lineEnd=os.linesep,
             separator=separator,
             header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
-
-        ## download_from_table_result has no 'headers' field when query comes back empty
-        if 'headers' in download_from_table_result:
-            self.setColumns(
-                columns=list(synapse.getColumns(download_from_table_result['headers'])),
-                headers=['ROW_ID', 'ROW_VERSION'] + download_from_table_result['headers'] if includeRowIdAndRowVersion else download_from_table_result['headers'])
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+            headers=[SelectColumn(**header) for header in download_from_table_result['headers']])
 
         return self
 
     @classmethod
-    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, columns=None, **kwargs):
+    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, headers=None, **kwargs):
         ## infer columns from data frame if not specified
+        if not headers:
+            cols = as_table_columns(df)
+            headers = [SelectColumn.from_column(col) for col in cols]
+
+        ## if the schema has no columns, use the inferred columns
         if isinstance(schema, Schema) and not schema.has_columns():
-            schema.addColumns(as_table_columns(df))
+            schema.addColumns(cols)
 
         ## convert row names in the format [row_id]-[version] back to columns
         row_id_version_pattern = re.compile(r'(\d+)_(\d+)')
@@ -964,10 +961,10 @@ class CsvFileTable(TableAbstractBaseClass):
             lineEnd=lineEnd,
             separator=separator,
             header=header,
-            columns=columns)
+            headers=headers)
 
     @classmethod
-    def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", linesToSkip=0, columns=None):
+    def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
 
         ## create CSV file
         f = None
@@ -988,12 +985,12 @@ class CsvFileTable(TableAbstractBaseClass):
 
             ## if we haven't explicitly set columns, try to grab them from
             ## the schema object
-            if not columns and "columns_to_store" in schema:
-                columns = schema.columns_to_store
+            if not headers and "columns_to_store" in schema and schema.columns_to_store is not None:
+                headers = [SelectColumn.from_column(col) for col in schema.columns_to_store]
 
             ## write headers?
-            if columns:
-                writer.writerow([col.name for col in columns])
+            if headers:
+                writer.writerow([header.name for header in headers])
                 header = True
             else:
                 header = False
@@ -1014,14 +1011,14 @@ class CsvFileTable(TableAbstractBaseClass):
             lineEnd=lineEnd,
             separator=separator,
             header=header,
-            columns=columns)
+            headers=headers,
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
 
-    def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, columns=None):
+    def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
         self.filepath = filepath
 
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
-        self.columns = columns
 
         ## CsvTableDescriptor fields
         self.linesToSkip = linesToSkip
@@ -1031,7 +1028,9 @@ class CsvFileTable(TableAbstractBaseClass):
         self.separator = separator
         self.header = header
 
-        super(CsvFileTable, self).__init__(schema, headers=column_ids(columns), etag=etag)
+        super(CsvFileTable, self).__init__(schema, headers=headers, etag=etag)
+
+        self.setColumnHeaders(headers)
 
     def _synapse_store(self, syn):
         if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
@@ -1080,8 +1079,13 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def asRowSet(self):
         ## Extract row id and version, if present in rows
-        row_id_col = self.headers.index('ROW_ID') if 'ROW_ID' in self.headers else None
-        row_ver_col = self.headers.index('ROW_VERSION') if 'ROW_VERSION' in self.headers else None
+        row_id_col = None
+        row_ver_col = None
+        for i, header in enumerate(self.headers):
+            if header.name=='ROW_ID':
+                row_id_col = i
+            elif header.name=='ROW_VERSION':
+                row_ver_col = i
 
         def to_row_object(row, row_id_col=None, row_ver_col=None):
             if isinstance(row, Row):
@@ -1096,29 +1100,26 @@ class CsvFileTable(TableAbstractBaseClass):
                       etag=self.etag,
                       rows=[to_row_object(row, row_id_col, row_ver_col) for row in self])
 
-    def setColumns(self, columns, headers=None):
+    def setColumnHeaders(self, headers):
         """
-        Set the list of :py:class:`synapseclient.table.Column` objects that
+        Set the list of :py:class:`synapseclient.table.SelectColumn` objects that
         will be used to convert fields to the appropriate data types.
 
-        Columns are automatically set when querying.
+        Column headers are automatically set when querying.
         """
-        self.columns = columns
-
-        ## if we're given headers (a list of column ids) use those
-        ## otherwise, we should be given a list of columns in the
-        ## order they appear in the table
-        if headers:
-            self.headers = headers
-        else:
-            self.headers = column_ids(columns)
+        if self.includeRowIdAndRowVersion:
+            names = [header.name for header in headers]
+            if "ROW_ID" not in names and "ROW_VERSION" not in names:
+                headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                           SelectColumn(name="ROW_VERSION", columnType="STRING")] + headers
+        self.headers = headers
 
     def __iter__(self):
-        def iterate_rows(filepath, columns, headers):
+        def iterate_rows(filepath, headers):
             with open(filepath) as f:
                 reader = csv.reader(f)
                 if self.header:
                     header = reader.next()
                 for row in reader:
-                    yield cast_row(row, columns, headers)
-        return iterate_rows(self.filepath, self.columns, self._get_headers())
+                    yield cast_values(row, headers)
+        return iterate_rows(self.filepath, self.headers)
