@@ -909,7 +909,7 @@ class CsvFileTable(TableAbstractBaseClass):
         return self
 
     @classmethod
-    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, headers=None, **kwargs):
+    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None, **kwargs):
         ## infer columns from data frame if not specified
         if not headers:
             cols = as_table_columns(df)
@@ -929,9 +929,13 @@ class CsvFileTable(TableAbstractBaseClass):
             row_id.append(m.group(1) if m else None)
             row_version.append(m.group(2) if m else None)
 
-        df2 = df.copy()
-        df2['ROW_ID'] = row_id
-        df2['ROW_VERSION'] = row_version
+        ## include row ID and version, if we're asked to OR if it's encoded in rownames
+        if includeRowIdAndRowVersion==True or (includeRowIdAndRowVersion is None and any(row_id)):
+            df2 = df.copy()
+            df2.insert(0, 'ROW_ID', row_id)
+            df2.insert(1, 'ROW_VERSION', row_version)
+            df = df2
+            includeRowIdAndRowVersion = True
 
         f = None
         try:
@@ -941,7 +945,7 @@ class CsvFileTable(TableAbstractBaseClass):
                 f = tempfile.NamedTemporaryFile(delete=False)
                 filepath = f.name
 
-            df2.to_csv(f,
+            df.to_csv(f,
                 index=False,
                 sep=separator,
                 header=header,
@@ -961,6 +965,7 @@ class CsvFileTable(TableAbstractBaseClass):
             lineEnd=lineEnd,
             separator=separator,
             header=header,
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
             headers=headers)
 
     @classmethod
