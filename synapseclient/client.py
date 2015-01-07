@@ -3022,17 +3022,7 @@ class Synapse:
         return self._waitForAsync(uri='/table/upload/csv/async', request=request)
 
 
-    def queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False):
-        return CsvFileTable.from_table_query(self, query,
-            quoteCharacter=quoteCharacter,
-            escapeCharacter=escapeCharacter,
-            lineEnd=lineEnd,
-            separator=separator,
-            header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
-
-
-    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False):
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
