@@ -201,6 +201,18 @@ def test_pandas_to_table():
             assert row[2]==(i+1)*100
             assert row[3]==["c", "d", "e"][i]
 
+        ## A dataframe with row id and version in columns
+        df = pd.DataFrame(dict(ROW_ID=["0","1","2"], ROW_VERSION=["8","9","9"], a=[100,200,300], b=["c", "d", "e"]))
+        print "\n", df, "\n\n"
+
+        table = Table(schema, df)
+        for i, row in enumerate(table):
+            print row
+            assert row[0]==["0","1","2"][i]
+            assert row[1]==["8","9","9"][i]
+            assert row[2]==(i+1)*100
+            assert row[3]==["c", "d", "e"][i]
+
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test_pandas_to_table.\n\n')
 
@@ -384,9 +396,9 @@ def test_aggregate_query_result_to_data_frame():
         assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
 
         ## check integer, double and boolean types after PLFM-3073 is fixed
-        # assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + unicode(df['MIN(Born)'].values)
-        # assert all(df['COUNT(State)'].values == [2,3,1,1])
-        # assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
+        assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + unicode(df['MIN(Born)'].values)
+        assert all(df['COUNT(State)'].values == [2,3,1,1])
+        assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
 
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_aggregate_query_result_to_data_frame.\n\n')

@@ -252,6 +252,14 @@ def test_tables_csv():
             row['values'][2] = 8.5
     row_reference_set = syn.store(rowset)
 
+    ## aggregate queries won't return row id and version, so we need to
+    ## handle this correctly
+    results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id, resultsAs="csv")
+    assert results.includeRowIdAndRowVersion == False
+    for i,row in enumerate(results):
+        assert row[0] == [1926,1929,1930,1931,1935,1936][i]
+        assert row[1] == [2,2,2,2,1,1][i]
+
     try:
         import pandas as pd
         results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
