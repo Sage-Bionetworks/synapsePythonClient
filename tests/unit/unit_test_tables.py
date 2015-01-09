@@ -4,7 +4,10 @@ import os
 import sys
 import tempfile
 from itertools import izip
+from mock import MagicMock
+from nose.tools import assert_raises
 
+import synapseclient
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn
 
 
@@ -403,3 +406,20 @@ def test_aggregate_query_result_to_data_frame():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_aggregate_query_result_to_data_frame.\n\n')
 
+
+def test_waitForAsync():
+    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+    syn.table_query_timeout = 0.05
+    syn.table_query_max_sleep = 0.001
+    syn.restPOST = MagicMock(return_value={"token":"1234567"})
+
+    # return a mocked http://rest.synapse.org/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
+    syn.restGET  = MagicMock(return_value={
+        "jobState": "PROCESSING",
+        "progressMessage": "Test progress message",
+        "progressCurrent": 10,
+        "progressTotal": 100,
+        "errorMessage": "Totally fubared error",
+        "errorDetails": "Totally fubared error details"})
+
+    assert_raises(synapseclient.exceptions.SynapseTimeoutError, syn._waitForAsync, uri="foo/bar", request={"foo": "bar"})
