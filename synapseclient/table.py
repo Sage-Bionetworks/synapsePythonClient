@@ -7,10 +7,9 @@ Synapse Tables enable storage of tabular data in Synapse in a form that can be
 queried using a SQL-like query language.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-Tables is an ALPHA feature
+Tables is an BETA feature
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-The tables feature is in the alpha stage. Please expect bugs and changes
-to some interface elements. Report bugs via 
+The tables feature is in the beta stage. Please report bugs via
 `JIRA <https://sagebionetworks.jira.com/>`_.
 
 A table has a :py:class:`Schema` defined in terms of :py:class:`Column` objects
@@ -232,7 +231,8 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
 def test_import_pandas():
     try:
         import pandas as pd
-    except ImportError as e1:
+    # used to catch ImportError, but other errors can happen (see SYNPY-177)
+    except:
         sys.stderr.write("""\n\nPandas not installed!\n
         The synapseclient package recommends but doesn't require the
         installation of Pandas. If you'd like to use Pandas DataFrames,
