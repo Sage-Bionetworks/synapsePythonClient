@@ -6,6 +6,7 @@ import uuid
 import json
 from cStringIO import StringIO
 from nose.plugins.attrib import attr
+from nose.tools import assert_raises
 import tempfile
 import shutil
 
@@ -206,7 +207,7 @@ def test_command_line_client():
     output = run('synapse', 
                  '--skip-checks', 
                  'get-provenance', 
-                 '-id', 
+                 '--id', 
                  file_entity_id)
     activity = json.loads(output)
     assert activity['name'] == 'TestActivity'
@@ -218,7 +219,6 @@ def test_command_line_client():
     used = utils._find_used(activity, lambda used: 'url' in used)
     assert used['url'] == repo_url
     assert used['wasExecuted'] == True
-
 
     # Note: Tests shouldn't have external dependencies
     #       but this is a pretty picture of Singapore
@@ -259,6 +259,154 @@ def test_command_line_client():
                  '--skip-checks', 
                  'delete', 
                  project_id)
+
+
+def test_command_line_client_annotations():
+    # Create a Project
+    output = run('synapse', 
+                 '--skip-checks',
+                 'create',
+                 '-name',
+                 str(uuid.uuid4()), 
+                 '-description', 
+                 'test of command line client', 
+                 'Project')
+    project_id = parse(r'Created entity:\s+(syn\d+)\s+', output)
+    schedule_for_cleanup(project_id)
+
+    # Create a File
+    filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    output = run('synapse', 
+                 '--skip-checks', 
+                 'add', 
+                 '-name', 
+                 'BogusFileEntity', 
+                 '-description', 
+                 'Bogus data to test file upload', 
+                 '-parentid', 
+                 project_id, 
+                 filename)
+    file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+
+    # Test setting annotations
+    output = run('synapse', 
+                 '--skip-checks',
+                 'set-annotations', 
+                 '--id', 
+                 file_entity_id, 
+                 '--annotations',
+                 '{"foo": 1, "bar": "1", "baz": [1, 2, 3]}',
+    )
+
+    # Test getting annotations
+    # check that the three things set are correct
+    # This test should be adjusted to check for equality of the
+    # whole annotation dictionary once the issue of other
+    # attributes (creationDate, eTag, id, uri) being returned is resolved
+    # See: https://sagebionetworks.jira.com/browse/SYNPY-175
+    
+    output = run('synapse', 
+                 '--skip-checks',
+                 'get-annotations', 
+                 '--id', 
+                 file_entity_id
+             )
+
+    annotations = json.loads(output)
+    assert annotations['foo'] == [1]
+    assert annotations['bar'] == [u"1"]
+    assert annotations['baz'] == [1, 2, 3]
+    
+    # Test setting annotations by replacing existing ones.
+    output = run('synapse', 
+                 '--skip-checks',
+                 'set-annotations', 
+                 '--id', 
+                 file_entity_id, 
+                 '--annotations',
+                 '{"foo": 2}',
+                 '--replace'
+    )
+    
+    # Test that the annotation was updated
+    output = run('synapse', 
+                 '--skip-checks',
+                 'get-annotations', 
+                 '--id', 
+                 file_entity_id
+             )
+
+    annotations = json.loads(output)
+
+    assert annotations['foo'] == [2]
+
+    # Since this replaces the existing annotations, previous values
+    # Should not be available.
+    assert_raises(KeyError, lambda key: annotations[key], 'bar')
+    assert_raises(KeyError, lambda key: annotations[key], 'baz')
+    
+    # Test running add command to set annotations on a new object
+    filename2 = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename2)
+    output = run('synapse', 
+                 '--skip-checks', 
+                 'add', 
+                 '-name', 
+                 'BogusData2', 
+                 '-description', 
+                 'Bogus data to test file upload with add and add annotations',
+                 '-type', 
+                 'Data', 
+                 '-parentid', 
+                 project_id, 
+                 '--annotations',
+                 '{"foo": 123}',
+                 filename2)
+
+    file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+
+    # Test that the annotation was updated
+    output = run('synapse', 
+                 '--skip-checks',
+                 'get-annotations', 
+                 '--id', 
+                 file_entity_id
+             )
+
+    annotations = json.loads(output)
+    assert annotations['foo'] == [123]
+
+    # Test running store command to set annotations on a new object
+    filename3 = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename3)
+    output = run('synapse', 
+                 '--skip-checks', 
+                 'store', 
+                 '--name', 
+                 'BogusData3', 
+                 '--description', 
+                 '\"Bogus data to test file upload with store and add annotations\"',
+                 '--type', 
+                 'File', 
+                 '--parentid', 
+                 project_id, 
+                 '--annotations',
+                 '{"foo": 456}',
+                 filename3)
+
+    file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+
+    # Test that the annotation was updated
+    output = run('synapse', 
+                 '--skip-checks',
+                 'get-annotations', 
+                 '--id', 
+                 file_entity_id
+             )
+
+    annotations = json.loads(output)
+    assert annotations['foo'] == [456]
 
     
 def test_command_line_store_and_submit():

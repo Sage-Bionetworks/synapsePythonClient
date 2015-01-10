@@ -110,9 +110,11 @@ def download_file(url, localFilepath=None):
             localFilepath = f.name
 
         r = requests.get(url, stream=True)
-        for chunk in r.iter_content(chunk_size=1024):
+        toBeTransferred = float(r.headers['content-length'])
+        for nChunks, chunk in enumerate(r.iter_content(chunk_size=1024*10)):
             if chunk:
                 f.write(chunk)
+                printTransferProgress(nChunks*1024*10 ,toBeTransferred)
     finally:
         if f:
             f.close()
@@ -388,7 +390,10 @@ def to_unix_epoch_time(dt):
 
 def from_unix_epoch_time(ms):
     """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
-    
+
+    if isinstance(ms, basestring):
+        ms = int(ms)
+
     # utcfromtimestamp() fails for negative values (dates before 1970-1-1) on Windows
     # so, here's a hack that enables ancient events, such as Chris's birthday to be
     # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!
@@ -635,6 +640,33 @@ def timing(f):
         print 'function %s took %0.3f ms' % (f.func_name, (time2-time1)*1000.0)
         return ret
     return wrap
+
+
+def printTransferProgress(transferred, toBeTransferred):
+    barLength = 20 # Modify this to change the length of the progress bar
+    progress = float(transferred)/toBeTransferred
+    status = ""
+    if progress >= 1:
+        progress = 1
+        status = "Done...\r\n"
+    block = int(round(barLength*progress))
+    text = "\r [%s]%4.2f%% \t%s/%s %s" %("#"*block + "-"*(barLength-block), 
+                                                 progress*100, 
+                                                 humanizeBytes(transferred),
+                                                 humanizeBytes(toBeTransferred),
+                                                 status)
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
+
+def humanizeBytes(bytes):
+    units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
+    for i, unit in enumerate(units):
+        if bytes<1024:
+            return '%3.1f%s' %(bytes, units[i])
+        else:
+            bytes /= 1024
+    return 'Oops larger than Exabytes'
 
 
 def _is_json(content_type):

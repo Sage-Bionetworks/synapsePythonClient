@@ -37,6 +37,7 @@ import base64, hashlib, hmac
 import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
+import tempfile
 import warnings
 import getpass
 
@@ -51,7 +52,7 @@ from synapseclient.annotations import from_synapse_annotations, to_synapse_annot
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_locationable, is_container
-from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, header_to_column_id
+from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki
@@ -127,17 +128,18 @@ def _test_import_sftp():
     try:
         import pysftp
     except ImportError as e1:
-        sys.stderr.write("\n\nLibraries required for SFTP not installed!\n" \
-        "The Synapse client uses pysftp in order to access SFTP storage locations. This" \
-        "library in turn depends on pycrypto.\n" \
-        "To install these libraries on Unix variants including OS X, make sure the python" \
-        "devel libraries are installed, then::\n" \
-        "    (sudo) pip install pysftp\n\n" \
-        "For Windows systems without a C/C++ compiler, install the appropriate binary" \
-        "distribution of pycrypto from::\n" \
-        "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n" \
-        "For more information, see: http://python-docs.synapse.org/sftp.html" \
-        "\n\n\n""")
+        sys.stderr.write(
+            ("\n\nLibraries required for SFTP are not installed!\n" 
+             "The Synapse client uses pysftp in order to access SFTP storage "
+             "locations.  This library in turn depends on pycrypto.\n" 
+             "To install these libraries on Unix variants including OS X, make "
+             "sure the python devel libraries are installed, then:\n" 
+             "    (sudo) pip install pysftp\n\n" 
+             "For Windows systems without a C/C++ compiler, install the appropriate "
+             "binary distribution of pycrypto from:\n" 
+             "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n" 
+             "For more information, see: http://python-docs.synapse.org/sftp.html" 
+             "\n\n\n"))
         raise
 
 
@@ -380,9 +382,9 @@ class Synapse:
             
         if not silent:
             profile = self.getUserProfile(refresh=True)
-            sys.stdout.write("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
-        
-        
+            sys.stdout.write(("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username)).encode('utf-8'))
+
+
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
         """Returns a validated session token."""
         if email is not None and password is not None:
@@ -1438,7 +1440,11 @@ class Synapse:
             totalResults = userProfiles['totalNumberOfResults']
             if totalResults == 1:
                 return int(userProfiles['children'][0]['ownerId'])
-            
+            elif totalResults > 0:
+                for profile in userProfiles['children']:
+                    if profile['userName'] == principalId:
+                        return int(profile['ownerId'])
+
             supplementalMessage = 'Please be more specific' if totalResults > 1 else 'No matches'
             raise SynapseError('Unknown Synapse user (%s).  %s.' % (principalId, supplementalMessage))
 
@@ -1504,13 +1510,21 @@ class Synapse:
         for permissions in acl['resourceAccess']:
             if 'principalId' in permissions and permissions['principalId'] == principalId:
                 permissions_to_update = permissions
-        if not permissions_to_update:
-            permissions_to_update = {u'accessType': [], u'principalId': principalId}
-            acl['resourceAccess'].append(permissions_to_update)
-        if overwrite:
-            permissions_to_update['accessType'] = accessType
+                break
+
+        if accessType is None or accessType==[]:
+            ## remove permissions
+            if permissions_to_update and overwrite:
+                acl['resourceAccess'].remove(permissions_to_update)
         else:
-            permissions_to_update['accessType'] = list(set(permissions_to_update['accessType']) | set(accessType))
+            ## add a 'resourceAccess' entry, if necessary
+            if not permissions_to_update:
+                permissions_to_update = {u'accessType': [], u'principalId': principalId}
+                acl['resourceAccess'].append(permissions_to_update)
+            if overwrite:
+                permissions_to_update['accessType'] = accessType
+            else:
+                permissions_to_update['accessType'] = list(set(permissions_to_update['accessType']) | set(accessType))
         return self._storeACL(entity, acl)
 
 
@@ -1757,11 +1771,11 @@ class Synapse:
             raise
 
         # Stream the file to disk
-        with open(destination, "wb") as f:
-            data = response.raw.read(FILE_BUFFER_SIZE)
-            while data:
-                f.write(data)
-                data = response.raw.read(FILE_BUFFER_SIZE)
+        toBeTransferred = float(response.headers['content-length'])
+        with open(destination, 'wb') as fd:
+            for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
+                fd.write(chunk)
+                utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred)
 
         destination = os.path.abspath(destination)
         return returnDict(destination)
@@ -2214,7 +2228,7 @@ class Synapse:
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.makedirs(parsedURL.path)
             with sftp.cd(parsedURL.path):
-                sftp.put(filepath, preserve_mtime=True)
+                sftp.put(filepath, preserve_mtime=True, callback=utils.printTransferProgress)
 
         path = urllib.quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
         parsedURL = parsedURL._replace(path=path)
@@ -2257,7 +2271,7 @@ class Synapse:
 
         #Download file
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.get(path, localFilepath, preserve_mtime=True)
+            sftp.get(path, localFilepath, preserve_mtime=True, callback=utils.printTransferProgress)
         return localFilepath
 
 
@@ -2771,12 +2785,42 @@ class Synapse:
         return wiki
 
         
-    # # Need to test functionality of this
-    # def _downloadWikiAttachment(self, owner, wiki, filename, destination=None):
-    #     # Download a file attached to a wiki page
-    #     url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(owner), id_of(wiki), filename,)
-    #     return self._downloadFile(url, destination)
+    def _downloadWikiAttachment(self, owner, wiki, filename, destination=None):
+        """
+        Download a file attached to a wiki page
+        """
+        url = "%s/entity/%s/wiki/%s/attachment?fileName=%s" % (self.repoEndpoint, id_of(owner), id_of(wiki), filename,)
+        if not destination:
+            destination = filename
+        elif os.path.isdir(destination):
+            destination = os.path.join(destination, filename)
+        return self._downloadFile(url, destination)
 
+
+    def _copyWiki(self, wiki, destWiki):
+        """
+        Copy wiki contents including attachments from one wiki to another.
+
+        :param wiki: source :py:class:`synapseclient.wiki.Wiki`
+        :param destWiki: destination :py:class:`synapseclient.wiki.Wiki`
+
+        Both Wikis must already exist.
+        """
+        uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
+        results = self.restGET(uri)
+
+        file_handles = {fh['id']:fh for fh in results['list']}
+
+        ## need to download an re-upload wiki attachments, ug!
+        attachments = []
+        tempdir = tempfile.gettempdir()
+        for fhid in wiki.attachmentFileHandleIds:
+            file_info = self._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
+            attachments.append(file_info['path'])
+
+        destWiki.update({'attachments':attachments, 'markdown':wiki.markdown, 'title':wiki.title})
+
+        return self._storeWiki(destWiki)
 
 
     ############################################################
@@ -2837,6 +2881,8 @@ class Synapse:
         elif isinstance(x, (list, tuple)):
             for header in x:
                 try:
+                    ## if header is an integer, it's a columnID, otherwise it's
+                    ## an aggregate column, like "AVG(Foo)"
                     int(header)
                     yield self.getColumn(header)
                 except ValueError:
@@ -2862,16 +2908,48 @@ class Synapse:
             yield Column(**result)
 
 
-    # TODO: make one queryTable method with a resultsAs="csv" or resultsAs="generator"
-    def queryTable(self, query, limit=None, offset=None, isConsistent=True):
+    def tableQuery(self, query, resultsAs="csv", **kwargs):
         """
-        Query for rows in a table using a SQL-like language::
+        Query a Synapse Table.
 
-            results = syn.queryTable("select * from syn1234")
-            for row in results:
-                print row
+        :param query: query string in a `SQL-like syntax <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_::
+
+            SELECT * from syn12345
+
+        :param resultsAs: select whether results are returned as a CSV file ("csv") or incrementally
+                          downloaded as sets of rows ("rowset").
+
+        :return: A Table object that serves as a wrapper around a CSV file (or generator over
+                 Row objects if resultsAs="rowset").
+
+        You can receive query results either as a generator over rows or as a CSV file. For
+        smallish tables, either method will work equally well. Use of a "rowset" generator allows
+        rows to be processed one at a time and processing may be stopped before downloading
+        the entire table.
+
+        Optional keyword arguments differ for the two return types. For the "rowset" option,
+
+        :param  limit: specify the maximum number of rows to be returned, defaults to None
+        :param offset: don't return the first n rows, defaults to None
+        :param isConsistent: defaults to True. If set to False, return results based on current
+                             state of the index without waiting for pending writes to complete.
+                             Only use this if you know what you're doing.
+
+        For CSV files, there are several parameters to control the format of the resulting file:
+
+        :param quoteCharacter: default double quote
+        :param escapeCharacter: default backslash
+        :param lineEnd: defaults to os.linesep
+        :param separator: defaults to comma
+        :param header: True by default
+        :param includeRowIdAndRowVersion: True by default
         """
-        return TableQueryResult(self, query, limit, offset, isConsistent)
+        if resultsAs.lower()=="rowset":
+            return TableQueryResult(self, query, **kwargs)
+        elif resultsAs.lower()=="csv":
+            return CsvFileTable.from_table_query(self, query, **kwargs)
+        else:
+            raise ValueError("Unknown return type requested from tableQuery: " + unicode(resultsAs))
 
 
     def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
@@ -2944,23 +3022,20 @@ class Synapse:
         return self._waitForAsync(uri='/table/upload/csv/async', request=request)
 
 
-    def queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False):
-        return CsvFileTable.from_table_query(self, query,
-            quoteCharacter=quoteCharacter,
-            escapeCharacter=escapeCharacter,
-            lineEnd=lineEnd,
-            separator=separator,
-            header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
-
-
-    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=False):
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
         Sends a `DownloadFromTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
 
         :return: a tuple containing a `DownloadFromTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
+
+        The DownloadFromTableResult object contains these fields:
+         * headers: ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
+         * resultsFileHandleId: STRING, The resulting file handle ID can be used to download the CSV file created by this query.
+         * concreteType: STRING
+         * etag: STRING, Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
+         * tableId: STRING, The ID of the table identified in the from clause of the table query.
         """
 
         download_from_table_request = {
@@ -2976,13 +3051,6 @@ class Synapse:
             "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
 
         download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request)
-
-        # DownloadFromTableResult
-        # headers     ARRAY< STRING >     The list of ColumnModel IDs that describes the rows of this set.
-        # resultsFileHandleId     STRING  The resulting file handle ID can be used to download the CSV file created by this job. The file will contain all of the data requested in the query SQL provided when the job was started.
-        # concreteType    STRING
-        # etag    STRING  Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
-        # tableId     STRING  The ID of the table identified in the from clause of the table query.
 
         url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, download_from_table_result['resultsFileHandleId'])
         cache_dir = cache.determine_cache_directory_from_file_handle(download_from_table_result['resultsFileHandleId'])

@@ -35,6 +35,8 @@ Commands
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
   * **get-provenance**   - show provenance records
+  * **set-annotations**  - create annotations
+  * **get-annotations**  - show annotations
   * **show**             - show metadata for an entity
   * **onweb**            - opens Synapse website for Entity
   * **show**             - Displays information about a Entity
@@ -88,7 +90,7 @@ def query(args, syn):
 
         
 def get(args, syn):
-    entity = syn.get(args.id, limitSearch=args.limitSearch)
+    entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch)
     
     ## TODO: Is this part even necessary?
     ## (Other than the print statements)
@@ -136,6 +138,12 @@ def store(args, syn):
     entity = syn.store(entity, used=used, executed=executed)
     print 'Created/Updated entity: %s\t%s' %(entity['id'], entity['name'])
 
+    # After creating/updating, if there are annotations to add then
+    # add them
+    if args.annotations is not None:
+        # Need to override the args id parameter
+        setattr(args, 'id', entity['id'])
+        setAnnotations(args, syn)
 
 def associate(args, syn):
     if args.r:
@@ -257,7 +265,46 @@ def getProvenance(args, syn):
             f.write(json.dumps(activity))
             f.write('\n')
     
+def setAnnotations(args, syn):
+    """Method to set annotations on an entity.
+
+    Requires a JSON-formatted string that evaluates to a dict.
+
+    Annotations can be updated or overwritten completely.
     
+    """
+    
+    try:
+        newannots = json.loads(args.annotations)
+    except Exception as e:
+        sys.stderr.write("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
+        raise e
+    
+    if type(newannots) is not dict:
+        raise TypeError("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
+    
+    entity = syn.get(args.id, downloadFile=False)
+    
+    if args.replace:
+        annots = newannots
+    else:
+        annots = syn.getAnnotations(entity)
+        annots.update(newannots)
+    
+    syn.setAnnotations(entity, annots)
+    
+    sys.stderr.write('Set annotations on entity %s\n' % (args.id, ))
+
+def getAnnotations(args, syn):
+    annotations = syn.getAnnotations(args.id)
+
+    if args.output is None or args.output=='STDOUT':
+        print json.dumps(annotations,sort_keys=True, indent=2)
+    else:
+        with open(args.output, 'w') as f:
+            f.write(json.dumps(annotations))
+            f.write('\n')
+
 def submit(args, syn):
     '''
     Method to allow challenge participants to submit to an evaluation queue
@@ -343,6 +390,8 @@ def build_parser():
 
     parser_get = subparsers.add_parser('get',
             help='downloads a dataset from Synapse')
+    parser_get.add_argument('-v', '--version', metavar='VERSION', type=int, default=None,
+            help='Synapse version number of entity to retrieve. Defaults to most recent version.')
     parser_get.add_argument('--limitSearch', metavar='projId', type=str, 
             help='Synapse ID of a container such as project or folder to limit search for files if using a path.')
     parser_get.add_argument('id',  metavar='syn123', type=str,
@@ -370,6 +419,12 @@ def build_parser():
                   'to generate the specified entity is derived'))
     parser_store.add_argument('--limitSearch', metavar='projId', type=str, 
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
+
+    parser_store.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+    parser_store.add_argument('--replace', action='store_true',default=False,
+            help='Replace all existing annotations with the given annotations')
+
     parser_store.add_argument('--file', type=str, help=argparse.SUPPRESS)
     parser_store.add_argument('FILE', nargs='?', type=str,
             help='file to be added to synapse.')
@@ -394,6 +449,10 @@ def build_parser():
                   'to generate the specified entity is derived'))
     parser_add.add_argument('--limitSearch', metavar='projId', type=str, 
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
+    parser_add.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+    parser_add.add_argument('--replace', action='store_true',default=False,
+            help='Replace all existing annotations with the given annotations')
     parser_add.add_argument('--file', type=str, help=argparse.SUPPRESS)
     parser_add.add_argument('FILE', nargs='?', type=str,
             help='file to be added to synapse.')
@@ -431,7 +490,7 @@ def build_parser():
             help='Evaluation Name where the entity/file will be submitted')
     parser_submit.add_argument('--evaluation', type=str,
             help=argparse.SUPPRESS)  #mainly to maintain the backward compatibility
-    parser_submit.add_argument('--entity', '--eid', type=str,
+    parser_submit.add_argument('--entity', '--eid', '--entityId', type=str,
             help='Synapse ID of the entity to be submitted')
     parser_submit.add_argument('--file', '-f', type=str,
             help='File to be submitted to the challenge')
@@ -478,43 +537,61 @@ def build_parser():
 
     parser_set_provenance = subparsers.add_parser('set-provenance',
             help='create provenance records')
-    parser_set_provenance.add_argument('-id', metavar='syn123', type=str, required=True,
+    parser_set_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
-    parser_set_provenance.add_argument('-name', metavar='NAME', type=str, required=False,
+    parser_set_provenance.add_argument('-name', '--name', metavar='NAME', type=str, required=False,
             help='Name of the activity that generated the entity')
-    parser_set_provenance.add_argument('-description',
+    parser_set_provenance.add_argument('-description', '--description',
             metavar='DESCRIPTION', type=str, required=False,
             help='Description of the activity that generated the entity')
-    parser_set_provenance.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+    parser_set_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
-    parser_set_provenance.add_argument('-used', metavar='target', type=str, nargs='*',
+    parser_set_provenance.add_argument('-used', '--used', metavar='target', type=str, nargs='*',
             help=('Synapse ID of a data entity, a url, or a file path from which the '
                   'specified entity is derived'))
-    parser_set_provenance.add_argument('-executed', metavar='target', type=str, nargs='*',
+    parser_set_provenance.add_argument('-executed', '--executed', metavar='target', type=str, nargs='*',
             help=('Synapse ID of a data entity, a url, or a file path that was executed '
                   'to generate the specified entity is derived'))
-    parser_set_provenance.add_argument('-limitSearch', metavar='projId', type=str, 
+    parser_set_provenance.add_argument('-limitSearch', '--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_set_provenance.set_defaults(func=setProvenance)
 
     parser_get_provenance = subparsers.add_parser('get-provenance',
             help='show provenance records')
-    parser_get_provenance.add_argument('-id', metavar='syn123', type=str, required=True,
+    parser_get_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
-    parser_get_provenance.add_argument('-o', '-output', metavar='OUTPUT_FILE', dest='output',
+    parser_get_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
     parser_get_provenance.set_defaults(func=getProvenance)
 
+    parser_set_annotations = subparsers.add_parser('set-annotations',
+            help='create annotations records')
+    parser_set_annotations.add_argument("--id", metavar='syn123', type=str, required=True,
+            help='Synapse ID of entity whose annotations we are accessing.')
+    parser_set_annotations.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=True,
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+    parser_set_annotations.add_argument('-r', '--replace', action='store_true',default=False,
+            help='Replace all existing annotations with the given annotations')
+    parser_set_annotations.set_defaults(func=setAnnotations)
 
+    parser_get_annotations = subparsers.add_parser('get-annotations',
+            help='show annotations records')
+    parser_get_annotations.add_argument('--id', metavar='syn123', type=str, required=True,
+            help='Synapse ID of entity whose annotations we are accessing.')
+    parser_get_annotations.add_argument('-o', '--output', metavar='OUTPUT_FILE', dest='output',
+            const='STDOUT', nargs='?', type=str,
+            help='Output the annotations record in JSON format')
+    parser_get_annotations.set_defaults(func=getAnnotations)
+    
     parser_create = subparsers.add_parser('create',
             help='Creates folders or projects on Synapse')
-    parser_create.add_argument('-parentid', '-parentId', metavar='syn123', type=str, required=False,
+    parser_create.add_argument('-parentid', '-parentId', '--parentid', '--parentId', metavar='syn123', type=str, dest='parentid', required=False,
             help='Synapse ID of project or folder where to place folder [not used with project]')
-    parser_create.add_argument('-name', metavar='NAME', type=str, required=True,
+    parser_create.add_argument('-name', '--name', metavar='NAME', type=str, required=True,
             help='Name of folder/project.')
-    parser_create.add_argument('-description', metavar='DESCRIPTION', type=str,
+    parser_create.add_argument('-description', '--description', metavar='DESCRIPTION', type=str,
             help='Description of project/folder')
     parser_create.add_argument('type', type=str,
             help='Type of object to create in synapse one of {Project, Folder}')

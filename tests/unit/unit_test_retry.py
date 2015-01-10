@@ -59,4 +59,4 @@ def test_with_retry():
     function.side_effect = foo
     assert_raises(SynapseError, _with_retry, function, **retryParams)
     assert function.call_count == 1 + 4 + 3 + 4 + 1
-    
+
