@@ -187,6 +187,20 @@ def test_command_line_client():
     assert 'BogusFileEntity' in output
     assert file_entity_id in output
 
+
+    # Move the file to new folder
+    folder = syn.store(synapseclient.Folder(parentId=project_id))
+    output = run('synapse', 
+                 'mv',
+                 '--id',
+                 file_entity_id,
+                 '--parentid',
+                 folder.id)
+    downloaded_filename = parse(r'Moved\s+(.*)', output)
+    movedFile = syn.get(file_entity_id, downloadFile=False)
+    assert movedFile.parentId == folder.id
+
+
     # Test Provenance
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
     output = run('synapse', 

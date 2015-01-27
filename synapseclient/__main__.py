@@ -145,6 +145,15 @@ def store(args, syn):
         setattr(args, 'id', entity['id'])
         setAnnotations(args, syn)
 
+
+def move(args, syn):
+    """Moves an entity specified by args.id to args.parentId"""
+    ent = syn.get(args.id, downloadFile=False)
+    ent.parentId= args.parentid
+    ent = syn.store(ent, forceVersion=False)
+    print 'Moved %s to %s' %(ent.id, ent.parentId)
+
+
 def associate(args, syn):
     if args.r:
         files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(args.path) for f in filenames]
@@ -457,6 +466,15 @@ def build_parser():
     parser_add.add_argument('FILE', nargs='?', type=str,
             help='file to be added to synapse.')
     parser_add.set_defaults(func=store)
+
+    parser_mv = subparsers.add_parser('mv', 
+            help='Moves a file/folder in Synapse')
+    parser_mv.add_argument('--id', metavar='syn123', type=str, required=True,
+            help='Id of entity in Synapse to be moved.')
+    parser_mv.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=True, dest='parentid',
+            help='Synapse ID of project or folder where file/folder will be moved ')
+    parser_mv.set_defaults(func=move)
+
 
     parser_associate = subparsers.add_parser('associate',
             help='Associate local files with the files stored in Synapse')
