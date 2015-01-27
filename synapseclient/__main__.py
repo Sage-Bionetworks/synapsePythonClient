@@ -217,14 +217,6 @@ def create(args, syn):
     print 'Created entity: %s\t%s\n' %(entity['id'],entity['name'])
 
 
-# def update(args, syn):
-#     warnings.warn('This method is deprecated', DeprecationWarning)
-#     entity = syn.get(args.id)
-#     entity.path = args.file
-#     entity = syn.store(entity, used=args.used, executed=args.executed)
-#     print 'Updated entity: %s\t%s from file: %s\n' %(entity['id'],entity['name'], args.file)
-
-
 def onweb(args, syn):
     syn.onweb(args.id)
 
@@ -359,12 +351,12 @@ def submit(args, syn):
     elif args.entity is not  None and args.file is not None:
         sys.stderr.write('[Warning]: Both entityID and filename are specified \n entityID will be used\n')
     elif args.entity is None: #upload the the file to synapse and get synapse entity id for the file
-        if args.parentId is None:
+        if args.parentid is None:
             raise ValueError('parentID required with a file upload\n')
         if not os.path.exists(args.file):
             raise IOError('file path %s not valid \n' % args.file)
         # //ideally this should be factored out
-        synFile = syn.store(synapseclient.File(path=args.file,parent=args.parentId),
+        synFile = syn.store(synapseclient.File(path=args.file,parent=args.parentid),
                             used=_convertProvenanceList(args.used, args.limitSearch, syn),
                             executed=_convertProvenanceList(args.executed, args.limitSearch, syn))
         args.entity = synFile.id
@@ -398,7 +390,7 @@ def build_parser():
             help='For additional help: "synapse <COMMAND> -h"')
 
     parser_get = subparsers.add_parser('get',
-            help='downloads a dataset from Synapse')
+            help='downloads a file from Synapse')
     parser_get.add_argument('-v', '--version', metavar='VERSION', type=int, default=None,
             help='Synapse version number of entity to retrieve. Defaults to most recent version.')
     parser_get.add_argument('--limitSearch', metavar='projId', type=str, 
@@ -408,8 +400,8 @@ def build_parser():
     parser_get.set_defaults(func=get)
 
     parser_store = subparsers.add_parser('store', #Python 3.2+ would support alias=['store']
-            help='uploads and adds a dataset to Synapse')
-    parser_store.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False,
+            help='uploads and adds a file to Synapse')
+    parser_store.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
             help='Synapse ID of project or folder where to upload data (must be specified if --id is not used.')
     parser_store.add_argument('--id', metavar='syn123', type=str, required=False,
             help='Optional Id of entity in Synapse to be updated.')
@@ -440,8 +432,8 @@ def build_parser():
     parser_store.set_defaults(func=store)
 
     parser_add = subparsers.add_parser('add', #Python 3.2+ would support alias=['store']
-            help='uploads and adds a dataset to Synapse')
-    parser_add.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False,
+            help='uploads and adds a file to Synapse')
+    parser_add.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
             help='Synapse ID of project or folder where to upload data (must be specified if --id is not used.')
     parser_add.add_argument('--id', metavar='syn123', type=str, required=False,
             help='Optional Id of entity in Synapse to be updated.')
@@ -512,7 +504,7 @@ def build_parser():
             help='Synapse ID of the entity to be submitted')
     parser_submit.add_argument('--file', '-f', type=str,
             help='File to be submitted to the challenge')
-    parser_submit.add_argument('--parentId', '--pid', type=str,
+    parser_submit.add_argument('--parentId', '--pid', type=str, dest='parentid',
             help='Synapse ID of project or folder where to upload data')
     parser_submit.add_argument('--name', type=str,
             help='Name of the submission')
