@@ -660,6 +660,7 @@ def printTransferProgress(transferred, toBeTransferred):
 
 
 def humanizeBytes(bytes):
+    bytes = float(bytes)
     units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
     for i, unit in enumerate(units):
         if bytes<1024:
