@@ -118,6 +118,7 @@ def download_file(url, localFilepath=None):
     finally:
         if f:
             f.close()
+            printTransferProgress(toBeTransferred ,toBeTransferred)
 
     return localFilepath
 
@@ -650,7 +651,7 @@ def printTransferProgress(transferred, toBeTransferred):
         progress = 1
         status = "Done...\r\n"
     block = int(round(barLength*progress))
-    text = "\r [%s]%4.2f%% \t%s/%s %s" %("#"*block + "-"*(barLength-block), 
+    text = "\r [%s]%4.2f%% \t%s/%s %s    " %("#"*block + "-"*(barLength-block), 
                                                  progress*100, 
                                                  humanizeBytes(transferred),
                                                  humanizeBytes(toBeTransferred),

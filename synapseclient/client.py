@@ -1776,6 +1776,7 @@ class Synapse:
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
                 utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred)
+            utils.printTransferProgress(toBeTransferred ,toBeTransferred)
 
         destination = os.path.abspath(destination)
         return returnDict(destination)
