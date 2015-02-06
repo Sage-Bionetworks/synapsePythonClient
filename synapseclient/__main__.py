@@ -118,7 +118,7 @@ def store(args, syn):
     args.type = 'FileEntity' if args.type == 'File' else args.type
 
     if args.id is not None:
-        entity = syn.get(args.id)
+        entity = syn.get(args.id, downloadFile=False)
     else:
         entity = {'concreteType': u'org.sagebionetworks.repo.model.%s' % args.type, 
                   'name': utils.guess_file_name(args.file) if args.file and not args.name else None,
