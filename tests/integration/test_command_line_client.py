@@ -129,61 +129,11 @@ def test_command_line_client():
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
 
-    # Create a deprecated Data object
-    filename = utils.make_bogus_data_file()
-    schedule_for_cleanup(filename)
-    output = run('synapse', 
-                 '--skip-checks', 
-                 'add', 
-                 '-name', 
-                 'BogusData', 
-                 '-description', 
-                 'Bogus data to test file upload',
-                 '-type', 
-                 'Data', 
-                 '-parentid', 
-                 project_id, 
-                 filename)
-    data_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
-
-    # Get the Data object back
-    output = run('synapse', 
-                 '--skip-checks', 
-                 'get', 
-                 data_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
-    schedule_for_cleanup(downloaded_filename)
-    assert os.path.exists(downloaded_filename)
-    assert filecmp.cmp(filename, downloaded_filename)
-
-    # Update the Data object
-    filename = utils.make_bogus_data_file()
-    schedule_for_cleanup(filename)
-    output = run('synapse', 
-                '--skip-checks', 
-                'store', 
-                '--id', 
-                data_entity_id, 
-                filename)
-    updated_entity_id = parse(r'Updated entity:\s+(syn\d+)', output)
-    
-    # Get the Data object back again
-    output = run('synapse', 
-                 '--skip-checks', 
-                 'get', 
-                 updated_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
-    schedule_for_cleanup(downloaded_filename)
-    assert os.path.exists(downloaded_filename)
-    assert filecmp.cmp(filename, downloaded_filename)
-
     # Test query
     output = run('synapse', 
                  '--skip-checks', 
                  'query', 
                  'select id, name from entity where parentId=="%s"' % project_id)
-    assert 'BogusData' in output
-    assert data_entity_id in output
     assert 'BogusFileEntity' in output
     assert file_entity_id in output
 
@@ -213,7 +163,7 @@ def test_command_line_client():
                  '-description', 
                  'A very excellent provenance', 
                  '-used', 
-                 data_entity_id, 
+                 file_entity_id, 
                  '-executed', 
                  repo_url)
     activity_id = parse(r'Set provenance record (\d+) on entity syn\d+', output)
@@ -228,7 +178,7 @@ def test_command_line_client():
     assert activity['description'] == 'A very excellent provenance'
     
     used = utils._find_used(activity, lambda used: 'reference' in used)
-    assert used['reference']['targetId'] == data_entity_id
+    assert used['reference']['targetId'] == file_entity_id
     
     used = utils._find_used(activity, lambda used: 'url' in used)
     assert used['url'] == repo_url
@@ -248,8 +198,6 @@ def test_command_line_client():
                  'Singapore', 
                  '-description', 
                  'A nice picture of Singapore', 
-                 '-type', 
-                 'File', 
                  '-parentid', 
                  project_id, 
                  singapore_url)
@@ -370,8 +318,6 @@ def test_command_line_client_annotations():
                  'BogusData2', 
                  '-description', 
                  'Bogus data to test file upload with add and add annotations',
-                 '-type', 
-                 'Data', 
                  '-parentid', 
                  project_id, 
                  '--annotations',
@@ -401,8 +347,6 @@ def test_command_line_client_annotations():
                  'BogusData3', 
                  '--description', 
                  '\"Bogus data to test file upload with store and add annotations\"',
-                 '--type', 
-                 'File', 
                  '--parentid', 
                  project_id, 
                  '--annotations',
