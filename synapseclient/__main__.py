@@ -92,19 +92,9 @@ def query(args, syn):
 def get(args, syn):
     entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadLocation=args.downloadLocation)
     
-    ## TODO: Is this part even necessary?
-    ## (Other than the print statements)
-    if 'files' in entity:
-        for filename in entity['files']:
-            dst = os.path.join(args.downloadLocation, filename)
-            print 'Creating %s' % dst
-            # if not os.path.exists(os.path.dirname(dst)):
-            #     os.mkdir(dst)
-    else:
-        sys.stderr.write('WARNING: No files associated with entity %s\n' % args.id)
-        syn.printEntity(entity)
-
-
+    print entity
+    print 'Creating %s' % entity.path
+    
 def store(args, syn):
     #If we are storing a fileEntity we need to have id or parentId
     if args.parentid is None and args.id is None and args.file is not None:
@@ -392,8 +382,8 @@ def build_parser():
             help='Synapse version number of entity to retrieve. Defaults to most recent version.')
     parser_get.add_argument('--limitSearch', metavar='projId', type=str, 
             help='Synapse ID of a container such as project or folder to limit search for files if using a path.')
-    parser_get.add_argument('--downloadLocation', metavar='path', type=str, 
-            help='Directory to download file to.')
+    parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
+            help='Directory to download file to [default: %(default)s].')
     parser_get.add_argument('id',  metavar='syn123', type=str,
             help='Synapse ID of form syn123 of desired data object')
     parser_get.set_defaults(func=get)
