@@ -172,7 +172,7 @@ def cat(args, syn):
         for file in entity['files']:
             with open(os.path.join(entity['cacheDir'], file)) as input:
                 for line in input:
-                    print line
+                    sys.stdout.write(line)
 
 
 def ls(args, syn):
