@@ -169,9 +169,9 @@ def cat(args, syn):
         pass
     entity = syn.get(args.id)
     if 'files' in entity:
-        for file in entity['files']:
-            with open(os.path.join(entity['cacheDir'], file)) as input:
-                for line in input:
+        for filepath in entity['files']:
+            with open(os.path.join(entity['cacheDir'], filepath)) as inputfile:
+                for line in inputfile:
                     sys.stdout.write(line)
 
 
