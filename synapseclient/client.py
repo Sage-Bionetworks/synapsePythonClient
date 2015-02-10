@@ -626,6 +626,7 @@ class Synapse:
         isFile = os.path.isfile(entity) if isinstance(entity, basestring) else False
         if isFile:
             bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
+            bundle['path'] = entity
             kwargs['downloadFile']=False
         else:
             version = kwargs.get('version', None)
@@ -669,6 +670,7 @@ class Synapse:
         entity = results[0]
         bundle = self._getEntityBundle(entity)
         cache.add_local_file_to_cache(path = filepath, **bundle['entity'])
+        
         return bundle
 
 
