@@ -97,19 +97,24 @@ def to_synapse_annotations(annotations):
 def from_synapse_annotations(annotations):
     """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
     
+    def extend_transformed(kvps, annos, func):
+        for k,v in kvps.iteritems():
+            ## don't overwrite system keys which won't be lists
+            if k in ['id', 'etag', 'creationDate', 'uri'] or (k in annos and not isinstance(annos[k], list)):
+                pass
+            else:
+                annos.setdefault(k,[]).extend([func(elem) for elem in v])
+
     # Flatten the raw annotations to consolidate doubleAnnotations, longAnnotations,
     # stringAnnotations and dateAnnotations into one dictionary
     annos = dict()
     for key, value in annotations.iteritems():
         if key=='dateAnnotations':
-            for k,v in value.iteritems():
-                annos.setdefault(k,[]).extend([from_unix_epoch_time(float(t)) for t in v])
+            extend_transformed(value, annos, lambda x: from_unix_epoch_time(float(x)))
         elif key in ['stringAnnotations','longAnnotations']:
-            for k,v in value.iteritems():
-                annos.setdefault(k,[]).extend(v)
+            extend_transformed(value, annos, lambda x: x)
         elif key == 'doubleAnnotations':
-            for k,v in value.iteritems():
-                annos.setdefault(k,[]).extend(float(element) for element in v)
+            extend_transformed(value, annos, lambda x: float(x))
         elif key=='blobAnnotations':
             pass ## TODO: blob annotations not supported
         else:
