@@ -1778,6 +1778,7 @@ class Synapse:
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
                 utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred)
+            utils.printTransferProgress(toBeTransferred ,toBeTransferred)
 
         destination = os.path.abspath(destination)
         return returnDict(destination)
@@ -2781,7 +2782,9 @@ class Synapse:
                 # If already present we get an unhelpful SQL error
                 # TODO: implement createOrUpdate for Wikis, see SYNR-631
                 if err.response.status_code == 400 and "DuplicateKeyException" in err.message:
-                    raise SynapseHTTPError("Can't re-create a wiki that already exists. CreateOrUpdate not yet supported for wikis.", response=err.response)
+                    raise SynapseHTTPError("Can't re-create a wiki that already exists. "
+                                           "CreateOrUpdate not yet supported for wikis.",
+                                           response=err.response)
                 raise
 
         return wiki
