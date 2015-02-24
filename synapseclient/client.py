@@ -1775,9 +1775,8 @@ class Synapse:
         with open(destination, 'wb') as fd:
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
-                utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred)
-            utils.printTransferProgress(toBeTransferred ,toBeTransferred)
-
+                utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred, 'Downloading %s' %os.path.basename(destination))
+            utils.printTransferProgress(toBeTransferred ,toBeTransferred, 'Downloaded  %s' %os.path.basename(destination))
         destination = os.path.abspath(destination)
         return returnDict(destination)
 
@@ -2209,7 +2208,7 @@ class Synapse:
         
         :param filepath: The file to be uploaded
 
-        :param url: URL where file will be deposited. Should inclue path and protocol. e.g.
+        :param url: URL where file will be deposited. Should include path and protocol. e.g.
                     sftp://sftp.example.com/path/to/file/store
 
         :param username: username on sftp server

@@ -643,19 +643,24 @@ def timing(f):
     return wrap
 
 
-def printTransferProgress(transferred, toBeTransferred):
+def printTransferProgress(transferred, toBeTransferred, prefix = ''):
     barLength = 20 # Modify this to change the length of the progress bar
-    progress = float(transferred)/toBeTransferred
-    status = ""
+    if toBeTransferred==0:  #There is nothing to be transfered 
+        progress = 1
+        status = "Done...\r\n"
+    else:
+        progress = float(transferred)/toBeTransferred
+        status = ""
     if progress >= 1:
         progress = 1
         status = "Done...\r\n"
     block = int(round(barLength*progress))
-    text = "\r [%s]%4.2f%% \t%s/%s %s    " %("#"*block + "-"*(barLength-block), 
-                                                 progress*100, 
-                                                 humanizeBytes(transferred),
-                                                 humanizeBytes(toBeTransferred),
-                                                 status)
+    text = "\r%s [%s]%4.2f%% \t%s/%s %s    " %(prefix, 
+                                               "#"*block + "-"*(barLength-block), 
+                                               progress*100, 
+                                               humanizeBytes(transferred),
+                                               humanizeBytes(toBeTransferred),
+                                               status)
     sys.stdout.write(text)
     sys.stdout.flush()
 
