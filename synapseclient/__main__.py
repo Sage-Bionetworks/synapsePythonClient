@@ -90,9 +90,9 @@ def query(args, syn):
 
         
 def get(args, syn):
-    entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadLocation=args.downloadLocation)
+    entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch,
+                     downloadLocation=args.downloadLocation)
     
-    print entity
     print 'Creating %s' % entity.path
     
 def store(args, syn):
