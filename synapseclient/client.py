@@ -2839,11 +2839,11 @@ class Synapse:
         while time.time()-start_time < self.table_query_timeout:
             result = self.restGET(uri+'/get/%s'%async_job_id['token'])
             if result.get('jobState', None) == 'PROCESSING':
-                sys.stdout.write(result.get('progressMessage', ''))
-                sys.stdout.write('...')
-                sys.stdout.write(unicode(result.get('progressCurrent', '')))
-                sys.stdout.write('\n')
-                sys.stdout.flush()
+                sys.stderr.write(result.get('progressMessage', ''))
+                sys.stderr.write('...')
+                sys.stderr.write(unicode(result.get('progressCurrent', '')))
+                sys.stderr.write('\n')
+                sys.stderr.flush()
                 sleep = min(self.table_query_max_sleep, sleep * self.table_query_backoff)
                 time.sleep(sleep)
             else:
@@ -2852,7 +2852,7 @@ class Synapse:
             raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
         if result.get('jobState', None) == 'FAILED':
             raise SynapseError(result.get('errorMessage', None) + '\n' + result.get('errorDetails', None), asynchronousJobStatus=result)
-        sys.stdout.write('\n')
+        sys.stderr.write('\n')
         return result
 
 
