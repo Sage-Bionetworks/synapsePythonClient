@@ -1775,9 +1775,8 @@ class Synapse:
         with open(destination, 'wb') as fd:
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
-                utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred)
-            utils.printTransferProgress(toBeTransferred ,toBeTransferred)
-
+                utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred, 'Downloading ', os.path.basename(destination))
+            utils.printTransferProgress(toBeTransferred ,toBeTransferred, 'Downloaded  ', os.path.basename(destination))
         destination = os.path.abspath(destination)
         return returnDict(destination)
 
@@ -2209,7 +2208,7 @@ class Synapse:
         
         :param filepath: The file to be uploaded
 
-        :param url: URL where file will be deposited. Should inclue path and protocol. e.g.
+        :param url: URL where file will be deposited. Should include path and protocol. e.g.
                     sftp://sftp.example.com/path/to/file/store
 
         :param username: username on sftp server
@@ -2836,14 +2835,20 @@ class Synapse:
         # http://rest.synapse.org/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
+        lastMessage, lastProgress, lastTotal, progressed = '', 0, 1, False
         while time.time()-start_time < self.table_query_timeout:
             result = self.restGET(uri+'/get/%s'%async_job_id['token'])
             if result.get('jobState', None) == 'PROCESSING':
-                sys.stdout.write(result.get('progressMessage', ''))
-                sys.stdout.write('...')
-                sys.stdout.write(unicode(result.get('progressCurrent', '')))
-                sys.stdout.write('\n')
-                sys.stdout.flush()
+                progressed=True
+                message = result.get('progressMessage', lastMessage)
+                progress = result.get('progressCurrent', lastProgress)
+                total =  result.get('progressTotal', lastTotal)
+                if message !='':
+                    utils.printTransferProgress(progress ,total, message, isBytes=False)
+                #Reset the time if we made progress (fix SYNPY-214)
+                if message != lastMessage or lastProgress != progress:
+                    start_time = time.time()
+                    lastMessage, lastProgress, lastTotal = message, progress, total
                 sleep = min(self.table_query_max_sleep, sleep * self.table_query_backoff)
                 time.sleep(sleep)
             else:
@@ -2852,7 +2857,8 @@ class Synapse:
             raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
         if result.get('jobState', None) == 'FAILED':
             raise SynapseError(result.get('errorMessage', None) + '\n' + result.get('errorDetails', None), asynchronousJobStatus=result)
-        sys.stdout.write('\n')
+        if progressed:
+            utils.printTransferProgress(total ,total, message, isBytes=False)
         return result
 
 

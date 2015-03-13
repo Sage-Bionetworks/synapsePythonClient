@@ -643,19 +643,36 @@ def timing(f):
     return wrap
 
 
-def printTransferProgress(transferred, toBeTransferred):
+def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True):
+    """Prints a progress bar
+
+    :param transferred: a number of items/bytes completed
+    :param toBeTransferred: total number of items/bytes when completed
+    :param prefix: String printed before progress bar
+    :param prefix: String printed after progress bar
+    :param isBytes: A boolean indicating weather to convert bytes to kB, MB, GB etc.
+
+    """
     barLength = 20 # Modify this to change the length of the progress bar
-    progress = float(transferred)/toBeTransferred
-    status = ""
+    if toBeTransferred==0:  #There is nothing to be transfered 
+        progress = 1
+        status = "Done...\n"
+    else:
+        progress = float(transferred)/toBeTransferred
+        status = ""
     if progress >= 1:
         progress = 1
-        status = "Done...\r\n"
+        status = "Done...\n"
     block = int(round(barLength*progress))
-    text = "\r [%s]%4.2f%% \t%s/%s %s    " %("#"*block + "-"*(barLength-block), 
-                                                 progress*100, 
-                                                 humanizeBytes(transferred),
-                                                 humanizeBytes(toBeTransferred),
-                                                 status)
+    if isBytes:
+        nBytes = '%s/%s' % (humanizeBytes(transferred), humanizeBytes(toBeTransferred))
+    else:
+        nBytes = '%i/%i' % (transferred, toBeTransferred)
+    text = "\r%s [%s]%4.2f%% \t%s %s %s    " %(prefix,
+                                               "#"*block + "-"*(barLength-block), 
+                                               progress*100, 
+                                               nBytes,
+                                               postfix, status)
     sys.stdout.write(text)
     sys.stdout.flush()
 
