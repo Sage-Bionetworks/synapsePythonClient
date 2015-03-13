@@ -88,23 +88,61 @@ def query(args, syn):
             out.append(str(res.get(key, "")))
         sys.stdout.write('%s\n' % "\t".join(out))
 
-        
+
+def _getIdsFromQuery(queryString, syn):
+    """Helper function that extracts the ids out of returned query."""
+    ids = []
+    for item in  syn.chunkedQuery(queryString):
+        key = [k for k in  item.keys() if k.split('.', 1)[1]=='id'][0]
+        ids.append(item[key])
+    return ids
+
+
+def _recursiveGet(id, path, syn):
+    """Traverses a heirarchy and download files and create subfolders as necessary."""
+    from synapseclient.entity import is_container
+
+    results = syn.chunkedQuery("select id, name, concreteType from entity where entity.parentId=='%s'" %id)
+    for result in results:
+        if is_container(result):
+            new_path = os.path.join(path, result['entity.name'])
+            try:
+                os.mkdir(new_path)
+            except OSError as err:
+                if err.errno!=17:
+                    raise
+            print 'making dir', new_path
+            _recursiveGet(result['entity.id'], new_path, syn)
+        else:
+            syn.get(result['entity.id'], downloadLocation=path)
+
+
 def get(args, syn):
-    entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch)
-    
-    ## TODO: Is this part even necessary?
-    ## (Other than the print statements)
-    if 'files' in entity:
-        for file in entity['files']:
-            src = os.path.join(entity['cacheDir'], file)
-            dst = os.path.join('.', file.replace(".R_OBJECTS/",""))
-            print 'Creating %s' % dst
-            if not os.path.exists(os.path.dirname(dst)):
-                os.mkdir(dst)
-            shutil.copyfile(src, dst)
+    if args.recursive:
+        if args.version is not None:
+            raise ValueError('You cannot specify a version making a recursive download.')
+        _recursiveGet(args.id, '.', syn)  #Todo should be updated with destination folder instead of '.'
+    elif args.queryString is not None:
+        if args.version is not None or args.id is not None:
+            raise ValueError('You cannot specify a version or id when you are dowloading a query.')
+        ids = _getIdsFromQuery(args.queryString, syn)
+        for id in ids:
+            syn.get(id, downloadLocation='.')
     else:
-        sys.stderr.write('WARNING: No files associated with entity %s\n' % args.id)
-        syn.printEntity(entity)
+        entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch)
+        ## TODO: Is this part even necessary?
+        ## (Other than the print statements)
+        if 'files' in entity:
+            for file in entity['files']:
+                src = os.path.join(entity['cacheDir'], file)
+                dst = os.path.join('.', file.replace(".R_OBJECTS/",""))
+                print 'Creating %s' % dst
+                if not os.path.exists(os.path.dirname(dst)):
+                    os.mkdir(dst)
+                shutil.copyfile(src, dst)
+        else:
+            sys.stderr.write('WARNING: No files associated with entity %s\n' % args.id)
+            syn.printEntity(entity)
 
 
 def store(args, syn):
@@ -389,12 +427,16 @@ def build_parser():
 
     parser_get = subparsers.add_parser('get',
             help='downloads a file from Synapse')
+    parser_get.add_argument('-q', '--query', metavar='queryString', dest='queryString', type=str, default=None,
+            help='Optional query parameter, will fetch all of the entities returned by a query (see query for help).')
     parser_get.add_argument('-v', '--version', metavar='VERSION', type=int, default=None,
             help='Synapse version number of entity to retrieve. Defaults to most recent version.')
+    parser_get.add_argument('-r', '--recursive', action='store_true', default=False,
+            help='Fetches content in Synapse recursively contained in the parentId specified by id.')
     parser_get.add_argument('--limitSearch', metavar='projId', type=str, 
             help='Synapse ID of a container such as project or folder to limit search for files if using a path.')
-    parser_get.add_argument('id',  metavar='syn123', type=str,
-            help='Synapse ID of form syn123 of desired data object')
+    parser_get.add_argument('id',  metavar='syn123', nargs='?', type=str,
+            help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)
 
     parser_store = subparsers.add_parser('store', #Python 3.2+ would support alias=['store']
