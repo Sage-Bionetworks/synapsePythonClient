@@ -130,8 +130,7 @@ def store(args, syn):
     entity['description'] = args.description if args.description is not None else entity.get('description', None)
     entity['parentId'] = args.parentid if args.parentid is not None else entity['parentId']
     entity['path'] = args.file if args.file is not None else None
-    if utils.is_url(args.file):
-        entity['synapseStore'] = False
+    entity['synapseStore'] = not utils.is_url(args.file)
 
     used = _convertProvenanceList(args.used, args.limitSearch, syn)
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
@@ -205,7 +204,6 @@ def show(args, syn):
 def delete(args, syn):
     syn.delete(args.id)
     print 'Deleted entity: %s' % args.id
-
 
 
 def create(args, syn):

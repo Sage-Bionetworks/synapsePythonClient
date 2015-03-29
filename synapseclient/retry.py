@@ -56,13 +56,14 @@ def _with_retry(function, verbose=False, \
                             retry = True
                     except (AttributeError, ValueError) as ex:
                         pass
-                        
-                elif any([msg in response.content for msg in retry_errors]):
+
+                elif any([msg.lower() in response.content.lower() for msg in retry_errors]):
                     retry = True
 
         # Check if we got a retry-able exception
-        if exc_info is not None and exc_info[1].__class__.__name__ in retry_exceptions:
-            retry = True
+        if exc_info is not None:
+            if exc_info[1].__class__.__name__ in retry_exceptions or any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors]):
+                retry = True
 
         # Wait then retry
         retries -= 1

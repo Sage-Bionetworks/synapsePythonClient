@@ -84,9 +84,11 @@ DEBUG_DEFAULT = False
 # Defines the standard retry policy applied to the rest methods
 ## The retry period needs to span a minute because sending
 ## messages is limited to 10 per 60 seconds.
-STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503],
-                         "retry_errors"      : ['Proxy Error', 'Please slow down'],
-                         "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
+STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503,504],
+                         "retry_errors"      : ["Proxy Error", "Please slow down", "timeout", "timed out",
+                                                "Connection reset by peer", "Unknown SSL protocol error",
+                                                "couldn't connect to host", "SlowDown"],
+                         "retry_exceptions"  : ["ConnectionError", "Timeout"],
                          "retries"           : 8,
                          "wait"              : 1,
                          "back_off"          : 2}
@@ -1235,7 +1237,7 @@ class Synapse:
         return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
 
 
-        
+
     ############################################################
     ##                        Querying                        ##
     ############################################################
@@ -1946,7 +1948,7 @@ class Synapse:
                 sys.stdout.flush()
 
             retry_policy=self._build_retry_policy({
-                "retry_status_codes": [429,502,503],
+                "retry_status_codes": [429,502,503,504],
                 "retry_errors"      : [
                     'Proxy Error',
                     'Please slow down',
@@ -2441,13 +2443,13 @@ class Synapse:
         """
 
         evaluation_id = id_of(evaluation)
-        
+
         # Check for access rights
         unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
         if unmetRights['totalNumberOfResults'] > 0:
             accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
             raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
-        
+
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
             entity = self.get(entity)

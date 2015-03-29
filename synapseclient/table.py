@@ -98,10 +98,11 @@ Get query results as a `DataFrame <http://pandas.pydata.org/pandas-docs/stable/a
     df = results.asDataFrame()
 
 --------------
-Making changes
+Changing Data
 --------------
 
-Changes come in two flavors: appending new rows and updating existing ones.
+Once the schema is settled, changes come in two flavors: appending new rows and
+updating existing ones.
 
 **Appending** new rows is fairly straightforward. To continue the previous
 example, we might add some new genes from another file::
@@ -134,6 +135,10 @@ The etag is used by the server to prevent concurrent users from making
 conflicting changes, a technique called optimistic concurrency. In case
 of a conflict, your update may be rejected. You then have to do another query
 an try your update again.
+
+------------------------
+Changing Table Structure
+------------------------
 
 -------------
 Deleting rows
