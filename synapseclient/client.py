@@ -805,13 +805,15 @@ class Synapse:
         :param activity:            Activity object specifying the user's provenance
         :param activityName:        Activity name to be used in conjunction with *used* and *executed*.
         :param activityDescription: Activity description to be used in conjunction with *used* and *executed*.
-        :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj' conflicts with an existing Synapse object.  Defaults to True. 
-        :param forceVersion:        Indicates whether the method should increment the version of the object even if nothing has changed.  Defaults to True.
-        :param versionLabel:        Arbitrary string used to label the version.  
-        :param isRestricted:        If set to true, an email will be sent to the Synapse access control team 
-                                    to start the process of adding terms-of-use 
-                                    or review board approval for this entity. 
-                                    You will be contacted with regards to the specific data being restricted 
+        :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj'
+                                    conflicts with an existing Synapse object.  Defaults to True.
+        :param forceVersion:        Indicates whether the method should increment the version of the object even if
+                                    nothing has changed.  Defaults to True.
+        :param versionLabel:        Arbitrary string used to label the version.
+        :param isRestricted:        If set to true, an email will be sent to the Synapse access control team
+                                    to start the process of adding terms-of-use
+                                    or review board approval for this entity.
+                                    You will be contacted with regards to the specific data being restricted
                                     and the requirements of access.
 
         :returns: A Synapse Entity, Evaluation, or Wiki
@@ -2173,16 +2175,17 @@ class Synapse:
             return entity['path'], local_state
         location =  self.__getStorageLocation(entity)
         if location['uploadType'] == 'S3':
-            sys.stdout.write('\n' + '#'*50+'\n')
-            sys.stdout.write('Uploading file to Synapse storage')
-            sys.stdout.write('\n'+'#'*50+'\n')
+            if entity.get('synapseStore', True):
+                sys.stdout.write('\n' + '#'*50+'\n Uploading file to Synapse storage \n'+'#'*50+'\n')
             return entity['path'], local_state
-        elif location['uploadType'] == 'SFTP':
+        elif location['uploadType'] == 'SFTP' :
             entity['synapseStore'] = False
-            sys.stdout.write('\n' + '#'*50+'\n')
-            sys.stdout.write(location.get('banner', ''))
-            sys.stdout.write('Uploading to: '+urlparse.urlparse(location['url']).netloc)
-            sys.stdout.write('\n'+'#'*50+'\n')
+            if entity.get('synapseStore', True):
+                sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50, 
+                                                                      location.get('banner', ''), 
+                                                                      urlparse.urlparse(location['url']).netloc, 
+                                                                      '#'*50))
+                pass
             #Fill out local_state with fileSize, externalURL etc...
             uploadLocation = self._sftpUploadFile(entity['path'], urllib.unquote(location['url']))
             local_state['externalURL'] = uploadLocation
