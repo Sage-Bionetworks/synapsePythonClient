@@ -52,7 +52,11 @@ def _with_retry(function, verbose=False, \
                 if _is_json(response.headers.get('content-type', None)):
                     try:
                         json = response.json()
-                        if json.get('reason', None) in retry_errors:
+                        ## special case for message throttling
+                        if 'Please slow down.  You may send a maximum of 10 message' in json.get('reason', None):
+                            retry = True
+                            wait = 16
+                        elif json.get('reason', None).lower() in retry_errors:
                             retry = True
                     except (AttributeError, ValueError) as ex:
                         pass

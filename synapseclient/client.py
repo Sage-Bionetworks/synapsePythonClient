@@ -85,9 +85,9 @@ DEBUG_DEFAULT = False
 ## The retry period needs to span a minute because sending
 ## messages is limited to 10 per 60 seconds.
 STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503,504],
-                         "retry_errors"      : ["Proxy Error", "Please slow down", "timeout", "timed out",
-                                                "Connection reset by peer", "Unknown SSL protocol error",
-                                                "couldn't connect to host", "SlowDown"],
+                         "retry_errors"      : ["proxy error", "slow down", "timeout", "timed out",
+                                                "connection reset by peer", "unknown ssl protocol error",
+                                                "couldn't connect to host", "slowdown", "try again"],
                          "retry_exceptions"  : ["ConnectionError", "Timeout"],
                          "retries"           : 8,
                          "wait"              : 1,
