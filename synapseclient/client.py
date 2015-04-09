@@ -1195,16 +1195,10 @@ class Synapse:
     ##                 Get / Set Annotations                  ##
     ############################################################
 
-    def getAnnotations(self, entity, version=None):
+    def _getRawAnnotations(self, entity, version=None):
         """
-        Retrieve annotations for an Entity from the Synapse Repository.
-        
-        :param entity:  An Entity or Synapse ID to lookup
-        :param version: The version of the Entity to retrieve.  
-        
-        :returns: A dictionary
+        Retrieve annotations for an Entity returning them in the native Synapse format.
         """
-        
         # Note: Specifying the version results in a zero-ed out etag, 
         # even if the version is the most recent. 
         # See `PLFM-1874 <https://sagebionetworks.jira.com/browse/PLFM-1874>`_ for more details.
@@ -1212,7 +1206,23 @@ class Synapse:
             uri = '/entity/%s/version/%s/annotations' % (id_of(entity), str(version))
         else:
             uri = '/entity/%s/annotations' % id_of(entity)
-        return from_synapse_annotations(self.restGET(uri))
+        return self.restGET(uri)
+
+
+    def getAnnotations(self, entity, version=None):
+        """
+        Retrieve annotations for an Entity from the Synapse Repository as a Python dict.
+
+        Note that collapsing annotations from the native Synapse format to a Python dict
+        may involve some loss of information. See :py:func:`_getRawAnnotations` to get
+        annotations in the native format.
+
+        :param entity:  An Entity or Synapse ID to lookup
+        :param version: The version of the Entity to retrieve.
+
+        :returns: A dictionary
+        """
+        return from_synapse_annotations(self._getRawAnnotations(entity,version))
 
 
     def setAnnotations(self, entity, annotations={}, **kwargs):

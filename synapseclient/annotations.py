@@ -52,6 +52,7 @@ See also:
 """
 
 import collections
+import warnings
 from utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
 from exceptions import SynapseError
 
@@ -97,11 +98,15 @@ def to_synapse_annotations(annotations):
 def from_synapse_annotations(annotations):
     """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
     
-    def extend_transformed(kvps, annos, func):
+    def process_user_defined_annotations(kvps, annos, func):
+        """
+        for each annotation of a given class (date, string, double, ...), process the
+        annotation with the given function and add it to the dict 'annos'.
+        """
         for k,v in kvps.iteritems():
             ## don't overwrite system keys which won't be lists
             if k in ['id', 'etag', 'creationDate', 'uri'] or (k in annos and not isinstance(annos[k], list)):
-                pass
+                warnings.warn('A user defined annotation, "%s", has the same name as a system defined annotation and will be dropped. Try syn._getRawAnnotations to get annotations in native Synapse format.' % k)
             else:
                 annos.setdefault(k,[]).extend([func(elem) for elem in v])
 
@@ -110,11 +115,11 @@ def from_synapse_annotations(annotations):
     annos = dict()
     for key, value in annotations.iteritems():
         if key=='dateAnnotations':
-            extend_transformed(value, annos, lambda x: from_unix_epoch_time(float(x)))
+            process_user_defined_annotations(value, annos, lambda x: from_unix_epoch_time(float(x)))
         elif key in ['stringAnnotations','longAnnotations']:
-            extend_transformed(value, annos, lambda x: x)
+            process_user_defined_annotations(value, annos, lambda x: x)
         elif key == 'doubleAnnotations':
-            extend_transformed(value, annos, lambda x: float(x))
+            process_user_defined_annotations(value, annos, lambda x: float(x))
         elif key=='blobAnnotations':
             pass ## TODO: blob annotations not supported
         else:

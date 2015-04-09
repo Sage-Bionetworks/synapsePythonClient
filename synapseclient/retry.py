@@ -49,6 +49,7 @@ def _with_retry(function, verbose=False, \
                 retry = True
 
             elif response.status_code not in range(200,299):
+                ## if the response is JSON, look for retryable errors in the 'reason' field
                 if _is_json(response.headers.get('content-type', None)):
                     try:
                         json = response.json()
@@ -56,11 +57,12 @@ def _with_retry(function, verbose=False, \
                         if 'Please slow down.  You may send a maximum of 10 message' in json.get('reason', None):
                             retry = True
                             wait = 16
-                        elif json.get('reason', None).lower() in retry_errors:
+                        elif any([msg.lower() in json.get('reason', None).lower() for msg in retry_errors]):
                             retry = True
                     except (AttributeError, ValueError) as ex:
                         pass
 
+                ## if the response is not JSON, look for retryable errors in its text content
                 elif any([msg.lower() in response.content.lower() for msg in retry_errors]):
                     retry = True
 
