@@ -84,9 +84,11 @@ DEBUG_DEFAULT = False
 # Defines the standard retry policy applied to the rest methods
 ## The retry period needs to span a minute because sending
 ## messages is limited to 10 per 60 seconds.
-STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503],
-                         "retry_errors"      : ['Proxy Error', 'Please slow down'],
-                         "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
+STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503,504],
+                         "retry_errors"      : ["proxy error", "slow down", "timeout", "timed out",
+                                                "connection reset by peer", "unknown ssl protocol error",
+                                                "couldn't connect to host", "slowdown", "try again"],
+                         "retry_exceptions"  : ["ConnectionError", "Timeout"],
                          "retries"           : 8,
                          "wait"              : 1,
                          "back_off"          : 2}
@@ -1193,16 +1195,10 @@ class Synapse:
     ##                 Get / Set Annotations                  ##
     ############################################################
 
-    def getAnnotations(self, entity, version=None):
+    def _getRawAnnotations(self, entity, version=None):
         """
-        Retrieve annotations for an Entity from the Synapse Repository.
-        
-        :param entity:  An Entity or Synapse ID to lookup
-        :param version: The version of the Entity to retrieve.  
-        
-        :returns: A dictionary
+        Retrieve annotations for an Entity returning them in the native Synapse format.
         """
-        
         # Note: Specifying the version results in a zero-ed out etag, 
         # even if the version is the most recent. 
         # See `PLFM-1874 <https://sagebionetworks.jira.com/browse/PLFM-1874>`_ for more details.
@@ -1210,7 +1206,23 @@ class Synapse:
             uri = '/entity/%s/version/%s/annotations' % (id_of(entity), str(version))
         else:
             uri = '/entity/%s/annotations' % id_of(entity)
-        return from_synapse_annotations(self.restGET(uri))
+        return self.restGET(uri)
+
+
+    def getAnnotations(self, entity, version=None):
+        """
+        Retrieve annotations for an Entity from the Synapse Repository as a Python dict.
+
+        Note that collapsing annotations from the native Synapse format to a Python dict
+        may involve some loss of information. See :py:func:`_getRawAnnotations` to get
+        annotations in the native format.
+
+        :param entity:  An Entity or Synapse ID to lookup
+        :param version: The version of the Entity to retrieve.
+
+        :returns: A dictionary
+        """
+        return from_synapse_annotations(self._getRawAnnotations(entity,version))
 
 
     def setAnnotations(self, entity, annotations={}, **kwargs):
@@ -1235,7 +1247,7 @@ class Synapse:
         return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
 
 
-        
+
     ############################################################
     ##                        Querying                        ##
     ############################################################
@@ -1946,7 +1958,7 @@ class Synapse:
                 sys.stdout.flush()
 
             retry_policy=self._build_retry_policy({
-                "retry_status_codes": [429,502,503],
+                "retry_status_codes": [429,502,503,504],
                 "retry_errors"      : [
                     'Proxy Error',
                     'Please slow down',
@@ -2441,13 +2453,13 @@ class Synapse:
         """
 
         evaluation_id = id_of(evaluation)
-        
+
         # Check for access rights
         unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
         if unmetRights['totalNumberOfResults'] > 0:
             accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
             raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
-        
+
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
             entity = self.get(entity)

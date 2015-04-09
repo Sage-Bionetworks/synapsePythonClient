@@ -12,10 +12,12 @@ Tables is an BETA feature
 The tables feature is in the beta stage. Please report bugs via
 `JIRA <https://sagebionetworks.jira.com/>`_.
 
-A table has a :py:class:`Schema` defined in terms of :py:class:`Column` objects
-that specify types from the following choices: STRING, DOUBLE, INTEGER,
-BOOLEAN, DATE, ENTITYID, FILEHANDLEID. Tables hold sets of rows that conform to
-the schema.
+A table has a :py:class:`Schema` and holds a set of rows conforming to
+that schema.
+
+A :py:class:`Schema` is defined in terms of :py:class:`Column` objects that
+specify types from the following choices: STRING, DOUBLE, INTEGER, BOOLEAN,
+DATE, ENTITYID, FILEHANDLEID.
 
 ~~~~~~~
 Example
@@ -96,10 +98,11 @@ Get query results as a `DataFrame <http://pandas.pydata.org/pandas-docs/stable/a
     df = results.asDataFrame()
 
 --------------
-Making changes
+Changing Data
 --------------
 
-Changes come in two flavors: appending new rows and updating existing ones.
+Once the schema is settled, changes come in two flavors: appending new rows and
+updating existing ones.
 
 **Appending** new rows is fairly straightforward. To continue the previous
 example, we might add some new genes from another file::
@@ -132,6 +135,10 @@ The etag is used by the server to prevent concurrent users from making
 conflicting changes, a technique called optimistic concurrency. In case
 of a conflict, your update may be rejected. You then have to do another query
 an try your update again.
+
+------------------------
+Changing Table Structure
+------------------------
 
 -------------
 Deleting rows
@@ -1068,7 +1075,8 @@ class CsvFileTable(TableAbstractBaseClass):
             header=self.header,
             linesToSkip=self.linesToSkip)
 
-        self.etag = upload_to_table_result['etag']
+        if 'etag' in upload_to_table_result:
+            self.etag = upload_to_table_result['etag']
         return self
 
     def asDataFrame(self, rowIdAndVersionInIndex=True):
