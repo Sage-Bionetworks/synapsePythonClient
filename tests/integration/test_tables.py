@@ -1,5 +1,6 @@
 import csv
 import json
+import filecmp
 import math
 import os
 import random
@@ -320,6 +321,41 @@ def test_tables_pandas():
 
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test_tables_pandas.\n\n')
+
+
+def test_download_table_files():
+    cols = [
+        Column(name='artist', columnType='STRING', maximumSize=50),
+        Column(name='album', columnType='STRING', maximumSize=50),
+        Column(name='year', columnType='INTEGER'),
+        Column(name='catalog', columnType='STRING', maximumSize=50),
+        Column(name='cover', columnType='FILEHANDLEID')]
+
+    schema = syn.store(Schema(name='Jazz Albums', columns=cols, parent=project))
+    schedule_for_cleanup(schema)
+
+    data = [["John Coltrane",  "Blue Train",   1957, "BLP 1577", "coltraneBlueTrain.jpg"],
+            ["Sonny Rollins",  "Vol. 2",       1957, "BLP 1558", "rollinsBN1558.jpg"],
+            ["Sonny Rollins",  "Newk's Time",  1958, "BLP 4001", "rollinsBN4001.jpg"],
+            ["Kenny Burrel",   "Kenny Burrel", 1956, "BLP 1543", "burrellWarholBN1543.jpg"]]
+
+    ## upload files and store file handle ids
+    original_files = []
+    for row in data:
+        path = utils.make_bogus_data_file()
+        original_files.append(path)
+        file_handle = syn._chunkedUploadFile(path)
+        row[4] = file_handle['id']
+
+    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+
+    ## retrieve the files for each row and verify that they are identical to the originals
+    results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, resultsAs="rowset")
+    for i, row in enumerate(results):
+        print "%s_%s" % (row.rowId, row.versionNumber), row.values
+        file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover', downloadLocation='.')
+        assert filecmp.cmp(original_files[i], file_info['path'])
+        schedule_for_cleanup(file_info['path'])
 
 
 def dontruntest_big_tables():

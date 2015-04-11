@@ -48,6 +48,7 @@ Testing
 """
 #!/usr/bin/env python2.7
 
+import cgi
 import os, sys, urllib, urlparse, hashlib, re
 import random
 import requests
@@ -123,7 +124,7 @@ def download_file(url, localFilepath=None):
     return localFilepath
 
     
-def extract_filename(content_disposition):
+def extract_filename(content_disposition_header, default_filename=None):
     """
     Extract a filename from an HTTP content-disposition header field.
     
@@ -132,8 +133,8 @@ def extract_filename(content_disposition):
     for cryptic details.
     """
     
-    match = re.search('filename=([^ ]*)', content_disposition)
-    return match.group(1) if match else 'filename'
+    value, params = cgi.parse_header(content_disposition_header)
+    return params.get('filename', default_filename)
 
 
 def extract_user_name(profile):

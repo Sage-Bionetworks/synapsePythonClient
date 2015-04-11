@@ -356,9 +356,9 @@ def is_lock_valid(cacheLock):
             return False
         raise
 
-    
-def determine_cache_directory_from_file_handle(fileHandle):
-    return os.path.join(CACHE_DIR, str(int(fileHandle) % CACHE_FANOUT), fileHandle)
+
+def determine_cache_directory_from_file_handle(fileHandleId):
+    return os.path.join(CACHE_DIR, str(int(fileHandleId) % CACHE_FANOUT), fileHandleId)
 
 
 def determine_cache_directory(entity):
