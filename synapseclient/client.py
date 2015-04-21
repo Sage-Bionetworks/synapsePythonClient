@@ -1774,7 +1774,9 @@ class Synapse:
 
                 ## get filename from content-disposition, if we don't have it already
                 if os.path.isdir(destination):
-                    filename = utils.extract_filename(response.headers['content-disposition'])
+                    filename = utils.extract_filename(
+                        content_disposition_header=response.headers.get('content-disposition', None),
+                        default_filename=utils.guess_file_name(url))
                     destination = os.path.join(destination, filename)
 
             #TODO LARSSON add support of ftp download

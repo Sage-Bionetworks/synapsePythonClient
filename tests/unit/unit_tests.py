@@ -194,6 +194,12 @@ def test_guess_file_name():
     assert utils.guess_file_name('http://www.a.com/b?foo=bar&arga=barga') == 'b'
     assert utils.guess_file_name('http://www.a.com/b/?foo=bar&arga=barga') == 'b'
 
+def test_extract_filename():
+    assert utils.extract_filename('attachment; filename="fname.ext"') == "fname.ext"
+    assert utils.extract_filename('attachment; filename=fname.ext') == "fname.ext"
+    assert utils.extract_filename(None) is None
+    assert utils.extract_filename(None, "fname.ext") == "fname.ext"
+
 def test_version_check():
     from synapseclient.version_check import _version_tuple
     assert _version_tuple('0.5.1.dev200', levels=2) == ('0', '5')

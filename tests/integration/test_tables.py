@@ -344,6 +344,7 @@ def test_download_table_files():
     for row in data:
         path = utils.make_bogus_data_file()
         original_files.append(path)
+        schedule_for_cleanup(path)
         file_handle = syn._chunkedUploadFile(path)
         row[4] = file_handle['id']
 

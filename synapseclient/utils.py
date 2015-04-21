@@ -123,7 +123,7 @@ def download_file(url, localFilepath=None):
 
     return localFilepath
 
-    
+
 def extract_filename(content_disposition_header, default_filename=None):
     """
     Extract a filename from an HTTP content-disposition header field.
@@ -132,7 +132,9 @@ def extract_filename(content_disposition_header, default_filename=None):
     and `this package <http://pypi.python.org/pypi/rfc6266>`_ 
     for cryptic details.
     """
-    
+
+    if not content_disposition_header:
+        return default_filename
     value, params = cgi.parse_header(content_disposition_header)
     return params.get('filename', default_filename)
 
