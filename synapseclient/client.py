@@ -1771,6 +1771,14 @@ class Synapse:
             elif scheme == 'http' or scheme == 'https':
                 #TODO add support for username/password
                 response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
+
+                ## get filename from content-disposition, if we don't have it already
+                if os.path.isdir(destination):
+                    filename = utils.extract_filename(
+                        content_disposition_header=response.headers.get('content-disposition', None),
+                        default_filename=utils.guess_file_name(url))
+                    destination = os.path.join(destination, filename)
+
             #TODO LARSSON add support of ftp download
             else:
                 sys.stderr.write('Unable to download this type of URL.  ')
@@ -3092,6 +3100,72 @@ class Synapse:
         return Column(**self.restPOST('/column', json.dumps(columnModel)))
 
 
+    def _getColumnByName(self, schema, column_name):
+        """
+        Given a schema and a column name, get the corresponding py:class:`Column` object.
+        """
+        for column in self.getColumns(schema):
+            if column.name == column_name:
+                return column
+        return None
+
+
+    def downloadTableFile(self, table, column, downloadLocation, rowId=None, versionNumber=None, rowIdAndVersion=None, ifcollision="keep.both"):
+        """
+        :param table:
+        :param rowId:
+        :param versionNumber:
+        :param rowIdAndVersion:
+        :param column: a Column object, the ID of a column or its name
+        :param downloadLocation:
+        :param ifcollision:
+        """
+
+        if (rowId is None or versionNumber is None) and rowIdAndVersion is None:
+            raise ValueError("Need to pass in either rowIdAndVersion or (rowId and versionNumber).")
+
+        ## get table ID, given a string, Table or Schema
+        if isinstance(table, basestring):
+            table_id = table
+        elif isinstance(table, synapseclient.table.TableAbstractBaseClass):
+            table_id = table.tableId
+        elif isinstance(table, Schema):
+            table_id = table.id
+        else:
+            raise ValueError("Unrecognized table object \"%s\"." % table)
+
+        ## get column ID, given a column name, ID or Column object
+        if isinstance(column, basestring):
+            column = self._getColumnByName(table_id, column)
+            if column is None:
+                raise SynapseError("Can't find column \"%s\"." % column)
+            column_id = column.id
+        elif isinstance(column, Column):
+            column_id = column.id
+        elif isinstance(column, int):
+            column_id = column
+        else:
+            raise ValueError("Unrecognized column \"%s\"." % column)
+
+        ## extract row and version
+        if rowIdAndVersion:
+            m = re.match(r'(\d+)_(\d+)', rowIdAndVersion)
+            if m:
+                rowId = m.group(1)
+                versionNumber = m.group(2)
+            else:
+                raise ValueError('Row and version \"%s\" in unrecognized format.')
+
+        url = "{endpoint}/entity/{id}/table/column/{columnId}/row/{rowId}/version/{versionNumber}/file".format(
+                endpoint=self.repoEndpoint,
+                id=table_id,
+                columnId=column_id,
+                rowId=rowId,
+                versionNumber=versionNumber)
+
+        return self._downloadFile(url, downloadLocation)
+
+
     ############################################################
     ##             CRUD for Entities (properties)             ##
     ############################################################
@@ -3234,7 +3308,7 @@ class Synapse:
 
         :returns: JSON encoding of response
         """
-        
+
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
             
