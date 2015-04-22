@@ -203,9 +203,9 @@ class Activity(dict):
 
         List example::
         
-            used( [ 'syn12345', 'syn23456', entity,
-                    {'reference':{'target':'syn100009', 'targetVersion':2}, 'wasExecuted':True},
-                    'http://mydomain.com/my/awesome/data.RData' ] )
+            activity.used(['syn12345', 'syn23456', entity,
+                          {'reference':{'target':'syn100009', 'targetVersion':2}, 'wasExecuted':True},
+                          'http://mydomain.com/my/awesome/data.RData'])
         """
 
         # -- A list of targets
