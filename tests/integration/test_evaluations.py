@@ -73,11 +73,17 @@ def test_evaluations():
         assert foundMe
 
         # Add public READ permissions on evaluation
-        syn.setPermissions(ev, "AUTHENTICATED_USERS", accessType=['READ'])
-        syn.setPermissions(ev, "PUBLIC", accessType=['READ'])
+        # syn.setPermissions(ev, "AUTHENTICATED_USERS", accessType=['READ'])
+        # syn.setPermissions(ev, "PUBLIC", accessType=['READ'])
+
+        # Temporary? work-around for PLFM-3339,
+        # AUTHENTICATED_USERS = 273948
+        # PUBLIC = 273949
+        syn.setPermissions(ev, 273948, accessType=['READ'])
+        syn.setPermissions(ev, 273949, accessType=['READ'])
 
         # test getPermissions
-        permissions = syn.getPermissions(ev, "PUBLIC")
+        permissions = syn.getPermissions(ev, 273949)
         assert ['READ'] == permissions
 
         permissions = syn.getPermissions(ev, syn.getUserProfile()['ownerId'])
