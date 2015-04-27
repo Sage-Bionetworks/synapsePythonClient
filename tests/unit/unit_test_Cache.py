@@ -1,10 +1,11 @@
 import re, os, tempfile, json
-import time, calendar
+import time, calendar, datetime
 from mock import MagicMock, patch
 from nose.tools import assert_raises
 
 import synapseclient
 import synapseclient.cache as cache
+import synapseclient.utils as utils
 
 
 def setup():
@@ -174,3 +175,60 @@ def test_get_modification_time():
     path = tempfile.mkdtemp()
     # print "Now = %f | File = %f" % (calendar.timegm(time.gmtime()), cache.get_modification_time(path))
     assert cache.get_modification_time(path) - calendar.timegm(time.gmtime()) < ALLOWABLE_TIME_ERROR
+
+
+def test_cache_store_get():
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
+    my_cache.store(file_handle_id=101201, file_path=path1)
+
+    path2 = utils.touch(os.path.join(my_cache.get_cache_dir(101202), "file2.ext"))
+    my_cache.store(file_handle_id=101202, file_path=path2)
+
+    ## set path3's mtime to be later than path2's
+    new_time_stamp = utils.to_unix_epoch_time_secs(cache._get_modified_time(path2))+2
+
+    path3 = utils.touch(os.path.join(tmp_dir, "foo", "file2.ext"), (new_time_stamp, new_time_stamp))
+    my_cache.store(file_handle_id=101202, file_path=path3)
+
+    a_file = my_cache.get(file_handle_id=101201, file_name="file1.ext")
+    assert a_file == path1
+
+    b_file = my_cache.get(file_handle_id=101202, file_path=path2)
+    assert b_file == path2
+
+    b_file = my_cache.get(file_handle_id=101202, file_path=path3)
+    assert b_file == path3
+
+    not_in_cache_file = my_cache.get(file_handle_id=101203, file_path=os.path.join(tmp_dir, "file3.ext"))
+    assert not_in_cache_file is None
+
+    wrong_name_file = my_cache.get(file_handle_id=101201, file_path=os.path.join(my_cache.get_cache_dir(101202), "wrong_file1.ext"))
+    assert wrong_name_file is None
+
+    wrong_location_file = my_cache.get(file_handle_id=101202, file_path=os.path.join(tmp_dir, "wrong", "file2.ext"))
+    assert wrong_location_file is None
+
+    ## don't specify file_path. Get from cache directory
+    a_file = my_cache.get(file_handle_id=101201, file_name="file1.ext")
+    assert a_file == path1
+
+    b_file = my_cache.get(file_handle_id=101202, file_name="file2.ext")
+    assert b_file == path2
+
+
+def test_cache_modified_time():
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
+    my_cache.store(file_handle_id=101201, file_path=path1)
+
+    new_time_stamp = utils.to_unix_epoch_time_secs(cache._get_modified_time(path1))+1
+    utils.touch(path1, (new_time_stamp, new_time_stamp))
+    a_file = my_cache.get(file_handle_id=101201, file_path=path1)
+    assert a_file is None
+
+

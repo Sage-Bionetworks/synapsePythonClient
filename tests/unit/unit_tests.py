@@ -308,3 +308,19 @@ def test_as_urls():
     assert utils.as_url("http://foo/bar/bat/zoinks.txt") == "http://foo/bar/bat/zoinks.txt"
     assert utils.as_url("ftp://foo/bar/bat/zoinks.txt") == "ftp://foo/bar/bat/zoinks.txt"
     assert utils.as_url("sftp://foo/bar/bat/zoinks.txt") == "sftp://foo/bar/bat/zoinks.txt"
+
+
+def test_time_manipulation():
+    round_tripped_datetime = utils.datetime_to_iso(
+                                utils.from_unix_epoch_time_secs(
+                                    utils.to_unix_epoch_time_secs(
+                                        utils.iso_to_datetime("2014-12-10T19:09:34.123456Z"))))
+    print round_tripped_datetime
+    assert "2014-12-10T19:09:34.123456Z" == round_tripped_datetime
+
+    round_tripped_datetime = utils.datetime_to_iso(
+                                utils.from_unix_epoch_time_secs(
+                                    utils.to_unix_epoch_time_secs(
+                                        utils.iso_to_datetime("1969-04-28T23:48:34.123456Z"))))
+    print round_tripped_datetime
+    assert "1969-04-28T23:48:34.123456Z" == round_tripped_datetime

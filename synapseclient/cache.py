@@ -27,7 +27,7 @@ Helpers
 """
 
 import os, sys, re
-import time, calendar
+import time, calendar, datetime
 import errno, shutil
 import json, urlparse
 import synapseclient.utils as utils
@@ -97,6 +97,7 @@ def local_file_has_changed(entityBundle, checkIndirect, path=None):
     # The file is cached but not in the right place copy it add it to the cache
     if checkIndirect and unmodifiedFileExists and not path.startswith(CACHE_DIR):
         add_local_file_to_cache(path=path, **entityBundle['entity'])
+
     return not unmodifiedFileExists
 
 
@@ -140,6 +141,7 @@ def add_local_file_to_cache(**entity):
         write_cache_then_release_lock(cacheDir, cache)
 
 
+## DELETE
 def remove_local_file_from_cache(path, fileHandle):
     """TODO_Sphinx"""
 
@@ -232,8 +234,8 @@ def obtain_lock_and_read_cache(cacheDir):
     :returns: A dictionary with the JSON contents of the locked '.cacheMap'
     """
 
-    cacheMap = os.path.join(cacheDir, CACHE_MAP_NAME)
-    cacheLock = cacheMap + CACHE_LOCK_SUFFIX
+    cacheMapFilePath = os.path.join(cacheDir, CACHE_MAP_NAME)
+    cacheLock = cacheMapFilePath + CACHE_LOCK_SUFFIX
 
     # Make and thereby obtain the '.lock'
     tryLockStartTime = time.time()
@@ -262,16 +264,15 @@ def obtain_lock_and_read_cache(cacheDir):
     if time.time() - tryLockStartTime >= CACHE_MAX_LOCK_TRY_TIME:
         raise SynapseFileCacheError("Could not obtain a lock on the file cache within %d seconds.  Please try again later" % CACHE_MAX_LOCK_TRY_TIME)
 
-    # Make sure the '.cacheMap' exists, otherwise just return a blank dictionary
-    if not os.path.exists(cacheMap):
+    # Make sure the '.cacheMap' file exists, otherwise just return a blank dictionary
+    if not os.path.exists(cacheMapFilePath):
         return {}
 
     # Read and parse the '.cacheMap'
-    cacheMap = open(cacheMap, 'r')
-    cache = json.load(cacheMap)
-    cacheMap.close()
+    with open(cacheMapFilePath, 'r') as f:
+        cacheMap = json.load(f)
 
-    return cache
+    return cacheMap
 
 
 def write_cache_then_release_lock(cacheDir, cacheMapBody=None):
@@ -367,3 +368,114 @@ def get_modification_time(path):
 
     if not os.path.exists(path): return None
     return calendar.timegm(time.gmtime(os.path.getmtime(path)))
+
+
+
+def epoch_time_to_iso(epoch_time):
+    """
+    Convert seconds since unix epoch to a string in ISO format
+    """
+    return utils.datetime_to_iso(utils.from_unix_epoch_time_secs(epoch_time))
+
+
+def iso_time_to_epoch(iso_time):
+    """
+    Convert an ISO formatted time into seconds since unix epoch
+    """
+    return utils.to_unix_epoch_time_secs(utils.iso_to_datetime(iso_time))
+
+
+CACHE_ROOT_DIR = os.path.join('~', '.synapseCache')
+
+
+def _get_modified_time(path):
+    if os.path.exists(path):
+        return utils.from_unix_epoch_time_secs(os.path.getmtime(path))
+    return None
+
+
+class Cache():
+    """
+    Represent a cache in which files are accessed by file handle ID.
+    """
+
+    def __init__(self, cache_root_dir=CACHE_ROOT_DIR, fanout=1000):
+
+        ## set root dir of cache in which meta data will be stored and files
+        ## will be stored here by default, but other locations can be specified
+        cache_root_dir = os.path.expanduser(cache_root_dir)
+        if not os.path.exists(cache_root_dir):
+            os.makedirs(cache_root_dir)
+        self.cache_root_dir = cache_root_dir
+        self.fanout = fanout
+        self.cache_map_file_name = ".cacheMap"
+
+
+    def get_cache_dir(self, file_handle_id):
+        return os.path.join(self.cache_root_dir, str(int(file_handle_id) % self.fanout), str(file_handle_id))
+
+
+    def _read_cache_map(self, file_handle_id):
+        cache_map_file = os.path.join(self.get_cache_dir(file_handle_id), self.cache_map_file_name)
+
+        if not os.path.exists(cache_map_file):
+            return {}
+
+        with open(cache_map_file, 'r') as f:
+            cache_map = json.load(f)
+        return cache_map
+
+
+    def _write_cache_map(self, file_handle_id, cache_map):
+        cache_dir = self.get_cache_dir(file_handle_id)
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir)
+
+        cache_map_file = os.path.join(cache_dir, self.cache_map_file_name)
+
+        with open(cache_map_file, 'w') as f:
+            json.dump(cache_map, f)
+            f.write('\n') # For compatibility with R's JSON parser
+
+
+    def get(self, file_handle_id, file_path=None, file_name=None):
+        """
+        Retrieve a file with the given file handle to location specified by file_path. If file_path
+        is None then try to access it from within the cache.
+        """
+        cache_map = self._read_cache_map(file_handle_id)
+
+        file_path = utils.normalize_path(file_path)
+
+        # if file_path is None and file_name is None:
+        #     ## find most recently cached version of the file
+        #     most_recent_cached_file_path = None
+        #     most_recent_cached_time = float("-inf")
+        #     for cached_file_path, cached_time in cache_map.iteritems():
+        #         cached_time = iso_time_to_epoch(cached_time)
+        #         if get_modification_time(cached_file_path) == cached_time and cached_time > most_recent_cached_time:
+        #             most_recent_cached_file_path = cached_file_path
+        #             most_recent_cached_time = cached_time
+        #     return most_recent_cached_file_path
+
+        if file_path is None:
+            file_path = os.path.join(self.get_cache_dir(file_handle_id), file_name)
+
+        for cached_file_path, cached_time in cache_map.iteritems():
+            if file_path == cached_file_path and get_modification_time(cached_file_path) == iso_time_to_epoch(cached_time):
+                return cached_file_path
+
+        return None
+
+
+    def store(self, file_handle_id, file_path):
+        """
+        Add a file to the cache
+        """
+        cache_map = self._read_cache_map(file_handle_id)
+
+        file_path = utils.normalize_path(file_path)
+        cache_map[file_path] = epoch_time_to_iso(get_modification_time(file_path))
+        self._write_cache_map(file_handle_id, cache_map)
+
+
