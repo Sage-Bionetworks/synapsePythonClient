@@ -3099,7 +3099,7 @@ class Synapse:
     ## This is redundant with syn.store(Column(...)) and will be removed
     ## unless people prefer this method.
     def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):
-        columnModel = Column(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValue)
+        columnModel = Column(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValues)
         return Column(**self.restPOST('/column', json.dumps(columnModel)))
 
 
