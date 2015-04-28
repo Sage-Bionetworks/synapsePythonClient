@@ -54,10 +54,7 @@ import synapseclient
 from synapseclient import Activity
 import utils
 import signal
-from StringIO import StringIO
-import traceback
 import json
-import warnings
 from synapseclient.exceptions import *
 
 
@@ -133,9 +130,9 @@ def get(args, syn):
         ## TODO: Is this part even necessary?
         ## (Other than the print statements)
         if 'files' in entity:
-            for file in entity['files']:
-                src = os.path.join(entity['cacheDir'], file)
-                dst = os.path.join('.', file.replace(".R_OBJECTS/",""))
+            for fp in entity['files']:
+                src = os.path.join(entity['cacheDir'], fp)
+                dst = os.path.join('.', fp.replace(".R_OBJECTS/",""))
                 print 'Creating %s' % dst
                 if not os.path.exists(os.path.dirname(dst)):
                     os.mkdir(dst)
@@ -198,15 +195,15 @@ def associate(args, syn):
         files = [args.path]
     if len(files) ==0:
         raise Exception('The path specified is innacurate.  If it is a directory try -r')
-    for file in files:
-        ent = syn.get(file, limitSearch=args.limitSearch)
-        print '%s.%i\t%s' %(ent.id, ent.versionNumber, file)
+    for fp in files:
+        ent = syn.get(fp, limitSearch=args.limitSearch)
+        print '%s.%i\t%s' %(ent.id, ent.versionNumber, fp)
 
 
 def cat(args, syn):
     try:
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-    except (AttributeError, ValueError) as ex1:
+    except (AttributeError, ValueError):
         ## Different OS's have different signals defined. In particular,
         ## SIGPIPE doesn't exist one Windows. The docs have this to say,
         ## "On Windows, signal() can only be called with SIGABRT, SIGFPE,
@@ -377,7 +374,7 @@ def submit(args, syn):
     elif args.evaluationID is None: #get evalID from evalName
         try:
             args.evaluationID = syn.getEvaluationByName(args.evaluationName)['id']
-        except Exception as e:
+        except Exception:
             raise ValueError('could not find evaluationID for evaluationName: %s \n' % args.evaluationName)
 
 
