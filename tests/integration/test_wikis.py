@@ -4,7 +4,7 @@ from nose.tools import assert_raises
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
-from synapseclient import Project, File, Data, Code, Wiki, Activity, Evaluation
+from synapseclient import Project, File, Wiki, Activity, Evaluation
 
 import integration
 from integration import schedule_for_cleanup

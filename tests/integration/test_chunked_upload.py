@@ -4,7 +4,7 @@ import os, sys, traceback
 import synapseclient
 import synapseclient.utils as utils
 from synapseclient.utils import MB, GB
-from synapseclient import Activity, Entity, Project, Folder, File, Data
+from synapseclient import Activity, Entity, Project, Folder, File
 import tempfile
 
 import integration
