@@ -474,7 +474,9 @@ def build_parser():
 
 
     parser_associate = subparsers.add_parser('associate',
-            help='Associate local files with the files stored in Synapse')
+            help=('Associate local files with the files stored in Synapse so that calls to '
+                  '"synapse get" and "synapse show" don\'t redownload the files but use the '
+                  'already existing file.')
     parser_associate.add_argument('path', metavar='path', type=str,
             help='local file path')
     parser_associate.add_argument('--limitSearch', metavar='projId', type=str, 
