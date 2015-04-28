@@ -625,20 +625,23 @@ class Synapse:
         """
         
         #If entity is a local file determine the corresponding synapse entity
-        isFile = os.path.isfile(entity) if isinstance(entity, basestring) else False
-        if isFile:
+        
+        if isinstance(entity, basestring) and os.path.isfile(entity):
             bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
             kwargs['downloadFile']=False
+        elif isinstance(entity, basestring) and not utils.is_synapse_id(entity):
+            raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
+                                            ' or a valid entity id' %entity))
         else:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
 
         # Check and warn for unmet access requirements
         if len(bundle['unmetAccessRequirements']) > 0:
-            warning_message = ("\nWARNING: This entity has access restrictions. Please visit the web "
-                              "page for this entity (syn.onweb(\"%s\")). Click the downward pointing "
-                              "arrow next to the file's name to review and fulfill its download "
-                              "requirement(s).\n" % id_of(entity))
+            warning_message = ("\nWARNING: This entity has access restrictions. Please visit the "
+                              "web page for this entity (syn.onweb(\"%s\")). Click the downward "
+                              "pointing arrow next to the file's name to review and fulfill its "
+                              "download requirement(s).\n" % id_of(entity))
             if kwargs.get('downloadFile', True):
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
