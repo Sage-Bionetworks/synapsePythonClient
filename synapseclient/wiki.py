@@ -94,7 +94,7 @@ from synapseclient.utils import id_of
 class Wiki(DictObject):
     """
     Represents a wiki page in Synapse with content specified in markdown.
-    
+
     :param title:       Title of the Wiki
     :param owner:       Parent Entity that the Wiki will belong to
     :param markdown:    Content of the Wiki
@@ -102,7 +102,7 @@ class Wiki(DictObject):
     :param fileHandles: List of file handle IDs representing files to be attached
     :param parentWikiId: (optional) For subpages, specify parent wiki page
     """
-    
+
     __PROPERTIES = ('title', 'markdown', 'attachmentFileHandleIds', 'id', 'etag', 'createdBy', 'createdOn', 'modifiedBy', 'modifiedOn', 'parentWikiId')
 
     def __init__(self, **kwargs):
@@ -113,42 +113,40 @@ class Wiki(DictObject):
         # Initialize the file handle list to be an empty list
         if 'attachmentFileHandleIds' not in kwargs:
             kwargs['attachmentFileHandleIds'] = []
-            
+
         # Move the 'fileHandles' into the proper (wordier) bucket
         if 'fileHandles' in kwargs:
             for handle in kwargs['fileHandles']:
                 kwargs['attachmentFileHandleIds'].append(handle)
             del kwargs['fileHandles']
-        
+
         super(Wiki, self).__init__(kwargs)
         self.ownerId = id_of(self.owner)
         del self['owner']
-        
+
 
     def json(self):
         """Returns the JSON representation of the Wiki object."""
-        return json.dumps({k:v for k,v in self.iteritems() 
+        return json.dumps({k:v for k,v in self.iteritems()
                            if k in self.__PROPERTIES})
 
 
     def getURI(self):
         """For internal use."""
-        
+
         return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
 
     def postURI(self):
         """For internal use."""
-        
+
         return '/entity/%s/wiki' % self.ownerId
 
     def putURI(self):
         """For internal use."""
-        
+
         return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
 
     def deleteURI(self):
         """For internal use."""
-        
+
         return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
-
-

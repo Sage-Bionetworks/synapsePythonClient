@@ -9,7 +9,7 @@ class DictObject(dict):
 
     @classmethod
     def getByNameURI(cls, name):
-        sys.stderr.write('%s can\'t be retrieved by name' %cls)
+        print '%s can\'t be retrieved by name' %cls
         raise ValueError
 
 
