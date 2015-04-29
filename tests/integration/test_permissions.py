@@ -9,7 +9,7 @@ from nose.tools import assert_raises
 
 import synapseclient
 import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Project, Folder, File, Data
+from synapseclient import Activity, Entity, Project, Folder, File
 
 import integration
 from integration import schedule_for_cleanup
