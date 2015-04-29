@@ -749,8 +749,8 @@ class Synapse:
                 if downloadPath is None:
                     downloadFile = False
 
-                # If the file already exists...
-                elif os.path.exists(downloadPath):
+                # If the file already exists...and is not in cache
+                elif os.path.exists(downloadPath) and not downloadPath.startswith(cache.CACHE_DIR):
                     if ifcollision == "overwrite.local":
                         pass
                     elif ifcollision == "keep.local":
