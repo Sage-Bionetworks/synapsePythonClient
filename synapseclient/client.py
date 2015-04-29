@@ -2884,7 +2884,7 @@ class Synapse:
         download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request)
 
         url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, download_from_table_result['resultsFileHandleId'])
-        cache_dir = cache.determine_cache_directory_from_file_handle(download_from_table_result['resultsFileHandleId'])
+        cache_dir = cache.determine_cache_directory(download_from_table_result['resultsFileHandleId'])
 
         # Create the necessary directories
         try:

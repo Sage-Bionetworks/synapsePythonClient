@@ -142,7 +142,7 @@ def test_determine_cache_directory():
                       'versionNumber'   : 'bar',
                       'dataFileHandleId': '1337'}
 
-        res = cache.determine_cache_directory(entityInfo)
+        res = cache.determine_cache_directory(entityInfo['dataFileHandleId'])
         assert re.sub(r'\\', '/', res) == '/337/1337'
     finally:
         cache.CACHE_DIR = oldCacheDir

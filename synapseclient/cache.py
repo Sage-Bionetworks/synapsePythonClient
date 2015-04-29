@@ -127,7 +127,7 @@ def add_local_file_to_cache(**entity):
         return
 
     # Get the '.cacheMap'
-    cacheDir = determine_cache_directory(entity)
+    cacheDir = determine_cache_directory(entity['dataFileHandleId'])
     entity['path'] = utils.normalize_path(entity['path'])
 
     # If the file to-be-added does not exist, search the cache for a pristine copy
@@ -192,7 +192,7 @@ def determine_local_file_location(entityBundle):
               The file locations may be None if there is no file associated with the Entity or cache
     """
 
-    cacheDir = determine_cache_directory(entityBundle['entity'])
+    cacheDir = determine_cache_directory(entityBundle['entity']['dataFileHandleId'])
 
     # Find the first unmodified file if any
     unmodifiedFile = None
@@ -344,9 +344,8 @@ def is_lock_valid(cacheLock):
         raise
 
 
-def determine_cache_directory(entity):
+def determine_cache_directory(fileHandleId):
     """Uses the properties of the Entity to determine where it would be cached by default."""
-    fileHandleId = entity['dataFileHandleId']
     return os.path.join(CACHE_DIR, str(int(fileHandleId) % CACHE_FANOUT), fileHandleId)
 
 
