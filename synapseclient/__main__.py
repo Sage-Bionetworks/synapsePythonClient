@@ -29,8 +29,9 @@ Commands
 ========
   * **login**            - login to Synapse and (optionally) cache credentials
   * **get**              - download an entity and associated data
-  * **store**            - create or update
+  * **add**              - add or modify content to Synapse
   * **delete**           - removes a dataset from Synapse
+  * **mv**               - move a dataset in Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
@@ -193,14 +194,20 @@ def move(args, syn):
 
 def associate(args, syn):
     if args.r:
-        files = [os.path.join(dp, f) for dp, dn, filenames in os.walk(args.path) for f in filenames]
+        files = [os.path.join(dp, f) for dp, dn, filenames in
+                 os.walk(args.path) for f in filenames]
     if os.path.isfile(args.path):
         files = [args.path]
-    if len(files) ==0:
-        raise Exception('The path specified is innacurate.  If it is a directory try -r')
-    for file in files:
-        ent = syn.get(file, limitSearch=args.limitSearch)
-        print '%s.%i\t%s' %(ent.id, ent.versionNumber, file)
+    if len(files) == 0:
+        raise Exception(("The path specified is innacurate. "
+                         "If it is a directory try using 'associate -r'"))
+    for fp in files:
+        try:
+            ent = syn.get(fp, limitSearch=args.limitSearch)
+        except SynapseFileNotFoundError:
+            print 'WARNING: The file %s is not available in Synapse' %fp
+        else:
+            print '%s.%i\t%s' %(ent.id, ent.versionNumber, fp)
 
 
 def cat(args, syn):
@@ -509,7 +516,9 @@ def build_parser():
 
 
     parser_associate = subparsers.add_parser('associate',
-            help='Associate local files with the files stored in Synapse')
+            help=('Associate local files with the files stored in Synapse so that calls to '
+                  '"synapse get" and "synapse show" don\'t redownload the files but use the '
+                  'already existing file.'))
     parser_associate.add_argument('path', metavar='path', type=str,
             help='local file path')
     parser_associate.add_argument('--limitSearch', metavar='projId', type=str, 

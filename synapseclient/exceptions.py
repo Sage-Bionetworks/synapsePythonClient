@@ -19,6 +19,9 @@ import synapseclient.utils as utils
 class SynapseError(Exception):
     """Generic exception thrown by the client."""
 
+class SynapseFileNotFoundError(SynapseError):
+    """Error thrown when a local file is not found in Synapse."""
+
 class SynapseTimeoutError(SynapseError):
     """Timed out waiting for response from Synapse."""
 
@@ -122,4 +125,3 @@ def _raise_for_status(response, verbose=False):
             except: message += "\nCould not append all response info"
 
         raise SynapseHTTPError(message, response=response)
-        
