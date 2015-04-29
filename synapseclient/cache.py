@@ -344,13 +344,10 @@ def is_lock_valid(cacheLock):
         raise
 
 
-def determine_cache_directory_from_file_handle(fileHandleId):
-    return os.path.join(CACHE_DIR, str(int(fileHandleId) % CACHE_FANOUT), fileHandleId)
-
-
 def determine_cache_directory(entity):
     """Uses the properties of the Entity to determine where it would be cached by default."""
-    return determine_cache_directory_from_file_handle(entity['dataFileHandleId'])
+    fileHandleId = entity['dataFileHandleId']
+    return os.path.join(CACHE_DIR, str(int(fileHandleId) % CACHE_FANOUT), fileHandleId)
 
 
 strptimeLock = Lock()
