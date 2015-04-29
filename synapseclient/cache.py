@@ -90,17 +90,13 @@ def local_file_has_changed(entityBundle, checkIndirect, path=None):
         if path == file and os.path.exists(path):
             return not fileMTime == cacheTime
 
-        ## These lines look to be the cause of SYNPY-12, in which calls to
-        ## syn.get giving a second downloadLocationFile results in a File
-        ## object with empty file information. Returning False when a copy
-        ## exists in a location other than that requested, is not good
-        ## because we don't copy local files (and probably don't want to).
+        # If there is no direct match, but a copy exists, return False after checking all entries
+        if checkIndirect and cachedFileMTime == cacheTime:
+            unmodifiedFileExists = True
 
-        # If there is no direct match, but a pristine copy exists, return False (after checking all entries)
-        # if checkIndirect and cachedFileMTime == cacheTime:
-        #     unmodifiedFileExists = True
-
-    # The file is not cached or has been changed
+    # The file is cached but not in the right place copy it add it to the cache
+    if checkIndirect and unmodifiedFileExists and not path.startswith(CACHE_DIR):
+        add_local_file_to_cache(path=path, **entityBundle['entity'])
     return not unmodifiedFileExists
 
 
