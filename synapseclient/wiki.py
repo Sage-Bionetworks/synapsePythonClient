@@ -160,6 +160,5 @@ class WikiAttachment(DictObject):
     __PROPERTIES = ('contentType', 'fileName', 'contentMd5', 'contentSize')
 
     def __init__(self, **kwargs):
-        print kwargs
         super(WikiAttachment, self).__init__(**kwargs)
 
