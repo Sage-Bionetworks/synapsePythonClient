@@ -1923,17 +1923,35 @@ class Synapse:
 
                     exceptions._raise_for_status(response, verbose=self.debug)
 
-            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
-            diagnostics['status'] = [status]
+            ## complete the upload
+            sleep_on_failed_time = 1
+            backoff_multiplier = 2
+            attempt_to_complete = 0
+            max_attempts_to_complete = 6
 
-            # Poll until concatenating chunks is complete
-            while (status['state']=='PROCESSING'):
-                if progress:
-                    sys.stdout.write('!')
-                    sys.stdout.flush()
-                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
-                status = self._completeUploadDaemonStatus(status)
-                diagnostics['status'].append(status)
+            while attempt_to_complete < max_attempts_to_complete:
+
+                attempt_to_complete += 1
+
+                status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+                diagnostics['status'] = [status]
+
+                # Poll until concatenating chunks is complete
+                while (status['state']=='PROCESSING'):
+                    if progress:
+                        sys.stdout.write('.')
+                        sys.stdout.flush()
+                    time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
+                    status = self._completeUploadDaemonStatus(status)
+                    diagnostics['status'].append(status)
+
+                if status['state'] == 'COMPLETED':
+                    break
+
+                else:
+                    warning.warn("Attempt to complete upload failed: " + status['errorMessage'])
+                    time.sleep(sleep_on_failed_time)
+                    sleep_on_failed_time *= backoff_multiplier
 
             if progress:
                 sys.stdout.write('!\n')
