@@ -55,7 +55,7 @@ from synapseclient.entity import Entity, File, Project, Folder, split_entity_nam
 from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
-from synapseclient.wiki import Wiki
+from synapseclient.wiki import Wiki, WikiAttachment
 from synapseclient.retry import _with_retry
 
 
@@ -708,6 +708,7 @@ class Synapse:
         # Handle FileEntities
         if isinstance(entity, File):
             fileName = entity['name']
+
             # Fill in information about the file, even if we don't download it
             # Note: fileHandles will be an empty list if there are unmet access requirements
             for handle in entityBundle['fileHandles']:
@@ -728,6 +729,7 @@ class Synapse:
                             warnings.warn("Can't get storage location for entity %s" % entity['id'])
                         if not downloadFile:
                             return entity
+
             # Make sure the download location is fully resolved
             downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
             if downloadLocation is not None and os.path.isfile(downloadLocation):
@@ -769,6 +771,7 @@ class Synapse:
                 localFileInfo = cache.retrieve_local_file_info(entityBundle, downloadPath)
                 if 'path' in localFileInfo and localFileInfo['path'] is not None and os.path.isfile(localFileInfo['path']):
                     entity.update(localFileInfo)
+
                 # If the file was not downloaded and does not exist, set the synapseStore flag appropriately
                 if ('path' in entity and
                     (entity['path'] is None or not os.path.exists(entity['path']))):
@@ -2620,6 +2623,11 @@ class Synapse:
             destination = os.path.join(destination, filename)
         return self._downloadFile(url, destination)
 
+    def getWikiAttachments(self, wiki):
+        uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
+        results = self.restGET(uri)
+        file_handles = list(WikiAttachment(**fh) for fh in results['list'])
+        return file_handles
 
     def _copyWiki(self, wiki, destWiki):
         """
