@@ -140,14 +140,15 @@ an try your update again.
 Changing Table Structure
 ------------------------
 
-Adding columns can be done using the {{Schema}} object's methods {{addColumn}} or {{addColumns}} (which takes a list):
+Adding columns can be done using the methods :py:meth:`Schema.addColumn` or :py:meth:`addColumns`
+on the :py:class:`Schema` object::
 
     schema = syn.get("syn000000")
     bday_column = syn.store(Column(name='birthday', columnType='DATE'))
     schema.addColumn(bday_column)
     schema = syn.store(schema)
 
-Renaming or otherwise modifying a column involves removing the column and adding a new column:
+Renaming or otherwise modifying a column involves removing the column and adding a new column::
 
     cols = syn.getTableColumns(schema)
     for col in cols:

@@ -8,8 +8,51 @@ import argparse
 import random
 
 
+syn = None
+
+
+def setup(module):
+    print '\n'
+    print '~' * 60
+    print os.path.basename(__file__)
+    print '~' * 60
+    module.syn = synapseclient.Synapse()
+    module.syn.login()
+
+
+def test_large_file_upload(file_to_upload_size=11*utils.KB):
+
+    try:
+        project = syn.store(Project("File Upload Load Test " +  datetime.now().strftime("%Y-%m-%d %H%M%S%f")))
+
+        filepath = utils.make_bogus_binary_file(file_to_upload_size)
+        print 'Made bogus file: ', filepath
+
+        try:
+            junk = syn.store(File(filepath, parent=project))
+
+            fh = syn._getFileHandle(junk['dataFileHandleId'])
+            syn.printEntity(fh)
+
+        finally:
+            try:
+                if 'junk' in locals():
+                    syn.delete(junk)
+            except Exception:
+                print traceback.format_exc()
+    finally:
+        try:
+            if 'filepath' in locals():
+                os.remove(filepath)
+        except Exception:
+            print traceback.format_exc()
+
+
+
 
 def main():
+
+    global syn
 
     parser = argparse.ArgumentParser(description='Tests uploading large files to Synapse.')
     parser.add_argument('--version',  action='version',
@@ -43,27 +86,7 @@ def main():
         syn.setEndpoints(**synapseclient.client.STAGING_ENDPOINTS)
     syn.login(args.user, args.password, silent=True)
 
-    try:
-        project = syn.store(Project("File Upload Load Test " +  datetime.now().strftime("%Y-%m-%d %H%M%S%f")))
-
-        filepath = utils.make_bogus_binary_file(args.file_to_upload_size)
-        print 'Made bogus file: ', filepath
-
-        try:
-            junk = syn.store(File(filepath, parent=project))
-            assert filecmp.cmp(filepath, junk.path)
-        finally:
-            try:
-                if 'junk' in locals():
-                    syn.delete(junk)
-            except Exception:
-                print traceback.format_exc()
-    finally:
-        try:
-            if 'filepath' in locals():
-                os.remove(filepath)
-        except Exception:
-            print traceback.format_exc()
+    test_large_file_upload()
 
 
 if __name__ == "__main__":
