@@ -86,7 +86,7 @@ def main():
         syn.setEndpoints(**synapseclient.client.STAGING_ENDPOINTS)
     syn.login(args.user, args.password, silent=True)
 
-    test_large_file_upload()
+    test_large_file_upload(file_to_upload_size=args.file_to_upload_size)
 
 
 if __name__ == "__main__":
