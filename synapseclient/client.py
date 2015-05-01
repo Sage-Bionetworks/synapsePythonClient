@@ -2940,13 +2940,25 @@ class Synapse:
 
     def downloadTableFile(self, table, column, downloadLocation, rowId=None, versionNumber=None, rowIdAndVersion=None, ifcollision="keep.both"):
         """
-        :param table:
-        :param rowId:
-        :param versionNumber:
-        :param rowIdAndVersion:
-        :param column: a Column object, the ID of a column or its name
-        :param downloadLocation:
-        :param ifcollision:
+        Downloads a file associated with a row in a Synapse table.
+
+        :param table:            schema object, table query result or synapse ID
+        :param rowId:            row number that holds the file handle
+        :param versionNumber:    version number of the row that holds the file handle
+        :param rowIdAndVersion:  row number and version in one string, "101_2" for version 2 of row 101
+        :param column:           a Column object, the ID of a column or its name
+        :param downloadLocation: location in local file system to download the file
+        :param ifcollision:      Determines how to handle file collisions.
+                                 May be "overwrite.local", "keep.local", or "keep.both".
+                                 Defaults to "keep.both".
+
+        :returns: a dictionary with 'path'.
+
+        Example::
+
+            file_info = syn.downloadTableFile(table, rowId=1, versionNumber=1, column="cover_art", downloadLocation=".")
+            print file_info['path']
+
         """
 
         if (rowId is None or versionNumber is None) and rowIdAndVersion is None:
