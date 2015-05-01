@@ -390,7 +390,7 @@ CACHE_ROOT_DIR = os.path.join('~', '.synapseCache')
 
 def _get_modified_time(path):
     if os.path.exists(path):
-        return utils.from_unix_epoch_time_secs(os.path.getmtime(path))
+        return os.path.getmtime(path)
     return None
 
 
@@ -438,14 +438,23 @@ class Cache():
             f.write('\n') # For compatibility with R's JSON parser
 
 
-    def get(self, file_handle_id, file_path=None, file_name=None):
+    def get(self, file_handle_id, path=None):
         """
-        Retrieve a file with the given file handle to location specified by file_path. If file_path
-        is None then try to access it from within the cache.
+        Retrieve a file with the given file handle from the cache.
+
+        :param file_handle_id:
+        :param path: If the given path is None, look for a cached copy of the
+                     file in the cache directory. If the path is a directory,
+                     look there for a cached copy. If a full file-path is
+                     given, only check whether that exact file exists and is
+                     unmodified since it was cached.
+
+        :returns: Either a file path, if an unmodified cached copy of the file
+                  exists in the specified location or None if it does not
         """
         cache_map = self._read_cache_map(file_handle_id)
 
-        file_path = utils.normalize_path(file_path)
+        path = utils.normalize_path(path)
 
         # if file_path is None and file_name is None:
         #     ## find most recently cached version of the file
@@ -453,29 +462,34 @@ class Cache():
         #     most_recent_cached_time = float("-inf")
         #     for cached_file_path, cached_time in cache_map.iteritems():
         #         cached_time = iso_time_to_epoch(cached_time)
-        #         if get_modification_time(cached_file_path) == cached_time and cached_time > most_recent_cached_time:
+        #         if _get_modified_time(cached_file_path) == cached_time and cached_time > most_recent_cached_time:
         #             most_recent_cached_file_path = cached_file_path
         #             most_recent_cached_time = cached_time
         #     return most_recent_cached_file_path
 
-        if file_path is None:
-            file_path = os.path.join(self.get_cache_dir(file_handle_id), file_name)
+        if path is None:
+            path = self.get_cache_dir(file_handle_id)
 
-        for cached_file_path, cached_time in cache_map.iteritems():
-            if file_path == cached_file_path and get_modification_time(cached_file_path) == iso_time_to_epoch(cached_time):
-                return cached_file_path
+        if os.path.isdir(path):
+            for cached_file_path, cached_time in cache_map.iteritems():
+                if path == os.path.dirname(cached_file_path) and _get_modified_time(cached_file_path) == iso_time_to_epoch(cached_time):
+                    return cached_file_path
+        else:
+            for cached_file_path, cached_time in cache_map.iteritems():
+                if path == cached_file_path and _get_modified_time(cached_file_path) == iso_time_to_epoch(cached_time):
+                    return cached_file_path
 
         return None
 
 
-    def store(self, file_handle_id, file_path):
+    def add(self, file_handle_id, path):
         """
         Add a file to the cache
         """
         cache_map = self._read_cache_map(file_handle_id)
 
-        file_path = utils.normalize_path(file_path)
-        cache_map[file_path] = epoch_time_to_iso(get_modification_time(file_path))
+        path = utils.normalize_path(path)
+        cache_map[path] = epoch_time_to_iso(_get_modified_time(path))
         self._write_cache_map(file_handle_id, cache_map)
 
 

@@ -182,41 +182,40 @@ def test_cache_store_get():
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
 
     path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
-    my_cache.store(file_handle_id=101201, file_path=path1)
+    my_cache.add(file_handle_id=101201, path=path1)
 
     path2 = utils.touch(os.path.join(my_cache.get_cache_dir(101202), "file2.ext"))
-    my_cache.store(file_handle_id=101202, file_path=path2)
+    my_cache.add(file_handle_id=101202, path=path2)
 
     ## set path3's mtime to be later than path2's
-    new_time_stamp = utils.to_unix_epoch_time_secs(cache._get_modified_time(path2))+2
+    new_time_stamp = cache._get_modified_time(path2)+2
 
     path3 = utils.touch(os.path.join(tmp_dir, "foo", "file2.ext"), (new_time_stamp, new_time_stamp))
-    my_cache.store(file_handle_id=101202, file_path=path3)
+    my_cache.add(file_handle_id=101202, path=path3)
 
-    a_file = my_cache.get(file_handle_id=101201, file_name="file1.ext")
+    a_file = my_cache.get(file_handle_id=101201)
     assert a_file == path1
 
-    b_file = my_cache.get(file_handle_id=101202, file_path=path2)
+    a_file = my_cache.get(file_handle_id=101201, path=path1)
+    assert a_file == path1
+
+    a_file = my_cache.get(file_handle_id=101201, path=my_cache.get_cache_dir(101201))
+    assert a_file == path1
+
+    b_file = my_cache.get(file_handle_id=101202, path=os.path.dirname(path2))
     assert b_file == path2
 
-    b_file = my_cache.get(file_handle_id=101202, file_path=path3)
+    b_file = my_cache.get(file_handle_id=101202, path=os.path.dirname(path3))
     assert b_file == path3
 
-    not_in_cache_file = my_cache.get(file_handle_id=101203, file_path=os.path.join(tmp_dir, "file3.ext"))
+    not_in_cache_file = my_cache.get(file_handle_id=101203, path=tmp_dir)
     assert not_in_cache_file is None
 
-    wrong_name_file = my_cache.get(file_handle_id=101201, file_path=os.path.join(my_cache.get_cache_dir(101202), "wrong_file1.ext"))
+    wrong_name_file = my_cache.get(file_handle_id=101201, path=os.path.join(my_cache.get_cache_dir(101202), "wrong_file1.ext"))
     assert wrong_name_file is None
 
-    wrong_location_file = my_cache.get(file_handle_id=101202, file_path=os.path.join(tmp_dir, "wrong", "file2.ext"))
+    wrong_location_file = my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "wrong"))
     assert wrong_location_file is None
-
-    ## don't specify file_path. Get from cache directory
-    a_file = my_cache.get(file_handle_id=101201, file_name="file1.ext")
-    assert a_file == path1
-
-    b_file = my_cache.get(file_handle_id=101202, file_name="file2.ext")
-    assert b_file == path2
 
 
 def test_cache_modified_time():
@@ -224,11 +223,11 @@ def test_cache_modified_time():
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
 
     path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
-    my_cache.store(file_handle_id=101201, file_path=path1)
+    my_cache.add(file_handle_id=101201, path=path1)
 
-    new_time_stamp = utils.to_unix_epoch_time_secs(cache._get_modified_time(path1))+1
+    new_time_stamp = cache._get_modified_time(path1)+1
     utils.touch(path1, (new_time_stamp, new_time_stamp))
-    a_file = my_cache.get(file_handle_id=101201, file_path=path1)
+    a_file = my_cache.get(file_handle_id=101201, path=path1)
     assert a_file is None
 
 
