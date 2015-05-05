@@ -291,6 +291,9 @@ def test_tables_csv():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
 
+    results = syn.tableQuery('select * from %s' % table.tableId, resultsAs="csv")
+    syn.delete(results)
+
 
 def test_tables_pandas():
     try:

@@ -1098,6 +1098,28 @@ class CsvFileTable(TableAbstractBaseClass):
             self.etag = upload_to_table_result['etag']
         return self
 
+    def _synapse_delete(self, syn):
+        """
+        Delete the rows that are the results of this query.
+
+        Example::
+            syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
+        """
+        ## Extract row id and version, if present in rows
+        row_id_col = None
+        for i, header in enumerate(self.headers):
+            if header.name=='ROW_ID':
+                row_id_col = i
+
+        if row_id_col is None:
+            raise SynapseError("Can't Delete. No ROW_IDs found.")
+
+        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
+        return syn.restPOST(uri, body=json.dumps(RowSelection(
+            rowIds=[row[row_id_col] for row in self],
+            etag=self.etag,
+            tableId=self.tableId)))
+
     def asDataFrame(self, rowIdAndVersionInIndex=True):
         test_import_pandas()
         import pandas as pd
