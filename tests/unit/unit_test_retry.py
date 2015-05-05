@@ -23,12 +23,12 @@ def test_with_retry():
     
     # -- No failures -- 
     response.status_code.__eq__.side_effect = lambda x: x == 250
-    _with_retry(function, **retryParams)
+    _with_retry(function, verbose=True, **retryParams)
     assert function.call_count == 1
     
     # -- Always fail -- 
     response.status_code.__eq__.side_effect = lambda x: x == 503
-    _with_retry(function, **retryParams)
+    _with_retry(function, verbose=True, **retryParams)
     assert function.call_count == 1 + 4
     
     # -- Fail then succeed -- 
@@ -39,7 +39,7 @@ def test_with_retry():
             return count != 3
         return x == 503
     response.status_code.__eq__.side_effect = theCharm
-    _with_retry(function, **retryParams)
+    _with_retry(function, verbose=True, **retryParams)
     assert function.call_count == 1 + 4 + 3
     
     # -- Retry with an error message --
