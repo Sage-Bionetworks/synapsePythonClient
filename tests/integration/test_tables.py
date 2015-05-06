@@ -238,13 +238,21 @@ def test_tables_csv():
 
     ## Append rows
     more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
-                      ["Hank Mobley", 1930, 5.67, False]]
+                      ["Hank Mobley", 1930, 5.67, False],
+                      ["Freddie Hubbard", 1938, float('nan'), False],
+                      ["Thelonious Monk", 1917, float('inf'), False]]
     table = syn.store(Table(table.schema, more_jazz_guys))
 
     ## test that CSV file now has more jazz guys
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
     for expected_row, row in izip(data+more_jazz_guys, results):
-        assert expected_row == row[2:], "expected %s but got %s" % (expected_row, row)
+        for field, expected_field in izip(row[2:], expected_row):
+            if type(field) is float and math.isnan(field):
+                assert type(expected_field) is float and math.isnan(expected_field)
+            elif type(expected_field) is float and math.isnan(expected_field):
+                assert type(field) is float and math.isnan(field)
+            else:
+                assert expected_field == field
 
     ## Update as a RowSet
     rowset = results.asRowSet()
@@ -258,8 +266,8 @@ def test_tables_csv():
     results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id, resultsAs="csv")
     assert results.includeRowIdAndRowVersion == False
     for i,row in enumerate(results):
-        assert row[0] == [1926,1929,1930,1931,1935,1936][i]
-        assert row[1] == [2,2,2,2,1,1][i]
+        assert row[0] == [1917,1926,1929,1930,1931,1935,1936,1938][i]
+        assert row[1] == [1,2,2,2,2,1,1,1][i]
 
     try:
         import pandas as pd
@@ -291,7 +299,8 @@ def test_tables_csv():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
 
-    results = syn.tableQuery('select * from %s' % table.tableId, resultsAs="csv")
+    ## delete some rows
+    results = syn.tableQuery('select * from %s where Hipness < 7' % table.tableId, resultsAs="csv")
     syn.delete(results)
 
 
@@ -375,16 +384,15 @@ def dontruntest_big_tables():
     print "Created table:", table1.id
     print "with columns:", table1.columnIds
 
-    for i in range(10):
+    for i in range(1000):
         rows = []
-        for j in range(100):
+        for j in range(10):
             foo = cols[1].enumValues[random.randint(0,2)]
             rows.append(Row(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
         print "added 100 rows"
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
     results = syn.tableQuery("select * from %s" % table1.id)
-    print "number of rows:", results.count
     print "etag:", results.etag
     print "tableId:", results.tableId
 
@@ -396,12 +404,6 @@ def dontruntest_big_tables():
 
     print df.shape
     print df
-
-    ## should count only queries return just the value?
-    # result = syn.restPOST('/table/query?isConsistent=true&countOnly=true', body=json.dumps({'sql':'select * from %s limit 100'%table1.id}), retryPolicy=retryPolicy)
-    # result_count = result['rows'][0]['values'][0]
-
-    # rowset3 = syn.restPOST('/table/query?isConsistent=true', body=json.dumps({'sql':'select * from %s where n>50 limit 100'%table1.id}), retryPolicy=retryPolicy)
 
 
 def dontruntest_big_csvs():
