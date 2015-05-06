@@ -20,13 +20,14 @@ def setup(module):
     module.syn.login()
 
 
-def test_large_file_upload(file_to_upload_size=11*utils.KB):
+def test_large_file_upload(file_to_upload_size=11*utils.KB, filepath=None):
 
     try:
         project = syn.store(Project("File Upload Load Test " +  datetime.now().strftime("%Y-%m-%d %H%M%S%f")))
 
-        filepath = utils.make_bogus_binary_file(file_to_upload_size)
-        print 'Made bogus file: ', filepath
+        if not filepath:
+            filepath = utils.make_bogus_binary_file(file_to_upload_size, printprogress=True)
+            print 'Made bogus file: ', filepath, 'FileHandle:'
 
         try:
             junk = syn.store(File(filepath, parent=project))
@@ -48,9 +49,11 @@ def test_large_file_upload(file_to_upload_size=11*utils.KB):
             print traceback.format_exc()
 
 
-
-
 def main():
+
+
+    print "\n\n\ntesting large file upload...\n\n\n"
+
 
     global syn
 
@@ -66,16 +69,17 @@ def main():
     parser.add_argument('--prod', dest='staging',  action='store_false', default=True)
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
             help='suppress checking for version upgrade messages and endpoint redirection')
+    parser.add_argument('-f', '--file', '--path', dest='filepath', default=None)
 
-    parser.add_argument('-size-megabytes', type=int, dest='size_megabytes')
-    parser.add_argument('-size-gigabytes', type=int, dest='size_gigabytes')
+    parser.add_argument('--size-mb', type=int, dest='size_mb')
+    parser.add_argument('--size-gb', type=int, dest='size_gb')
 
     args = parser.parse_args()
 
-    if args.size_megabytes:
-        args.file_to_upload_size = args.size_megabytes * utils.MB
-    elif args.size_gigabytes:
-        args.file_to_upload_size = args.size_gigabytes * utils.GB
+    if args.size_mb:
+        args.file_to_upload_size = args.size_mb * utils.MB
+    elif args.size_gb:
+        args.file_to_upload_size = args.size_gb * utils.GB
     else:
         args.file_to_upload_size = 11*utils.KB
 
@@ -86,7 +90,7 @@ def main():
         syn.setEndpoints(**synapseclient.client.STAGING_ENDPOINTS)
     syn.login(args.user, args.password, silent=True)
 
-    test_large_file_upload(file_to_upload_size=args.file_to_upload_size)
+    test_large_file_upload(file_to_upload_size=args.file_to_upload_size, filepath=args.filepath)
 
 
 if __name__ == "__main__":

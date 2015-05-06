@@ -74,7 +74,7 @@ With a bit of luck, we now have a table populated with data. Let's try to query:
 
     results = syn.tableQuery("select * from %s where Chromosome='1' and Start < 41000 and End > 20000" % table.schema.id)
     for row in results:
-        print row['values']
+        print row
 
 ------
 Pandas
