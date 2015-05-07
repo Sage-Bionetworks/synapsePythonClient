@@ -1110,6 +1110,7 @@ class CsvFileTable(TableAbstractBaseClass):
         for i, header in enumerate(self.headers):
             if header.name=='ROW_ID':
                 row_id_col = i
+                break
 
         if row_id_col is None:
             raise SynapseError("Can't Delete. No ROW_IDs found.")
