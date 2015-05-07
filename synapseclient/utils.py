@@ -584,6 +584,19 @@ def query_limit_and_offset(query, hard_limit=1000):
     return query, limit, offset
 
 
+def _extract_synapse_id_from_query(query):
+    """
+    An unfortunate hack to pull the synapse ID out of a table query of the
+    form "select column1, column2 from syn12345 where...." needed to build
+    URLs for table services.
+    """
+    m = re.search(r"from\s+(syn\d+)[^\s]", query, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    else:
+        raise ValueError("Couldn't extract synapse ID from query: \"%s\"" % query)
+
+
 #Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 def memoize(obj):
     cache = obj.cache = {}

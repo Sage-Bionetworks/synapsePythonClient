@@ -47,7 +47,7 @@ import synapseclient.cache as cache
 import synapseclient.exceptions as exceptions
 from synapseclient.exceptions import *
 from synapseclient.version_check import version_check
-from synapseclient.utils import id_of, get_properties, KB, MB, _is_json, nchunks, get_chunk
+from synapseclient.utils import id_of, get_properties, KB, MB, _is_json, _extract_synapse_id_from_query, nchunks, get_chunk
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
@@ -525,7 +525,7 @@ class Synapse:
                     id = principal['ownerId']
                     break
             else: # no break
-                raise ValueError('Can''t find user "%s": ' % id)
+                raise ValueError('Can\'t find user "%s": ' % id)
         uri = '/userProfile/%s' % id
         return DictObject(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
 
@@ -1903,7 +1903,7 @@ class Synapse:
                     #  read the content property of the Response object."
                     # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
                     try:
-                        if 'response' in locals() and response is not None:
+                        if response is not None:
                             throw_away = response.content
                     except Exception as ex:
                         warnings.warn('error reading response: '+str(ex))
@@ -2842,11 +2842,14 @@ class Synapse:
             query_bundle_request["query"]["offset"] = offset
         query_bundle_request["query"]["isConsistent"] = isConsistent
 
-        return self._waitForAsync(uri='/table/query/async', request=query_bundle_request)
+        uri = '/entity/{id}/table/query/async'.format(id=_extract_synapse_id_from_query(query))
+
+        return self._waitForAsync(uri=uri, request=query_bundle_request)
 
 
-    def _queryTableNext(self, nextPageToken):
-        return self._waitForAsync(uri='/table/query/nextPage/async', request=nextPageToken)
+    def _queryTableNext(self, nextPageToken, tableId):
+        uri = '/entity/{id}/table/query/nextPage/async'.format(id=tableId)
+        return self._waitForAsync(uri=uri, request=nextPageToken)
 
 
     def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
@@ -2878,7 +2881,8 @@ class Synapse:
         if updateEtag:
             request["updateEtag"] = updateEtag
 
-        return self._waitForAsync(uri='/table/upload/csv/async', request=request)
+        uri = "/entity/{id}/table/upload/csv/async".format(id=id_of(schema))
+        return self._waitForAsync(uri=uri, request=request)
 
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
@@ -2909,7 +2913,8 @@ class Synapse:
             "writeHeader": header,
             "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
 
-        download_from_table_result = self._waitForAsync(uri='/table/download/csv/async', request=download_from_table_request)
+        uri = "/entity/{id}/table/download/csv/async".format(id=_extract_synapse_id_from_query(query))
+        download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
 
         url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, download_from_table_result['resultsFileHandleId'])
         cache_dir = cache.determine_cache_directory(download_from_table_result['resultsFileHandleId'])

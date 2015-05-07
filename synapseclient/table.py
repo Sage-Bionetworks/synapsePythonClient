@@ -545,7 +545,7 @@ class RowSet(DictObject):
     A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://rest.synapse.org/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId    
-    :param headers:  The list of SelectColumn objects that describe the rows of this set.
+    :param headers:  The list of SelectColumn objects that describe the fields in each row.
     :param tableId:  The ID of the TableEntity than owns these rows
     :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
     :var etag:       Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
@@ -855,7 +855,7 @@ class TableQueryResult(TableAbstractBaseClass):
 
         # subsequent pages of rows
         while self.nextPageToken:
-            result = self.syn._queryTableNext(self.nextPageToken)
+            result = self.syn._queryTableNext(self.nextPageToken, self.tableId)
             self.rowset = RowSet.from_json(result['queryResults'])
             self.nextPageToken = result.get('nextPageToken', None)
             self.i = 0
@@ -889,7 +889,7 @@ class TableQueryResult(TableAbstractBaseClass):
         self.i += 1
         if self.i >= len(self.rowset['rows']):
             if self.nextPageToken:
-                result = self.syn._queryTableNext(self.nextPageToken)
+                result = self.syn._queryTableNext(self.nextPageToken, self.tableId)
                 self.rowset = RowSet.from_json(result['queryResults'])
                 self.nextPageToken = result.get('nextPageToken', None)
                 self.i = 0
@@ -1097,6 +1097,29 @@ class CsvFileTable(TableAbstractBaseClass):
         if 'etag' in upload_to_table_result:
             self.etag = upload_to_table_result['etag']
         return self
+
+    def _synapse_delete(self, syn):
+        """
+        Delete the rows that are the results of this query.
+
+        Example::
+            syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
+        """
+        ## Extract row id and version, if present in rows
+        row_id_col = None
+        for i, header in enumerate(self.headers):
+            if header.name=='ROW_ID':
+                row_id_col = i
+                break
+
+        if row_id_col is None:
+            raise SynapseError("Can't Delete. No ROW_IDs found.")
+
+        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
+        return syn.restPOST(uri, body=json.dumps(RowSelection(
+            rowIds=[row[row_id_col] for row in self],
+            etag=self.etag,
+            tableId=self.tableId)))
 
     def asDataFrame(self, rowIdAndVersionInIndex=True):
         test_import_pandas()
