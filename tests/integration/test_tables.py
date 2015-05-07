@@ -384,12 +384,14 @@ def dontruntest_big_tables():
     print "Created table:", table1.id
     print "with columns:", table1.columnIds
 
+    rows_per_append = 10
+
     for i in range(1000):
         rows = []
-        for j in range(10):
+        for j in range(rows_per_append):
             foo = cols[1].enumValues[random.randint(0,2)]
-            rows.append(Row(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
-        print "added 100 rows"
+            rows.append(Row(('Robot ' + str(i*rows_per_append + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
+        print "added %d rows" % rows_per_append
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
     results = syn.tableQuery("select * from %s" % table1.id)
