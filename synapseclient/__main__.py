@@ -428,15 +428,10 @@ def build_parser():
             help='Fetches content in Synapse recursively contained in the parentId specified by id.')
     parser_get.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for files if using a path.')
-<<<<<<< HEAD
     parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
             help='Directory to download file to [default: %(default)s].')
-    parser_get.add_argument('id',  metavar='syn123', type=str,
-            help='Synapse ID of form syn123 of desired data object')
-=======
     parser_get.add_argument('id',  metavar='syn123', nargs='?', type=str,
             help='Synapse ID of form syn123 of desired data object.')
->>>>>>> develop
     parser_get.set_defaults(func=get)
 
     parser_store = subparsers.add_parser('store', #Python 3.2+ would support alias=['store']
