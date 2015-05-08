@@ -64,7 +64,7 @@ from numbers import Number
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
-ISO_FORMAT_MILLIS = "%Y-%m-%dT%H:%M:%S.%fZ"
+ISO_FORMAT_MICROS = "%Y-%m-%dT%H:%M:%S.%fZ"
 GB = 2**30
 MB = 2**20
 KB = 2**10
@@ -434,11 +434,13 @@ def from_unix_epoch_time(ms):
 
 
 def datetime_to_iso(dt):
-    return dt.strftime(ISO_FORMAT_MILLIS)
+    ## Truncate microseconds to milliseconds (as expected by older clients)
+    ## and add back the "Z" at the end.
+    return dt.strftime(ISO_FORMAT_MICROS)[:-4]+"Z"
 
 
 def iso_to_datetime(iso_time):
-    return Datetime.strptime(iso_time, ISO_FORMAT_MILLIS)
+    return Datetime.strptime(iso_time, ISO_FORMAT_MICROS)
 
 
 def format_time_interval(seconds):
@@ -713,4 +715,12 @@ def _is_json(content_type):
     ## http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
     return content_type.lower().strip().startswith('application/json') if content_type else False
 
+
+
+def find_data_file_handle(bundle):
+    """Return the fileHandle whose ID matches the dataFileHandleId in an entity bundle"""
+    for fileHandle in bundle['fileHandles']:
+        if fileHandle['id'] == bundle['entity']['dataFileHandleId']:
+            return fileHandle
+    return None
 

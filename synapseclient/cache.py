@@ -486,6 +486,8 @@ class Cache():
         """
         Add a file to the cache
         """
+        if not path or not os.path.exists(path):
+            raise ValueError("Can't cache file \"%s\"" % path)
         cache_map = self._read_cache_map(file_handle_id)
 
         path = utils.normalize_path(path)

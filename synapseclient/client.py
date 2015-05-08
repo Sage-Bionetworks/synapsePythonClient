@@ -43,11 +43,11 @@ import getpass
 
 import synapseclient
 import synapseclient.utils as utils
-import synapseclient.cache as cache
+import synapseclient.cache
 import synapseclient.exceptions as exceptions
 from synapseclient.exceptions import *
 from synapseclient.version_check import version_check
-from synapseclient.utils import id_of, get_properties, KB, MB, _is_json, _extract_synapse_id_from_query, nchunks, get_chunk
+from synapseclient.utils import id_of, get_properties, KB, MB, _is_json, _extract_synapse_id_from_query, nchunks, get_chunk, find_data_file_handle
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
@@ -177,20 +177,15 @@ class Synapse:
         if os.path.isfile(configPath):
             config = self.getConfigFile(configPath)
             if config.has_option('cache', 'location'):
-                cache.CACHE_DIR = os.path.expanduser(config.get('cache', 'location'))
+                self.cache = synapseclient.cache.Cache(cache_root_dir=config.get('cache', 'location'))
+            else:
+                self.cache = synapseclient.cache.Cache()
 
             if config.has_section('debug'):
                 debug = True
         elif debug:
             # Alert the user if no config is found
             sys.stderr.write("Could not find a config file (%s).  Using defaults." % os.path.abspath(configPath))
-
-        # Create the cache directory if it does not exist
-        try:
-            os.makedirs(cache.CACHE_DIR)
-        except OSError as exception:
-            if exception.errno != os.errno.EEXIST:
-                raise
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
 
@@ -426,8 +421,7 @@ class Synapse:
 
     def _readSessionCache(self):
         """Returns the JSON contents of CACHE_DIR/SESSION_FILENAME."""
-
-        sessionFile = os.path.join(cache.CACHE_DIR, SESSION_FILENAME)
+        sessionFile = os.path.join(self.cache.cache_root_dir, SESSION_FILENAME)
         if os.path.isfile(sessionFile):
             try:
                 file = open(sessionFile, 'r')
@@ -438,8 +432,7 @@ class Synapse:
 
     def _writeSessionCache(self, data):
         """Dumps the JSON data into CACHE_DIR/SESSION_FILENAME."""
-
-        sessionFile = os.path.join(cache.CACHE_DIR, SESSION_FILENAME)
+        sessionFile = os.path.join(self.cache.cache_root_dir, SESSION_FILENAME)
         with open(sessionFile, 'w') as file:
             json.dump(data, file)
             file.write('\n') # For compatibility with R's JSON parser
@@ -625,10 +618,10 @@ class Synapse:
         """
 
         #If entity is a local file determine the corresponding synapse entity
-        
         if isinstance(entity, basestring) and os.path.isfile(entity):
             bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
-            kwargs['downloadFile']=False
+            kwargs['downloadFile'] = False
+            kwargs['path'] = entity
         elif isinstance(entity, basestring) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
                                             ' or a valid entity id' %entity))
@@ -673,7 +666,7 @@ class Synapse:
                           '%s version %i\n' %(filepath,  results[0]['id'], results[0]['versionNumber']))
         entity = results[0]
         bundle = self._getEntityBundle(entity)
-        cache.add_local_file_to_cache(path = filepath, **bundle['entity'])
+        self.cache.add(file_handle_id=bundle['entity']['dataFileHandleId'], path=filepath)
         return bundle
 
 
@@ -700,12 +693,13 @@ class Synapse:
         submission = kwargs.get('submission', None)
 
         # Make a fresh copy of the Entity
-        local_state = entity.local_state() if entity and isinstance(entity, Entity) else None
+        local_state = entity.local_state() if entity and isinstance(entity, Entity) else {}
+        if 'path' in kwargs:
+            local_state['path'] = kwargs['path']
         properties = entityBundle['entity']
         annotations = from_synapse_annotations(entityBundle['annotations'])
         entity = Entity.create(properties, annotations, local_state)
 
-        # Handle FileEntities
         if isinstance(entity, File):
             fileName = entity['name']
 
@@ -730,60 +724,57 @@ class Synapse:
                         if not downloadFile:
                             return entity
 
-            # Make sure the download location is fully resolved
-            downloadLocation = None if downloadLocation is None else os.path.expanduser(downloadLocation)
-            if downloadLocation is not None and os.path.isfile(downloadLocation):
-                raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+            # Make sure the download location is a fully resolved directory
+            if downloadLocation is not None:
+                downloadLocation = os.path.expanduser(downloadLocation)
+                if os.path.isfile(downloadLocation):
+                    raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
 
             # Determine if the file should be downloaded
-            downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
-            if downloadFile:
-                downloadFile = cache.local_file_has_changed(entityBundle, True, downloadPath)
-            # Determine where the file should be downloaded to
-            if downloadFile:
-                _, localPath, _ = cache.determine_local_file_location(entityBundle)
+            # downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
+            # if downloadFile: 
+            #     downloadFile = cache.local_file_has_changed(entityBundle, True, downloadPath)
+            # # Determine where the file should be downloaded to
+            # if downloadFile:
+            #     _, localPath, _ = cache.determine_local_file_location(entityBundle)
+            cached_file_path = self.cache.get(file_handle_id=entityBundle['entity']['dataFileHandleId'], path=downloadLocation)
+
+            # if we found a cached copy, return it
+
+            # if downloadFile
+            #   download it
+            #   add it to the cache
+            if cached_file_path is not None:
+
+                entity.path = cached_file_path
+
+            elif downloadFile:
 
                 # By default, download to the local cache
-                if downloadPath is None:
-                    downloadPath = localPath
+                if downloadLocation is None:
+                    downloadLocation = self.cache.get_cache_dir(entityBundle['entity']['dataFileHandleId'])
 
-                # If there's no file to download, don't download
-                if downloadPath is None:
-                    downloadFile = False
+                downloadPath = os.path.join(downloadLocation, fileName)
 
-                # If the file already exists...and is not in cache
-                elif os.path.exists(downloadPath) and not downloadPath.startswith(cache.CACHE_DIR):
+                # If the file already exists but has been modified since caching
+                if os.path.exists(downloadPath):
                     if ifcollision == "overwrite.local":
                         pass
                     elif ifcollision == "keep.local":
                         downloadFile = False
                     elif ifcollision == "keep.both":
-                        downloadPath = cache.get_alternate_file_name(downloadPath)
+                        downloadPath = synapseclient.cache.get_alternate_file_name(downloadPath)
                     else:
                         raise ValueError('Invalid parameter: "%s" is not a valid value '
                                          'for "ifcollision"' % ifcollision)
 
-            if downloadFile:
                 entity.update(self._downloadFileEntity(entity, downloadPath, submission))
-            else:
-                # The local state of the Entity is normally updated by the _downloadFileEntity method
-                # If the file exists locally, make sure the entity points to it
-                localFileInfo = cache.retrieve_local_file_info(entityBundle, downloadPath)
-                if 'path' in localFileInfo and localFileInfo['path'] is not None and os.path.isfile(localFileInfo['path']):
-                    entity.update(localFileInfo)
 
-                # If the file was not downloaded and does not exist, set the synapseStore flag appropriately
-                if ('path' in entity and
-                    (entity['path'] is None or not os.path.exists(entity['path']))):
+                self.cache.add(file_handle_id=entityBundle['entity']['dataFileHandleId'], path=downloadPath)
+
+                if 'path' in entity and (entity['path'] is None or not os.path.exists(entity['path'])):
                     entity['synapseStore'] = False
 
-            # Send the Entity's dictionary to the update the file cache
-            if 'path' in entity.keys():
-                cache.add_local_file_to_cache(**entity)
-            elif 'path' in entity:
-                cache.add_local_file_to_cache(path=entity['path'], **entity)
-            elif downloadPath is not None:
-                cache.add_local_file_to_cache(path=downloadPath, **entity)
         return entity
 
 
@@ -888,18 +879,27 @@ class Synapse:
             # Check if the File already exists in Synapse by fetching metadata on it
             bundle = self._getEntityBundle(entity)
 
-            # Check if the file should be uploaded
-            if bundle is None or cache.local_file_has_changed(bundle, False, entity['path']):
+            if bundle:
+                # Check if the file should be uploaded
+                fileHandle = find_data_file_handle(bundle)
+                if fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
+                    needs_upload = False
+                else:
+                    cached_path = self.cache.get(bundle['entity']['dataFileHandleId'], entity['path']) if bundle else None
+                    needs_upload = cached_path is None
+            else:
+                needs_upload = True
+
+            if needs_upload:
                 fileLocation, local_state = self.__uploadExternallyStoringProjects(entity, local_state)
                 fileHandle = self._uploadToFileHandleService(fileLocation, \
                                         synapseStore=entity.get('synapseStore', True),
                                         mimetype=local_state.get('contentType', None))
                 properties['dataFileHandleId'] = fileHandle['id']
-                # A file has been uploaded, so version must be updated
-                forceVersion = True
-                # The cache expects a path, but FileEntities do not
-                # have the path in their properties
-                cache.add_local_file_to_cache(path=entity['path'], **properties)
+
+                ## Add file to cache, unless it's an external URL
+                if fileHandle['concreteType'] != "org.sagebionetworks.repo.model.file.ExternalFileHandle":
+                    self.cache.add(fileHandle['id'], path=entity['path'])
 
             elif 'dataFileHandleId' not in properties:
                 # Handle the case where the Entity lacks an ID
@@ -2590,7 +2590,7 @@ class Synapse:
         if 'attachments' in wiki:
             for attachment in wiki['attachments']:
                 fileHandle = self._uploadToFileHandleService(attachment)
-                cache.add_local_file_to_cache(path=attachment, dataFileHandleId=fileHandle['id'])
+                self.cache.add(fileHandle['id'], path=attachment)
                 wiki['attachmentFileHandleIds'].append(fileHandle['id'])
             del wiki['attachments']
 
@@ -2899,7 +2899,7 @@ class Synapse:
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
 
         url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, download_from_table_result['resultsFileHandleId'])
-        cache_dir = cache.determine_cache_directory(download_from_table_result['resultsFileHandleId'])
+        cache_dir = self.cache.get_cache_dir(download_from_table_result['resultsFileHandleId'])
 
         # Create the necessary directories
         try:

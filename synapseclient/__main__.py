@@ -127,20 +127,18 @@ def get(args, syn):
         for id in ids:
             syn.get(id, downloadLocation='.')
     else:
-        entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch)
-        ## TODO: Is this part even necessary?
-        ## (Other than the print statements)
-        if 'files' in entity:
-            for fp in entity['files']:
-                src = os.path.join(entity['cacheDir'], fp)
-                dst = os.path.join('.', fp.replace(".R_OBJECTS/",""))
-                print 'Creating %s' % dst
-                if not os.path.exists(os.path.dirname(dst)):
-                    os.mkdir(dst)
-                shutil.copyfile(src, dst)
+        entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadLocation='.')
+        ## search by MD5
+        if isinstance(args.id, basestring) and os.path.isfile(args.id):
+            if "path" in entity and entity.path is not None and os.path.exists(entity.path):
+                print "Associated file: %s with synapse ID %s" % (entity.path, entity.id)
+        ## normal syn.get operation
         else:
-            sys.stderr.write('WARNING: No files associated with entity %s\n' % args.id)
-            syn.printEntity(entity)
+            if "path" in entity and entity.path is not None and os.path.exists(entity.path):
+                print "Downloaded file: %s" % os.path.basename(entity.path)
+            else:
+                print 'WARNING: No files associated with entity %s\n' % entity.id
+                print entity
 
 
 def store(args, syn):
