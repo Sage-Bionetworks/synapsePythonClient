@@ -1919,7 +1919,7 @@ class Synapse:
             sleep_on_failed_time = 1
             backoff_multiplier = 2
             attempt_to_complete = 0
-            max_attempts_to_complete = 6
+            max_attempts_to_complete = 7
 
             while attempt_to_complete < max_attempts_to_complete:
                 attempt_to_complete += 1
