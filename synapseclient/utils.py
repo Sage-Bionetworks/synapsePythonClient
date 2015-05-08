@@ -56,6 +56,7 @@ import collections
 import tempfile
 import platform
 import functools
+import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
 from numbers import Number
@@ -363,7 +364,7 @@ def make_bogus_data_file(n=100, seed=None):
     return f.name
 
 
-def make_bogus_binary_file(n=1*MB, printprogress=False):
+def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
     """
     Makes a bogus binary data file for testing.
     It is the caller's responsibility to clean up the file when finished.
@@ -373,17 +374,19 @@ def make_bogus_binary_file(n=1*MB, printprogress=False):
     :returns: The name of the file
     """
 
-    progress = 0
-    remaining = n
-    with tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+    with open(filepath, 'wb') if filepath else tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+        if not filepath:
+            filepath = f.name
+        progress = 0
+        remaining = n
         while remaining > 0:
             buff_size = min(remaining, 1*MB)
             f.write(os.urandom(buff_size))
             remaining -= buff_size
             if printprogress:
                 progress += buff_size
-                printTransferProgress(progress, n, 'Generated ', f.name)
-    return f.name
+                printTransferProgress(progress, n, 'Generated ', filepath)
+        return filepath
 
 
 def to_unix_epoch_time(dt):

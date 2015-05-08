@@ -21,13 +21,21 @@ def setup(module):
 
 
 def test_large_file_upload(file_to_upload_size=11*utils.KB, filepath=None):
+    clean_up_file = False
 
     try:
         project = syn.store(Project("File Upload Load Test " +  datetime.now().strftime("%Y-%m-%d %H%M%S%f")))
 
-        if not filepath:
+        if filepath:
+            ## keep a file around so we don't have to regenerate it.
+            if not os.path.exists(filepath):
+                filepath = utils.make_bogus_binary_file(file_to_upload_size, filepath=filepath, printprogress=True)
+                print 'Made bogus file: ', filepath
+        else:
+            ## generate a temporary file and clean it up when we're done
+            clean_up_file = True
             filepath = utils.make_bogus_binary_file(file_to_upload_size, printprogress=True)
-            print 'Made bogus file: ', filepath, 'FileHandle:'
+            print 'Made bogus file: ', filepath
 
         try:
             junk = syn.store(File(filepath, parent=project))
@@ -43,7 +51,7 @@ def test_large_file_upload(file_to_upload_size=11*utils.KB, filepath=None):
                 print traceback.format_exc()
     finally:
         try:
-            if 'filepath' in locals():
+            if 'filepath' in locals() and clean_up_file:
                 os.remove(filepath)
         except Exception:
             print traceback.format_exc()
