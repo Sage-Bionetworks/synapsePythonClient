@@ -648,7 +648,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
         nBytes = '%s/%s' % (humanizeBytes(transferred), humanizeBytes(toBeTransferred))
     else:
         nBytes = '%i/%i' % (transferred, toBeTransferred)
-    text = "\r%s [%s]%4.2f%% \t%s %s %s    " %(prefix,
+    text = "\r%s [%s]%4.2f%%     %s %s %s    " %(prefix,
                                                "#"*block + "-"*(barLength-block),
                                                progress*100,
                                                nBytes,
