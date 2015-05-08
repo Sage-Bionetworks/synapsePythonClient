@@ -12,10 +12,12 @@ Tables is an BETA feature
 The tables feature is in the beta stage. Please report bugs via
 `JIRA <https://sagebionetworks.jira.com/>`_.
 
-A table has a :py:class:`Schema` defined in terms of :py:class:`Column` objects
-that specify types from the following choices: STRING, DOUBLE, INTEGER,
-BOOLEAN, DATE, ENTITYID, FILEHANDLEID. Tables hold sets of rows that conform to
-the schema.
+A table has a :py:class:`Schema` and holds a set of rows conforming to
+that schema.
+
+A :py:class:`Schema` is defined in terms of :py:class:`Column` objects that
+specify types from the following choices: STRING, DOUBLE, INTEGER, BOOLEAN,
+DATE, ENTITYID, FILEHANDLEID.
 
 ~~~~~~~
 Example
@@ -72,7 +74,7 @@ With a bit of luck, we now have a table populated with data. Let's try to query:
 
     results = syn.tableQuery("select * from %s where Chromosome='1' and Start < 41000 and End > 20000" % table.schema.id)
     for row in results:
-        print row['values']
+        print row
 
 ------
 Pandas
@@ -96,10 +98,11 @@ Get query results as a `DataFrame <http://pandas.pydata.org/pandas-docs/stable/a
     df = results.asDataFrame()
 
 --------------
-Making changes
+Changing Data
 --------------
 
-Changes come in two flavors: appending new rows and updating existing ones.
+Once the schema is settled, changes come in two flavors: appending new rows and
+updating existing ones.
 
 **Appending** new rows is fairly straightforward. To continue the previous
 example, we might add some new genes from another file::
@@ -132,6 +135,29 @@ The etag is used by the server to prevent concurrent users from making
 conflicting changes, a technique called optimistic concurrency. In case
 of a conflict, your update may be rejected. You then have to do another query
 an try your update again.
+
+------------------------
+Changing Table Structure
+------------------------
+
+Adding columns can be done using the methods :py:meth:`Schema.addColumn` or :py:meth:`addColumns`
+on the :py:class:`Schema` object::
+
+    schema = syn.get("syn000000")
+    bday_column = syn.store(Column(name='birthday', columnType='DATE'))
+    schema.addColumn(bday_column)
+    schema = syn.store(schema)
+
+Renaming or otherwise modifying a column involves removing the column and adding a new column::
+
+    cols = syn.getTableColumns(schema)
+    for col in cols:
+        if col.name == "birthday":
+            schema.removeColumn(col)
+    bday_column2 = syn.store(Column(name='birthday2', columnType='DATE'))
+    schema.addColumn(bday_column2)
+    schema = syn.store(schema)
+
 
 -------------
 Deleting rows
@@ -519,7 +545,7 @@ class RowSet(DictObject):
     A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://rest.synapse.org/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId    
-    :param headers:  The list of SelectColumn objects that describe the rows of this set.
+    :param headers:  The list of SelectColumn objects that describe the fields in each row.
     :param tableId:  The ID of the TableEntity than owns these rows
     :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
     :var etag:       Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
@@ -829,7 +855,7 @@ class TableQueryResult(TableAbstractBaseClass):
 
         # subsequent pages of rows
         while self.nextPageToken:
-            result = self.syn._queryTableNext(self.nextPageToken)
+            result = self.syn._queryTableNext(self.nextPageToken, self.tableId)
             self.rowset = RowSet.from_json(result['queryResults'])
             self.nextPageToken = result.get('nextPageToken', None)
             self.i = 0
@@ -863,7 +889,7 @@ class TableQueryResult(TableAbstractBaseClass):
         self.i += 1
         if self.i >= len(self.rowset['rows']):
             if self.nextPageToken:
-                result = self.syn._queryTableNext(self.nextPageToken)
+                result = self.syn._queryTableNext(self.nextPageToken, self.tableId)
                 self.rowset = RowSet.from_json(result['queryResults'])
                 self.nextPageToken = result.get('nextPageToken', None)
                 self.i = 0
@@ -1068,8 +1094,32 @@ class CsvFileTable(TableAbstractBaseClass):
             header=self.header,
             linesToSkip=self.linesToSkip)
 
-        self.etag = upload_to_table_result['etag']
+        if 'etag' in upload_to_table_result:
+            self.etag = upload_to_table_result['etag']
         return self
+
+    def _synapse_delete(self, syn):
+        """
+        Delete the rows that are the results of this query.
+
+        Example::
+            syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
+        """
+        ## Extract row id and version, if present in rows
+        row_id_col = None
+        for i, header in enumerate(self.headers):
+            if header.name=='ROW_ID':
+                row_id_col = i
+                break
+
+        if row_id_col is None:
+            raise SynapseError("Can't Delete. No ROW_IDs found.")
+
+        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
+        return syn.restPOST(uri, body=json.dumps(RowSelection(
+            rowIds=[row[row_id_col] for row in self],
+            etag=self.etag,
+            tableId=self.tableId)))
 
     def asDataFrame(self, rowIdAndVersionInIndex=True):
         test_import_pandas()

@@ -1,5 +1,6 @@
 import csv
 import json
+import filecmp
 import math
 import os
 import random
@@ -237,13 +238,21 @@ def test_tables_csv():
 
     ## Append rows
     more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
-                      ["Hank Mobley", 1930, 5.67, False]]
+                      ["Hank Mobley", 1930, 5.67, False],
+                      ["Freddie Hubbard", 1938, float('nan'), False],
+                      ["Thelonious Monk", 1917, float('inf'), False]]
     table = syn.store(Table(table.schema, more_jazz_guys))
 
     ## test that CSV file now has more jazz guys
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
     for expected_row, row in izip(data+more_jazz_guys, results):
-        assert expected_row == row[2:], "expected %s but got %s" % (expected_row, row)
+        for field, expected_field in izip(row[2:], expected_row):
+            if type(field) is float and math.isnan(field):
+                assert type(expected_field) is float and math.isnan(expected_field)
+            elif type(expected_field) is float and math.isnan(expected_field):
+                assert type(field) is float and math.isnan(field)
+            else:
+                assert expected_field == field
 
     ## Update as a RowSet
     rowset = results.asRowSet()
@@ -257,8 +266,8 @@ def test_tables_csv():
     results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id, resultsAs="csv")
     assert results.includeRowIdAndRowVersion == False
     for i,row in enumerate(results):
-        assert row[0] == [1926,1929,1930,1931,1935,1936][i]
-        assert row[1] == [2,2,2,2,1,1][i]
+        assert row[0] == [1917,1926,1929,1930,1931,1935,1936,1938][i]
+        assert row[1] == [1,2,2,2,2,1,1,1][i]
 
     try:
         import pandas as pd
@@ -289,6 +298,10 @@ def test_tables_csv():
         assert df.shape[0] == 0
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
+
+    ## delete some rows
+    results = syn.tableQuery('select * from %s where Hipness < 7' % table.tableId, resultsAs="csv")
+    syn.delete(results)
 
 
 def test_tables_pandas():
@@ -322,6 +335,42 @@ def test_tables_pandas():
         sys.stderr.write('Pandas is apparently not installed, skipping test_tables_pandas.\n\n')
 
 
+def test_download_table_files():
+    cols = [
+        Column(name='artist', columnType='STRING', maximumSize=50),
+        Column(name='album', columnType='STRING', maximumSize=50),
+        Column(name='year', columnType='INTEGER'),
+        Column(name='catalog', columnType='STRING', maximumSize=50),
+        Column(name='cover', columnType='FILEHANDLEID')]
+
+    schema = syn.store(Schema(name='Jazz Albums', columns=cols, parent=project))
+    schedule_for_cleanup(schema)
+
+    data = [["John Coltrane",  "Blue Train",   1957, "BLP 1577", "coltraneBlueTrain.jpg"],
+            ["Sonny Rollins",  "Vol. 2",       1957, "BLP 1558", "rollinsBN1558.jpg"],
+            ["Sonny Rollins",  "Newk's Time",  1958, "BLP 4001", "rollinsBN4001.jpg"],
+            ["Kenny Burrel",   "Kenny Burrel", 1956, "BLP 1543", "burrellWarholBN1543.jpg"]]
+
+    ## upload files and store file handle ids
+    original_files = []
+    for row in data:
+        path = utils.make_bogus_data_file()
+        original_files.append(path)
+        schedule_for_cleanup(path)
+        file_handle = syn._chunkedUploadFile(path)
+        row[4] = file_handle['id']
+
+    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+
+    ## retrieve the files for each row and verify that they are identical to the originals
+    results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, resultsAs="rowset")
+    for i, row in enumerate(results):
+        print "%s_%s" % (row.rowId, row.versionNumber), row.values
+        file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover', downloadLocation='.')
+        assert filecmp.cmp(original_files[i], file_info['path'])
+        schedule_for_cleanup(file_info['path'])
+
+
 def dontruntest_big_tables():
     cols = []
     cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
@@ -335,16 +384,17 @@ def dontruntest_big_tables():
     print "Created table:", table1.id
     print "with columns:", table1.columnIds
 
-    for i in range(10):
+    rows_per_append = 10
+
+    for i in range(1000):
         rows = []
-        for j in range(100):
+        for j in range(rows_per_append):
             foo = cols[1].enumValues[random.randint(0,2)]
-            rows.append(Row(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
-        print "added 100 rows"
+            rows.append(Row(('Robot ' + str(i*rows_per_append + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
+        print "added %d rows" % rows_per_append
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
     results = syn.tableQuery("select * from %s" % table1.id)
-    print "number of rows:", results.count
     print "etag:", results.etag
     print "tableId:", results.tableId
 
@@ -356,12 +406,6 @@ def dontruntest_big_tables():
 
     print df.shape
     print df
-
-    ## should count only queries return just the value?
-    # result = syn.restPOST('/table/query?isConsistent=true&countOnly=true', body=json.dumps({'sql':'select * from %s limit 100'%table1.id}), retryPolicy=retryPolicy)
-    # result_count = result['rows'][0]['values'][0]
-
-    # rowset3 = syn.restPOST('/table/query?isConsistent=true', body=json.dumps({'sql':'select * from %s where n>50 limit 100'%table1.id}), retryPolicy=retryPolicy)
 
 
 def dontruntest_big_csvs():

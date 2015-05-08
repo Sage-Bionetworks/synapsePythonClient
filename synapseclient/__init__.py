@@ -60,8 +60,8 @@ Next, either install the package in the site-packages directory ``python setup.p
 Connecting to Synapse
 =====================
 
-To use Synapse, you'll need to 
-`register <https://www.synapse.org/#!RegisterAccount:0>`_ 
+To use Synapse, you'll need to
+`register <https://www.synapse.org/#!RegisterAccount:0>`_
 for an account. The Synapse website can authenticate using a Google account,
 but you'll need to take the extra step of creating a Synapse password
 to use the programmatic clients.
@@ -94,9 +94,9 @@ Accessing Data
 
 Synapse identifiers are used to refer to projects and data which are represented by
 :py:mod:`synapseclient.entity` objects. For
-example, the entity `syn1899498 <https://www.synapse.org/#!Synapse:syn1899498>`_ 
-represents a tab-delimited file containing a 100 by 4 matrix. Getting the 
-entity retrieves an object that holds metadata describing the matrix, 
+example, the entity `syn1899498 <https://www.synapse.org/#!Synapse:syn1899498>`_
+represents a tab-delimited file containing a 100 by 4 matrix. Getting the
+entity retrieves an object that holds metadata describing the matrix,
 and also downloads the file to a local cache::
 
     entity = syn.get('syn1899498')
@@ -183,13 +183,6 @@ See:
 
 Tables
 ======
-
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-Tables is an ALPHA feature
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-The tables feature is in the alpha stage. Please expect bugs and changes
-to some interface elements. Report bugs via 
-`JIRA <https://sagebionetworks.jira.com/>`_.
 
 Tables can be built up by adding sets of rows that follow a user-defined schema
 and queried using a SQL-like syntax.
@@ -283,9 +276,9 @@ See:
 More information
 ================
 
-For more information see the 
+For more information see the
 `Synapse User Guide <https://www.synapse.org/#!Synapse:syn1669771>`_. These
-API docs are browsable online at 
+API docs are browsable online at
 `python-docs.synapse.org <http://python-docs.synapse.org/>`_.
 
 Getting updates
@@ -305,7 +298,6 @@ USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.
 from client import Synapse, login
 from activity import Activity
 from entity import Entity, Project, Folder, File
-from entity import Analysis, Code, Data, Study, Summary
 from evaluation import Evaluation, Submission, SubmissionStatus
 from table import Schema, Column, RowSet, Row, as_table_columns, Table
 from wiki import Wiki
@@ -315,4 +307,3 @@ from version_check import release_notes
 
 from client import PUBLIC, AUTHENTICATED_USERS
 from client import ROOT_ENTITY
-

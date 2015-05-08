@@ -11,7 +11,7 @@ import os
 import sys
 import shutil 
 
-from synapseclient import Entity, Project, Folder, File, Data, Evaluation
+from synapseclient import Entity, Project, Folder, File, Evaluation
 import synapseclient
 import synapseclient.utils as utils
 

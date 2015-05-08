@@ -129,63 +129,27 @@ def test_command_line_client():
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
 
-    # Create a deprecated Data object
-    filename = utils.make_bogus_data_file()
-    schedule_for_cleanup(filename)
-    output = run('synapse', 
-                 '--skip-checks', 
-                 'add', 
-                 '-name', 
-                 'BogusData', 
-                 '-description', 
-                 'Bogus data to test file upload',
-                 '-type', 
-                 'Data', 
-                 '-parentid', 
-                 project_id, 
-                 filename)
-    data_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
-
-    # Get the Data object back
-    output = run('synapse', 
-                 '--skip-checks', 
-                 'get', 
-                 data_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
-    schedule_for_cleanup(downloaded_filename)
-    assert os.path.exists(downloaded_filename)
-    assert filecmp.cmp(filename, downloaded_filename)
-
-    # Update the Data object
-    filename = utils.make_bogus_data_file()
-    schedule_for_cleanup(filename)
-    output = run('synapse', 
-                '--skip-checks', 
-                'store', 
-                '--id', 
-                data_entity_id, 
-                filename)
-    updated_entity_id = parse(r'Updated entity:\s+(syn\d+)', output)
-    
-    # Get the Data object back again
-    output = run('synapse', 
-                 '--skip-checks', 
-                 'get', 
-                 updated_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
-    schedule_for_cleanup(downloaded_filename)
-    assert os.path.exists(downloaded_filename)
-    assert filecmp.cmp(filename, downloaded_filename)
-
     # Test query
     output = run('synapse', 
                  '--skip-checks', 
                  'query', 
                  'select id, name from entity where parentId=="%s"' % project_id)
-    assert 'BogusData' in output
-    assert data_entity_id in output
     assert 'BogusFileEntity' in output
     assert file_entity_id in output
+
+
+    # Move the file to new folder
+    folder = syn.store(synapseclient.Folder(parentId=project_id))
+    output = run('synapse', 
+                 'mv',
+                 '--id',
+                 file_entity_id,
+                 '--parentid',
+                 folder.id)
+    downloaded_filename = parse(r'Moved\s+(.*)', output)
+    movedFile = syn.get(file_entity_id, downloadFile=False)
+    assert movedFile.parentId == folder.id
+
 
     # Test Provenance
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
@@ -199,7 +163,7 @@ def test_command_line_client():
                  '-description', 
                  'A very excellent provenance', 
                  '-used', 
-                 data_entity_id, 
+                 file_entity_id, 
                  '-executed', 
                  repo_url)
     activity_id = parse(r'Set provenance record (\d+) on entity syn\d+', output)
@@ -214,7 +178,7 @@ def test_command_line_client():
     assert activity['description'] == 'A very excellent provenance'
     
     used = utils._find_used(activity, lambda used: 'reference' in used)
-    assert used['reference']['targetId'] == data_entity_id
+    assert used['reference']['targetId'] == file_entity_id
     
     used = utils._find_used(activity, lambda used: 'url' in used)
     assert used['url'] == repo_url
@@ -234,8 +198,6 @@ def test_command_line_client():
                  'Singapore', 
                  '-description', 
                  'A nice picture of Singapore', 
-                 '-type', 
-                 'File', 
                  '-parentid', 
                  project_id, 
                  singapore_url)
@@ -356,8 +318,6 @@ def test_command_line_client_annotations():
                  'BogusData2', 
                  '-description', 
                  'Bogus data to test file upload with add and add annotations',
-                 '-type', 
-                 'Data', 
                  '-parentid', 
                  project_id, 
                  '--annotations',
@@ -387,8 +347,6 @@ def test_command_line_client_annotations():
                  'BogusData3', 
                  '--description', 
                  '\"Bogus data to test file upload with store and add annotations\"',
-                 '--type', 
-                 'File', 
                  '--parentid', 
                  project_id, 
                  '--annotations',
@@ -554,6 +512,61 @@ def test_command_line_store_and_submit():
                  '--skip-checks',
                  'delete',
                  project_id)
+
+
+def test_command_get_recursive_and_query():
+    """Tests the 'synapse get -r' and 'synapse get -q' functions"""
+    # Create a Project
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    # Create a Folder in Project
+    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+                                                   parent=project_entity))
+
+    # Create and upload two files in Folder
+    uploaded_paths = []
+    for i in range(2):
+        f  = utils.make_bogus_data_file()
+        uploaded_paths.append(f)
+        schedule_for_cleanup(f)
+        file_entity = synapseclient.File(f, parent=folder_entity)
+        file_entity.location = 'folder'
+        file_entity = syn.store(file_entity)
+    #Add a file in the project level as well
+    f  = utils.make_bogus_data_file()
+    uploaded_paths.append(f)
+    schedule_for_cleanup(f)
+    file_entity = synapseclient.File(f, parent=project_entity)
+    file_entity.location = 'project'
+    file_entity = syn.store(file_entity)
+
+    ### Test recursive get
+    output = run('synapse', '--skip-checks',
+                 'get', '-r',
+                 project_entity.id)
+    #Verify that we downloaded files:
+    new_paths = [os.path.join('.', folder_entity.name, os.path.basename(f)) for f in uploaded_paths[:-1]]
+    new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
+    schedule_for_cleanup(folder_entity.name)
+    for downloaded, uploaded in zip(new_paths, uploaded_paths):
+        print uploaded, downloaded
+        assert os.path.exists(downloaded)
+        assert filecmp.cmp(downloaded, uploaded)
+    schedule_for_cleanup(new_paths[0])
+
+
+    ### Test query get
+    output = run('synapse', '--skip-checks',
+                 'get', '-q', "select id from file where parentId=='%s' and location=='folder'" %
+                 folder_entity.id)
+    #Verify that we downloaded files:
+    new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
+    for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
+        print uploaded, downloaded
+        assert os.path.exists(downloaded)
+        assert filecmp.cmp(downloaded, uploaded)
+        schedule_for_cleanup(downloaded)
 
 
 def test_command_line_using_paths():
