@@ -1,5 +1,6 @@
 ## unit tests for python synapse client
 ############################################################
+from collections import OrderedDict
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
 from math import pi
@@ -24,6 +25,27 @@ def test_annotations():
     assert sa['stringAnnotations']['foo'] == ['bar']
     assert sa['stringAnnotations']['zoo'] == ['zing','zaboo']
     assert sa['stringAnnotations']['species'] == ['Platypus']
+
+
+def test_annotation_name_collision():
+    """Test handling of a name collisions between typed user generated and untyped
+       system generated annotations, see SYNPY-203 and PLFM-3248"""
+
+    ## order is important: to repro the erro, the key uri has to come before stringAnnotations
+    sa = OrderedDict()
+    sa[u'uri'] = u'/entity/syn47396/annotations'
+    sa[u'doubleAnnotations'] = {}
+    sa[u'longAnnotations'] = {}
+    sa[u'stringAnnotations'] = {
+            'tissueType': ['Blood'],
+            'uri': ['/repo/v1/dataset/47396']}
+    sa[u'creationDate'] = u'1321168909232'
+    sa[u'id'] = u'syn47396'
+
+    a = from_synapse_annotations(sa)
+    assert a['tissueType'] == ['Blood']
+    assert a['uri'] == u'/entity/syn47396/annotations'
+
 
 def test_more_annotations():
     """Test long, float and data annotations"""

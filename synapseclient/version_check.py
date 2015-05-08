@@ -62,10 +62,10 @@ def version_check(current_version=None, version_url=_VERSION_URL, check_for_poin
         if _version_tuple(current_version, levels=levels) < _version_tuple(version_info['latestVersion'], levels=levels):
             sys.stderr.write("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) "
                              "is available. Your version (%s) can be upgraded by typing:\n"
-                             "    pip install --upgrade synapseclient\n\n" % 
+                             "    pip install --upgrade synapseclient\n\n" %
                              (version_info['latestVersion'], current_version,))
             if 'releaseNotes' in version_info:
-                sys.stderr.write('Python Synapse Client version %s release notes\n\n' 
+                sys.stderr.write('Python Synapse Client version %s release notes\n\n'
                                  % version_info['latestVersion'])
                 sys.stderr.write(version_info['releaseNotes'] + '\n\n')
             return False
@@ -165,4 +165,3 @@ if __name__ == "__main__":
     print("Check against local copy of version file:")
     if version_check(version_url=None):
         print("ok")
-

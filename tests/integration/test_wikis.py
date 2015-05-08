@@ -4,7 +4,7 @@ from nose.tools import assert_raises
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
-from synapseclient import Project, File, Data, Code, Wiki, Activity, Evaluation
+from synapseclient import Project, File, Wiki, Activity, Evaluation
 
 import integration
 from integration import schedule_for_cleanup
@@ -65,6 +65,10 @@ def test_wikiAttachment():
     assert len(headers) == 2
     assert headers[0]['title'] in (wiki['title'], subwiki['title'])
 
+    file_handles = syn.getWikiAttachments(wiki)
+    file_names = [fh['fileName'] for fh in file_handles]
+    assert all( os.path.basename(fn) in file_names for fn in [filename, attachname] )
+
     # # Retrieve the file attachment
     # tmpdir = tempfile.mkdtemp()
     # file_props = syn._downloadWikiAttachment(project, wiki, 
@@ -75,8 +79,8 @@ def test_wikiAttachment():
 
     # Clean up
     # syn._deleteFileHandle(fileHandle)
-    syn.delete(wiki)
     syn.delete(subwiki)
+    syn.delete(wiki)
     assert_raises(SynapseHTTPError, syn.getWiki, project)
 
 

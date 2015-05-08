@@ -11,27 +11,25 @@ from synapseclient.exceptions import *
 import synapseclient
 import synapseclient.utils as utils
 from synapseclient.utils import MB, GB
-from synapseclient import Activity, Entity, Project, Folder, File, Data
+from synapseclient import Activity, Entity, Project, Folder, File
 
 import integration
 from integration import schedule_for_cleanup
 
-upload_destination = {"concreteType": "org.sagebionetworks.repo.model.project.UploadDestinationListSetting",
-  "destinations": [
-        {"uploadType": "SFTP", 
-         "banner": "Uploading file to EC2\n", 
-         "concreteType": "org.sagebionetworks.repo.model.project.ExternalUploadDestinationSetting", 
-         "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space",
-         "supportsSubfolders": True}, 
-        {"uploadType": "SFTP", 
-         "banner": "Uploading file to EC2 version 2\n", 
-         "concreteType": "org.sagebionetworks.repo.model.project.ExternalUploadDestinationSetting", 
-         "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/another_location",
-         "supportsSubfolders": True}, 
-        ], 
-  "projectId": '', 
-  "settingsType": "upload"
-}
+DESTINATIONS =  [{"uploadType": "SFTP", 
+                  "concreteType": "org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting", 
+                  "description" :'EC2 subfolder A',
+                  "supportsSubfolders": True,
+                  "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space",
+                  "banner": "Uploading file to EC2\n"}, 
+                 {"uploadType": "SFTP", 
+                  "concreteType": "org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting", 
+                  "supportsSubfolders": True,
+                  "description":'EC2 subfolder B',
+                  "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/another_location",
+                  "banner": "Uploading file to EC2 version 2\n"}
+                 ] 
+
 
 
 def setup(module):
@@ -41,9 +39,13 @@ def setup(module):
     print '~' * 60
     module.syn = integration.syn
     module.project = integration.project
-    upload_destination['projectId'] = module.project.id
-    upload_destination['projectId'] = module.project.id
-    syn.restPOST('/projectSettings', body = json.dumps(upload_destination))
+    #Create the upload destinations
+    destinations = [syn.restPOST('/storageLocation', body=json.dumps(x)) for x in DESTINATIONS]
+    project_destination = {"concreteType": "org.sagebionetworks.repo.model.project.UploadDestinationListSetting",
+                           "settingsType": "upload"}
+    project_destination['projectId'] = module.project.id
+    project_destination['locations'] = [dest['storageLocationId'] for dest in destinations]
+    project_destination = syn.restPOST('/projectSettings', body = json.dumps(project_destination))
 
 
 def test_synStore_sftpIntegration():

@@ -370,7 +370,7 @@ def test_aggregate_query_result_to_data_frame():
                          'columnType': 'STRING',
                          'id': '1387',
                          'name': 'State'}]}
-            def _queryTableNext(self, nextPageToken):
+            def _queryTableNext(self, nextPageToken, tableId):
                 return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
                         'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
                          'headers': [
