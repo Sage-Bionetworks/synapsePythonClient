@@ -39,37 +39,6 @@ def teardown(module):
     del module.syn.test_runCountMutex
     del module.syn.test_threadsRunning
 
-
-# def test_slow_unlocker():
-#     """Manually grabs a lock and makes sure the get/store methods are blocked."""
-    
-#     # Make a file to manually lock
-#     path = utils.make_bogus_data_file()
-#     schedule_for_cleanup(path)
-#     contention = File(path, parent=syn.test_parent)
-#     contention = syn.store(contention)
-    
-#     # Lock the Cache Map
-#     cacheDir = cache.determine_cache_directory(contention['dataFileHandleId'])
-#     cache.obtain_lock_and_read_cache(cacheDir)
-    
-#     # Start a few calls to get/store that should not complete yet
-#     store_thread = wrap_function_as_child_thread(lambda: store_catch_412_HTTPError(contention))
-#     get_thread = wrap_function_as_child_thread(lambda: syn.get(contention))
-#     thread.start_new_thread(store_thread, ())
-#     thread.start_new_thread(get_thread, ())
-#     time.sleep(min(5, cache.CACHE_LOCK_TIME / 2))
-    
-#     # Make sure the threads did not finish
-#     assert syn.test_threadsRunning > 0
-#     cache.write_cache_then_release_lock(cacheDir)
-    
-#     # Let the threads go
-#     while syn.test_threadsRunning > 0:
-#         time.sleep(1)
-#     collect_errors_and_fail()
-    
-
 def test_threaded_access():
     """Starts multiple threads to perform store and get calls randomly."""
     ## Doesn't this test look like a DOS attack on Synapse?

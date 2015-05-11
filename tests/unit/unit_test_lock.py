@@ -43,6 +43,19 @@ def test_with_lock():
         assert not user1_lock.acquire()
 
 
+def test_lock_timeout():
+    user1_lock = Lock("foo", max_age=timedelta(seconds=1))
+    user2_lock = Lock("foo", max_age=timedelta(seconds=1))
+
+    with user1_lock:
+        assert user1_lock.held == True
+        assert user1_lock.get_age() < 1.0
+        assert not user2_lock.acquire(break_old_locks=True)
+        time.sleep(1)
+        assert user1_lock.get_age() > 1.0
+        assert user2_lock.acquire(break_old_locks=True)
+
+
 ## Try to hammer away at the locking mechanism from multiple threads
 NUMBER_OF_TIMES_PER_THREAD = 3
 
