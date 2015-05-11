@@ -64,7 +64,7 @@ def test_getWithEntityBundle(download_file_mock):
         'annotations': {}}
 
     fileHandle = bundle['fileHandles'][0]['id']
-    cacheDir = synapseclient.cache.determine_cache_directory(fileHandle)
+    cacheDir = syn.cache.get_cache_dir(fileHandle)
     print "cacheDir=", cacheDir
 
     # Make sure the .cacheMap file does not already exist

@@ -49,6 +49,7 @@ Testing
 #!/usr/bin/env python2.7
 
 import cgi
+import errno
 import math, os, sys, urllib, urlparse, hashlib, re
 import random
 import requests
@@ -702,7 +703,12 @@ def humanizeBytes(bytes):
 def touch(path, times=None):
     basedir = os.path.dirname(path)
     if not os.path.exists(basedir):
-        os.makedirs(basedir)
+        try:
+            os.makedirs(basedir)
+        except OSError as err:
+            ## alternate processes might be creating these at the same time
+            if err.errno != errno.EEXIST:
+                raise
 
     with open(path, 'a'):
         os.utime(path, times)

@@ -9,6 +9,7 @@ from datetime import timedelta
 from synapseclient.exceptions import *
 
 LOCK_DEFAULT_MAX_AGE = timedelta(hours=2)
+DEFAULT_BLOCKING_TIMEOUT = timedelta(seconds=70)
 CACHE_UNLOCK_WAIT_TIME = 0.5
 
 
@@ -22,7 +23,7 @@ class Lock(object):
     """
     SUFFIX = 'lock'
 
-    def __init__(self, name, dir=None, max_age=LOCK_DEFAULT_MAX_AGE, default_blocking_timeout=timedelta(seconds=70)):
+    def __init__(self, name, dir=None, max_age=LOCK_DEFAULT_MAX_AGE, default_blocking_timeout=DEFAULT_BLOCKING_TIMEOUT):
         self.name = name
         self.held = False
         self.dir = dir if dir else os.getcwd()
