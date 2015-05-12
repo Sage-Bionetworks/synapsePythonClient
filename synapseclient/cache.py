@@ -5,25 +5,10 @@
 File Caching
 ************
 
-.. automethod:: synapseclient.cache.local_file_has_changed
-.. automethod:: synapseclient.cache.add_local_file_to_cache
-.. automethod:: synapseclient.cache.remove_local_file_from_cache
-.. automethod:: synapseclient.cache.retrieve_local_file_info
-.. automethod:: synapseclient.cache.get_alternate_file_name
-
-~~~~~~~
-Helpers
-~~~~~~~
-
-.. automethod:: synapseclient.cache.obtain_lock_and_read_cache
-.. automethod:: synapseclient.cache.write_cache_then_release_lock
-.. automethod:: synapseclient.cache.iterator_over_cache_map
-.. automethod:: synapseclient.cache.is_lock_valid
-.. automethod:: synapseclient.cache.determine_cache_directory
-.. automethod:: synapseclient.cache.determine_local_file_location
-.. automethod:: synapseclient.cache.parse_cache_entry_into_seconds
-.. automethod:: synapseclient.cache.get_modification_time
-
+Implements a cache on local disk for Synapse file entities and other objects
+with a `FileHandle <https://rest.synapse.org/org/sagebionetworks/repo/model/file/FileHandle.html>`_.
+This is part of the internal implementation of the client and should not be
+accessed directly by users of the client.
 """
 
 import os
@@ -160,5 +145,7 @@ class Cache():
             path = utils.normalize_path(path)
             cache_map[path] = epoch_time_to_iso(_get_modified_time(path))
             self._write_cache_map(cache_dir, cache_map)
+
+        return cache_map
 
 

@@ -763,7 +763,7 @@ class Synapse:
                     elif ifcollision == "keep.local":
                         downloadFile = False
                     elif ifcollision == "keep.both":
-                        downloadPath = synapseclient.cache.get_alternate_file_name(downloadPath)
+                        downloadPath = utils.unique_filename(downloadPath)
                     else:
                         raise ValueError('Invalid parameter: "%s" is not a valid value '
                                          'for "ifcollision"' % ifcollision)

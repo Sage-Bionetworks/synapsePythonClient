@@ -722,7 +722,6 @@ def _is_json(content_type):
     return content_type.lower().strip().startswith('application/json') if content_type else False
 
 
-
 def find_data_file_handle(bundle):
     """Return the fileHandle whose ID matches the dataFileHandleId in an entity bundle"""
     for fileHandle in bundle['fileHandles']:
@@ -730,3 +729,14 @@ def find_data_file_handle(bundle):
             return fileHandle
     return None
 
+
+def unique_filename(path):
+    """Returns a unique path by appending (n) for some number n to the end of the filename."""
+
+    base, ext = os.path.splitext(path)
+    counter = 0
+    while os.path.exists(path):
+        counter += 1
+        path = base + ("(%d)" % counter) + ext
+
+    return path
