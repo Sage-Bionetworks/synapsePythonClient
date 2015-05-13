@@ -239,7 +239,7 @@ Querying for my projects. Finding projects owned by the current user::
     results = syn.query('SELECT id, name FROM project WHERE project.createdByPrincipalId==%s' % profile['ownerId'])
 
     for result in results['results']:
-        print result['entity.id'], result['entity.name']
+        print result['project.id'], result['project.name']
 
 See:
 

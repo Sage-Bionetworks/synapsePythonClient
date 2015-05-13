@@ -61,7 +61,7 @@ def parse(regex, output):
         if len(m.groups()) > 0:
             return m.group(1).strip()
     else:
-        raise Exception('ERROR parsing output: ' + str(output))
+        raise Exception('ERROR parsing output: "' + str(output) + '"')
 
 
 def test_command_line_client():
@@ -102,7 +102,7 @@ def test_command_line_client():
                  '--skip-checks', 
                  'get',
                  file_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
+    downloaded_filename = parse(r'Downloaded file:\s+(.*)', output)
     schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
@@ -124,7 +124,7 @@ def test_command_line_client():
                  '--skip-checks',
                  'get', 
                  file_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
+    downloaded_filename = parse(r'Downloaded file:\s+(.*)', output)
     schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
@@ -212,7 +212,7 @@ def test_command_line_client():
                  '--skip-checks', 
                  'get', 
                  exteral_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
+    downloaded_filename = parse(r'Downloaded file:\s+(.*)', output)
     schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
 
@@ -593,8 +593,9 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'get', 
                  '--limitSearch', folder_entity.id, 
                  filename)
-    name = parse(r'Creating\s+\.\%s(%s)\s+' % (os.path.sep, os.path.split(filename)[1]), output)
-    assert name == os.path.split(filename)[1]
+    print "output = \"", output, "\""
+    name = parse(r'Associated file: (.*) with synapse ID (syn\d+)', output)
+    assert name == filename
     schedule_for_cleanup('./'+name)
 
     #Verify that set-provenance works with filepath

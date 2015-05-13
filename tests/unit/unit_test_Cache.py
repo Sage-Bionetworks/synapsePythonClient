@@ -1,10 +1,13 @@
 import re, os, tempfile, json
-import time, calendar
+import time, datetime, random
 from mock import MagicMock, patch
 from nose.tools import assert_raises
+from collections import OrderedDict
+from multiprocessing import Process
 
 import synapseclient
 import synapseclient.cache as cache
+import synapseclient.utils as utils
 
 
 def setup():
@@ -14,163 +17,138 @@ def setup():
     print '~' * 60
 
 
-@patch('time.time')
-@patch('synapseclient.cache.is_lock_valid')
-def test_obtain_lock_and_read_cache(lock_valid_mock, time_mock):
-    cacheDir = tempfile.mkdtemp()
-    cacheLock = os.path.join(cacheDir, '.cacheMap.lock')
-    os.makedirs(cacheLock)
-    oldUnlockWaitTime = cache.CACHE_UNLOCK_WAIT_TIME
+## delete a file
 
-    try:
-        cache.CACHE_UNLOCK_WAIT_TIME = 0
-
-        # -- Make sure the method retries appropriately --
-        # Have the method retry locking four times, succeeding on the last one
-        waitStack = [False, True, True, True]
-        time_mock.side_effect = lambda: 0
-        lock_valid_mock.side_effect = lambda x: waitStack.pop()
-        assert cache.obtain_lock_and_read_cache(cacheDir) == {}
-        assert len(waitStack) == 0
-
-        # -- Make sure the method times out --
-        # time.time is called two times within the loop and once outside the loop
-        timeStack = [cache.CACHE_MAX_LOCK_TRY_TIME, cache.CACHE_MAX_LOCK_TRY_TIME, 0]
-        time_mock.side_effect = lambda: timeStack.pop()
-
-        assert_raises(Exception, cache.obtain_lock_and_read_cache, cacheDir)
-        assert len(timeStack) == 0
-    finally:
-        cache.CACHE_UNLOCK_WAIT_TIME = oldUnlockWaitTime
+## modify a file
 
 
-@patch('synapseclient.cache.obtain_lock_and_read_cache')
-@patch('synapseclient.cache.is_lock_valid')
-def test_write_cache_then_release_lock(lock_valid_mock, read_mock):
-    cacheDir = tempfile.mkdtemp()
-    cacheLock = os.path.join(cacheDir, '.cacheMap.lock')
-    # -- Make sure the .lock is removed along with any junk inside --
-    os.makedirs(os.path.join(cacheLock, 'random folder'))
-    os.makedirs(os.path.join(cacheLock, 'OtherExtraneousFolder'))
-    os.makedirs(os.path.join(cacheLock, 'more_stuff_that_should_not_be_here'))
-    f, _ = tempfile.mkstemp(dir=cacheLock)
-    os.close(f)
+## ---- fixed below here ------
 
-    cache.write_cache_then_release_lock(cacheDir)
-    assert not os.path.exists(cacheLock)
-    assert not lock_valid_mock.called
+def test_cache_concurrent_access():
 
-    # -- Make sure the .cacheMap is written to correctly --
-    # Pretend the lock has expired
-    lock_valid_mock.return_value = False
+    def add_file_to_cache(i, cache_root_dir):
+        # print ("Starting process %d" % i)
+        my_cache = cache.Cache(cache_root_dir=cache_root_dir)
+        file_handle_ids = [1001, 1002, 1003, 1004, 1005]
+        random.shuffle(file_handle_ids)
+        for file_handle_id in file_handle_ids:
+            cache_dir = my_cache.get_cache_dir(file_handle_id)
+            file_path = os.path.join(cache_dir, "file_handle_%d_process_%02d.junk" % (file_handle_id, i))
+            utils.touch(file_path)
+            my_cache.add(file_handle_id, file_path)
+        # print ("Completed process %d" % i)
 
-    # Pretend the .cacheMap contains some JSON
-    read_mock.return_value = {"a": "b", "c": "d", "overwrite": "me"}
+    cache_root_dir = tempfile.mkdtemp()
+    processes = [Process(target=add_file_to_cache, args=(i, cache_root_dir)) for i in range(20)]
 
-    # Make the lock and remove it
-    os.makedirs(cacheLock)
-    cache.write_cache_then_release_lock(cacheDir, {"overwrite": "I've lost my identity"})
-    assert not os.path.exists(cacheLock)
+    for process in processes:
+        process.start()
 
-    lock_valid_mock.assert_called_once_with(cacheLock)
-    with open(os.path.join(cacheDir, '.cacheMap'), 'r') as f:
-        written = json.load(f)
-        assert written == {"a": "b", "c": "d", "overwrite": "I've lost my identity"}
+    for process in processes:
+        process.join()
 
-
-@patch('synapseclient.cache.get_modification_time')
-@patch('os.path.exists')
-@patch('synapseclient.cache.write_cache_then_release_lock') # Ignore the fact that the .lock is not made
-@patch('synapseclient.cache.obtain_lock_and_read_cache')
-def test_iterator_over_cache_map(*mocks):
-    mocks = [mock for mock in mocks]
-    mod_time_mock = mocks.pop()
-    exist_mock    = mocks.pop()
-    write_mock    = mocks.pop()
-    read_mock     = mocks.pop()
-
-    # Replace the CacheMap with a dictionary with timestamps (0, 1, 2, 3)
-    ret_dict = {"0": "1970-01-01T00:00:00.000Z",
-                "1": "1970-01-01T00:00:01.000Z",
-                "2": "1970-01-01T00:00:02.000Z",
-                "3": "1970-01-01T00:00:03.000Z"}
-    dict_mock = MagicMock()
-    dict_mock.keys.side_effect = lambda: sorted(ret_dict.keys())
-    dict_mock.__getitem__.side_effect = ret_dict.__getitem__
-    read_mock.return_value = dict_mock
-
-    # No files are made, so return some bogus modification time
-    mod_time_mock.return_value = 1337
-
-    # The iterator should return as long as the file exists
-    exist_mock.return_value = True
-
-    iter = cache.iterator_over_cache_map(None) # Helper methods are mocked out
-    file, cacheTime, fileMTime = iter.next()
-    assert file == "0"
-    assert cacheTime == 0
-    assert fileMTime == 1337
-
-    _, cacheTime, _ = iter.next()
-    assert cacheTime == 1
-
-    _, cacheTime, _ = iter.next()
-    assert cacheTime == 2
-
-    # Make sure the iterator ignores non-existent files
-    exist_mock.return_value = False
-    assert_raises(StopIteration, iter.next)
-
-    # Lock should only ever be gotten once
-    read_mock.assert_called_once_with(None)
-    write_mock.assert_called_once_with(None)
+    my_cache = cache.Cache(cache_root_dir=cache_root_dir)
+    file_handle_ids = [1001, 1002, 1003, 1004, 1005]
+    for file_handle_id in file_handle_ids:
+        cache_map = my_cache._read_cache_map(my_cache.get_cache_dir(file_handle_id))
+        process_ids = set()
+        for path, iso_time in cache_map.iteritems():
+            m = re.match("file_handle_%d_process_(\d+).junk" % file_handle_id, os.path.basename(path))
+            if m:
+                process_ids.add(int(m.group(1)))
+        assert process_ids == set(range(20)), process_ids
 
 
-def test_is_lock_valid():
-    # Lock should be valid right after creation
-    cacheDir = tempfile.mkdtemp()
-    cache.obtain_lock_and_read_cache(cacheDir)
-    assert cache.is_lock_valid(os.path.join(cacheDir, '.cacheMap.lock'))
-    cache.write_cache_then_release_lock(cacheDir)
-
-
-def test_determine_cache_directory():
-    oldCacheDir = cache.CACHE_DIR
-    try:
-        cache.CACHE_DIR = '/'
-        entityInfo = {'id'              : 'foo',
-                      'versionNumber'   : 'bar',
-                      'dataFileHandleId': '1337'}
-
-        res = cache.determine_cache_directory(entityInfo['dataFileHandleId'])
-        assert re.sub(r'\\', '/', res) == '/337/1337'
-    finally:
-        cache.CACHE_DIR = oldCacheDir
+def test_get_cache_dir():
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+    cache_dir = my_cache.get_cache_dir(1234567)
+    assert cache_dir.startswith(tmp_dir)
+    assert cache_dir.endswith("1234567")
 
 
 def test_parse_cache_entry_into_seconds():
     # Values derived from http://www.epochconverter.com/
-    samples = {"1970-01-01T00:00:00.000Z": 0,
-               "1970-04-26T17:46:40.000Z": 10000000,
-               "2001-09-09T01:46:40.000Z": 1000000000,
-               "2286-11-20T17:46:40.000Z": 10000000000}
-    for stamp in samples.keys():
-        # print "Input = %s | Parsed = %d" % (samples[stamp], cache.parse_cache_entry_into_seconds(stamp))
-        assert cache.parse_cache_entry_into_seconds(stamp) == samples[stamp]
+    timestamps = OrderedDict()
+    timestamps["1970-01-01T00:00:00.000Z"] = 0
+    timestamps["1970-04-26T17:46:40.375Z"] = 10000000.375
+    timestamps["2001-09-09T01:46:40.000Z"] = 1000000000
+    timestamps["2286-11-20T17:46:40.375Z"] = 10000000000.375
+    print "\n\n"
+    for stamp in timestamps.keys():
+        print "Input = %s | Parsed = %f" % (stamp, cache.iso_time_to_epoch(stamp))
+        assert cache.iso_time_to_epoch(stamp) == timestamps[stamp]
+        assert cache.epoch_time_to_iso(cache.iso_time_to_epoch(stamp)) == stamp
 
 
 def test_get_modification_time():
     ALLOWABLE_TIME_ERROR = 0.01 # seconds
 
     # Non existent files return None
-    assert cache.get_modification_time("A:/I/h0pe/th1s/k0mput3r/haz/n0/fl0ppy.disk") == None
+    assert cache._get_modified_time("A:/I/h0pe/th1s/k0mput3r/haz/n0/fl0ppy.disk") == None
 
     # File creation should result in a correct modification time
     _, path = tempfile.mkstemp()
-    # print "Now = %f | File = %f" % (calendar.timegm(time.gmtime()), cache.get_modification_time(path))
-    assert cache.get_modification_time(path) - calendar.timegm(time.gmtime()) < ALLOWABLE_TIME_ERROR
+    # print "Now = %f | File = %f" % (time.gmtime(), cache.get_modification_time(path))
+    assert cache._get_modified_time(path) - time.time() < ALLOWABLE_TIME_ERROR
 
     # Directory creation should result in a correct modification time
     path = tempfile.mkdtemp()
     # print "Now = %f | File = %f" % (calendar.timegm(time.gmtime()), cache.get_modification_time(path))
-    assert cache.get_modification_time(path) - calendar.timegm(time.gmtime()) < ALLOWABLE_TIME_ERROR
+    assert cache._get_modified_time(path) - time.time() < ALLOWABLE_TIME_ERROR
+
+
+def test_cache_store_get():
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
+    my_cache.add(file_handle_id=101201, path=path1)
+
+    path2 = utils.touch(os.path.join(my_cache.get_cache_dir(101202), "file2.ext"))
+    my_cache.add(file_handle_id=101202, path=path2)
+
+    ## set path3's mtime to be later than path2's
+    new_time_stamp = cache._get_modified_time(path2)+2
+
+    path3 = utils.touch(os.path.join(tmp_dir, "foo", "file2.ext"), (new_time_stamp, new_time_stamp))
+    my_cache.add(file_handle_id=101202, path=path3)
+
+    a_file = my_cache.get(file_handle_id=101201)
+    assert a_file == path1
+
+    a_file = my_cache.get(file_handle_id=101201, path=path1)
+    assert a_file == path1
+
+    a_file = my_cache.get(file_handle_id=101201, path=my_cache.get_cache_dir(101201))
+    assert a_file == path1
+
+    b_file = my_cache.get(file_handle_id=101202, path=os.path.dirname(path2))
+    assert b_file == path2
+
+    b_file = my_cache.get(file_handle_id=101202, path=os.path.dirname(path3))
+    assert b_file == path3
+
+    not_in_cache_file = my_cache.get(file_handle_id=101203, path=tmp_dir)
+    assert not_in_cache_file is None
+
+    wrong_name_file = my_cache.get(file_handle_id=101201, path=os.path.join(my_cache.get_cache_dir(101202), "wrong_file1.ext"))
+    assert wrong_name_file is None
+
+    wrong_location_file = my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "wrong"))
+    assert wrong_location_file is None
+
+
+def test_cache_modified_time():
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
+    my_cache.add(file_handle_id=101201, path=path1)
+
+    new_time_stamp = cache._get_modified_time(path1)+1
+    utils.touch(path1, (new_time_stamp, new_time_stamp))
+    a_file = my_cache.get(file_handle_id=101201, path=path1)
+    assert a_file is None
+
+
