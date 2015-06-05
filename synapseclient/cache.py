@@ -119,13 +119,18 @@ class Cache():
             if path is None:
                 path = self.get_cache_dir(file_handle_id)
 
+            ## Note that on some file systems, you get greater than millisecond
+            ## resolution on a file's modified timestamp. So, it's important to
+            ## compare the ISO timestamp strings for equality rather than their
+            ## unix epoch time representations.
+
             if os.path.isdir(path):
                 for cached_file_path, cached_time in cache_map.iteritems():
-                    if path == os.path.dirname(cached_file_path) and _get_modified_time(cached_file_path) == iso_time_to_epoch(cached_time):
+                    if path == os.path.dirname(cached_file_path) and epoch_time_to_iso(_get_modified_time(cached_file_path)) == cached_time:
                         return cached_file_path
             else:
                 for cached_file_path, cached_time in cache_map.iteritems():
-                    if path == cached_file_path and _get_modified_time(cached_file_path) == iso_time_to_epoch(cached_time):
+                    if path == cached_file_path and epoch_time_to_iso(_get_modified_time(cached_file_path)) == cached_time:
                         return cached_file_path
 
             return None

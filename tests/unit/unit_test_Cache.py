@@ -98,6 +98,11 @@ def test_get_modification_time():
     assert cache._get_modified_time(path) - time.time() < ALLOWABLE_TIME_ERROR
 
 
+def test_cache_timestamps():
+    ## test conversion to epoch time to ISO with proper rounding to millisecond
+    assert_equal(cache.epoch_time_to_iso(1433544108.080841), '2015-06-05T22:41:48.081Z')
+
+
 def test_cache_store_get():
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
