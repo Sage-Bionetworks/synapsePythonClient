@@ -1,7 +1,7 @@
 import re, os, tempfile, json
 import time, datetime, random
 from mock import MagicMock, patch
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equal, assert_is_none
 from collections import OrderedDict
 from multiprocessing import Process
 
@@ -56,7 +56,7 @@ def test_cache_concurrent_access():
             m = re.match("file_handle_%d_process_(\d+).junk" % file_handle_id, os.path.basename(path))
             if m:
                 process_ids.add(int(m.group(1)))
-        assert process_ids == set(range(20)), process_ids
+        assert_equal(process_ids, set(range(20)))
 
 
 def test_get_cache_dir():
@@ -77,15 +77,15 @@ def test_parse_cache_entry_into_seconds():
     print "\n\n"
     for stamp in timestamps.keys():
         print "Input = %s | Parsed = %f" % (stamp, cache.iso_time_to_epoch(stamp))
-        assert cache.iso_time_to_epoch(stamp) == timestamps[stamp]
-        assert cache.epoch_time_to_iso(cache.iso_time_to_epoch(stamp)) == stamp
+        assert_equal(cache.iso_time_to_epoch(stamp), timestamps[stamp])
+        assert_equal(cache.epoch_time_to_iso(cache.iso_time_to_epoch(stamp)), stamp)
 
 
 def test_get_modification_time():
     ALLOWABLE_TIME_ERROR = 0.01 # seconds
 
     # Non existent files return None
-    assert cache._get_modified_time("A:/I/h0pe/th1s/k0mput3r/haz/n0/fl0ppy.disk") == None
+    assert_is_none(cache._get_modified_time("A:/I/h0pe/th1s/k0mput3r/haz/n0/fl0ppy.disk"))
 
     # File creation should result in a correct modification time
     _, path = tempfile.mkstemp()
@@ -115,28 +115,28 @@ def test_cache_store_get():
     my_cache.add(file_handle_id=101202, path=path3)
 
     a_file = my_cache.get(file_handle_id=101201)
-    assert a_file == path1
+    assert_equal(a_file, path1)
 
     a_file = my_cache.get(file_handle_id=101201, path=path1)
-    assert a_file == path1
+    assert_equal(a_file, path1)
 
     a_file = my_cache.get(file_handle_id=101201, path=my_cache.get_cache_dir(101201))
-    assert a_file == path1
+    assert_equal(a_file, path1)
 
     b_file = my_cache.get(file_handle_id=101202, path=os.path.dirname(path2))
-    assert b_file == path2
+    assert_equal(b_file, path2)
 
     b_file = my_cache.get(file_handle_id=101202, path=os.path.dirname(path3))
-    assert b_file == path3
+    assert_equal(b_file, path3)
 
     not_in_cache_file = my_cache.get(file_handle_id=101203, path=tmp_dir)
-    assert not_in_cache_file is None
+    assert_is_none(not_in_cache_file)
 
     wrong_name_file = my_cache.get(file_handle_id=101201, path=os.path.join(my_cache.get_cache_dir(101202), "wrong_file1.ext"))
-    assert wrong_name_file is None
+    assert_is_none(wrong_name_file)
 
     wrong_location_file = my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "wrong"))
-    assert wrong_location_file is None
+    assert_is_none(wrong_location_file)
 
 
 def test_cache_modified_time():
@@ -149,6 +149,6 @@ def test_cache_modified_time():
     new_time_stamp = cache._get_modified_time(path1)+1
     utils.touch(path1, (new_time_stamp, new_time_stamp))
     a_file = my_cache.get(file_handle_id=101201, path=path1)
-    assert a_file is None
+    assert_is_none(a_file)
 
 
