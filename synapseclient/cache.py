@@ -26,14 +26,14 @@ def epoch_time_to_iso(epoch_time):
     """
     Convert seconds since unix epoch to a string in ISO format
     """
-    return utils.datetime_to_iso(utils.from_unix_epoch_time_secs(epoch_time))
+    return utils.datetime_to_iso(utils.from_unix_epoch_time_secs(epoch_time)) if epoch_time else None
 
 
 def iso_time_to_epoch(iso_time):
     """
     Convert an ISO formatted time into seconds since unix epoch
     """
-    return utils.to_unix_epoch_time_secs(utils.iso_to_datetime(iso_time))
+    return utils.to_unix_epoch_time_secs(utils.iso_to_datetime(iso_time)) if iso_time else None
 
 
 def _get_modified_time(path):
