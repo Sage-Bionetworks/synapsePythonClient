@@ -112,7 +112,6 @@ def test_getWithEntityBundle(download_file_mock):
     assert bundle["fileHandles"][0]["fileName"] in e.files
 
     # should this put the file in the cache?
-    print e
     assert e.cacheDir == cacheDir, "expected cacheDir to be \"%s\" but got \"%s\"."
     assert e.path == os.path.join(cacheDir, bundle["entity"]["name"])
 
