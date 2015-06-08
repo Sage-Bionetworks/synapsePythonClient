@@ -747,6 +747,8 @@ class Synapse:
             if cached_file_path is not None:
 
                 entity.path = cached_file_path
+                entity.files = [None if cached_file_path is None else os.path.basename(cached_file_path)]
+                entity.cacheDir = None if cached_file_path is None else os.path.dirname(cached_file_path)
 
             elif downloadFile:
 
@@ -882,7 +884,7 @@ class Synapse:
             if bundle:
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
-                if fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
+                if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
                     needs_upload = False
                 else:
                     cached_path = self.cache.get(bundle['entity']['dataFileHandleId'], entity['path']) if bundle else None
@@ -2985,14 +2987,36 @@ class Synapse:
             else:
                 raise ValueError('Row and version \"%s\" in unrecognized format.')
 
-        url = "{endpoint}/entity/{id}/table/column/{columnId}/row/{rowId}/version/{versionNumber}/file".format(
-                endpoint=self.repoEndpoint,
+        row_reference_set = {
+            'tableId':table_id,
+            'headers':[{'id':column_id}],
+            'rows':[{'rowId':rowId,'versionNumber':versionNumber}]
+        }
+        # result is a http://rest.synapse.org/org/sagebionetworks/repo/model/table/TableFileHandleResults.html
+        result = self.restPOST("/entity/%s/table/filehandles" % table_id, body=json.dumps(row_reference_set))
+        if len(result['rows'][0]['list']) != 1:
+            raise SynapseError('Couldn\'t get file handle for tableId={id}, column={columnId}, row={rowId}, version={versionNumber}'.format(
                 id=table_id,
                 columnId=column_id,
                 rowId=rowId,
-                versionNumber=versionNumber)
+                versionNumber=versionNumber))
+        file_handle_id = result['rows'][0]['list'][0]['id']
 
-        return self._downloadFile(url, downloadLocation)
+        cached_file_path = self.cache.get(file_handle_id, downloadLocation)
+        if cached_file_path:
+            return {'path':cached_file_path}
+        else:
+            url = "{endpoint}/entity/{id}/table/column/{columnId}/row/{rowId}/version/{versionNumber}/file".format(
+                    endpoint=self.repoEndpoint,
+                    id=table_id,
+                    columnId=column_id,
+                    rowId=rowId,
+                    versionNumber=versionNumber)
+            file_info = self._downloadFile(url, downloadLocation)
+
+            self.cache.add(file_handle_id, file_info['path'])
+
+            return file_info
 
 
     ############################################################

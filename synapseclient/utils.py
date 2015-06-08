@@ -60,6 +60,7 @@ import functools
 import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
+from datetime import timedelta
 from numbers import Number
 
 
@@ -435,9 +436,14 @@ def from_unix_epoch_time(ms):
 
 
 def datetime_to_iso(dt):
-    ## Truncate microseconds to milliseconds (as expected by older clients)
+    ## Round microseconds to milliseconds (as expected by older clients)
     ## and add back the "Z" at the end.
-    return dt.strftime(ISO_FORMAT_MICROS)[:-4]+"Z"
+    ## see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
+    fmt = "{time.year:04}-{time.month:02}-{time.day:02}T{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
+    if dt.microsecond >= 999500:
+        dt -= timedelta(microseconds=dt.microsecond)
+        dt += timedelta(seconds=1)
+    return fmt.format(time=dt, millisecond=int(round(dt.microsecond/1000.0)), tz="Z")
 
 
 def iso_to_datetime(iso_time):

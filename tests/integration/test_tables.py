@@ -11,7 +11,9 @@ import uuid
 from itertools import izip
 from nose.tools import assert_raises
 from datetime import datetime
+from mock import patch
 
+import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
@@ -369,6 +371,18 @@ def test_download_table_files():
         file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover', downloadLocation='.')
         assert filecmp.cmp(original_files[i], file_info['path'])
         schedule_for_cleanup(file_info['path'])
+
+    ## test that cached copies are returned for already downloaded files
+    with patch("synapseclient.Synapse._downloadFile") as _downloadFile_mock:
+        _downloadFile_mock.wraps = synapseclient.Synapse._downloadFile
+
+        results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
+        for i, row in enumerate(results):
+            print "%s_%s" % (row.rowId, row.versionNumber), row.values
+            file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover', downloadLocation='.')
+            assert filecmp.cmp(original_files[i], file_info['path'])
+
+        assert not _downloadFile_mock.called, "Should have used cached copy of file and not called _downloadFile"
 
 
 def dontruntest_big_tables():
