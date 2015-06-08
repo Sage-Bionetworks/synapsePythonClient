@@ -321,6 +321,22 @@ def test_time_manipulation():
     round_tripped_datetime = utils.datetime_to_iso(
                                 utils.from_unix_epoch_time_secs(
                                     utils.to_unix_epoch_time_secs(
-                                        utils.iso_to_datetime("1969-04-28T23:48:34.000Z"))))
+                                        utils.iso_to_datetime("1969-04-28T23:48:34.123Z"))))
     print round_tripped_datetime
-    assert "1969-04-28T23:48:34.000Z" == round_tripped_datetime, round_tripped_datetime
+    assert "1969-04-28T23:48:34.123Z" == round_tripped_datetime, round_tripped_datetime
+
+    ## check that rounding to milliseconds works
+    round_tripped_datetime = utils.datetime_to_iso(
+                                utils.from_unix_epoch_time_secs(
+                                    utils.to_unix_epoch_time_secs(
+                                        utils.iso_to_datetime("1969-04-28T23:48:34.999499Z"))))
+    print round_tripped_datetime
+    assert "1969-04-28T23:48:34.999Z" == round_tripped_datetime, round_tripped_datetime
+
+    ## check that rounding to milliseconds works
+    round_tripped_datetime = utils.datetime_to_iso(
+                                utils.from_unix_epoch_time_secs(
+                                    utils.to_unix_epoch_time_secs(
+                                        utils.iso_to_datetime("1969-04-27T23:59:59.999999Z"))))
+    print round_tripped_datetime
+    assert "1969-04-28T00:00:00.000Z" == round_tripped_datetime, round_tripped_datetime

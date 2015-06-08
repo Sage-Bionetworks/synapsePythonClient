@@ -74,6 +74,7 @@ def test_parse_cache_entry_into_seconds():
     timestamps["1970-04-26T17:46:40.375Z"] = 10000000.375
     timestamps["2001-09-09T01:46:40.000Z"] = 1000000000
     timestamps["2286-11-20T17:46:40.375Z"] = 10000000000.375
+    timestamps["2286-11-20T17:46:40.999Z"] = 10000000000.999
     print "\n\n"
     for stamp in timestamps.keys():
         print "Input = %s | Parsed = %f" % (stamp, cache.iso_time_to_epoch(stamp))
@@ -101,6 +102,38 @@ def test_get_modification_time():
 def test_cache_timestamps():
     ## test conversion to epoch time to ISO with proper rounding to millisecond
     assert_equal(cache.epoch_time_to_iso(1433544108.080841), '2015-06-05T22:41:48.081Z')
+
+
+def test_compare_timestamps():
+    assert not cache.compare_timestamps(10000000.375, None)
+    assert not cache.compare_timestamps(None, "1970-04-26T17:46:40.375Z")
+    assert cache.compare_timestamps(10000000.375, "1970-04-26T17:46:40.375Z")
+    assert cache.compare_timestamps(10000000.375, "1970-04-26T17:46:40.000Z")
+    assert cache.compare_timestamps(1430861695.001111, "2015-05-05T21:34:55.001Z")
+    assert cache.compare_timestamps(1430861695.001111, "2015-05-05T21:34:55.000Z")
+    assert cache.compare_timestamps(1430861695.999999, "2015-05-05T21:34:55.000Z")
+
+
+def test_subsecond_timestamps():
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    path = "/x/y/z/foo.txt"
+
+    with patch("synapseclient.cache._get_modified_time") as _get_modified_time_mock, \
+         patch("synapseclient.cache.Cache._read_cache_map") as _read_cache_map_mock:
+
+        ## this should be a match, 'cause we round microseconds to milliseconds
+        _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.001Z"}
+        _get_modified_time_mock.return_value = 1430861695.001111
+
+        assert_equal(path, my_cache.get(file_handle_id=1234, path=path))
+
+        ## The R client always writes .000 for milliseconds, for compatibility,
+        ## we should match .000 with any number of milliseconds
+        _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.000Z"}
+
+        assert_equal(path, my_cache.get(file_handle_id=1234, path=path))
 
 
 def test_cache_store_get():
