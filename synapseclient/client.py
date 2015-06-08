@@ -884,7 +884,7 @@ class Synapse:
             if bundle:
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
-                if fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
+                if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
                     needs_upload = False
                 else:
                     cached_path = self.cache.get(bundle['entity']['dataFileHandleId'], entity['path']) if bundle else None
