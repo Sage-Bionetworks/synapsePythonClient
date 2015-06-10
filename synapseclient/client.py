@@ -2929,7 +2929,7 @@ class Synapse:
         return None
 
 
-    def downloadTableFile(self, table, column, downloadLocation, rowId=None, versionNumber=None, rowIdAndVersion=None, ifcollision="keep.both"):
+    def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None, rowIdAndVersion=None, ifcollision="keep.both"):
         """
         Downloads a file associated with a row in a Synapse table.
 
@@ -3002,8 +3002,10 @@ class Synapse:
                 versionNumber=versionNumber))
         file_handle_id = result['rows'][0]['list'][0]['id']
 
+        if downloadLocation is None:
+            downloadLocation = self.cache.get_cache_dir(file_handle_id)
         cached_file_path = self.cache.get(file_handle_id, downloadLocation)
-        if cached_file_path:
+        if cached_file_path is not None:
             return {'path':cached_file_path}
         else:
             url = "{endpoint}/entity/{id}/table/column/{columnId}/row/{rowId}/version/{versionNumber}/file".format(
