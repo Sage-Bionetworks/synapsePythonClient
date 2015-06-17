@@ -1,4 +1,4 @@
-import os
+import os, uuid
 from nose.tools import assert_raises
 
 import synapseclient.client as client
@@ -94,4 +94,22 @@ def test_create_or_update_wiki():
         Wiki(title='This is a different title', owner=project, markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!"),
         createOrUpdate=True)
 
+
+def test_wiki_version():
+    ## create a new project to avoid artifacts from previous tests
+    project = syn.store(Project(name=str(uuid.uuid4())))
+    wiki = syn.store(Wiki(title='Title version 1', owner=project, markdown="##A heading\n\nThis is version 1 of the wiki page!\n"))
+
+    wiki.title = "Title version 2"
+    wiki.markdown = "##A heading\n\nThis is version 2 of the wiki page!\n"
+
+    wiki = syn.store(wiki)
+
+    w1 = syn._getWiki2(owner=wiki.ownerId, pageId=wiki.id, version=0)
+    assert "version 1" in w1.title
+    assert "version 1" in w1.markdown
+
+    w2 = syn._getWiki2(owner=wiki.ownerId, pageId=wiki.id, version=1)
+    assert "version 2" in w2.title
+    assert "version 2" in w2.markdown
 

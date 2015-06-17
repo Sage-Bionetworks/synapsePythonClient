@@ -29,6 +29,7 @@ See also the `Synapse API documentation <http://rest.synapse.org>`_.
 
 """
 
+import codecs
 import ConfigParser
 import collections
 import os, sys, stat, re, json, time
@@ -2560,6 +2561,50 @@ class Synapse:
         wiki = self.restGET(uri)
         wiki['owner'] = owner
         return Wiki(**wiki)
+
+
+    def _getWiki2(self, owner, pageId=None, version=None):
+        """
+        Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2
+        API which supports versioning.
+        """
+        uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
+        if pageId is not None:
+            uri += "/{wikiId}".format(wikiId=pageId)
+        if version is not None:
+            uri += "?wikiVersion={version}".format(version=version)
+
+        wiki = self.restGET(uri)
+        wiki['owner'] = owner
+        wiki = Wiki(**wiki)
+
+        path = self.cache.get(wiki.markdownFileHandleId)
+        if path:
+            fileInfo = {'path':path}
+        else:
+            url = "{endpoint}/entity/{ownerId}/wiki2/{wikiId}/markdown".format(endpoint=self.repoEndpoint, ownerId=id_of(owner), wikiId=wiki.id)
+            if version is not None:
+                url += "?wikiVersion={version}".format(version=version)
+
+            cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+
+            fileInfo = self._downloadFile(url, cache_dir)
+
+            self.cache.add(wiki.markdownFileHandleId, fileInfo['path'])
+
+        if fileInfo['path'].endswith('.gz'):
+            import gzip
+            with gzip.open(fileInfo['path']) as f:
+                markdown = f.read().decode('utf-8')
+        else:
+            with open(fileInfo['path']) as f:
+                markdown = f.read().decode('utf-8')
+        wiki.markdown = markdown
+        wiki.markdown_path = fileInfo['path']
+
+        return wiki
 
 
     def getWikiHeaders(self, owner):
