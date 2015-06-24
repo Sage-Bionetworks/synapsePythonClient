@@ -2899,17 +2899,17 @@ class Synapse:
 
         uri = "/entity/{id}/table/download/csv/async".format(id=_extract_synapse_id_from_query(query))
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
-
-        url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, download_from_table_result['resultsFileHandleId'])
-        cache_dir = self.cache.get_cache_dir(download_from_table_result['resultsFileHandleId'])
-
-        # Create the necessary directories
-        try:
-            os.makedirs(cache_dir)
-        except OSError as exception:
-            if exception.errno != os.errno.EEXIST:
-                raise
-        return (download_from_table_result, self._downloadFile(url, os.path.join(cache_dir, "query_results.csv")))
+        file_handle_id = download_from_table_result['resultsFileHandleId']
+        cached_file_path = self.cache.get(file_handle_id=file_handle_id)
+        print file_handle_id, cached_file_path
+        if cached_file_path is not None:
+            return (download_from_table_result, {'path':cached_file_path})
+        else:
+            url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, file_handle_id)
+            cache_dir = self.cache.get_cache_dir(file_handle_id)
+            file_info = self._downloadFile(url, os.path.join(cache_dir, "query_results.csv"))
+            self.cache.add(file_handle_id, file_info['path'])
+        return (download_from_table_result, file_info)
 
 
     ## This is redundant with syn.store(Column(...)) and will be removed
