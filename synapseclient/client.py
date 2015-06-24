@@ -2901,7 +2901,6 @@ class Synapse:
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
         file_handle_id = download_from_table_result['resultsFileHandleId']
         cached_file_path = self.cache.get(file_handle_id=file_handle_id)
-        print file_handle_id, cached_file_path
         if cached_file_path is not None:
             return (download_from_table_result, {'path':cached_file_path})
         else:
