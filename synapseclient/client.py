@@ -174,20 +174,22 @@ class Synapse:
 
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                  debug=DEBUG_DEFAULT, skip_checks=False, configPath=CONFIG_FILE):
+
+        cache_root_dir = synapseclient.cache.CACHE_ROOT_DIR
+
         # Check for a config file
         self.configPath=configPath
         if os.path.isfile(configPath):
             config = self.getConfigFile(configPath)
             if config.has_option('cache', 'location'):
-                self.cache = synapseclient.cache.Cache(cache_root_dir=config.get('cache', 'location'))
-            else:
-                self.cache = synapseclient.cache.Cache()
-
+                cache_root_dir=config.get('cache', 'location')
             if config.has_section('debug'):
                 debug = True
         elif debug:
             # Alert the user if no config is found
             sys.stderr.write("Could not find a config file (%s).  Using defaults." % os.path.abspath(configPath))
+
+        self.cache = synapseclient.cache.Cache(cache_root_dir)
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
 
