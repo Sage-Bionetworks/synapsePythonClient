@@ -54,6 +54,7 @@ from synapseclient.annotations import to_submission_status_annotations, from_sub
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_container
 from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
+from synapseclient.team import Team
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki, WikiAttachment
@@ -2245,6 +2246,18 @@ class Synapse:
 
         for result in self._GET_paginated(url):
             yield Evaluation(**result)
+
+
+    def _findTeam(self, name):
+        """
+        Retrieve a Teams matching the supplied name fragment
+        """
+        for result in self._GET_paginated("/teams?fragment=%s" % name):
+            yield Team(**result)
+
+
+    def getTeam(self, id):
+        return Team(**self.restGET('/team/%s' % id))
 
 
     def submit(self, evaluation, entity, name=None, teamName=None, silent=False):
