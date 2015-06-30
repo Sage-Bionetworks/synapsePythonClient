@@ -168,7 +168,7 @@ class Cache():
             cache_map = self._read_cache_map(cache_dir)
 
             path = utils.normalize_path(path)
-            cache_map[path] = epoch_time_to_iso(_get_modified_time(path))
+            cache_map[path] = epoch_time_to_iso(floor(_get_modified_time(path)))
             self._write_cache_map(cache_dir, cache_map)
 
         return cache_map
