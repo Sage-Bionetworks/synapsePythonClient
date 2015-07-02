@@ -295,7 +295,7 @@ def setProvenance(args, syn):
 
 
 def getProvenance(args, syn):
-    activity = syn.getProvenance(args.id)
+    activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output=='STDOUT':
         print json.dumps(activity,sort_keys=True, indent=2)
@@ -615,6 +615,9 @@ def build_parser():
             help='show provenance records')
     parser_get_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
+    parser_get_provenance.add_argument('--version', metavar='version', type=int, required=False,
+            help='version of Synapse entity whose provenance we are accessing.')
+
     parser_get_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
