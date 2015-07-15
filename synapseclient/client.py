@@ -35,6 +35,7 @@ import collections
 import os, sys, stat, re, json, time
 import os.path
 import base64, hashlib, hmac
+import shutil
 import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
@@ -750,9 +751,32 @@ class Synapse:
             #   add it to the cache
             if cached_file_path is not None:
 
-                entity.path = cached_file_path
-                entity.files = [None if cached_file_path is None else os.path.basename(cached_file_path)]
-                entity.cacheDir = None if cached_file_path is None else os.path.dirname(cached_file_path)
+                fileName = os.path.basename(cached_file_path)
+
+                if not downloadLocation:
+                    downloadLocation = os.path.dirname(cached_file_path)
+                    entity.path = utils.normalize_path(os.path.join(downloadLocation, fileName))
+                    entity.files = [fileName]
+                    entity.cacheDir = downloadLocation
+
+                else:
+                    downloadPath = utils.normalize_path(os.path.join(downloadLocation, fileName))
+                    if downloadPath != cached_file_path:
+                        if not downloadFile:
+                            ## This is a strange case where downloadLocation is
+                            ## set but downloadFile=False. Copying files from a
+                            ## cached location seems like the wrong thing to do
+                            ## in this case.
+                            entity.path = None
+                            entity.files = []
+                            entity.cacheDir = None
+                        else:
+                            ## TODO apply ifcollision here
+                            shutil.copy(cached_file_path, downloadLocation)
+
+                            entity.path = utils.normalize_path(os.path.join(downloadLocation, fileName))
+                            entity.files = [fileName]
+                            entity.cacheDir = downloadLocation
 
             elif downloadFile:
 
@@ -2966,6 +2990,8 @@ class Synapse:
         else:
             url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, file_handle_id)
             cache_dir = self.cache.get_cache_dir(file_handle_id)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
             file_info = self._downloadFile(url, os.path.join(cache_dir, "query_results.csv"))
             self.cache.add(file_handle_id, file_info['path'])
         return (download_from_table_result, file_info)

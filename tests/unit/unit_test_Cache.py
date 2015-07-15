@@ -1,7 +1,7 @@
 import re, os, tempfile, json
 import time, datetime, random
 from mock import MagicMock, patch
-from nose.tools import assert_raises, assert_equal, assert_is_none
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_is_not_none, assert_in
 from collections import OrderedDict
 from multiprocessing import Process
 
@@ -16,13 +16,6 @@ def setup():
     print os.path.basename(__file__)
     print '~' * 60
 
-
-## delete a file
-
-## modify a file
-
-
-## ---- fixed below here ------
 
 def test_cache_concurrent_access():
 
@@ -118,7 +111,9 @@ def test_subsecond_timestamps():
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
 
-    path = "/x/y/z/foo.txt"
+    path = utils.touch(os.path.join(tmp_dir, "some_crazy_location", "file1.ext"))
+
+    my_cache.add(file_handle_id=1234, path=path)
 
     with patch("synapseclient.cache._get_modified_time") as _get_modified_time_mock, \
          patch("synapseclient.cache.Cache._read_cache_map") as _read_cache_map_mock:
@@ -170,11 +165,21 @@ def test_cache_store_get():
     not_in_cache_file = my_cache.get(file_handle_id=101203, path=tmp_dir)
     assert_is_none(not_in_cache_file)
 
-    wrong_name_file = my_cache.get(file_handle_id=101201, path=os.path.join(my_cache.get_cache_dir(101202), "wrong_file1.ext"))
-    assert_is_none(wrong_name_file)
+    removed = my_cache.remove(file_handle_id=101201, path=path1, delete=True)
+    assert path1 in removed
+    assert len(removed) == 1
+    assert_is_none(my_cache.get(file_handle_id=101201))
 
-    wrong_location_file = my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "wrong"))
-    assert_is_none(wrong_location_file)
+    removed = my_cache.remove(file_handle_id=101202, path=path3, delete=True)
+    b_file = my_cache.get(file_handle_id=101202)
+    assert path3 in removed
+    assert len(removed) == 1
+    assert_equal(b_file, path2)
+
+    removed = my_cache.remove(file_handle_id=101202, delete=True)
+    assert path2 in removed
+    assert len(removed) == 1
+    assert_is_none(my_cache.get(file_handle_id=101202))
 
 
 def test_cache_modified_time():
@@ -186,7 +191,58 @@ def test_cache_modified_time():
 
     new_time_stamp = cache._get_modified_time(path1)+1
     utils.touch(path1, (new_time_stamp, new_time_stamp))
+
     a_file = my_cache.get(file_handle_id=101201, path=path1)
     assert_is_none(a_file)
 
+
+def test_cache_rules():
+# Cache should (in order of preference):
+#
+# 1. DownloadLocation specified:
+#   a. return exact match (unmodified file at the same path)
+#   b. return an unmodified file at another location,
+#      copy to downloadLocation subject to ifcollision
+#   c. download file to downloadLocation subject to ifcollision
+#
+# 2. DownloadLocation *not* specified:
+#   a. return an unmodified file at another location
+#   b. download file to cache_dir overwritting any existing file
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    ## put file in cache dir
+    path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
+    my_cache.add(file_handle_id=101201, path=path1)
+
+    path2 = utils.touch(os.path.join(tmp_dir, "not_in_cache", "file1.ext"))
+    my_cache.add(file_handle_id=101201, path=path2)
+
+    path3 = utils.touch(os.path.join(tmp_dir, "also_not_in_cache", "file1.ext"))
+    my_cache.add(file_handle_id=101201, path=path3)
+
+    ## test case 1a. return exact match
+    assert_equal( my_cache.get(file_handle_id=101201, path=path2), path2 )
+
+    ## path2 is now modified
+    new_time_stamp = cache._get_modified_time(path2)+2
+    utils.touch(path2, (new_time_stamp, new_time_stamp))
+
+    ## test case 1b. Get file from alternate location. Do we care which file we get?
+    assert_is_none(my_cache.get(file_handle_id=101201, path=path2))
+    assert_in(my_cache.get(file_handle_id=101201) , [path1,path3] )
+
+    ## test case 1c.
+    assert_is_none( my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache")) )
+
+    ## test case 2a. Get file from alternate location. Do we care which file we get?
+    assert_is_not_none(my_cache.get(file_handle_id=101201))
+    assert_in( my_cache.get(file_handle_id=101201), [path1,path3] )
+
+    ## test case 2b.
+    assert_is_none( my_cache.get(file_handle_id=101202) )
+
+    print "\nCache dirs"
+    for d in my_cache._cache_dirs():
+        print d, synapseclient.cache._get_modified_time(d)
 
