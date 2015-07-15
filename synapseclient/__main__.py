@@ -127,13 +127,14 @@ def get(args, syn):
         for id in ids:
             syn.get(id, downloadLocation='.')
     else:
-        entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadLocation='.')
         ## search by MD5
         if isinstance(args.id, basestring) and os.path.isfile(args.id):
+            entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print "Associated file: %s with synapse ID %s" % (entity.path, entity.id)
         ## normal syn.get operation
         else:
+            entity = syn.get(args.id, version=args.version, downloadLocation='.')
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print "Downloaded file: %s" % os.path.basename(entity.path)
             else:

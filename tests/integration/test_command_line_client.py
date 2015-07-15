@@ -6,7 +6,7 @@ import uuid
 import json
 from cStringIO import StringIO
 from nose.plugins.attrib import attr
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals
 import tempfile
 import shutil
 
@@ -586,17 +586,18 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'show', filename)
     id = parse(r'File: %s\s+\((syn\d+)\)\s+' %os.path.split(filename)[1], output)
     assert file_entity.id == id
-    
-    #Verify that limitSearch works by using get
-    #Store same file in project as well
+
+    # Verify that limitSearch works by making sure we get the file entity
+    # that's inside the folder
     file_entity2 = syn.store(synapseclient.File(filename, parent=project_entity))
     output = run('synapse', '--skip-checks', 'get', 
                  '--limitSearch', folder_entity.id, 
                  filename)
     print "output = \"", output, "\""
-    name = parse(r'Associated file: (.*) with synapse ID (syn\d+)', output)
-    assert name == filename
-    schedule_for_cleanup('./'+name)
+    id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
+    name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
+    assert_equals(file_entity.id, id)
+    assert_equals(name, filename)
 
     #Verify that set-provenance works with filepath
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
