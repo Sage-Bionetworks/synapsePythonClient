@@ -2,7 +2,7 @@ import tempfile, os, sys, filecmp, shutil, requests, json, time
 import uuid, random, base64
 import ConfigParser
 from datetime import datetime
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals
 from nose.plugins.attrib import attr
 from mock import MagicMock, patch
 
@@ -229,7 +229,7 @@ def test_uploadFileEntity():
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)
     print entity['files']
-    assert entity['files'][0] == os.path.basename(fname)
+    assert_equals(entity['files'][0], os.path.basename(fname))
     assert filecmp.cmp(fname, entity['path'])
 
 

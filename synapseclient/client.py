@@ -697,6 +697,9 @@ class Synapse:
         ifcollision = kwargs.get('ifcollision', 'keep.both')
         submission = kwargs.get('submission', None)
 
+        ## TODO is it an error to specify both downloadFile=False and downloadLocation?
+        ## TODO this matters if we want to return already cached files when downloadFile=False
+
         # Make a fresh copy of the Entity
         local_state = entity.local_state() if entity and isinstance(entity, Entity) else {}
         if 'path' in kwargs:
@@ -915,7 +918,9 @@ class Synapse:
                 if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
                     needs_upload = False
                 else:
-                    cached_path = self.cache.get(bundle['entity']['dataFileHandleId'], entity['path']) if bundle else None
+                    ## Note that this needs an exact match to work. If the file referred to
+                    ## by entity['path'] has been modified, we want to upload it.
+                    cached_path = self.cache.get(bundle['entity']['dataFileHandleId'], entity['path'], exact=True)
                     needs_upload = cached_path is None
             else:
                 needs_upload = True
