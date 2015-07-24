@@ -294,6 +294,8 @@ __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapse
 
 import requests
 USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
+import logging 
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 from client import Synapse, login
 from activity import Activity
