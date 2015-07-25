@@ -140,7 +140,7 @@ class Cache():
             ## None. The logic for updating a synapse entity depends on this to
             ## determine the need to upload a new file.
 
-            if path:
+            if path is not None:
                 ## If we're given a path to a directory, look for a cached file in that directory
                 if os.path.isdir(path):
                     for cached_file_path, cached_time in cache_map.iteritems():
