@@ -1684,6 +1684,7 @@ class Synapse:
             return  {'path': destination,
                      'files': [None] if destination is None else [os.path.basename(destination)],
                      'cacheDir': None if destination is None else os.path.dirname(destination) }
+
         # We expect to be redirected to a signed S3 URL or externalURL
         #The assumption is wrong - we always try to read either the outer or inner requests.get
         #but sometimes we don't have something to read.  I.e. when the type is ftp at which point
@@ -3094,6 +3095,8 @@ class Synapse:
 
         if downloadLocation is None:
             downloadLocation = self.cache.get_cache_dir(file_handle_id)
+            if not os.path.exists(downloadLocation):
+                os.makedirs(downloadLocation)
         cached_file_path = self.cache.get(file_handle_id, downloadLocation)
         if cached_file_path is not None:
             return {'path':cached_file_path}
