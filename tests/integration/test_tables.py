@@ -32,10 +32,7 @@ def setup(module):
     print '~' * 60
     module.syn = integration.syn
     module.project = integration.project
-
-    print "Crank up timeout on async calls"
-    module.syn.table_query_timeout = 423
-
+    module.syn.table_query_timeout = 0.005  #Make default time small and overide in each call
 
 def test_rowset_tables():
 
@@ -80,7 +77,7 @@ def test_rowset_tables():
     syn.store(
         RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data2]))
 
-    results = syn.tableQuery("select * from %s order by name" % schema1.id, resultsAs="rowset")
+    results = syn.tableQuery("select * from %s order by name" % schema1.id, resultsAs="rowset", timeout=423)
 
     assert results.count==8
     assert results.tableId==schema1.id
@@ -91,7 +88,7 @@ def test_rowset_tables():
         assert expected_values == row['values'], 'got %s but expected %s' % (row['values'], expected_values)
 
     ## To modify rows, we have to select then first.
-    result2 = syn.tableQuery('select * from %s where age>18 and age<30'%schema1.id, resultsAs="rowset")
+    result2 = syn.tableQuery('select * from %s where age>18 and age<30'%schema1.id, resultsAs="rowset", timeout=423)
 
     ## make a change
     rs = result2.asRowSet()
@@ -102,7 +99,7 @@ def test_rowset_tables():
     row_reference_set = syn.store(rs)
 
     ## check if the change sticks
-    result3 = syn.tableQuery('select name, x, age from %s'%schema1.id, resultsAs="rowset")
+    result3 = syn.tableQuery('select name, x, age from %s'%schema1.id, resultsAs="rowset", timeout=423)
     for row in result3:
         if int(row['values'][2]) == 20:
             assert row['values'][1] == 88.888
@@ -117,7 +114,7 @@ def test_rowset_tables():
     schema1.addColumn(bday_column)
     schema1 = syn.store(schema1)
 
-    results = syn.tableQuery('select * from %s where cartoon=false order by age'%schema1.id, resultsAs="rowset")
+    results = syn.tableQuery('select * from %s where cartoon=false order by age'%schema1.id, resultsAs="rowset", timeout=423)
     rs = results.asRowSet()
 
     ## put data in new column
@@ -128,7 +125,8 @@ def test_rowset_tables():
 
     ## query by date and check that we get back two kids
     date_2008_jan_1 = utils.to_unix_epoch_time(datetime(2008,1,1))
-    results = syn.tableQuery('select name from %s where birthday > %d order by birthday' % (schema1.id, date_2008_jan_1), resultsAs="rowset")
+    results = syn.tableQuery('select name from %s where birthday > %d order by birthday' % (schema1.id, date_2008_jan_1), 
+                             resultsAs="rowset", timeout=423)
     assert ["Jane", "Henry"] == [row['values'][0] for row in results]
 
     try:
@@ -138,13 +136,15 @@ def test_rowset_tables():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
-    results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id, resultsAs="rowset")
+    results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id, 
+                             resultsAs="rowset", timeout=423)
     for bday, row in izip(bdays, results):
         assert row['values'][0] == datetime.strptime(bday, "%Y-%m-%d"), "got %s but expected %s" % (row['values'][0], bday)
 
     try:
         import pandas as pd
-        results = syn.tableQuery("select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id, resultsAs="rowset")
+        results = syn.tableQuery("select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id, 
+                                 resultsAs="rowset", timeout=423)
         df = results.asDataFrame()
         print df
         assert df.shape == (3,4)
@@ -155,18 +155,22 @@ def test_rowset_tables():
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
     ## test delete rows by deleting cartoon characters
-    syn.delete(syn.tableQuery('select name from %s where cartoon = true'%schema1.id, resultsAs="rowset"))
+    syn.delete(syn.tableQuery('select name from %s where cartoon = true'%schema1.id, 
+                              resultsAs="rowset", timeout=423))
 
-    results = syn.tableQuery('select name from %s order by birthday' % schema1.id, resultsAs="rowset")
+    results = syn.tableQuery('select name from %s order by birthday' % schema1.id, 
+                             resultsAs="rowset", timeout=423)
     assert ["Chris", "Jen", "Jane", "Henry"] == [row['values'][0] for row in results]
 
     ## check what happens when query result is empty
-    results = syn.tableQuery('select * from %s where age > 1000' % schema1.id, resultsAs="rowset")
+    results = syn.tableQuery('select * from %s where age > 1000' % schema1.id, 
+                             resultsAs="rowset", timeout=423)
     assert len(list(results)) == 0
 
     try:
         import pandas as pd
-        results = syn.tableQuery('select * from %s where age > 1000' % schema1.id, resultsAs="rowset")
+        results = syn.tableQuery('select * from %s where age > 1000' % schema1.id, 
+                                 resultsAs="rowset", timeout=423)
         df = results.asDataFrame()
         assert df.shape[0] == 0
     except ImportError as e1:
@@ -198,7 +202,8 @@ def test_tables_csv():
     table = syn.store(Table(schema, data))
 
     ## Query and download an identical CSV
-    results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
+    results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", 
+                             includeRowIdAndRowVersion=False, timeout=423)
 
     ## Test that CSV file came back as expected
     for expected_row, row in izip(data, results):
@@ -220,7 +225,7 @@ def test_tables_csv():
          True: [True, 1929, 3, 6.38],
         False: [False, 1926, 5, 7.104]}
 
-    results = syn.tableQuery('select Living, min(Born), count(Living), avg(Hipness) from %s group by Living' % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
+    results = syn.tableQuery('select Living, min(Born), count(Living), avg(Hipness) from %s group by Living' % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False, timeout=423)
     for row in results:
         living = row[0]
         assert expected[living][1] == row[1]
@@ -246,7 +251,7 @@ def test_tables_csv():
     table = syn.store(Table(table.schema, more_jazz_guys))
 
     ## test that CSV file now has more jazz guys
-    results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
+    results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", timeout=423)
     for expected_row, row in izip(data+more_jazz_guys, results):
         for field, expected_field in izip(row[2:], expected_row):
             if type(field) is float and math.isnan(field):
@@ -265,7 +270,8 @@ def test_tables_csv():
 
     ## aggregate queries won't return row id and version, so we need to
     ## handle this correctly
-    results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id, resultsAs="csv")
+    results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id, 
+                             resultsAs="csv", timeout=423)
     assert results.includeRowIdAndRowVersion == False
     for i,row in enumerate(results):
         assert row[0] == [1917,1926,1929,1930,1931,1935,1936,1938][i]
@@ -273,7 +279,8 @@ def test_tables_csv():
 
     try:
         import pandas as pd
-        results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
+        results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, 
+                                 resultsAs="csv", timeout=423)
         df = results.asDataFrame()
         print "\nUpdated hipness to 8.5", df
         all(df['Born'].values == 1930)
@@ -283,26 +290,30 @@ def test_tables_csv():
         df['Hipness'] = 9.75
         table = syn.store(Table(table.tableId, df, etag=results.etag))
 
-        results = syn.tableQuery("select * from %s where Born=1930" % table.tableId, resultsAs="csv")
+        results = syn.tableQuery("select * from %s where Born=1930" % table.tableId, 
+                                 resultsAs="csv", timeout=423)
         for row in results:
             assert row[4] == 9.75
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
 
     ## check what happens when query result is empty
-    results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
+    results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, 
+                             resultsAs="csv", timeout=423)
     assert len(list(results)) == 0
 
     try:
         import pandas as pd
-        results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
+        results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, 
+                                 resultsAs="csv", timeout=423)
         df = results.asDataFrame()
         assert df.shape[0] == 0
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
 
     ## delete some rows
-    results = syn.tableQuery('select * from %s where Hipness < 7' % table.tableId, resultsAs="csv")
+    results = syn.tableQuery('select * from %s where Hipness < 7' % table.tableId, 
+                             resultsAs="csv", timeout=423)
     syn.delete(results)
 
 
@@ -326,7 +337,7 @@ def test_tables_pandas():
         table = syn.store(Table(schema, df))
 
         ## retrieve the table and verify
-        results = syn.tableQuery('select * from %s'%table.schema.id)
+        results = syn.tableQuery('select * from %s'%table.schema.id, timeout=423)
         df2 = results.asDataFrame()
 
         ## simulate rowId-version rownames for comparison
@@ -365,7 +376,8 @@ def test_download_table_files():
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
 
     ## retrieve the files for each row and verify that they are identical to the originals
-    results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, resultsAs="rowset")
+    results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, 
+                             resultsAs="rowset", timeout=423)
     for i, row in enumerate(results):
         print "%s_%s" % (row.rowId, row.versionNumber), row.values
         file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover', downloadLocation='.')
@@ -376,7 +388,8 @@ def test_download_table_files():
     with patch("synapseclient.Synapse._downloadFile") as _downloadFile_mock:
         _downloadFile_mock.wraps = synapseclient.Synapse._downloadFile
 
-        results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
+        results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'"%schema.id, 
+                                 resultsAs="rowset", timeout=423)
         for i, row in enumerate(results):
             print "%s_%s" % (row.rowId, row.versionNumber), row.values
             file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover', downloadLocation='.')
@@ -408,14 +421,14 @@ def dontruntest_big_tables():
         print "added %d rows" % rows_per_append
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
-    results = syn.tableQuery("select * from %s" % table1.id)
+    results = syn.tableQuery("select * from %s" % table1.id, timeout=423)
     print "etag:", results.etag
     print "tableId:", results.tableId
 
     for row in results:
         print row
 
-    results = syn.tableQuery("select n, COUNT(n), MIN(x), AVG(x), MAX(x), SUM(x) from %s group by n" % table1.id)
+    results = syn.tableQuery("select n, COUNT(n), MIN(x), AVG(x), MAX(x), SUM(x) from %s group by n" % table1.id, timeout=423)
     df = results.asDataFrame()
 
     print df.shape
@@ -451,7 +464,7 @@ def dontruntest_big_csvs():
     UploadToTableResult = syn._uploadCsv(filepath=temp.name, schema=schema1)
 
     from synapseclient.table import CsvFileTable
-    results = CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
+    results = CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id, timeout=423)
     print "etag:", results.etag
     print "tableId:", results.tableId
 

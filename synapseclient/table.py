@@ -796,7 +796,7 @@ class TableQueryResult(TableAbstractBaseClass):
         for row in results:
             print row
     """
-    def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True):
+    def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True, timeout=None):
         self.syn = synapse
 
         self.query = query
@@ -808,7 +808,8 @@ class TableQueryResult(TableAbstractBaseClass):
             query=query,
             limit=limit,
             offset=offset,
-            isConsistent=isConsistent)
+            isConsistent=isConsistent,
+            timeout=timeout)
 
         self.rowset = RowSet.from_json(result['queryResult']['queryResults'])
 
@@ -905,7 +906,7 @@ class CsvFileTable(TableAbstractBaseClass):
     """
 
     @classmethod
-    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
+    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True, timeout=None):
         """
         Create a Table object wrapping a CSV file resulting from querying a Synapse table.
         Mostly for internal use.
@@ -918,7 +919,8 @@ class CsvFileTable(TableAbstractBaseClass):
             lineEnd=os.linesep,
             separator=separator,
             header=header,
-            includeRowIdAndRowVersion=includeRowIdAndRowVersion)
+            includeRowIdAndRowVersion=includeRowIdAndRowVersion,
+            timeout = timeout)
 
         ## A dirty hack to find out if we got back row ID and Version
         ## in particular, we don't get these back from aggregate queries

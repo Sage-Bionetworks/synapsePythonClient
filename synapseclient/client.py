@@ -199,7 +199,7 @@ class Synapse:
         self.table_query_sleep = 2
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
-        self.table_query_timeout = 60
+        self.table_query_default_timeout = 300
 
 
 
@@ -2664,14 +2664,15 @@ class Synapse:
     ##                     Tables                             ##
     ############################################################
 
-    def _waitForAsync(self, uri, request):
+    def _waitForAsync(self, uri, request, timeout=None):
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request))
 
         # http://rest.synapse.org/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
+        timeout = self.table_query_default_timeout if timeout is None else timeout
         lastMessage, lastProgress, lastTotal, progressed = '', 0, 1, False
-        while time.time()-start_time < self.table_query_timeout:
+        while time.time()-start_time < timeout:
             result = self.restGET(uri+'/get/%s'%async_job_id['token'])
             if result.get('jobState', None) == 'PROCESSING':
                 progressed=True
@@ -2752,7 +2753,7 @@ class Synapse:
             yield Column(**result)
 
 
-    def tableQuery(self, query, resultsAs="csv", **kwargs):
+    def tableQuery(self, query, resultsAs="csv", timeout=None, **kwargs):
         """
         Query a Synapse Table.
 
@@ -2762,6 +2763,9 @@ class Synapse:
 
         :param resultsAs: select whether results are returned as a CSV file ("csv") or incrementally
                           downloaded as sets of rows ("rowset").
+
+        :param timeout: A time in seconds that you are willing to wait for an answer to be returned.  
+                        By default we wait for 5 minutes.
 
         :return: A Table object that serves as a wrapper around a CSV file (or generator over
                  Row objects if resultsAs="rowset").
@@ -2773,7 +2777,7 @@ class Synapse:
 
         Optional keyword arguments differ for the two return types. For the "rowset" option,
 
-        :param  limit: specify the maximum number of rows to be returned, defaults to None
+        :param limit:  specify the maximum number of rows to be returned, defaults to None
         :param offset: don't return the first n rows, defaults to None
         :param isConsistent: defaults to True. If set to False, return results based on current
                              state of the index without waiting for pending writes to complete.
@@ -2796,7 +2800,7 @@ class Synapse:
             raise ValueError("Unknown return type requested from tableQuery: " + unicode(resultsAs))
 
 
-    def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+    def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None, timeout=None):
         """
         Query a table and return the first page of results as a `QueryResultBundle <http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
         If the result contains a *nextPageToken*, following pages a retrieved
@@ -2829,12 +2833,12 @@ class Synapse:
 
         uri = '/entity/{id}/table/query/async'.format(id=_extract_synapse_id_from_query(query))
 
-        return self._waitForAsync(uri=uri, request=query_bundle_request)
+        return self._waitForAsync(uri=uri, request=query_bundle_request, timeout=timeout)
 
 
-    def _queryTableNext(self, nextPageToken, tableId):
+    def _queryTableNext(self, nextPageToken, tableId, timeout=None):
         uri = '/entity/{id}/table/query/nextPage/async'.format(id=tableId)
-        return self._waitForAsync(uri=uri, request=nextPageToken)
+        return self._waitForAsync(uri=uri, request=nextPageToken, timeout=timeout)
 
 
     def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
@@ -2870,7 +2874,7 @@ class Synapse:
         return self._waitForAsync(uri=uri, request=request)
 
 
-    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True, timeout=None):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
@@ -2899,7 +2903,9 @@ class Synapse:
             "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
 
         uri = "/entity/{id}/table/download/csv/async".format(id=_extract_synapse_id_from_query(query))
-        download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
+        download_from_table_result = self._waitForAsync(uri=uri, 
+                                                        request=download_from_table_request, 
+                                                        timeout=timeout)
         file_handle_id = download_from_table_result['resultsFileHandleId']
         cached_file_path = self.cache.get(file_handle_id=file_handle_id)
         if cached_file_path is not None:
