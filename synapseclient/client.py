@@ -2596,26 +2596,14 @@ class Synapse:
     ##                     CRUD for Wikis                     ##
     ############################################################
 
-    def getWiki(self, owner, subpageId=None):
-        """Gets a :py:class:`synapseclient.wiki.Wiki` object from Synapse."""
-
-        if subpageId:
-            uri = '/entity/%s/wiki/%s' % (id_of(owner), id_of(subpageId))
-        else:
-            uri = '/entity/%s/wiki' % id_of(owner)
-        wiki = self.restGET(uri)
-        wiki['owner'] = owner
-        return Wiki(**wiki)
-
-
-    def _getWiki2(self, owner, pageId=None, version=None):
+    def getWiki(self, owner, subpageId=None, version=None):
         """
         Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2
         API which supports versioning.
         """
         uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
-        if pageId is not None:
-            uri += "/{wikiId}".format(wikiId=pageId)
+        if subpageId is not None:
+            uri += "/{wikiId}".format(wikiId=subpageId)
         if version is not None:
             uri += "?wikiVersion={version}".format(version=version)
 
@@ -2646,6 +2634,7 @@ class Synapse:
         else:
             with open(fileInfo['path']) as f:
                 markdown = f.read().decode('utf-8')
+        print markdown
         wiki.markdown = markdown
         wiki.markdown_path = fileInfo['path']
 

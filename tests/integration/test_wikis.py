@@ -1,5 +1,5 @@
 import os, uuid
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equal
 
 import synapseclient.client as client
 import synapseclient.utils as utils
@@ -47,16 +47,22 @@ def test_wikiAttachment():
     
     # Retrieve the root Wiki from Synapse
     wiki2 = syn.getWiki(project)
-    assert wiki == wiki2
+    ## due to the new wiki api, we'll get back some new properties,
+    ## namely markdownFileHandleId and markdown_path, so only compare
+    ## properties that are in the first object
+    for property_name in wiki:
+        assert_equal(wiki[property_name], wiki2[property_name])
 
     # Retrieve the sub Wiki from Synapse
     wiki2 = syn.getWiki(project, subpageId=subwiki.id)
-    assert subwiki == wiki2
+    for property_name in wiki:
+        assert_equal(subwiki[property_name], wiki2[property_name])
 
     # Try making an update
     wiki['title'] = 'A New Title'
     wiki['markdown'] = wiki['markdown'] + "\nNew stuff here!!!\n"
     wiki = syn.store(wiki)
+    wiki = syn.getWiki(project)
     assert wiki['title'] == 'A New Title'
     assert wiki['markdown'].endswith("\nNew stuff here!!!\n")
 
@@ -105,11 +111,11 @@ def test_wiki_version():
 
     wiki = syn.store(wiki)
 
-    w1 = syn._getWiki2(owner=wiki.ownerId, pageId=wiki.id, version=0)
+    w1 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=0)
     assert "version 1" in w1.title
     assert "version 1" in w1.markdown
 
-    w2 = syn._getWiki2(owner=wiki.ownerId, pageId=wiki.id, version=1)
+    w2 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=1)
     assert "version 2" in w2.title
     assert "version 2" in w2.markdown
 
