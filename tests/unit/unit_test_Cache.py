@@ -215,27 +215,39 @@ def test_cache_rules():
     path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
     my_cache.add(file_handle_id=101201, path=path1)
 
-    path2 = utils.touch(os.path.join(tmp_dir, "not_in_cache", "file1.ext"))
+    new_time_stamp = cache._get_modified_time(path1)+1
+    path2 = utils.touch(os.path.join(tmp_dir, "not_in_cache", "file1.ext"), (new_time_stamp, new_time_stamp))
     my_cache.add(file_handle_id=101201, path=path2)
 
-    path3 = utils.touch(os.path.join(tmp_dir, "also_not_in_cache", "file1.ext"))
+    new_time_stamp = cache._get_modified_time(path2)+1
+    path3 = utils.touch(os.path.join(tmp_dir, "also_not_in_cache", "file1.ext"), (new_time_stamp, new_time_stamp))
     my_cache.add(file_handle_id=101201, path=path3)
 
-    ## test case 1a. return exact match
+    ## DownloadLocation specified, found exact match
     assert_equal( my_cache.get(file_handle_id=101201, path=path2), path2 )
+
+    ## DownloadLocation specified, no match, get most recent
+    path = my_cache.get(file_handle_id=101201, path=os.path.join(tmp_dir, "file_is_not_here", "file1.ext"))
+    assert_equal(path, path3)
+
+    ## DownloadLocation specified as a directory, not in cache, get most recent
+    empty_dir = os.path.join(tmp_dir, "empty_directory")
+    os.makedirs(empty_dir)
+    path = my_cache.get(file_handle_id=101201, path=empty_dir)
+    assert_equal(path, path3)
 
     ## path2 is now modified
     new_time_stamp = cache._get_modified_time(path2)+2
     utils.touch(path2, (new_time_stamp, new_time_stamp))
 
-    ## test case 1b. Get file from alternate location. Do we care which file we get?
+    ## Get file from alternate location. Do we care which file we get?
     assert_is_none(my_cache.get(file_handle_id=101201, path=path2))
     assert_in(my_cache.get(file_handle_id=101201) , [path1,path3] )
 
-    ## test case 1c.
+    ## Download uncached file to a specified download location
     assert_is_none( my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache")) )
 
-    ## test case 2a. Get file from alternate location. Do we care which file we get?
+    ## No downloadLocation specified, get file from alternate location. Do we care which file we get?
     assert_is_not_none(my_cache.get(file_handle_id=101201))
     assert_in( my_cache.get(file_handle_id=101201), [path1,path3] )
 

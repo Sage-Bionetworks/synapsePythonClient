@@ -11,9 +11,10 @@ This is part of the internal implementation of the client and should not be
 accessed directly by users of the client.
 """
 
-import os
 import datetime
 import json
+import operator
+import os
 import re
 import shutil
 from math import floor
@@ -41,10 +42,11 @@ def iso_time_to_epoch(iso_time):
 
 def compare_timestamps(modified_time, cached_time):
     """
-    Compare a file's modified timestamp with the timestamp from a .cacheMap file.
+    Compare two ISO formatted timestamps, with a special case when cached_time
+    ends in .000Z.
 
-    The R client always writes .000 for milliseconds, for compatibility,
-    we should match a cached time ending in .000Z, meaning zero milliseconds
+    For backward compatibility, we always write .000 for milliseconds into the cache.
+    We then match a cached time ending in .000Z, meaning zero milliseconds
     with a modified time with any number of milliseconds.
 
     :param modified_time: float representing seconds since unix epoch
@@ -130,11 +132,6 @@ class Cache():
 
             path = utils.normalize_path(path)
 
-            ## Note that on some file systems, you get greater than millisecond
-            ## resolution on a file's modified timestamp. So, it's important to
-            ## compare the ISO timestamp strings for equality rather than their
-            ## unix epoch time representations.
-
             ## If the caller specifies a path and that path exists in the cache
             ## but has been modified, we need to indicate no match by returning
             ## None. The logic for updating a synapse entity depends on this to
@@ -156,18 +153,13 @@ class Cache():
             if exact:
                 return None
 
-            ## We don't have an exact match, can we return an alternate location?
-            most_recent_cached_file_path = None
-            in_cache_file_path = None
-            most_recent_cached_time = float("-inf")
-            for cached_file_path, cached_time in cache_map.iteritems():
-                if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
-                    most_recent_cached_file_path = cached_file_path
-                    most_recent_cached_time = cached_time
-
             ## return most recently cached and unmodified file OR
             ## None if there are no unmodified files
-            return in_cache_file_path if in_cache_file_path else most_recent_cached_file_path
+            for cached_file_path, cached_time in sorted(cache_map.items(), key=operator.itemgetter(1), reverse=True):
+                if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
+                    return cached_file_path
+
+            return None
 
 
     def add(self, file_handle_id, path):
@@ -182,6 +174,7 @@ class Cache():
             cache_map = self._read_cache_map(cache_dir)
 
             path = utils.normalize_path(path)
+            ## write .000 milliseconds for backward compatibility
             cache_map[path] = epoch_time_to_iso(floor(_get_modified_time(path)))
             self._write_cache_map(cache_dir, cache_map)
 
