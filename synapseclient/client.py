@@ -88,7 +88,7 @@ STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503,504],
                          "retry_errors"      : ["proxy error", "slow down", "timeout", "timed out",
                                                 "connection reset by peer", "unknown ssl protocol error",
                                                 "couldn't connect to host", "slowdown", "try again"],
-                         "retry_exceptions"  : ["ConnectionError", "Timeout"],
+                         "retry_exceptions"  : ["ConnectionError", "Timeout", "timeout"],
                          "retries"           : 8,
                          "wait"              : 1,
                          "back_off"          : 2}
@@ -98,6 +98,7 @@ mimetypes.add_type('text/x-r', '.R', strict=False)
 mimetypes.add_type('text/x-r', '.r', strict=False)
 mimetypes.add_type('text/tab-separated-values', '.maf', strict=False)
 mimetypes.add_type('text/tab-separated-values', '.bed5', strict=False)
+mimetypes.add_type('text/tab-separated-values', '.bed', strict=False)
 mimetypes.add_type('text/tab-separated-values', '.vcf', strict=False)
 mimetypes.add_type('text/tab-separated-values', '.sam', strict=False)
 mimetypes.add_type('text/yaml', '.yaml', strict=False)
@@ -198,7 +199,7 @@ class Synapse:
         self.table_query_sleep = 2
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
-        self.table_query_timeout = 60
+        self.table_query_timeout = 300
 
 
 
@@ -1820,17 +1821,12 @@ class Synapse:
 
 
 
-    def __put_chunk_to_S3(self, i, chunk, token, headers, chunk_record):
+    def __put_chunk_to_S3(self, i, chunk, token, headers):
         """Stores a single chunk to S3.  Used from chunkedUploadFile."""
         # Get the signed S3 URL
         url = self._createChunkedFileUploadChunkURL(i, token)
-        chunk_record['url'] = url
         response = requests.put(url, data=chunk, headers=headers)
-        # Is requests closing response stream? Let's make sure:
-        # "Note that connections are only released back to
-        #  the pool for reuse once all body data has been
-        #  read; be sure to either set stream to False or
-        #  read the content property of the Response object."
+        #  Make sure requests closes response stream?:
         # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
         try:
             if response is not None:
@@ -1840,7 +1836,7 @@ class Synapse:
         return response
 
 
-    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, progress=True, mimetype=None):
+    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, progress=True, mimetype=None, threadCount=6):
         """
         Upload a file to be stored in Synapse, dividing large files into chunks.
 
@@ -1851,6 +1847,8 @@ class Synapse:
         :returns: An `S3 FileHandle <http://rest.synapse.org/org/sagebionetworks/repo/model/file/S3FileHandle.html>`_
         """
         from functools import partial
+        import multiprocessing.dummy as mp
+        from multiprocessing import Value
         if chunksize < 5*MB:
             raise ValueError('Minimum chunksize is 5 MB.')
         if filepath is None or not os.path.exists(filepath):
@@ -1879,43 +1877,33 @@ class Synapse:
         headers.update(synapseclient.USER_AGENT)
         diagnostics['User-Agent'] = synapseclient.USER_AGENT
 
+        retry_policy=self._build_retry_policy({
+            "retry_status_codes": [429,502,503,504],
+            "retry_errors"      : ['Proxy Error', 'Please slow down', 'Slowdown',
+                                   'We encountered an internal error. Please try again.',
+                                   'Max retries exceeded with url',
+                                   'RequestTimeout'], ## RequestTimeout comes from S3 during put operations
+            "retries"           : 6})
+        p = mp.Pool(threadCount)
+
         try:
             # Get token
             token = self._createChunkedFileUploadToken(filepath, mimetype)
             diagnostics['token'] = token
-
-            retry_policy=self._build_retry_policy({
-                "retry_status_codes": [429,502,503,504],
-                "retry_errors"      : [
-                    'Proxy Error',
-                    'Please slow down',
-                    'Slowdown',
-                    'We encountered an internal error. Please try again.',
-                    'Max retries exceeded with url',
-                    'RequestTimeout'],
-                "retry_exceptions"  : ['ConnectionError', 'Timeout', 'timeout'],
-                "retries"           : 6,
-                "wait"              : 1,
-                "back_off"          : 2})
-                ## RequestTimeout comes from S3 during put operations
-
             diagnostics['chunks'] = []
             fileSize = os.stat(filepath).st_size
-            for i in range(1, nchunks(filepath, chunksize=chunksize)+1):
+            completedChunks = Value('d', -1)
+            chunkNumbers = range(1, nchunks(filepath, chunksize=chunksize)+1)
+            def upload_one_chunk_with_retry(i):
                 chunk = get_chunk(filepath, i, chunksize=chunksize)
-                chunk_record = {'chunk-number':i}
-
-                # PUT the chunk to S3
-                put_chunk = partial(self.__put_chunk_to_S3, i, chunk, token, headers, chunk_record)
-                response = _with_retry(put_chunk, verbose=True, **retry_policy)
-                utils.printTransferProgress((i-1)*chunksize, fileSize, prefix = 'Uploading', postfix=filepath)
-
-                chunk_record['response-status-code'] = response.status_code
-                chunk_record['response-headers'] = response.headers
-                if response.text:
-                    chunk_record['response-body'] = response.text
-                diagnostics['chunks'].append(chunk_record)
+                response = _with_retry(partial(self.__put_chunk_to_S3, i, chunk, token, headers), 
+                                       verbose=False, **retry_policy)
+                completedChunks.value +=1
+                utils.printTransferProgress(completedChunks.value*chunksize, 
+                                            fileSize, prefix = 'Uploading', postfix=filepath)
                 exceptions._raise_for_status(response, verbose=True)
+            p.map(upload_one_chunk_with_retry,chunkNumbers)
+
             ## complete the upload
             utils.printTransferProgress(fileSize, fileSize, prefix = 'Uploaded Chunks', postfix=filepath)
             sleep_on_failed_time = 1
@@ -1925,7 +1913,7 @@ class Synapse:
 
             while attempt_to_complete < max_attempts_to_complete:
                 attempt_to_complete += 1
-                status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
+                status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=chunkNumbers)
                 diagnostics['status'] = [status]
                 # Poll until concatenating chunks is complete
                 loop = 0
@@ -1955,7 +1943,8 @@ class Synapse:
             raise sys.exc_info()[0], ex, sys.exc_info()[2]
 
         # Print timing information
-        if progress: sys.stdout.write("\rUpload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
+        if progress: 
+            sys.stdout.write("\rUpload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
 
         return fileHandle
 
@@ -2786,6 +2775,18 @@ class Synapse:
         :param separator: defaults to comma
         :param header: True by default
         :param includeRowIdAndRowVersion: True by default
+
+        NOTE: When performing queries on frequently updated tables,
+              the table can be inaccessible for a period leading to a
+              timeout of the query.  Since the results are guaranteed
+              to eventually be returned you can change the max timeout
+              by setting the table_query_timeout variable of the Synapse
+              object:
+
+              syn.table_query_timeout = 300  #Sets the max timeout to 5 minutes.
+
+
+
         """
         if resultsAs.lower()=="rowset":
             return TableQueryResult(self, query, **kwargs)
