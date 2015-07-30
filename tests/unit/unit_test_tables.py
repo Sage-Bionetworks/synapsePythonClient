@@ -349,7 +349,7 @@ def test_aggregate_query_result_to_data_frame():
         import pandas as pd
 
         class MockSynapse(object):
-            def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None, timeout=None):
+            def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
                 return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
                         'maxRowsPerPage': 2,
                         'queryCount': 4,
@@ -409,6 +409,7 @@ def test_aggregate_query_result_to_data_frame():
 
 def test_waitForAsync():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+    syn.table_query_timeout = 0.05
     syn.table_query_max_sleep = 0.001
     syn.restPOST = MagicMock(return_value={"token":"1234567"})
 
@@ -421,4 +422,4 @@ def test_waitForAsync():
         "errorMessage": "Totally fubared error",
         "errorDetails": "Totally fubared error details"})
 
-    assert_raises(synapseclient.exceptions.SynapseTimeoutError, syn._waitForAsync, uri="foo/bar", request={"foo": "bar"}, timeout=0.05)
+    assert_raises(synapseclient.exceptions.SynapseTimeoutError, syn._waitForAsync, uri="foo/bar", request={"foo": "bar"})
