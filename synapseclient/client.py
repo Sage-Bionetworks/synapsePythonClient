@@ -918,10 +918,10 @@ class Synapse:
                 if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
                     needs_upload = False
                 else:
-                    ## Note that this needs an exact match to work. If the file referred to
-                    ## by entity['path'] has been modified, we want to upload it.
-                    cached_path = self.cache.get(bundle['entity']['dataFileHandleId'], entity['path'], exact=True)
-                    needs_upload = cached_path is None
+                    ## Check if we need to upload a new version of an existing
+                    ## file. If the file referred to by entity['path'] has been
+                    ## modified, we want to upload the new version.
+                    needs_upload = not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
             else:
                 needs_upload = True
 

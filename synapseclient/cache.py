@@ -109,7 +109,28 @@ class Cache():
             f.write('\n') # For compatibility with R's JSON parser
 
 
-    def get(self, file_handle_id, path=None, exact=False):
+    def contains(self, file_handle_id, path):
+        """
+        Given a file and file_handle_id, return True if an unmodified cached
+        copy of the file exists at the exact path given or False otherwise.
+        :param file_handle_id:
+        :param path: file path at which to look for a cached copy
+        """
+        cache_dir = self.get_cache_dir(file_handle_id)
+        if not os.path.exists(cache_dir):
+            return False
+
+        with Lock(self.cache_map_file_name, dir=cache_dir):
+            cache_map = self._read_cache_map(cache_dir)
+
+            path = utils.normalize_path(path)
+
+            cached_time = cache_map.get(path, None)
+            if cached_time:
+                return True if compare_timestamps(_get_modified_time(path), cached_time) else False
+
+
+    def get(self, file_handle_id, path=None):
         """
         Retrieve a file with the given file handle from the cache.
 
@@ -149,9 +170,6 @@ class Cache():
                     cached_time = cache_map.get(path, None)
                     if cached_time:
                         return path if compare_timestamps(_get_modified_time(path), cached_time) else None
-
-            if exact:
-                return None
 
             ## return most recently cached and unmodified file OR
             ## None if there are no unmodified files

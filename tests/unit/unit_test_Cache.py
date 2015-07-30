@@ -1,7 +1,7 @@
 import re, os, tempfile, json
 import time, datetime, random
 from mock import MagicMock, patch
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_is_not_none, assert_in
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_is_not_none, assert_in, assert_false, assert_true
 from collections import OrderedDict
 from multiprocessing import Process
 
@@ -239,6 +239,13 @@ def test_cache_rules():
     ## path2 is now modified
     new_time_stamp = cache._get_modified_time(path2)+2
     utils.touch(path2, (new_time_stamp, new_time_stamp))
+
+    ## test cache.contains
+    assert_false(my_cache.contains(file_handle_id=101201, path=empty_dir))
+    assert_false(my_cache.contains(file_handle_id=101201, path=path2))
+    assert_false(my_cache.contains(file_handle_id=101999, path=path2))
+    assert_true(my_cache.contains(file_handle_id=101201, path=path1))
+    assert_true(my_cache.contains(file_handle_id=101201, path=path3))
 
     ## Get file from alternate location. Do we care which file we get?
     assert_is_none(my_cache.get(file_handle_id=101201, path=path2))
