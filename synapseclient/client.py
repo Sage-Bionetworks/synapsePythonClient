@@ -34,6 +34,7 @@ import collections
 import os, sys, stat, re, json, time
 import os.path
 import base64, hashlib, hmac
+import shutil
 import urllib, urlparse, requests, webbrowser
 import zipfile
 import mimetypes
@@ -53,6 +54,7 @@ from synapseclient.annotations import to_submission_status_annotations, from_sub
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_container
 from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
+from synapseclient.team import Team
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki, WikiAttachment
@@ -173,20 +175,22 @@ class Synapse:
 
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                  debug=DEBUG_DEFAULT, skip_checks=False, configPath=CONFIG_FILE):
+
+        cache_root_dir = synapseclient.cache.CACHE_ROOT_DIR
+
         # Check for a config file
         self.configPath=configPath
         if os.path.isfile(configPath):
             config = self.getConfigFile(configPath)
             if config.has_option('cache', 'location'):
-                self.cache = synapseclient.cache.Cache(cache_root_dir=config.get('cache', 'location'))
-            else:
-                self.cache = synapseclient.cache.Cache()
-
+                cache_root_dir=config.get('cache', 'location')
             if config.has_section('debug'):
                 debug = True
         elif debug:
             # Alert the user if no config is found
             sys.stderr.write("Could not find a config file (%s).  Using defaults." % os.path.abspath(configPath))
+
+        self.cache = synapseclient.cache.Cache(cache_root_dir)
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
 
@@ -693,6 +697,9 @@ class Synapse:
         ifcollision = kwargs.get('ifcollision', 'keep.both')
         submission = kwargs.get('submission', None)
 
+        ## TODO is it an error to specify both downloadFile=False and downloadLocation?
+        ## TODO this matters if we want to return already cached files when downloadFile=False
+
         # Make a fresh copy of the Entity
         local_state = entity.local_state() if entity and isinstance(entity, Entity) else {}
         if 'path' in kwargs:
@@ -747,9 +754,33 @@ class Synapse:
             #   add it to the cache
             if cached_file_path is not None:
 
-                entity.path = cached_file_path
-                entity.files = [None if cached_file_path is None else os.path.basename(cached_file_path)]
-                entity.cacheDir = None if cached_file_path is None else os.path.dirname(cached_file_path)
+                fileName = os.path.basename(cached_file_path)
+
+                if not downloadLocation:
+                    downloadLocation = os.path.dirname(cached_file_path)
+                    entity.path = utils.normalize_path(os.path.join(downloadLocation, fileName))
+                    entity.files = [fileName]
+                    entity.cacheDir = downloadLocation
+
+                else:
+                    downloadPath = utils.normalize_path(os.path.join(downloadLocation, fileName))
+                    if downloadPath != cached_file_path:
+                        if not downloadFile:
+                            ## This is a strange case where downloadLocation is
+                            ## set but downloadFile=False. Copying files from a
+                            ## cached location seems like the wrong thing to do
+                            ## in this case.
+                            entity.path = None
+                            entity.files = []
+                            entity.cacheDir = None
+                        else:
+                            ## TODO apply ifcollision here
+                            downloadPath = utils.normalize_path(os.path.join(downloadLocation, os.path.basename(cached_file_path)))
+                            shutil.copy(cached_file_path, downloadPath)
+
+                            entity.path = downloadPath
+                            entity.files = [os.path.basename(downloadPath)]
+                            entity.cacheDir = downloadLocation
 
             elif downloadFile:
 
@@ -888,8 +919,10 @@ class Synapse:
                 if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
                     needs_upload = False
                 else:
-                    cached_path = self.cache.get(bundle['entity']['dataFileHandleId'], entity['path']) if bundle else None
-                    needs_upload = cached_path is None
+                    ## Check if we need to upload a new version of an existing
+                    ## file. If the file referred to by entity['path'] has been
+                    ## modified, we want to upload the new version.
+                    needs_upload = not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
             else:
                 needs_upload = True
 
@@ -1652,6 +1685,7 @@ class Synapse:
             return  {'path': destination,
                      'files': [None] if destination is None else [os.path.basename(destination)],
                      'cacheDir': None if destination is None else os.path.dirname(destination) }
+
         # We expect to be redirected to a signed S3 URL or externalURL
         #The assumption is wrong - we always try to read either the outer or inner requests.get
         #but sometimes we don't have something to read.  I.e. when the type is ftp at which point
@@ -2235,6 +2269,18 @@ class Synapse:
             yield Evaluation(**result)
 
 
+    def _findTeam(self, name):
+        """
+        Retrieve a Teams matching the supplied name fragment
+        """
+        for result in self._GET_paginated("/teams?fragment=%s" % name):
+            yield Team(**result)
+
+
+    def getTeam(self, id):
+        return Team(**self.restGET('/team/%s' % id))
+
+
     def submit(self, evaluation, entity, name=None, teamName=None, silent=False):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
@@ -2539,16 +2585,49 @@ class Synapse:
     ##                     CRUD for Wikis                     ##
     ############################################################
 
-    def getWiki(self, owner, subpageId=None):
-        """Gets a :py:class:`synapseclient.wiki.Wiki` object from Synapse."""
+    def getWiki(self, owner, subpageId=None, version=None):
+        """
+        Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2
+        API which supports versioning.
+        """
+        uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
+        if subpageId is not None:
+            uri += "/{wikiId}".format(wikiId=subpageId)
+        if version is not None:
+            uri += "?wikiVersion={version}".format(version=version)
 
-        if subpageId:
-            uri = '/entity/%s/wiki/%s' % (id_of(owner), id_of(subpageId))
-        else:
-            uri = '/entity/%s/wiki' % id_of(owner)
         wiki = self.restGET(uri)
         wiki['owner'] = owner
-        return Wiki(**wiki)
+        wiki = Wiki(**wiki)
+
+        path = self.cache.get(wiki.markdownFileHandleId)
+        if path:
+            fileInfo = {'path':path}
+        else:
+            url = "{endpoint}/entity/{ownerId}/wiki2/{wikiId}/markdown".format(endpoint=self.repoEndpoint, ownerId=id_of(owner), wikiId=wiki.id)
+            if version is not None:
+                url += "?wikiVersion={version}".format(version=version)
+
+            cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
+
+            fileInfo = self._downloadFile(url, cache_dir)
+
+            self.cache.add(wiki.markdownFileHandleId, fileInfo['path'])
+
+        if fileInfo['path'].endswith('.gz'):
+            import gzip
+            with gzip.open(fileInfo['path']) as f:
+                markdown = f.read().decode('utf-8')
+        else:
+            with open(fileInfo['path']) as f:
+                markdown = f.read().decode('utf-8')
+        print markdown
+        wiki.markdown = markdown
+        wiki.markdown_path = fileInfo['path']
+
+        return wiki
 
 
     def getWikiHeaders(self, owner):
@@ -2907,6 +2986,8 @@ class Synapse:
         else:
             url = '%s/fileHandle/%s/url' % (self.fileHandleEndpoint, file_handle_id)
             cache_dir = self.cache.get_cache_dir(file_handle_id)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir)
             file_info = self._downloadFile(url, os.path.join(cache_dir, "query_results.csv"))
             self.cache.add(file_handle_id, file_info['path'])
         return (download_from_table_result, file_info)
@@ -3004,6 +3085,8 @@ class Synapse:
 
         if downloadLocation is None:
             downloadLocation = self.cache.get_cache_dir(file_handle_id)
+            if not os.path.exists(downloadLocation):
+                os.makedirs(downloadLocation)
         cached_file_path = self.cache.get(file_handle_id, downloadLocation)
         if cached_file_path is not None:
             return {'path':cached_file_path}

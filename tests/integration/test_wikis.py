@@ -1,5 +1,5 @@
-import os
-from nose.tools import assert_raises
+import os, uuid
+from nose.tools import assert_raises, assert_equal
 
 import synapseclient.client as client
 import synapseclient.utils as utils
@@ -47,16 +47,22 @@ def test_wikiAttachment():
     
     # Retrieve the root Wiki from Synapse
     wiki2 = syn.getWiki(project)
-    assert wiki == wiki2
+    ## due to the new wiki api, we'll get back some new properties,
+    ## namely markdownFileHandleId and markdown_path, so only compare
+    ## properties that are in the first object
+    for property_name in wiki:
+        assert_equal(wiki[property_name], wiki2[property_name])
 
     # Retrieve the sub Wiki from Synapse
     wiki2 = syn.getWiki(project, subpageId=subwiki.id)
-    assert subwiki == wiki2
+    for property_name in wiki:
+        assert_equal(subwiki[property_name], wiki2[property_name])
 
     # Try making an update
     wiki['title'] = 'A New Title'
     wiki['markdown'] = wiki['markdown'] + "\nNew stuff here!!!\n"
     wiki = syn.store(wiki)
+    wiki = syn.getWiki(project)
     assert wiki['title'] == 'A New Title'
     assert wiki['markdown'].endswith("\nNew stuff here!!!\n")
 
@@ -94,4 +100,22 @@ def test_create_or_update_wiki():
         Wiki(title='This is a different title', owner=project, markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!"),
         createOrUpdate=True)
 
+
+def test_wiki_version():
+    ## create a new project to avoid artifacts from previous tests
+    project = syn.store(Project(name=str(uuid.uuid4())))
+    wiki = syn.store(Wiki(title='Title version 1', owner=project, markdown="##A heading\n\nThis is version 1 of the wiki page!\n"))
+
+    wiki.title = "Title version 2"
+    wiki.markdown = "##A heading\n\nThis is version 2 of the wiki page!\n"
+
+    wiki = syn.store(wiki)
+
+    w1 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=0)
+    assert "version 1" in w1.title
+    assert "version 1" in w1.markdown
+
+    w2 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=1)
+    assert "version 2" in w2.title
+    assert "version 2" in w2.markdown
 

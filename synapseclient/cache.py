@@ -11,9 +11,12 @@ This is part of the internal implementation of the client and should not be
 accessed directly by users of the client.
 """
 
-import os
 import datetime
 import json
+import operator
+import os
+import re
+import shutil
 from math import floor
 import synapseclient.utils as utils
 from synapseclient.lock import Lock
@@ -39,10 +42,11 @@ def iso_time_to_epoch(iso_time):
 
 def compare_timestamps(modified_time, cached_time):
     """
-    Compare a file's modified timestamp with the timestamp from a .cacheMap file.
+    Compare two ISO formatted timestamps, with a special case when cached_time
+    ends in .000Z.
 
-    The R client always writes .000 for milliseconds, for compatibility,
-    we should match a cached time ending in .000Z, meaning zero milliseconds
+    For backward compatibility, we always write .000 for milliseconds into the cache.
+    We then match a cached time ending in .000Z, meaning zero milliseconds
     with a modified time with any number of milliseconds.
 
     :param modified_time: float representing seconds since unix epoch
@@ -105,6 +109,27 @@ class Cache():
             f.write('\n') # For compatibility with R's JSON parser
 
 
+    def contains(self, file_handle_id, path):
+        """
+        Given a file and file_handle_id, return True if an unmodified cached
+        copy of the file exists at the exact path given or False otherwise.
+        :param file_handle_id:
+        :param path: file path at which to look for a cached copy
+        """
+        cache_dir = self.get_cache_dir(file_handle_id)
+        if not os.path.exists(cache_dir):
+            return False
+
+        with Lock(self.cache_map_file_name, dir=cache_dir):
+            cache_map = self._read_cache_map(cache_dir)
+
+            path = utils.normalize_path(path)
+
+            cached_time = cache_map.get(path, None)
+            if cached_time:
+                return True if compare_timestamps(_get_modified_time(path), cached_time) else False
+
+
     def get(self, file_handle_id, path=None):
         """
         Retrieve a file with the given file handle from the cache.
@@ -120,38 +145,37 @@ class Cache():
                   exists in the specified location or None if it does not
         """
         cache_dir = self.get_cache_dir(file_handle_id)
+        if not os.path.exists(cache_dir):
+            return None
+
         with Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
 
             path = utils.normalize_path(path)
 
-            # if file_path is None and file_name is None:
-            #     ## find most recently cached version of the file
-            #     most_recent_cached_file_path = None
-            #     most_recent_cached_time = float("-inf")
-            #     for cached_file_path, cached_time in cache_map.iteritems():
-            #         cached_time = iso_time_to_epoch(cached_time)
-            #         if _get_modified_time(cached_file_path) == cached_time and cached_time > most_recent_cached_time:
-            #             most_recent_cached_file_path = cached_file_path
-            #             most_recent_cached_time = cached_time
-            #     return most_recent_cached_file_path
+            ## If the caller specifies a path and that path exists in the cache
+            ## but has been modified, we need to indicate no match by returning
+            ## None. The logic for updating a synapse entity depends on this to
+            ## determine the need to upload a new file.
 
-            if path is None:
-                path = self.get_cache_dir(file_handle_id)
+            if path is not None:
+                ## If we're given a path to a directory, look for a cached file in that directory
+                if os.path.isdir(path):
+                    for cached_file_path, cached_time in cache_map.iteritems():
+                        if path == os.path.dirname(cached_file_path):
+                            return cached_file_path if compare_timestamps(_get_modified_time(cached_file_path), cached_time) else None
 
-            ## Note that on some file systems, you get greater than millisecond
-            ## resolution on a file's modified timestamp. So, it's important to
-            ## compare the ISO timestamp strings for equality rather than their
-            ## unix epoch time representations.
+                ## if we're given a full file path, look up a matching file in the cache
+                else:
+                    cached_time = cache_map.get(path, None)
+                    if cached_time:
+                        return path if compare_timestamps(_get_modified_time(path), cached_time) else None
 
-            if os.path.isdir(path):
-                for cached_file_path, cached_time in cache_map.iteritems():
-                    if path == os.path.dirname(cached_file_path) and compare_timestamps(_get_modified_time(cached_file_path), cached_time):
-                        return cached_file_path
-            else:
-                for cached_file_path, cached_time in cache_map.iteritems():
-                    if path == cached_file_path and compare_timestamps(_get_modified_time(cached_file_path), cached_time):
-                        return cached_file_path
+            ## return most recently cached and unmodified file OR
+            ## None if there are no unmodified files
+            for cached_file_path, cached_time in sorted(cache_map.items(), key=operator.itemgetter(1), reverse=True):
+                if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
+                    return cached_file_path
 
             return None
 
@@ -161,16 +185,88 @@ class Cache():
         Add a file to the cache
         """
         if not path or not os.path.exists(path):
-            raise ValueError("Can't cache file \"%s\"" % path)
+            raise ValueError("Can't find file \"%s\"" % path)
 
         cache_dir = self.get_cache_dir(file_handle_id)
         with Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
 
             path = utils.normalize_path(path)
-            cache_map[path] = epoch_time_to_iso(_get_modified_time(path))
+            ## write .000 milliseconds for backward compatibility
+            cache_map[path] = epoch_time_to_iso(floor(_get_modified_time(path)))
             self._write_cache_map(cache_dir, cache_map)
 
         return cache_map
 
+
+    def remove(self, file_handle_id, path=None, delete=None):
+        """
+        Remove a file from the cache.
+
+        :param file_handle_id:
+        :param path: If the given path is None, remove (and potentially delete)
+                     all cached copies. If the path is that of a file in the
+                     .cacheMap file, remove it.
+
+        :returns: A list of files removed
+        """
+        removed = []
+        cache_dir = self.get_cache_dir(file_handle_id)
+        with Lock(self.cache_map_file_name, dir=cache_dir):
+            cache_map = self._read_cache_map(cache_dir)
+
+            if path is None:
+                if delete is True:
+                    for cached_file_path in cache_map:
+                        os.remove(cached_file_path)
+                        removed.append(cached_file_path)
+                cache_map = {}
+            else:
+                path = utils.normalize_path(path)
+                if path in cache_map:
+                    if delete is True and os.path.exists(path):
+                        os.remove(path)
+                    del cache_map[path]
+                    removed.append(path)
+
+            self._write_cache_map(cache_dir, cache_map)
+
+        return removed
+
+
+    def _cache_dirs(self):
+        """
+        Generate a list of all cache dirs, directories of the form:
+        [cache.cache_root_dir]/949/59949
+        """
+        for item1 in os.listdir(self.cache_root_dir):
+            path1 = os.path.join(self.cache_root_dir, item1)
+            if os.path.isdir(path1) and re.match('\d+', item1):
+                for item2 in os.listdir(path1):
+                    path2 = os.path.join(path1, item2)
+                    if os.path.isdir(path2) and re.match('\d+', item2):
+                        yield path2
+
+
+    def purge(self, before_date, dry_run=False):
+        """
+        Purge the cache. Use with caution. Delete files whose cache maps were last updated prior to the given date.
+
+        Deletes .cacheMap files and files stored in the cache.cache_root_dir, but does not delete
+        files stored outside the cache.
+        """
+        if isinstance(before_date, datetime.datetime):
+            before_date = utils.to_unix_epoch_time_secs(epoch_time)
+        count = 0
+        for cache_dir in self._cache_dirs():
+            ## _get_modified_time returns None if the cache map file doesn't
+            ## exist and n > None evaluates to True (wtf?). I'm guessing it's
+            ## OK to purge directories in the cache that have no .cacheMap file
+            if before_date > _get_modified_time(os.path.join(cache_dir, self.cache_map_file_name)):
+                if dry_run:
+                    print cache_dir
+                else:
+                    shutil.rmtree(cache_dir)
+                count += 1
+        return count
 

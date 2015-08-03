@@ -136,7 +136,7 @@ class Activity(dict):
     :param name:        name of the Activity
     :param description: a short text description of the Activity
     :param used:        Either a list of:
-                        - reference objects (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``)
+                        - `reference objects <http://rest.synapse.org/org/sagebionetworks/repo/model/Reference.html>`_ (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``)
                         - a list of Synapse Entities or Entity IDs
                         - a list of URL's
     :param executed:    A code resource that was executed to generate the Entity.

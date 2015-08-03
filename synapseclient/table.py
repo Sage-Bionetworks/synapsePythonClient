@@ -158,6 +158,48 @@ Renaming or otherwise modifying a column involves removing the column and adding
     schema.addColumn(bday_column2)
     schema = syn.store(schema)
 
+--------------------
+Table attached files
+--------------------
+
+Synapse tables support a special column type called 'File' which contain a file
+handle, an identifier of a file stored in Synapse. Here's an example of how
+to upload files into Synapse, associate them with a table and read them back
+later::
+
+    ## your synapse project
+    project = syn.get(...)
+
+    covers_dir = '/path/to/album/covers/'
+
+    ## store the table's schema
+    cols = [
+        Column(name='artist', columnType='STRING', maximumSize=50),
+        Column(name='album', columnType='STRING', maximumSize=50),
+        Column(name='year', columnType='INTEGER'),
+        Column(name='catalog', columnType='STRING', maximumSize=50),
+        Column(name='cover', columnType='FILEHANDLEID')]
+    schema = syn.store(Schema(name='Jazz Albums', columns=cols, parent=project))
+
+    ## the actual data
+    data = [["John Coltrane",  "Blue Train",   1957, "BLP 1577", "coltraneBlueTrain.jpg"],
+            ["Sonny Rollins",  "Vol. 2",       1957, "BLP 1558", "rollinsBN1558.jpg"],
+            ["Sonny Rollins",  "Newk's Time",  1958, "BLP 4001", "rollinsBN4001.jpg"],
+            ["Kenny Burrel",   "Kenny Burrel", 1956, "BLP 1543", "burrellWarholBN1543.jpg"]]
+
+    ## upload album covers
+    for row in data:
+        file_handle = syn._chunkedUploadFile(os.path.join(covers_dir, row[4]))
+        row[4] = file_handle['id']
+
+    ## store the table data
+    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+
+    ## Later, we'll want to query the table and download our album covers
+    results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'Sonny Rollins'" % schema.id, resultsAs="rowset")
+    for row in results:
+        file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
+        print "%s_%s" % (row.rowId, row.versionNumber), ", ".join(unicode(a) for a in row.values), file_info['path']
 
 -------------
 Deleting rows
