@@ -1027,24 +1027,38 @@ class Synapse:
 
         return bundle
 
-    def delete(self, obj):
+    def delete(self, obj, version=False):
         """
         Removes an object from Synapse.
 
         :param obj: An existing object stored on Synapse
                     such as Evaluation, File, Project, WikiPage etc
+                    
+        :param version: For entities, specify a particular version to delete.
+        
         """
 
         # Handle all strings as the Entity ID for backward compatibility
-        if isinstance(obj, basestring):
-            self.restDELETE(uri='/entity/%s' % id_of(obj))
-        elif hasattr(obj, "_synapse_delete"):
-            return obj._synapse_delete(self)
+        if version:
+            if isinstance(obj, basestring):
+                self.restDELETE(uri='/entity/%s/version/%s' % (id_of(obj), version))
+#            elif hasattr(obj, "_synapse_delete"):
+#                return obj._synapse_delete(self)
+            else:
+                try:
+                    self.restDELETE(obj.deleteURI(versionNumber=version))
+                except AttributeError as ex1:
+                    SynapseError("Can't delete a %s" % type(obj))
         else:
-            try:
-                self.restDELETE(obj.deleteURI())
-            except AttributeError as ex1:
-                SynapseError("Can't delete a %s" % type(obj))
+            if isinstance(obj, basestring):
+                self.restDELETE(uri='/entity/%s' % id_of(obj))
+            elif hasattr(obj, "_synapse_delete"):
+                return obj._synapse_delete(self)
+            else:
+                try:
+                    self.restDELETE(obj.deleteURI())	            
+                except AttributeError as ex1:
+                    SynapseError("Can't delete a %s" % type(obj))
 
     _user_name_cache = {}
     def _get_user_name(self, user_id):
