@@ -262,7 +262,7 @@ class Entity(collections.MutableMapping):
     def putURI(self):
         return '/entity/%s' %self.id
 
-    def deleteURI(self,versionNumber):
+    def deleteURI(self,versionNumber=None):
         if versionNumber:
             return '/entity/%s/version/%s' % (self.id,versionNumber)
         else:

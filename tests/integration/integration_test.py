@@ -147,7 +147,11 @@ def test_entity_version():
     assert returnEntity.versionNumber == 1
     assert returnEntity['fizzbuzz'][0] == 111222
     assert 'foo' not in returnEntity
-
+    
+    # Delete version 2 
+    syn.delete(entity, version=2)
+    returnEntity = syn.getEntity(entity)
+    assert returnEntity.versionNumber == 1
 
 def test_md5_query():
     # Add the same Entity several times
