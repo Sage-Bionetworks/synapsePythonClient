@@ -262,8 +262,12 @@ class Entity(collections.MutableMapping):
     def putURI(self):
         return '/entity/%s' %self.id
 
-    def deleteURI(self):
-        return '/entity/%s' %self.id
+    def deleteURI(self,versionNumber=None):
+        if versionNumber:
+            return '/entity/%s/version/%s' % (self.id,versionNumber)
+        else:
+            return '/entity/%s' %self.id
+
 
 
     def local_state(self, state=None):
