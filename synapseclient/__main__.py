@@ -243,8 +243,12 @@ def show(args, syn):
 
 
 def delete(args, syn):
-    syn.delete(args.id)
-    print 'Deleted entity: %s' % args.id
+	if args.version:
+	    syn.delete(args.id, args.version)	
+	    print 'Deleted entity %s, version %s' % (args.id, args.version)
+	else:
+	    syn.delete(args.id)
+	    print 'Deleted entity: %s' % args.id
 
 
 def create(args, syn):
@@ -528,6 +532,8 @@ def build_parser():
             help='removes a dataset from Synapse')
     parser_delete.add_argument('id', metavar='syn123', type=str,
             help='Synapse ID of form syn123 of desired data object')
+    parser_delete.add_argument('--version', type=str,
+            help='Version number to delete of given entity.')
     parser_delete.set_defaults(func=delete)
 
     parser_query = subparsers.add_parser('query',
