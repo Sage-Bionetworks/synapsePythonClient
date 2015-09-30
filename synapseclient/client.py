@@ -52,7 +52,7 @@ from synapseclient.utils import id_of, get_properties, KB, MB, _is_json, _extrac
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_container
+from synapseclient.entity import Entity, File, Project, Folder, Versionable, split_entity_namespaces, is_versionable, is_container
 from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
 from synapseclient.team import Team
 from synapseclient.dict_object import DictObject
@@ -1083,7 +1083,10 @@ class Synapse:
             return obj._synapse_delete(self)
         else:
             try:
-                self.restDELETE(obj.deleteURI(versionNumber=version))            
+                if isinstance(obj, Versionable):
+                    self.restDELETE(obj.deleteURI(versionNumber=version))
+                else:
+                    self.restDELETE(obj.deleteURI())
             except AttributeError as ex1:
                 SynapseError("Can't delete a %s" % type(obj))
 
