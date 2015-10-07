@@ -54,7 +54,7 @@ from synapseclient.annotations import to_submission_status_annotations, from_sub
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, Versionable, split_entity_namespaces, is_versionable, is_container
 from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
-from synapseclient.team import Team
+from synapseclient.team import UserProfile, Team, TeamMember
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki, WikiAttachment
@@ -525,7 +525,7 @@ class Synapse:
             else: # no break
                 raise ValueError('Can\'t find user "%s": ' % id)
         uri = '/userProfile/%s' % id
-        return DictObject(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
+        return UserProfile(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
 
 
     def _findPrincipals(self, query_string):
@@ -2290,14 +2290,20 @@ class Synapse:
         return Team(**self.restGET('/team/%s' % id))
 
 
-    def submit(self, evaluation, entity, name=None, teamName=None, silent=False):
+    def getTeamMembers(self, team):
+        for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
+            yield TeamMember(**result)
+
+
+    def submit(self, evaluation, entity, name=None, teamName=None, silent=False, submitterAlias=None):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
         :param evaluation: Evaluation board to submit to
         :param entity:     The Entity containing the Submission
         :param name:       A name for this submission
-        :param teamName:   Team name to be publicly displayed
+        :param teamName:   Name of a registered Synapse Team
+        :param submitterAlias: A nickname, possibly for display in leaderboards in place of the submitter's name
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
 
@@ -2315,11 +2321,29 @@ class Synapse:
 
         evaluation_id = id_of(evaluation)
 
+        ## default name to name of entity
+        if name is None and 'name' in entity:
+            name = entity['name']
+
         # Check for access rights
         unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
         if unmetRights['totalNumberOfResults'] > 0:
             accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
             raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
+
+        ## Find team, if given
+        team = None
+        if teamName:
+            matching_teams = list(self._findTeam(teamName))
+            if len(matching_teams)>0:
+                for matching_team in matching_teams:
+                    if matching_team.name==teamName:
+                        team = matching_team
+                        break
+                else:
+                    raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}".format(teamName, ', '.join(t.name for t in matching_teams)))
+            else:
+                raise ValueError("Team \"{0}\" not found.".format(teamName))
 
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
@@ -2328,14 +2352,63 @@ class Synapse:
         entity_version = entity.get('versionNumber', 1)
         entity_id = entity['id']
 
-        name = entity['name'] if (name is None and 'name' in entity) else name
         submission = {'evaluationId'  : evaluation_id,
                       'entityId'      : entity_id,
                       'name'          : name,
-                      'submitterAlias': teamName,
+                      'submitterAlias': team.name if team else submitterAlias,
                       'versionNumber' : entity_version}
-        submitted = Submission(**self.restPOST('/evaluation/submission?etag=%s' % entity['etag'],
-                                               json.dumps(submission)))
+
+        url = '/evaluation/submission?etag=%s' % entity['etag']
+
+        ## if a team has been specified, include teamId and contributors
+        if team:
+            submission['teamId'] = team.id
+
+            ## see http://rest.synapse.org/GET/evaluation/evalId/team/id/submissionEligibility.html
+            ## for an (incomplete) explanation of this unfortunate piece of unnecessary complication
+            eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=evaluation_id, id=team.id))
+
+            # {'eligibilityStateHash': -100952509,
+            #  'evaluationId': '3317421',
+            #  'membersEligibility': [
+            #   {'hasConflictingSubmission': False,
+            #    'isEligible': True,
+            #    'isQuotaFilled': False,
+            #    'isRegistered': True,
+            #    'principalId': 377358},
+            #   {'hasConflictingSubmission': True,
+            #    'isEligible': False,
+            #    'isQuotaFilled': False,
+            #    'isRegistered': True,
+            #    'principalId': 1421212}],
+            #  'teamEligibility': {
+            #   'isEligible': True,
+            #   'isQuotaFilled': False,
+            #   'isRegistered': True},
+            #  'teamId': '3325434'}
+            ## Note that isRegistered may be left out
+            print eligibility
+
+            if not eligibility['teamEligibility'].get('isRegistered', False):
+                raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
+            if eligibility['teamEligibility']['isQuotaFilled']:
+                raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'.format(team=team.name))
+            if not eligibility['teamEligibility']['isEligible']:
+                raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
+
+            for member in eligibility['membersEligibility']:
+                if not member.get('isRegistered', False):
+                    raise SynapseError('Team member is not registered')
+                if member['hasConflictingSubmission']:
+                    raise SynapseError('A team member has a conflicting submission')
+                if member['isQuotaFilled']:
+                    raise SynapseError('A team member has maxed out his/her quota of submissions')
+
+            submission['contributors'] = [{'principalId':em['principalId']} for em in eligibility['membersEligibility']]
+
+            url += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
+
+        submitted = Submission(**self.restPOST(url, json.dumps(submission)))
 
         ## if we want to display the receipt message, we need the full object
         if not silent:
@@ -2545,6 +2618,13 @@ class Synapse:
             page = self.restGET(uri)
             results = page['results'] if 'results' in page else page['children']
             totalNumberOfResults = page.get('totalNumberOfResults', len(results))
+
+            ## platform bug PLFM-3589 causes totalNumberOfResults to be too large,
+            ## by counting evaluations to which the current user does not have access.
+            ## So, we need to check for empty results and bail if we see that.
+            if len(results) == 0:
+                totalNumberOfResults = offset
+
             for result in results:
                 offset += 1
                 yield result

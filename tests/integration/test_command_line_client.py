@@ -417,8 +417,6 @@ def test_command_line_store_and_submit():
                  eval.id, 
                  '--name',
                  'Some random name',
-                 '--teamName',
-                 'My Team',
                  '--entity',
                  file_entity_id)
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
@@ -432,7 +430,7 @@ def test_command_line_store_and_submit():
                  eval.id, 
                  '--name',
                  'Some random name',
-                 '--teamName',
+                 '--alias',
                  'My Team',
                  '--entity',
                  file_entity_id)
@@ -496,7 +494,7 @@ def test_command_line_store_and_submit():
                  eval.id, 
                  '--file',
                  filename,
-                 '--pid',
+                 '--parent',
                  project_id,
                  '--used',
                  exteral_entity_id,

@@ -356,8 +356,6 @@ def submit(args, syn):
     Examples:
     1. #submit to a eval Queue by eval ID , uploading the submission file
     synapse submit --evalID 2343117 -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-
-    2. support for deprecated --evaluation option
     synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
     synapse submit --evaluation 2343117 -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
 
@@ -365,16 +363,11 @@ def submit(args, syn):
 
     #backward compatibility support
     if args.evaluation is not None:
-        sys.stdout.write('[Warning]: Use of --evaluation is deprecated. Use -evalId or -evalName \n')
         #check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
         try:
             args.evaluationID = str(int(args.evaluation))
         except ValueError:
             args.evaluationName = args.evaluation
-
-    #set the user teamname to username if none is specified
-    if args.teamName is None:
-        args.teamName = syn.getUserProfile()['userName']
 
     # checking if user has entered a evaluation ID or evaluation Name
     if args.evaluationID is None and args.evaluationName is None:
@@ -385,8 +378,7 @@ def submit(args, syn):
         try:
             args.evaluationID = syn.getEvaluationByName(args.evaluationName)['id']
         except Exception:
-            raise ValueError('could not find evaluationID for evaluationName: %s \n' % args.evaluationName)
-
+            raise ValueError('Could not find an evaluation named: %s \n' % args.evaluationName)
 
     # checking if a entity id or file was specified by the user
     if args.entity is None and args.file is None:
@@ -545,28 +537,30 @@ def build_parser():
 
     parser_submit = subparsers.add_parser('submit',
             help='submit an entity or a file for evaluation')
-    parser_submit.add_argument('--evaluationID', '--evalID', type=str,
+    parser_submit.add_argument('--evaluationID', '--evaluationId', '--evalID', type=str,
             help='Evaluation ID where the entity/file will be submitted')
     parser_submit.add_argument('--evaluationName', '--evalN', type=str,
             help='Evaluation Name where the entity/file will be submitted')
     parser_submit.add_argument('--evaluation', type=str,
             help=argparse.SUPPRESS)  #mainly to maintain the backward compatibility
-    parser_submit.add_argument('--entity', '--eid', '--entityId', type=str,
+    parser_submit.add_argument('--entity', '--eid', '--entityId', '--id', type=str,
             help='Synapse ID of the entity to be submitted')
     parser_submit.add_argument('--file', '-f', type=str,
             help='File to be submitted to the challenge')
-    parser_submit.add_argument('--parentId', '--pid', type=str, dest='parentid',
+    parser_submit.add_argument('--parentId', '--parentid', '--parent', type=str, dest='parentid',
             help='Synapse ID of project or folder where to upload data')
     parser_submit.add_argument('--name', type=str,
             help='Name of the submission')
     parser_submit.add_argument('--teamName', '--team', type=str,
-            help='Publicly displayed name of team for the submission[defaults to username]')
+            help='Submit of behalf of a registered team')
+    parser_submit.add_argument('--submitterAlias', '--alias', metavar='ALIAS', type=str,
+            help='A nickname, possibly for display in leaderboards')
     parser_submit.add_argument('--used', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path from which the '
+            help=('Synapse ID of a file entity or url from which the '
                   'specified entity is derived'))
     parser_submit.add_argument('--executed', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path that was executed '
-                  'to generate the specified entity is derived'))
+            help=('Synapse ID of a file entity or url indicating code executed '
+                  'to generate the specified entity'))
     parser_submit.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_submit.set_defaults(func=submit)

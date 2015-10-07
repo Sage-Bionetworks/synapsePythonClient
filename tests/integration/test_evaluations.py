@@ -9,6 +9,7 @@ from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
 from synapseclient.entity import Project, File
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
+from synapseclient.team import Team
 
 import integration
 from integration import schedule_for_cleanup
@@ -136,11 +137,7 @@ def test_evaluations():
             entity = testSyn.store(f)
 
             ## test submission by evaluation ID
-            submission = testSyn.submit(ev.id, entity)
-
-            # Clean up, since the current user can't access this project
-            # This also removes references to the submitted object :)
-            testSyn.delete(other_project)
+            submission = testSyn.submit(ev.id, entity, submitterAlias="My Nickname")
 
             # Mess up the cached file so that syn._getWithEntityBundle must download again
             os.utime(filename, (0, 0))
@@ -170,7 +167,7 @@ def test_evaluations():
             f = File(filename, parentId=project.id, name='entry-%02d' % i,
                      description='An entry for testing evaluation')
             entity=syn.store(f)
-            syn.submit(ev, entity, name='Submission %02d' % i, teamName='My Team')
+            syn.submit(ev, entity, name='Submission %02d' % i, submitterAlias='My Team')
 
         # Score the submissions
         submissions = syn.getSubmissions(ev, limit=num_of_submissions-1)
@@ -240,6 +237,15 @@ def test_evaluations():
     finally:
         # Clean up
         syn.delete(ev)
+        if 'testSyn' in locals():
+            if 'other_project' in locals():
+                # Clean up, since the current user can't access this project
+                # This also removes references to the submitted object :)
+                testSyn.delete(other_project)
+            if 'team' in locals():
+                ## remove team
+                testSyn.delete(team)
 
     ## Just deleted it. Shouldn't be able to get it.
     assert_raises(SynapseHTTPError, syn.getEvaluation, ev)
+

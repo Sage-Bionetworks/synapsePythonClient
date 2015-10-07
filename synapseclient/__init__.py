@@ -302,7 +302,7 @@ from activity import Activity
 from entity import Entity, Project, Folder, File
 from evaluation import Evaluation, Submission, SubmissionStatus
 from table import Schema, Column, RowSet, Row, as_table_columns, Table
-from team import Team
+from team import Team, UserProfile, UserGroupHeader, TeamMember
 from wiki import Wiki
 
 from version_check import check_for_updates
