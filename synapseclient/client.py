@@ -52,7 +52,7 @@ from synapseclient.utils import id_of, get_properties, KB, MB, _is_json, _extrac
 from synapseclient.annotations import from_synapse_annotations, to_synapse_annotations
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations
 from synapseclient.activity import Activity
-from synapseclient.entity import Entity, File, Project, Folder, split_entity_namespaces, is_versionable, is_container
+from synapseclient.entity import Entity, File, Project, Folder, Versionable, split_entity_namespaces, is_versionable, is_container
 from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
 from synapseclient.team import Team
 from synapseclient.dict_object import DictObject
@@ -1083,7 +1083,10 @@ class Synapse:
             return obj._synapse_delete(self)
         else:
             try:
-                self.restDELETE(obj.deleteURI(versionNumber=version))            
+                if isinstance(obj, Versionable):
+                    self.restDELETE(obj.deleteURI(versionNumber=version))
+                else:
+                    self.restDELETE(obj.deleteURI())
             except AttributeError as ex1:
                 SynapseError("Can't delete a %s" % type(obj))
 
@@ -2622,11 +2625,11 @@ class Synapse:
 
             self.cache.add(wiki.markdownFileHandleId, fileInfo['path'])
 
-        if fileInfo['path'].endswith('.gz'):
+        try:
             import gzip
             with gzip.open(fileInfo['path']) as f:
                 markdown = f.read().decode('utf-8')
-        else:
+        except IOError as ex1:
             with open(fileInfo['path']) as f:
                 markdown = f.read().decode('utf-8')
         print markdown
@@ -3094,6 +3097,8 @@ class Synapse:
             if not os.path.exists(downloadLocation):
                 os.makedirs(downloadLocation)
         cached_file_path = self.cache.get(file_handle_id, downloadLocation)
+        ## TODO finish cache refactor by handling collisions and
+        ## TODO copy from cache to downloadLocation
         if cached_file_path is not None:
             return {'path':cached_file_path}
         else:
@@ -3108,6 +3113,22 @@ class Synapse:
             self.cache.add(file_handle_id, file_info['path'])
 
             return file_info
+
+
+    # TODO a function that downloads all files in a table or all
+    # TODO files returned by a query
+    # def downloadTableFiles(table, column, downloadLocation=None, ifcollision="keep.both"):
+    #     """
+    #     :param table:            schema object, table query result or synapse ID
+    #     :param column:           a Column object, the ID of a column or its name
+    #     :param downloadLocation: location in local file system to download the file
+    #     :param ifcollision:      Determines how to handle file collisions.
+    #                              May be "overwrite.local", "keep.local", or "keep.both".
+    #                              Defaults to "keep.both".
+
+    #     :returns: a dictionary with 'path'.
+    #     """
+    #     pass
 
 
     ############################################################
@@ -3191,7 +3212,7 @@ class Synapse:
         """
         send a message via Synapse.
 
-        :param userId: A list of user IDs to which the message is to be sent
+        :param userIds: A list of user IDs to which the message is to be sent
 
         :param messageSubject: The subject for the message
 
