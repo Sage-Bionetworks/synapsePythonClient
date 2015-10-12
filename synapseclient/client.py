@@ -2321,7 +2321,7 @@ class Synapse:
 
         evaluation_id = id_of(evaluation)
 
-        ## default name to name of entity
+        ## default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
 
@@ -2331,7 +2331,14 @@ class Synapse:
             accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
             raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
 
-        ## Find team, if given
+        ## TODO: accept entities or entity IDs
+        if not 'versionNumber' in entity:
+            entity = self.get(entity)
+        ## version defaults to 1 to hack around required version field and allow submission of files/folders
+        entity_version = entity.get('versionNumber', 1)
+        entity_id = entity['id']
+
+        ## if teanName given, find matching team object
         team = None
         if teamName:
             matching_teams = list(self._findTeam(teamName))
@@ -2345,25 +2352,8 @@ class Synapse:
             else:
                 raise ValueError("Team \"{0}\" not found.".format(teamName))
 
-        ## TODO: accept entities or entity IDs
-        if not 'versionNumber' in entity:
-            entity = self.get(entity)
-        ## version defaults to 1 to hack around required version field and allow submission of files/folders
-        entity_version = entity.get('versionNumber', 1)
-        entity_id = entity['id']
-
-        submission = {'evaluationId'  : evaluation_id,
-                      'entityId'      : entity_id,
-                      'name'          : name,
-                      'submitterAlias': team.name if team else submitterAlias,
-                      'versionNumber' : entity_version}
-
-        url = '/evaluation/submission?etag=%s' % entity['etag']
-
-        ## if a team has been specified, include teamId and contributors
+        ## if a team is found, build contributors list
         if team:
-            submission['teamId'] = team.id
-
             ## see http://rest.synapse.org/GET/evaluation/evalId/team/id/submissionEligibility.html
             ## for an (incomplete) explanation of this unfortunate piece of unnecessary complication
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=evaluation_id, id=team.id))
@@ -2376,39 +2366,64 @@ class Synapse:
             #    'isQuotaFilled': False,
             #    'isRegistered': True,
             #    'principalId': 377358},
-            #   {'hasConflictingSubmission': True,
-            #    'isEligible': False,
-            #    'isQuotaFilled': False,
-            #    'isRegistered': True,
-            #    'principalId': 1421212}],
+            #   ...],
             #  'teamEligibility': {
             #   'isEligible': True,
             #   'isQuotaFilled': False,
             #   'isRegistered': True},
             #  'teamId': '3325434'}
             ## Note that isRegistered may be left out
-            print eligibility
 
-            if not eligibility['teamEligibility'].get('isRegistered', False):
-                raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
-            if eligibility['teamEligibility']['isQuotaFilled']:
-                raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'.format(team=team.name))
-            if not eligibility['teamEligibility']['isEligible']:
+            # TODO Is this correctly interpretted? If isEligible is False, we'll get a reason?
+            # TODO If isEligible is True, then we don't need to check the other fields?
+            if not eligibility['teamEligibility'].get('isEligible', True):
+                if not eligibility['teamEligibility'].get('isRegistered', False):
+                    raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
+                if eligibility['teamEligibility'].get('isQuotaFilled', False):
+                    raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'.format(team=team.name))
                 raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
 
+            # TODO if no isRegistered is present, is the default False - meaning user can't submit?
             for member in eligibility['membersEligibility']:
-                if not member.get('isRegistered', False):
-                    raise SynapseError('Team member is not registered')
-                if member['hasConflictingSubmission']:
-                    raise SynapseError('A team member has a conflicting submission')
-                if member['isQuotaFilled']:
-                    raise SynapseError('A team member has maxed out his/her quota of submissions')
+                if member.get('isEligible', True):
+                    profile = self.getUserProfile(member['principalId'])
+                    if not member.get('isRegistered', False):
+                        profile = self.getUserProfile(member['principalId'])
+                        raise SynapseError('Team member {username}({id}) is not registered'.format(**profile))
+                    if member.get('hasConflictingSubmission', False):
+                        profile = self.getUserProfile(member['principalId'])
+                        raise SynapseError('Team member {username}({id}) has a conflicting submission'.format(**profile))
+                    if member.get('isQuotaFilled', False):
+                        profile = self.getUserProfile(member['principalId'])
+                        raise SynapseError('Team member {username}({id}) has maxed out his/her quota of submissions'.format(**profile))
+                    raise SynapseError('Team member {username}({id}) is not eligible'.format(**profile))
 
-            submission['contributors'] = [{'principalId':em['principalId']} for em in eligibility['membersEligibility']]
+            # TODO do all contributors have to be eligible in order to submit? Or do we just take those that are eligible?
+            contributors = [{'principalId':em['principalId']} for em in eligibility['membersEligibility']]
+        else:
+            eligibility = None
+            contributors = None
 
-            url += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
+        submission = {'evaluationId'  : evaluation_id,
+                      'entityId'      : entity_id,
+                      'name'          : name,
+                      'versionNumber' : entity_version}
 
-        submitted = Submission(**self.restPOST(url, json.dumps(submission)))
+        ## optional submission fields
+        if team:
+            submission['teamId'] = team.id
+            submission['contributors'] = contributors
+        if submitterAlias:
+            submission['submitterAlias'] = submitterAlias
+        elif team:
+            submission['submitterAlias'] = team.name
+
+        ## URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
+        uri = '/evaluation/submission?etag=%s' % entity['etag']
+        if eligibility:
+            uri += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
+
+        submitted = Submission(**self.restPOST(uri, json.dumps(submission)))
 
         ## if we want to display the receipt message, we need the full object
         if not silent:

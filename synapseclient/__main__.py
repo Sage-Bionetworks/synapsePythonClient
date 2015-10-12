@@ -547,7 +547,7 @@ def build_parser():
             help='Synapse ID of the entity to be submitted')
     parser_submit.add_argument('--file', '-f', type=str,
             help='File to be submitted to the challenge')
-    parser_submit.add_argument('--parentId', '--parentid', type=str, dest='parentid',
+    parser_submit.add_argument('--parentId', '--parentid', '--parent', type=str, dest='parentid',
             help='Synapse ID of project or folder where to upload data')
     parser_submit.add_argument('--name', type=str,
             help='Name of the submission')

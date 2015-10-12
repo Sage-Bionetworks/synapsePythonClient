@@ -1,5 +1,6 @@
 import tempfile, time, os, re, sys, filecmp, shutil, requests, json
 import uuid, random, base64
+from datetime import datetime
 from nose.tools import assert_raises
 
 import ConfigParser
@@ -61,12 +62,14 @@ def test_evaluations():
         ev = syn.store(ev, createOrUpdate=True)
         assert ev.status == 'OPEN'
 
+        # TODO is "participation" deprecated? Should these be removed?
         # Add the current user as a participant
+        myOwnerId = int(syn.getUserProfile()['ownerId'])
+        syn._allowParticipation(ev, myOwnerId)
         syn.joinEvaluation(ev)
 
         # Find this user in the participant list
         foundMe = False
-        myOwnerId = int(syn.getUserProfile()['ownerId'])
         for item in syn.getParticipants(ev):
             if int(item['userId']) == myOwnerId:
                 foundMe = True
