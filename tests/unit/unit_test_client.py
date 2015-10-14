@@ -179,7 +179,7 @@ def test_submit(*mocks):
         return submission
     POST_mock.side_effect = shim
     
-    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', teamName='Team X')
+    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', submitterAlias='Team X')
     assert GET_mock.call_count == 2
 
     assert submission.id == 1234
