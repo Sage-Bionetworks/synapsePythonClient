@@ -86,7 +86,7 @@ DEBUG_DEFAULT = False
 # Defines the standard retry policy applied to the rest methods
 ## The retry period needs to span a minute because sending
 ## messages is limited to 10 per 60 seconds.
-STANDARD_RETRY_PARAMS = {"retry_status_codes": [502,503,504],
+STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 502, 503, 504],
                          "retry_errors"      : ["proxy error", "slow down", "timeout", "timed out",
                                                 "connection reset by peer", "unknown ssl protocol error",
                                                 "couldn't connect to host", "slowdown", "try again"],
@@ -1699,7 +1699,7 @@ class Synapse:
         #The assumption is wrong - we always try to read either the outer or inner requests.get
         #but sometimes we don't have something to read.  I.e. when the type is ftp at which point
         #we still set the cache and filepath based on destination which is wrong because nothing was fetched
-        response = requests.get(url, headers=self._generateSignedHeaders(url), allow_redirects=False)
+        response = _with_retry(lambda: requests.get(url, headers=self._generateSignedHeaders(url), allow_redirects=False), **STANDARD_RETRY_PARAMS)
         if response.status_code in [301,302,303,307,308]:
             url = response.headers['location']
             scheme = urlparse.urlparse(url).scheme
