@@ -351,19 +351,14 @@ def getAnnotations(args, syn):
 
 def submit(args, syn):
     '''
-    Method to allow challenge participants to submit to an evaluation queue
+    Method to allow challenge participants to submit to an evaluation queue.
 
-    Examples:
-    1. #submit to a eval Queue by eval ID , uploading the submission file
-    synapse submit --evalID 2343117 -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-
+    Examples::
+    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --parentId syn2345030 --used syn2351967 --executed syn2351968
+    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --parentId syn2345030 --used syn2351967 --executed syn2351968
     '''
-
-    #backward compatibility support
+    #check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
     if args.evaluation is not None:
-        #check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
         try:
             args.evaluationID = str(int(args.evaluation))
         except ValueError:
@@ -396,7 +391,7 @@ def submit(args, syn):
                             executed=_convertProvenanceList(args.executed, args.limitSearch, syn))
         args.entity = synFile.id
 
-    submission = syn.submit(args.evaluationID, args.entity, name=args.name, teamName=args.teamName)
+    submission = syn.submit(args.evaluationID, args.entity, name=args.name, team=args.teamName)
     sys.stdout.write('Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' \
         % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId']))
 
@@ -404,6 +399,8 @@ def submit(args, syn):
 def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
     syn.login(args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe)
+    profile = syn.getUserProfile()
+    print("Logged in as: {userName} ({ownerId})".format(**profile))
 
 
 def build_parser():

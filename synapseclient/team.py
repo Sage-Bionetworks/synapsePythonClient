@@ -9,10 +9,9 @@ class UserGroupHeader(DictObject):
     def __init__(self, **kwargs):
         super(UserGroupHeader, self).__init__(kwargs)
 
-
 class Team(DictObject):
     """
-    Represent a Synapse Team. User definable fields are:
+    Represent a `Synapse Team <http://rest.synapse.org/org/sagebionetworks/repo/model/Team.html>`_. User definable fields are:
     :param icon:          fileHandleId for icon image of the Team
     :param description:   A short description of this Team.
     :param name:          The name of the Team.

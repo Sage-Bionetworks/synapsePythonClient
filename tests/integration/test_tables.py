@@ -210,7 +210,7 @@ def test_tables_csv():
 
         df = results.asDataFrame()
         assert all(df.columns.values == ['Name', 'Born', 'Hipness', 'Living'])
-        assert all(df.iloc[1,[0,1,3]] == ['Miles Davis', 1926, False]), "Wasn't expecting:" + unicode(df.iloc[1,[0,1,3]])
+        assert list(df.iloc[1,[0,1,3]]) == ['Miles Davis', 1926, False]
         assert df.iloc[1,2] - 9.87 < 0.0001
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for CSV tables.\n\n')

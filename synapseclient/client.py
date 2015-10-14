@@ -2295,28 +2295,28 @@ class Synapse:
             yield TeamMember(**result)
 
 
-    def submit(self, evaluation, entity, name=None, teamName=None, silent=False, submitterAlias=None):
+    def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
         :param evaluation: Evaluation board to submit to
         :param entity:     The Entity containing the Submission
         :param name:       A name for this submission
-        :param teamName:   Name of a registered Synapse Team
-        :param submitterAlias: A nickname, possibly for display in leaderboards in place of the submitter's name
+        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered for the challenge
+        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
+
+        In the case of challenges, a team can optionally be provided to give
+        credit to members of the team that contributed to the submission. The team
+        must be registered for the challenge with which the given evaluation is
+        associated. The caller must be a member of the submitting team.
 
         Example::
 
             evaluation = syn.getEvaluation(12345)
             entity = syn.get('syn12345')
-            submission = syn.submit(evaluation, entity, name='Our Final Answer', teamName='Blue Team')
-
-        Set team name to user name::
-
-            profile = syn.getUserProfile()
-            submission = syn.submit(evaluation, entity, name='My Data', teamName=profile['displayName'])
+            submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
         """
 
         evaluation_id = id_of(evaluation)
@@ -2339,23 +2339,21 @@ class Synapse:
         entity_id = entity['id']
 
         ## if teanName given, find matching team object
-        team = None
-        if teamName:
-            matching_teams = list(self._findTeam(teamName))
+        if isinstance(team, basestring):
+            matching_teams = list(self._findTeam(team))
             if len(matching_teams)>0:
                 for matching_team in matching_teams:
-                    if matching_team.name==teamName:
+                    if matching_team.name==team:
                         team = matching_team
                         break
                 else:
-                    raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}".format(teamName, ', '.join(t.name for t in matching_teams)))
+                    raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}".format(team, ', '.join(t.name for t in matching_teams)))
             else:
-                raise ValueError("Team \"{0}\" not found.".format(teamName))
+                raise ValueError("Team \"{0}\" not found.".format(team))
 
         ## if a team is found, build contributors list
         if team:
             ## see http://rest.synapse.org/GET/evaluation/evalId/team/id/submissionEligibility.html
-            ## for an (incomplete) explanation of this unfortunate piece of unnecessary complication
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=evaluation_id, id=team.id))
 
             # {'eligibilityStateHash': -100952509,
@@ -2372,10 +2370,9 @@ class Synapse:
             #   'isQuotaFilled': False,
             #   'isRegistered': True},
             #  'teamId': '3325434'}
-            ## Note that isRegistered may be left out
+            ## Note that isRegistered may be missing
 
-            # TODO Is this correctly interpretted? If isEligible is False, we'll get a reason?
-            # TODO If isEligible is True, then we don't need to check the other fields?
+            ## Check team eligibility and raise an exception if not eligible
             if not eligibility['teamEligibility'].get('isEligible', True):
                 if not eligibility['teamEligibility'].get('isRegistered', False):
                     raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
@@ -2383,27 +2380,13 @@ class Synapse:
                     raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'.format(team=team.name))
                 raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
 
-            # TODO if no isRegistered is present, is the default False - meaning user can't submit?
-            for member in eligibility['membersEligibility']:
-                if member.get('isEligible', True):
-                    profile = self.getUserProfile(member['principalId'])
-                    if not member.get('isRegistered', False):
-                        profile = self.getUserProfile(member['principalId'])
-                        raise SynapseError('Team member {username}({id}) is not registered'.format(**profile))
-                    if member.get('hasConflictingSubmission', False):
-                        profile = self.getUserProfile(member['principalId'])
-                        raise SynapseError('Team member {username}({id}) has a conflicting submission'.format(**profile))
-                    if member.get('isQuotaFilled', False):
-                        profile = self.getUserProfile(member['principalId'])
-                        raise SynapseError('Team member {username}({id}) has maxed out his/her quota of submissions'.format(**profile))
-                    raise SynapseError('Team member {username}({id}) is not eligible'.format(**profile))
-
-            # TODO do all contributors have to be eligible in order to submit? Or do we just take those that are eligible?
-            contributors = [{'principalId':em['principalId']} for em in eligibility['membersEligibility']]
+            ## Include all team members who are eligible.
+            contributors = [{'principalId':em['principalId']} for em in eligibility['membersEligibility'] if em['isEligible']]
         else:
             eligibility = None
             contributors = None
 
+        ## create basic submission object
         submission = {'evaluationId'  : evaluation_id,
                       'entityId'      : entity_id,
                       'name'          : name,

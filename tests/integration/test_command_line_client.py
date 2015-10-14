@@ -406,10 +406,6 @@ def test_command_line_store_and_submit():
     # Create an Evaluation to submit to
     eval = Evaluation(name=str(uuid.uuid4()), contentSource=project_id)
     eval = syn.store(eval)
-    # print "~" * 75, "\n"
-    # print syn._getACL(eval)
-    # print "~" * 75, "\n"
-    # syn.joinEvaluation(eval)
     schedule_for_cleanup(eval)
     
     # Submit a bogus file
