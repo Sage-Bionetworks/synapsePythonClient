@@ -52,7 +52,7 @@ Updating a Wiki
     entity = syn.get('syn123456')
     wiki = syn.getWiki(entity)
 
-    content = \"\"\"
+    wiki.markdown = \"\"\"
     # My Wiki Page
 
     Here is a description of my **fantastic** project! Let's
