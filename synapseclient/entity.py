@@ -13,12 +13,9 @@ notation (entity.foo or entity['foo']) can be used interchangeably.
 Imports::
 
     from synapseclient import Project, Folder, File
-    
-    ## the following Entity types are deprecated
-    from synapseclient import Analysis, Code, Data, Study, Summary
 
 .. autoclass:: synapseclient.entity.Entity
-   
+
 ~~~~~~~
 Project
 ~~~~~~~
@@ -36,6 +33,12 @@ File
 ~~~~
 
 .. autoclass:: synapseclient.entity.File
+
+~~~~~~~~~~~~
+Table Schema
+~~~~~~~~~~~~
+
+.. autoclass:: synapseclient.table.Schema
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -119,10 +122,9 @@ from synapseclient.exceptions import *
 import os
 
 
-# File, Locationable and Summary are Versionable
 class Versionable(object):
     """An entity for which Synapse will store a version history."""
-    
+
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Versionable'
     _property_keys = ['versionNumber', 'versionLabel', 'versionComment', 'versionUrl', 'versions']
 
@@ -160,19 +162,19 @@ class Entity(collections.MutableMapping):
         and annotations, as might be received from the Synapse Repository.
 
         :param properties:  A map of Synapse properties
-        
+
             If 'concreteType' is defined in properties, we create the proper subclass
             of Entity. If not, give back the type whose constructor was called:
-            
+
             If passed an Entity as input, create a new Entity using the input
             entity as a prototype.
-            
+
         :param annotations: A map of user defined annotations
-        :param local_state: Allow local state to be given.  
-                            This state information is not persisted 
+        :param local_state: Allow local state to be given.
+                            This state information is not persisted
                             in the Synapse Repository.
         """
-        
+
         # Create a new Entity using an existing Entity as a prototype
         if isinstance(properties, Entity):
             if annotations is None: annotations = {}
@@ -181,7 +183,7 @@ class Entity(collections.MutableMapping):
             local_state.update(properties.local_state())
             properties = properties.properties
             if 'id' in properties: del properties['id']
-            
+
         if cls==Entity and 'concreteType' in properties and properties['concreteType'] in _entity_type_to_class:
             cls = _entity_type_to_class[properties['concreteType']]
         return cls(properties=properties, annotations=annotations, local_state=local_state)
@@ -193,7 +195,7 @@ class Entity(collections.MutableMapping):
 
     def __new__(typ, *args, **kwargs):
         obj = object.__new__(typ)
-        
+
         # Make really sure that properties and annotations exist before
         # any object methods get invoked. This is important because the
         # dot operator magic methods have been overridden and depend on
@@ -264,14 +266,18 @@ class Entity(collections.MutableMapping):
     def putURI(self):
         return '/entity/%s' %self.id
 
-    def deleteURI(self):
-        return '/entity/%s' %self.id
+    def deleteURI(self, versionNumber=None):
+        if versionNumber:
+            return '/entity/%s/version/%s' % (self.id,versionNumber)
+        else:
+            return '/entity/%s' %self.id
+
 
 
     def local_state(self, state=None):
         """
         Set or get the object's internal state, excluding properties, or annotations.
-        
+
         :param state: A dictionary
         """
         if state:
@@ -340,28 +346,27 @@ class Entity(collections.MutableMapping):
     ## TODO shouldn't these include local_state as well? -jcb
     def keys(self):
         """Returns a set of property and annotation keys"""
-        
         return set(list(self.properties.keys()) + list(self.annotations.keys()))
 
     def has_key(self, key):
         """Is the given key a property or annotation?"""
-        
+
         return key in self.properties or key in self.annotations
 
     def __str__(self):
         from io import StringIO
         f = StringIO()
 
-        f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'), self['id'] if 'id' in self else '-',))
+        f.write(u'%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'), self['id'] if 'id' in self else '-',))
 
         def write_kvps(dictionary, key_filter=None):
             for key in sorted(dictionary.keys()):
                 if (not key_filter) or key_filter(key):
-                    f.write('  ')
-                    f.write(key)
-                    f.write('=')
-                    f.write(u(str(dictionary[key])))
-                    f.write('\n')
+                    f.write(u'  ')
+                    f.write(u(key))
+                    f.write(u'=')
+                    f.write(u(dictionary[key]))
+                    f.write(u'\n')
 
         write_kvps(self.__dict__, lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))
 
@@ -374,19 +379,18 @@ class Entity(collections.MutableMapping):
         return f.getvalue()
 
     def __repr__(self):
-        """Returns an eval-able representation of the Entity."""
-        
+        """Returns an eval-able representation of the Entity."""        
         from io import StringIO
         f = StringIO()
         f.write(u(self.__class__.__name__))
-        f.write(u"(")
+        f.write("(")
         f.write(", ".join(
-            {"%s=%s" % (str(key), value.__repr__(),) for key, value in 
+            {"%s=%s" % (str(key), value.__repr__(),) for key, value in
                 itertools.chain(
                     list([k_v for k_v in list(self.__dict__.items()) if not (k_v[0] in ['properties', 'annotations'] or k_v[0].startswith('__'))]),
                     list(self.properties.items()),
                     list(self.annotations.items()))}))
-        f.write(u")")
+        f.write(")")
         return f.getvalue()
 
 
@@ -396,18 +400,18 @@ class Project(Entity):
 
     Projects in Synapse must be uniquely named. Trying to create a project with
     a name that's already taken, say 'My project', will result in an error
-    
+
     ::
 
         project = Project('Foobarbat project')
         project = syn.store(project)
     """
-    
+
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Project'
 
     def __init__(self, name=None, properties=None, annotations=None, local_state=None, **kwargs):
         if name: kwargs['name'] = name
-        super(Project, self).__init__(concreteType=Project._synapse_entity_type, properties=properties, 
+        super(Project, self).__init__(concreteType=Project._synapse_entity_type, properties=properties,
                                       annotations=annotations, local_state=local_state, **kwargs)
 
 
@@ -418,16 +422,16 @@ class Folder(Entity):
     Folders must have a name and a parent and can optionally have annotations.
 
     ::
-    
+
         folder = Folder('my data', parent=project)
         folder = syn.store(Folder)
     """
-    
+
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Folder'
 
     def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
         if name: kwargs['name'] = name
-        super(Folder, self).__init__(concreteType=Folder._synapse_entity_type, properties=properties, 
+        super(Folder, self).__init__(concreteType=Folder._synapse_entity_type, properties=properties,
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
@@ -437,25 +441,26 @@ class File(Entity, Versionable):
 
     When a File object is stored, the associated local file or its URL will be
     stored in Synapse. A File must have a path (or URL) and a parent.
-    
+
     :param path:         Location to be represented by this File
     :param name:         Name of the file in Synapse, not to be confused with the name within the path
     :param parent:       Project or Folder where this File is stored
     :param synapseStore: Whether the File should be uploaded or if only the path should be stored.
                          Defaults to True (file should be uploaded)
+    :param contentType:  Manually specify Content-type header, for example "application/png" or "application/json; charset=UTF-8"
 
     ::
-    
+
         data = File('/path/to/file/data.xyz', parent=folder)
         data = syn.store(data)
     """
-    
+
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
     _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize', 'contentType']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
     ## TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
-    def __init__(self, path=None, parent=None, synapseStore=True, properties=None, 
+    def __init__(self, path=None, parent=None, synapseStore=True, properties=None,
                  annotations=None, local_state=None, **kwargs):
         if path and 'name' not in kwargs:
             kwargs['name'] = utils.guess_file_name(path)
@@ -468,47 +473,10 @@ class File(Entity, Versionable):
             self.__dict__['cacheDir'] = None
             self.__dict__['files'] = []
         self.__dict__['synapseStore'] = synapseStore
-        super(File, self).__init__(concreteType=File._synapse_entity_type, properties=properties, 
+        super(File, self).__init__(concreteType=File._synapse_entity_type, properties=properties,
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
         # if not synapseStore:
         #     self.__setitem__('concreteType', 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
-
-
-
-# Deprecated, but kept around for compatibility with
-# old-style Data, Code, Study, etc. entities
-class Locationable(Versionable):
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Locationable'
-    _local_keys = Entity._local_keys + ['cacheDir', 'files', 'path']
-    _property_keys = Versionable._property_keys + ['locations', 'md5', 'contentType', 's3Token']
-
-
-class Analysis(Entity):
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Analysis'
-
-
-class Code(Entity, Locationable):
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Code'
-    _local_keys = Locationable._local_keys
-    _property_keys = Entity._property_keys + Locationable._property_keys
-
-
-class Data(Entity, Locationable):
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Data'
-    _local_keys = Locationable._local_keys
-    _property_keys = Entity._property_keys + Locationable._property_keys
-
-
-class Study(Entity, Locationable):
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Study'
-    _local_keys = Locationable._local_keys
-    _property_keys = Entity._property_keys + Locationable._property_keys
-
-
-class Summary(Entity, Versionable):
-    _synapse_entity_type = 'org.sagebionetworks.repo.model.Summary'
-    _property_keys = Entity._property_keys + Versionable._property_keys
-
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
@@ -521,10 +489,10 @@ def split_entity_namespaces(entity):
     """
     Given a plain dictionary or an Entity object,
     splits the object into properties, annotations and local state.
-    A dictionary will be processed as a specific type of Entity 
-    if it has a valid 'concreteType' field, 
+    A dictionary will be processed as a specific type of Entity
+    if it has a valid 'concreteType' field,
     otherwise it is treated as a generic Entity.
-    
+
     :returns: a 3-tuple (properties, annotations, local_state).
     """
     if isinstance(entity, Entity):
@@ -556,29 +524,13 @@ def split_entity_namespaces(entity):
     return (properties, annotations, local_state)
 
 
-LOCATIONABLE_TYPES = [
-    'org.sagebionetworks.repo.model.Data',
-    'org.sagebionetworks.repo.model.Code',
-    'org.sagebionetworks.repo.model.ExpressionData',
-    'org.sagebionetworks.repo.model.GenericData',
-    'org.sagebionetworks.repo.model.GenomicData',
-    'org.sagebionetworks.repo.model.GenotypeData',
-    'org.sagebionetworks.repo.model.Media',
-    'org.sagebionetworks.repo.model.PhenotypeData',
-    'org.sagebionetworks.repo.model.RObject',
-    'org.sagebionetworks.repo.model.Study',
-    'org.sagebionetworks.repo.model.ExampleEntity']
 
-ENTITY_TYPES = LOCATIONABLE_TYPES + [
-    'org.sagebionetworks.repo.model.Analysis',
+ENTITY_TYPES = [
     'org.sagebionetworks.repo.model.FileEntity',
     'org.sagebionetworks.repo.model.Folder',
     'org.sagebionetworks.repo.model.Link',
-    'org.sagebionetworks.repo.model.Page',
-    'org.sagebionetworks.repo.model.Preview',
     'org.sagebionetworks.repo.model.Project',
-    'org.sagebionetworks.repo.model.Step',
-    'org.sagebionetworks.repo.model.Summary'
+    'org.sagebionetworks.repo.model.table.TableEntity'
 ]
 
 def is_synapse_entity(entity):
@@ -605,19 +557,6 @@ def is_versionable(entity):
     return False
 
 
-def is_locationable(entity):
-    """Return True if the given entity is Locationable."""
-    
-    if isinstance(entity, Locationable):
-        return True
-    if isinstance(entity, collections.Mapping):
-        if 'concreteType' in entity:
-            return entity['concreteType'] in LOCATIONABLE_TYPES
-        else:
-            return 'locations' in entity
-    else:
-        raise SynapseMalformedEntityError('Can\'t determine if %s is Locationable' % str(entity))
-
 def is_container(entity):
     """Test if an entity is a container (ie, a Project or a Folder)"""
     if 'concreteType' in entity:
@@ -629,4 +568,3 @@ def is_container(entity):
     else:
         return False
     return concreteType in (Project._synapse_entity_type, Folder._synapse_entity_type)
-

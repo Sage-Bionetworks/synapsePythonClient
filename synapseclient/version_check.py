@@ -17,13 +17,12 @@ Print release notes for installed version of client::
 """
 from __future__ import unicode_literals
 
+import json
+import pkg_resources
 import re
 import requests
-import json
+import synapseclient
 import sys
-import pkg_resources
-from . import constants
-#import synapseclient
 
 
 _VERSION_URL     = 'http://versions.synapse.sagebase.org/synapsePythonClient'
@@ -64,10 +63,10 @@ def version_check(current_version=None, version_url=_VERSION_URL, check_for_poin
         if _version_tuple(current_version, levels=levels) < _version_tuple(version_info['latestVersion'], levels=levels):
             sys.stderr.write("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) "
                              "is available. Your version (%s) can be upgraded by typing:\n"
-                             "    pip install --upgrade synapseclient\n\n" % 
+                             "    pip install --upgrade synapseclient\n\n" %
                              (version_info['latestVersion'], current_version,))
             if 'releaseNotes' in version_info:
-                sys.stderr.write('Python Synapse Client version %s release notes\n\n' 
+                sys.stderr.write('Python Synapse Client version %s release notes\n\n'
                                  % version_info['latestVersion'])
                 sys.stderr.write(version_info['releaseNotes'] + '\n\n')
             return False
@@ -144,8 +143,8 @@ def _get_version_info(version_url=_VERSION_URL):
     if version_url is None:
         return json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))
     else:
-        headers = { 'Accept': 'application/json' }
-        headers.update(constants.USER_AGENT)
+        headers = { 'Accept': 'application/json; charset=UTF-8' }
+        headers.update(synapseclient.USER_AGENT)
         return requests.get(version_url, headers=headers).json()
 
 
@@ -167,4 +166,3 @@ if __name__ == "__main__":
     print("Check against local copy of version file:")
     if version_check(version_url=None):
         print("ok")
-

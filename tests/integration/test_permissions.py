@@ -12,7 +12,7 @@ from nose.tools import assert_raises
 
 import synapseclient
 import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Project, Folder, File, Data
+from synapseclient import Activity, Entity, Project, Folder, File
 
 import integration
 from integration import schedule_for_cleanup
@@ -78,6 +78,11 @@ def test_ACL():
     acl = syn.setPermissions(project, username, accessType=['READ'])
     permissions = syn.getPermissions(project, username)
     assert 'READ' in permissions and len(permissions)==1
+
+    ## test remove user from ACL
+    acl = syn.setPermissions(project, username, None)
+    permissions = syn.getPermissions(project, username)
+    assert permissions == []
 
     #Get permissions of PUBLIC user
     permissions = syn.getPermissions(project)

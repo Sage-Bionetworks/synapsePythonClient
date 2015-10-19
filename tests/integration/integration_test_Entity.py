@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 import uuid, filecmp, os, sys, requests, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
@@ -6,7 +8,7 @@ from mock import patch
 
 import synapseclient.client as client
 import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Project, Folder, File, Data
+from synapseclient import Activity, Entity, Project, Folder, File
 from synapseclient.exceptions import *
 
 import integration
@@ -50,20 +52,27 @@ def test_Entity():
     assert folder.description == 'The rejects from the other folder'
     assert folder.pi[0] == 3.14159265359
 
-    # Test CRUD on Files
+    # Test CRUD on Files, check unicode
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    a_file = File(path, parent=folder, description='Random data for testing',
+    a_file = File(path, parent=folder, description=u'Description with funny characters: Déjà vu, ประเทศไทย, 中国',
                   contentType='text/flapdoodle',
-                  foo='An arbitrary value', bar=[33,44,55], bday=Datetime(2013,3,15))
-    a_file = syn._createFileEntity(a_file)
+                  foo='An arbitrary value',
+                  bar=[33,44,55],
+                  bday=Datetime(2013,3,15),
+                  band=u"Motörhead",
+                  lunch=u"すし")
+    a_file = syn.store(a_file)
     assert a_file.path == path
-    
+
     a_file = syn.getEntity(a_file)
-    assert a_file['foo'][0] == 'An arbitrary value'
+    assert a_file.description == u'Description with funny characters: Déjà vu, ประเทศไทย, 中国', u'description= %s' % a_file.description
+    assert a_file['foo'][0] == 'An arbitrary value', u'foo= %s' % a_file['foo'][0]
     assert a_file['bar'] == [33,44,55]
     assert a_file['bday'][0] == Datetime(2013,3,15)
-    assert a_file.contentType == 'text/flapdoodle'
+    assert a_file.contentType == 'text/flapdoodle', u'contentType= %s' % a_file.contentType
+    assert a_file['band'][0] == u"Motörhead", u'band= %s' % a_file['band'][0]
+    assert a_file['lunch'][0] == u"すし", u'lunch= %s' % a_file['lunch'][0]
     
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
@@ -78,7 +87,7 @@ def test_Entity():
     assert a_file['bday'][0] == Datetime(2013,3,15)
     assert a_file.new_key[0] == 'A newly created value'
     assert a_file.path == path
-    assert a_file.versionNumber == 1
+    assert a_file.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
 
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
@@ -93,8 +102,22 @@ def test_Entity():
     assert filecmp.cmp(old_random_data.path, path)
 
 
+def test_special_characters():
+    folder = syn.store(Folder(u'Special Characters Here',
+        parent=project,
+        description=u'A test for special characters such as Déjà vu, ประเทศไทย, and 中国',
+        hindi_annotation=u'बंदर बट',
+        russian_annotation=u'Обезьяна прикладом',
+        weird_german_thing=u'Völlerei lässt grüßen'))
+    assert folder.name == u'Special Characters Here'
+    assert folder.parentId == project.id
+    assert folder.description == u'A test for special characters such as Déjà vu, ประเทศไทย, and 中国', u'description= %s' % folder.description
+    assert folder.weird_german_thing[0] == u'Völlerei lässt grüßen'
+    assert folder.hindi_annotation[0] == u'बंदर बट'
+    assert folder.russian_annotation[0] == u'Обезьяна прикладом'
+
+
 def test_get_local_file():
-    """Tests synapse.get() with local a local file """
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
     folder = Folder('TestFindFileFolder', parent=project, description='A place to put my junk')
@@ -135,6 +158,15 @@ def test_store_with_flags():
     origBogus = File(filepath, name='Bogus Test File', parent=project)
     origBogus = syn.store(origBogus, createOrUpdate=True)
     assert origBogus.versionNumber == 1
+
+    # Modify existing annotations by createOrUpdate
+    del projUpdate['parentId']
+    del projUpdate['id']
+    projUpdate.updatedThing = 'Updated again'
+    projUpdate.addedThing = 'Something new'
+    projUpdate = syn.store(projUpdate, createOrUpdate=True)
+    assert project.id == projUpdate.id
+    assert projUpdate.updatedThing == ['Updated again']
     
     # -- ForceVersion flag --
     # Re-store the same thing and don't up the version
@@ -143,7 +175,7 @@ def test_store_with_flags():
     
     # Re-store again, essentially the same condition
     mutaBogus = syn.store(mutaBogus, createOrUpdate=True, forceVersion=False)
-    assert mutaBogus.versionNumber == 1
+    assert mutaBogus.versionNumber == 1, "expected version 1 but got version %s" % mutaBogus.versionNumber
     
     # And again, but up the version this time
     mutaBogus = syn.store(mutaBogus, forceVersion=True)
@@ -307,11 +339,11 @@ def test_synapseStore_flag():
     # Make sure the test runs on Windows and other OS's
     if path[0].isalpha() and path[1]==':':
         # A Windows file URL looks like this: file:///c:/foo/bar/bat.txt
-        expected_url = 'file:///' + path
+        expected_url = 'file:///' + path.replace("\\","/")
     else:
         expected_url = 'file://' + path
 
-    assert bogus.externalURL == expected_url, 'URL: %s\nExpected %s' % (bogus.externalURL, expected_URL)
+    assert bogus.externalURL == expected_url, 'URL: %s\nExpected %s' % (bogus.externalURL, expected_url)
 
     # A file path that doesn't exist should still work
     bogus = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)
@@ -324,23 +356,6 @@ def test_synapseStore_flag():
     bogus = syn.store(bogus)
     bogus = syn.get(bogus)
     assert bogus.synapseStore == False
-
-def test_path_in_annotations_of_data_entities_bug():
-    # test for SYNR-610, path, files and cacheDir appearing in annotations
-    data1 = syn.createEntity(Data(name='Yet more totally bogus data', parent=project))
-    path = utils.make_bogus_data_file()
-    schedule_for_cleanup(path)
-    entity = syn.uploadFile(data1, path)
-
-    ## entity should have a path, but not files and location at this point
-    assert 'path' in entity and entity['path'] is not None
-
-    data2 = syn.get(data1.id)
-
-    ## These shouldn't be in annotations: "files" and "path" and "cacheDir"
-    assert not 'files' in data2.annotations
-    assert not 'path' in data2.annotations
-    assert not 'cacheDir' in data2.annotations
 
 
 def test_create_or_update_project():

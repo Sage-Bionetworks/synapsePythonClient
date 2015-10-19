@@ -8,7 +8,7 @@ import synapseclient.utils as utils
 import synapseclient.cache as cache
 from synapseclient.exceptions import *
 from synapseclient.utils import MB, GB
-from synapseclient import Activity, Entity, Project, Folder, File, Data
+from synapseclient import Activity, Entity, Project, Folder, File
 
 import integration
 from integration import schedule_for_cleanup
@@ -38,71 +38,6 @@ def teardown(module):
     del module.syn.test_errors
     del module.syn.test_runCountMutex
     del module.syn.test_threadsRunning
-
-
-def test_caching_of_locationables_containing_zip_files():
-    """Test for SYNR-728, cache.retrieve_local_file_info sets cacheDir and files incorrectly for zip files"""
-    data = Data(name='qwertyqwer', parent=project['id'])
-    path = utils.make_bogus_data_file()
-    schedule_for_cleanup(path)
-
-    zip_path = os.path.join(os.path.dirname(path), 'Archive.zip')
-    schedule_for_cleanup(zip_path)
-
-    import zipfile
-    with zipfile.ZipFile(zip_path, 'w') as zf:
-        zf.write(path, os.path.basename(path))
-
-    data['path'] = zip_path
-    data = syn.store(data)
-
-    assert data.path == zip_path
-    ## should cacheDir and files be filled in here?
-
-    ## remove the files
-    os.remove(path)
-    os.remove(zip_path)
-
-    ## get the file and store it in the cache. This also has the side
-    ## effect of unzipping archive files.
-    data2 = syn.get(data.id)
-
-    ## this time it's retreived from the cache. We should still get
-    ## the same cacheDir and files as before
-    data3 = syn.get(data.id)
-    assert data2.cacheDir == data3.cacheDir
-    assert data2.files == data3.files
-
-
-def test_slow_unlocker():
-    """Manually grabs a lock and makes sure the get/store methods are blocked."""
-    
-    # Make a file to manually lock
-    path = utils.make_bogus_data_file()
-    schedule_for_cleanup(path)
-    contention = File(path, parent=syn.test_parent)
-    contention = syn.store(contention)
-    
-    # Lock the Cache Map
-    cacheDir = cache.determine_cache_directory(contention)
-    cache.obtain_lock_and_read_cache(cacheDir)
-    
-    # Start a few calls to get/store that should not complete yet
-    store_thread = wrap_function_as_child_thread(lambda: store_catch_412_HTTPError(contention))
-    get_thread = wrap_function_as_child_thread(lambda: syn.get(contention))
-    thread.start_new_thread(store_thread, ())
-    thread.start_new_thread(get_thread, ())
-    time.sleep(min(5, cache.CACHE_LOCK_TIME / 2))
-    
-    # Make sure the threads did not finish
-    assert syn.test_threadsRunning > 0
-    cache.write_cache_then_release_lock(cacheDir)
-    
-    # Let the threads go
-    while syn.test_threadsRunning > 0:
-        time.sleep(1)
-    collect_errors_and_fail()
-    
 
 def test_threaded_access():
     """Starts multiple threads to perform store and get calls randomly."""

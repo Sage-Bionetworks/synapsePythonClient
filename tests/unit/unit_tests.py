@@ -1,5 +1,7 @@
+# -*- coding: utf-8 -*-
 ## unit tests for python synapse client
 ############################################################
+from __future__ import unicode_literals
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
 import os
@@ -38,7 +40,7 @@ def test_activity_creation_from_dict():
 def test_activity_used_execute_methods():
     """test activity creation and used and execute methods"""
     a = Activity(name='Fuzz', description='hipster beard dataset')
-    a.used({'id':'syn101', 'versionNumber':42, 'concreteType': 'org.sagebionetworks.repo.model.Data'})
+    a.used({'id':'syn101', 'versionNumber':42, 'concreteType': 'org.sagebionetworks.repo.model.FileEntity'})
     a.executed('syn102', targetVersion=1)
     usedEntities = a['used']
     len(usedEntities) == 2
@@ -59,7 +61,7 @@ def test_activity_creation_by_constructor():
     """test activity creation adding used entities by the constructor"""
 
     ue1 = {'reference':{'targetId':'syn101', 'targetVersionNumber':42}, 'wasExecuted':False}
-    ue2 = {'id':'syn102', 'versionNumber':2, 'concreteType': 'org.sagebionetworks.repo.model.Code'}
+    ue2 = {'id':'syn102', 'versionNumber':2, 'concreteType': 'org.sagebionetworks.repo.model.FileEntity'}
     ue3 = 'syn103'
 
     a = Activity(name='Fuzz', description='hipster beard dataset', used=[ue1, ue3], executed=[ue2])
@@ -162,10 +164,10 @@ def test_id_of():
     assert utils.id_of(1) == '1'
     assert utils.id_of('syn12345') == 'syn12345'
     assert utils.id_of({'foo':1, 'id':123}) == 123
-    assert_raises(SynapseMalformedEntityError, utils.id_of, {'foo':1, 'idzz':123})
+    assert_raises(ValueError, utils.id_of, {'foo':1, 'idzz':123})
     assert utils.id_of({'properties':{'id':123}}) == 123
-    assert_raises(SynapseMalformedEntityError, utils.id_of, {'properties':{'qq':123}})
-    assert_raises(SynapseMalformedEntityError, utils.id_of, object())
+    assert_raises(ValueError, utils.id_of, {'properties':{'qq':123}})
+    assert_raises(ValueError, utils.id_of, object())
 
     class Foo:
         def __init__(self, id):
@@ -191,6 +193,12 @@ def test_guess_file_name():
     assert utils.guess_file_name('http://www.a.com/b/?foo=bar') == 'b'
     assert utils.guess_file_name('http://www.a.com/b?foo=bar&arga=barga') == 'b'
     assert utils.guess_file_name('http://www.a.com/b/?foo=bar&arga=barga') == 'b'
+
+def test_extract_filename():
+    assert utils.extract_filename('attachment; filename="fname.ext"') == "fname.ext"
+    assert utils.extract_filename('attachment; filename=fname.ext') == "fname.ext"
+    assert utils.extract_filename(None) is None
+    assert utils.extract_filename(None, "fname.ext") == "fname.ext"
 
 def test_version_check():
     from synapseclient.version_check import _version_tuple
@@ -255,4 +263,80 @@ def test_utils_extract_user_name():
     profile['userName'] = 'otg'
     assert utils.extract_user_name(profile) == 'otg'
 
+def test_is_json():
+    assert utils._is_json('application/json')
+    assert utils._is_json('application/json;charset=ISO-8859-1')
+    assert not utils._is_json('application/flapdoodle;charset=ISO-8859-1')
+    assert not utils._is_json(None)
+    assert not utils._is_json('')
 
+def test_unicode_output():
+    a = "ȧƈƈḗƞŧḗḓ uʍop-ǝpısdn ŧḗẋŧ ƒǿř ŧḗşŧīƞɠ"
+    print a.encode('utf-8')
+
+def test_normalize_whitespace():
+    assert "zip tang pow a = 2" == utils.normalize_whitespace("   zip\ttang   pow   \n    a = 2   ")
+    result = utils.normalize_lines("   zip\ttang   pow   \n    a = 2   \n    b = 3   ")
+    assert "zip tang pow\na = 2\nb = 3" == result
+
+
+def test_query_limit_and_offset():
+    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 123 offset 456")
+    print query, limit, offset
+    assert query == "select foo from bar where zap > 2"
+    assert limit == 123
+    assert offset == 456
+
+    query, limit, offset = utils.query_limit_and_offset("select limit from offset where limit==2 limit 123 offset 456")
+    assert query == "select limit from offset where limit==2"
+    assert limit == 123
+    assert offset == 456
+
+    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 123")
+    assert query == "select foo from bar where zap > 2"
+    assert limit == 123
+    assert offset == 1
+
+    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 65535", hard_limit=1000)
+    assert query == "select foo from bar where zap > 2"
+    assert limit == 1000
+    assert offset == 1
+
+def test_as_urls():
+    assert utils.as_url("C:\\Users\\Administrator\\AppData\\Local\\Temp\\2\\tmpvixuld.txt") == "file:///C:/Users/Administrator/AppData/Local/Temp/2/tmpvixuld.txt"
+    assert utils.as_url("/foo/bar/bat/zoinks.txt") == "file:///foo/bar/bat/zoinks.txt"
+    assert utils.as_url("http://foo/bar/bat/zoinks.txt") == "http://foo/bar/bat/zoinks.txt"
+    assert utils.as_url("ftp://foo/bar/bat/zoinks.txt") == "ftp://foo/bar/bat/zoinks.txt"
+    assert utils.as_url("sftp://foo/bar/bat/zoinks.txt") == "sftp://foo/bar/bat/zoinks.txt"
+
+
+def test_time_manipulation():
+    round_tripped_datetime = utils.datetime_to_iso(
+                                utils.from_unix_epoch_time_secs(
+                                    utils.to_unix_epoch_time_secs(
+                                        utils.iso_to_datetime("2014-12-10T19:09:34.000Z"))))
+    print round_tripped_datetime
+    assert "2014-12-10T19:09:34.000Z" == round_tripped_datetime, round_tripped_datetime
+
+    round_tripped_datetime = utils.datetime_to_iso(
+                                utils.from_unix_epoch_time_secs(
+                                    utils.to_unix_epoch_time_secs(
+                                        utils.iso_to_datetime("1969-04-28T23:48:34.123Z"))))
+    print round_tripped_datetime
+    assert "1969-04-28T23:48:34.123Z" == round_tripped_datetime, round_tripped_datetime
+
+    ## check that rounding to milliseconds works
+    round_tripped_datetime = utils.datetime_to_iso(
+                                utils.from_unix_epoch_time_secs(
+                                    utils.to_unix_epoch_time_secs(
+                                        utils.iso_to_datetime("1969-04-28T23:48:34.999499Z"))))
+    print round_tripped_datetime
+    assert "1969-04-28T23:48:34.999Z" == round_tripped_datetime, round_tripped_datetime
+
+    ## check that rounding to milliseconds works
+    round_tripped_datetime = utils.datetime_to_iso(
+                                utils.from_unix_epoch_time_secs(
+                                    utils.to_unix_epoch_time_secs(
+                                        utils.iso_to_datetime("1969-04-27T23:59:59.999999Z"))))
+    print round_tripped_datetime
+    assert "1969-04-28T00:00:00.000Z" == round_tripped_datetime, round_tripped_datetime

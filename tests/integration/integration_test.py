@@ -1,4 +1,4 @@
-import tempfile, os, sys, filecmp, shutil, requests, json
+import tempfile, os, sys, filecmp, shutil, requests, json, time
 import uuid, random, base64
 try:
     import configparser
@@ -6,18 +6,20 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals
 from nose.plugins.attrib import attr
 from mock import MagicMock, patch
 
+import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
 from synapseclient.activity import Activity
 from synapseclient.version_check import version_check
-from synapseclient.entity import Project, File, Data, Code
+from synapseclient.entity import Project, File, Folder
 from synapseclient.wiki import Wiki
+from synapseclient.team import Team
 
 import integration
 from integration import schedule_for_cleanup
@@ -103,9 +105,21 @@ def test_login():
         syn.login(rememberMe=True, silent=True)
 
 
+def testCustomConfigFile():
+    if os.path.isfile(client.CONFIG_FILE):
+        configPath='./CONFIGFILE'
+        shutil.copyfile(client.CONFIG_FILE, configPath)
+        schedule_for_cleanup(configPath)
+
+        syn2 = synapseclient.Synapse(configPath=configPath)
+        syn2.login()
+    else:
+        print "To fully test the login method a configuration file is required"
+
+
 def test_entity_version():
     # Make an Entity and make sure the version is one
-    entity = Data(parent=project['id'])
+    entity = File(parent=project['id'])
     entity['path'] = utils.make_bogus_data_file()
     schedule_for_cleanup(entity['path'])
     entity = syn.createEntity(entity)
@@ -142,20 +156,11 @@ def test_entity_version():
     assert returnEntity.versionNumber == 1
     assert returnEntity['fizzbuzz'][0] == 111222
     assert 'foo' not in returnEntity
-
-
-def test_createEntity_with_provenance():
-    # Create an Entity with a Provenance record
-    entity = syn.createEntity(Data(parent=project['id']), used="syn123")
-
-    # Verify the Provenance
-    activity = syn.getProvenance(entity)
-    assert activity['used'][0]['reference']['targetId'] == 'syn123'
-
-    # test getting a data entity with no locations
-    d1 = syn.get(entity['id'])
-    assert d1.name==entity['name']
     
+    # Delete version 2 
+    syn.delete(entity, version=2)
+    returnEntity = syn.getEntity(entity)
+    assert returnEntity.versionNumber == 1
 
 def test_md5_query():
     # Add the same Entity several times
@@ -177,22 +182,15 @@ def test_md5_query():
 
 
 def test_uploadFile_given_dictionary():
-    # Make a Data Entity the old fashioned way
-    data = {'concreteType': Data._synapse_entity_type, 
+    # Make a Folder Entity the old fashioned way
+    folder = {'concreteType': Folder._synapse_entity_type, 
             'parentId'  : project['id'], 
             'name'      : 'fooDictionary',
             'foo'       : 334455}
-    entity = syn.createEntity(data)
+    entity = syn.store(folder)
     
-    # Create and upload a temporary file
-    fname = utils.make_bogus_data_file()
-    schedule_for_cleanup(fname)
-    syn.uploadFile(entity, fname)
-
     # Download and verify that it is the same file
-    entity = syn.downloadEntity(entity)
-    assert entity['files'][0] == os.path.basename(fname)
-    assert filecmp.cmp(fname, os.path.join(entity['cacheDir'],entity['files'][0]))
+    entity = syn.get(entity)
     assert entity.parentId == project.id
     assert entity.foo[0] == 334455
 
@@ -203,7 +201,6 @@ def test_uploadFile_given_dictionary():
     rareCase.update(entity.annotations)
     rareCase.update(entity.properties)
     rareCase.update(entity.local_state())
-    rareCase['path'] = path
     rareCase['description'] = 'Updating with a plain dictionary should be rare.'
 
     # Verify it works
@@ -211,7 +208,6 @@ def test_uploadFile_given_dictionary():
     assert entity.description == rareCase['description']
     assert entity.name == 'fooDictionary'
     entity = syn.get(entity['id'])
-    assert filecmp.cmp(path, os.path.join(entity['cacheDir'], entity['files'][0]))
     
 
 def test_uploadFileEntity():
@@ -227,6 +223,7 @@ def test_uploadFileEntity():
     # Download and verify
     entity = syn.downloadEntity(entity)
 
+    print entity['files']
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
@@ -243,7 +240,8 @@ def test_uploadFileEntity():
 
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)
-    assert entity['files'][0] == os.path.basename(fname)
+    print entity['files']
+    assert_equals(entity['files'][0], os.path.basename(fname))
     assert filecmp.cmp(fname, entity['path'])
 
 
@@ -272,13 +270,13 @@ def test_version_check():
 
 
 def test_provenance():
-    # Create a Data Entity
+    # Create a File Entity
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
-    data_entity = syn.createEntity(Data(parent=project['id']))
-    data_entity = syn.uploadFile(data_entity, fname)
+    data_entity = syn.store(File(fname, parent=project['id']))
 
-    # Create a Code Entity
+
+    # Create a File Entity of Code
     fd, path = tempfile.mkstemp(suffix=".py")
     os.write(fd, """
                  ## Chris's fabulous random data generator
@@ -289,8 +287,8 @@ def test_provenance():
                  """.encode('utf-8'))
     os.close(fd)
     schedule_for_cleanup(path)
-    code_entity = syn.createEntity(Code(parent=project['id']))
-    code_entity = syn.uploadFile(code_entity, path)
+    code_entity = syn.store(File(path, parent=project['id']))
+
     
     # Create a new Activity asserting that the Code Entity was 'used'
     activity = Activity(name='random.gauss', description='Generate some random numbers')
@@ -316,8 +314,7 @@ def test_provenance():
 
 def test_annotations():
     # Get the annotations of an Entity
-    entity = syn.createEntity(Data(parent=project['id']))
-    entity = syn.uploadFile(entity)
+    entity = syn.store(Folder(parent=project['id']))
     anno = syn.getAnnotations(entity)
     assert 'etag' in anno
 
@@ -345,4 +342,46 @@ def test_annotations():
     assert annotation['phat_numbers'] == [1234.5678, 8888.3333, 1212.3434, 6677.8899]
     assert annotation['goobers'] == ['chris', 'jen', 'jane']
     assert annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == annote['present_time'].strftime('%Y-%m-%d %H:%M:%S')
+
+
+def test_get_user_profile():
+    p1 = syn.getUserProfile()
+
+    ## get by name
+    p2 = syn.getUserProfile(p1.userName)
+    assert p2.userName == p1.userName
+
+    ## get by user ID
+    p2 = syn.getUserProfile(p1.ownerId)
+    assert p2.userName == p1.userName
+
+    ## This is a bad test 'cause it relies on an account being in the system
+    # p = syn.getUserProfile('synapse-test')
+    # assert p.userName == 'synapse-test'
+    # p = syn.getUserProfile(p.ownerId)
+    # assert p.userName == 'synapse-test'
+
+
+def test_teams():
+    unique_name = "Team Gnarly Rad " + str(uuid.uuid4())
+    team = Team(name=unique_name, description="A gnarly rad team", canPublicJoin=True)
+    team = syn.store(team)
+
+    team2 = syn.getTeam(team.id)
+    assert team == team2
+
+    ## Asynchronously populates index, so wait 'til it's there
+    retry = 0
+    backoff = 0.1
+    while retry < 5:
+        retry += 1
+        time.sleep(backoff)
+        backoff *= 2
+        found_teams = list(syn._findTeam(team.name))
+        if len(found_teams) > 0:
+            break
+
+    assert team == found_teams[0]
+
+    syn.delete(team)
 

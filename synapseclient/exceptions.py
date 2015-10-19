@@ -14,23 +14,31 @@ Exceptions
 from __future__ import unicode_literals
 
 import requests
+import utils
+
 
 class SynapseError(Exception):
     """Generic exception thrown by the client."""
 
-class SynapseAuthenticationError(Exception):
+class SynapseFileNotFoundError(SynapseError):
+    """Error thrown when a local file is not found in Synapse."""
+
+class SynapseTimeoutError(SynapseError):
+    """Timed out waiting for response from Synapse."""
+
+class SynapseAuthenticationError(SynapseError):
     """Unauthorized access."""
 
-class SynapseFileCacheError(Exception):
+class SynapseFileCacheError(SynapseError):
     """Error related to local file storage."""
 
-class SynapseMalformedEntityError(Exception):
+class SynapseMalformedEntityError(SynapseError):
     """Unexpected structure of Entities."""
 
-class SynapseUnmetAccessRestrictions(Exception):
+class SynapseUnmetAccessRestrictions(SynapseError):
     """Request cannot be completed due to unmet access restrictions."""
 
-class SynapseProvenanceError(Exception):
+class SynapseProvenanceError(SynapseError):
     """Incorrect usage of provenance objects."""
 
 class SynapseHTTPError(SynapseError, requests.exceptions.HTTPError):
@@ -98,7 +106,7 @@ def _raise_for_status(response, verbose=False):
         message = '%s Server Error: %s' % (response.status_code, response.reason)
 
     if message is not None:
-        if response.headers.get('content-type',None) == 'application/json':
+        if utils._is_json(response.headers.get('content-type',None)):
             # Append the server's JSON error message
             message += "\n%s" % response.json()['reason']
 
@@ -118,4 +126,4 @@ def _raise_for_status(response, verbose=False):
             except: message += "\nCould not append all response info"
 
         raise SynapseHTTPError(message, response=response)
-        
+

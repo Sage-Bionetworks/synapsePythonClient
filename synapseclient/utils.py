@@ -17,6 +17,7 @@ Property Juggling
 .. automethod:: synapseclient.utils.to_unix_epoch_time
 .. automethod:: synapseclient.utils.from_unix_epoch_time
 .. automethod:: synapseclient.utils.format_time_interval
+.. automethod:: synapseclient.utils._is_json
 
 ~~~~~~~~~~~~~
 File Handling
@@ -26,7 +27,9 @@ File Handling
 .. automethod:: synapseclient.utils.download_file
 .. automethod:: synapseclient.utils.extract_filename
 .. automethod:: synapseclient.utils.file_url_to_path
+.. automethod:: synapseclient.utils.is_same_base_url
 .. automethod:: synapseclient.utils.normalize_whitespace
+
 
 ~~~~~~~~
 Chunking
@@ -34,7 +37,7 @@ Chunking
 
 .. autoclass:: synapseclient.utils.Chunk
 .. automethod:: synapseclient.utils.chunks
-   
+
 ~~~~~~~
 Testing
 ~~~~~~~
@@ -43,7 +46,6 @@ Testing
 .. automethod:: synapseclient.utils.make_bogus_binary_file
 
 """
-
 #!/usr/bin/env python2.7
 from __future__ import unicode_literals
 
@@ -62,27 +64,35 @@ except ImportError:
     from urlparse import ParseResult
     from urlparse import urlsplit
 
-import os, sys
 try:
     import urllib.request, urllib.error
 except ImportError:
     import urllib
 
+import os, sys
 import hashlib, re
+import cgi
+import errno
+import math
 import random
+import requests
 import collections
 import tempfile
 import platform
 import functools
+import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
+from datetime import timedelta
 from numbers import Number
 import six
 
 from .exceptions import *
 
+
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
+ISO_FORMAT_MICROS = "%Y-%m-%dT%H:%M:%S.%fZ"
 GB = 2**30
 MB = 2**20
 KB = 2**10
@@ -92,14 +102,14 @@ BUFFER_SIZE = 8*KB
 def md5_for_file(filename, block_size=2**20):
     """
     Calculates the MD5 of the given file.  See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
-    
+
     :param filename:   The file to read in
     :param block_size: How much of the file to read in at once (bytes).
                        Defaults to 1 MB
-    
+
     :returns: The MD5
     """
-    
+
     md5 = hashlib.md5()
     f = open(filename,'rb')
     while True:
@@ -113,9 +123,9 @@ def md5_for_file(filename, block_size=2**20):
 def download_file(url, localFilepath=None):
     """
     Downloads a remote file.
-    
+
     :param localFilePath: May be None, in which case a temporary file is created
-    
+
     :returns: localFilePath
     """
 
@@ -131,27 +141,32 @@ def download_file(url, localFilepath=None):
             localFilepath = f.name
 
         r = requests.get(url, stream=True)
-        for chunk in r.iter_content(chunk_size=1024):
+        toBeTransferred = float(r.headers['content-length'])
+        for nChunks, chunk in enumerate(r.iter_content(chunk_size=1024*10)):
             if chunk:
                 f.write(chunk)
+                printTransferProgress(nChunks*1024*10 ,toBeTransferred)
     finally:
         if f:
             f.close()
+            printTransferProgress(toBeTransferred ,toBeTransferred)
 
     return localFilepath
 
 
-def extract_filename(content_disposition):
+def extract_filename(content_disposition_header, default_filename=None):
     """
     Extract a filename from an HTTP content-disposition header field.
-    
-    See `this memo <http://tools.ietf.org/html/rfc6266>`_ 
-    and `this package <http://pypi.python.org/pypi/rfc6266>`_ 
+
+    See `this memo <http://tools.ietf.org/html/rfc6266>`_
+    and `this package <http://pypi.python.org/pypi/rfc6266>`_
     for cryptic details.
     """
-    
-    match = re.search('filename=([^ ]*)', content_disposition)
-    return match.group(1) if match else 'filename'
+
+    if not content_disposition_header:
+        return default_filename
+    value, params = cgi.parse_header(content_disposition_header)
+    return params.get('filename', default_filename)
 
 
 def extract_user_name(profile):
@@ -191,10 +206,10 @@ def _get_from_members_items_or_properties(obj, key):
 ## TODO: what does this do on an unsaved Synapse Entity object?
 def id_of(obj):
     """
-    Try to figure out the Synapse ID of the given object.  
-    
+    Try to figure out the Synapse ID of the given object.
+
     :param obj: May be a string, Entity object, or dictionary
-    
+
     :returns: The ID or throws an exception
     """
     if isinstance(obj, six.string_types):
@@ -203,11 +218,11 @@ def id_of(obj):
         return u(str(obj))
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
-        raise SynapseMalformedEntityError('Invalid parameters: couldn\'t find id of ' + str(obj))
+        raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result
 
 def is_in_path(id, path):
-    """Determines weather id is in the path as returned from /entity/{id}/path
+    """Determines whether id is in the path as returned from /entity/{id}/path
 
     :param id: synapse id string
     :param path: object as returned from '/entity/{id}/path'
@@ -218,13 +233,12 @@ def is_in_path(id, path):
 
 def get_properties(entity):
     """Returns the dictionary of properties of the given Entity."""
-    
+
     return entity.properties if hasattr(entity, 'properties') else entity
 
 
 def is_url(s):
     """Return True if the string appears to be a valid URL."""
-    
     if isinstance(s, six.string_types):
         try:
             url_parts = urlsplit(s)
@@ -241,39 +255,37 @@ def is_url(s):
 
 def as_url(s):
     """Tries to convert the input into a proper URL."""
-    
     url_parts = urlsplit(s)
     ## Windows drive letter?
     if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
-        return 'file:///%s' % str(s)
+        return 'file:///%s' % unicode(s).replace("\\","/")
     if url_parts.scheme:
         return url_parts.geturl()
     else:
-        return 'file://%s' % str(s)
+        return 'file://%s' % unicode(s)
 
 
 def guess_file_name(string):
     """Tries to derive a filename from an arbitrary string."""
-    
-    path = urlparse(string).path
-    path = normalize_path(path)
+    path = normalize_path(urlparse(string).path)
     tokens = [x for x in path.split('/') if x != '']
     if len(tokens) > 0:
         return tokens[-1]
-    
+
     # Try scrubbing the path of illegal characters
     if len(path) > 0:
         path = re.sub(r"[^a-zA-Z0-9_.+() -]", "", path)
     if len(path) > 0:
         return path
     raise ValueError("Could not derive a name from %s" % string)
-    
-    
+
+
 def normalize_path(path):
     """Transforms a path into an absolute path with forward slashes only."""
     if path is None:
         return None
     return re.sub(r'\\', '/', os.path.abspath(path))
+
 
 def file_url_to_path(url, verify_exists=False):
     """
@@ -286,7 +298,6 @@ def file_url_to_path(url, verify_exists=False):
     :returns: a dict containing keys `path`, `files` and `cacheDir` or an empty
               dict if the URL is not a file URL.
     """
-    
     parts = urlsplit(url)
     if parts.scheme=='file' or parts.scheme=='':
         path = parts.path
@@ -304,14 +315,28 @@ def file_url_to_path(url, verify_exists=False):
     return {}
 
 
+def is_same_base_url(url1, url2):
+    """Compares two urls to see if they are the same excluding up to the base path
+
+    :param url1: a URL
+    :param url2: a second URL
+
+    :returns: Boolean
+    """
+    url1 = urlsplit(url1)
+    url2 = urlsplit(url2)
+    return (url1.scheme==url2.scheme and
+            url1.netloc==url2.netloc)
+
+
 def is_synapse_id(obj):
     """If the input is a Synapse ID return it, otherwise return None"""
-    
     if isinstance(obj, six.string_types):
         m = re.match(r'(syn\d+)', obj)
         if m:
             return m.group(1)
     return None
+
 
 def _is_date(dt):
     """Objects of class datetime.date and datetime.datetime will be recognized as dates"""
@@ -337,15 +362,15 @@ def _to_iterable(value):
 
 def make_bogus_data_file(n=100, seed=None):
     """
-    Makes a bogus data file for testing.  
+    Makes a bogus data file for testing.
     It is the caller's responsibility to clean up the file when finished.
-    
+
     :param n:    How many random floating point numbers to be written into the file, separated by commas
     :param seed: Random seed for the random numbers
-    
+
     :returns: The name of the file
     """
-    
+
     if seed is not None:
         random.seed(seed)
     data = [random.gauss(mu=0.0, sigma=1.0) for i in range(n)]
@@ -360,50 +385,93 @@ def make_bogus_data_file(n=100, seed=None):
     return f.name
 
 
-def make_bogus_binary_file(n=1*MB):
+def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
     """
-    Makes a bogus binary data file for testing. 
+    Makes a bogus binary data file for testing.
     It is the caller's responsibility to clean up the file when finished.
-    
+
     :param n:       How many bytes to write
-    
+
     :returns: The name of the file
     """
-    
-    junk = os.urandom(min(n, 1*MB))
-    with tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
-        while n > 0:
-            f.write(junk[0:min(n, 1*MB)])
-            n -= min(n, 1*MB)
-    return f.name
+
+    with open(filepath, 'wb') if filepath else tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+        if not filepath:
+            filepath = f.name
+        progress = 0
+        remaining = n
+        while remaining > 0:
+            buff_size = min(remaining, 1*MB)
+            f.write(os.urandom(buff_size))
+            remaining -= buff_size
+            if printprogress:
+                progress += buff_size
+                printTransferProgress(progress, n, 'Generated ', filepath)
+        return filepath
 
 
 def to_unix_epoch_time(dt):
     """
-    Convert either `datetime.date or datetime.datetime objects 
+    Convert either `datetime.date or datetime.datetime objects
     <http://docs.python.org/2/library/datetime.html>`_ to UNIX time.
     """
-    
+
     if type(dt) == Date:
         return (dt - UNIX_EPOCH.date()).total_seconds() * 1000
     return int((dt - UNIX_EPOCH).total_seconds() * 1000)
 
 
-def from_unix_epoch_time(ms):
+def to_unix_epoch_time_secs(dt):
+    """
+    Convert either `datetime.date or datetime.datetime objects 
+    <http://docs.python.org/2/library/datetime.html>`_ to UNIX time.
+    """
+
+    if type(dt) == Date:
+        return (dt - UNIX_EPOCH.date()).total_seconds()
+    return (dt - UNIX_EPOCH).total_seconds()
+
+
+def from_unix_epoch_time_secs(secs):
     """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
-    
+    if isinstance(secs, basestring):
+        secs = float(secs)
+
     # utcfromtimestamp() fails for negative values (dates before 1970-1-1) on Windows
     # so, here's a hack that enables ancient events, such as Chris's birthday to be
     # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!
-    if platform.system()=='Windows' and ms < 0:
-        mirror_date = Datetime.utcfromtimestamp(abs(ms)/1000.0)
+    if platform.system()=='Windows' and secs < 0:
+        mirror_date = Datetime.utcfromtimestamp(abs(secs))
         return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
-    return Datetime.utcfromtimestamp(ms/1000.0)
+    return Datetime.utcfromtimestamp(secs)
+
+
+def from_unix_epoch_time(ms):
+    """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
+
+    if isinstance(ms, basestring):
+        ms = float(ms)
+    return from_unix_epoch_time_secs(ms/1000.0)
+
+
+def datetime_to_iso(dt):
+    ## Round microseconds to milliseconds (as expected by older clients)
+    ## and add back the "Z" at the end.
+    ## see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
+    fmt = "{time.year:04}-{time.month:02}-{time.day:02}T{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
+    if dt.microsecond >= 999500:
+        dt -= timedelta(microseconds=dt.microsecond)
+        dt += timedelta(seconds=1)
+    return fmt.format(time=dt, millisecond=int(round(dt.microsecond/1000.0)), tz="Z")
+
+
+def iso_to_datetime(iso_time):
+    return Datetime.strptime(iso_time, ISO_FORMAT_MICROS)
 
 
 def format_time_interval(seconds):
     """Format a time interval given in seconds to a readable value, e.g. \"5 minutes, 37 seconds\"."""
-    
+
     periods = (
         ('year',        60*60*24*365),
         ('month',       60*60*24*30),
@@ -426,77 +494,34 @@ def format_time_interval(seconds):
 
 def _find_used(activity, predicate):
     """Finds a particular used resource in an activity that matches a predicate."""
-    
+
     for resource in activity['used']:
         if predicate(resource):
             return resource
     return None
 
 
-class Chunk(object):
+def nchunks(filepath, chunksize=5*MB):
     """
-    A file-like object representing a fixed-size part of a larger file for use
-    during chunked file uploading.
+    Computes how many chunks are necessary to upload the given file.
     """
-    
-    ## TODO: implement seek and tell?
-
-    def __init__(self, fileobj, size):
-        self.fileobj = fileobj
-        self.size = size
-        self.position = 0
-        self.closed = False
-
-    def read(self, size=None):
-        if size is None or size <= 0:
-            size = self.size - self.position
-        else:
-            size = min(size, self.size - self.position)
-
-        if self.closed or size <=0:
-            return None
-
-        self.position += size
-        return self.fileobj.read(size)
-
-    def get_mode(self):
-        return self.fileobj.mode
-    mode = property(get_mode)
-
-    def __len__(self):
-        return self.size
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.closed:
-            raise StopIteration
-        data = self.read(BUFFER_SIZE)
-        if not data:
-           raise StopIteration
-        return data
-
-    def close(self):
-        self.closed = True
+    size = os.stat(filepath).st_size
+    return int(math.ceil( float(size) / chunksize))
 
 
-def chunks(fileobj, chunksize=5*MB):
+def get_chunk(filepath, chunknumber, chunksize=5*MB):
     """
-    Given a file, generate `Chunk` objects from which `chunksize` bytes can be streamed.
-    for use during chunked file uploading."""
-    
-    remaining = os.stat(fileobj.name).st_size
-    while remaining > 0:
-        chunk = Chunk(fileobj, size=min(remaining, chunksize))
-        remaining -= len(chunk)
-        yield chunk
+    Read a requested chunk number from the file path. Use with :py:func:`nchunks`.
+    """
+    with open(filepath, 'rb') as f:
+        f.seek((chunknumber-1)*chunksize)
+        return f.read(chunksize)
 
 
 def itersubclasses(cls, _seen=None):
     """
     http://code.activestate.com/recipes/576949/ (r3)
-    
+
     itersubclasses(cls)
 
     Generator over all subclasses of a given class, in depth first order.
@@ -508,7 +533,7 @@ def itersubclasses(cls, _seen=None):
     >>> class C(A): pass
     >>> class D(B,C): pass
     >>> class E(D): pass
-    >>> 
+    >>>
     >>> for cls in itersubclasses(A):
     ...     print(cls.__name__)
     B
@@ -519,7 +544,7 @@ def itersubclasses(cls, _seen=None):
     >>> [cls.__name__ for cls in itersubclasses(object)] #doctest: +ELLIPSIS
     ['type', ...'tuple', ...]
     """
-    
+
     if not isinstance(cls, type):
         raise TypeError('itersubclasses must be called with '
                         'new-style classes, not %.100r' % cls)
@@ -541,20 +566,24 @@ def normalize_whitespace(s):
     Strips the string and replace all whitespace sequences and other
     non-printable characters with a single space.
     """
-    
     assert isinstance(s, six.string_types) or isinstance(s, six.string_types)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
+
+
+def normalize_lines(s):
+    assert isinstance(s, basestring)
+    s2 = re.sub(r'[\t ]*\n[\t ]*', '\n', s.strip())
+    return re.sub(r'[\t ]+', ' ', s2)
 
 
 def _synapse_error_msg(ex):
     """
     Format a human readable error message
     """
-    
     if isinstance(ex, six.string_types):
         return ex
 
-    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
+    return '\n' + ex.__class__.__name__ + ': ' + unicode(ex) + '\n\n'
 
 
 def _limit_and_offset(uri, limit=None, offset=None):
@@ -581,6 +610,49 @@ def _limit_and_offset(uri, limit=None, offset=None):
         fragment=parts.fragment))
 
 
+def query_limit_and_offset(query, hard_limit=1000):
+    """
+    Extract limit and offset from the end of a query string.
+
+    :returns: A triple containing the query with limit and offset removed, the
+              limit at most equal to the hard_limit, and the offset which
+              defaults to 1
+    """
+    # Regex a lower-case string to simplify matching
+    tempQueryStr = query.lower()
+    regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
+
+    # Continue to strip off and save the last limit/offset
+    match = re.search(regex, tempQueryStr)
+    options = {}
+    while match is not None:
+        options[match.group(2)] = int(match.group(3))
+        tempQueryStr = match.group(1)
+        match = re.search(regex, tempQueryStr)
+
+    # Get a truncated version of the original query string (not in lower-case)
+    query = query[:len(tempQueryStr)].strip()
+
+    # Continue querying until the entire query has been fetched (or crash out)
+    limit = min(options.get('limit',hard_limit), hard_limit)
+    offset = options.get('offset',1)
+
+    return query, limit, offset
+
+
+def _extract_synapse_id_from_query(query):
+    """
+    An unfortunate hack to pull the synapse ID out of a table query of the
+    form "select column1, column2 from syn12345 where...." needed to build
+    URLs for table services.
+    """
+    m = re.search(r"from\s+(syn\d+)[^\s]", query, re.IGNORECASE)
+    if m:
+        return m.group(1)
+    else:
+        raise ValueError("Couldn't extract synapse ID from query: \"%s\"" % query)
+
+
 #Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 def memoize(obj):
     cache = obj.cache = {}
@@ -599,11 +671,10 @@ def memoize(obj):
 if sys.version < '3':
     import codecs
     def u(x):
-        return codecs.unicode_escape_decode(x)[0]
+        return codecs.unicode_escape_decode(unicode(x))[0] if x is not None else u''
 else:
     def u(x):
         return x
-
 
 if sys.version < '3':
     def to_bytes(x):
@@ -615,3 +686,102 @@ else:
         if (type(x) == str):
             return bytes(x, 'ascii')
         return x
+
+# http://stackoverflow.com/questions/5478351/python-time-measure-function
+def timing(f):
+    import time
+    @functools.wraps(f)
+    def wrap(*args, **kwargs):
+        time1 = time.time()
+        ret = f(*args)
+        time2 = time.time()
+        print 'function %s took %0.3f ms' % (f.func_name, (time2-time1)*1000.0)
+        return ret
+    return wrap
+
+
+def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True):
+    """Prints a progress bar
+
+    :param transferred: a number of items/bytes completed
+    :param toBeTransferred: total number of items/bytes when completed
+    :param prefix: String printed before progress bar
+    :param prefix: String printed after progress bar
+    :param isBytes: A boolean indicating weather to convert bytes to kB, MB, GB etc.
+
+    """
+    barLength = 20 # Modify this to change the length of the progress bar
+    if toBeTransferred==0:  #There is nothing to be transfered
+        progress = 1
+        status = "Done...\n"
+    else:
+        progress = float(transferred)/toBeTransferred
+        status = ""
+    if progress >= 1:
+        progress = 1
+        status = "Done...\n"
+    block = int(round(barLength*progress))
+    if isBytes:
+        nBytes = '%s/%s' % (humanizeBytes(transferred), humanizeBytes(toBeTransferred))
+    else:
+        nBytes = '%i/%i' % (transferred, toBeTransferred)
+    text = "\r%s [%s]%4.2f%%     %s %s %s    " %(prefix,
+                                               "#"*block + "-"*(barLength-block),
+                                               progress*100,
+                                               nBytes,
+                                               postfix, status)
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
+
+def humanizeBytes(bytes):
+    bytes = float(bytes)
+    units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
+    for i, unit in enumerate(units):
+        if bytes<1024:
+            return '%3.1f%s' %(bytes, units[i])
+        else:
+            bytes /= 1024
+    return 'Oops larger than Exabytes'
+
+
+def touch(path, times=None):
+    basedir = os.path.dirname(path)
+    if not os.path.exists(basedir):
+        try:
+            os.makedirs(basedir)
+        except OSError as err:
+            ## alternate processes might be creating these at the same time
+            if err.errno != errno.EEXIST:
+                raise
+
+    with open(path, 'a'):
+        os.utime(path, times)
+    return path
+
+
+def _is_json(content_type):
+    """detect if a content-type is JSON"""
+    ## The value of Content-Type defined here:
+    ## http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
+    return content_type.lower().strip().startswith('application/json') if content_type else False
+
+
+def find_data_file_handle(bundle):
+    """Return the fileHandle whose ID matches the dataFileHandleId in an entity bundle"""
+    for fileHandle in bundle['fileHandles']:
+        if fileHandle['id'] == bundle['entity']['dataFileHandleId']:
+            return fileHandle
+    return None
+
+
+def unique_filename(path):
+    """Returns a unique path by appending (n) for some number n to the end of the filename."""
+
+    base, ext = os.path.splitext(path)
+    counter = 0
+    while os.path.exists(path):
+        counter += 1
+        path = base + ("(%d)" % counter) + ext
+
+    return path

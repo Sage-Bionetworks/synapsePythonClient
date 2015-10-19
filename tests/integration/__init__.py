@@ -8,17 +8,19 @@ To run a single test      : nosetests -vs tests/integration/integration_test_Ent
 """
 import uuid
 import os
-import  sys
+import sys
 import shutil 
 import six
 
-from synapseclient import Entity, Project, Folder, File, Data, Evaluation
+from synapseclient import Entity, Project, Folder, File, Evaluation
 import synapseclient
 import synapseclient.utils as utils
 
 
 def setup_module(module):
-    syn = synapseclient.Synapse(debug=False, skip_checks=True)
+    print "Python version:", sys.version
+
+    syn = synapseclient.Synapse(debug=True, skip_checks=True)
 
     print("Testing against endpoints:")
     print("  " + syn.repoEndpoint)
@@ -31,8 +33,7 @@ def setup_module(module):
     module._to_cleanup = []
     
     # Make one project for all the tests to use
-    project = Project(name=str(uuid.uuid4()))
-    project = syn.store(project)
+    project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project)
     module.project = project
 
@@ -44,27 +45,27 @@ def teardown_module(module):
 def schedule_for_cleanup(item):
     """schedule a file of Synapse Entity to be deleted during teardown"""
     globals()['_to_cleanup'].append(item)
-    
+
 
 def cleanup(items):
     """cleanup junk created during testing"""
-    for item in items:
+    for item in reversed(items):
         if isinstance(item, Entity) or utils.is_synapse_id(item) or hasattr(item, 'deleteURI'):
             try:
                 syn.delete(item)
             except Exception as ex:
-                if hasattr(ex, 'response') and ex.response.status_code == 404:
+                if hasattr(ex, 'response') and ex.response.status_code in [404, 403]:
                     pass
                 else:
                     print("Error cleaning up entity: " + str(ex))
-        elif isinstance(item, six.string_types) and os.path.exists(item):
-            try:
-                if os.path.isdir(item):
-                    shutil.rmtree(item)
-                else: #Assum that remove will work on antyhing besides folders
-                    os.remove(item)
-            except Exception as ex:
-                print(ex)
+        elif isinstance(item, six.string_types):
+            if os.path.exists(item):
+                try:
+                    if os.path.isdir(item):
+                        shutil.rmtree(item)
+                    else: #Assum that remove will work on antyhing besides folders
+                        os.remove(item)
+                except Exception as ex:
+                    print ex
         else:
             sys.stderr.write('Don\'t know how to clean: %s' % str(item))
-

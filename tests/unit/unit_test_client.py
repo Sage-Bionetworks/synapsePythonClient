@@ -1,8 +1,9 @@
 import os, json, tempfile, filecmp
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equal, assert_in
 from mock import MagicMock, patch
 import unit
 import synapseclient
+from synapseclient import File
 from synapseclient.exceptions import *
 from synapseclient import Evaluation
 
@@ -36,53 +37,106 @@ def test_logout(*mocks):
     assert not write_session_mock.called
 
 
-@patch('synapseclient.client.is_locationable')
-@patch('synapseclient.cache.determine_local_file_location')
 @patch('synapseclient.Synapse._downloadFileEntity')
-def test_getWithEntityBundle(*mocks):
-    mocks = [item for item in mocks]
-    is_loco_mock              = mocks.pop()
-    cache_location_guess_mock = mocks.pop()
-    download_file_mock        = mocks.pop()
-    
-    # -- Change downloadLocation but do not download more than once --
-    is_loco_mock.return_value = False
-    
-    bundle = {"entity"     : {"name": "anonymous", 
-                              "dataFileHandleId": "-1337", 
-                              "concreteType": "org.sagebionetworks.repo.model.FileEntity",
-                              "parentId": "syn12345"},
-              "fileHandles": [], 
-              "annotations": {}}
-    
-    # Make the cache point to some temporary location
-    cacheDir = synapseclient.cache.determine_cache_directory(bundle['entity'])
-    
-    # Pretend that the file is downloaded by the first call to syn._downloadFileEntity
-    # The temp file should be added to the cache by the first syn._getWithEntityBundle() call
-    f, cachedFile = tempfile.mkstemp()
-    os.close(f)
-    defaultLocation = os.path.join(cacheDir, bundle['entity']['name'])
-    cache_location_guess_mock.return_value = (cacheDir, defaultLocation, cachedFile)
-    
-    # Make sure the Entity is updated with the cached file path
-    def _downloadFileEntity(entity, path, submission):
-        # We're disabling the download, but the given path should be within the cache
-        assert path == defaultLocation
-        return {"path": cachedFile}
-    download_file_mock.side_effect = _downloadFileEntity
+def test_getWithEntityBundle(download_file_mock):
 
-    # Make sure the cache does not already exist
+    ## Note: one thing that remains unexplained is why the previous version of
+    ## this test worked if you had a .cacheMap file of the form:
+    ## {"/Users/chris/.synapseCache/663/-1337/anonymous": "2014-09-15T22:54:57.000Z",
+    ##  "/var/folders/ym/p7cr7rrx4z7fw36sxv04pqh00000gq/T/tmpJ4nz8U": "2014-09-15T23:27:25.000Z"}
+    ## ...but failed if you didn't.
+
+    ## TODO: Uncomment failing asserts after SYNR-790 and SYNR-697 are fixed
+
+    bundle = {
+        'entity': {
+            'id': 'syn10101',
+            'name': 'anonymous',
+            'dataFileHandleId': '-1337',
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'parentId': 'syn12345'},
+        'fileHandles': [{
+            'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle',
+            'fileName': 'anonymous',
+            'contentType': 'application/flapdoodle',
+            'contentMd5': '1698d26000d60816caab15169efcd23a',
+            'id': '-1337'}],
+        'annotations': {}}
+
+    fileHandle = bundle['fileHandles'][0]['id']
+    cacheDir = syn.cache.get_cache_dir(fileHandle)
+    print "cacheDir=", cacheDir
+
+    # Make sure the .cacheMap file does not already exist
     cacheMap = os.path.join(cacheDir, '.cacheMap')
     if os.path.exists(cacheMap):
+        print "removing cacheMap file: ", cacheMap
         os.remove(cacheMap)
-    
-    syn._getWithEntityBundle(None, entityBundle=bundle, downloadLocation=cacheDir, ifcollision="overwrite.local")
-    syn._getWithEntityBundle(None, entityBundle=bundle, ifcollision="overwrite.local")
-    syn._getWithEntityBundle(None, entityBundle=bundle, downloadLocation=cacheDir, ifcollision="overwrite.local")
-    assert download_file_mock.call_count == 1
-    
+
+    def _downloadFileEntity(entity, path, submission):
+        print "mock downloading file to:", path
+        ## touch file at path
+        with open(path, 'a'):
+            os.utime(path, None)
+        dest_dir, filename = os.path.split(path)
+        return {"path": path,
+                "files": [filename],
+                "cacheDir": dest_dir}
+    download_file_mock.side_effect = _downloadFileEntity
+
+    # 1. ----------------------------------------------------------------------
+    # download file to an alternate location
+
+    temp_dir1 = tempfile.mkdtemp()
+    print "temp_dir1=", temp_dir1
+
+    e = syn._getWithEntityBundle(entityBundle=bundle,
+                                 downloadLocation=temp_dir1,
+                                 ifcollision="overwrite.local")
+    print e
+
+    assert e.name == bundle["entity"]["name"]
+    assert e.parentId == bundle["entity"]["parentId"]
+    assert e.cacheDir == temp_dir1
+    assert bundle["fileHandles"][0]["fileName"] in e.files
+    assert e.path == os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])
+
+    # 2. ----------------------------------------------------------------------
+    # get without specifying downloadLocation
+    e = syn._getWithEntityBundle(entityBundle=bundle, ifcollision="overwrite.local")
+
+    print e
+
+    assert e.name == bundle["entity"]["name"]
+    assert e.parentId == bundle["entity"]["parentId"]
+    assert bundle["fileHandles"][0]["fileName"] in e.files
+
+    # 3. ----------------------------------------------------------------------
+    # download to another location
+    temp_dir2 = tempfile.mkdtemp()
+    assert temp_dir2 != temp_dir1
+    e = syn._getWithEntityBundle(entityBundle=bundle,
+                                 downloadLocation=temp_dir2,
+                                 ifcollision="overwrite.local")
+    print "temp_dir2=", temp_dir2
+    print e
+
+    assert_in(bundle["fileHandles"][0]["fileName"], e.files)
+    assert e.path is not None
+    assert_equal( os.path.dirname(e.path), temp_dir2 )
+
+    # 4. ----------------------------------------------------------------------
+    ## test preservation of local state
+    url = 'http://foo.com/secretstuff.txt'
+    e = File(name='anonymous', parentId="syn12345", synapseStore=False, externalURL=url)
+    e.local_state({'zap':'pow'})
+    e = syn._getWithEntityBundle(entityBundle=bundle, entity=e)
+    assert e.local_state()['zap'] == 'pow'
+    assert e.synapseStore == False
+    assert e.externalURL == url
+
     ## TODO: add more test cases for flag combination of this method
+    ## TODO: separate into another test?
 
 
 @patch('synapseclient.Synapse.restGET')
@@ -125,7 +179,7 @@ def test_submit(*mocks):
         return submission
     POST_mock.side_effect = shim
     
-    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', teamName='Team X')
+    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', submitterAlias='Team X')
     assert GET_mock.call_count == 2
 
     assert submission.id == 1234

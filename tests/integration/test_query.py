@@ -1,7 +1,7 @@
 import os
 
 import synapseclient
-from synapseclient.entity import Project, Folder, File, Data
+from synapseclient.entity import Project, Folder, File
 
 import integration
 from integration import schedule_for_cleanup
@@ -26,7 +26,7 @@ def test_query():
     
     # Add entities and verify that I can find them with a query
     for i in range(2):
-        syn.store(Data(parent=project['id']))
+        syn.store(Folder(parent=project['id']))
         qry = syn.query("select id, name from entity where entity.parentId=='%s'" % project['id'])
         assert qry['totalNumberOfResults'] == i + 1
 
@@ -43,7 +43,7 @@ def test_chunked_query():
         
         # Dump a bunch of Entities into the project
         for i in range(synapseclient.client.QUERY_LIMIT * 5):
-            syn.store(Data(parent=project['id']))
+            syn.store(Folder(parent=project['id']))
                 
         # Give a bunch of limits/offsets to be ignored (except for the first ones)
         queryString = "select * from entity where entity.parentId=='%s' offset  1 limit 9999999999999    offset 2345   limit 6789 offset 3456    limit 5689" % project['id']

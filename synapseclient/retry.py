@@ -1,10 +1,14 @@
 from __future__ import unicode_literals
+import random
 import sys
 import time
 
+from synapseclient.utils import _is_json
+
+
 def _with_retry(function, verbose=False, \
-        retry_status_codes=[502,503], retry_errors=[], retry_exceptions=[], \
-        retries=3, wait=1, back_off=2):
+        retry_status_codes=[429, 502, 503, 504], retry_errors=[], retry_exceptions=[], \
+        retries=3, wait=1, back_off=2, max_wait=30):
     """
     Retries the given function under certain conditions.
     
@@ -27,7 +31,7 @@ def _with_retry(function, verbose=False, \
     # Retry until we succeed or run out of tries
     while True:
         # Start with a clean slate
-        my_exc_info = None
+        exc_info = None
         retry = False
         response = None
 
@@ -35,53 +39,66 @@ def _with_retry(function, verbose=False, \
         try:
             response = function()
         except Exception as ex:
-            my_exc_info = sys.exc_info()
+            exc_info = sys.exc_info()
             import traceback
             traceback.print_exc()
             if verbose:
-                sys.stderr.write(ex.message+'\n') # This message will contain lots of info
+                sys.stderr.write(str(ex.message)+'\n')
             if hasattr(ex, 'response'):
                 response = ex.response
 
         # Check if we got a retry-able error
         if response is not None:
-            if response.status_code not in list(range(200,299)):
-                if response.status_code in retry_status_codes:
-                    retry = True
-                    
-                elif 'content-type' in response.headers \
-                        and response.headers['content-type'].lower().strip() == 'application/json':
+            if response.status_code in retry_status_codes:
+                if verbose:
+                    print("retrying on status code: " + str(response.status_code))
+                retry = True
+
+            elif response.status_code not in range(200,299):
+                ## if the response is JSON, look for retryable errors in the 'reason' field
+                if _is_json(response.headers.get('content-type', None)):
                     try:
                         json = response.json()
-                        if json.get('reason', None) in retry_errors:
+                        ## special case for message throttling
+                        if 'Please slow down.  You may send a maximum of 10 message' in json.get('reason', None):
+                            if verbose: print "retrying", json.get('reason', None)
+                            retry = True
+                            wait = 16
+                        elif any([msg.lower() in json.get('reason', None).lower() for msg in retry_errors]):
+                            if verbose: print "retrying", json.get('reason', None)
                             retry = True
                     except (AttributeError, ValueError) as ex:
                         pass
-                        
-                elif any([msg in response.content for msg in retry_errors]):
+
+                ## if the response is not JSON, look for retryable errors in its text content
+                elif any([msg.lower() in response.content.lower() for msg in retry_errors]):
+                    if verbose: print "retrying", response.content
                     retry = True
 
         # Check if we got a retry-able exception
-        if my_exc_info is not None and my_exc_info[1].__class__.__name__ in retry_exceptions:
-            retry = True
+        if exc_info is not None:
+            if exc_info[1].__class__.__name__ in retry_exceptions or any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors]):
+                if verbose: print "retrying exception: ", exc_info[1].__class__.__name__, str(exc_info[1])
+                retry = True
 
         # Wait then retry
         retries -= 1
         if retries >= 0 and retry:
+            randomized_wait = wait*random.uniform(0.5,1.5)
             if verbose:
-                sys.stderr.write('\n... Retrying in %d seconds...\n' % wait)
-            time.sleep(wait)
-            wait *= back_off
+                sys.stderr.write('\n... Retrying in {wait} seconds...\n'.format(wait=randomized_wait))
+            time.sleep(randomized_wait)
+            wait = min(max_wait, wait*back_off)
             continue
 
         # Out of retries, re-raise the exception or return the response
-        if my_exc_info is not None and my_exc_info[0] is not None:
+        if exc_info is not None and exc_info[0] is not None:
             #import traceback
             #traceback.print_exc()
-            print(my_exc_info[0])
-            print(my_exc_info[1])
-            print(my_exc_info[2])
+            print(exc_info[0])
+            print(exc_info[1])
+            print(exc_info[2])
             # Re-raise exception, preserving original stack trace
-            raise my_exc_info[0](my_exc_info[1])
+            raise exc_info[0](exc_info[1])
             #raise
         return response

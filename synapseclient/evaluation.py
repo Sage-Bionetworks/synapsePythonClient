@@ -15,15 +15,16 @@ Evaluations can be retrieved by ID::
 
     evaluation = syn.getEvaluation(1901877)
 
-Entities may be submitted for evaluation, if the owner of the evaluation has
-given the current user permission to join the evaluation. To join::
+Like entities, evaluations are access controlled via ACLs. The
+:py:func:`synapseclient.Synapse.getPermissions` and
+:py:func:`synapseclient.Synapse.setPermissions` methods work for evaluations:
 
-    syn.joinEvaluation(evaluation)
+    access = syn.getPermissions(evaluation, user_id)
 
 The :py:func:`synapseclient.Synapse.submit` method returns a Submission_ object::
 
     entity = syn.get(synapse_id)
-    submission = syn.submit(evaluation, entity, name='My Data', teamName='My Team')
+    submission = syn.submit(evaluation, entity, name='My Data', team='My Team')
 
 The Submission object can then be used to check the `status <#submission-status>`_ of the submission::
 
@@ -45,11 +46,14 @@ fields, and stored back to Synapse using :py:func:`synapseclient.Synapse.store`:
 See:
 
 - :py:func:`synapseclient.Synapse.getEvaluation`
+- :py:func:`synapseclient.Synapse.getEvaluationByContentSource`
+- :py:func:`synapseclient.Synapse.getEvaluationByName`
 - :py:func:`synapseclient.Synapse.submit`
-- :py:func:`synapseclient.Synapse.joinEvaluation`
 - :py:func:`synapseclient.Synapse.getSubmissions`
 - :py:func:`synapseclient.Synapse.getSubmission`
 - :py:func:`synapseclient.Synapse.getSubmissionStatus`
+- :py:func:`synapseclient.Synapse.getPermissions`
+- :py:func:`synapseclient.Synapse.setPermissions`
 
 ~~~~~~~~~~
 Evaluation
@@ -83,17 +87,39 @@ from synapseclient.dict_object import DictObject
 
 class Evaluation(DictObject):
     """
-    Keeps track of an evaluation in Synapse.  Allowing for
+    Keeps track of an evaluation queue in Synapse.  Allowing for
     submissions, retrieval and scoring.
-
-    Evaluations can be retrieved from Synapse by ID::
-
-        evaluation = syn.getEvaluation(1901877)
     
     :param name:          Name of the evaluation
     :param description:   A short description describing the evaluation
-    :param status:        One of {'OPEN', 'PLANNED', 'CLOSED', 'COMPLETED'}.  Defaults to 'OPEN'
-    :param contentSource: Synapse Project that is the source of the evaluation's content.
+    :param contentSource: Synapse Project or entity associated with the evaluation
+    :param submissionReceiptMessage: Message to display to users upon submission
+    :param submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions
+
+    `To create an Evaluation <http://rest.synapse.org/org/sagebionetworks/evaluation/model/Evaluation.html>`_
+    and store it in Synapse::
+
+        evaluation = syn.store(Evaluation(
+            name="Q1 Final",
+            description="Predict progression of MMSE scores for final scoring",
+            contentSource="syn2290704"))
+
+    The contentSource field links the evaluation to its :py:class:`synapseclient.entity.Project`.
+    (Or, really, any synapse ID, but sticking to projects is a good idea.)
+
+    `Evaluations <http://rest.synapse.org/org/sagebionetworks/evaluation/model/Evaluation.html>`_
+    can be retrieved from Synapse by ID::
+
+        evaluation = syn.getEvaluation(1901877)
+
+    ...by the Synapse ID of the content source (associated entity)::
+
+        evaluation = syn.getEvaluationByContentSource('syn12345')
+
+    ...or by the name of the evaluation::
+
+        evaluation = syn.getEvaluationByName('Foo Challenge Question 1')
+
     """
 
     @classmethod
