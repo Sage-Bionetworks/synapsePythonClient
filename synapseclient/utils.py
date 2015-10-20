@@ -193,6 +193,8 @@ def id_of(obj):
         return str(obj)
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
+        result = _get_from_members_items_or_properties(obj, 'ownerId')
+    if result is None:
         raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result
 

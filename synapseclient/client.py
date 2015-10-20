@@ -54,7 +54,7 @@ from synapseclient.annotations import to_submission_status_annotations, from_sub
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, Versionable, split_entity_namespaces, is_versionable, is_container
 from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
-from synapseclient.team import UserProfile, Team, TeamMember
+from synapseclient.team import UserProfile, Team, TeamMember, UserGroupHeader
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki, WikiAttachment
@@ -517,14 +517,22 @@ class Synapse:
         try:
             ## if id is unset or a userID, this will succeed
             id = '' if id is None else int(id)
-        except ValueError:
-            principals = self._findPrincipals(id)
-            for principal in principals:
-                if principal.get('userName', None).lower()==id.lower():
-                    id = principal['ownerId']
-                    break
-            else: # no break
-                raise ValueError('Can\'t find user "%s": ' % id)
+        except (TypeError, ValueError):
+            if 'ownerId' in id:
+                id = id.ownerId
+            elif isinstance(id, TeamMember):
+                id = id.member.ownerId
+            else:
+                principals = self._findPrincipals(id)
+                if len(principals) == 1:
+                    id = principals[0]['ownerId']
+                else:
+                    for principal in principals:
+                        if principal.get('userName', None).lower()==id.lower():
+                            id = principal['ownerId']
+                            break
+                    else: # no break
+                        raise ValueError('Can\'t find user "%s": ' % id)
         uri = '/userProfile/%s' % id
         return UserProfile(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
 
@@ -549,7 +557,7 @@ class Synapse:
 
         """
         uri = '/userGroupHeaders?prefix=%s' % query_string
-        return [DictObject(**result) for result in self._GET_paginated(uri)]
+        return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
 
     def onweb(self, entity, subpageId=None):
@@ -2291,10 +2299,29 @@ class Synapse:
 
 
     def getTeam(self, id):
+        """
+        Finds a team with a given ID or name.
+        """
+        try:
+            int(id)
+        except (TypeError, ValueError):
+            if isinstance(id, basestring):
+                for team in self._findTeam(id):
+                    if team.name==id:
+                        id = team.id
+                        break
+                else:
+                    raise ValueError("Can't find team \"{}\"".format(id))
+            else:
+                raise ValueError("Can't find team \"{}\"".format(u(id)))
         return Team(**self.restGET('/team/%s' % id))
 
 
     def getTeamMembers(self, team):
+        """
+        :parameter team: A :py:class:`Team` object or a team's ID.
+        :returns: a generator over :py:class:`TeamMember` objects.
+        """
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
