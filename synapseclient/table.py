@@ -74,7 +74,7 @@ With a bit of luck, we now have a table populated with data. Let's try to query:
 
     results = syn.tableQuery("select * from %s where Chromosome='1' and Start < 41000 and End > 20000" % table.schema.id)
     for row in results:
-        print row
+        print(row)
 
 ------
 Pandas
@@ -199,7 +199,7 @@ later::
     results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'Sonny Rollins'" % schema.id, resultsAs="rowset")
     for row in results:
         file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-        print "%s_%s" % (row.rowId, row.versionNumber), ", ".join(unicode(a) for a in row.values), file_info['path']
+        print("%s_%s" % (row.rowId, row.versionNumber), ", ".join(unicode(a) for a in row.values), file_info['path'])
 
 -------------
 Deleting rows
@@ -336,7 +336,7 @@ def df2Table(df, syn, tableName, parentProject):
     """
 
     #Create columns:
-    print df.shape
+    print(df.shape)
     cols = as_table_columns(df)
     cols = [syn.store(col) for col in cols]
 
@@ -349,10 +349,10 @@ def df2Table(df, syn, tableName, parentProject):
     for i in range(0, df.shape[0]/1200+1):
         start =  i*1200
         end = min((i+1)*1200, df.shape[0])
-        print start, end
+        print(start, end)
         rowset1 = RowSet(columns=cols, schema=schema1,
                          rows=[Row(list(df.ix[j,:])) for j in range(start,end)])
-        #print len(rowset1.rows)
+        #print(len(rowset1.rows))
         rowset1 = syn.store(rowset1)
 
     return schema1
@@ -836,7 +836,7 @@ class TableQueryResult(TableAbstractBaseClass):
 
         results = syn.tableQuery("select * from syn1234")
         for row in results:
-            print row
+            print(row)
     """
     def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True):
         self.syn = synapse

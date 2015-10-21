@@ -22,7 +22,7 @@ def test_annotations():
     """Test string annotations"""
     a = dict(foo='bar', zoo=['zing','zaboo'], species='Platypus')
     sa = to_synapse_annotations(a)
-    print(sa)
+    # print(sa)
     assert sa['stringAnnotations']['foo'] == ['bar']
     assert sa['stringAnnotations']['zoo'] == ['zing','zaboo']
     assert sa['stringAnnotations']['species'] == ['Platypus']
@@ -78,18 +78,18 @@ def test_round_trip_annotations():
     to the synapse format and back"""
     a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose', birthdays=[Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3), Datetime(2013,3,15)])
     sa = to_synapse_annotations(a)
-    # print sa
+    # print(sa)
     a2 = from_synapse_annotations(sa)
-    # print a2
+    # print(a2)
     a = a2
 
 def test_mixed_annotations():
     """test that to_synapse_annotations will coerce a list of mixed types to strings"""
     a = dict(foo=[1, 'a', Datetime(1969,4,28,11,47)])
     sa = to_synapse_annotations(a)
-    # print sa
+    # print(sa)
     a2 = from_synapse_annotations(sa)
-    # print a2
+    # print(a2)
     assert a2['foo'][0] == '1'
     assert a2['foo'][1] == 'a'
     assert a2['foo'][2].find('1969') > -1

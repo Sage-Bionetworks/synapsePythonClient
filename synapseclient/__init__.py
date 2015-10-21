@@ -103,7 +103,7 @@ and also downloads the file to a local cache::
 
 View the entity's metadata in the Python console::
 
-    print entity
+    print(entity)
 
 This is one simple way to read in a small matrix::
 
@@ -231,7 +231,7 @@ Synapse supports a `SQL-like query language <https://sagebionetworks.jira.com/wi
     results = syn.query('SELECT id, name FROM entity WHERE parentId=="syn1899495"')
 
     for result in results['results']:
-        print result['entity.id'], result['entity.name']
+        print(result['entity.id'], result['entity.name'])
 
 Querying for my projects. Finding projects owned by the current user::
 
@@ -239,7 +239,7 @@ Querying for my projects. Finding projects owned by the current user::
     results = syn.query('SELECT id, name FROM project WHERE project.createdByPrincipalId==%s' % profile['ownerId'])
 
     for result in results['results']:
-        print result['project.id'], result['project.name']
+        print(result['project.id'], result['project.name'])
 
 See:
 

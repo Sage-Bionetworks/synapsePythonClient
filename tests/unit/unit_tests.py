@@ -66,7 +66,7 @@ def test_activity_creation_by_constructor():
 
     a = Activity(name='Fuzz', description='hipster beard dataset', used=[ue1, ue3], executed=[ue2])
 
-    # print a['used']
+    # print(a['used'])
 
     used_syn101 = _find_used(a, lambda res: res['reference']['targetId'] == 'syn101')
     assert used_syn101 is not None
@@ -272,7 +272,7 @@ def test_is_json():
 
 def test_unicode_output():
     a = "ȧƈƈḗƞŧḗḓ uʍop-ǝpısdn ŧḗẋŧ ƒǿř ŧḗşŧīƞɠ"
-    print a.encode('utf-8')
+    print(a.encode('utf-8'))
 
 def test_normalize_whitespace():
     assert "zip tang pow a = 2" == utils.normalize_whitespace("   zip\ttang   pow   \n    a = 2   ")
@@ -282,7 +282,7 @@ def test_normalize_whitespace():
 
 def test_query_limit_and_offset():
     query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 123 offset 456")
-    print query, limit, offset
+    print(query, limit, offset)
     assert query == "select foo from bar where zap > 2"
     assert limit == 123
     assert offset == 456
@@ -315,14 +315,14 @@ def test_time_manipulation():
                                 utils.from_unix_epoch_time_secs(
                                     utils.to_unix_epoch_time_secs(
                                         utils.iso_to_datetime("2014-12-10T19:09:34.000Z"))))
-    print round_tripped_datetime
+    print(round_tripped_datetime)
     assert "2014-12-10T19:09:34.000Z" == round_tripped_datetime, round_tripped_datetime
 
     round_tripped_datetime = utils.datetime_to_iso(
                                 utils.from_unix_epoch_time_secs(
                                     utils.to_unix_epoch_time_secs(
                                         utils.iso_to_datetime("1969-04-28T23:48:34.123Z"))))
-    print round_tripped_datetime
+    print(round_tripped_datetime)
     assert "1969-04-28T23:48:34.123Z" == round_tripped_datetime, round_tripped_datetime
 
     ## check that rounding to milliseconds works
@@ -330,7 +330,7 @@ def test_time_manipulation():
                                 utils.from_unix_epoch_time_secs(
                                     utils.to_unix_epoch_time_secs(
                                         utils.iso_to_datetime("1969-04-28T23:48:34.999499Z"))))
-    print round_tripped_datetime
+    print(round_tripped_datetime)
     assert "1969-04-28T23:48:34.999Z" == round_tripped_datetime, round_tripped_datetime
 
     ## check that rounding to milliseconds works
@@ -338,5 +338,5 @@ def test_time_manipulation():
                                 utils.from_unix_epoch_time_secs(
                                     utils.to_unix_epoch_time_secs(
                                         utils.iso_to_datetime("1969-04-27T23:59:59.999999Z"))))
-    print round_tripped_datetime
+    print(round_tripped_datetime)
     assert "1969-04-28T00:00:00.000Z" == round_tripped_datetime, round_tripped_datetime

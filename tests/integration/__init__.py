@@ -18,7 +18,7 @@ import synapseclient.utils as utils
 
 
 def setup_module(module):
-    print "Python version:", sys.version
+    print("Python version:", sys.version)
 
     syn = synapseclient.Synapse(debug=True, skip_checks=True)
 
@@ -66,6 +66,6 @@ def cleanup(items):
                     else: #Assum that remove will work on antyhing besides folders
                         os.remove(item)
                 except Exception as ex:
-                    print ex
+                    print(ex)
         else:
             sys.stderr.write('Don\'t know how to clean: %s' % str(item))

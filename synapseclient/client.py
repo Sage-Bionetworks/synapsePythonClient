@@ -592,9 +592,9 @@ class Synapse:
         if utils.is_synapse_id(entity):
             entity = self._getEntity(entity)
         try:
-            print((json.dumps(entity, sort_keys=True, indent=2)))
+            print(json.dumps(entity, sort_keys=True, indent=2))
         except TypeError:
-            print((str(entity)))
+            print(str(entity))
 
 
 
@@ -629,17 +629,17 @@ class Synapse:
 
             ## download file into cache
             entity = syn.get('syn1906479')
-            print entity.name
-            print entity.path
+            print(entity.name)
+            print(entity.path)
 
             ## download file into current working directory
             entity = syn.get('syn1906479', downloadLocation='.')
-            print entity.name
-            print entity.path
+            print(entity.name)
+            print(entity.path)
 
            ## Determine the provenance of a localy stored file as indicated in Synapse
            entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
-           print syn.getProvenance(entity)
+           print(syn.getProvenance(entity))
 
         """
 
@@ -1332,7 +1332,7 @@ class Synapse:
 
             results = syn.chunkedQuery("select id, name from entity where entity.parentId=='syn449742'")
             for res in results:
-                print res['entity.id']
+                print(res['entity.id'])
 
         """
 
@@ -2444,7 +2444,7 @@ class Synapse:
             if not(isinstance(evaluation, Evaluation)):
                 evaluation = self.getEvaluation(evaluation_id)
             if 'submissionReceiptMessage' in evaluation:
-                print((evaluation['submissionReceiptMessage']))
+                print(evaluation['submissionReceiptMessage'])
 
         #TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage']) like the R client
         return submitted
@@ -2542,7 +2542,7 @@ class Synapse:
         Example::
 
             for submission in syn.getSubmissions(1234567):
-                print submission['entityId']
+                print(submission['entityId'])
 
         See: :py:mod:`synapseclient.evaluation`
         """
@@ -2576,10 +2576,10 @@ class Synapse:
         Example::
 
             for sb in syn._getSubmissionBundles(1234567):
-                print sb['submission']['name'], \\
+                print(sb['submission']['name'], \\
                       sb['submission']['submitterAlias'], \\
                       sb['submissionStatus']['status'], \\
-                      sb['submissionStatus']['score']
+                      sb['submissionStatus']['score'])
 
         This may later be changed to return objects, pending some thought on how submissions
         along with related status and annotations should be represented in the clients.
@@ -2613,10 +2613,10 @@ class Synapse:
         Example::
 
             for submission, status in syn.getSubmissionBundles(evaluation):
-                print submission.name, \\
+                print(submission.name, \\
                       submission.submitterAlias, \\
                       status.status, \\
-                      status.score
+                      status.score)
 
         This may later be changed to return objects, pending some thought on how submissions
         along with related status and annotations should be represented in the clients.
@@ -2741,7 +2741,7 @@ class Synapse:
         except IOError as ex1:
             with open(fileInfo['path']) as f:
                 markdown = f.read().decode('utf-8')
-        print markdown
+        print(markdown)
         wiki.markdown = markdown
         wiki.markdown_path = fileInfo['path']
 
@@ -3147,7 +3147,7 @@ class Synapse:
         Example::
 
             file_info = syn.downloadTableFile(table, rowId=1, versionNumber=1, column="cover_art", downloadLocation=".")
-            print file_info['path']
+            print(file_info['path'])
 
         """
 

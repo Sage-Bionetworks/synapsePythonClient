@@ -114,7 +114,7 @@ def testCustomConfigFile():
         syn2 = synapseclient.Synapse(configPath=configPath)
         syn2.login()
     else:
-        print "To fully test the login method a configuration file is required"
+        print("To fully test the login method a configuration file is required")
 
 
 def test_entity_version():
@@ -223,7 +223,7 @@ def test_uploadFileEntity():
     # Download and verify
     entity = syn.downloadEntity(entity)
 
-    print entity['files']
+    print(entity['files'])
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
@@ -240,7 +240,7 @@ def test_uploadFileEntity():
 
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)
-    print entity['files']
+    print(entity['files'])
     assert_equals(entity['files'][0], os.path.basename(fname))
     assert filecmp.cmp(fname, entity['path'])
 

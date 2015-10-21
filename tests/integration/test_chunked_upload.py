@@ -25,7 +25,7 @@ def test_round_trip():
     print('Made bogus file: ', filepath)
     try:
         fh = syn._chunkedUploadFile(filepath)
-        # print 'FileHandle:'
+        # print('FileHandle:')
         # syn.printEntity(fh)
 
         # Download the file and compare it with the original
@@ -45,7 +45,7 @@ def test_round_trip():
         except Exception:
             print(traceback.format_exc())
         # if fh:
-        #     # print 'Deleting fileHandle', fh['id']
+        #     # print('Deleting fileHandle', fh['id'])
         #     syn._deleteFileHandle(fh)
 
 def manually_check_retry_on_key_does_not_exist():
@@ -80,7 +80,7 @@ def test_upload_string():
     print('Made bogus file: ', filepath)
     try:
         fh = syn._uploadStringToFile(content)
-        # print 'FileHandle:'
+        # print('FileHandle:')
         # syn.printEntity(fh)
 
         # Download the file and compare it with the original

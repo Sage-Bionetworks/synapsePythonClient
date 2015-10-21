@@ -12,10 +12,10 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
 
 
 def test_cast_values():
@@ -171,12 +171,12 @@ def test_pandas_to_table():
 
         df = pd.DataFrame(dict(a=[1,2,3], b=["c", "d", "e"]))
         schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
-        print "\n", df, "\n\n"
+        print("\n", df, "\n\n")
 
         ## A dataframe with no row id and version
         table = Table(schema, df)
         for i, row in enumerate(table):
-            print row
+            print(row)
             assert row[0]==(i+1)
             assert row[1]==["c", "d", "e"][i]
 
@@ -187,18 +187,18 @@ def test_pandas_to_table():
         ## ,,3,e
         table = Table(schema, df, includeRowIdAndRowVersion=True)
         for i, row in enumerate(table):
-            print row
+            print(row)
             assert row[0] is None
             assert row[1] is None
             assert row[2]==(i+1)
 
         ## A dataframe with no row id and version
         df = pd.DataFrame(index=["1_7","2_7","3_8"], data=dict(a=[100,200,300], b=["c", "d", "e"]))
-        print "\n", df, "\n\n"
+        print("\n", df, "\n\n")
 
         table = Table(schema, df)
         for i, row in enumerate(table):
-            print row
+            print(row)
             assert row[0]==["1","2","3"][i]
             assert row[1]==["7","7","8"][i]
             assert row[2]==(i+1)*100
@@ -206,11 +206,11 @@ def test_pandas_to_table():
 
         ## A dataframe with row id and version in columns
         df = pd.DataFrame(dict(ROW_ID=["0","1","2"], ROW_VERSION=["8","9","9"], a=[100,200,300], b=["c", "d", "e"]))
-        print "\n", df, "\n\n"
+        print("\n", df, "\n\n")
 
         table = Table(schema, df)
         for i, row in enumerate(table):
-            print row
+            print(row)
             assert row[0]==["0","1","2"][i]
             assert row[1]==["8","9","9"][i]
             assert row[2]==(i+1)*100
@@ -263,15 +263,15 @@ def test_csv_table():
             [SelectColumn.from_column(col) for col in cols])
 
         ## test iterator
-        # print "\n\nJazz Guys"
+        # print("\n\nJazz Guys")
         for table_row, expected_row in izip(table, data):
-            # print table_row, expected_row
+            # print(table_row, expected_row)
             assert table_row==expected_row
 
         ## test asRowSet
         rowset = table.asRowSet()
         for rowset_row, expected_row in izip(rowset.rows, data):
-            #print rowset_row, expected_row
+            #print(rowset_row, expected_row)
             assert rowset_row['values']==expected_row[2:]
             assert rowset_row['rowId']==expected_row[0]
             assert rowset_row['versionNumber']==expected_row[1]
@@ -298,7 +298,7 @@ def test_csv_table():
                 else:
                     os.remove(filename)
             except Exception as ex:
-                print ex
+                print(ex)
         raise
 
 

@@ -547,7 +547,7 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        print uploaded, downloaded
+        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
     schedule_for_cleanup(new_paths[0])
@@ -560,7 +560,7 @@ def test_command_get_recursive_and_query():
     #Verify that we downloaded files:
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
-        print uploaded, downloaded
+        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -590,7 +590,7 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'get', 
                  '--limitSearch', folder_entity.id, 
                  filename)
-    print "output = \"", output, "\""
+    print("output = \"", output, "\"")
     id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
     name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
     assert_equals(file_entity.id, id)

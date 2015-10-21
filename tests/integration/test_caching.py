@@ -125,10 +125,10 @@ def thread_keep_storing_one_File():
         stored = store_catch_412_HTTPError(myPrecious)
         if stored is not None:
             myPrecious = stored
-            # print "I've stored %s" % myPrecious.id
+            # print("I've stored %s" % myPrecious.id)
         else: 
             myPrecious = syn.get(myPrecious)
-            # print "Grrr... Someone modified my %s" % myPrecious.id
+            # print("Grrr... Someone modified my %s" % myPrecious.id)
                 
         sleep_for_a_bit()
 
@@ -138,7 +138,7 @@ def thread_get_files_from_Project():
     
     while syn.test_keepRunning:
         for id in get_all_ids_from_Project():
-            # print "I got %s" % id
+            # print("I got %s" % id)
             pass
             
         sleep_for_a_bit()
@@ -160,7 +160,7 @@ def thread_get_and_update_file_from_Project():
         entity.path = path
         entity = store_catch_412_HTTPError(entity)
         if entity is not None:
-            # print "I updated %s" % entity.id
+            # print("I updated %s" % entity.id)
             assert os.stat(entity.path) == os.stat(path)
             
         sleep_for_a_bit()

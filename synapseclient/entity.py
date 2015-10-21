@@ -52,7 +52,7 @@ properties.
 
 Printing an entity will show the division between properties and annotations.::
 
-    print entity
+    print(entity)
 
 Under the covers, an Entity object has two dictionaries, one for properties and one
 for annotations. These two namespaces are distinct, so there is a possibility of
@@ -65,7 +65,7 @@ with properties, but this is not enforced.::
 
 In case of conflict, properties will take precedence.::
 
-    print entity.description
+    print(entity.description)
     #> One thing
 
 Some additional ambiguity is entailed in the use of dot notation. Entity

@@ -113,9 +113,9 @@ The synapse client can be used to write software that interacts with the Sage Sy
     matrix = syn.get('syn1901033')
 
     ## inspect its properties
-    print matrix.name
-    print matrix.description
-    print matrix.path
+    print(matrix.name)
+    print(matrix.description)
+    print(matrix.path)
 
     ## load the data matrix into a dictionary with an entry for each column
     with open(matrix.path, 'r') as f:

@@ -265,7 +265,7 @@ class Cache():
             ## OK to purge directories in the cache that have no .cacheMap file
             if before_date > _get_modified_time(os.path.join(cache_dir, self.cache_map_file_name)):
                 if dry_run:
-                    print cache_dir
+                    print(cache_dir)
                 else:
                     shutil.rmtree(cache_dir)
                 count += 1

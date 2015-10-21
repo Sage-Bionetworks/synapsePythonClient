@@ -153,7 +153,7 @@ def _get_version_info(version_url=_VERSION_URL):
 if __name__ == "__main__":
     print("Version check")
     print("=============")
-    print(("Python Synapse Client version %s" % synapseclient.__version__))
+    print("Python Synapse Client version %s" % synapseclient.__version__)
 
     print("Check against production version:")
     if version_check():
