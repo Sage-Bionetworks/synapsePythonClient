@@ -197,7 +197,7 @@ def id_of(obj):
     return result
 
 def is_in_path(id, path):
-    """Determines weather id is in the path as returned from /entity/{id}/path
+    """Determines whether id is in the path as returned from /entity/{id}/path
 
     :param id: synapse id string
     :param path: object as returned from '/entity/{id}/path'
