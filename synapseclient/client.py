@@ -264,7 +264,7 @@ class Synapse:
         self.portalEndpoint     = endpoints['portalEndpoint']
 
 
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False):
+    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
         """
         Authenticates the user using the given credentials (in order of preference):
 
@@ -282,6 +282,7 @@ class Synapse:
         :param rememberMe: Whether the authentication information should be cached locally
                            for usage across sessions and clients.
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
+        :param forced:     Defaults to False.  Bypass the credential cache if set. 
 
         Example::
 
@@ -323,7 +324,7 @@ class Synapse:
 
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
-        if self.apiKey is None:
+        if self.apiKey is None and not forced:
             cachedSessions = self._readSessionCache()
 
             if email is None and "<mostRecent>" in cachedSessions:
@@ -370,8 +371,8 @@ class Synapse:
                             raise SynapseAuthenticationError("No credentials provided.  Note: the session token within your configuration file has expired.")
 
         # Final check on login success
-        if self.username is not None and self.apiKey is None:
-            raise SynapseAuthenticationError("No credentials provided.")
+        if self.apiKey is None:
+            raise SynapseNoCredentialsError("No credentials provided.")
 
         # Save the API key in the cache
         if rememberMe:
