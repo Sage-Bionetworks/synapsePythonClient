@@ -193,7 +193,18 @@ def copy(args,syn):
     """Copys an entity specifed by args.id to args.parentId"""
     ent = syn.get(args.id)
     new_ent = File(ent['path'],parent=args.parentid)
-    new_ent = syn.store(new_ent)
+    try:
+        ent_prov = syn.getProvenance(ent)
+        ent_prov = ent_prov['used']
+        used = [i['reference']['targetId'] for i in ent_prov if i['wasExecuted']]
+        executed = [i['reference']['targetId'] for i in ent_prov if not i['wasExecuted']]
+        used = [used, args.id]
+    except: 
+        used = [args.id]
+    ent_annot = syn.getAnnotations(ent)
+    annot = dict([(key,ent_annot[key]) for key in ent_annot if key not in ('uri','id','creationDate','etag')])
+    new_ent.annotations = annot
+    new_ent = syn.store(new_ent,used = used,executed = executed,name='Copied File')
     print 'Copied %s to %s' %(ent.id, new_ent.id)
 
 def associate(args, syn):
