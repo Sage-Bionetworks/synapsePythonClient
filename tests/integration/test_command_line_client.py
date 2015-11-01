@@ -565,6 +565,49 @@ def test_command_get_recursive_and_query():
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
 
+def test_command_copy():
+    """Tests the 'synapse cp' function"""
+    # Create a Project
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    # Create a Folder in Project
+    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+                                                   parent=project_entity))
+    # Create and upload a file in Folder
+    dummy = utils.make_bogus_data_file()
+    schedule_for_cleanup(dummy)
+    dummy_entity = syn.store(synapseclient.File(dummy, parent=folder_entity))
+    
+    repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+    annots = {'test':'hello_world','foo':'foobar'}
+    # Create and upload a file in Folder
+    filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    file_entity = syn.store(synapseclient.File(filename, parent=folder_entity),used=dummy_entity.id,executed=repo_url)
+    syn.setAnnotations(file_entity,annots)
+
+    ent_prov = syn.getProvenance(file_entity)['used']
+
+    ### Test cp function
+    output = run('synapse', '--skip-checks',
+                 'cp', '--id',filename.id,
+                 '--parentid',project_entity.id)
+    
+    copied_id = parse(r'Copied syn\d+ to (syn\d+)',output)
+    #Verify that we downloaded files:
+    copied_ent = syn.get(copied_id)
+    schedule_for_cleanup(copied_id)
+    
+    copied_annot = {(key,ent_annot[key]) for key in syn.getAnnotations(copied_ent) if key not in ('uri','id','creationDate','etag')}
+    copied_prov = syn.getProveance(copied_ent)['used']
+
+    assert copied_prov == ent_prov
+    assert copied_annot == annots
+
+
+
+
 
 def test_command_line_using_paths():
     # Create a Project
