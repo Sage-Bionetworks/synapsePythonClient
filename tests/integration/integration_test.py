@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 import tempfile, os, sys, filecmp, shutil, requests, json, time
 import uuid, random, base64
 try:

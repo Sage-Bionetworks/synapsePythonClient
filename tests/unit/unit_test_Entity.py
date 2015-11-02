@@ -36,6 +36,10 @@ def test_Entity():
         assert e.annotations['foo'] == 123
         assert e.annotations.foo == 123
 
+        assert hasattr(e, 'parentId')
+        assert hasattr(e, 'foo')
+        assert not hasattr(e, 'qwerqwer')
+
         # Annotations is a bit funny, because there is a property call
         # 'annotations', which will be masked by a member of the object
         # called 'annotations'. Because annotations are open-ended, we

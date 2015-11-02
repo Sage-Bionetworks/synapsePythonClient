@@ -51,7 +51,11 @@ See also:
 
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 from __future__ import unicode_literals
+
 import collections
 import six
 import warnings
@@ -105,7 +109,7 @@ def from_synapse_annotations(annotations):
         for each annotation of a given class (date, string, double, ...), process the
         annotation with the given function and add it to the dict 'annos'.
         """
-        for k,v in kvps.iteritems():
+        for k,v in six.iteritems(kvps):
             ## don't overwrite system keys which won't be lists
             if k in ['id', 'etag', 'creationDate', 'uri'] or (k in annos and not isinstance(annos[k], list)):
                 warnings.warn('A user defined annotation, "%s", has the same name as a system defined annotation and will be dropped. Try syn._getRawAnnotations to get annotations in native Synapse format.' % k)
@@ -196,7 +200,7 @@ def from_submission_status_annotations(annotations):
         submission_status.annotations = from_submission_status_annotations(submission_status.annotations)
     """
     dictionary = {}
-    for key, value in annotations.iteritems():
+    for key, value in six.iteritems(annotations):
         if key in ['stringAnnos','longAnnos']:
             dictionary.update( { kvp['key']:kvp['value'] for kvp in value } )
         elif key == 'doubleAnnos':

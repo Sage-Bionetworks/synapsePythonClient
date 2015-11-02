@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 import os, uuid
 from nose.tools import assert_raises, assert_equal
 

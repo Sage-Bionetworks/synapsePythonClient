@@ -16,7 +16,9 @@ def test_DictObject():
     assert d.b=='foobar'
     assert d['b']=='foobar'
     assert d.nerds==['chris','jen','janey']
+    assert hasattr(d,'nerds')
     assert d['nerds']==['chris','jen','janey']
+    assert not hasattr(d,'qwerqwer')
 
     print(d.keys())
     assert all([key in d.keys() for key in ['args_working?', 'a', 'b', 'nerds']])

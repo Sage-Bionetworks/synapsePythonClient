@@ -1,3 +1,6 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
 import csv
 import json
 import filecmp
@@ -8,7 +11,7 @@ import sys
 import tempfile
 import time
 import uuid
-from itertools import izip
+from builtins import zip
 from nose.tools import assert_raises
 from datetime import datetime
 from mock import patch
@@ -58,7 +61,7 @@ def test_rowset_tables():
 
     ## Test that the columns we get are the same as the ones we stored
     assert len(retrieved_cols) == len(cols)
-    for retrieved_col, col in izip(retrieved_cols, cols):
+    for retrieved_col, col in zip(retrieved_cols, cols):
         assert retrieved_col.name == col.name
         assert retrieved_col.columnType == col.columnType
 
@@ -87,7 +90,7 @@ def test_rowset_tables():
 
     ## test that the values made the round trip
     expected = sorted(data1 + data2)
-    for expected_values, row in izip(expected, results):
+    for expected_values, row in zip(expected, results):
         assert expected_values == row['values'], 'got %s but expected %s' % (row['values'], expected_values)
 
     ## To modify rows, we have to select then first.
@@ -122,7 +125,7 @@ def test_rowset_tables():
 
     ## put data in new column
     bdays = ('2013-3-15', '2008-1-3', '1973-12-8', '1969-4-28')
-    for bday, row in izip(bdays, rs.rows):
+    for bday, row in zip(bdays, rs.rows):
         row['values'][5] = bday
     row_reference_set = syn.store(rs)
 
@@ -139,7 +142,7 @@ def test_rowset_tables():
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
     results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id, resultsAs="rowset")
-    for bday, row in izip(bdays, results):
+    for bday, row in zip(bdays, results):
         assert row['values'][0] == datetime.strptime(bday, "%Y-%m-%d"), "got %s but expected %s" % (row['values'][0], bday)
 
     try:
@@ -201,7 +204,7 @@ def test_tables_csv():
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
 
     ## Test that CSV file came back as expected
-    for expected_row, row in izip(data, results):
+    for expected_row, row in zip(data, results):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
     try:
@@ -247,8 +250,8 @@ def test_tables_csv():
 
     ## test that CSV file now has more jazz guys
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
-    for expected_row, row in izip(data+more_jazz_guys, results):
-        for field, expected_field in izip(row[2:], expected_row):
+    for expected_row, row in zip(data+more_jazz_guys, results):
+        for field, expected_field in zip(row[2:], expected_row):
             if type(field) is float and math.isnan(field):
                 assert type(expected_field) is float and math.isnan(expected_field)
             elif type(expected_field) is float and math.isnan(expected_field):

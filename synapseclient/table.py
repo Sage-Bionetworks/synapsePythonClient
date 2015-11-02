@@ -199,7 +199,7 @@ later::
     results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'Sonny Rollins'" % schema.id, resultsAs="rowset")
     for row in results:
         file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-        print("%s_%s" % (row.rowId, row.versionNumber), ", ".join(unicode(a) for a in row.values), file_info['path'])
+        print("%s_%s" % (row.rowId, row.versionNumber), ", ".join(str(a) for a in row.values), file_info['path'])
 
 -------------
 Deleting rows
@@ -270,17 +270,23 @@ See also:
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import csv
 import json
 import os
 import re
+import six
 import sys
 import tempfile
 from collections import OrderedDict
-from itertools import izip
+from builtins import zip
 
 import synapseclient
-import synapseclient.utils
+import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.entity import Entity, Versionable
@@ -308,6 +314,19 @@ def test_import_pandas():
           http://pandas.pydata.org/.
         \n\n\n""")
         raise
+
+
+def encode_param_in_python2(a, encoding=sys.stdout.encoding):
+    """
+    In Python2, the csv module takes parameters that must be encoded byte
+    strings - for example: delimiter, escapechar, lineterminator, quotechar.
+    But, in Python 3, these have to be unicode strings. Since we're using
+    unicode_literals, we'll need to do the conversion in the Python2 case.
+    """
+    if six.PY2 and type(a)==unicode:
+        return a.encode(encoding)
+    else:
+        return a
 
 
 def as_table_columns(df):
@@ -367,7 +386,7 @@ def to_boolean(value):
     if isinstance(value, bool):
         return value
 
-    if isinstance(value, basestring):
+    if isinstance(value, six.string_types):
         lower_value = value.lower()
         if lower_value in ['true', 't', '1']:
             return True
@@ -399,7 +418,7 @@ def cast_values(values, headers):
         raise ValueError('Each field in the row must have a matching column header. %d fields, %d headers' % (len(values), len(headers)))
 
     result = []
-    for header, field in izip(headers, values):
+    for header, field in zip(headers, values):
 
         columnType = header.get('columnType', 'STRING')
 
@@ -460,12 +479,12 @@ class Schema(Entity, Versionable):
         if name: kwargs['name'] = name
         if columns:
             for column in columns:
-                if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
+                if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
                     kwargs.setdefault('columnIds',[]).append(utils.id_of(column))
                 elif isinstance(column, Column):
                     kwargs.setdefault('columns_to_store',[]).append(column)
                 else:
-                    raise ValueError("Not a column? %s" % unicode(column))
+                    raise ValueError("Not a column? %s" % str(column))
         super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties, 
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
@@ -473,14 +492,14 @@ class Schema(Entity, Versionable):
         """
         :param column: a column object or its ID
         """
-        if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
+        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
             self.properties.columnIds.append(utils.id_of(column))
         elif isinstance(column, Column):
             if not self.__dict__.get('columns_to_store', None):
                 self.__dict__['columns_to_store'] = []
             self.__dict__['columns_to_store'].append(column)
         else:
-            raise ValueError("Not a column? %s" % unicode(column))
+            raise ValueError("Not a column? %s" % str(column))
 
     def addColumns(self, columns):
         """
@@ -493,12 +512,12 @@ class Schema(Entity, Versionable):
         """
         :param column: a column object or its ID
         """
-        if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
+        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
             self.properties.columnIds.remove(utils.id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
         else:
-            ValueError("Can't remove column %s" + unicode(column))
+            ValueError("Can't remove column %s" + str(column))
 
     def has_columns(self):
         """Does this schema have columns specified?"""
@@ -720,7 +739,7 @@ def Table(schema, values, **kwargs):
         return CsvFileTable.from_list_of_rows(schema, values, **kwargs)
 
     ## filename of a csv file
-    elif isinstance(values, basestring):
+    elif isinstance(values, six.string_types):
         return CsvFileTable(schema, filepath=values, **kwargs)
 
     ## pandas DataFrame
@@ -741,7 +760,7 @@ class TableAbstractBaseClass(object):
             self.tableId = schema.id if schema and 'id' in schema else None
             self.headers = headers if headers else [SelectColumn(id=id) for id in schema.columnIds]
             self.etag = etag
-        elif isinstance(schema, basestring):
+        elif isinstance(schema, six.string_types):
             self.schema = None
             self.tableId = schema
             self.headers = headers
@@ -754,7 +773,7 @@ class TableAbstractBaseClass(object):
 
     def asInteger(self):
         try:
-            first_row = self.__iter__().next()
+            first_row = next(iter(self))
             return int(first_row[0])
         except (KeyError, TypeError) as ex1:
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
@@ -928,6 +947,9 @@ class TableQueryResult(TableAbstractBaseClass):
         return self
 
     def next(self):
+        """
+        Python 2 iterator
+        """
         self.i += 1
         if self.i >= len(self.rowset['rows']):
             if self.nextPageToken:
@@ -938,6 +960,12 @@ class TableQueryResult(TableAbstractBaseClass):
             else:
                 raise StopIteration()
         return self.rowset['rows'][self.i]
+
+    def __next__(self):
+        """
+        Python 3 iterator
+        """
+        return self.next()
 
 
 class CsvFileTable(TableAbstractBaseClass):
@@ -966,11 +994,11 @@ class CsvFileTable(TableAbstractBaseClass):
         ## in particular, we don't get these back from aggregate queries
         with open(file_info['path'], 'r') as f:
             reader = csv.reader(f,
-                delimiter=separator,
-                escapechar=escapeCharacter,
-                lineterminator=lineEnd,
-                quotechar=quoteCharacter)
-            first_line = reader.next()
+                delimiter=encode_param_in_python2(separator),
+                escapechar=encode_param_in_python2(escapeCharacter),
+                lineterminator=encode_param_in_python2(lineEnd),
+                quotechar=encode_param_in_python2(quoteCharacter))
+            first_line = next(reader)
         if len(download_from_table_result['headers']) + 2 == len(first_line):
             includeRowIdAndRowVersion = True
         else:
@@ -1007,7 +1035,7 @@ class CsvFileTable(TableAbstractBaseClass):
         row_id = []
         row_version = []
         for row_name in df.index.values:
-            m = row_id_version_pattern.match(unicode(row_name))
+            m = row_id_version_pattern.match(str(row_name))
             row_id.append(m.group(1) if m else None)
             row_version.append(m.group(2) if m else None)
 
@@ -1024,16 +1052,16 @@ class CsvFileTable(TableAbstractBaseClass):
             if filepath:
                 f = open(filepath)
             else:
-                f = tempfile.NamedTemporaryFile(delete=False)
+                f = tempfile.NamedTemporaryFile(mode='w', delete=False)
                 filepath = f.name
 
             df.to_csv(f,
                 index=False,
-                sep=separator,
-                header=header,
-                quotechar=quoteCharacter,
-                escapechar=escapeCharacter,
-                line_terminator=lineEnd,
+                sep=encode_param_in_python2(separator),
+                header=encode_param_in_python2(header),
+                quotechar=encode_param_in_python2(quoteCharacter),
+                escapechar=encode_param_in_python2(escapeCharacter),
+                line_terminator=encode_param_in_python2(lineEnd),
                 na_rep=kwargs.get('na_rep',''))
         finally:
             if f: f.close()
@@ -1059,15 +1087,15 @@ class CsvFileTable(TableAbstractBaseClass):
             if filepath:
                 f = open(filepath)
             else:
-                f = tempfile.NamedTemporaryFile(delete=False)
+                f = tempfile.NamedTemporaryFile(mode="w", delete=False)
                 filepath = f.name
 
             writer = csv.writer(f,
                 quoting=csv.QUOTE_NONNUMERIC,
-                delimiter=separator,
-                escapechar=escapeCharacter,
-                lineterminator=lineEnd,
-                quotechar=quoteCharacter,
+                delimiter=encode_param_in_python2(separator),
+                escapechar=encode_param_in_python2(escapeCharacter),
+                lineterminator=encode_param_in_python2(lineEnd),
+                quotechar=encode_param_in_python2(quoteCharacter),
                 skipinitialspace=linesToSkip)
 
             ## if we haven't explicitly set columns, try to grab them from
@@ -1182,7 +1210,7 @@ class CsvFileTable(TableAbstractBaseClass):
             ## combine row-ids (in index) and row-versions (in column 0) to
             ## make new row labels consisting of the row id and version
             ## separated by a dash.
-            df.index = row_labels_from_id_and_version(izip(df["ROW_ID"], df["ROW_VERSION"]))
+            df.index = row_labels_from_id_and_version(zip(df["ROW_ID"], df["ROW_VERSION"]))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
 
@@ -1229,12 +1257,12 @@ class CsvFileTable(TableAbstractBaseClass):
         def iterate_rows(filepath, headers):
             with open(filepath) as f:
                 reader = csv.reader(f,
-                    delimiter=self.separator,
-                    escapechar=self.escapeCharacter,
-                    lineterminator=self.lineEnd,
-                    quotechar=self.quoteCharacter)
+                    delimiter=encode_param_in_python2(self.separator),
+                    escapechar=encode_param_in_python2(self.escapeCharacter),
+                    lineterminator=encode_param_in_python2(self.lineEnd),
+                    quotechar=encode_param_in_python2(self.quoteCharacter))
                 if self.header:
-                    header = reader.next()
+                    header = next(reader)
                 for row in reader:
                     yield cast_values(row, headers)
         return iterate_rows(self.filepath, self.headers)

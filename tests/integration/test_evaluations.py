@@ -1,9 +1,20 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+import six
+from builtins import str
+
 import tempfile, time, os, re, sys, filecmp, shutil, requests, json
 import uuid, random, base64
 from datetime import datetime
 from nose.tools import assert_raises
 
-import ConfigParser
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
@@ -47,7 +58,7 @@ def test_evaluations():
         
         # -- Get the Evaluation by project
         evalProj = syn.getEvaluationByContentSource(project)
-        evalProj = evalProj.next()
+        evalProj = next(evalProj)
         assert ev['contentSource'] == evalProj['contentSource']
         assert ev['createdOn'] == evalProj['createdOn']
         assert ev['description'] == evalProj['description']
@@ -100,7 +111,7 @@ def test_evaluations():
         # -- Get a Submission attachment belonging to another user (SYNR-541) --
         # See if the configuration contains test authentication
         try:
-            config = ConfigParser.ConfigParser()
+            config = configparser.ConfigParser()
             config.read(client.CONFIG_FILE)
             other_user = {}
             other_user['username'] = config.get('test-authentication', 'username')
@@ -131,9 +142,10 @@ def test_evaluations():
             assert foundMe
 
             # Make a file to submit
-            fd, filename = tempfile.mkstemp()
-            os.write(fd, str(random.gauss(0,1)) + '\n')
-            os.close(fd)
+            with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+                filename = f.name
+                f.write(str(random.gauss(0,1)) + '\n')
+
             f = File(filename, parentId=other_project.id,
                      name='Submission 999',
                      description ="Haha!  I'm inaccessible...")
@@ -153,7 +165,7 @@ def test_evaluations():
             assert filecmp.cmp(filename, fetched['filePath'])
 
 
-        except ConfigParser.Error:
+        except configparser.Error:
             print('Skipping test for SYNR-541: No [test-authentication] in %s' % client.CONFIG_FILE)
 
         # Increase this to fully test paging by getEvaluationSubmissions
@@ -163,9 +175,9 @@ def test_evaluations():
         # Create a bunch of Entities and submit them for scoring
         print("Creating Submissions")
         for i in range(num_of_submissions):
-            fd, filename = tempfile.mkstemp()
-            os.write(fd, str(random.gauss(0,1)) + '\n')
-            os.close(fd)
+            with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+                filename = f.name
+                f.write(str(random.gauss(0,1)) + '\n')
 
             f = File(filename, parentId=project.id, name='entry-%02d' % i,
                      description='An entry for testing evaluation')

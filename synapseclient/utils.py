@@ -46,8 +46,12 @@ Testing
 .. automethod:: synapseclient.utils.make_bogus_binary_file
 
 """
-#!/usr/bin/env python2.7
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 from __future__ import unicode_literals
+from builtins import str
+import six
 
 try:
     from urllib.parse import urlparse
@@ -85,9 +89,6 @@ from datetime import datetime as Datetime
 from datetime import date as Date
 from datetime import timedelta
 from numbers import Number
-import six
-
-from .exceptions import *
 
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
@@ -258,11 +259,11 @@ def as_url(s):
     url_parts = urlsplit(s)
     ## Windows drive letter?
     if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
-        return 'file:///%s' % unicode(s).replace("\\","/")
+        return 'file:///%s' % str(s).replace("\\","/")
     if url_parts.scheme:
         return url_parts.geturl()
     else:
-        return 'file://%s' % unicode(s)
+        return 'file://%s' % str(s)
 
 
 def guess_file_name(string):
@@ -375,10 +376,10 @@ def make_bogus_data_file(n=100, seed=None):
         random.seed(seed)
     data = [random.gauss(mu=0.0, sigma=1.0) for i in range(n)]
 
-    f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+    f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
     try:
-        f.write(", ".join((str(n) for n in data)).encode('utf-8'))
-        f.write(b"\n")
+        f.write(", ".join(str(n) for n in data))
+        f.write("\n")
     finally:
         f.close()
 
@@ -434,7 +435,7 @@ def to_unix_epoch_time_secs(dt):
 
 def from_unix_epoch_time_secs(secs):
     """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
-    if isinstance(secs, basestring):
+    if isinstance(secs, six.string_types):
         secs = float(secs)
 
     # utcfromtimestamp() fails for negative values (dates before 1970-1-1) on Windows
@@ -449,7 +450,7 @@ def from_unix_epoch_time_secs(secs):
 def from_unix_epoch_time(ms):
     """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
 
-    if isinstance(ms, basestring):
+    if isinstance(ms, six.string_types):
         ms = float(ms)
     return from_unix_epoch_time_secs(ms/1000.0)
 
@@ -571,7 +572,7 @@ def normalize_whitespace(s):
 
 
 def normalize_lines(s):
-    assert isinstance(s, basestring)
+    assert isinstance(s, six.string_types)
     s2 = re.sub(r'[\t ]*\n[\t ]*', '\n', s.strip())
     return re.sub(r'[\t ]+', ' ', s2)
 
@@ -583,7 +584,7 @@ def _synapse_error_msg(ex):
     if isinstance(ex, six.string_types):
         return ex
 
-    return '\n' + ex.__class__.__name__ + ': ' + unicode(ex) + '\n\n'
+    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
 
 
 def _limit_and_offset(uri, limit=None, offset=None):
@@ -667,6 +668,7 @@ def memoize(obj):
     return memoizer
 
 
+## TODO-PY3: remove these
 # source: http://python3porting.com/noconv.html
 if sys.version < '3':
     import codecs
@@ -674,7 +676,7 @@ if sys.version < '3':
         return codecs.unicode_escape_decode(unicode(x))[0] if x is not None else u''
 else:
     def u(x):
-        return x
+        return x if x is not None else u''
 
 if sys.version < '3':
     def to_bytes(x):

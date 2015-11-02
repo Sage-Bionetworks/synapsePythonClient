@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 try:
     import configparser
 except ImportError:
@@ -137,32 +139,32 @@ def test_access_restrictions():
     ## construct the mock value from the schemas. -jcb
     with mock.patch('synapseclient.Synapse._getEntityBundle') as _getEntityBundle_mock:
         _getEntityBundle_mock.return_value = {
-            u'annotations': {
-              u'etag': u'cbda8e02-a83e-4435-96d0-0af4d3684a90',
-              u'id': u'syn1000002',
-              u'stringAnnotations': {}},
-            u'entity': {
-              u'concreteType': u'org.sagebionetworks.repo.model.FileEntity',
-              u'createdBy': u'Miles Dewey Davis',
-              u'dataFileHandleId': u'1234',
-              u'entityType': u'org.sagebionetworks.repo.model.FileEntity',
-              u'etag': u'cbda8e02-a83e-4435-96d0-0af4d3684a90',
-              u'id': u'syn1000002',
-              u'name': u'so_what.mp3',
-              u'parentId': u'syn1000001',
-              u'versionLabel': u'1',
-              u'versionNumber': 1},
-            u'entityType': u'org.sagebionetworks.repo.model.FileEntity',
-            u'fileHandles': [],
-            u'unmetAccessRequirements': [{
-              u'accessType': u'DOWNLOAD',
-              u'concreteType': u'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
-              u'createdBy': u'377358',
-              u'entityType': u'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
-              u'etag': u'1dfedff0-c3b1-472c-b9ff-1b67acb81f00',
-              u'id': 2299555,
-              u'subjectIds': [{u'id': u'syn1000002', u'type': u'ENTITY'}],
-              u'termsOfUse': u'Use it or lose it!'}]}
+            'annotations': {
+              'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
+              'id': 'syn1000002',
+              'stringAnnotations': {}},
+            'entity': {
+              'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+              'createdBy': 'Miles Dewey Davis',
+              'dataFileHandleId': '1234',
+              'entityType': 'org.sagebionetworks.repo.model.FileEntity',
+              'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
+              'id': 'syn1000002',
+              'name': 'so_what.mp3',
+              'parentId': 'syn1000001',
+              'versionLabel': '1',
+              'versionNumber': 1},
+            'entityType': 'org.sagebionetworks.repo.model.FileEntity',
+            'fileHandles': [],
+            'unmetAccessRequirements': [{
+              'accessType': 'DOWNLOAD',
+              'concreteType': 'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
+              'createdBy': '377358',
+              'entityType': 'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
+              'etag': '1dfedff0-c3b1-472c-b9ff-1b67acb81f00',
+              'id': 2299555,
+              'subjectIds': [{'id': 'syn1000002', 'type': 'ENTITY'}],
+              'termsOfUse': 'Use it or lose it!'}]}
 
         entity = syn.get('syn1000002', downloadFile=False)
         assert entity is not None

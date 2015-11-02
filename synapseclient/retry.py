@@ -1,4 +1,8 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 from __future__ import unicode_literals
+
 import random
 import sys
 import time
@@ -71,8 +75,8 @@ def _with_retry(function, verbose=False, \
                         pass
 
                 ## if the response is not JSON, look for retryable errors in its text content
-                elif any([msg.lower() in response.content.lower() for msg in retry_errors]):
-                    if verbose: print("retrying", response.content)
+                elif any([msg.lower() in response.text.lower() for msg in retry_errors]):
+                    if verbose: print("retrying", response.text)
                     retry = True
 
         # Check if we got a retry-able exception

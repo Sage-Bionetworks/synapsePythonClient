@@ -1,8 +1,15 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 import filecmp
 import os, sys, traceback
 import json
 import uuid 
-import urlparse
 from nose.tools import assert_raises
 import tempfile
 import shutil
@@ -54,7 +61,7 @@ def test_synStore_sftpIntegration():
     try:
         file = syn.store(File(filepath, parent=project))
         file2  = syn.get(file)
-        assert file.externalURL==file2.externalURL and urlparse.urlparse(file2.externalURL).scheme=='sftp'
+        assert file.externalURL==file2.externalURL and urlparse(file2.externalURL).scheme=='sftp'
     finally:
         try:
             os.remove(filepath)

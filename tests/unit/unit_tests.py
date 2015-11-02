@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 ## unit tests for python synapse client
 ############################################################
+from __future__ import absolute_import
+from __future__ import print_function
 from __future__ import unicode_literals
+
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
 import os
@@ -9,7 +12,8 @@ import os
 import synapseclient.utils as utils
 from synapseclient.activity import Activity
 from synapseclient.utils import _find_used
-from synapseclient.exceptions import *
+from synapseclient.exceptions import _raise_for_status, SynapseMalformedEntityError, SynapseHTTPError
+from synapseclient.dict_object import DictObject
 
 
 def setup():
@@ -340,3 +344,23 @@ def test_time_manipulation():
                                         utils.iso_to_datetime("1969-04-27T23:59:59.999999Z"))))
     print(round_tripped_datetime)
     assert "1969-04-28T00:00:00.000Z" == round_tripped_datetime, round_tripped_datetime
+
+
+def test_raise_for_status():
+    class FakeResponse(DictObject):
+        def json(self):
+            return self._json
+
+    response = FakeResponse(
+        status_code=501,
+        headers={"content-type":"application/json;charset=utf-8"},
+        reason="SchlumpError",
+        text='{"reason":"it schlumped"}',
+        _json={"reason":"it schlumped"},
+        request=DictObject(
+            url="http://foo.com/bar/bat",
+            headers={"xyz":"pdq"},
+            method="PUT",
+            body="body"))
+
+    assert_raises(SynapseHTTPError, _raise_for_status, response, verbose=False)

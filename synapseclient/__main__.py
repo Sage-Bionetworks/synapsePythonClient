@@ -45,6 +45,9 @@ Commands
 A few more commands (cat, create, update, associate)
 
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 from __future__ import unicode_literals
 
 import argparse
@@ -67,7 +70,7 @@ def query(args, syn):
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     except (AttributeError, ValueError):
         ## Different OS's have different signals defined. In particular,
-        ## SIGPIPE doesn't exist one Windows. The docs have this to say,
+        ## SIGPIPE doesn't exist on Windows. The docs have this to say,
         ## "On Windows, signal() can only be called with SIGABRT, SIGFPE,
         ## SIGILL, SIGINT, SIGSEGV, or SIGTERM. A ValueError will be raised
         ## in any other case."

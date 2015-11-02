@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import filecmp
 import os, sys, traceback
 
@@ -72,7 +78,7 @@ def test_upload_string():
     
     fh = None
     content = "My dog has fleas.\n"
-    f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+    f = tempfile.NamedTemporaryFile(mode='w', suffix=".txt", delete=False)
     f.write(content)
     f.close()
     filepath=f.name

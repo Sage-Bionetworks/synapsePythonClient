@@ -108,9 +108,12 @@ See also:
 
 """
 
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from __future__ import division
+from builtins import str
+
 import collections
 import itertools
 
@@ -315,7 +318,17 @@ class Entity(collections.MutableMapping):
     def __getattr__(self, key):
         # Note: that __getattr__ is only called after an attempt to
         # look the key up in the object's dictionary has failed.
-        return self.__getitem__(key)
+        if key in self.__dict__:
+            return self.__dict__[key]
+        elif key in self.properties:
+            return self.properties[key]
+        elif key in self.annotations:
+            return self.annotations[key]
+        else:
+            ## Note that hasattr in Python2 is more permissive than Python3
+            ## about what exceptions it catches. In Python3, hasattr catches
+            ## only AttributeError
+            raise AttributeError(key)
 
 
     def __getitem__(self, key):
@@ -327,6 +340,7 @@ class Entity(collections.MutableMapping):
             return self.annotations[key]
         else:
             raise KeyError(key)
+
 
     def __delitem__(self, key):
         if key in self.properties:
@@ -363,9 +377,9 @@ class Entity(collections.MutableMapping):
             for key in sorted(dictionary.keys()):
                 if (not key_filter) or key_filter(key):
                     f.write(u'  ')
-                    f.write(u(key))
+                    f.write(str(key))
                     f.write(u'=')
-                    f.write(u(dictionary[key]))
+                    f.write(str(dictionary[key]))
                     f.write(u'\n')
 
         write_kvps(self.__dict__, lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))

@@ -1,9 +1,14 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import math
 import csv
 import os
 import sys
 import tempfile
-from itertools import izip
+from builtins import zip
 from mock import MagicMock
 from nose.tools import assert_raises
 
@@ -246,9 +251,10 @@ def test_csv_table():
 
     try:
         ## create CSV file
-        with tempfile.NamedTemporaryFile(delete=False) as temp:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp:
             writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=os.linesep)
-            writer.writerow(['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols])
+            headers = ['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols]
+            writer.writerow(headers)
             filename = temp.name
             for row in data:
                 writer.writerow(row)
@@ -264,13 +270,13 @@ def test_csv_table():
 
         ## test iterator
         # print("\n\nJazz Guys")
-        for table_row, expected_row in izip(table, data):
+        for table_row, expected_row in zip(table, data):
             # print(table_row, expected_row)
             assert table_row==expected_row
 
         ## test asRowSet
         rowset = table.asRowSet()
-        for rowset_row, expected_row in izip(rowset.rows, data):
+        for rowset_row, expected_row in zip(rowset.rows, data):
             #print(rowset_row, expected_row)
             assert rowset_row['values']==expected_row[2:]
             assert rowset_row['rowId']==expected_row[0]
@@ -323,11 +329,11 @@ def test_list_of_rows_table():
     ## need columns to do cast_values w/o storing
     table = Table(schema1, data, headers=[SelectColumn.from_column(col) for col in cols])
 
-    for table_row, expected_row in izip(table, data):
+    for table_row, expected_row in zip(table, data):
         assert table_row==expected_row
 
     rowset = table.asRowSet()
-    for rowset_row, expected_row in izip(rowset.rows, data):
+    for rowset_row, expected_row in zip(rowset.rows, data):
         assert rowset_row['values']==expected_row
 
     table.columns = cols
@@ -399,7 +405,7 @@ def test_aggregate_query_result_to_data_frame():
         assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
 
         ## check integer, double and boolean types after PLFM-3073 is fixed
-        assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + unicode(df['MIN(Born)'].values)
+        assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + str(df['MIN(Born)'].values)
         assert all(df['COUNT(State)'].values == [2,3,1,1])
         assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
 

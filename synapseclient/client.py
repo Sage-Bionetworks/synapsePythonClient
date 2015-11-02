@@ -29,7 +29,12 @@ See also the `Synapse API documentation <http://rest.synapse.org>`_.
 
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 from __future__ import unicode_literals
+from builtins import str
+
 try:
     import configparser
 except ImportError:
@@ -45,16 +50,17 @@ try:
     from urllib.parse import urlparse
     from urllib.parse import urlunparse
     from urllib.parse import quote
+    from urllib.parse import unquote
 except ImportError:
     from urlparse import urlparse
     from urlparse import urlunparse
     from urllib import quote
+    from urllib import unquote
 
 try:
     import urllib.request, urllib.parse, urllib.error
 except ImportError:
     import urllib
-    from urlparse import urlparse
 
 import requests, webbrowser
 import shutil
@@ -405,7 +411,8 @@ class Synapse:
 
         if not silent:
             profile = self.getUserProfile(refresh=True)
-            sys.stdout.write(("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username)).encode('utf-8'))
+            ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
+            print("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
 
 
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
@@ -648,7 +655,7 @@ class Synapse:
             bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
-        elif isinstance(entity, basestring) and not utils.is_synapse_id(entity):
+        elif isinstance(entity, six.string_types) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
                                             ' or a valid entity id' %entity))
         else:
@@ -1370,17 +1377,17 @@ class Synapse:
             # Handle the case where a query was skipped due to size and now no items remain
             if remaining <= 0:
                 raise(StopIteration)
-                
+
             # Build the sub-query
             subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
-                
+
             try: 
                 response = self.restGET('/query?query=' + quote(subqueryStr))
                 for res in response['results']:
                     yield res
 
                 # Increase the size of the limit slowly
-                if limit < QUERY_LIMIT / 2:
+                if limit < QUERY_LIMIT // 2:
                     limit = int(limit * 1.5 + 1)
 
                 # Exit when no more results can be pulled
@@ -1406,7 +1413,7 @@ class Synapse:
                         # Since these large rows are anomalous, reset the limit
                         limit = QUERY_LIMIT
                     else:
-                        limit /= 2
+                        limit = limit // 2
                 else:
                     raise
 
@@ -1967,7 +1974,7 @@ class Synapse:
             diagnostics['chunks'] = []
             fileSize = os.stat(filepath).st_size
             completedChunks = Value('d', -1)
-            chunkNumbers = range(1, nchunks(filepath, chunksize=chunksize)+1)
+            chunkNumbers = list(range(1, nchunks(filepath, chunksize=chunksize)+1))
             def upload_one_chunk_with_retry(i):
                 chunk = get_chunk(filepath, i, chunksize=chunksize)
                 response = _with_retry(partial(self.__put_chunk_to_S3, i, chunk, token, headers), 
@@ -2154,7 +2161,7 @@ class Synapse:
                                                                       '#'*50))
                 pass
             #Fill out local_state with fileSize, externalURL etc...
-            uploadLocation = self._sftpUploadFile(entity['path'], urllib.unquote(location['url']))
+            uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
             local_state['externalURL'] = uploadLocation
             local_state['fileSize'] = os.stat(entity['path']).st_size
             if local_state.get('contentType') is None:
@@ -2220,7 +2227,7 @@ class Synapse:
             with sftp.cd(parsedURL.path):
                 sftp.put(filepath, preserve_mtime=True, callback=utils.printTransferProgress)
 
-        path = urllib.quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
+        path = quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
         parsedURL = parsedURL._replace(path=path)
         return urlunparse(parsedURL)
 
@@ -2249,7 +2256,7 @@ class Synapse:
                                       " form sftp://..."))
         #Create the local file path if it doesn't exist
         username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
-        path = urllib.unquote(parsedURL.path)
+        path = unquote(parsedURL.path)
         if localFilepath is None:
             localFilepath = os.getcwd()
         if os.path.isdir(localFilepath):
@@ -2370,7 +2377,7 @@ class Synapse:
         entity_id = entity['id']
 
         ## if teanName given, find matching team object
-        if isinstance(team, basestring):
+        if isinstance(team, six.string_types):
             matching_teams = list(self._findTeam(team))
             if len(matching_teams)>0:
                 for matching_team in matching_teams:
@@ -2920,7 +2927,7 @@ class Synapse:
             uri = '/entity/{id}/column'.format(id=id_of(x))
             for result in self._GET_paginated(uri, limit=limit, offset=offset):
                 yield Column(**result)
-        elif isinstance(x, basestring):
+        elif isinstance(x, six.string_types):
             uri = '/column?prefix=' + x
             for result in self._GET_paginated(uri, limit=limit, offset=offset):
                 yield Column(**result)
@@ -2990,7 +2997,7 @@ class Synapse:
         elif resultsAs.lower()=="csv":
             return CsvFileTable.from_table_query(self, query, **kwargs)
         else:
-            raise ValueError("Unknown return type requested from tableQuery: " + unicode(resultsAs))
+            raise ValueError("Unknown return type requested from tableQuery: " + str(resultsAs))
 
 
     def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
@@ -3155,7 +3162,7 @@ class Synapse:
             raise ValueError("Need to pass in either rowIdAndVersion or (rowId and versionNumber).")
 
         ## get table ID, given a string, Table or Schema
-        if isinstance(table, basestring):
+        if isinstance(table, six.string_types):
             table_id = table
         elif isinstance(table, synapseclient.table.TableAbstractBaseClass):
             table_id = table.tableId
@@ -3165,7 +3172,7 @@ class Synapse:
             raise ValueError("Unrecognized table object \"%s\"." % table)
 
         ## get column ID, given a column name, ID or Column object
-        if isinstance(column, basestring):
+        if isinstance(column, six.string_types):
             column = self._getColumnByName(table_id, column)
             if column is None:
                 raise SynapseError("Can't find column \"%s\"." % column)

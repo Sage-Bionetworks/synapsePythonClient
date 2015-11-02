@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Integration tests for the Synapse Client for Python
 
@@ -6,6 +7,8 @@ To run a single test suite: nosetests -vs tests/integration
 To run a single test set  : nosetests -vs tests/integration/integration_test_Entity.py
 To run a single test      : nosetests -vs tests/integration/integration_test_Entity.py:test_Entity
 """
+from __future__ import unicode_literals
+
 import uuid
 import os
 import sys

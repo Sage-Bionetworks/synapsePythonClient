@@ -1,7 +1,16 @@
+# -*- coding: utf-8 -*-
+from __future__ import unicode_literals
 import filecmp, os, sys, traceback, logging, requests, uuid
-import thread, time, random
+import time, random
 from threading import Lock
-from Queue import Queue
+import six
+
+if six.PY2:
+    import thread
+    from Queue import Queue
+else:
+    import _thread as thread
+    from queue import Queue
 
 import synapseclient
 import synapseclient.utils as utils

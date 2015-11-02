@@ -1,10 +1,16 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+import six
+
 import filecmp
 import os
 import re
 import sys
 import uuid
 import json
-from cStringIO import StringIO
 from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
@@ -17,6 +23,12 @@ from synapseclient.evaluation import Evaluation
 
 import integration
 from integration import schedule_for_cleanup
+
+if six.PY2:
+    from cStringIO import StringIO
+else:
+    from io import StringIO
+
 
 
 def setup_module(module):
