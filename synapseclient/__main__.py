@@ -192,20 +192,25 @@ def move(args, syn):
 def copy(args,syn):
     """Copys an entity specifed by args.id to args.parentId"""
     ent = syn.get(args.id)
-    new_ent = File(ent['path'],parent=args.parentid)
+    if type(ent)!="synapseclient.entity.File":
+        raise ValueError('"synapse cp" can only copy files!')
+    #CHECK: If file is in the same parent directory (throw an error)
+    search = syn.query('select name from file where parentId =="%s"'%args.parentid)['results']
+    for i in search:
+        if i['file.name'] == ent.name:
+            raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
     
+    new_ent = synapseclient.File(ent['path'],parent=args.parentid)
+
     ent_annot = syn.getAnnotations(ent)
-    annot = {(key,ent_annot[key]) for key in ent_annot if key not in ('uri','id','creationDate','etag')}
+    annot = dict((key,ent_annot[key]) for key in ent_annot if key not in ('uri','id','creationDate','etag'))
+
     new_ent.annotations = annot
     new_ent = syn.store(new_ent)
 
     try:
         ent_prov = syn.getProvenance(ent)
-        # ent_prov = ent_prov['used']
-        # used = [i['reference']['targetId'] for i in ent_prov if i['wasExecuted']]
-        # executed = [i['reference']['targetId'] for i in ent_prov if not i['wasExecuted']]
-        # used = [used, args.id]
-        syn.setProvenance(new_end.id,ent_prov)
+        syn.setProvenance(new_ent.id,ent_prov)
     except synapseclient.exceptions.SynapseHTTPError:
         pass
 
