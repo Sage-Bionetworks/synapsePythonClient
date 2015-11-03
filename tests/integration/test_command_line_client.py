@@ -591,7 +591,7 @@ def test_command_copy():
 
     ### Test cp function
     output = run('synapse', '--skip-checks',
-                 'cp', '--id',filename.id,
+                 'cp', '--id',file_entity.id,
                  '--parentid',project_entity.id)
     
     copied_id = parse(r'Copied syn\d+ to (syn\d+)',output)
