@@ -191,10 +191,12 @@ def move(args, syn):
 
 def copy(args,syn):
     """Copys an entity specifed by args.id to args.parentId"""
-
     ent = syn.get(args.id)
+    #CHECK: must be a file entity
     if ent.entityType!=u'org.sagebionetworks.repo.model.FileEntity':
         raise ValueError('"synapse cp" can only copy files!')
+    #CHECK: parentID must be a folder or project?
+
     #CHECK: If file is in the same parent directory (throw an error)
     search = syn.query('select name from file where parentId =="%s"'%args.parentid)['results']
     for i in search:
@@ -208,13 +210,11 @@ def copy(args,syn):
 
     new_ent.annotations = annot
     new_ent = syn.store(new_ent)
-
     try:
         ent_prov = syn.getProvenance(ent)
         syn.setProvenance(new_ent.id,ent_prov)
     except synapseclient.exceptions.SynapseHTTPError:
         pass
-
     print 'Copied %s to %s' %(ent.id, new_ent.id)
 
 def associate(args, syn):
