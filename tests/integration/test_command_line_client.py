@@ -607,18 +607,6 @@ def test_command_copy():
     assert copied_annot == annots
     #Verify that errors are being thrown when folders/projects are attempted to be copied,
     #or file is copied to a foler/project that has a file with the same filename
-    cpFolder = run('synapse', '--skip-checks',
-                 'cp', '--id',folder_entity.id,
-                 '--parentid',project_entity.id)
-
-    cpProject = run('synapse', '--skip-checks',
-                 'cp', '--id',project_entity.id,
-                 '--parentid',project_entity.id)
-
-    cpDuplicate = run('synapse', '--skip-checks',
-                 'cp', '--id',file_entity.id,
-                 '--parentid',project_entity.id)
-    
     assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
                  'cp', '--id',folder_entity.id,
                  '--parentid',project_entity.id)
