@@ -580,8 +580,8 @@ def test_command_copy():
     dummy_entity = syn.store(synapseclient.File(dummy, parent=folder_entity))
     
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
-    annots = {'test':'hello_world','foo':'foobar'}
-    # Create and upload a file in Folder
+    annots = {'test':'hello_world'}
+    # Create, upload, and set annotations on a file in Folder
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     file_entity = syn.store(synapseclient.File(filename, parent=folder_entity),used=dummy_entity.id,executed=repo_url)
@@ -595,18 +595,32 @@ def test_command_copy():
                  '--parentid',project_entity.id)
     
     copied_id = parse(r'Copied syn\d+ to (syn\d+)',output)
-    #Verify that we downloaded files:
+    #Verify that our copied files are identical
     copied_ent = syn.get(copied_id)
     schedule_for_cleanup(copied_id)
-    
-    copied_annot = {(key,ent_annot[key]) for key in syn.getAnnotations(copied_ent) if key not in ('uri','id','creationDate','etag')}
-    copied_prov = syn.getProveance(copied_ent)['used']
+    copied_ent_annot = syn.getAnnotations(copied_ent)
+
+    copied_annot = dict((key,copied_ent_annot[key].pop()) for key in copied_ent_annot if key not in ('uri','id','creationDate','etag'))
+    copied_prov = syn.getProvenance(copied_ent)['used']
 
     assert copied_prov == ent_prov
     assert copied_annot == annots
+    #Verify that errors are being thrown when folders/projects are attempted to be copied,
+    #or file is copied to a foler/project that has a file with the same filename
+    cpFolder = run('synapse', '--skip-checks',
+                 'cp', '--id',folder_entity.id,
+                 '--parentid',project_entity.id)
 
+    cpProject = run('synapse', '--skip-checks',
+                 'cp', '--id',project_entity.id,
+                 '--parentid',project_entity.id)
 
-
+    cpDuplicate = run('synapse', '--skip-checks',
+                 'cp', '--id',file_entity.id,
+                 '--parentid',project_entity.id)
+    assert cpFolder == 'ValueError: "synapse cp" can only copy files!'
+    assert cpProject == 'ValueError: "synapse cp" can only copy files!'
+    assert cpDuplicate == 'ValueError: Filename exists in directory you would like to copy to, either rename or check if file has already been copied!'
 
 
 def test_command_line_using_paths():
