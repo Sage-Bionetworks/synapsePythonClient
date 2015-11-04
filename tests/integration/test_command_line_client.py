@@ -618,9 +618,16 @@ def test_command_copy():
     cpDuplicate = run('synapse', '--skip-checks',
                  'cp', '--id',file_entity.id,
                  '--parentid',project_entity.id)
-    assert cpFolder == 'ValueError: "synapse cp" can only copy files!'
-    assert cpProject == 'ValueError: "synapse cp" can only copy files!'
-    assert cpDuplicate == 'ValueError: Filename exists in directory you would like to copy to, either rename or check if file has already been copied!'
+    
+    assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
+                 'cp', '--id',folder_entity.id,
+                 '--parentid',project_entity.id)
+    assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
+                 'cp', '--id',project_entity.id,
+                 '--parentid',project_entity.id)
+    assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
+                 'cp', '--id',file_entity.id,
+                 '--parentid',project_entity.id)    
 
 
 def test_command_line_using_paths():
