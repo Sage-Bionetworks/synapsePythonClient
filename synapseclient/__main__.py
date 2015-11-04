@@ -205,7 +205,7 @@ def copy(args,syn):
     
     new_ent = synapseclient.File(ent['path'],parent=args.parentid)
 
-    ent_annot = syn.getAnnotations(ent)
+    ent_annot = ent.annotations
     annot = dict((key,ent_annot[key]) for key in ent_annot if key not in ('uri','id','creationDate','etag'))
 
     new_ent.annotations = annot
