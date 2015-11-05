@@ -514,8 +514,6 @@ def test_command_line_store_and_submit():
                  )
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
-
-
     # Delete project
     output = run('synapse', 
                  '--skip-checks',

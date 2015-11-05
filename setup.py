@@ -8,10 +8,6 @@ if sys.version_info < (2, 7, 0):
     sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
     sys.exit(-1)
 
-if sys.version_info >= (3, 0, 0):
-    sys.stderr.write("The Synapse Client for Python is tested on Python 2.7 and is *not* tested on Python 3.x.\n")
-    sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % (sys.version_info.major, sys.version_info.minor, sys.version_info.micro,))
-
 from setuptools import setup
 import json
 
@@ -40,7 +36,8 @@ setup(name='synapseclient',
     packages=['synapseclient'],
     install_requires=[
         'requests>=1.2',
-        'six'
+        'six',
+        'future'
     ],
     extras_require = {
         'pandas':  ["pandas"],

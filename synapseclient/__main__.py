@@ -49,6 +49,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+import six
 
 import argparse
 import os
@@ -62,7 +63,6 @@ import signal
 import json
 import warnings
 from .exceptions import *
-from six import string_types
 
 
 def query(args, syn):
@@ -134,7 +134,7 @@ def get(args, syn):
             syn.get(id, downloadLocation='.')
     else:
         ## search by MD5
-        if isinstance(args.id, string_types) and os.path.isfile(args.id):
+        if isinstance(args.id, six.string_types) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
@@ -274,7 +274,7 @@ def _convertProvenanceList(usedList, limitSearch, syn):
     if usedList is None:
         return None
     usedList = [syn.get(target, limitSearch=limitSearch) if
-                (os.path.isfile(target) if isinstance(target, string_types) else False) else target for
+                (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
                 target in usedList]
     return usedList
 
@@ -407,6 +407,19 @@ def login(args, syn):
     syn.login(args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe)
     profile = syn.getUserProfile()
     print("Logged in as: {userName} ({ownerId})".format(**profile))
+
+
+def test_encoding(args, syn):
+    import locale
+    import platform
+    print("python version =               ", platform.python_version())
+    print("sys.stdout.encoding =          ", sys.stdout.encoding)
+    print("sys.stdout.isatty() =          ", sys.stdout.isatty())
+    print("locale.getpreferredencoding() =", locale.getpreferredencoding())
+    print("sys.getfilesystemencoding() =  ", sys.getfilesystemencoding())
+    print("PYTHONIOENCODING =             ", os.environ.get("PYTHONIOENCODING", None))
+    print("latin1 chars =                 D\xe9j\xe0 vu, \xfcml\xf8\xfats")
+    print("Some non-ascii chars =         '\u0227\u0188\u0188\u1e17\u019e\u0167\u1e17\u1e13 u\u028dop-\u01ddp\u0131sdn \u0167\u1e17\u1e8b\u0167 \u0192\u01ff\u0159 \u0167\u1e17\u015f\u0167\u012b\u019e\u0260'", )
 
 
 def build_parser():
@@ -683,6 +696,11 @@ def build_parser():
             help='Cache credentials for automatic authentication on future interactions with Synapse')
     parser_login.set_defaults(func=login)
 
+    ## test character encoding
+    parser_test_encoding = subparsers.add_parser('test-encoding',
+            help='test character encoding to help diagnose problems')
+    parser_test_encoding.set_defaults(func=test_encoding)
+
     return parser
 
 
@@ -699,7 +717,7 @@ def perform_main(args, syn):
 
 def main():
     args = build_parser().parse_args()
-    USER_AGENT['User-Agent'] = "synapsecommandlineclient " + USER_AGENT['User-Agent']
+    synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
     syn.login(args.synapseUser, args.synapsePassword, silent=True)
     perform_main(args, syn)
