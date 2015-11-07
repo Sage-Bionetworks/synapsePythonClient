@@ -929,9 +929,11 @@ class Synapse:
 
             if needs_upload:
                 fileLocation, local_state = self.__uploadExternallyStoringProjects(entity, local_state)
-                fileHandle = self._uploadToFileHandleService(fileLocation, \
-                                        synapseStore=entity.get('synapseStore', True),
-                                        mimetype=local_state.get('contentType', None))
+                fileHandle = self._uploadToFileHandleService(fileLocation,
+                                                             synapseStore=entity.get('synapseStore', True),
+                                                             mimetype=local_state.get('contentType', None),
+                                                             md5=local_state.get('md5', None),
+                                                             fileSize=local_state.get('fileSize', None))
                 properties['dataFileHandleId'] = fileHandle['id']
 
                 ## Add file to cache, unless it's an external URL
@@ -1375,7 +1377,6 @@ class Synapse:
                     break
             except SynapseHTTPError as err:
                 # Shrink the query size when appropriate
-                ## TODO: Change the error check when PLFM-1990 is resolved
                 if err.response.status_code == 400 and ('The results of this query exceeded the max' in err.response.json()['reason']):
                     if (limit == 1):
                         sys.stderr.write("A single row (offset %s) of this query "
@@ -1383,7 +1384,6 @@ class Synapse:
                                          "limiting the columns returned "
                                          "in the select clause.  Skipping...\n" % offset)
                         offset += 1
-
                         # Since these large rows are anomalous, reset the limit
                         limit = QUERY_LIMIT
                     else:
@@ -1749,7 +1749,7 @@ class Synapse:
         return returnDict(destination)
 
 
-    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None):
+    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None):
         """
         Create and return a fileHandle, by either uploading a local file or
         linking to an external URL.
@@ -1763,24 +1763,26 @@ class Synapse:
         elif utils.is_url(filename):
             if synapseStore:
                 raise NotImplementedError('Automatic downloading and storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
-            return self._addURLtoFileHandleService(filename, mimetype=mimetype)
+            return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
             if synapseStore:
                 return self._chunkedUploadFile(filename, mimetype=mimetype)
             else:
-                return self._addURLtoFileHandleService(filename, mimetype=mimetype)
+                return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
 
-    def _addURLtoFileHandleService(self, externalURL, mimetype=None):
+    def _addURLtoFileHandleService(self, externalURL, mimetype=None, md5=None, fileSize=None):
         """Create a new FileHandle representing an external URL."""
 
         fileName = externalURL.split('/')[-1]
         externalURL = utils.as_url(externalURL)
         fileHandle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
                       'fileName'    : fileName,
-                      'externalURL' : externalURL}
+                      'externalURL' : externalURL,
+                      'contentMd5' :  md5,
+                      'contentSize': fileSize}
         if mimetype is None:
             (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
         if mimetype is not None:
@@ -2098,7 +2100,7 @@ class Synapse:
     def __uploadExternallyStoringProjects(self, entity, local_state):
         """Determines the upload location of the file based on project settings and if it is
         an external location performs upload and returns the new url and sets synapseStore=False.
-        It not an external storage location returns the  original path.
+        It not an external storage location returns the original path.
 
         :param entity: An entity with path.
 
@@ -2126,6 +2128,7 @@ class Synapse:
             uploadLocation = self._sftpUploadFile(entity['path'], urllib.unquote(location['url']))
             local_state['externalURL'] = uploadLocation
             local_state['fileSize'] = os.stat(entity['path']).st_size
+            local_state['md5'] = utils.md5_for_file(entity['path']).hexdigest()
             if local_state.get('contentType') is None:
                 mimetype, enc = mimetypes.guess_type(entity['path'], strict=False)
                 local_state['contentType'] = mimetype
