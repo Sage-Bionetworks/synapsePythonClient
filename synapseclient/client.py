@@ -31,8 +31,7 @@ See also the `Synapse API documentation <http://rest.synapse.org>`_.
 
 import ConfigParser
 import collections
-import os, sys, stat, re, json, time
-import os.path
+import os, sys, stat, re, json, time, math
 import base64, hashlib, hmac
 import shutil
 import urllib, urlparse, requests, webbrowser
@@ -41,6 +40,7 @@ import mimetypes
 import tempfile
 import warnings
 import getpass
+from collections import OrderedDict
 
 import synapseclient
 import synapseclient.utils as utils
@@ -54,7 +54,7 @@ from synapseclient.annotations import to_submission_status_annotations, from_sub
 from synapseclient.activity import Activity
 from synapseclient.entity import Entity, File, Project, Folder, Versionable, split_entity_namespaces, is_versionable, is_container
 from synapseclient.table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
-from synapseclient.team import UserProfile, Team, TeamMember
+from synapseclient.team import UserProfile, Team, TeamMember, UserGroupHeader
 from synapseclient.dict_object import DictObject
 from synapseclient.evaluation import Evaluation, Submission, SubmissionStatus
 from synapseclient.wiki import Wiki, WikiAttachment
@@ -517,14 +517,22 @@ class Synapse:
         try:
             ## if id is unset or a userID, this will succeed
             id = '' if id is None else int(id)
-        except ValueError:
-            principals = self._findPrincipals(id)
-            for principal in principals:
-                if principal.get('userName', None).lower()==id.lower():
-                    id = principal['ownerId']
-                    break
-            else: # no break
-                raise ValueError('Can\'t find user "%s": ' % id)
+        except (TypeError, ValueError):
+            if 'ownerId' in id:
+                id = id.ownerId
+            elif isinstance(id, TeamMember):
+                id = id.member.ownerId
+            else:
+                principals = self._findPrincipals(id)
+                if len(principals) == 1:
+                    id = principals[0]['ownerId']
+                else:
+                    for principal in principals:
+                        if principal.get('userName', None).lower()==id.lower():
+                            id = principal['ownerId']
+                            break
+                    else: # no break
+                        raise ValueError('Can\'t find user "%s": ' % id)
         uri = '/userProfile/%s' % id
         return UserProfile(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
 
@@ -549,7 +557,7 @@ class Synapse:
 
         """
         uri = '/userGroupHeaders?prefix=%s' % query_string
-        return [DictObject(**result) for result in self._GET_paginated(uri)]
+        return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
 
     def onweb(self, entity, subpageId=None):
@@ -2291,10 +2299,29 @@ class Synapse:
 
 
     def getTeam(self, id):
+        """
+        Finds a team with a given ID or name.
+        """
+        try:
+            int(id)
+        except (TypeError, ValueError):
+            if isinstance(id, basestring):
+                for team in self._findTeam(id):
+                    if team.name==id:
+                        id = team.id
+                        break
+                else:
+                    raise ValueError("Can't find team \"{}\"".format(id))
+            else:
+                raise ValueError("Can't find team \"{}\"".format(u(id)))
         return Team(**self.restGET('/team/%s' % id))
 
 
     def getTeamMembers(self, team):
+        """
+        :parameter team: A :py:class:`Team` object or a team's ID.
+        :returns: a generator over :py:class:`TeamMember` objects.
+        """
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
@@ -2822,15 +2849,18 @@ class Synapse:
     ##                     Tables                             ##
     ############################################################
 
-    def _waitForAsync(self, uri, request):
-        async_job_id = self.restPOST(uri+'/start', body=json.dumps(request))
+    def _waitForAsync(self, uri, request, endpoint=None):
+        if endpoint is None:
+            endpoint = self.repoEndpoint
+
+        async_job_id = self.restPOST(uri+'/start', body=json.dumps(request), endpoint=endpoint)
 
         # http://rest.synapse.org/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
         lastMessage, lastProgress, lastTotal, progressed = '', 0, 1, False
         while time.time()-start_time < self.table_query_timeout:
-            result = self.restGET(uri+'/get/%s'%async_job_id['token'])
+            result = self.restGET(uri+'/get/%s'%async_job_id['token'], endpoint=endpoint)
             if result.get('jobState', None) == 'PROCESSING':
                 progressed=True
                 message = result.get('progressMessage', lastMessage)
@@ -3197,20 +3227,129 @@ class Synapse:
             return file_info
 
 
-    # TODO a function that downloads all files in a table or all
-    # TODO files returned by a query
-    # def downloadTableFiles(table, column, downloadLocation=None, ifcollision="keep.both"):
-    #     """
-    #     :param table:            schema object, table query result or synapse ID
-    #     :param column:           a Column object, the ID of a column or its name
-    #     :param downloadLocation: location in local file system to download the file
-    #     :param ifcollision:      Determines how to handle file collisions.
-    #                              May be "overwrite.local", "keep.local", or "keep.both".
-    #                              Defaults to "keep.both".
+    def downloadTableColumns(self, table, columns):
+        """
+        Bulk download of table-associated files.
 
-    #     :returns: a dictionary with 'path'.
-    #     """
-    #     pass
+        :param table:            table query result
+        :param column:           a Column object, the ID of a column or its name
+
+        :returns: a dictionary from file handle ID to path in the local file system.
+
+        For example, consider a Synapse table whose ID is "syn12345" with two columns of type File
+        named 'foo' and 'bar'. The associated files are JSON encoded, so we might retrieve the
+        files from Synapse and load for the first 100 of those rows as shown here::
+
+            import json
+
+            results = syn.tableQuery('SELECT * FROM syn12345 LIMIT 100 OFFSET 0')
+            file_map = syn.downloadTableColumns(result, ['foo', 'bar'])
+
+            for file_handle_id, path in file_map.iteritems():
+                with open(path) as f:
+                    data[file_handle_id] = f.read()
+
+        """
+
+        FAILURE_CODES = ["NOT_FOUND", "UNAUTHORIZED", "DUPLICATE", "EXCEEDS_SIZE_LIMIT", "UNKNOWN_ERROR"]
+        RETRIABLE_FAILURE_CODES = ["EXCEEDS_SIZE_LIMIT"]
+        MAX_DOWNLOAD_TRIES = 100
+        MAX_FILES_PER_REQUEST = 2500
+
+        def _is_integer(x):
+            try:
+                return float.is_integer(x)
+            except TypeError:
+                try:
+                    int(x)
+                    return True
+                except (ValueError, TypeError):
+                    ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
+                    return False
+
+        ##------------------------------------------------------------
+        ## build list of file handles to download
+        ##------------------------------------------------------------
+
+        cols_not_found = [c for c in columns if c not in [h.name for h in table.headers]]
+        if len(cols_not_found) > 0:
+            raise ValueError("Columns not found: " + ", ".join('"'+col+'"' for col in cols_not_found))
+        col_indices = [i for i,h in enumerate(table.headers) if h.name in columns]
+
+        ## see: http://rest.synapse.org/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
+        file_handle_associations = []
+        file_handle_to_path_map = OrderedDict()
+        for row in table:
+            for col_index in col_indices:
+                file_handle_id = row[col_index]
+                if _is_integer(file_handle_id):
+                    path_to_cached_file = self.cache.get(file_handle_id)
+                    if path_to_cached_file:
+                        file_handle_to_path_map[file_handle_id] = path_to_cached_file
+                    else:
+                        file_handle_associations.append(dict(
+                            associateObjectType="TableEntity",
+                            fileHandleId=file_handle_id,
+                            associateObjectId=table.tableId))
+
+        print("Downloading %d files, %d cached locally" % (len(file_handle_associations), len(file_handle_to_path_map)))
+
+        permanent_failures = OrderedDict()
+
+        attempts = 0
+        while len(file_handle_associations) > 0 and attempts < MAX_DOWNLOAD_TRIES:
+            attempts += 1
+
+            file_handle_associations_batch = file_handle_associations[:MAX_FILES_PER_REQUEST]
+
+            ##------------------------------------------------------------
+            ## call async service to build zip file
+            ##------------------------------------------------------------
+
+            ## returns a BulkFileDownloadResponse:
+            ##   http://rest.synapse.org/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
+            request = dict(
+                concreteType="org.sagebionetworks.repo.model.file.BulkFileDownloadRequest",
+                requestedFiles=file_handle_associations_batch)
+            response = self._waitForAsync(uri='/file/bulk/async', request=request, endpoint=self.fileHandleEndpoint)
+
+            ##------------------------------------------------------------
+            ## download zip file
+            ##------------------------------------------------------------
+
+            temp_dir = tempfile.mkdtemp()
+            zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
+            url = "%s/fileHandle/%s/url" % (self.fileHandleEndpoint, response['resultZipFileHandleId'])
+            try:
+                self._downloadFile(url, destination=zipfilepath)
+
+                ##------------------------------------------------------------
+                ## unzip into cache
+                ##------------------------------------------------------------
+
+                with zipfile.ZipFile(zipfilepath) as zf:
+                    ## the directory structure within the zip follows that of the cache:
+                    ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
+                    for summary in response['fileSummary']:
+                        if summary['status'] == 'SUCCESS':
+                            cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
+                            filepath = zf.extract(summary['zipEntryName'], cache_dir)
+                            self.cache.add(summary['fileHandleId'], filepath)
+                            file_handle_to_path_map[summary['fileHandleId']] = filepath
+                        elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
+                            permanent_failures[summary['fileHandleId']] = summary
+
+            finally:
+                if os.path.exists(zipfilepath):
+                    os.remove(zipfilepath)
+
+            ## Do we have remaining files to download?
+            file_handle_associations = [
+                fha for fha in file_handle_associations
+                    if fha['fileHandleId'] not in file_handle_to_path_map
+                    and fha['fileHandleId'] not in permanent_failures.keys()]
+
+        return file_handle_to_path_map
 
 
     ############################################################
