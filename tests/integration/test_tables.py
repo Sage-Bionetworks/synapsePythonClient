@@ -373,8 +373,9 @@ def test_download_table_files():
         schedule_for_cleanup(file_info['path'])
 
     ## test that cached copies are returned for already downloaded files
+    original_downloadFile_method = syn._downloadFile
     with patch("synapseclient.Synapse._downloadFile") as _downloadFile_mock:
-        _downloadFile_mock.wraps = synapseclient.Synapse._downloadFile
+        _downloadFile_mock.side_effect = original_downloadFile_method
 
         results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
         for i, row in enumerate(results):
@@ -383,6 +384,17 @@ def test_download_table_files():
             assert filecmp.cmp(original_files[i], file_info['path'])
 
         assert not _downloadFile_mock.called, "Should have used cached copy of file and not called _downloadFile"
+
+    ## test download table column
+    results = syn.tableQuery('select * from %s' % schema.id)
+    ## uncache 2 out of 4 files
+    for i, row in enumerate(results):
+        if i % 2 == 0:
+            syn.cache.remove(row[6])
+    file_map = syn._downloadTableColumns(results, ['cover'])
+    assert len(file_map) == 4
+    for row in results:
+        filecmp.cmp(original_files[i], file_map[row[6]])
 
 
 def dontruntest_big_tables():
