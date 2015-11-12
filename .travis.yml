@@ -7,8 +7,7 @@ script:
 - nosetests -vs tests/unit
 - 'if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then nosetests -vs tests/integration; fi'
 before_install:
-- openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv
-  -in test.synapseConfig.enc -out test.synapseConfig -d
-- mv test.synapseConfig ~/.synapseConfig
+- 'if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv
+  -in test.synapseConfig.enc -out test.synapseConfig -d; mv test.synapseConfig ~/.synapseConfig; fi'
 - pip install pysftp
 - pip install pandas
