@@ -3227,7 +3227,7 @@ class Synapse:
             return file_info
 
 
-    def _downloadTableColumns(self, table, columns):
+    def downloadTableColumns(self, table, columns):
         """
         Bulk download of table-associated files.
 
@@ -3243,7 +3243,7 @@ class Synapse:
             import json
 
             results = syn.tableQuery('SELECT * FROM syn12345 LIMIT 100 OFFSET 0')
-            file_map = syn._downloadTableColumns(result, ['foo', 'bar'])
+            file_map = syn.downloadTableColumns(result, ['foo', 'bar'])
 
             for file_handle_id, path in file_map.iteritems():
                 with open(path) as f:
@@ -3251,13 +3251,15 @@ class Synapse:
 
         """
 
-        failure_codes = ["NOT_FOUND", "UNAUTHORIZED", "DUPLICATE", "EXCEEDS_SIZE_LIMIT", "UNKNOWN_ERROR"]
-        retriable_failure_codes = ["EXCEEDS_SIZE_LIMIT"]
+        FAILURE_CODES = ["NOT_FOUND", "UNAUTHORIZED", "DUPLICATE", "EXCEEDS_SIZE_LIMIT", "UNKNOWN_ERROR"]
+        RETRIABLE_FAILURE_CODES = ["EXCEEDS_SIZE_LIMIT"]
+        MAX_DOWNLOAD_TRIES = 100
+        MAX_FILES_PER_REQUEST = 2500
 
         def _is_integer(x):
             try:
                 return float.is_integer(x)
-            except Exception:
+            except TypeError:
                 try:
                     int(x)
                     return True
@@ -3294,8 +3296,6 @@ class Synapse:
 
         permanent_failures = OrderedDict()
 
-        MAX_DOWNLOAD_TRIES = 100
-        MAX_FILES_PER_REQUEST = 2500
         attempts = 0
         while len(file_handle_associations) > 0 and attempts < MAX_DOWNLOAD_TRIES:
             attempts += 1
@@ -3336,7 +3336,7 @@ class Synapse:
                             filepath = zf.extract(summary['zipEntryName'], cache_dir)
                             self.cache.add(summary['fileHandleId'], filepath)
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
-                        elif summary['failureCode'] not in retriable_failure_codes:
+                        elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
                             permanent_failures[summary['fileHandleId']] = summary
 
             finally:
@@ -3345,9 +3345,9 @@ class Synapse:
 
             ## Do we have remaining files to download?
             file_handle_associations = [
-                fha for fha in file_handle_associations 
+                fha for fha in file_handle_associations
                     if fha['fileHandleId'] not in file_handle_to_path_map
-                    and fha['fileHandleId'] not in file_handle_to_path_map]
+                    and fha['fileHandleId'] not in permanent_failures.keys()]
 
         return file_handle_to_path_map
 

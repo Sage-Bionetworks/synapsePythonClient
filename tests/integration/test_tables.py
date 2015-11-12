@@ -391,7 +391,7 @@ def test_download_table_files():
     for i, row in enumerate(results):
         if i % 2 == 0:
             syn.cache.remove(row[6])
-    file_map = syn._downloadTableColumns(results, ['cover'])
+    file_map = syn.downloadTableColumns(results, ['cover'])
     assert len(file_map) == 4
     for row in results:
         filecmp.cmp(original_files[i], file_map[row[6]])
