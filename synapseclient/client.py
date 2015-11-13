@@ -2110,6 +2110,10 @@ class Synapse:
         #If it is already an exteranal URL just return
         if utils.is_url(entity['path']):
             local_state['externalURL'] = entity['path']
+            #If the url is a local path compute the md5
+            url = urlparse.urlparse(entity['path'])
+            if os.path.isfile(url.path) and url.scheme=='file':
+                local_state['md5'] = utils.md5_for_file(url.path).hexdigest()
             return entity['path'], local_state
         location =  self.__getStorageLocation(entity)
         if location['uploadType'] == 'S3':
