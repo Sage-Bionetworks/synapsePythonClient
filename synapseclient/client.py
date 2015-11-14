@@ -3292,17 +3292,17 @@ class Synapse:
         Bulk download of table-associated files.
 
         :param table:            table query result
-        :param column:           a Column object, the ID of a column or its name
+        :param column:           a list of column names as strings
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
         For example, consider a Synapse table whose ID is "syn12345" with two columns of type File
         named 'foo' and 'bar'. The associated files are JSON encoded, so we might retrieve the
-        files from Synapse and load for the first 100 of those rows as shown here::
+        files from Synapse and load for the second 100 of those rows as shown here::
 
             import json
 
-            results = syn.tableQuery('SELECT * FROM syn12345 LIMIT 100 OFFSET 0')
+            results = syn.tableQuery('SELECT * FROM syn12345 LIMIT 100 OFFSET 100')
             file_map = syn.downloadTableColumns(result, ['foo', 'bar'])
 
             for file_handle_id, path in file_map.iteritems():
@@ -3326,6 +3326,11 @@ class Synapse:
                 except (ValueError, TypeError):
                     ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
                     return False
+
+        if isinstance(columns, basestring):
+            columns = [columns]
+        if not isinstance(columns, collections.Iterable):
+            raise TypeError('Columns parameter requires a list of column names')
 
         ##------------------------------------------------------------
         ## build list of file handles to download
