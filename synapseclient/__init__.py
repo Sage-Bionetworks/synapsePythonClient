@@ -50,7 +50,7 @@ Installing from source::
 
 You can stay on the master branch to get the latest stable release or check out the develop branch or a tagged revision::
 
-    get checkout <branch or tag>
+    git checkout <branch or tag>
 
 Next, either install the package in the site-packages directory ``python setup.py install`` or ``python setup.py develop`` to make the installation follow the head without having to reinstall::
 
@@ -239,7 +239,7 @@ Querying for my projects. Finding projects owned by the current user::
     results = syn.query('SELECT id, name FROM project WHERE project.createdByPrincipalId==%s' % profile['ownerId'])
 
     for result in results['results']:
-        print result['entity.id'], result['entity.name']
+        print result['project.id'], result['project.name']
 
 See:
 
@@ -294,12 +294,15 @@ __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapse
 
 import requests
 USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
+import logging 
+logging.getLogger("requests").setLevel(logging.WARNING)
 
 from client import Synapse, login
 from activity import Activity
 from entity import Entity, Project, Folder, File
 from evaluation import Evaluation, Submission, SubmissionStatus
 from table import Schema, Column, RowSet, Row, as_table_columns, Table
+from team import Team, UserProfile, UserGroupHeader, TeamMember
 from wiki import Wiki
 
 from version_check import check_for_updates

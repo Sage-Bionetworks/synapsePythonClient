@@ -1,8 +1,8 @@
-import tempfile, os, sys, filecmp, shutil, requests, json
+import tempfile, os, sys, filecmp, shutil, requests, json, time
 import uuid, random, base64
 import ConfigParser
 from datetime import datetime
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals
 from nose.plugins.attrib import attr
 from mock import MagicMock, patch
 
@@ -15,6 +15,7 @@ from synapseclient.activity import Activity
 from synapseclient.version_check import version_check
 from synapseclient.entity import Project, File, Folder
 from synapseclient.wiki import Wiki
+from synapseclient.team import Team
 
 import integration
 from integration import schedule_for_cleanup
@@ -147,7 +148,11 @@ def test_entity_version():
     assert returnEntity.versionNumber == 1
     assert returnEntity['fizzbuzz'][0] == 111222
     assert 'foo' not in returnEntity
-
+    
+    # Delete version 2 
+    syn.delete(entity, version=2)
+    returnEntity = syn.getEntity(entity)
+    assert returnEntity.versionNumber == 1
 
 def test_md5_query():
     # Add the same Entity several times
@@ -210,6 +215,7 @@ def test_uploadFileEntity():
     # Download and verify
     entity = syn.downloadEntity(entity)
 
+    print entity['files']
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
@@ -226,7 +232,8 @@ def test_uploadFileEntity():
 
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)
-    assert entity['files'][0] == os.path.basename(fname)
+    print entity['files']
+    assert_equals(entity['files'][0], os.path.basename(fname))
     assert filecmp.cmp(fname, entity['path'])
 
 
@@ -345,3 +352,28 @@ def test_get_user_profile():
     # assert p.userName == 'synapse-test'
     # p = syn.getUserProfile(p.ownerId)
     # assert p.userName == 'synapse-test'
+
+
+def test_teams():
+    unique_name = "Team Gnarly Rad " + str(uuid.uuid4())
+    team = Team(name=unique_name, description="A gnarly rad team", canPublicJoin=True)
+    team = syn.store(team)
+
+    team2 = syn.getTeam(team.id)
+    assert team == team2
+
+    ## Asynchronously populates index, so wait 'til it's there
+    retry = 0
+    backoff = 0.1
+    while retry < 5:
+        retry += 1
+        time.sleep(backoff)
+        backoff *= 2
+        found_teams = list(syn._findTeam(team.name))
+        if len(found_teams) > 0:
+            break
+
+    assert team == found_teams[0]
+
+    syn.delete(team)
+

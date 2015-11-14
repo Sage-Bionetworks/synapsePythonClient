@@ -3,12 +3,23 @@
 Synapse command line client
 ***************************
 
-The Synapse client can be used from the command line via the **synapse**
-command. For help, type::
+The Synapse Python Client can be used from the command line via the **synapse**
+command.
+
+Installation
+============
+
+The command line client is installed along with `installation of the Synapse
+Python client <http://python-docs.synapse.org/index.html#installation>`_.
+
+Help
+====
+
+For help, type::
 
     synapse -h.
 
-For help on commands, type::
+For help on specific commands, type::
 
     synapse [command] -h
 
@@ -56,6 +67,7 @@ from synapseclient import Activity
 import utils
 import signal
 import json
+import getpass
 from synapseclient.exceptions import *
 
 
@@ -127,20 +139,19 @@ def get(args, syn):
         for id in ids:
             syn.get(id, downloadLocation='.')
     else:
-        entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch)
-        ## TODO: Is this part even necessary?
-        ## (Other than the print statements)
-        if 'files' in entity:
-            for fp in entity['files']:
-                src = os.path.join(entity['cacheDir'], fp)
-                dst = os.path.join('.', fp.replace(".R_OBJECTS/",""))
-                print 'Creating %s' % dst
-                if not os.path.exists(os.path.dirname(dst)):
-                    os.mkdir(dst)
-                shutil.copyfile(src, dst)
+        ## search by MD5
+        if isinstance(args.id, basestring) and os.path.isfile(args.id):
+            entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
+            if "path" in entity and entity.path is not None and os.path.exists(entity.path):
+                print "Associated file: %s with synapse ID %s" % (entity.path, entity.id)
+        ## normal syn.get operation
         else:
-            sys.stderr.write('WARNING: No files associated with entity %s\n' % args.id)
-            syn.printEntity(entity)
+            entity = syn.get(args.id, version=args.version, downloadLocation='.')
+            if "path" in entity and entity.path is not None and os.path.exists(entity.path):
+                print "Downloaded file: %s" % os.path.basename(entity.path)
+            else:
+                print 'WARNING: No files associated with entity %s\n' % entity.id
+                print entity
 
 
 def store(args, syn):
@@ -244,8 +255,12 @@ def show(args, syn):
 
 
 def delete(args, syn):
-    syn.delete(args.id)
-    print 'Deleted entity: %s' % args.id
+	if args.version:
+	    syn.delete(args.id, args.version)	
+	    print 'Deleted entity %s, version %s' % (args.id, args.version)
+	else:
+	    syn.delete(args.id)
+	    print 'Deleted entity: %s' % args.id
 
 
 def create(args, syn):
@@ -297,7 +312,7 @@ def setProvenance(args, syn):
 
 
 def getProvenance(args, syn):
-    activity = syn.getProvenance(args.id)
+    activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output=='STDOUT':
         print json.dumps(activity,sort_keys=True, indent=2)
@@ -348,30 +363,18 @@ def getAnnotations(args, syn):
 
 def submit(args, syn):
     '''
-    Method to allow challenge participants to submit to an evaluation queue
+    Method to allow challenge participants to submit to an evaluation queue.
 
-    Examples:
-    1. #submit to a eval Queue by eval ID , uploading the submission file
-    synapse submit --evalID 2343117 -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-
-    2. support for deprecated --evaluation option
-    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-
+    Examples::
+    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --parentId syn2345030 --used syn2351967 --executed syn2351968
+    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --parentId syn2345030 --used syn2351967 --executed syn2351968
     '''
-
-    #backward compatibility support
+    #check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
     if args.evaluation is not None:
-        sys.stdout.write('[Warning]: Use of --evaluation is deprecated. Use -evalId or -evalName \n')
-        #check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
         try:
             args.evaluationID = str(int(args.evaluation))
         except ValueError:
             args.evaluationName = args.evaluation
-
-    #set the user teamname to username if none is specified
-    if args.teamName is None:
-        args.teamName = syn.getUserProfile()['userName']
 
     # checking if user has entered a evaluation ID or evaluation Name
     if args.evaluationID is None and args.evaluationName is None:
@@ -382,8 +385,7 @@ def submit(args, syn):
         try:
             args.evaluationID = syn.getEvaluationByName(args.evaluationName)['id']
         except Exception:
-            raise ValueError('could not find evaluationID for evaluationName: %s \n' % args.evaluationName)
-
+            raise ValueError('Could not find an evaluation named: %s \n' % args.evaluationName)
 
     # checking if a entity id or file was specified by the user
     if args.entity is None and args.file is None:
@@ -401,14 +403,16 @@ def submit(args, syn):
                             executed=_convertProvenanceList(args.executed, args.limitSearch, syn))
         args.entity = synFile.id
 
-    submission = syn.submit(args.evaluationID, args.entity, name=args.name, teamName=args.teamName)
+    submission = syn.submit(args.evaluationID, args.entity, name=args.name, team=args.teamName)
     sys.stdout.write('Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' \
         % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId']))
 
 
 def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
-    syn.login(args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe)
+    login_with_prompt(syn, args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe, forced=True)
+    profile = syn.getUserProfile()
+    print("Logged in as: {userName} ({ownerId})".format(**profile))
 
 
 def build_parser():
@@ -529,6 +533,8 @@ def build_parser():
             help='removes a dataset from Synapse')
     parser_delete.add_argument('id', metavar='syn123', type=str,
             help='Synapse ID of form syn123 of desired data object')
+    parser_delete.add_argument('--version', type=str,
+            help='Version number to delete of given entity.')
     parser_delete.set_defaults(func=delete)
 
     parser_query = subparsers.add_parser('query',
@@ -540,28 +546,30 @@ def build_parser():
 
     parser_submit = subparsers.add_parser('submit',
             help='submit an entity or a file for evaluation')
-    parser_submit.add_argument('--evaluationID', '--evalID', type=str,
+    parser_submit.add_argument('--evaluationID', '--evaluationId', '--evalID', type=str,
             help='Evaluation ID where the entity/file will be submitted')
     parser_submit.add_argument('--evaluationName', '--evalN', type=str,
             help='Evaluation Name where the entity/file will be submitted')
     parser_submit.add_argument('--evaluation', type=str,
             help=argparse.SUPPRESS)  #mainly to maintain the backward compatibility
-    parser_submit.add_argument('--entity', '--eid', '--entityId', type=str,
+    parser_submit.add_argument('--entity', '--eid', '--entityId', '--id', type=str,
             help='Synapse ID of the entity to be submitted')
     parser_submit.add_argument('--file', '-f', type=str,
             help='File to be submitted to the challenge')
-    parser_submit.add_argument('--parentId', '--pid', type=str, dest='parentid',
+    parser_submit.add_argument('--parentId', '--parentid', '--parent', type=str, dest='parentid',
             help='Synapse ID of project or folder where to upload data')
     parser_submit.add_argument('--name', type=str,
             help='Name of the submission')
     parser_submit.add_argument('--teamName', '--team', type=str,
-            help='Publicly displayed name of team for the submission[defaults to username]')
+            help='Submit of behalf of a registered team')
+    parser_submit.add_argument('--submitterAlias', '--alias', metavar='ALIAS', type=str,
+            help='A nickname, possibly for display in leaderboards')
     parser_submit.add_argument('--used', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path from which the '
+            help=('Synapse ID of a file entity or url from which the '
                   'specified entity is derived'))
     parser_submit.add_argument('--executed', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path that was executed '
-                  'to generate the specified entity is derived'))
+            help=('Synapse ID of a file entity or url indicating code executed '
+                  'to generate the specified entity'))
     parser_submit.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_submit.set_defaults(func=submit)
@@ -617,6 +625,9 @@ def build_parser():
             help='show provenance records')
     parser_get_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
+    parser_get_provenance.add_argument('--version', metavar='version', type=int, required=False,
+            help='version of Synapse entity whose provenance we are accessing.')
+
     parser_get_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
@@ -668,7 +679,7 @@ def build_parser():
 
     ## the purpose of the login command (as opposed to just using the -u and -p args) is
     ## to allow the command line user to cache credentials
-    parser_login = subparsers.add_parser( 'login',
+    parser_login = subparsers.add_parser('login',
             help='login to Synapse and (optionally) cache credentials')
     parser_login.add_argument('-u', '--username', dest='synapseUser',
             help='Username used to connect to Synapse')
@@ -691,12 +702,23 @@ def perform_main(args, syn):
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
 
+def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
+    try:
+        syn.login(user, password, silent=silent, forced=forced)
+    except SynapseNoCredentialsError:
+        # if there were no credentials in the cache nor provided, prompt the user and try again
+        if user is None:
+            user = raw_input("Synapse username: ")
+        passwd = getpass.getpass("Password for " + user + ": ")
+        syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
-    syn.login(args.synapseUser, args.synapsePassword, silent=True)
+    if not ('func' in args and args.func == login):
+        # if we're not executing the "login" operation, automatically authenticate before running operation
+        login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
     perform_main(args, syn)
 
 

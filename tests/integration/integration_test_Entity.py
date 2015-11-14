@@ -87,7 +87,7 @@ def test_Entity():
     assert a_file['bday'][0] == Datetime(2013,3,15)
     assert a_file.new_key[0] == 'A newly created value'
     assert a_file.path == path
-    assert a_file.versionNumber == 1
+    assert a_file.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
 
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
@@ -118,7 +118,6 @@ def test_special_characters():
 
 
 def test_get_local_file():
-    """Tests synapse.get() with local a local file """
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
     folder = Folder('TestFindFileFolder', parent=project, description='A place to put my junk')
@@ -176,7 +175,7 @@ def test_store_with_flags():
     
     # Re-store again, essentially the same condition
     mutaBogus = syn.store(mutaBogus, createOrUpdate=True, forceVersion=False)
-    assert mutaBogus.versionNumber == 1
+    assert mutaBogus.versionNumber == 1, "expected version 1 but got version %s" % mutaBogus.versionNumber
     
     # And again, but up the version this time
     mutaBogus = syn.store(mutaBogus, forceVersion=True)

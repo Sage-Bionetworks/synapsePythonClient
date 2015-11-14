@@ -28,6 +28,9 @@ class SynapseTimeoutError(SynapseError):
 class SynapseAuthenticationError(SynapseError):
     """Unauthorized access."""
 
+class SynapseNoCredentialsError(SynapseAuthenticationError):
+    """No credentials for authentication"""
+
 class SynapseFileCacheError(SynapseError):
     """Error related to local file storage."""
 

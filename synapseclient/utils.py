@@ -49,6 +49,7 @@ Testing
 #!/usr/bin/env python2.7
 
 import cgi
+import errno
 import math, os, sys, urllib, urlparse, hashlib, re
 import random
 import requests
@@ -59,11 +60,13 @@ import functools
 import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
+from datetime import timedelta
 from numbers import Number
 
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
+ISO_FORMAT_MICROS = "%Y-%m-%dT%H:%M:%S.%fZ"
 GB = 2**30
 MB = 2**20
 KB = 2**10
@@ -116,11 +119,11 @@ def download_file(url, localFilepath=None):
         for nChunks, chunk in enumerate(r.iter_content(chunk_size=1024*10)):
             if chunk:
                 f.write(chunk)
-                printTransferProgress(nChunks*1024*10 ,toBeTransferred)
+                printTransferProgress(nChunks*1024*10, toBeTransferred)
     finally:
         if f:
             f.close()
-            printTransferProgress(toBeTransferred ,toBeTransferred)
+            printTransferProgress(toBeTransferred, toBeTransferred)
 
     return localFilepath
 
@@ -190,11 +193,13 @@ def id_of(obj):
         return str(obj)
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
+        result = _get_from_members_items_or_properties(obj, 'ownerId')
+    if result is None:
         raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result
 
 def is_in_path(id, path):
-    """Determines weather id is in the path as returned from /entity/{id}/path
+    """Determines whether id is in the path as returned from /entity/{id}/path
 
     :param id: synapse id string
     :param path: object as returned from '/entity/{id}/path'
@@ -262,6 +267,7 @@ def normalize_path(path):
         return None
     return re.sub(r'\\', '/', os.path.abspath(path))
 
+
 def file_url_to_path(url, verify_exists=False):
     """
     Convert a file URL to a path, handling some odd cases around Windows paths.
@@ -291,7 +297,6 @@ def file_url_to_path(url, verify_exists=False):
     return {}
 
 
-
 def is_same_base_url(url1, url2):
     """Compares two urls to see if they are the same excluding up to the base path
 
@@ -306,8 +311,6 @@ def is_same_base_url(url1, url2):
             url1.netloc==url2.netloc)
 
 
-
-
 def is_synapse_id(obj):
     """If the input is a Synapse ID return it, otherwise return None"""
 
@@ -316,6 +319,7 @@ def is_synapse_id(obj):
         if m:
             return m.group(1)
     return None
+
 
 def _is_date(dt):
     """Objects of class datetime.date and datetime.datetime will be recognized as dates"""
@@ -400,19 +404,52 @@ def to_unix_epoch_time(dt):
     return int((dt - UNIX_EPOCH).total_seconds() * 1000)
 
 
-def from_unix_epoch_time(ms):
-    """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
+def to_unix_epoch_time_secs(dt):
+    """
+    Convert either `datetime.date or datetime.datetime objects 
+    <http://docs.python.org/2/library/datetime.html>`_ to UNIX time.
+    """
 
-    if isinstance(ms, basestring):
-        ms = int(ms)
+    if type(dt) == Date:
+        return (dt - UNIX_EPOCH.date()).total_seconds()
+    return (dt - UNIX_EPOCH).total_seconds()
+
+
+def from_unix_epoch_time_secs(secs):
+    """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
+    if isinstance(secs, basestring):
+        secs = float(secs)
 
     # utcfromtimestamp() fails for negative values (dates before 1970-1-1) on Windows
     # so, here's a hack that enables ancient events, such as Chris's birthday to be
     # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!
-    if platform.system()=='Windows' and ms < 0:
-        mirror_date = Datetime.utcfromtimestamp(abs(ms)/1000.0)
+    if platform.system()=='Windows' and secs < 0:
+        mirror_date = Datetime.utcfromtimestamp(abs(secs))
         return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
-    return Datetime.utcfromtimestamp(ms/1000.0)
+    return Datetime.utcfromtimestamp(secs)
+
+
+def from_unix_epoch_time(ms):
+    """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
+
+    if isinstance(ms, basestring):
+        ms = float(ms)
+    return from_unix_epoch_time_secs(ms/1000.0)
+
+
+def datetime_to_iso(dt):
+    ## Round microseconds to milliseconds (as expected by older clients)
+    ## and add back the "Z" at the end.
+    ## see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
+    fmt = "{time.year:04}-{time.month:02}-{time.day:02}T{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
+    if dt.microsecond >= 999500:
+        dt -= timedelta(microseconds=dt.microsecond)
+        dt += timedelta(seconds=1)
+    return fmt.format(time=dt, millisecond=int(round(dt.microsecond/1000.0)), tz="Z")
+
+
+def iso_to_datetime(iso_time):
+    return Datetime.strptime(iso_time, ISO_FORMAT_MICROS)
 
 
 def format_time_interval(seconds):
@@ -671,8 +708,43 @@ def humanizeBytes(bytes):
     return 'Oops larger than Exabytes'
 
 
+def touch(path, times=None):
+    basedir = os.path.dirname(path)
+    if not os.path.exists(basedir):
+        try:
+            os.makedirs(basedir)
+        except OSError as err:
+            ## alternate processes might be creating these at the same time
+            if err.errno != errno.EEXIST:
+                raise
+
+    with open(path, 'a'):
+        os.utime(path, times)
+    return path
+
+
 def _is_json(content_type):
     """detect if a content-type is JSON"""
     ## The value of Content-Type defined here:
     ## http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
     return content_type.lower().strip().startswith('application/json') if content_type else False
+
+
+def find_data_file_handle(bundle):
+    """Return the fileHandle whose ID matches the dataFileHandleId in an entity bundle"""
+    for fileHandle in bundle['fileHandles']:
+        if fileHandle['id'] == bundle['entity']['dataFileHandleId']:
+            return fileHandle
+    return None
+
+
+def unique_filename(path):
+    """Returns a unique path by appending (n) for some number n to the end of the filename."""
+
+    base, ext = os.path.splitext(path)
+    counter = 0
+    while os.path.exists(path):
+        counter += 1
+        path = base + ("(%d)" % counter) + ext
+
+    return path

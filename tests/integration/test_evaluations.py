@@ -1,5 +1,6 @@
 import tempfile, time, os, re, sys, filecmp, shutil, requests, json
 import uuid, random, base64
+from datetime import datetime
 from nose.tools import assert_raises
 
 import ConfigParser
@@ -9,6 +10,7 @@ from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
 from synapseclient.entity import Project, File
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
+from synapseclient.team import Team, TeamMember
 
 import integration
 from integration import schedule_for_cleanup
@@ -60,12 +62,14 @@ def test_evaluations():
         ev = syn.store(ev, createOrUpdate=True)
         assert ev.status == 'OPEN'
 
+        # TODO is "participation" deprecated? Should these be removed?
         # Add the current user as a participant
+        myOwnerId = int(syn.getUserProfile()['ownerId'])
+        syn._allowParticipation(ev, myOwnerId)
         syn.joinEvaluation(ev)
 
         # Find this user in the participant list
         foundMe = False
-        myOwnerId = int(syn.getUserProfile()['ownerId'])
         for item in syn.getParticipants(ev):
             if int(item['userId']) == myOwnerId:
                 foundMe = True
@@ -136,11 +140,7 @@ def test_evaluations():
             entity = testSyn.store(f)
 
             ## test submission by evaluation ID
-            submission = testSyn.submit(ev.id, entity)
-
-            # Clean up, since the current user can't access this project
-            # This also removes references to the submitted object :)
-            testSyn.delete(other_project)
+            submission = testSyn.submit(ev.id, entity, submitterAlias="My Nickname")
 
             # Mess up the cached file so that syn._getWithEntityBundle must download again
             os.utime(filename, (0, 0))
@@ -170,7 +170,7 @@ def test_evaluations():
             f = File(filename, parentId=project.id, name='entry-%02d' % i,
                      description='An entry for testing evaluation')
             entity=syn.store(f)
-            syn.submit(ev, entity, name='Submission %02d' % i, teamName='My Team')
+            syn.submit(ev, entity, name='Submission %02d' % i, submitterAlias='My Team')
 
         # Score the submissions
         submissions = syn.getSubmissions(ev, limit=num_of_submissions-1)
@@ -240,6 +240,46 @@ def test_evaluations():
     finally:
         # Clean up
         syn.delete(ev)
+        if 'testSyn' in locals():
+            if 'other_project' in locals():
+                # Clean up, since the current user can't access this project
+                # This also removes references to the submitted object :)
+                testSyn.delete(other_project)
+            if 'team' in locals():
+                ## remove team
+                testSyn.delete(team)
 
     ## Just deleted it. Shouldn't be able to get it.
     assert_raises(SynapseHTTPError, syn.getEvaluation, ev)
+
+
+def test_teams():
+    name = "My Uniquely Named Team " + str(uuid.uuid4())
+    team = syn.store(Team(name=name, description="A fake team for testing..."))
+    schedule_for_cleanup(team)
+
+    found_team = syn.getTeam(team.id)
+    assert team == found_team
+
+    p = syn.getUserProfile()
+    found = None
+    for m in syn.getTeamMembers(team):
+        if m.member.ownerId == p.ownerId:
+            found = m
+            break
+
+    assert found is not None, "Couldn't find user {} in team".format(p.username)
+
+    ## needs to be retried 'cause appending to the search index is asynchronous
+    tries = 10
+    found_team = None
+    while tries > 0:
+        try:
+            found_team = syn.getTeam(name)
+            break
+        except ValueError:
+            tries -= 1
+            if tries > 0: time.sleep(1)
+    assert team == found_team
+
+

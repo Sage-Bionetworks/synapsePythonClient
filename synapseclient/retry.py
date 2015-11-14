@@ -1,3 +1,4 @@
+import random
 import sys
 import time
 
@@ -5,7 +6,7 @@ from synapseclient.utils import _is_json
 
 
 def _with_retry(function, verbose=False, \
-        retry_status_codes=[502,503], retry_errors=[], retry_exceptions=[], \
+        retry_status_codes=[429, 502, 503, 504], retry_errors=[], retry_exceptions=[], \
         retries=3, wait=1, back_off=2, max_wait=30):
     """
     Retries the given function under certain conditions.
@@ -80,9 +81,10 @@ def _with_retry(function, verbose=False, \
         # Wait then retry
         retries -= 1
         if retries >= 0 and retry:
+            randomized_wait = wait*random.uniform(0.5,1.5)
             if verbose:
-                sys.stderr.write('\n... Retrying in %d seconds...\n' % wait)
-            time.sleep(wait)
+                sys.stderr.write('\n... Retrying in {wait} seconds...\n'.format(wait=randomized_wait))
+            time.sleep(randomized_wait)
             wait = min(max_wait, wait*back_off)
             continue
 

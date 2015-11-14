@@ -11,7 +11,9 @@ import uuid
 from itertools import izip
 from nose.tools import assert_raises
 from datetime import datetime
+from mock import patch
 
+import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
@@ -208,7 +210,7 @@ def test_tables_csv():
 
         df = results.asDataFrame()
         assert all(df.columns.values == ['Name', 'Born', 'Hipness', 'Living'])
-        assert all(df.iloc[1,[0,1,3]] == ['Miles Davis', 1926, False]), "Wasn't expecting:" + unicode(df.iloc[1,[0,1,3]])
+        assert list(df.iloc[1,[0,1,3]]) == ['Miles Davis', 1926, False]
         assert df.iloc[1,2] - 9.87 < 0.0001
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for CSV tables.\n\n')
@@ -366,9 +368,33 @@ def test_download_table_files():
     results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, resultsAs="rowset")
     for i, row in enumerate(results):
         print "%s_%s" % (row.rowId, row.versionNumber), row.values
-        file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover', downloadLocation='.')
+        file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
         assert filecmp.cmp(original_files[i], file_info['path'])
         schedule_for_cleanup(file_info['path'])
+
+    ## test that cached copies are returned for already downloaded files
+    original_downloadFile_method = syn._downloadFile
+    with patch("synapseclient.Synapse._downloadFile") as _downloadFile_mock:
+        _downloadFile_mock.side_effect = original_downloadFile_method
+
+        results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
+        for i, row in enumerate(results):
+            print "%s_%s" % (row.rowId, row.versionNumber), row.values
+            file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
+            assert filecmp.cmp(original_files[i], file_info['path'])
+
+        assert not _downloadFile_mock.called, "Should have used cached copy of file and not called _downloadFile"
+
+    ## test download table column
+    results = syn.tableQuery('select * from %s' % schema.id)
+    ## uncache 2 out of 4 files
+    for i, row in enumerate(results):
+        if i % 2 == 0:
+            syn.cache.remove(row[6])
+    file_map = syn.downloadTableColumns(results, ['cover'])
+    assert len(file_map) == 4
+    for row in results:
+        filecmp.cmp(original_files[i], file_map[row[6]])
 
 
 def dontruntest_big_tables():

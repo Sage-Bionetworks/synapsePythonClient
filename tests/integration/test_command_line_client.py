@@ -6,7 +6,7 @@ import uuid
 import json
 from cStringIO import StringIO
 from nose.plugins.attrib import attr
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals
 import tempfile
 import shutil
 
@@ -61,7 +61,7 @@ def parse(regex, output):
         if len(m.groups()) > 0:
             return m.group(1).strip()
     else:
-        raise Exception('ERROR parsing output: ' + str(output))
+        raise Exception('ERROR parsing output: "' + str(output) + '"')
 
 
 def test_command_line_client():
@@ -102,7 +102,7 @@ def test_command_line_client():
                  '--skip-checks', 
                  'get',
                  file_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
+    downloaded_filename = parse(r'Downloaded file:\s+(.*)', output)
     schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
@@ -124,7 +124,7 @@ def test_command_line_client():
                  '--skip-checks',
                  'get', 
                  file_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
+    downloaded_filename = parse(r'Downloaded file:\s+(.*)', output)
     schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
@@ -212,7 +212,7 @@ def test_command_line_client():
                  '--skip-checks', 
                  'get', 
                  exteral_entity_id)
-    downloaded_filename = parse(r'Creating\s+(.*)', output)
+    downloaded_filename = parse(r'Downloaded file:\s+(.*)', output)
     schedule_for_cleanup(downloaded_filename)
     assert os.path.exists(downloaded_filename)
 
@@ -406,7 +406,6 @@ def test_command_line_store_and_submit():
     # Create an Evaluation to submit to
     eval = Evaluation(name=str(uuid.uuid4()), contentSource=project_id)
     eval = syn.store(eval)
-    syn.joinEvaluation(eval)
     schedule_for_cleanup(eval)
     
     # Submit a bogus file
@@ -417,8 +416,6 @@ def test_command_line_store_and_submit():
                  eval.id, 
                  '--name',
                  'Some random name',
-                 '--teamName',
-                 'My Team',
                  '--entity',
                  file_entity_id)
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
@@ -432,7 +429,7 @@ def test_command_line_store_and_submit():
                  eval.id, 
                  '--name',
                  'Some random name',
-                 '--teamName',
+                 '--alias',
                  'My Team',
                  '--entity',
                  file_entity_id)
@@ -496,7 +493,7 @@ def test_command_line_store_and_submit():
                  eval.id, 
                  '--file',
                  filename,
-                 '--pid',
+                 '--parent',
                  project_id,
                  '--used',
                  exteral_entity_id,
@@ -586,16 +583,18 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'show', filename)
     id = parse(r'File: %s\s+\((syn\d+)\)\s+' %os.path.split(filename)[1], output)
     assert file_entity.id == id
-    
-    #Verify that limitSearch works by using get
-    #Store same file in project as well
+
+    # Verify that limitSearch works by making sure we get the file entity
+    # that's inside the folder
     file_entity2 = syn.store(synapseclient.File(filename, parent=project_entity))
     output = run('synapse', '--skip-checks', 'get', 
                  '--limitSearch', folder_entity.id, 
                  filename)
-    name = parse(r'Creating\s+\.\%s(%s)\s+' % (os.path.sep, os.path.split(filename)[1]), output)
-    assert name == os.path.split(filename)[1]
-    schedule_for_cleanup('./'+name)
+    print "output = \"", output, "\""
+    id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
+    name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
+    assert_equals(file_entity.id, id)
+    assert_equals(name, filename)
 
     #Verify that set-provenance works with filepath
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'

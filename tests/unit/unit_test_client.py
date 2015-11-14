@@ -1,5 +1,5 @@
 import os, json, tempfile, filecmp
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equal, assert_in
 from mock import MagicMock, patch
 import unit
 import synapseclient
@@ -64,7 +64,7 @@ def test_getWithEntityBundle(download_file_mock):
         'annotations': {}}
 
     fileHandle = bundle['fileHandles'][0]['id']
-    cacheDir = synapseclient.cache.determine_cache_directory(fileHandle)
+    cacheDir = syn.cache.get_cache_dir(fileHandle)
     print "cacheDir=", cacheDir
 
     # Make sure the .cacheMap file does not already exist
@@ -102,7 +102,7 @@ def test_getWithEntityBundle(download_file_mock):
     assert e.path == os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])
 
     # 2. ----------------------------------------------------------------------
-    # download to cache
+    # get without specifying downloadLocation
     e = syn._getWithEntityBundle(entityBundle=bundle, ifcollision="overwrite.local")
 
     print e
@@ -110,10 +110,6 @@ def test_getWithEntityBundle(download_file_mock):
     assert e.name == bundle["entity"]["name"]
     assert e.parentId == bundle["entity"]["parentId"]
     assert bundle["fileHandles"][0]["fileName"] in e.files
-
-    # should this put the file in the cache?
-    assert e.cacheDir == cacheDir
-    assert e.path == os.path.join(cacheDir, bundle["entity"]["name"])
 
     # 3. ----------------------------------------------------------------------
     # download to another location
@@ -125,9 +121,9 @@ def test_getWithEntityBundle(download_file_mock):
     print "temp_dir2=", temp_dir2
     print e
 
-    assert bundle["fileHandles"][0]["fileName"] in e.files
+    assert_in(bundle["fileHandles"][0]["fileName"], e.files)
     assert e.path is not None
-    assert os.path.dirname(e.path) == temp_dir2
+    assert_equal( os.path.dirname(e.path), temp_dir2 )
 
     # 4. ----------------------------------------------------------------------
     ## test preservation of local state
@@ -183,7 +179,7 @@ def test_submit(*mocks):
         return submission
     POST_mock.side_effect = shim
     
-    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', teamName='Team X')
+    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', submitterAlias='Team X')
     assert GET_mock.call_count == 2
 
     assert submission.id == 1234
