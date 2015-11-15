@@ -55,6 +55,7 @@ def test_with_retry():
     assert function.call_count == 1 + 4 + 3 + 4
     
     # -- Propagate an error up --
+    print("Expect a SynapseError: Bar")
     def foo(): raise SynapseError("Bar")
     function.side_effect = foo
     assert_raises(SynapseError, _with_retry, function, **retryParams)

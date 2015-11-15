@@ -21,7 +21,7 @@ from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
 from synapseclient.entity import Project, File
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
-from synapseclient.team import Team
+from synapseclient.team import Team, TeamMember
 
 import integration
 from integration import schedule_for_cleanup
@@ -263,4 +263,35 @@ def test_evaluations():
 
     ## Just deleted it. Shouldn't be able to get it.
     assert_raises(SynapseHTTPError, syn.getEvaluation, ev)
+
+
+def test_teams():
+    name = "My Uniquely Named Team " + str(uuid.uuid4())
+    team = syn.store(Team(name=name, description="A fake team for testing..."))
+    schedule_for_cleanup(team)
+
+    found_team = syn.getTeam(team.id)
+    assert team == found_team
+
+    p = syn.getUserProfile()
+    found = None
+    for m in syn.getTeamMembers(team):
+        if m.member.ownerId == p.ownerId:
+            found = m
+            break
+
+    assert found is not None, "Couldn't find user {} in team".format(p.username)
+
+    ## needs to be retried 'cause appending to the search index is asynchronous
+    tries = 10
+    found_team = None
+    while tries > 0:
+        try:
+            found_team = syn.getTeam(name)
+            break
+        except ValueError:
+            tries -= 1
+            if tries > 0: time.sleep(1)
+    assert team == found_team
+
 

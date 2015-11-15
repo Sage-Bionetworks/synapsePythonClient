@@ -2,15 +2,12 @@ sudo: false
 language: python
 python:
 - '2.7'
-- '3.4'
-- '3.5'
 script:
 - python setup.py install
 - nosetests -vs tests/unit
-- nosetests -vs tests/integration
+- 'if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then nosetests -vs tests/integration; fi'
 before_install:
-- openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv
-  -in test.synapseConfig.enc -out test.synapseConfig -d
-- mv test.synapseConfig ~/.synapseConfig
+- 'if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv
+  -in test.synapseConfig.enc -out test.synapseConfig -d; mv test.synapseConfig ~/.synapseConfig; fi'
 - pip install pysftp
 - pip install pandas

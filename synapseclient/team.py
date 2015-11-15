@@ -38,6 +38,12 @@ class Team(DictObject):
     def deleteURI(self):
         return '/team/%s' %self.id
 
+    def getACLURI(self):
+        return '/team/%s/acl' %self.id
+
+    def putACLURI(self):
+        return '/team/acl'
+
 
 class TeamMember(DictObject):
     def __init__(self, **kwargs):

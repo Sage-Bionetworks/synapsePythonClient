@@ -146,11 +146,11 @@ def download_file(url, localFilepath=None):
         for nChunks, chunk in enumerate(r.iter_content(chunk_size=1024*10)):
             if chunk:
                 f.write(chunk)
-                printTransferProgress(nChunks*1024*10 ,toBeTransferred)
+                printTransferProgress(nChunks*1024*10, toBeTransferred)
     finally:
         if f:
             f.close()
-            printTransferProgress(toBeTransferred ,toBeTransferred)
+            printTransferProgress(toBeTransferred, toBeTransferred)
 
     return localFilepath
 
@@ -218,6 +218,8 @@ def id_of(obj):
     if isinstance(obj, Number):
         return u(str(obj))
     result = _get_from_members_items_or_properties(obj, 'id')
+    if result is None:
+        result = _get_from_members_items_or_properties(obj, 'ownerId')
     if result is None:
         raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result

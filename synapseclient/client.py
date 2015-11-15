@@ -42,7 +42,6 @@ except ImportError:
 
 import collections
 import os, sys, stat, re, json, time
-import os.path
 import base64, hashlib, hmac
 import six
 
@@ -69,6 +68,7 @@ import mimetypes
 import tempfile
 import warnings
 import getpass
+from collections import OrderedDict
 
 import synapseclient
 from . import utils
@@ -84,9 +84,10 @@ from .entity import Entity, File, Project, Folder, Versionable, split_entity_nam
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
-from .team import UserProfile, Team, TeamMember
+from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
+
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -291,7 +292,7 @@ class Synapse:
         self.portalEndpoint     = endpoints['portalEndpoint']
 
 
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False):
+    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
         """
         Authenticates the user using the given credentials (in order of preference):
 
@@ -309,6 +310,7 @@ class Synapse:
         :param rememberMe: Whether the authentication information should be cached locally
                            for usage across sessions and clients.
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
+        :param forced:     Defaults to False.  Bypass the credential cache if set. 
 
         Example::
 
@@ -350,7 +352,7 @@ class Synapse:
 
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
-        if self.apiKey is None:
+        if self.apiKey is None and not forced:
             cachedSessions = self._readSessionCache()
 
             if email is None and "<mostRecent>" in cachedSessions:
@@ -397,8 +399,8 @@ class Synapse:
                             raise SynapseAuthenticationError("No credentials provided.  Note: the session token within your configuration file has expired.")
 
         # Final check on login success
-        if self.username is not None and self.apiKey is None:
-            raise SynapseAuthenticationError("No credentials provided.")
+        if self.apiKey is None:
+            raise SynapseNoCredentialsError("No credentials provided.")
 
         # Save the API key in the cache
         if rememberMe:
@@ -544,14 +546,22 @@ class Synapse:
         try:
             ## if id is unset or a userID, this will succeed
             id = '' if id is None else int(id)
-        except ValueError:
-            principals = self._findPrincipals(id)
-            for principal in principals:
-                if principal.get('userName', None).lower()==id.lower():
-                    id = principal['ownerId']
-                    break
-            else: # no break
-                raise ValueError('Can\'t find user "%s": ' % id)
+        except (TypeError, ValueError):
+            if 'ownerId' in id:
+                id = id.ownerId
+            elif isinstance(id, TeamMember):
+                id = id.member.ownerId
+            else:
+                principals = self._findPrincipals(id)
+                if len(principals) == 1:
+                    id = principals[0]['ownerId']
+                else:
+                    for principal in principals:
+                        if principal.get('userName', None).lower()==id.lower():
+                            id = principal['ownerId']
+                            break
+                    else: # no break
+                        raise ValueError('Can\'t find user "%s": ' % id)
         uri = '/userProfile/%s' % id
         return UserProfile(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
 
@@ -576,7 +586,7 @@ class Synapse:
 
         """
         uri = '/userGroupHeaders?prefix=%s' % query_string
-        return [DictObject(**result) for result in self._GET_paginated(uri)]
+        return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
 
     def onweb(self, entity, subpageId=None):
@@ -956,9 +966,11 @@ class Synapse:
 
             if needs_upload:
                 fileLocation, local_state = self.__uploadExternallyStoringProjects(entity, local_state)
-                fileHandle = self._uploadToFileHandleService(fileLocation, \
-                                        synapseStore=entity.get('synapseStore', True),
-                                        mimetype=local_state.get('contentType', None))
+                fileHandle = self._uploadToFileHandleService(fileLocation,
+                                                             synapseStore=entity.get('synapseStore', True),
+                                                             mimetype=local_state.get('contentType', None),
+                                                             md5=local_state.get('md5', None),
+                                                             fileSize=local_state.get('fileSize', None))
                 properties['dataFileHandleId'] = fileHandle['id']
 
                 ## Add file to cache, unless it's an external URL
@@ -1401,7 +1413,6 @@ class Synapse:
                     break
             except SynapseHTTPError as err:
                 # Shrink the query size when appropriate
-                ## TODO: Change the error check when PLFM-1990 is resolved
                 if err.response.status_code == 400 and ('The results of this query exceeded the max' in err.response.json()['reason']):
                     if (limit == 1):
                         sys.stderr.write("A single row (offset %s) of this query "
@@ -1409,7 +1420,6 @@ class Synapse:
                                          "limiting the columns returned "
                                          "in the select clause.  Skipping...\n" % offset)
                         offset += 1
-
                         # Since these large rows are anomalous, reset the limit
                         limit = QUERY_LIMIT
                     else:
@@ -1775,7 +1785,7 @@ class Synapse:
         return returnDict(destination)
 
 
-    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None):
+    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None):
         """
         Create and return a fileHandle, by either uploading a local file or
         linking to an external URL.
@@ -1789,24 +1799,26 @@ class Synapse:
         elif utils.is_url(filename):
             if synapseStore:
                 raise NotImplementedError('Automatic downloading and storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
-            return self._addURLtoFileHandleService(filename, mimetype=mimetype)
+            return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
             if synapseStore:
                 return self._chunkedUploadFile(filename, mimetype=mimetype)
             else:
-                return self._addURLtoFileHandleService(filename, mimetype=mimetype)
+                return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
 
-    def _addURLtoFileHandleService(self, externalURL, mimetype=None):
+    def _addURLtoFileHandleService(self, externalURL, mimetype=None, md5=None, fileSize=None):
         """Create a new FileHandle representing an external URL."""
 
         fileName = externalURL.split('/')[-1]
         externalURL = utils.as_url(externalURL)
         fileHandle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
                       'fileName'    : fileName,
-                      'externalURL' : externalURL}
+                      'externalURL' : externalURL,
+                      'contentMd5' :  md5,
+                      'contentSize': fileSize}
         if mimetype is None:
             (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
         if mimetype is not None:
@@ -2136,7 +2148,7 @@ class Synapse:
     def __uploadExternallyStoringProjects(self, entity, local_state):
         """Determines the upload location of the file based on project settings and if it is
         an external location performs upload and returns the new url and sets synapseStore=False.
-        It not an external storage location returns the  original path.
+        It not an external storage location returns the original path.
 
         :param entity: An entity with path.
 
@@ -2146,6 +2158,10 @@ class Synapse:
         #If it is already an exteranal URL just return
         if utils.is_url(entity['path']):
             local_state['externalURL'] = entity['path']
+            #If the url is a local path compute the md5
+            url = urlparse(entity['path'])
+            if os.path.isfile(url.path) and url.scheme=='file':
+                local_state['md5'] = utils.md5_for_file(url.path).hexdigest()
             return entity['path'], local_state
         location =  self.__getStorageLocation(entity)
         if location['uploadType'] == 'S3':
@@ -2164,6 +2180,7 @@ class Synapse:
             uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
             local_state['externalURL'] = uploadLocation
             local_state['fileSize'] = os.stat(entity['path']).st_size
+            local_state['md5'] = utils.md5_for_file(entity['path']).hexdigest()
             if local_state.get('contentType') is None:
                 mimetype, enc = mimetypes.guess_type(entity['path'], strict=False)
                 local_state['contentType'] = mimetype
@@ -2325,10 +2342,29 @@ class Synapse:
 
 
     def getTeam(self, id):
+        """
+        Finds a team with a given ID or name.
+        """
+        try:
+            int(id)
+        except (TypeError, ValueError):
+            if isinstance(id, six.string_types):
+                for team in self._findTeam(id):
+                    if team.name==id:
+                        id = team.id
+                        break
+                else:
+                    raise ValueError("Can't find team \"{}\"".format(id))
+            else:
+                raise ValueError("Can't find team \"{}\"".format(u(id)))
         return Team(**self.restGET('/team/%s' % id))
 
 
     def getTeamMembers(self, team):
+        """
+        :parameter team: A :py:class:`Team` object or a team's ID.
+        :returns: a generator over :py:class:`TeamMember` objects.
+        """
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
@@ -2856,15 +2892,18 @@ class Synapse:
     ##                     Tables                             ##
     ############################################################
 
-    def _waitForAsync(self, uri, request):
-        async_job_id = self.restPOST(uri+'/start', body=json.dumps(request))
+    def _waitForAsync(self, uri, request, endpoint=None):
+        if endpoint is None:
+            endpoint = self.repoEndpoint
+
+        async_job_id = self.restPOST(uri+'/start', body=json.dumps(request), endpoint=endpoint)
 
         # http://rest.synapse.org/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
         lastMessage, lastProgress, lastTotal, progressed = '', 0, 1, False
         while time.time()-start_time < self.table_query_timeout:
-            result = self.restGET(uri+'/get/%s'%async_job_id['token'])
+            result = self.restGET(uri+'/get/%s'%async_job_id['token'], endpoint=endpoint)
             if result.get('jobState', None) == 'PROCESSING':
                 progressed=True
                 message = result.get('progressMessage', lastMessage)
@@ -3231,20 +3270,141 @@ class Synapse:
             return file_info
 
 
-    # TODO a function that downloads all files in a table or all
-    # TODO files returned by a query
-    # def downloadTableFiles(table, column, downloadLocation=None, ifcollision="keep.both"):
-    #     """
-    #     :param table:            schema object, table query result or synapse ID
-    #     :param column:           a Column object, the ID of a column or its name
-    #     :param downloadLocation: location in local file system to download the file
-    #     :param ifcollision:      Determines how to handle file collisions.
-    #                              May be "overwrite.local", "keep.local", or "keep.both".
-    #                              Defaults to "keep.both".
+    def downloadTableColumns(self, table, columns):
+        """
+        Bulk download of table-associated files.
 
-    #     :returns: a dictionary with 'path'.
-    #     """
-    #     pass
+        :param table:            table query result
+        :param column:           a list of column names as strings
+
+        :returns: a dictionary from file handle ID to path in the local file system.
+
+        For example, consider a Synapse table whose ID is "syn12345" with two columns of type File
+        named 'foo' and 'bar'. The associated files are JSON encoded, so we might retrieve the
+        files from Synapse and load for the second 100 of those rows as shown here::
+
+            import json
+
+            results = syn.tableQuery('SELECT * FROM syn12345 LIMIT 100 OFFSET 100')
+            file_map = syn.downloadTableColumns(result, ['foo', 'bar'])
+
+            for file_handle_id, path in file_map.iteritems():
+                with open(path) as f:
+                    data[file_handle_id] = f.read()
+
+        """
+
+        FAILURE_CODES = ["NOT_FOUND", "UNAUTHORIZED", "DUPLICATE", "EXCEEDS_SIZE_LIMIT", "UNKNOWN_ERROR"]
+        RETRIABLE_FAILURE_CODES = ["EXCEEDS_SIZE_LIMIT"]
+        MAX_DOWNLOAD_TRIES = 100
+        MAX_FILES_PER_REQUEST = 2500
+
+        def _is_integer(x):
+            try:
+                return float.is_integer(x)
+            except TypeError:
+                try:
+                    int(x)
+                    return True
+                except (ValueError, TypeError):
+                    ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
+                    return False
+
+        if isinstance(columns, six.string_types):
+            columns = [columns]
+        if not isinstance(columns, collections.Iterable):
+            raise TypeError('Columns parameter requires a list of column names')
+
+        ##------------------------------------------------------------
+        ## build list of file handles to download
+        ##------------------------------------------------------------
+
+        cols_not_found = [c for c in columns if c not in [h.name for h in table.headers]]
+        if len(cols_not_found) > 0:
+            raise ValueError("Columns not found: " + ", ".join('"'+col+'"' for col in cols_not_found))
+        col_indices = [i for i,h in enumerate(table.headers) if h.name in columns]
+
+        ## see: http://rest.synapse.org/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
+        file_handle_associations = []
+        file_handle_to_path_map = OrderedDict()
+        for row in table:
+            for col_index in col_indices:
+                file_handle_id = row[col_index]
+                if _is_integer(file_handle_id):
+                    path_to_cached_file = self.cache.get(file_handle_id)
+                    if path_to_cached_file:
+                        file_handle_to_path_map[file_handle_id] = path_to_cached_file
+                    else:
+                        file_handle_associations.append(dict(
+                            associateObjectType="TableEntity",
+                            fileHandleId=file_handle_id,
+                            associateObjectId=table.tableId))
+
+        print("Downloading %d files, %d cached locally" % (len(file_handle_associations), len(file_handle_to_path_map)))
+
+        permanent_failures = OrderedDict()
+
+        attempts = 0
+        while len(file_handle_associations) > 0 and attempts < MAX_DOWNLOAD_TRIES:
+            attempts += 1
+
+            file_handle_associations_batch = file_handle_associations[:MAX_FILES_PER_REQUEST]
+
+            ##------------------------------------------------------------
+            ## call async service to build zip file
+            ##------------------------------------------------------------
+
+            ## returns a BulkFileDownloadResponse:
+            ##   http://rest.synapse.org/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
+            request = dict(
+                concreteType="org.sagebionetworks.repo.model.file.BulkFileDownloadRequest",
+                requestedFiles=file_handle_associations_batch)
+            response = self._waitForAsync(uri='/file/bulk/async', request=request, endpoint=self.fileHandleEndpoint)
+
+            ##------------------------------------------------------------
+            ## download zip file
+            ##------------------------------------------------------------
+
+            temp_dir = tempfile.mkdtemp()
+            zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
+            url = "%s/fileHandle/%s/url" % (self.fileHandleEndpoint, response['resultZipFileHandleId'])
+            try:
+                self._downloadFile(url, destination=zipfilepath)
+
+                ## TODO handle case when no zip file is returned
+                ## TODO test case when we give it partial or all bad file handles
+                ## TODO test case with deleted fileHandleID
+                ## TODO return null for permanent failures
+
+                ##------------------------------------------------------------
+                ## unzip into cache
+                ##------------------------------------------------------------
+
+                with zipfile.ZipFile(zipfilepath) as zf:
+                    ## the directory structure within the zip follows that of the cache:
+                    ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
+                    for summary in response['fileSummary']:
+                        if summary['status'] == 'SUCCESS':
+                            cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
+                            filepath = zf.extract(summary['zipEntryName'], cache_dir)
+                            self.cache.add(summary['fileHandleId'], filepath)
+                            file_handle_to_path_map[summary['fileHandleId']] = filepath
+                        elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
+                            permanent_failures[summary['fileHandleId']] = summary
+
+            finally:
+                if os.path.exists(zipfilepath):
+                    os.remove(zipfilepath)
+
+            ## Do we have remaining files to download?
+            file_handle_associations = [
+                fha for fha in file_handle_associations
+                    if fha['fileHandleId'] not in file_handle_to_path_map
+                    and fha['fileHandleId'] not in permanent_failures.keys()]
+
+        ## TODO if there are files we still haven't downloaded
+
+        return file_handle_to_path_map
 
 
     ############################################################

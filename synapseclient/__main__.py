@@ -3,12 +3,23 @@
 Synapse command line client
 ***************************
 
-The Synapse client can be used from the command line via the **synapse**
-command. For help, type::
+The Synapse Python Client can be used from the command line via the **synapse**
+command.
+
+Installation
+============
+
+The command line client is installed along with `installation of the Synapse
+Python client <http://python-docs.synapse.org/index.html#installation>`_.
+
+Help
+====
+
+For help, type::
 
     synapse -h.
 
-For help on commands, type::
+For help on specific commands, type::
 
     synapse [command] -h
 
@@ -63,6 +74,7 @@ import signal
 import json
 import warnings
 from .exceptions import *
+import getpass
 
 
 def query(args, syn):
@@ -404,7 +416,7 @@ def submit(args, syn):
 
 def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
-    syn.login(args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe)
+    login_with_prompt(syn, args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe, forced=True)
     profile = syn.getUserProfile()
     print("Logged in as: {userName} ({ownerId})".format(**profile))
 
@@ -686,7 +698,7 @@ def build_parser():
 
     ## the purpose of the login command (as opposed to just using the -u and -p args) is
     ## to allow the command line user to cache credentials
-    parser_login = subparsers.add_parser( 'login',
+    parser_login = subparsers.add_parser('login',
             help='login to Synapse and (optionally) cache credentials')
     parser_login.add_argument('-u', '--username', dest='synapseUser',
             help='Username used to connect to Synapse')
@@ -714,12 +726,23 @@ def perform_main(args, syn):
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
 
+def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
+    try:
+        syn.login(user, password, silent=silent, forced=forced)
+    except SynapseNoCredentialsError:
+        # if there were no credentials in the cache nor provided, prompt the user and try again
+        if user is None:
+            user = raw_input("Synapse username: ")
+        passwd = getpass.getpass("Password for " + user + ": ")
+        syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
-    syn.login(args.synapseUser, args.synapsePassword, silent=True)
+    if not ('func' in args and args.func == login):
+        # if we're not executing the "login" operation, automatically authenticate before running operation
+        login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
     perform_main(args, syn)
 
 
