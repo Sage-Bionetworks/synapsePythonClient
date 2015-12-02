@@ -1408,9 +1408,6 @@ class Synapse:
                 raise StopIteration
 
             # Build the sub-query
-            print(limit)
-            print(remaining)
-            print(offset)
             subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
 
             try:
