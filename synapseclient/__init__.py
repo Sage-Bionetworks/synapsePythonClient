@@ -103,7 +103,7 @@ and also downloads the file to a local cache::
 
 View the entity's metadata in the Python console::
 
-    print entity
+    print(entity)
 
 This is one simple way to read in a small matrix::
 
@@ -231,7 +231,7 @@ Synapse supports a `SQL-like query language <https://sagebionetworks.jira.com/wi
     results = syn.query('SELECT id, name FROM entity WHERE parentId=="syn1899495"')
 
     for result in results['results']:
-        print result['entity.id'], result['entity.name']
+        print(result['entity.id'], result['entity.name'])
 
 Querying for my projects. Finding projects owned by the current user::
 
@@ -239,7 +239,7 @@ Querying for my projects. Finding projects owned by the current user::
     results = syn.query('SELECT id, name FROM project WHERE project.createdByPrincipalId==%s' % profile['ownerId'])
 
     for result in results['results']:
-        print result['project.id'], result['project.name']
+        print(result['project.id'], result['project.name'])
 
 See:
 
@@ -290,23 +290,28 @@ see `synapseclient.check_for_updates() <Versions.html#synapseclient.version_chec
 
 import json
 import pkg_resources
-__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
+try:
+    # python 2.7
+    __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
+except:
+    __version__ = pkg_resources.require("synapseclient")[0].version
+
 
 import requests
 USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 import logging 
 logging.getLogger("requests").setLevel(logging.WARNING)
 
-from client import Synapse, login
-from activity import Activity
-from entity import Entity, Project, Folder, File
-from evaluation import Evaluation, Submission, SubmissionStatus
-from table import Schema, Column, RowSet, Row, as_table_columns, Table
-from team import Team, UserProfile, UserGroupHeader, TeamMember
-from wiki import Wiki
+from .client import Synapse, login
+from .activity import Activity
+from .entity import Entity, Project, Folder, File
+from .evaluation import Evaluation, Submission, SubmissionStatus
+from .table import Schema, Column, RowSet, Row, as_table_columns, Table
+from .team import Team, UserProfile, UserGroupHeader, TeamMember
+from .wiki import Wiki
 
-from version_check import check_for_updates
-from version_check import release_notes
+from .version_check import check_for_updates
+from .version_check import release_notes
 
-from client import PUBLIC, AUTHENTICATED_USERS
-from client import ROOT_ENTITY
+from .client import PUBLIC, AUTHENTICATED_USERS
+from .client import ROOT_ENTITY
