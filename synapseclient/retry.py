@@ -48,7 +48,8 @@ def _with_retry(function, verbose=False, \
         if response is not None:
             if response.status_code in retry_status_codes:
                 if verbose:
-                    print "retrying on status code: " + str(response.status_code)
+                    print("retrying on status code: " +
+                            str(response.status_code))
                 retry = True
 
             elif response.status_code not in range(200,299):
@@ -58,24 +59,29 @@ def _with_retry(function, verbose=False, \
                         json = response.json()
                         ## special case for message throttling
                         if 'Please slow down.  You may send a maximum of 10 message' in json.get('reason', None):
-                            if verbose: print "retrying", json.get('reason', None)
+                            if verbose:
+                                print("retrying", json.get('reason', None))
                             retry = True
                             wait = 16
                         elif any([msg.lower() in json.get('reason', None).lower() for msg in retry_errors]):
-                            if verbose: print "retrying", json.get('reason', None)
+                            if verbose: 
+                                print("retrying", json.get('reason', None))
                             retry = True
                     except (AttributeError, ValueError) as ex:
                         pass
 
                 ## if the response is not JSON, look for retryable errors in its text content
-                elif any([msg.lower() in response.content.lower() for msg in retry_errors]):
-                    if verbose: print "retrying", response.content
+                elif any([msg.lower() in str(response.content).lower() for msg in retry_errors]):
+                    if verbose: 
+                        print("retrying", str(response.content))
                     retry = True
 
         # Check if we got a retry-able exception
         if exc_info is not None:
             if exc_info[1].__class__.__name__ in retry_exceptions or any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors]):
-                if verbose: print "retrying exception: ", exc_info[1].__class__.__name__, str(exc_info[1])
+                if verbose: 
+                    print("retrying exception: ",
+                            exc_info[1].__class__.__name__, str(exc_info[1]))
                 retry = True
 
         # Wait then retry
@@ -91,5 +97,10 @@ def _with_retry(function, verbose=False, \
         # Out of retries, re-raise the exception or return the response
         if exc_info:
             # Re-raise exception, preserving original stack trace
-            raise exc_info[0], exc_info[1], exc_info[2]
+            # not python3 compatible
+            # raise exc_info[0], exc_info[1], exc_info[2]
+            print("unexpected error:", sys.exc_info()[0])
+            print("traceback:", sys.exc_info()[2])
+            raise exc_info[1]
+
         return response
