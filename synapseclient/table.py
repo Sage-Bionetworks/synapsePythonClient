@@ -74,7 +74,7 @@ With a bit of luck, we now have a table populated with data. Let's try to query:
 
     results = syn.tableQuery("select * from %s where Chromosome='1' and Start < 41000 and End > 20000" % table.schema.id)
     for row in results:
-        print row
+        print(row)
 
 ------
 Pandas
@@ -199,7 +199,7 @@ later::
     results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'Sonny Rollins'" % schema.id, resultsAs="rowset")
     for row in results:
         file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-        print "%s_%s" % (row.rowId, row.versionNumber), ", ".join(unicode(a) for a in row.values), file_info['path']
+        print "%s_%s" % (row.rowId, row.versionNumber), ", ".join(str(a) for a in row.values), file_info['path']
 
 -------------
 Deleting rows
@@ -277,7 +277,12 @@ import re
 import sys
 import tempfile
 from collections import OrderedDict
-from itertools import izip
+
+try:
+    basestring
+except NameError:
+    basestring = str
+
 
 import synapseclient
 import synapseclient.utils
@@ -336,7 +341,7 @@ def df2Table(df, syn, tableName, parentProject):
     """
 
     #Create columns:
-    print df.shape
+    print(df.shape)
     cols = as_table_columns(df)
     cols = [syn.store(col) for col in cols]
 
@@ -349,7 +354,7 @@ def df2Table(df, syn, tableName, parentProject):
     for i in range(0, df.shape[0]/1200+1):
         start =  i*1200
         end = min((i+1)*1200, df.shape[0])
-        print start, end
+        print(start, end)
         rowset1 = RowSet(columns=cols, schema=schema1,
                          rows=[Row(list(df.ix[j,:])) for j in range(start,end)])
         #print len(rowset1.rows)
@@ -399,7 +404,7 @@ def cast_values(values, headers):
         raise ValueError('Each field in the row must have a matching column header. %d fields, %d headers' % (len(values), len(headers)))
 
     result = []
-    for header, field in izip(headers, values):
+    for header, field in zip(headers, values):
 
         columnType = header.get('columnType', 'STRING')
 
@@ -465,8 +470,8 @@ class Schema(Entity, Versionable):
                 elif isinstance(column, Column):
                     kwargs.setdefault('columns_to_store',[]).append(column)
                 else:
-                    raise ValueError("Not a column? %s" % unicode(column))
-        super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties, 
+                    raise ValueError("Not a column? %s" % str(column))
+        super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties,
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
     def addColumn(self, column):
@@ -480,7 +485,7 @@ class Schema(Entity, Versionable):
                 self.__dict__['columns_to_store'] = []
             self.__dict__['columns_to_store'].append(column)
         else:
-            raise ValueError("Not a column? %s" % unicode(column))
+            raise ValueError("Not a column? %s" % str(column))
 
     def addColumns(self, columns):
         """
@@ -498,7 +503,7 @@ class Schema(Entity, Versionable):
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
         else:
-            ValueError("Can't remove column %s" + unicode(column))
+            ValueError("Can't remove column %s" + str(column))
 
     def has_columns(self):
         """Does this schema have columns specified?"""
@@ -586,7 +591,7 @@ class RowSet(DictObject):
     """
     A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://rest.synapse.org/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
-    :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId    
+    :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
     :param tableId:  The ID of the TableEntity than owns these rows
     :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
@@ -884,7 +889,8 @@ class TableQueryResult(TableAbstractBaseClass):
                 return row_labels_from_rows(rowset['rows'])
             except KeyError:
                 ## if we don't have row id and version, just number the rows
-                return range(offset,offset+len(rowset['rows']))
+                # python3 cast range to list for safety
+                return list(range(offset,offset+len(rowset['rows'])))
 
         ## first page of rows
         offset = 0
@@ -939,6 +945,10 @@ class TableQueryResult(TableAbstractBaseClass):
                 raise StopIteration()
         return self.rowset['rows'][self.i]
 
+    def __next__(self):
+        return self.next()
+
+
 
 class CsvFileTable(TableAbstractBaseClass):
     """
@@ -970,7 +980,10 @@ class CsvFileTable(TableAbstractBaseClass):
                 escapechar=escapeCharacter,
                 lineterminator=lineEnd,
                 quotechar=quoteCharacter)
-            first_line = reader.next()
+            try:
+                first_line = reader.next()
+            except:
+                first_line = next(reader)
         if len(download_from_table_result['headers']) + 2 == len(first_line):
             includeRowIdAndRowVersion = True
         else:
@@ -1007,7 +1020,7 @@ class CsvFileTable(TableAbstractBaseClass):
         row_id = []
         row_version = []
         for row_name in df.index.values:
-            m = row_id_version_pattern.match(unicode(row_name))
+            m = row_id_version_pattern.match(str(row_name))
             row_id.append(m.group(1) if m else None)
             row_version.append(m.group(2) if m else None)
 
@@ -1022,9 +1035,12 @@ class CsvFileTable(TableAbstractBaseClass):
         f = None
         try:
             if filepath:
-                f = open(filepath)
+                if sys.version_info >= (3,0,0):
+                    f = open(filepath, 'w', newline='')
+                else:
+                    f = open(filepath, 'wb')
             else:
-                f = tempfile.NamedTemporaryFile(delete=False)
+                f = tempfile.NamedTemporaryFile("wt", delete=False)
                 filepath = f.name
 
             df.to_csv(f,
@@ -1057,9 +1073,12 @@ class CsvFileTable(TableAbstractBaseClass):
         f = None
         try:
             if filepath:
-                f = open(filepath)
+                if sys.version_info >= (3,0,0):
+                    f = open(filepath, 'w', newline='')
+                else:
+                    f = open(filepath, "wb")
             else:
-                f = tempfile.NamedTemporaryFile(delete=False)
+                f = tempfile.NamedTemporaryFile("wt", delete=False)
                 filepath = f.name
 
             writer = csv.writer(f,
@@ -1077,6 +1096,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
             ## write headers?
             if headers:
+
                 writer.writerow([header.name for header in headers])
                 header = True
             else:
@@ -1182,7 +1202,7 @@ class CsvFileTable(TableAbstractBaseClass):
             ## combine row-ids (in index) and row-versions (in column 0) to
             ## make new row labels consisting of the row id and version
             ## separated by a dash.
-            df.index = row_labels_from_id_and_version(izip(df["ROW_ID"], df["ROW_VERSION"]))
+            df.index = row_labels_from_id_and_version(zip(df["ROW_ID"], df["ROW_VERSION"]))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
 
@@ -1234,7 +1254,10 @@ class CsvFileTable(TableAbstractBaseClass):
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
                 if self.header:
-                    header = reader.next()
+                    try:
+                        header = reader.next()
+                    except:
+                        header = next(reader)
                 for row in reader:
                     yield cast_values(row, headers)
         return iterate_rows(self.filepath, self.headers)
