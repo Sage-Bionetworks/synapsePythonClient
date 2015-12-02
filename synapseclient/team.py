@@ -1,4 +1,4 @@
-from dict_object import DictObject
+from .dict_object import DictObject
 
 class UserProfile(DictObject):
     def __init__(self, **kwargs):
