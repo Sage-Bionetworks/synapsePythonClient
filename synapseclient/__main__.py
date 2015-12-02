@@ -70,6 +70,11 @@ import json
 import getpass
 from synapseclient.exceptions import *
 
+# python2/3 compat
+try:
+    basestring
+except NameError:
+    basestring = str
 
 def query(args, syn):
     try:
@@ -711,7 +716,12 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
         if user is None:
-            user = raw_input("Synapse username: ")
+            try:
+                user = raw_input("Synapse username: ")
+            except:
+                # python3
+                user = input("Synapse username: ")
+
         passwd = getpass.getpass("Password for " + user + ": ")
         syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 
