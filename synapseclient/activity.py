@@ -72,9 +72,15 @@ Activity
 
 import collections
 
+try:
+      basestring
+except NameError:
+      basestring = str
+
 from synapseclient.utils import is_url, id_of
 from synapseclient.entity import is_synapse_entity
 from synapseclient.exceptions import *
+
 
 
 def is_used_entity(x):
