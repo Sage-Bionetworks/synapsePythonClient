@@ -50,7 +50,27 @@ Testing
 
 import cgi
 import errno
-import math, os, sys, urllib, urlparse, hashlib, re
+import math, os, sys, urllib, hashlib, re
+
+try:
+    from urllib import urlencode
+except:
+    from urllib.parse import urlencode
+
+try:
+    import urlparse
+except:
+    # python3
+    from urllib import parse as urlparse
+
+
+# python2/3 compat
+try:
+    basestring
+except NameError:
+    basestring = str
+
+
 import random
 import requests
 import collections
@@ -237,11 +257,11 @@ def as_url(s):
     url_parts = urlparse.urlsplit(s)
     ## Windows drive letter?
     if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
-        return 'file:///%s' % unicode(s).replace("\\","/")
+        return 'file:///%s' % str(s).replace("\\","/")
     if url_parts.scheme:
         return url_parts.geturl()
     else:
-        return 'file://%s' % unicode(s)
+        return 'file://%s' % str(s)
 
 
 def guess_file_name(string):
@@ -249,7 +269,7 @@ def guess_file_name(string):
 
     path = urlparse.urlparse(string).path
     path = normalize_path(path)
-    tokens = filter(lambda x: x != '', path.split('/'))
+    tokens = list(filter(lambda x: x != '', path.split('/')))
     if len(tokens) > 0:
         return tokens[-1]
 
@@ -358,7 +378,7 @@ def make_bogus_data_file(n=100, seed=None):
         random.seed(seed)
     data = [random.gauss(mu=0.0, sigma=1.0) for i in range(n)]
 
-    f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+    f = tempfile.NamedTemporaryFile("wt", suffix=".txt", delete=False)
     try:
         f.write(", ".join((str(n) for n in data)))
         f.write("\n")
@@ -567,7 +587,7 @@ def _synapse_error_msg(ex):
     if isinstance(ex, basestring):
         return ex
 
-    return '\n' + ex.__class__.__name__ + ': ' + unicode(ex) + '\n\n'
+    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
 
 
 def _limit_and_offset(uri, limit=None, offset=None):
@@ -584,7 +604,7 @@ def _limit_and_offset(uri, limit=None, offset=None):
         query.pop('offset', None)
     else:
         query['offset'] = offset
-    new_query_string = urllib.urlencode(query, doseq=True)
+    new_query_string = urlencode(query, doseq=True)
     return urlparse.urlunparse(urlparse.ParseResult(
         scheme=parts.scheme,
         netloc=parts.netloc,
@@ -658,7 +678,7 @@ def timing(f):
         time1 = time.time()
         ret = f(*args)
         time2 = time.time()
-        print 'function %s took %0.3f ms' % (f.func_name, (time2-time1)*1000.0)
+        print('function %s took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
         return ret
     return wrap
 
