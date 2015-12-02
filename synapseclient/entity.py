@@ -110,6 +110,10 @@ See also:
 
 import collections
 import itertools
+try:
+    from cStringIO import StringIO
+except:
+    from io import StringIO
 
 from synapseclient.dict_object import DictObject
 import synapseclient.utils as utils
@@ -343,7 +347,7 @@ class Entity(collections.MutableMapping):
     def keys(self):
         """Returns a set of property and annotation keys"""
 
-        return set(self.properties.keys() + self.annotations.keys())
+        return set(list(self.properties.keys()) + list(self.annotations.keys()))
 
     def has_key(self, key):
         """Is the given key a property or annotation?"""
@@ -351,7 +355,6 @@ class Entity(collections.MutableMapping):
         return key in self.properties or key in self.annotations
 
     def __str__(self):
-        from cStringIO import StringIO
         f = StringIO()
 
         f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'), self['id'] if 'id' in self else '-',))
@@ -362,7 +365,7 @@ class Entity(collections.MutableMapping):
                     f.write('  ')
                     f.write(key)
                     f.write('=')
-                    f.write(unicode(dictionary[key]).encode('utf-8'))
+                    f.write(str(dictionary[key]))
                     f.write('\n')
 
         write_kvps(self.__dict__, lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))
@@ -378,17 +381,23 @@ class Entity(collections.MutableMapping):
     def __repr__(self):
         """Returns an eval-able representation of the Entity."""
 
-        from cStringIO import StringIO
         f = StringIO()
         f.write(self.__class__.__name__)
         f.write("(")
+        # note here below the lambda kv and then kv[0] syntax. 
+        # Using (k,v) tuple is not py3 compat anymore
         f.write(", ".join(
             {"%s=%s" % (str(key), value.__repr__(),) for key, value in
                 itertools.chain(
-                    filter(lambda (k,v): not (k in ['properties', 'annotations'] or k.startswith('__')),
-                           self.__dict__.items()),
+                    filter(lambda kv: not (kv[0] in ['properties',
+                        'annotations'] or kv[0].startswith('__')), 
+                        self.__dict__.items()),
                     self.properties.items(),
-                    self.annotations.items())}))
+                    self.annotations.items()
+                    )
+                }
+            )
+            )
         f.write(")")
         return f.getvalue()
 
