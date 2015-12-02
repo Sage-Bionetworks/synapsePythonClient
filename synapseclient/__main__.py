@@ -64,7 +64,7 @@ import shutil
 import sys
 import synapseclient
 from synapseclient import Activity
-import utils
+from . import utils
 import signal
 import json
 import getpass
@@ -121,7 +121,7 @@ def _recursiveGet(id, path, syn):
             except OSError as err:
                 if err.errno!=17:
                     raise
-            print 'making dir', new_path
+            print('making dir', new_path)
             _recursiveGet(result['entity.id'], new_path, syn)
         else:
             syn.get(result['entity.id'], downloadLocation=path)
@@ -143,15 +143,17 @@ def get(args, syn):
         if isinstance(args.id, basestring) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print "Associated file: %s with synapse ID %s" % (entity.path, entity.id)
+                print("Associated file: %s with synapse ID %s" % (entity.path,
+                    entity.id))
         ## normal syn.get operation
         else:
             entity = syn.get(args.id, version=args.version, downloadLocation='.')
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print "Downloaded file: %s" % os.path.basename(entity.path)
+                print("Downloaded file: %s" % os.path.basename(entity.path))
             else:
-                print 'WARNING: No files associated with entity %s\n' % entity.id
-                print entity
+                print('WARNING: No files associated with entity %s\n' %
+                      entity.id)
+                print(entity)
 
 
 def store(args, syn):
@@ -182,7 +184,7 @@ def store(args, syn):
     used = _convertProvenanceList(args.used, args.limitSearch, syn)
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
     entity = syn.store(entity, used=used, executed=executed)
-    print 'Created/Updated entity: %s\t%s' %(entity['id'], entity['name'])
+    print('Created/Updated entity: %s\t%s' %(entity['id'], entity['name']))
 
     # After creating/updating, if there are annotations to add then
     # add them
@@ -197,7 +199,7 @@ def move(args, syn):
     ent = syn.get(args.id, downloadFile=False)
     ent.parentId= args.parentid
     ent = syn.store(ent, forceVersion=False)
-    print 'Moved %s to %s' %(ent.id, ent.parentId)
+    print('Moved %s to %s' %(ent.id, ent.parentId))
 
 
 def associate(args, syn):
@@ -213,9 +215,9 @@ def associate(args, syn):
         try:
             ent = syn.get(fp, limitSearch=args.limitSearch)
         except SynapseFileNotFoundError:
-            print 'WARNING: The file %s is not available in Synapse' %fp
+            print('WARNING: The file %s is not available in Synapse' %fp)
         else:
-            print '%s.%i\t%s' %(ent.id, ent.versionNumber, fp)
+            print('%s.%i\t%s' %(ent.id, ent.versionNumber, fp))
 
 
 def cat(args, syn):
@@ -249,18 +251,18 @@ def show(args, syn):
     sys.stdout.write('Provenance:\n')
     try:
         prov = syn.getProvenance(ent)
-        print prov
+        print(prov)
     except SynapseHTTPError:
-        print '  No Activity specified.\n'
+        print('  No Activity specified.\n')
 
 
 def delete(args, syn):
 	if args.version:
 	    syn.delete(args.id, args.version)	
-	    print 'Deleted entity %s, version %s' % (args.id, args.version)
+	    print('Deleted entity %s, version %s' % (args.id, args.version))
 	else:
 	    syn.delete(args.id)
-	    print 'Deleted entity: %s' % args.id
+	    print('Deleted entity: %s' % args.id)
 
 
 def create(args, syn):
@@ -269,7 +271,7 @@ def create(args, syn):
             'description':args.description,
             'concreteType': u'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
-    print 'Created entity: %s\t%s\n' %(entity['id'],entity['name'])
+    print('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
 
 
 def onweb(args, syn):
@@ -308,14 +310,15 @@ def setProvenance(args, syn):
                 f.write(json.dumps(activity))
                 f.write('\n')
     else:
-        print 'Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id))
+        print('Set provenance record %s on entity %s\n' % (str(activity['id']),
+                str(args.id)))
 
 
 def getProvenance(args, syn):
     activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output=='STDOUT':
-        print json.dumps(activity,sort_keys=True, indent=2)
+        print(json.dumps(activity,sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
@@ -355,7 +358,7 @@ def getAnnotations(args, syn):
     annotations = syn.getAnnotations(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        print json.dumps(annotations,sort_keys=True, indent=2)
+        print(json.dumps(annotations,sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
