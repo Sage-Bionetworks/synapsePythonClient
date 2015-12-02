@@ -3,7 +3,10 @@ import uuid, random, base64
 from datetime import datetime
 from nose.tools import assert_raises
 
-import ConfigParser
+try:
+    import ConfigParser
+except:
+    import configparser as ConfigParser
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
@@ -17,10 +20,10 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
@@ -105,7 +108,7 @@ def test_evaluations():
             other_user = {}
             other_user['username'] = config.get('test-authentication', 'username')
             other_user['password'] = config.get('test-authentication', 'password')
-            print "Testing SYNR-541"
+            print("Testing SYNR-541")
 
             # Login as the test user
             testSyn = client.Synapse(skip_checks=True)
@@ -154,14 +157,15 @@ def test_evaluations():
 
 
         except ConfigParser.Error:
-            print 'Skipping test for SYNR-541: No [test-authentication] in %s' % client.CONFIG_FILE
+            print('Skipping test for SYNR-541: No [test-authentication] in %s' %
+                    client.CONFIG_FILE)
 
         # Increase this to fully test paging by getEvaluationSubmissions
         # not to be less than 2
         num_of_submissions = 2
 
         # Create a bunch of Entities and submit them for scoring
-        print "Creating Submissions"
+        print("Creating Submissions")
         for i in range(num_of_submissions):
             fd, filename = tempfile.mkstemp()
             os.write(fd, str(random.gauss(0,1)) + '\n')
@@ -174,7 +178,7 @@ def test_evaluations():
 
         # Score the submissions
         submissions = syn.getSubmissions(ev, limit=num_of_submissions-1)
-        print "Scoring Submissions"
+        print("Scoring Submissions")
         for submission in submissions:
             assert re.match('Submission \d+', submission['name'])
             status = syn.getSubmissionStatus(submission)
@@ -188,7 +192,7 @@ def test_evaluations():
             syn.store(status)
 
         # Annotate the submissions
-        print "Annotating Submissions"
+        print("Annotating Submissions")
         bogosity = {}
         submissions = syn.getSubmissions(ev)
         b = 123
@@ -216,18 +220,18 @@ def test_evaluations():
         attempts = 2
         while attempts > 0:
             try:
-                print "Querying for submissions"
+                print("Querying for submissions")
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s" % ev.id)
-                print results
+                print(results)
                 assert results[u'totalNumberOfResults'] == num_of_submissions+1
 
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
-                print results
+                print(results)
                 assert results[u'totalNumberOfResults'] == num_of_submissions
             except AssertionError as ex1:
-                print "failed query: ", ex1
+                print("failed query: ", ex1)
                 attempts -= 1
-                if attempts > 0: print "retrying..."
+                if attempts > 0: print("retrying...")
                 time.sleep(2)
             else:
                 attempts = 0

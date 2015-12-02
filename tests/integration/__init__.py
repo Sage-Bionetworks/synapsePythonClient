@@ -11,21 +11,26 @@ import os
 import sys
 import shutil 
 
+try:
+    basestring
+except NameError:
+    basestring = str
+
 from synapseclient import Entity, Project, Folder, File, Evaluation
 import synapseclient
 import synapseclient.utils as utils
 
 
 def setup_module(module):
-    print "Python version:", sys.version
+    print("Python version:", sys.version)
 
     syn = synapseclient.Synapse(debug=True, skip_checks=True)
 
-    print "Testing against endpoints:"
-    print "  " + syn.repoEndpoint
-    print "  " + syn.authEndpoint
-    print "  " + syn.fileHandleEndpoint
-    print "  " + syn.portalEndpoint + "\n"
+    print("Testing against endpoints:")
+    print("  " + syn.repoEndpoint)
+    print("  " + syn.authEndpoint)
+    print("  " + syn.fileHandleEndpoint)
+    print("  " + syn.portalEndpoint + "\n")
 
     syn.login()
     module.syn = syn
@@ -56,7 +61,7 @@ def cleanup(items):
                 if hasattr(ex, 'response') and ex.response.status_code in [404, 403]:
                     pass
                 else:
-                    print "Error cleaning up entity: " + str(ex)
+                    print("Error cleaning up entity: " + str(ex))
         elif isinstance(item, basestring):
             if os.path.exists(item):
                 try:
@@ -65,6 +70,6 @@ def cleanup(items):
                     else: #Assum that remove will work on antyhing besides folders
                         os.remove(item)
                 except Exception as ex:
-                    print ex
+                    print(ex)
         else:
             sys.stderr.write('Don\'t know how to clean: %s' % str(item))

@@ -1,4 +1,7 @@
-import ConfigParser
+try:
+    import ConfigParser
+except:
+    import configparser as ConfigParser
 import json
 import mock
 import os
@@ -16,10 +19,10 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
@@ -32,7 +35,7 @@ def setup(module):
         other_user['password'] = config.get('test-authentication', 'password')
         other_user['principalId'] = config.get('test-authentication', 'principalId')
     except ConfigParser.Error:
-        print "[test-authentication] section missing from the configuration file"
+        print("[test-authentication] section missing from the configuration file")
 
     if 'principalId' not in other_user:
         # Fall back on the synapse-test user

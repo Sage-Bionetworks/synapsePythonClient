@@ -1,6 +1,10 @@
 import tempfile, os, sys, filecmp, shutil, requests, json, time
 import uuid, random, base64
-import ConfigParser
+try:
+    import ConfigParser
+except:
+    import configparser as ConfigParser
+
 from datetime import datetime
 from nose.tools import assert_raises, assert_equals
 from nose.plugins.attrib import attr
@@ -22,10 +26,10 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
@@ -90,7 +94,7 @@ def test_login():
         syn.login(username, silent=True)
         syn.logout(forgetMe=True)
     except ConfigParser.Error:
-        print "To fully test the login method, please supply a username and password in the configuration file"
+        print("To fully test the login method, please supply a username and password in the configuration file")
 
     finally:
         # Login with config file
@@ -106,7 +110,7 @@ def testCustomConfigFile():
         syn2 = synapseclient.Synapse(configPath=configPath)
         syn2.login()
     else:
-        print "To fully test the login method a configuration file is required"
+        print("To fully test the login method a configuration file is required")
 
 
 def test_entity_version():
@@ -215,7 +219,7 @@ def test_uploadFileEntity():
     # Download and verify
     entity = syn.downloadEntity(entity)
 
-    print entity['files']
+    print(entity['files'])
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
@@ -232,7 +236,7 @@ def test_uploadFileEntity():
 
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)
-    print entity['files']
+    print(entity['files'])
     assert_equals(entity['files'][0], os.path.basename(fname))
     assert filecmp.cmp(fname, entity['path'])
 
