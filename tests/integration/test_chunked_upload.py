@@ -72,7 +72,7 @@ def test_upload_string():
     
     fh = None
     content = "My dog has fleas.\n"
-    f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+    f = tempfile.NamedTemporaryFile('wt', suffix=".txt", delete=False)
     f.write(content)
     f.close()
     filepath=f.name

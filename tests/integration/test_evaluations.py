@@ -50,7 +50,7 @@ def test_evaluations():
         
         # -- Get the Evaluation by project
         evalProj = syn.getEvaluationByContentSource(project)
-        evalProj = evalProj.next()
+        evalProj = next(evalProj)
         assert ev['contentSource'] == evalProj['contentSource']
         assert ev['createdOn'] == evalProj['createdOn']
         assert ev['description'] == evalProj['description']
@@ -135,7 +135,7 @@ def test_evaluations():
 
             # Make a file to submit
             fd, filename = tempfile.mkstemp()
-            os.write(fd, str(random.gauss(0,1)) + '\n')
+            os.write(fd, str(random.gauss(0,1)).encode('utf-8') + b'\n')
             os.close(fd)
             f = File(filename, parentId=other_project.id,
                      name='Submission 999',
@@ -168,7 +168,7 @@ def test_evaluations():
         print("Creating Submissions")
         for i in range(num_of_submissions):
             fd, filename = tempfile.mkstemp()
-            os.write(fd, str(random.gauss(0,1)) + '\n')
+            os.write(fd, str(random.gauss(0,1)).encode('utf-8') + b'\n')
             os.close(fd)
 
             f = File(filename, parentId=project.id, name='entry-%02d' % i,

@@ -19,6 +19,12 @@ import synapseclient.utils as utils
 import synapseclient.__main__ as cmdline
 from synapseclient.evaluation import Evaluation
 
+
+try:
+    basestring
+except NameError:
+    basestring = str
+
 import integration
 from integration import schedule_for_cleanup
 
