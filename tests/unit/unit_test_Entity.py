@@ -6,10 +6,10 @@ from nose.tools import assert_raises
 
 
 def setup():
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
 
 
 def test_Entity():

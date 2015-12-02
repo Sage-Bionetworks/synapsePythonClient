@@ -11,10 +11,10 @@ import synapseclient.utils as utils
 
 
 def setup():
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
 
 
 def test_cache_concurrent_access():
@@ -45,7 +45,7 @@ def test_cache_concurrent_access():
     for file_handle_id in file_handle_ids:
         cache_map = my_cache._read_cache_map(my_cache.get_cache_dir(file_handle_id))
         process_ids = set()
-        for path, iso_time in cache_map.iteritems():
+        for path, iso_time in cache_map.items():
             m = re.match("file_handle_%d_process_(\d+).junk" % file_handle_id, os.path.basename(path))
             if m:
                 process_ids.add(int(m.group(1)))
@@ -68,9 +68,10 @@ def test_parse_cache_entry_into_seconds():
     timestamps["2001-09-09T01:46:40.000Z"] = 1000000000
     timestamps["2286-11-20T17:46:40.375Z"] = 10000000000.375
     timestamps["2286-11-20T17:46:40.999Z"] = 10000000000.999
-    print "\n\n"
+    print("\n\n")
     for stamp in timestamps.keys():
-        print "Input = %s | Parsed = %f" % (stamp, cache.iso_time_to_epoch(stamp))
+        print("Input = %s | Parsed = %f" % (stamp,
+            cache.iso_time_to_epoch(stamp)))
         assert_equal(cache.iso_time_to_epoch(stamp), timestamps[stamp])
         assert_equal(cache.epoch_time_to_iso(cache.iso_time_to_epoch(stamp)), stamp)
 
@@ -261,7 +262,7 @@ def test_cache_rules():
     ## test case 2b.
     assert_is_none( my_cache.get(file_handle_id=101202) )
 
-    print "\nCache dirs"
+    print("\nCache dirs")
     for d in my_cache._cache_dirs():
-        print d, synapseclient.cache._get_modified_time(d)
+        print(d, synapseclient.cache._get_modified_time(d))
 
