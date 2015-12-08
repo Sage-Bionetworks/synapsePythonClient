@@ -265,7 +265,14 @@ def normalize_path(path):
     """Transforms a path into an absolute path with forward slashes only."""
     if path is None:
         return None
-    return re.sub(r'\\', '/', os.path.abspath(path))
+    return re.sub(r'\\', '/', os.path.normcase(os.path.abspath(path)))
+
+
+def equal_paths(path1, path2):
+    """
+    Compare file paths in a platform neutral way
+    """
+    return normalize_path(path1) == normalize_path(path2)
 
 
 def file_url_to_path(url, verify_exists=False):
@@ -709,6 +716,9 @@ def humanizeBytes(bytes):
 
 
 def touch(path, times=None):
+    """
+    Make sure a file exists. Update its access and modified times.
+    """
     basedir = os.path.dirname(path)
     if not os.path.exists(basedir):
         try:

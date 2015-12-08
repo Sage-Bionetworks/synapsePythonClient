@@ -123,7 +123,7 @@ def test_getWithEntityBundle(download_file_mock):
 
     assert_in(bundle["fileHandles"][0]["fileName"], e.files)
     assert e.path is not None
-    assert_equal( os.path.dirname(e.path), temp_dir2 )
+    assert utils.equal_paths( os.path.dirname(e.path), temp_dir2 )
 
     # 4. ----------------------------------------------------------------------
     ## test preservation of local state
