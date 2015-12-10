@@ -679,7 +679,7 @@ class Synapse:
                           'limitSearch to a synapse Id.  Will use the first one returned: '
                           '%s version %i\n' %(filepath,  results[0]['id'], results[0]['versionNumber']))
         entity = results[0]
-        bundle = self._getEntityBundle(entity)
+        bundle = self._getEntityBundle(entity, version=entity['versionNumber'])
         self.cache.add(file_handle_id=bundle['entity']['dataFileHandleId'], path=filepath)
         return bundle
 
