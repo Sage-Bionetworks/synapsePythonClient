@@ -10,6 +10,11 @@ with a `FileHandle <https://rest.synapse.org/org/sagebionetworks/repo/model/file
 This is part of the internal implementation of the client and should not be
 accessed directly by users of the client.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
 
 import datetime
 import json
@@ -17,6 +22,7 @@ import operator
 import os
 import re
 import shutil
+import six
 from math import floor
 import synapseclient.utils as utils
 from synapseclient.lock import Lock
@@ -161,7 +167,7 @@ class Cache():
             if path is not None:
                 ## If we're given a path to a directory, look for a cached file in that directory
                 if os.path.isdir(path):
-                    for cached_file_path, cached_time in cache_map.iteritems():
+                    for cached_file_path, cached_time in six.iteritems(cache_map):
                         if path == os.path.dirname(cached_file_path):
                             return cached_file_path if compare_timestamps(_get_modified_time(cached_file_path), cached_time) else None
 
@@ -264,7 +270,7 @@ class Cache():
             ## OK to purge directories in the cache that have no .cacheMap file
             if before_date > _get_modified_time(os.path.join(cache_dir, self.cache_map_file_name)):
                 if dry_run:
-                    print cache_dir
+                    print(cache_dir)
                 else:
                     shutil.rmtree(cache_dir)
                 count += 1

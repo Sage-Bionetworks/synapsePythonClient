@@ -1,7 +1,10 @@
 Python Synapse Client
 =====================
 
-[Sage-Bionetworks/synapsePythonClient develop branch](https://github.com/Sage-Bionetworks/synapsePythonClient/tree/develop): [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
+ branch  | build status
+ --------|--------------
+ develop | [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
+ master  | [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
 
 A python client for [Sage Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
 
@@ -115,9 +118,9 @@ The synapse client can be used to write software that interacts with the Sage Sy
     matrix = syn.get('syn1901033')
 
     ## inspect its properties
-    print matrix.name
-    print matrix.description
-    print matrix.path
+    print(matrix.name)
+    print(matrix.description)
+    print(matrix.path)
 
     ## load the data matrix into a dictionary with an entry for each column
     with open(matrix.path, 'r') as f:
