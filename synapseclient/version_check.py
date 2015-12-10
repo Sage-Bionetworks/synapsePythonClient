@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from builtins import str
 
 import json
 import pkg_resources
@@ -100,9 +101,9 @@ def check_for_updates():
     sys.stderr.write('latest development version: %s\n' % dev_version_info['latestVersion'])
 
     if _version_tuple(synapseclient.__version__, levels=3) < _version_tuple(release_version_info['latestVersion'], levels=3):
-        print((("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. "
+        print(("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. "
                "Your version (%s) can be upgraded by typing:\n"
-               "    pip install --upgrade synapseclient\n\n") % (release_version_info['latestVersion'], synapseclient.__version__,)))
+               "    pip install --upgrade synapseclient\n\n") % (release_version_info['latestVersion'], synapseclient.__version__,))
     else:
         sys.stderr.write('\nYour Synapse client is up to date!\n')
 

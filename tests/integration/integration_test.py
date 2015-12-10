@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 from __future__ import unicode_literals
+from builtins import str
 
 import tempfile, os, sys, filecmp, shutil, requests, json, time
 import uuid, random, base64

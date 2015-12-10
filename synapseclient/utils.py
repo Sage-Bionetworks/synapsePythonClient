@@ -214,9 +214,9 @@ def id_of(obj):
     :returns: The ID or throws an exception
     """
     if isinstance(obj, six.string_types):
-        return u(obj)
+        return str(obj)
     if isinstance(obj, Number):
-        return u(str(obj))
+        return str(obj)
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
         result = _get_from_members_items_or_properties(obj, 'ownerId')
@@ -569,7 +569,7 @@ def normalize_whitespace(s):
     Strips the string and replace all whitespace sequences and other
     non-printable characters with a single space.
     """
-    assert isinstance(s, six.string_types) or isinstance(s, six.string_types)
+    assert isinstance(s, six.string_types)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
 
 
@@ -668,40 +668,6 @@ def memoize(obj):
             cache[key] = obj(*args, **kwargs)
         return cache[key]
     return memoizer
-
-
-## TODO-PY3: remove these
-# source: http://python3porting.com/noconv.html
-if sys.version < '3':
-    import codecs
-    def u(x):
-        return codecs.unicode_escape_decode(unicode(x))[0] if x is not None else u''
-else:
-    def u(x):
-        return x if x is not None else u''
-
-if sys.version < '3':
-    def to_bytes(x):
-        if (type(x) == unicode):
-            return bytes(x)
-        return(x)
-else:
-    def to_bytes(x):
-        if (type(x) == str):
-            return bytes(x, 'ascii')
-        return x
-
-# http://stackoverflow.com/questions/5478351/python-time-measure-function
-def timing(f):
-    import time
-    @functools.wraps(f)
-    def wrap(*args, **kwargs):
-        time1 = time.time()
-        ret = f(*args)
-        time2 = time.time()
-        print('function %s took %0.3f ms' % (f.func_name, (time2-time1)*1000.0))
-        return ret
-    return wrap
 
 
 def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True):

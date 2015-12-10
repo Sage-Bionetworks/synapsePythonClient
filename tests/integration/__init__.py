@@ -8,6 +8,7 @@ To run a single test set  : nosetests -vs tests/integration/integration_test_Ent
 To run a single test      : nosetests -vs tests/integration/integration_test_Entity.py:test_Entity
 """
 from __future__ import unicode_literals
+from builtins import str
 
 import uuid
 import os

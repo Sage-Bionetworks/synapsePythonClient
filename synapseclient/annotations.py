@@ -55,9 +55,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from builtins import str
+import six
 
 import collections
-import six
 import warnings
 from .utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
 from .exceptions import SynapseError
@@ -67,7 +68,7 @@ def is_synapse_annotations(annotations):
     """Tests if the given object is a Synapse-style Annotations object."""
     keys=['id', 'etag', 'creationDate', 'uri', 'stringAnnotations','longAnnotations','doubleAnnotations','dateAnnotations', 'blobAnnotations']
     if not isinstance(annotations, collections.Mapping): return False
-    return all([key in keys for key in list(annotations.keys())])
+    return all([key in keys for key in annotations.keys()])
 
 
 def to_synapse_annotations(annotations):
@@ -76,11 +77,11 @@ def to_synapse_annotations(annotations):
     if is_synapse_annotations(annotations):
         return annotations
     synapseAnnos = {}
-    for key, value in list(annotations.items()):
+    for key, value in six.iteritems(annotations):
         if key in ['id', 'etag', 'blobAnnotations', 'creationDate', 'uri']:
             synapseAnnos[key] = value
         elif key in ['stringAnnotations','longAnnotations','doubleAnnotations','dateAnnotations'] and isinstance(value, collections.Mapping):
-            synapseAnnos.setdefault(key, {}).update({k:_to_list(v) for k,v in list(value.items())})
+            synapseAnnos.setdefault(key, {}).update({k:_to_list(v) for k,v in six.iteritems(value)})
         else:
             elements = _to_list(value)
             if all((isinstance(elem, six.string_types) for elem in elements)):
@@ -119,7 +120,7 @@ def from_synapse_annotations(annotations):
     # Flatten the raw annotations to consolidate doubleAnnotations, longAnnotations,
     # stringAnnotations and dateAnnotations into one dictionary
     annos = dict()
-    for key, value in list(annotations.items()):
+    for key, value in six.iteritems(annotations):
         if key=='dateAnnotations':
             process_user_defined_annotations(value, annos, lambda x: from_unix_epoch_time(float(x)))
         elif key in ['stringAnnotations','longAnnotations']:
@@ -137,7 +138,7 @@ def is_submission_status_annotations(annotations):
     """Tests if the given dictionary is in the form of annotations to submission status"""
     keys = ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']
     if not isinstance(annotations, collections.Mapping): return False
-    return all([key in keys for key in list(annotations.keys())])
+    return all([key in keys for key in annotations.keys()])
 
 
 def to_submission_status_annotations(annotations, is_private=True):
@@ -173,7 +174,7 @@ def to_submission_status_annotations(annotations, is_private=True):
     if is_submission_status_annotations(annotations):
         return annotations
     synapseAnnos = {}
-    for key, value in list(annotations.items()):
+    for key, value in six.iteritems(annotations):
         if key in ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']:
             synapseAnnos[key] = value
         elif isinstance(value, bool):

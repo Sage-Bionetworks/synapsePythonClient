@@ -91,11 +91,11 @@ def is_used_entity(x):
         return False
 
     # Must only have three keys
-    if not all(key in ('reference', 'wasExecuted', 'concreteType') for key in list(x.keys())):
+    if not all(key in ('reference', 'wasExecuted', 'concreteType') for key in x.keys()):
         return False
 
     # 'reference' field can only have two keys
-    if not all(key in ('targetId', 'targetVersionNumber') for key in list(x['reference'].keys())):
+    if not all(key in ('targetId', 'targetVersionNumber') for key in x['reference'].keys()):
         return False
 
     return True
@@ -109,7 +109,7 @@ def is_used_url(x):
         return False
 
     # Must only have four keys
-    if not all(key in ('url', 'name', 'wasExecuted', 'concreteType') for key in list(x.keys())):
+    if not all(key in ('url', 'name', 'wasExecuted', 'concreteType') for key in x.keys()):
         return False
 
     return True

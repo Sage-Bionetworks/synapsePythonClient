@@ -76,7 +76,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, u, to_bytes, _is_json, _extract_synapse_id_from_query, nchunks, get_chunk, find_data_file_handle
+from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, nchunks, get_chunk, find_data_file_handle
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
@@ -271,12 +271,12 @@ class Synapse:
 
         # For unspecified endpoints, first look in the config file
         config = self.getConfigFile(self.configPath)
-        for point in list(endpoints.keys()):
+        for point in endpoints.keys():
             if endpoints[point] is None and config.has_option('endpoints', point):
                 endpoints[point] = config.get('endpoints', point)
 
         # Endpoints default to production
-        for point in list(endpoints.keys()):
+        for point in endpoints.keys():
             if endpoints[point] is None:
                 endpoints[point] = PRODUCTION_ENDPOINTS[point]
 
@@ -451,7 +451,7 @@ class Synapse:
 
         headers = {'sessionToken' : sessionToken, 'Accept': 'application/json'}
         secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
-        return base64.b64decode(to_bytes(secret['secretKey']))
+        return base64.b64decode(secret['secretKey'])
 
 
     def _readSessionCache(self):
@@ -2054,7 +2054,7 @@ class Synapse:
         """
 
         if len(content)>5*MB:
-            raise ValueError
+            raise ValueError('Maximum string length is 5 MB.')
 
         headers = { 'Content-Type' : contentType }
         headers.update(synapseclient.USER_AGENT)
@@ -2106,7 +2106,7 @@ class Synapse:
                 status = self._completeUploadDaemonStatus(status)
 
             if status['state'] == 'FAILED':
-                raise SynapseError
+                raise SynapseError(status['errorMessage'])
 
             # Return a fileHandle
             fileHandle = self._getFileHandle(status['fileHandleId'])
@@ -2518,7 +2518,7 @@ class Synapse:
                 self.getUserProfile(userId)
             except SynapseHTTPError as err:
                 if err.response.status_code == 404:
-                    raise SynapseError
+                    raise SynapseError("The user (%s) does not exist" % str(userId))
                 raise
 
         except ValueError:
