@@ -1,7 +1,10 @@
 Python Synapse Client
 =====================
 
-[Sage-Bionetworks/synapsePythonClient develop branch](https://github.com/Sage-Bionetworks/synapsePythonClient/tree/develop): [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
+ branch  | build status
+ --------|--------------
+ develop | [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
+ master  | [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
 
 A python client for [Sage Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
 
