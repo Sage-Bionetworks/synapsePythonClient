@@ -45,8 +45,6 @@ def _with_retry(function, verbose=False, \
             response = function()
         except Exception as ex:
             exc_info = sys.exc_info()
-            import traceback
-            traceback.print_exc()
             if verbose:
                 sys.stderr.write(str(ex.message)+'\n')
             if hasattr(ex, 'response'):
