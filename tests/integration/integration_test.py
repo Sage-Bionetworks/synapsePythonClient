@@ -284,14 +284,14 @@ def test_provenance():
 
 
     # Create a File Entity of Code
-    fd, path = tempfile.mkstemp(suffix=".py")
+    fd, path = tempfile.mkstemp(suffix=".py", text=True)
     os.write(fd, """
                  ## Chris's fabulous random data generator
                  ############################################################
                  import random
                  random.seed(12345)
                  data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
-                 """.encode('utf-8'))
+                 """)
     os.close(fd)
     schedule_for_cleanup(path)
     code_entity = syn.store(File(path, parent=project['id']))
