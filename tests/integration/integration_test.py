@@ -282,20 +282,18 @@ def test_provenance():
     schedule_for_cleanup(fname)
     data_entity = syn.store(File(fname, parent=project['id']))
 
-
     # Create a File Entity of Code
-    fd, path = tempfile.mkstemp(suffix=".py", text=True)
-    os.write(fd, """
-                 ## Chris's fabulous random data generator
-                 ############################################################
-                 import random
-                 random.seed(12345)
-                 data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
-                 """)
-    os.close(fd)
+    fd, path = tempfile.mkstemp(suffix=".py")
+    with os.fdopen(fd, 'w') as f:
+        f.write(utils.normalize_lines("""
+            ## Chris's fabulous random data generator
+            ############################################################
+            import random
+            random.seed(12345)
+            data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
+            """))
     schedule_for_cleanup(path)
     code_entity = syn.store(File(path, parent=project['id']))
-
     
     # Create a new Activity asserting that the Code Entity was 'used'
     activity = Activity(name='random.gauss', description='Generate some random numbers')
