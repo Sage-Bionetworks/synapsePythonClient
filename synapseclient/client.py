@@ -674,12 +674,15 @@ class Synapse:
         if len(results)==0: #None found
             raise SynapseFileNotFoundError('File %s not found in Synapse' % (filepath,))
         elif len(results)>1:
-            sys.stderr.write('\nWARNING: The file %s is associated with many entities in Synapse. '
-                          'You can limit to a specific project or folder by setting the '
-                          'limitSearch to a synapse Id.  Will use the first one returned: '
-                          '%s version %i\n' %(filepath,  results[0]['id'], results[0]['versionNumber']))
+            id_txts = '\n'.join(['%s.%i' %(r['id'], r['versionNumber']) for r in results])
+            sys.stderr.write('\nWARNING: The file %s is associated with many files in Synapse:\n'
+                             '%s\n'
+                             'You can limit to files in specific project or folder by setting the '
+                             'limitSearch to the synapse Id of the project or folder.  \n'
+                             'Will use the first one returned: \n'
+                             '%s version %i\n' %(filepath,  id_txts, results[0]['id'], results[0]['versionNumber']))
         entity = results[0]
-        bundle = self._getEntityBundle(entity)
+        bundle = self._getEntityBundle(entity, version=entity['versionNumber'])
         self.cache.add(file_handle_id=bundle['entity']['dataFileHandleId'], path=filepath)
         return bundle
 
