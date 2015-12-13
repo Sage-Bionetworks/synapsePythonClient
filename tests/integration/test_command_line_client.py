@@ -646,7 +646,7 @@ def test_command_line_using_paths():
     id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
     name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
     assert_equals(file_entity.id, id)
-    assert_equals(name, filename)
+    assert utils.equal_paths(name, filename)
 
     #Verify that set-provenance works with filepath
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'

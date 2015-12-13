@@ -17,20 +17,22 @@ def setup():
     print '~' * 60
 
 
+def add_file_to_cache(i, cache_root_dir):
+    """
+    Helper function for use in test_cache_concurrent_access
+    """
+    # print("Starting process %d" % i)
+    my_cache = cache.Cache(cache_root_dir=cache_root_dir)
+    file_handle_ids = [1001, 1002, 1003, 1004, 1005]
+    random.shuffle(file_handle_ids)
+    for file_handle_id in file_handle_ids:
+        cache_dir = my_cache.get_cache_dir(file_handle_id)
+        file_path = os.path.join(cache_dir, "file_handle_%d_process_%02d.junk" % (file_handle_id, i))
+        utils.touch(file_path)
+        my_cache.add(file_handle_id, file_path)
+    # print("Completed process %d" % i)
+
 def test_cache_concurrent_access():
-
-    def add_file_to_cache(i, cache_root_dir):
-        # print ("Starting process %d" % i)
-        my_cache = cache.Cache(cache_root_dir=cache_root_dir)
-        file_handle_ids = [1001, 1002, 1003, 1004, 1005]
-        random.shuffle(file_handle_ids)
-        for file_handle_id in file_handle_ids:
-            cache_dir = my_cache.get_cache_dir(file_handle_id)
-            file_path = os.path.join(cache_dir, "file_handle_%d_process_%02d.junk" % (file_handle_id, i))
-            utils.touch(file_path)
-            my_cache.add(file_handle_id, file_path)
-        # print ("Completed process %d" % i)
-
     cache_root_dir = tempfile.mkdtemp()
     processes = [Process(target=add_file_to_cache, args=(i, cache_root_dir)) for i in range(20)]
 
@@ -148,36 +150,36 @@ def test_cache_store_get():
     my_cache.add(file_handle_id=101202, path=path3)
 
     a_file = my_cache.get(file_handle_id=101201)
-    assert_equal(a_file, path1)
+    assert utils.equal_paths(a_file, path1)
 
     a_file = my_cache.get(file_handle_id=101201, path=path1)
-    assert_equal(a_file, path1)
+    assert utils.equal_paths(a_file, path1)
 
     a_file = my_cache.get(file_handle_id=101201, path=my_cache.get_cache_dir(101201))
-    assert_equal(a_file, path1)
+    assert utils.equal_paths(a_file, path1)
 
     b_file = my_cache.get(file_handle_id=101202, path=os.path.dirname(path2))
-    assert_equal(b_file, path2)
+    assert utils.equal_paths(b_file, path2)
 
     b_file = my_cache.get(file_handle_id=101202, path=os.path.dirname(path3))
-    assert_equal(b_file, path3)
+    assert utils.equal_paths(b_file, path3)
 
     not_in_cache_file = my_cache.get(file_handle_id=101203, path=tmp_dir)
     assert_is_none(not_in_cache_file)
 
     removed = my_cache.remove(file_handle_id=101201, path=path1, delete=True)
-    assert path1 in removed
+    assert utils.normalize_path(path1) in removed
     assert len(removed) == 1
     assert_is_none(my_cache.get(file_handle_id=101201))
 
     removed = my_cache.remove(file_handle_id=101202, path=path3, delete=True)
     b_file = my_cache.get(file_handle_id=101202)
-    assert path3 in removed
+    assert utils.normalize_path(path3) in removed
     assert len(removed) == 1
-    assert_equal(b_file, path2)
+    assert utils.equal_paths(b_file, path2)
 
     removed = my_cache.remove(file_handle_id=101202, delete=True)
-    assert path2 in removed
+    assert utils.normalize_path(path2) in removed
     assert len(removed) == 1
     assert_is_none(my_cache.get(file_handle_id=101202))
 
@@ -224,17 +226,17 @@ def test_cache_rules():
     my_cache.add(file_handle_id=101201, path=path3)
 
     ## DownloadLocation specified, found exact match
-    assert_equal( my_cache.get(file_handle_id=101201, path=path2), path2 )
+    assert utils.equal_paths( my_cache.get(file_handle_id=101201, path=path2), path2 )
 
     ## DownloadLocation specified, no match, get most recent
     path = my_cache.get(file_handle_id=101201, path=os.path.join(tmp_dir, "file_is_not_here", "file1.ext"))
-    assert_equal(path, path3)
+    assert utils.equal_paths(path, path3)
 
     ## DownloadLocation specified as a directory, not in cache, get most recent
     empty_dir = os.path.join(tmp_dir, "empty_directory")
     os.makedirs(empty_dir)
     path = my_cache.get(file_handle_id=101201, path=empty_dir)
-    assert_equal(path, path3)
+    assert utils.equal_paths(path, path3)
 
     ## path2 is now modified
     new_time_stamp = cache._get_modified_time(path2)+2
@@ -249,14 +251,14 @@ def test_cache_rules():
 
     ## Get file from alternate location. Do we care which file we get?
     assert_is_none(my_cache.get(file_handle_id=101201, path=path2))
-    assert_in(my_cache.get(file_handle_id=101201) , [path1,path3] )
+    assert_in(my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)] )
 
     ## Download uncached file to a specified download location
     assert_is_none( my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache")) )
 
     ## No downloadLocation specified, get file from alternate location. Do we care which file we get?
     assert_is_not_none(my_cache.get(file_handle_id=101201))
-    assert_in( my_cache.get(file_handle_id=101201), [path1,path3] )
+    assert_in( my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)] )
 
     ## test case 2b.
     assert_is_none( my_cache.get(file_handle_id=101202) )
