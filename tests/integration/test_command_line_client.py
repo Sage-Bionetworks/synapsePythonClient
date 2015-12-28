@@ -1,10 +1,17 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+import six
+
 import filecmp
 import os
 import re
 import sys
 import uuid
 import json
-from cStringIO import StringIO
 from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
@@ -18,12 +25,18 @@ from synapseclient.evaluation import Evaluation
 import integration
 from integration import schedule_for_cleanup
 
+if six.PY2:
+    from cStringIO import StringIO
+else:
+    from io import StringIO
+
+
 
 def setup_module(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.parser = cmdline.build_parser()
 
@@ -35,7 +48,7 @@ def run(*command):
     :returns: The STDOUT output of the command.
     """
     
-    print ' '.join(command)
+    print(' '.join(command))
     old_stdout = sys.stdout
     capturedSTDOUT = StringIO()
     try:
@@ -49,7 +62,7 @@ def run(*command):
         sys.stdout = old_stdout
         
     capturedSTDOUT = capturedSTDOUT.getvalue()
-    print capturedSTDOUT
+    print(capturedSTDOUT)
     return capturedSTDOUT
     
 
@@ -502,8 +515,6 @@ def test_command_line_store_and_submit():
                  )
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
-
-
     # Delete project
     output = run('synapse', 
                  '--skip-checks',
@@ -547,20 +558,20 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        print uploaded, downloaded
+        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
     schedule_for_cleanup(new_paths[0])
 
-
     ### Test query get
+    ### Note: This test can fail if there are lots of jobs queued as happens when staging is syncing
     output = run('synapse', '--skip-checks',
                  'get', '-q', "select id from file where parentId=='%s' and location=='folder'" %
                  folder_entity.id)
     #Verify that we downloaded files:
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
-        print uploaded, downloaded
+        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -590,7 +601,7 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'get', 
                  '--limitSearch', folder_entity.id, 
                  filename)
-    print "output = \"", output, "\""
+    print("output = \"", output, "\"")
     id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
     name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
     assert_equals(file_entity.id, id)

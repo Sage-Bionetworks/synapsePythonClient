@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import filecmp
 import os, sys, traceback
 
@@ -12,20 +18,20 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
 def test_round_trip():
     fh = None
     filepath = utils.make_bogus_binary_file(6*MB + 777771)
-    print 'Made bogus file: ', filepath
+    print('Made bogus file: ', filepath)
     try:
         fh = syn._chunkedUploadFile(filepath)
-        # print 'FileHandle:'
+        # print('FileHandle:')
         # syn.printEntity(fh)
 
         # Download the file and compare it with the original
@@ -39,13 +45,13 @@ def test_round_trip():
             if 'junk' in locals():
                 syn.delete(junk)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
         try:
             os.remove(filepath)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
         # if fh:
-        #     # print 'Deleting fileHandle', fh['id']
+        #     # print('Deleting fileHandle', fh['id'])
         #     syn._deleteFileHandle(fh)
 
 def manually_check_retry_on_key_does_not_exist():
@@ -72,15 +78,15 @@ def test_upload_string():
     
     fh = None
     content = "My dog has fleas.\n"
-    f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+    f = tempfile.NamedTemporaryFile(mode='w', suffix=".txt", delete=False)
     f.write(content)
     f.close()
     filepath=f.name
         
-    print 'Made bogus file: ', filepath
+    print('Made bogus file: ', filepath)
     try:
         fh = syn._uploadStringToFile(content)
-        # print 'FileHandle:'
+        # print('FileHandle:')
         # syn.printEntity(fh)
 
         # Download the file and compare it with the original
@@ -94,9 +100,9 @@ def test_upload_string():
             if 'junk' in locals():
                 syn.delete(junk)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
         try:
             os.remove(filepath)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
             
