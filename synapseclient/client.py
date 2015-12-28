@@ -34,6 +34,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
+from builtins import input
 
 try:
     import configparser
@@ -1946,17 +1947,6 @@ class Synapse:
             mimetype = "application/octet-stream"
         diagnostics['mimetype'] = mimetype
 
-        import ssl
-        from functools import wraps
-        def sslwrap(func):
-            @wraps(func)
-            def bar(*args, **kw):
-                kw['ssl_version'] = ssl.PROTOCOL_TLSv1
-                return func(*args, **kw)
-            return bar
-
-        ssl.wrap_socket = sslwrap(ssl.wrap_socket)
-
         # S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
         # 'transfer-encoding': 'chunked', which requests will add for you, if it
         # can't figure out content length. The errors given by S3 are not very
@@ -2209,7 +2199,10 @@ class Synapse:
         #If I still don't have a username and password prompt for it
         if username is None:
             username = getpass.getuser()  #Default to login name
-            user =  raw_input('Username for %s (%s):' %(baseURL, username))
+            ## Note that if we hit the following line from within nosetests in
+            ## Python 3, we get "TypeError: bad argument type for built-in operation".
+            ## Luckily, this case isn't covered in our test suite!
+            user = input('Username for %s (%s):' %(baseURL, username))
             username = username if user=='' else user
         if password is None:
             password = getpass.getpass('Password for %s:' %baseURL)
