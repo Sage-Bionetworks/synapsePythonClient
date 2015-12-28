@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from synapseclient.dict_object import DictObject
+from .dict_object import DictObject
 
 class UserProfile(DictObject):
     def __init__(self, **kwargs):

@@ -676,7 +676,6 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
-
 def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True):
     """Prints a progress bar
 
@@ -718,7 +717,7 @@ def humanizeBytes(bytes):
         if bytes<1024:
             return '%3.1f%s' %(bytes, units[i])
         else:
-            bytes /= 1024
+            bytes //= 1024
     return 'Oops larger than Exabytes'
 
 
