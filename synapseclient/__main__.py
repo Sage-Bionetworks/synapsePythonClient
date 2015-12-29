@@ -519,7 +519,7 @@ def build_parser():
     parser_add.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_add.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
-            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
     parser_add.add_argument('--replace', action='store_true',default=False,
             help='Replace all existing annotations with the given annotations')
     parser_add.add_argument('--file', type=str, help=argparse.SUPPRESS)
