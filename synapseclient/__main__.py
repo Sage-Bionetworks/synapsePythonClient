@@ -729,7 +729,7 @@ def perform_main(args, syn):
 
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
     try:
-        syn.login(user, password, silent=silent, forced=forced)
+        syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
         if user is None:

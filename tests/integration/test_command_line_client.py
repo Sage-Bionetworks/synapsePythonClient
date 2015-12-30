@@ -16,8 +16,14 @@ from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
 import shutil
+from mock import MagicMock, patch
+try:
+    import ConfigParser
+except:
+    import configparser as ConfigParser
 
 import synapseclient
+import synapseclient.client as client
 import synapseclient.utils as utils
 import synapseclient.__main__ as cmdline
 from synapseclient.evaluation import Evaluation
@@ -647,3 +653,23 @@ def test_command_line_using_paths():
     shutil.copy(filename2, path)
     output = run('synapse', '--skip-checks', 'associate', path, '-r')
     output = run('synapse', '--skip-checks', 'show', filename)
+
+def test_login():
+    try:
+        config = ConfigParser.ConfigParser()
+        config.read(client.CONFIG_FILE)
+        other_user = {}
+        other_user['username'] = config.get('test-authentication', 'username')
+        other_user['password'] = config.get('test-authentication', 'password')
+
+        with patch("synapseclient.client.Synapse._writeSessionCache") as write_session_cache_mock:
+            output = run('synapse', '--skip-checks', 'login',
+                         '-u', other_user['username'],
+                         '-p', other_user['password'],
+                         '--rememberMe')
+            cached_sessions = write_session_cache_mock.call_args[0][0]
+            assert cached_sessions["<mostRecent>"] == other_user['username']
+            assert other_user['username'] in cached_sessions
+
+    except ConfigParser.Error:
+        print "Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE
