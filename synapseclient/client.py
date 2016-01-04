@@ -2882,64 +2882,7 @@ class Synapse:
         destWiki.update({'attachments':attachments, 'markdown':wiki.markdown, 'title':wiki.title})
 
         return self._storeWiki(destWiki)
-
-    def _copyProjectWiki(self, oldOwnerId,newOwnerId):
-        oldOwn = self.get(oldOwnerId)
-        oldWh = self.getWikiHeaders(oldOwn)  
-        newOwn =self.get(newOwnerId)
-        wikiIdMap =dict()
-        newWikis=dict()
-        for i in oldWh:
-            attDir=tempfile.NamedTemporaryFile(prefix='attdir',suffix='')
-            #print i['id']
-            wiki = self.getWiki(oldOwn, i.id)
-            if wiki['attachmentFileHandleIds'] == []:
-                attachments = []
-            elif wiki['attachmentFileHandleIds'] != []:
-                uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
-                results = self.restGET(uri)
-                file_handles = {fh['id']:fh for fh in results['list']}
-                ## need to download an re-upload wiki attachments, ug!
-                attachments = []
-                tempdir = tempfile.gettempdir()
-                for fhid in wiki.attachmentFileHandleIds:
-                    file_info = self._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
-                    attachments.append(file_info['path'])
-
-            if hasattr(wiki, 'parentWikiId'):
-                wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
-                wNew = self.store(wNew)
-            else:
-                wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments)
-                wNew = self.store(wNew)
-                parentWikiId = wNew.id
-            newWikis[wNew.id]=wNew
-            wikiIdMap[wiki.id] =wNew.id
-        print "Updating internal links:\n"
-
-        for oldWikiId in wikiIdMap.keys():
-            # go through each wiki page once more:
-            newWikiId=wikiIdMap[oldWikiId]
-            newWiki=newWikis[newWikiId]
-            print "\tPage: %s\n" % newWikiId
-            s=newWiki.markdown
-            # in the markdown field, replace all occurrences of oldOwnerId/wiki/abc with newOwnerId/wiki/xyz,
-            # where wikiIdMap maps abc->xyz
-            # replace <oldOwnerId>/wiki/<oldWikiId> with <newOwnerId>/wiki/<newWikiId> 
-            for oldWikiId2 in wikiIdMap.keys():
-                oldProjectAndWikiId = "%s/wiki/%s" % (oldOwnerId, oldWikiId2)
-                newProjectAndWikiId = "%s/wiki/%s" % (newOwnerId, wikiIdMap[oldWikiId2])
-                s=re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
-         
-            # now replace any last references to oldOwnerId with newOwnerId
-            s=re.sub(oldOwnerId, newOwnerId, s)
-            newWiki.markdown=s
-            # update the wiki page
-            newWiki=self.store(newWiki)
-        print "Done updating internal links.\n"
-        newWh = self.getWikiHeaders(newOwn)
-        return(newWh)
-
+        
     ############################################################
     ##                     Tables                             ##
     ############################################################
