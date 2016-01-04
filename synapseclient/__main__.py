@@ -212,7 +212,7 @@ def copy(args,syn):
     """Copys an entity specifed by args.id to args.parentId"""
     ent = syn.get(args.id)
     #CHECK: must be a file entity
-    if ent.entityType!=u'org.sagebionetworks.repo.model.FileEntity':
+    if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
         raise ValueError('"synapse cp" can only copy files!')
     #CHECK: parentID must be a folder or project?
 
@@ -234,7 +234,7 @@ def copy(args,syn):
         syn.setProvenance(new_ent.id,ent_prov)
     except synapseclient.exceptions.SynapseHTTPError:
         pass
-    print 'Copied %s to %s' %(ent.id, new_ent.id)
+    print('Copied %s to %s' %(ent.id, new_ent.id))
 
 def associate(args, syn):
     if args.r:
