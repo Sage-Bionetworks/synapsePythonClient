@@ -69,7 +69,11 @@ Activity
    :members:
 
 """
-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+import six
 import collections
 
 from synapseclient.utils import is_url, id_of
@@ -262,7 +266,7 @@ class Activity(dict):
             resource = {'url':target, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
         # -- Synapse Entity ID (assuming the string is an ID)
-        elif isinstance(target, basestring):
+        elif isinstance(target, six.string_types):
             badargs = _get_any_bad_args(['url', 'name'], locals())
             _raise_incorrect_used_usage(badargs, 'Synapse entity')
 

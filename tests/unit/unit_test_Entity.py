@@ -6,10 +6,10 @@ from nose.tools import assert_raises
 
 
 def setup():
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
 
 
 def test_Entity():
@@ -35,6 +35,10 @@ def test_Entity():
         assert e['foo'] == 123
         assert e.annotations['foo'] == 123
         assert e.annotations.foo == 123
+
+        assert hasattr(e, 'parentId')
+        assert hasattr(e, 'foo')
+        assert not hasattr(e, 'qwerqwer')
 
         # Annotations is a bit funny, because there is a property call
         # 'annotations', which will be masked by a member of the object

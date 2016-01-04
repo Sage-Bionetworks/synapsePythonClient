@@ -12,10 +12,10 @@ syn = None
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = synapseclient.Synapse()
     module.syn.login()
 
@@ -30,12 +30,12 @@ def test_large_file_upload(file_to_upload_size=11*utils.KB, filepath=None):
             ## keep a file around so we don't have to regenerate it.
             if not os.path.exists(filepath):
                 filepath = utils.make_bogus_binary_file(file_to_upload_size, filepath=filepath, printprogress=True)
-                print 'Made bogus file: ', filepath
+                print('Made bogus file: ', filepath)
         else:
             ## generate a temporary file and clean it up when we're done
             clean_up_file = True
             filepath = utils.make_bogus_binary_file(file_to_upload_size, printprogress=True)
-            print 'Made bogus file: ', filepath
+            print('Made bogus file: ', filepath)
 
         try:
             junk = syn.store(File(filepath, parent=project))
@@ -48,19 +48,19 @@ def test_large_file_upload(file_to_upload_size=11*utils.KB, filepath=None):
                 if 'junk' in locals():
                     syn.delete(junk)
             except Exception:
-                print traceback.format_exc()
+                print(traceback.format_exc())
     finally:
         try:
             if 'filepath' in locals() and clean_up_file:
                 os.remove(filepath)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
 
 
 def main():
 
 
-    print "\n\n\ntesting large file upload...\n\n\n"
+    print("\n\n\ntesting large file upload...\n\n\n")
 
 
     global syn
@@ -94,7 +94,7 @@ def main():
     synapseclient.USER_AGENT['User-Agent'] = "test-large-file-upload " + synapseclient.USER_AGENT['User-Agent']
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
     if args.staging:
-        print "switching to STAGING endpoints"
+        print("switching to STAGING endpoints")
         syn.setEndpoints(**synapseclient.client.STAGING_ENDPOINTS)
     syn.login(args.user, args.password, silent=True)
 

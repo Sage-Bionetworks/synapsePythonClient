@@ -1,9 +1,15 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+
 import math
 import csv
 import os
 import sys
 import tempfile
-from itertools import izip
+from builtins import zip
 from mock import MagicMock
 from nose.tools import assert_raises
 
@@ -12,10 +18,10 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
 
 
 def test_cast_values():
@@ -171,12 +177,12 @@ def test_pandas_to_table():
 
         df = pd.DataFrame(dict(a=[1,2,3], b=["c", "d", "e"]))
         schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
-        print "\n", df, "\n\n"
+        print("\n", df, "\n\n")
 
         ## A dataframe with no row id and version
         table = Table(schema, df)
         for i, row in enumerate(table):
-            print row
+            print(row)
             assert row[0]==(i+1)
             assert row[1]==["c", "d", "e"][i]
 
@@ -187,18 +193,18 @@ def test_pandas_to_table():
         ## ,,3,e
         table = Table(schema, df, includeRowIdAndRowVersion=True)
         for i, row in enumerate(table):
-            print row
+            print(row)
             assert row[0] is None
             assert row[1] is None
             assert row[2]==(i+1)
 
         ## A dataframe with no row id and version
         df = pd.DataFrame(index=["1_7","2_7","3_8"], data=dict(a=[100,200,300], b=["c", "d", "e"]))
-        print "\n", df, "\n\n"
+        print("\n", df, "\n\n")
 
         table = Table(schema, df)
         for i, row in enumerate(table):
-            print row
+            print(row)
             assert row[0]==["1","2","3"][i]
             assert row[1]==["7","7","8"][i]
             assert row[2]==(i+1)*100
@@ -206,11 +212,11 @@ def test_pandas_to_table():
 
         ## A dataframe with row id and version in columns
         df = pd.DataFrame(dict(ROW_ID=["0","1","2"], ROW_VERSION=["8","9","9"], a=[100,200,300], b=["c", "d", "e"]))
-        print "\n", df, "\n\n"
+        print("\n", df, "\n\n")
 
         table = Table(schema, df)
         for i, row in enumerate(table):
-            print row
+            print(row)
             assert row[0]==["0","1","2"][i]
             assert row[1]==["8","9","9"][i]
             assert row[2]==(i+1)*100
@@ -246,9 +252,10 @@ def test_csv_table():
 
     try:
         ## create CSV file
-        with tempfile.NamedTemporaryFile(delete=False) as temp:
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp:
             writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=os.linesep)
-            writer.writerow(['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols])
+            headers = ['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols]
+            writer.writerow(headers)
             filename = temp.name
             for row in data:
                 writer.writerow(row)
@@ -263,15 +270,15 @@ def test_csv_table():
             [SelectColumn.from_column(col) for col in cols])
 
         ## test iterator
-        # print "\n\nJazz Guys"
-        for table_row, expected_row in izip(table, data):
-            # print table_row, expected_row
+        # print("\n\nJazz Guys")
+        for table_row, expected_row in zip(table, data):
+            # print(table_row, expected_row)
             assert table_row==expected_row
 
         ## test asRowSet
         rowset = table.asRowSet()
-        for rowset_row, expected_row in izip(rowset.rows, data):
-            #print rowset_row, expected_row
+        for rowset_row, expected_row in zip(rowset.rows, data):
+            #print(rowset_row, expected_row)
             assert rowset_row['values']==expected_row[2:]
             assert rowset_row['rowId']==expected_row[0]
             assert rowset_row['versionNumber']==expected_row[1]
@@ -298,7 +305,7 @@ def test_csv_table():
                 else:
                     os.remove(filename)
             except Exception as ex:
-                print ex
+                print(ex)
         raise
 
 
@@ -323,11 +330,11 @@ def test_list_of_rows_table():
     ## need columns to do cast_values w/o storing
     table = Table(schema1, data, headers=[SelectColumn.from_column(col) for col in cols])
 
-    for table_row, expected_row in izip(table, data):
+    for table_row, expected_row in zip(table, data):
         assert table_row==expected_row
 
     rowset = table.asRowSet()
-    for rowset_row, expected_row in izip(rowset.rows, data):
+    for rowset_row, expected_row in zip(rowset.rows, data):
         assert rowset_row['values']==expected_row
 
     table.columns = cols
@@ -399,7 +406,7 @@ def test_aggregate_query_result_to_data_frame():
         assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
 
         ## check integer, double and boolean types after PLFM-3073 is fixed
-        assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + unicode(df['MIN(Born)'].values)
+        assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + str(df['MIN(Born)'].values)
         assert all(df['COUNT(State)'].values == [2,3,1,1])
         assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
 

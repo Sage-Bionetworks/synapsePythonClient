@@ -28,7 +28,7 @@ For more information about interacting with Synapse, see:
 Installation
 ------------
 
-The Python Synapse client has been tested on python 2.7 on Mac OS X, Ubuntu Linux and Windows.
+The Python Synapse client has been tested on Python 2.7, 3.4 and 3.5 on Mac OS X, Ubuntu Linux and Windows.
 
 ### Install using pip
 
@@ -118,9 +118,9 @@ The synapse client can be used to write software that interacts with the Sage Sy
     matrix = syn.get('syn1901033')
 
     ## inspect its properties
-    print matrix.name
-    print matrix.description
-    print matrix.path
+    print(matrix.name)
+    print(matrix.description)
+    print(matrix.path)
 
     ## load the data matrix into a dictionary with an entry for each column
     with open(matrix.path, 'r') as f:
@@ -180,6 +180,6 @@ Caching credentials can also be done from the command line client:
 License and Copyright
 ---------------------
 
-&copy; Copyright 2013 Sage Bionetworks
+&copy; Copyright 2013-15 Sage Bionetworks
 
 This software is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).

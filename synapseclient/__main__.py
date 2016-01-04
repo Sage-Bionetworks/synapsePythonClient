@@ -57,6 +57,12 @@ Commands
 A few more commands (cat, create, update, associate)
 
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+import six
 
 import argparse
 import os
@@ -64,12 +70,13 @@ import collections
 import shutil
 import sys
 import synapseclient
-from synapseclient import Activity
-import utils
+from . import Activity
+from . import utils
 import signal
 import json
+import warnings
+from .exceptions import *
 import getpass
-from synapseclient.exceptions import *
 
 
 def query(args, syn):
@@ -77,7 +84,7 @@ def query(args, syn):
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     except (AttributeError, ValueError):
         ## Different OS's have different signals defined. In particular,
-        ## SIGPIPE doesn't exist one Windows. The docs have this to say,
+        ## SIGPIPE doesn't exist on Windows. The docs have this to say,
         ## "On Windows, signal() can only be called with SIGABRT, SIGFPE,
         ## SIGILL, SIGINT, SIGSEGV, or SIGTERM. A ValueError will be raised
         ## in any other case."
@@ -122,7 +129,7 @@ def _recursiveGet(id, path, syn):
             except OSError as err:
                 if err.errno!=17:
                     raise
-            print 'making dir', new_path
+            print('making dir', new_path)
             _recursiveGet(result['entity.id'], new_path, syn)
         else:
             syn.get(result['entity.id'], downloadLocation=path)
@@ -141,18 +148,18 @@ def get(args, syn):
             syn.get(id, downloadLocation='.')
     else:
         ## search by MD5
-        if isinstance(args.id, basestring) and os.path.isfile(args.id):
+        if isinstance(args.id, six.string_types) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print "Associated file: %s with synapse ID %s" % (entity.path, entity.id)
+                print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
         ## normal syn.get operation
         else:
             entity = syn.get(args.id, version=args.version, downloadLocation='.')
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print "Downloaded file: %s" % os.path.basename(entity.path)
+                print("Downloaded file: %s" % os.path.basename(entity.path))
             else:
-                print 'WARNING: No files associated with entity %s\n' % entity.id
-                print entity
+                print('WARNING: No files associated with entity %s\n' % entity.id)
+                print(entity)
 
 
 def store(args, syn):
@@ -168,7 +175,7 @@ def store(args, syn):
     if args.id is not None:
         entity = syn.get(args.id, downloadFile=False)
     else:
-        entity = {'concreteType': u'org.sagebionetworks.repo.model.%s' % args.type,
+        entity = {'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type, 
                   'name': utils.guess_file_name(args.file) if args.file and not args.name else None,
                   'parentId' : None,
                   'description' : None,
@@ -183,7 +190,7 @@ def store(args, syn):
     used = _convertProvenanceList(args.used, args.limitSearch, syn)
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
     entity = syn.store(entity, used=used, executed=executed)
-    print 'Created/Updated entity: %s\t%s' %(entity['id'], entity['name'])
+    print('Created/Updated entity: %s\t%s' %(entity['id'], entity['name']))
 
     # After creating/updating, if there are annotations to add then
     # add them
@@ -198,7 +205,7 @@ def move(args, syn):
     ent = syn.get(args.id, downloadFile=False)
     ent.parentId= args.parentid
     ent = syn.store(ent, forceVersion=False)
-    print 'Moved %s to %s' %(ent.id, ent.parentId)
+    print('Moved %s to %s' %(ent.id, ent.parentId))
 
 def copy(args,syn):
     """Copys an entity specifed by args.id to args.parentId"""
@@ -241,9 +248,9 @@ def associate(args, syn):
         try:
             ent = syn.get(fp, limitSearch=args.limitSearch)
         except SynapseFileNotFoundError:
-            print 'WARNING: The file %s is not available in Synapse' %fp
+            print('WARNING: The file %s is not available in Synapse' %fp)
         else:
-            print '%s.%i\t%s' %(ent.id, ent.versionNumber, fp)
+            print('%s.%i\t%s' %(ent.id, ent.versionNumber, fp))
 
 
 def cat(args, syn):
@@ -277,27 +284,27 @@ def show(args, syn):
     sys.stdout.write('Provenance:\n')
     try:
         prov = syn.getProvenance(ent)
-        print prov
+        print(prov)
     except SynapseHTTPError:
-        print '  No Activity specified.\n'
+        print('  No Activity specified.\n')
 
 
 def delete(args, syn):
 	if args.version:
 	    syn.delete(args.id, args.version)	
-	    print 'Deleted entity %s, version %s' % (args.id, args.version)
+	    print('Deleted entity %s, version %s' % (args.id, args.version))
 	else:
 	    syn.delete(args.id)
-	    print 'Deleted entity: %s' % args.id
+	    print('Deleted entity: %s' % args.id)
 
 
 def create(args, syn):
     entity={'name': args.name,
             'parentId': args.parentid,
             'description':args.description,
-            'concreteType': u'org.sagebionetworks.repo.model.%s' %args.type}
+            'concreteType': 'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
-    print 'Created entity: %s\t%s\n' %(entity['id'],entity['name'])
+    print('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
 
 
 def onweb(args, syn):
@@ -308,7 +315,7 @@ def _convertProvenanceList(usedList, limitSearch, syn):
     if usedList is None:
         return None
     usedList = [syn.get(target, limitSearch=limitSearch) if
-                (os.path.isfile(target) if isinstance(target, basestring) else False) else target for
+                (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
                 target in usedList]
     return usedList
 
@@ -336,14 +343,14 @@ def setProvenance(args, syn):
                 f.write(json.dumps(activity))
                 f.write('\n')
     else:
-        print 'Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id))
+        print('Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id)))
 
 
 def getProvenance(args, syn):
     activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output=='STDOUT':
-        print json.dumps(activity,sort_keys=True, indent=2)
+        print(json.dumps(activity,sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
@@ -383,7 +390,7 @@ def getAnnotations(args, syn):
     annotations = syn.getAnnotations(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        print json.dumps(annotations,sort_keys=True, indent=2)
+        print(json.dumps(annotations,sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
@@ -441,6 +448,19 @@ def login(args, syn):
     login_with_prompt(syn, args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe, forced=True)
     profile = syn.getUserProfile()
     print("Logged in as: {userName} ({ownerId})".format(**profile))
+
+
+def test_encoding(args, syn):
+    import locale
+    import platform
+    print("python version =               ", platform.python_version())
+    print("sys.stdout.encoding =          ", sys.stdout.encoding)
+    print("sys.stdout.isatty() =          ", sys.stdout.isatty())
+    print("locale.getpreferredencoding() =", locale.getpreferredencoding())
+    print("sys.getfilesystemencoding() =  ", sys.getfilesystemencoding())
+    print("PYTHONIOENCODING =             ", os.environ.get("PYTHONIOENCODING", None))
+    print("latin1 chars =                 D\xe9j\xe0 vu, \xfcml\xf8\xfats")
+    print("Some non-ascii chars =         '\u0227\u0188\u0188\u1e17\u019e\u0167\u1e17\u1e13 u\u028dop-\u01ddp\u0131sdn \u0167\u1e17\u1e8b\u0167 \u0192\u01ff\u0159 \u0167\u1e17\u015f\u0167\u012b\u019e\u0260'", )
 
 
 def build_parser():
@@ -723,6 +743,11 @@ def build_parser():
     parser_login.add_argument('--rememberMe', '--remember-me', dest='rememberMe', action='store_true', default=False,
             help='Cache credentials for automatic authentication on future interactions with Synapse')
     parser_login.set_defaults(func=login)
+
+    ## test character encoding
+    parser_test_encoding = subparsers.add_parser('test-encoding',
+            help='test character encoding to help diagnose problems')
+    parser_test_encoding.set_defaults(func=test_encoding)
 
     return parser
 
