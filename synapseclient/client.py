@@ -1487,7 +1487,6 @@ class Synapse:
                  'principalId': 222222}
             ]}
         """
-
         if hasattr(entity, 'putACLURI'):
             return self.restPUT(entity.putACLURI(), json.dumps(acl))
         else:
@@ -1743,6 +1742,7 @@ class Synapse:
         #but sometimes we don't have something to read.  I.e. when the type is ftp at which point
         #we still set the cache and filepath based on destination which is wrong because nothing was fetched
         response = _with_retry(lambda: requests.get(url, headers=self._generateSignedHeaders(url), allow_redirects=False), **STANDARD_RETRY_PARAMS)
+
         if response.status_code in [301,302,303,307,308]:
             url = response.headers['location']
             scheme = urlparse(url).scheme
@@ -2885,7 +2885,7 @@ class Synapse:
 
         return self._storeWiki(destWiki)
 
-
+         
     ############################################################
     ##                     Tables                             ##
     ############################################################
@@ -3286,7 +3286,7 @@ class Synapse:
             results = syn.tableQuery('SELECT * FROM syn12345 LIMIT 100 OFFSET 100')
             file_map = syn.downloadTableColumns(result, ['foo', 'bar'])
 
-            for file_handle_id, path in file_map.iteritems():
+            for file_handle_id, path in file_map.items():
                 with open(path) as f:
                     data[file_handle_id] = f.read()
 
@@ -3526,7 +3526,9 @@ class Synapse:
         sig_timestamp = time.strftime(utils.ISO_FORMAT, time.gmtime())
         url = urlparse(url).path
         sig_data = self.username + url + sig_timestamp
-        signature = base64.b64encode(hmac.new(self.apiKey, sig_data.encode(), hashlib.sha1).digest())
+        signature = base64.b64encode(hmac.new(self.apiKey,
+            sig_data.encode('utf-8'),
+            hashlib.sha1).digest())
 
         sig_header = {'userId'             : self.username,
                       'signatureTimestamp' : sig_timestamp,
@@ -3568,7 +3570,6 @@ class Synapse:
 
         :returns: JSON encoding of response
         """
-
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 

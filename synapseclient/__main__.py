@@ -43,6 +43,7 @@ Commands
   * **add**              - add or modify content to Synapse
   * **delete**           - removes a dataset from Synapse
   * **mv**               - move a dataset in Synapse
+  * **cp**               - copy a dataset in Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
@@ -61,6 +62,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
+from builtins import input
 import six
 
 import argparse
@@ -206,6 +208,33 @@ def move(args, syn):
     ent = syn.store(ent, forceVersion=False)
     print('Moved %s to %s' %(ent.id, ent.parentId))
 
+def copy(args,syn):
+    """Copys an entity specifed by args.id to args.parentId"""
+    ent = syn.get(args.id)
+    #CHECK: must be a file entity
+    if ent.entityType!=u'org.sagebionetworks.repo.model.FileEntity':
+        raise ValueError('"synapse cp" can only copy files!')
+    #CHECK: parentID must be a folder or project?
+
+    #CHECK: If file is in the same parent directory (throw an error)
+    search = syn.query('select name from file where parentId =="%s"'%args.parentid)['results']
+    for i in search:
+        if i['file.name'] == ent.name:
+            raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
+    
+    new_ent = synapseclient.File(ent['path'],parent=args.parentid)
+
+    ent_annot = ent.annotations
+    annot = dict((key,ent_annot[key]) for key in ent_annot if key not in ('uri','id','creationDate','etag'))
+
+    new_ent.annotations = annot
+    new_ent = syn.store(new_ent)
+    try:
+        ent_prov = syn.getProvenance(ent)
+        syn.setProvenance(new_ent.id,ent_prov)
+    except synapseclient.exceptions.SynapseHTTPError:
+        pass
+    print 'Copied %s to %s' %(ent.id, new_ent.id)
 
 def associate(args, syn):
     if args.r:
@@ -535,6 +564,13 @@ def build_parser():
             help='Synapse ID of project or folder where file/folder will be moved ')
     parser_mv.set_defaults(func=move)
 
+    parser_cp = subparsers.add_parser('cp',
+            help='Copies a file in Synapse')
+    parser_cp.add_argument('--id', metavar='syn123', type=str, required=True,
+            help='Id of entity in Synapse to be copied.')
+    parser_cp.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=True, dest='parentid',
+            help='Synapse ID of project or folder where file will be moved ')
+    parser_cp.set_defaults(func=copy)
 
     parser_associate = subparsers.add_parser('associate',
             help=('Associate local files with the files stored in Synapse so that calls to '
@@ -733,7 +769,8 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
         if user is None:
-            user = raw_input("Synapse username: ")
+            user = input("Synapse username: ")
+
         passwd = getpass.getpass("Password for " + user + ": ")
         syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 

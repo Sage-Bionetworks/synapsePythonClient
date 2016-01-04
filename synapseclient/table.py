@@ -486,8 +486,8 @@ class Schema(Entity, Versionable):
                     kwargs.setdefault('columns_to_store',[]).append(column)
                 else:
                     raise ValueError("Not a column? %s" % str(column))
-        super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties, 
-                                   annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties,
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
     def addColumn(self, column):
         """
@@ -606,7 +606,7 @@ class RowSet(DictObject):
     """
     A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://rest.synapse.org/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
-    :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId    
+    :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
     :param tableId:  The ID of the TableEntity than owns these rows
     :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
@@ -904,7 +904,8 @@ class TableQueryResult(TableAbstractBaseClass):
                 return row_labels_from_rows(rowset['rows'])
             except KeyError:
                 ## if we don't have row id and version, just number the rows
-                return range(offset,offset+len(rowset['rows']))
+                # python3 cast range to list for safety
+                return list(range(offset,offset+len(rowset['rows'])))
 
         ## first page of rows
         offset = 0
@@ -1051,7 +1052,7 @@ class CsvFileTable(TableAbstractBaseClass):
         f = None
         try:
             if filepath:
-                f = open(filepath)
+                f = open(filepath, 'w')
             else:
                 f = tempfile.NamedTemporaryFile(mode='w', delete=False)
                 filepath = f.name
@@ -1086,7 +1087,7 @@ class CsvFileTable(TableAbstractBaseClass):
         f = None
         try:
             if filepath:
-                f = open(filepath)
+                f = open(filepath, 'w')
             else:
                 f = tempfile.NamedTemporaryFile(mode="w", delete=False)
                 filepath = f.name

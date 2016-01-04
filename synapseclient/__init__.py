@@ -315,4 +315,3 @@ USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.
 import logging 
 logging.getLogger("requests").setLevel(logging.WARNING)
 
-
