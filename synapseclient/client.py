@@ -2881,7 +2881,9 @@ class Synapse:
 
         destWiki.update({'attachments':attachments, 'markdown':wiki.markdown, 'title':wiki.title})
 
-        return self._storeWiki(destWiki) 
+        return self._storeWiki(destWiki)
+
+         
     ############################################################
     ##                     Tables                             ##
     ############################################################
