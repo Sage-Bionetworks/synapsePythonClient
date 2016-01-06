@@ -62,6 +62,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
+from builtins import input
 import six
 
 import argparse
@@ -768,7 +769,8 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
         if user is None:
-            user = raw_input("Synapse username: ")
+            user = input("Synapse username: ")
+
         passwd = getpass.getpass("Password for " + user + ": ")
         syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 

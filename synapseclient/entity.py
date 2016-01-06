@@ -117,6 +117,10 @@ import six
 
 import collections
 import itertools
+if six.PY2:
+    from cStringIO import StringIO
+else:
+    from io import StringIO
 
 from synapseclient.dict_object import DictObject
 import synapseclient.utils as utils
@@ -368,10 +372,9 @@ class Entity(collections.MutableMapping):
         return key in self.properties or key in self.annotations
 
     def __str__(self):
-        from io import StringIO
         f = StringIO()
 
-        f.write(u'%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'), self['id'] if 'id' in self else '-',))
+        f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'), self['id'] if 'id' in self else '-',))
 
         def write_kvps(dictionary, key_filter=None):
             for key in sorted(dictionary.keys()):
@@ -393,10 +396,10 @@ class Entity(collections.MutableMapping):
         return f.getvalue()
 
     def __repr__(self):
-        """Returns an eval-able representation of the Entity."""        
-        from io import StringIO
+        """Returns an eval-able representation of the Entity."""
+
         f = StringIO()
-        f.write(str(self.__class__.__name__))
+        f.write(self.__class__.__name__)
         f.write("(")
         f.write(", ".join(
             {"%s=%s" % (str(key), value.__repr__(),) for key, value in
