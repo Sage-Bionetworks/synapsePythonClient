@@ -42,7 +42,7 @@ except ImportError:
     import ConfigParser as configparser
 
 import collections
-import os, sys, stat, re, json, time
+import math, os, sys, stat, re, json, time
 import base64, hashlib, hmac
 import six
 
@@ -2111,6 +2111,143 @@ class Synapse:
 
         return fileHandle
 
+
+    ############################################################
+    ##           Multipart Upload                             ##
+    ############################################################
+
+    def _start_multipart_upload(self, filepath, fileSizeBytes, partSizeBytes, contentType, preview=True, storageLocationId=None, forceRestart=False):
+        """
+        :returns: A MultipartUploadStatus_
+
+        .. MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
+        """
+        md5 = utils.md5_for_file(filepath)
+
+        if contentType is None:
+            (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
+            if not mimetype:
+                mimetype = "application/octet-stream"
+            ## TODO: do we need to do anything with the encoding?
+            contentType = mimetype
+
+        upload_request = {
+            'contentMD5Hex': md5.hexdigest(),
+            'fileName': os.path.basename(filepath),
+            'generatePreview': preview,
+            'contentType': contentType,
+            'partSizeBytes': partSizeBytes,
+            'fileSizeBytes': fileSizeBytes,
+            'storageLocationId': storageLocationId
+        }
+
+        return DictObject(**self.restPOST(uri='/file/multipart',
+                                          body=json.dumps(upload_request),
+                                          endpoint=self.fileHandleEndpoint))
+
+
+    def _get_presigned_urls(self, uploadId, partNumbers):
+        """
+        :returns: A BatchPresignedUploadUrlResponse_.
+
+        .. BatchPresignedUploadUrlResponse: http://rest.synapse.org/POST/file/multipart/uploadId/presigned/url/batch.html
+        """
+        presigned_url_request = {
+            'uploadId':uploadId,
+            'partNumbers':partNumbers
+        }
+
+        uri = '/file/multipart/{uploadId}/presigned/url/batch'.format(uploadId=uploadId)
+        return DictObject(**self.restPOST(uri, json.dumps(presigned_url_request),
+                                          endpoint=self.fileHandleEndpoint))
+
+
+    def _add_part(self, uploadId, partNumber, partMD5Hex):
+        """
+        :returns: An AddPartResponse_ with fields for an errorMessage and addPartState containing
+                  either 'ADD_SUCCESS' or 'ADD_FAILED'.
+
+        .. AddPartResponse: http://rest.synapse.org/org/sagebionetworks/repo/model/file/AddPartResponse.html
+        """
+        uri = '/file/multipart/{uploadId}/add/{partNumber}?partMD5Hex={partMD5Hex}'.format(**locals())
+        return DictObject(**self.restPUT(uri, endpoint=self.fileHandleEndpoint))
+
+
+    def _complete_multipart_upload(self, uploadId):
+        """
+        :returns: A MultipartUploadStatus_.
+
+        .. MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
+        """
+        uri = '/file/multipart/{uploadId}/complete'.format(uploadId=uploadId)
+        return DictObject(**self.restPUT(uri, endpoint=self.fileHandleEndpoint))
+
+
+    def multipart_upload(self, filepath, partSizeBytes=None, contentType=None):
+        PART_RETRIES = 5
+
+        def remaining_parts(part_status):
+            """
+            Given a string of the form "1001110", where 1 and 0 indicate completed
+            or not, return the part numbers not yet completed.
+            """
+            return [i+1 for i,c in enumerate(part_status) if c=='0']
+
+        def partition(n, list):
+            """
+            Split the input list into partitions of size n.
+            """
+            for i in range(0, len(list), n):
+                yield list[i:i+n]
+
+        if not os.path.exists(filepath):
+            raise IOError('File "%s" not found.' % filepath)
+        if os.path.isdir(filepath):
+            raise IOError('File "%s" is a directory.' % filepath)
+
+        fileSizeBytes = os.path.getsize(filepath)
+
+        if partSizeBytes is None:
+            partSizeBytes = max(5*MB, math.ceil(fileSizeBytes/10000.0))
+
+        status = self._start_multipart_upload(filepath, fileSizeBytes, partSizeBytes, contentType)
+
+        for partNumbers in partition(10, remaining_parts(status.partsState)):
+            presigned_url_batch = self._get_presigned_urls(status.uploadId, partNumbers)
+            for part_presigned_url in presigned_url_batch.partPresignedUrls:
+
+                chunk = get_chunk(filepath, part_presigned_url["partNumber"], chunksize=partSizeBytes)
+
+                for i in range(PART_RETRIES):
+                    response = requests.put(part_presigned_url["uploadPresignedUrl"], data=chunk)
+                    # Make sure requests closes response stream?:
+                    # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
+                    try:
+                        if response is not None:
+                            throw_away = response.content
+                    except Exception as ex:
+                        warnings.warn('error reading response: '+str(ex))
+                    exceptions._raise_for_status(response, verbose=self.debug)
+
+                    ## compute the MD5 for the chunk
+                    md5 = hashlib.md5()
+                    md5.update(chunk)
+
+                    ## confirm that part got uploaded
+                    add_part_response = self._add_part(status.uploadId, part_presigned_url["partNumber"], md5.hexdigest())
+                    retries = 0
+                    while add_part_response["addPartState"] != "ADD_SUCCESS" and retries <= 3:
+                        time.sleep(2**retries)
+                        retries += 1
+                        add_part_response = self._add_part(status.uploadId, part_presigned_url["partNumber"], md5.hexdigest())
+
+                    if add_part_response["addPartState"] == "ADD_SUCCESS":
+                        break
+
+        ## finish upload and get file handle ID
+        upload_status = self._complete_multipart_upload(status.uploadId)
+
+        return upload_status
 
 
     ############################################################
