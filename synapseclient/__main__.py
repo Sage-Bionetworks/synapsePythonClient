@@ -214,7 +214,6 @@ def copy(args,syn):
     #CHECK: must be a file entity
     if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
         raise ValueError('"synapse cp" can only copy files!')
-    #CHECK: parentID must be a folder or project?
 
     #CHECK: If file is in the same parent directory (throw an error)
     search = syn.query('select name from file where parentId =="%s"'%args.parentid)['results']
