@@ -228,12 +228,8 @@ def copy(args,syn):
     annot = dict((key,ent_annot[key]) for key in ent_annot if key not in ('uri','id','creationDate','etag'))
 
     new_ent.annotations = annot
-    new_ent = syn.store(new_ent)
-    try:
-        ent_prov = syn.getProvenance(ent)
-        syn.setProvenance(new_ent.id,ent_prov)
-    except synapseclient.exceptions.SynapseHTTPError:
-        pass
+    new_ent = syn.store(new_ent,used = args.id, activityName = "Copied File")
+    
     print('Copied %s to %s' %(ent.id, new_ent.id))
 
 def associate(args, syn):
