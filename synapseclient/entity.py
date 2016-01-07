@@ -451,6 +451,27 @@ class Folder(Entity):
         super(Folder, self).__init__(concreteType=Folder._synapse_entity_type, properties=properties,
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
+class Link(Entity):
+    """
+    Represents a link in Synapse.
+
+    Links must have a name and a parent and can optionally have annotations.
+
+    ::
+
+        link = Link('synID', parent=folder)
+        link = syn.store(link)
+    """
+
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Link'
+    #linksToClassName
+    #linksTo
+    _local_keys = Entity._local_keys + ['linksToClassName','linksTo']
+    def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
+        if name: kwargs['name'] = name
+        super(Link, self).__init__(concreteType=Link._synapse_entity_type, properties=properties,
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+
 
 class File(Entity, Versionable):
     """
