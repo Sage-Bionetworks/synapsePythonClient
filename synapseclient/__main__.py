@@ -214,22 +214,16 @@ def copy(args,syn):
     #CHECK: must be a file entity
     if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
         raise ValueError('"synapse cp" can only copy files!')
-    #CHECK: parentID must be a folder or project?
-
     #CHECK: If file is in the same parent directory (throw an error)
     search = syn.query('select name from file where parentId =="%s"'%args.parentid)['results']
     for i in search:
         if i['file.name'] == ent.name:
             raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
-    
     new_ent = synapseclient.File(ent['path'],parent=args.parentid)
-
     ent_annot = ent.annotations
     annot = dict((key,ent_annot[key]) for key in ent_annot if key not in ('uri','id','creationDate','etag'))
-
     new_ent.annotations = annot
     new_ent = syn.store(new_ent,used = args.id, activityName = "Copied File")
-    
     print('Copied %s to %s' %(ent.id, new_ent.id))
 
 def associate(args, syn):
