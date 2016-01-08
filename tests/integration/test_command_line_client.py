@@ -604,8 +604,6 @@ def test_command_copy():
     file_entity = syn.store(synapseclient.File(filename, parent=folder_entity),used=dummy_entity.id,executed=repo_url)
     syn.setAnnotations(file_entity,annots)
 
-    ent_prov = syn.getProvenance(file_entity)['used']
-
     ### Test cp function
     output = run('synapse', '--skip-checks',
                  'cp', '--id',file_entity.id,
@@ -618,9 +616,9 @@ def test_command_copy():
     copied_ent_annot = syn.getAnnotations(copied_ent)
 
     copied_annot = dict((key,copied_ent_annot[key].pop()) for key in copied_ent_annot if key not in ('uri','id','creationDate','etag'))
-    copied_prov = syn.getProvenance(copied_ent)['used']
+    copied_prov = syn.getProvenance(copied_ent)['used'][0]['reference']['targetId']
 
-    assert copied_prov == ent_prov
+    assert copied_prov == file_entity.id
     assert copied_annot == annots
     #Verify that errors are being thrown when folders/projects are attempted to be copied,
     #or file is copied to a foler/project that has a file with the same filename
