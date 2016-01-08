@@ -4,7 +4,7 @@ Entity
 ******
 
 The Entity class is the base class for all entities, including Project, Folder
-and File, as well as deprecated entity types such as Data, Study, Summary,
+and File, Link, as well as deprecated entity types such as Data, Study, Summary,
 etc.
 
 Entities are dictionary-like objects in which both object and dictionary
@@ -12,7 +12,7 @@ notation (entity.foo or entity['foo']) can be used interchangeably.
 
 Imports::
 
-    from synapseclient import Project, Folder, File
+    from synapseclient import Project, Folder, File, Link
 
 .. autoclass:: synapseclient.entity.Entity
 
@@ -33,6 +33,12 @@ File
 ~~~~
 
 .. autoclass:: synapseclient.entity.File
+
+~~~~
+Link
+~~~~
+
+.. autoclass:: synapseclient.entity.Link
 
 ~~~~~~~~~~~~
 Table Schema
@@ -455,7 +461,11 @@ class Link(Entity):
     """
     Represents a link in Synapse.
 
-    Links must have a name and a parent and can optionally have annotations.
+    Links must have a target ID and a parent. It is not recommended to have annotations,
+    as the annotations will come from the target ID. When you do syn.get on a Link object,
+    the target ID entity will be returned
+
+    :param targetVersion:       Version of the file you want to create a link for
 
     ::
 

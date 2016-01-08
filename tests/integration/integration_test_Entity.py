@@ -97,7 +97,7 @@ def test_Entity():
 
     #Test create, store, get Links
     link = Link(a_file['id'], 
-                versionNumber=a_file.versionNumber,
+                targetVersion=a_file.versionNumber,
                 parent=project)
     link = syn.store(link)
     assert link['linksTo']['targetId'] == a_file['id']
