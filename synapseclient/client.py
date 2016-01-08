@@ -81,7 +81,7 @@ from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_sy
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
-from .entity import Entity, File, Project, Folder, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
+from .entity import Entity, File, Project, Folder, Link, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
@@ -739,6 +739,12 @@ class Synapse:
         ifcollision = kwargs.get('ifcollision', 'keep.both')
         submission = kwargs.get('submission', None)
 
+        #If Link, get target ID entity bundle
+        if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link':
+            targetId = entityBundle['entity']['linksTo']['targetId']
+            targetVersion = entityBundle['entity']['linksTo']['targetVersionNumber']
+            entityBundle = self._getEntityBundle(targetId, targetVersion)
+
         ## TODO is it an error to specify both downloadFile=False and downloadLocation?
         ## TODO this matters if we want to return already cached files when downloadFile=False
 
@@ -990,6 +996,12 @@ class Synapse:
         if 'id' in properties:
             properties = self._updateEntity(properties, forceVersion, versionLabel)
         else:
+            #If Link, get the target name, version number and concrete type and store in link properties
+            if properties['concreteType']=="org.sagebionetworks.repo.model.Link":
+                target_properties = self._getEntity(properties['linksTo']['targetId'], version=properties['linksTo']['targetVersionNumber'])
+                properties['linksToClassName'] = target_properties['concreteType']
+                properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
+                properties['name'] = target_properties['name']
             try:
                 properties = self._createEntity(properties)
             except SynapseHTTPError as ex:
