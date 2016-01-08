@@ -2183,15 +2183,18 @@ class Synapse:
         return DictObject(**self.restPUT(uri, endpoint=self.fileHandleEndpoint))
 
 
-    def multipart_upload(self, filepath, partSizeBytes=None, contentType=None):
+    def multipartUpload(self, filepath, partSize=None, contentType=None):
         PART_RETRIES = 5
+        URL_BATCH_SIZE = 12
+        MAX_PARTS = 10000
+        PART_RETRIES = 3
 
-        def remaining_parts(part_status):
+        def find_parts_by_status(part_status, status='0'):
             """
-            Given a string of the form "1001110", where 1 and 0 indicate completed
-            or not, return the part numbers not yet completed.
+            Given a string of the form "1001110", where 1 and 0 indicate a status of
+            completed or not, return the part numbers having the specified status.
             """
-            return [i+1 for i,c in enumerate(part_status) if c=='0']
+            return [i+1 for i,c in enumerate(part_status) if c==status]
 
         def partition(n, list):
             """
@@ -2205,18 +2208,24 @@ class Synapse:
         if os.path.isdir(filepath):
             raise IOError('File "%s" is a directory.' % filepath)
 
-        fileSizeBytes = os.path.getsize(filepath)
+        fileSize = os.path.getsize(filepath)
 
-        if partSizeBytes is None:
-            partSizeBytes = max(5*MB, math.ceil(fileSizeBytes/10000.0))
+        if partSize is None:
+            partSize = max(5*MB, math.ceil(fileSize/float(MAX_PARTS)))
+        if partSize < 5*MB:
+            raise ValueError('Minimum part size is 5 MB.')
 
-        status = self._start_multipart_upload(filepath, fileSizeBytes, partSizeBytes, contentType)
+        status = self._start_multipart_upload(filepath, fileSize, partSize, contentType)
 
-        for partNumbers in partition(10, remaining_parts(status.partsState)):
-            presigned_url_batch = self._get_presigned_urls(status.uploadId, partNumbers)
+        completed_part_count = len(find_parts_by_status(status.partsState, '1'))
+        utils.printTransferProgress(completed_part_count*partSize, fileSize, prefix='Uploading', postfix=filepath)
+
+        ## for each batch of parts to upload, get presigned URLs and attempt upload
+        for parts_to_upload in partition(URL_BATCH_SIZE, find_parts_by_status(status.partsState, '0')):
+            presigned_url_batch = self._get_presigned_urls(status.uploadId, parts_to_upload)
             for part_presigned_url in presigned_url_batch.partPresignedUrls:
 
-                chunk = get_chunk(filepath, part_presigned_url["partNumber"], chunksize=partSizeBytes)
+                chunk = get_chunk(filepath, part_presigned_url["partNumber"], chunksize=partSize)
 
                 for i in range(PART_RETRIES):
                     response = requests.put(part_presigned_url["uploadPresignedUrl"], data=chunk)
@@ -2236,7 +2245,7 @@ class Synapse:
                     ## confirm that part got uploaded
                     add_part_response = self._add_part(status.uploadId, part_presigned_url["partNumber"], md5.hexdigest())
                     retries = 0
-                    while add_part_response["addPartState"] != "ADD_SUCCESS" and retries <= 3:
+                    while add_part_response["addPartState"] != "ADD_SUCCESS" and retries <= PART_RETRIES:
                         time.sleep(2**retries)
                         retries += 1
                         add_part_response = self._add_part(status.uploadId, part_presigned_url["partNumber"], md5.hexdigest())
@@ -2244,10 +2253,21 @@ class Synapse:
                     if add_part_response["addPartState"] == "ADD_SUCCESS":
                         break
 
-        ## finish upload and get file handle ID
-        upload_status = self._complete_multipart_upload(status.uploadId)
+                if add_part_response["addPartState"] == "ADD_SUCCESS":
+                    completed_part_count += 1
+                    utils.printTransferProgress(completed_part_count*partSize, fileSize, prefix='Uploading', postfix=filepath)
+                else:
+                    raise SynapseError(add_part_response["errorMessage"])
 
-        return upload_status
+        ## finish upload and get file handle ID
+        status = self._complete_multipart_upload(status.uploadId)
+        completed_part_count = len(find_parts_by_status(status.partsState, '1'))
+        utils.printTransferProgress(completed_part_count*partSize, fileSize, prefix='Uploaded Chunks', postfix=filepath)
+
+        if status["state"] != "COMPLETED":
+            raise SynapseError("Upoad {id} not complete. Try again.".format(id=status["uploadId"]))
+
+        return status["resultFileHandleId"]
 
 
     ############################################################
