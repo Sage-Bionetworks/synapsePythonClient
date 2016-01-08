@@ -297,7 +297,7 @@ class Synapse:
         """
         Authenticates the user using the given credentials (in order of preference):
 
-        - supplied email and password
+        - supplied synapse user name (or email) and password
         - supplied email and API key (base 64 encoded)
         - supplied session token
         - supplied email and cached API key
@@ -307,7 +307,9 @@ class Synapse:
         - email and password in the configuraton file
         - session token in the configuration file
 
-        :param apiKey:     Base64 encoded
+        :param email:      Synapse user name (or an email address associated with a Synapse account)
+        :param password:   password
+        :param apiKey:     Base64 encoded Synapse API key
         :param rememberMe: Whether the authentication information should be cached locally
                            for usage across sessions and clients.
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.

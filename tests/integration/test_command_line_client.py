@@ -16,8 +16,14 @@ from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
 import shutil
+from mock import MagicMock, patch
+try:
+    import ConfigParser
+except:
+    import configparser as ConfigParser
 
 import synapseclient
+import synapseclient.client as client
 import synapseclient.utils as utils
 import synapseclient.__main__ as cmdline
 from synapseclient.evaluation import Evaluation
@@ -41,7 +47,7 @@ def setup_module(module):
     module.parser = cmdline.build_parser()
 
 
-def run(*command):
+def run(*command, **kwargs):
     """
     Sends the given command list to the command line client.
     
@@ -55,7 +61,7 @@ def run(*command):
         sys.stdout = capturedSTDOUT
         sys.argv = [item for item in command]
         args = parser.parse_args()
-        cmdline.perform_main(args, syn)
+        cmdline.perform_main(args, kwargs.get('syn',syn))
     except SystemExit:
         pass # Prevent the test from quitting prematurely
     finally:
@@ -697,3 +703,27 @@ def test_command_line_using_paths():
     shutil.copy(filename2, path)
     output = run('synapse', '--skip-checks', 'associate', path, '-r')
     output = run('synapse', '--skip-checks', 'show', filename)
+
+def test_login():
+    try:
+        config = ConfigParser.ConfigParser()
+        config.read(client.CONFIG_FILE)
+        other_user = {}
+        other_user['username'] = config.get('test-authentication', 'username')
+        other_user['password'] = config.get('test-authentication', 'password')
+
+        with patch("synapseclient.client.Synapse._writeSessionCache") as write_session_cache_mock:
+            alt_syn = synapseclient.Synapse()
+            output = run('synapse', '--skip-checks', 'login',
+                         '-u', other_user['username'],
+                         '-p', other_user['password'],
+                         '--rememberMe',
+                         syn=alt_syn)
+            cached_sessions = write_session_cache_mock.call_args[0][0]
+            assert cached_sessions["<mostRecent>"] == other_user['username']
+            assert other_user['username'] in cached_sessions
+            assert alt_syn.username == other_user['username']
+            assert alt_syn.apiKey is not None
+
+    except ConfigParser.Error:
+        print("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
