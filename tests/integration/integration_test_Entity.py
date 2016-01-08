@@ -13,7 +13,7 @@ from mock import patch
 
 import synapseclient.client as client
 import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient import Activity, Entity, Project, Folder, File, Link
 from synapseclient.exceptions import *
 
 import integration
@@ -82,6 +82,7 @@ def test_Entity():
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
 
+
     # Update the File
     a_file.path = path
     a_file['foo'] = 'Another arbitrary chunk of text data'
@@ -93,6 +94,25 @@ def test_Entity():
     assert a_file.new_key[0] == 'A newly created value'
     assert a_file.path == path
     assert a_file.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
+
+    #Test create, store, get Links
+    link = Link(a_file['id'], 
+                versionNumber=a_file.versionNumber,
+                parent=project)
+    link = syn.store(link)
+    assert link['linksTo']['targetId'] == a_file['id']
+    assert link['linksTo']['targetVersionNumber'] == a_file.versionNumber
+    assert link['linksToClassName'] == a_file['concreteType']
+
+    link = syn.getEntity(link)
+    assert link['foo'][0] == 'Another arbitrary chunk of text data'
+    assert link['bar'] == [33,44,55]
+    assert link['bday'][0] == Datetime(2013,3,15)
+    assert link.new_key[0] == 'A newly created value'
+    assert link.path == path
+    assert link.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
+
+#8886783688
 
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
