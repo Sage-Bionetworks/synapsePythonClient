@@ -633,6 +633,8 @@ class Synapse:
                                  Defaults to True
         :param downloadLocation: Directory where to download the Synapse File Entity.
                                  Defaults to the local cache.
+        :followLink:             Whether the link returns the target Entity.
+                                 Defaults to True
         :param ifcollision:      Determines how to handle file collisions.
                                  May be "overwrite.local", "keep.local", or "keep.both".
                                  Defaults to "keep.both".
@@ -738,9 +740,10 @@ class Synapse:
         downloadLocation = kwargs.get('downloadLocation', None)
         ifcollision = kwargs.get('ifcollision', 'keep.both')
         submission = kwargs.get('submission', None)
+        followLink = kwargs.get('followLink',True)
 
         #If Link, get target ID entity bundle
-        if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link':
+        if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link' and followLink:
             targetId = entityBundle['entity']['linksTo']['targetId']
             targetVersion = entityBundle['entity']['linksTo']['targetVersionNumber']
             entityBundle = self._getEntityBundle(targetId, targetVersion)
