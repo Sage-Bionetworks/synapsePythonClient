@@ -103,6 +103,9 @@ def test_Entity():
     assert link['linksTo']['targetId'] == a_file['id']
     assert link['linksTo']['targetVersionNumber'] == a_file.versionNumber
     assert link['linksToClassName'] == a_file['concreteType']
+    
+    testLink = syn.get(link, followLink= False)
+    assert testLink == link
 
     link = syn.getEntity(link)
     assert link['foo'][0] == 'Another arbitrary chunk of text data'
