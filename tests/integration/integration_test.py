@@ -360,12 +360,6 @@ def test_get_user_profile():
     p2 = syn.getUserProfile(p1.ownerId)
     assert p2.userName == p1.userName
 
-    ## This is a bad test 'cause it relies on an account being in the system
-    # p = syn.getUserProfile('synapse-test')
-    # assert p.userName == 'synapse-test'
-    # p = syn.getUserProfile(p.ownerId)
-    # assert p.userName == 'synapse-test'
-
 
 def test_teams():
     unique_name = "Team Gnarly Rad " + str(uuid.uuid4())

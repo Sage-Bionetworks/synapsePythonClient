@@ -189,7 +189,7 @@ later::
 
     ## upload album covers
     for row in data:
-        file_handle = syn._chunkedUploadFile(os.path.join(covers_dir, row[4]))
+        file_handle = syn._uploadToFileHandleService(os.path.join(covers_dir, row[4]))
         row[4] = file_handle['id']
 
     ## store the table data

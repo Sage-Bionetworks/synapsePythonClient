@@ -77,7 +77,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, nchunks, get_chunk, find_data_file_handle
+from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
@@ -88,6 +88,7 @@ from .table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
+from .multipart_upload import multipart_upload, multipart_upload_string
 
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
@@ -1796,8 +1797,12 @@ class Synapse:
         Create and return a fileHandle, by either uploading a local file or
         linking to an external URL.
 
-        :param synapseStore: Indicates whether the file should be stored or just the URL.
+        :param synapseStore: Indicates whether the file should be stored or just its URL.
                              Defaults to True.
+
+        :returns: a FileHandle_
+
+        .. FileHandle: http://rest.synapse.org/org/sagebionetworks/repo/model/file/FileHandle.html
         """
 
         if filename is None:
@@ -1810,7 +1815,8 @@ class Synapse:
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
             if synapseStore:
-                return self._chunkedUploadFile(filename, mimetype=mimetype)
+                file_handle_id = multipart_upload(self, filename, contentType=mimetype)
+                return self._getFileHandle(file_handle_id)
             else:
                 return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
@@ -1851,423 +1857,6 @@ class Synapse:
         self.restDELETE(uri, endpoint=self.fileHandleEndpoint)
         return fileHandle
 
-
-    def _createChunkedFileUploadToken(self, filepath, mimetype):
-        """
-        This is the first step in uploading a large file. The resulting
-        ChunkedFileToken will be required for all remaining chunk file requests.
-
-        :returns: a `ChunkedFileToken <http://rest.synapse.org/org/sagebionetworks/repo/model/file/ChunkedFileToken.html>`_
-        """
-        md5 = utils.md5_for_file(filepath).hexdigest()
-        fileName = utils.guess_file_name(filepath)
-        return self._createChunkedUploadToken(md5, fileName, mimetype)
-
-    def _createChunkedUploadToken(self, md5, fileName, mimetype):
-        """
-        This is the first step in uploading a large file. The resulting
-        ChunkedFileToken will be required for all remaining chunk file requests.
-
-        :returns: a `ChunkedFileToken <http://rest.synapse.org/org/sagebionetworks/repo/model/file/ChunkedFileToken.html>`_
-        """
-
-        chunkedFileTokenRequest = \
-            {'fileName'    : fileName, \
-             'contentType' : mimetype, \
-             'contentMD5'  : md5}
-        return self.restPOST('/createChunkedFileUploadToken', json.dumps(chunkedFileTokenRequest), endpoint=self.fileHandleEndpoint)
-
-
-    def _createChunkedFileUploadChunkURL(self, chunkNumber, chunkedFileToken):
-        """Create a pre-signed URL that will be used to upload a single chunk of a large file."""
-
-        chunkRequest = {'chunkNumber':chunkNumber, 'chunkedFileToken':chunkedFileToken}
-        return self.restPOST('/createChunkedFileUploadChunkURL', json.dumps(chunkRequest), endpoint=self.fileHandleEndpoint)
-
-
-    def _startCompleteUploadDaemon(self, chunkedFileToken, chunkNumbers):
-        """
-        After all of the chunks are added, start a Daemon that will copy all of the parts and complete the request.
-
-        :returns: an `UploadDaemonStatus <http://rest.synapse.org/org/sagebionetworks/repo/model/file/UploadDaemonStatus.html>`_
-        """
-
-        completeAllChunksRequest = {'chunkNumbers': chunkNumbers,
-                                    'chunkedFileToken': chunkedFileToken}
-        return self.restPOST('/startCompleteUploadDaemon', json.dumps(completeAllChunksRequest), endpoint=self.fileHandleEndpoint)
-
-
-    def _completeUploadDaemonStatus(self, status):
-        """
-        Get the status of a daemon.
-
-        :returns: an `UploadDaemonStatus <http://rest.synapse.org/org/sagebionetworks/repo/model/file/UploadDaemonStatus.html>`_
-        """
-
-        return self.restGET('/completeUploadDaemonStatus/%s' % status['daemonId'], endpoint=self.fileHandleEndpoint)
-
-
-
-
-    def __put_chunk_to_S3(self, i, chunk, token, headers):
-        """Stores a single chunk to S3.  Used from chunkedUploadFile."""
-        # Get the signed S3 URL
-        url = self._createChunkedFileUploadChunkURL(i, token)
-        response = requests.put(url, data=chunk, headers=headers)
-        #  Make sure requests closes response stream?:
-        # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
-        try:
-            if response is not None:
-                throw_away = response.content
-        except Exception as ex:
-            warnings.warn('error reading response: '+str(ex))
-        return response
-
-
-    def _chunkedUploadFile(self, filepath, chunksize=CHUNK_SIZE, progress=True, mimetype=None, threadCount=6):
-        """
-        Upload a file to be stored in Synapse, dividing large files into chunks.
-
-        :param filepath: The file to be uploaded
-        :param chunksize: Chop the file into chunks of this many bytes.
-                          The default value is 5MB, which is also the minimum value.
-
-        :returns: An `S3 FileHandle <http://rest.synapse.org/org/sagebionetworks/repo/model/file/S3FileHandle.html>`_
-        """
-        from functools import partial
-        import multiprocessing.dummy as mp
-        from multiprocessing import Value
-        if chunksize < 5*MB:
-            raise ValueError('Minimum chunksize is 5 MB.')
-        if filepath is None or not os.path.exists(filepath):
-            raise ValueError('File not found: ' + str(filepath))
-
-        # Start timing
-        diagnostics = {'start-time': time.time()}
-
-        # Guess mime-type - important for confirmation of MD5 sum by receiver
-        if not mimetype:
-            (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
-        if not mimetype:
-            mimetype = "application/octet-stream"
-        diagnostics['mimetype'] = mimetype
-
-        # S3 wants 'content-type' and 'content-length' headers. S3 doesn't like
-        # 'transfer-encoding': 'chunked', which requests will add for you, if it
-        # can't figure out content length. The errors given by S3 are not very
-        # informative:
-        # If a request mistakenly contains both 'content-length' and
-        # 'transfer-encoding':'chunked', you get [Errno 32] Broken pipe.
-        # If you give S3 'transfer-encoding' and no 'content-length', you get:
-        #   501 Server Error: Not Implemented
-        #   A header you provided implies functionality that is not implemented
-        headers = { 'Content-Type' : mimetype }
-        headers.update(synapseclient.USER_AGENT)
-        diagnostics['User-Agent'] = synapseclient.USER_AGENT
-
-        retry_policy=self._build_retry_policy({
-            "retry_status_codes": [429,502,503,504],
-            "retry_errors"      : ['Proxy Error', 'Please slow down', 'Slowdown',
-                                   'We encountered an internal error. Please try again.',
-                                   'Max retries exceeded with url',
-                                   'RequestTimeout'], ## RequestTimeout comes from S3 during put operations
-            "retries"           : 6})
-        p = mp.Pool(threadCount)
-
-        try:
-            # Get token
-            token = self._createChunkedFileUploadToken(filepath, mimetype)
-            diagnostics['token'] = token
-            diagnostics['chunks'] = []
-            fileSize = os.stat(filepath).st_size
-            completedChunks = Value('d', -1)
-            chunkNumbers = list(range(1, nchunks(filepath, chunksize=chunksize)+1))
-            def upload_one_chunk_with_retry(i):
-                chunk = get_chunk(filepath, i, chunksize=chunksize)
-                response = _with_retry(partial(self.__put_chunk_to_S3, i, chunk, token, headers), 
-                                       verbose=False, **retry_policy)
-                completedChunks.value +=1
-                utils.printTransferProgress(completedChunks.value*chunksize, 
-                                            fileSize, prefix = 'Uploading', postfix=filepath)
-                exceptions._raise_for_status(response, verbose=True)
-            p.map(upload_one_chunk_with_retry,chunkNumbers)
-
-            ## complete the upload
-            utils.printTransferProgress(fileSize, fileSize, prefix = 'Uploaded Chunks', postfix=filepath)
-            sleep_on_failed_time = 1
-            backoff_multiplier = 2
-            attempt_to_complete = 0
-            max_attempts_to_complete = 7
-
-            while attempt_to_complete < max_attempts_to_complete:
-                attempt_to_complete += 1
-                status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=chunkNumbers)
-                diagnostics['status'] = [status]
-                # Poll until concatenating chunks is complete
-                loop = 0
-                while (status['state']=='PROCESSING'):
-                    loop +=1
-                    time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
-                    sys.stdout.write('\rWaiting for Confirmation ' + '|/-\\'[loop%4])
-                    sys.stdout.flush()
-                    status = self._completeUploadDaemonStatus(status)
-                    diagnostics['status'].append(status)
-                if status['state'] == 'COMPLETED':
-                    break
-                else:
-                    warnings.warn("Attempt to complete upload failed: " + status['errorMessage'])
-                    time.sleep(sleep_on_failed_time)
-                    sleep_on_failed_time *= backoff_multiplier
-
-            if status['state'] == 'FAILED':
-                raise SynapseError(status['errorMessage'])
-
-            # Return a fileHandle
-            fileHandle = self._getFileHandle(status['fileHandleId'])
-            diagnostics['fileHandle'] = fileHandle
-
-        except Exception as ex:
-            print(ex)
-            ex.diagnostics = diagnostics
-            raise ex
-
-        # Print timing information
-        if progress: 
-            sys.stdout.write("\rUpload completed in %s.\n" % utils.format_time_interval(time.time()-diagnostics['start-time']))
-
-        return fileHandle
-
-
-    def _uploadStringToFile(self, content, contentType="text/plain"):
-        """
-        Upload a string to be stored in Synapse, as a single upload chunk
-
-        :param content: The content to be uploaded
-        :param contentType: The content type to be stored with the file
-
-        :returns: An `S3 FileHandle <http://rest.synapse.org/org/sagebionetworks/repo/model/file/S3FileHandle.html>`_
-        """
-
-        if len(content)>5*MB:
-            raise ValueError('Maximum string length is 5 MB.')
-
-        headers = { 'Content-Type' : contentType }
-        headers.update(synapseclient.USER_AGENT)
-
-        try:
-
-            # Get token
-            md5 = hashlib.md5(content.encode("utf-8")).hexdigest()
-            token = self._createChunkedUploadToken(md5, "message", contentType)
-
-            retry_policy=self._build_retry_policy(
-                {"retry_errors":['We encountered an internal error. Please try again.']})
-
-            i = 1
-            chunk_record = {'chunk-number':i}
-
-            # Get the signed S3 URL
-            url = self._createChunkedFileUploadChunkURL(i, token)
-
-            # PUT the chunk to S3
-            response = _with_retry(
-                lambda: requests.put(url, data=content.encode("utf-8"), headers=headers),
-                **retry_policy)
-
-            chunk_record['response-status-code'] = response.status_code
-            chunk_record['response-headers'] = response.headers
-            if response.text:
-                chunk_record['response-body'] = response.text
-
-            # Is requests closing response stream? Let's make sure:
-            # "Note that connections are only released back to
-            #  the pool for reuse once all body data has been
-            #  read; be sure to either set stream to False or
-            #  read the content property of the Response object."
-            # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
-            try:
-                if response:
-                    throw_away = response.content
-            except Exception as ex:
-                sys.stderr.write('error reading response: '+str(ex))
-
-            exceptions._raise_for_status(response, verbose=self.debug)
-
-            status = self._startCompleteUploadDaemon(chunkedFileToken=token, chunkNumbers=[a+1 for a in range(i)])
-
-            # Poll until concatenating chunks is complete
-            while (status['state']=='PROCESSING'):
-                time.sleep(CHUNK_UPLOAD_POLL_INTERVAL)
-                status = self._completeUploadDaemonStatus(status)
-
-            if status['state'] == 'FAILED':
-                raise SynapseError(status['errorMessage'])
-
-            # Return a fileHandle
-            fileHandle = self._getFileHandle(status['fileHandleId'])
-
-        except Exception as ex:
-            raise sys.exc_info()[0]
-
-        return fileHandle
-
-
-    ############################################################
-    ##           Multipart Upload                             ##
-    ############################################################
-
-    def _start_multipart_upload(self, filepath, fileSizeBytes, partSizeBytes, contentType, preview=True, storageLocationId=None, forceRestart=False):
-        """
-        :returns: A MultipartUploadStatus_
-
-        .. MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
-        """
-        md5 = utils.md5_for_file(filepath)
-
-        if contentType is None:
-            (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
-            if not mimetype:
-                mimetype = "application/octet-stream"
-            ## TODO: do we need to do anything with the encoding?
-            contentType = mimetype
-
-        upload_request = {
-            'contentMD5Hex': md5.hexdigest(),
-            'fileName': os.path.basename(filepath),
-            'generatePreview': preview,
-            'contentType': contentType,
-            'partSizeBytes': partSizeBytes,
-            'fileSizeBytes': fileSizeBytes,
-            'storageLocationId': storageLocationId
-        }
-
-        return DictObject(**self.restPOST(uri='/file/multipart',
-                                          body=json.dumps(upload_request),
-                                          endpoint=self.fileHandleEndpoint))
-
-
-    def _get_presigned_urls(self, uploadId, partNumbers):
-        """
-        :returns: A BatchPresignedUploadUrlResponse_.
-
-        .. BatchPresignedUploadUrlResponse: http://rest.synapse.org/POST/file/multipart/uploadId/presigned/url/batch.html
-        """
-        presigned_url_request = {
-            'uploadId':uploadId,
-            'partNumbers':partNumbers
-        }
-
-        uri = '/file/multipart/{uploadId}/presigned/url/batch'.format(uploadId=uploadId)
-        return DictObject(**self.restPOST(uri, json.dumps(presigned_url_request),
-                                          endpoint=self.fileHandleEndpoint))
-
-
-    def _add_part(self, uploadId, partNumber, partMD5Hex):
-        """
-        :returns: An AddPartResponse_ with fields for an errorMessage and addPartState containing
-                  either 'ADD_SUCCESS' or 'ADD_FAILED'.
-
-        .. AddPartResponse: http://rest.synapse.org/org/sagebionetworks/repo/model/file/AddPartResponse.html
-        """
-        uri = '/file/multipart/{uploadId}/add/{partNumber}?partMD5Hex={partMD5Hex}'.format(**locals())
-        return DictObject(**self.restPUT(uri, endpoint=self.fileHandleEndpoint))
-
-
-    def _complete_multipart_upload(self, uploadId):
-        """
-        :returns: A MultipartUploadStatus_.
-
-        .. MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
-        """
-        uri = '/file/multipart/{uploadId}/complete'.format(uploadId=uploadId)
-        return DictObject(**self.restPUT(uri, endpoint=self.fileHandleEndpoint))
-
-
-    def multipartUpload(self, filepath, partSize=None, contentType=None):
-        PART_RETRIES = 5
-        URL_BATCH_SIZE = 12
-        MAX_PARTS = 10000
-        PART_RETRIES = 3
-
-        def find_parts_by_status(part_status, status='0'):
-            """
-            Given a string of the form "1001110", where 1 and 0 indicate a status of
-            completed or not, return the part numbers having the specified status.
-            """
-            return [i+1 for i,c in enumerate(part_status) if c==status]
-
-        def partition(n, list):
-            """
-            Split the input list into partitions of size n.
-            """
-            for i in range(0, len(list), n):
-                yield list[i:i+n]
-
-        if not os.path.exists(filepath):
-            raise IOError('File "%s" not found.' % filepath)
-        if os.path.isdir(filepath):
-            raise IOError('File "%s" is a directory.' % filepath)
-
-        fileSize = os.path.getsize(filepath)
-
-        if partSize is None:
-            partSize = max(5*MB, math.ceil(fileSize/float(MAX_PARTS)))
-        if partSize < 5*MB:
-            raise ValueError('Minimum part size is 5 MB.')
-
-        status = self._start_multipart_upload(filepath, fileSize, partSize, contentType)
-
-        completed_part_count = len(find_parts_by_status(status.partsState, '1'))
-        utils.printTransferProgress(completed_part_count*partSize, fileSize, prefix='Uploading', postfix=filepath)
-
-        ## for each batch of parts to upload, get presigned URLs and attempt upload
-        for parts_to_upload in partition(URL_BATCH_SIZE, find_parts_by_status(status.partsState, '0')):
-            presigned_url_batch = self._get_presigned_urls(status.uploadId, parts_to_upload)
-            for part_presigned_url in presigned_url_batch.partPresignedUrls:
-
-                chunk = get_chunk(filepath, part_presigned_url["partNumber"], chunksize=partSize)
-
-                for i in range(PART_RETRIES):
-                    response = requests.put(part_presigned_url["uploadPresignedUrl"], data=chunk)
-                    # Make sure requests closes response stream?:
-                    # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
-                    try:
-                        if response is not None:
-                            throw_away = response.content
-                    except Exception as ex:
-                        warnings.warn('error reading response: '+str(ex))
-                    exceptions._raise_for_status(response, verbose=self.debug)
-
-                    ## compute the MD5 for the chunk
-                    md5 = hashlib.md5()
-                    md5.update(chunk)
-
-                    ## confirm that part got uploaded
-                    add_part_response = self._add_part(status.uploadId, part_presigned_url["partNumber"], md5.hexdigest())
-                    retries = 0
-                    while add_part_response["addPartState"] != "ADD_SUCCESS" and retries <= PART_RETRIES:
-                        time.sleep(2**retries)
-                        retries += 1
-                        add_part_response = self._add_part(status.uploadId, part_presigned_url["partNumber"], md5.hexdigest())
-
-                    if add_part_response["addPartState"] == "ADD_SUCCESS":
-                        break
-
-                if add_part_response["addPartState"] == "ADD_SUCCESS":
-                    completed_part_count += 1
-                    utils.printTransferProgress(completed_part_count*partSize, fileSize, prefix='Uploading', postfix=filepath)
-                else:
-                    raise SynapseError(add_part_response["errorMessage"])
-
-        ## finish upload and get file handle ID
-        status = self._complete_multipart_upload(status.uploadId)
-        completed_part_count = len(find_parts_by_status(status.partsState, '1'))
-        utils.printTransferProgress(completed_part_count*partSize, fileSize, prefix='Uploaded Chunks', postfix=filepath)
-
-        if status["state"] != "COMPLETED":
-            raise SynapseError("Upoad {id} not complete. Try again.".format(id=status["uploadId"]))
-
-        return status["resultFileHandleId"]
 
 
     ############################################################
@@ -3246,7 +2835,7 @@ class Synapse:
         :returns: `UploadToTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
-        fileHandle = self._chunkedUploadFile(filepath, mimetype="text/csv")
+        fileHandleId = multipart_upload(self, filepath, contentType="text/csv")
 
         request = {
             "concreteType":"org.sagebionetworks.repo.model.table.UploadToTableRequest",
@@ -3258,7 +2847,7 @@ class Synapse:
                 "separator": separator},
             "linesToSkip": linesToSkip,
             "tableId": id_of(schema),
-            "uploadFileHandleId": fileHandle['id']
+            "uploadFileHandleId": fileHandleId
         }
 
         if updateEtag:
@@ -3655,13 +3244,12 @@ class Synapse:
         :returns: The metadata of the created message
         """
 
-        fileHandle = self._uploadStringToFile(messageBody, contentType)
-        message = dict()
-        message['recipients']=userIds
-        message['subject']=messageSubject
-        message['fileHandleId']=fileHandle['id']
+        fileHandleId = multipart_upload_string(syn, messageBody, contentType)
+        message = dict(
+            recipents=userIds,
+            subject=messageSubject,
+            fileHandleId=fileHandleId)
         return self.restPOST(uri='/message', body=json.dumps(message))
-
 
 
 
