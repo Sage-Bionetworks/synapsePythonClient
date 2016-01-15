@@ -189,7 +189,7 @@ later::
 
     ## upload album covers
     for row in data:
-        file_handle = syn._chunkedUploadFile(os.path.join(covers_dir, row[4]))
+        file_handle = syn._uploadToFileHandleService(os.path.join(covers_dir, row[4]))
         row[4] = file_handle['id']
 
     ## store the table data
@@ -637,11 +637,24 @@ class RowSet(DictObject):
             raise ValueError("Table schema ID must be defined to create a RowSet")
         if not kwargs.get('headers',None):
             raise ValueError("Column headers must be defined to create a RowSet")
+        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.table.RowSet'
 
         super(RowSet, self).__init__(kwargs)
 
-    def postURI(self):
-        return '/entity/{id}/table'.format(id=self['tableId'])
+    def _synapse_store(self, syn):
+        """
+        Creates and POSTs an AppendableRowSetRequest_
+
+        .. AppendableRowSetRequest: http://rest.synapse.org/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
+        """
+        arsr = dict(
+            concreteType='org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
+            toAppend=self,
+            entityId=self.tableId)
+
+        uri = "/entity/{id}/table/append/async".format(id=self.tableId)
+        response = syn._waitForAsync(uri=uri, request=arsr)
+        return response.get('rowReferenceSet', response)
 
     def _synapse_delete(self, syn):
         """
