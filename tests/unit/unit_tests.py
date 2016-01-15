@@ -365,3 +365,4 @@ def test_raise_for_status():
             body="body"))
 
     assert_raises(SynapseHTTPError, _raise_for_status, response, verbose=False)
+
