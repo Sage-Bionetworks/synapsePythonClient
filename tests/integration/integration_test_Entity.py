@@ -115,8 +115,6 @@ def test_Entity():
     assert link.path == path
     assert link.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
 
-#8886783688
-
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
