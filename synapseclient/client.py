@@ -633,7 +633,7 @@ class Synapse:
                                  Defaults to True
         :param downloadLocation: Directory where to download the Synapse File Entity.
                                  Defaults to the local cache.
-        :followLink:             Whether the link returns the target Entity.
+        :param followLink:             Whether the link returns the target Entity.
                                  Defaults to True
         :param ifcollision:      Determines how to handle file collisions.
                                  May be "overwrite.local", "keep.local", or "keep.both".
