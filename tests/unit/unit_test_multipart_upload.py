@@ -1,4 +1,5 @@
 import filecmp, math, os, tempfile
+from nose.tools import assert_raises
 from synapseclient.multipart_upload import find_parts_to_download, count_completed_parts, partition, calculate_part_size, get_file_chunk
 from synapseclient.utils import MB, GB, make_bogus_binary_file
 
@@ -22,12 +23,21 @@ def test_partition():
     assert list(partition(10, [1,2,3])) == [[1,2,3]]
 
 def test_calculate_part_size():
-    assert calculate_part_size(3*MB, 10000) == 5*MB
-    assert calculate_part_size(6*MB, 2) == 5*MB
-    assert calculate_part_size(11*MB, 2) == 11*MB / 2.0
-    assert calculate_part_size(100*MB, 2) * 2 >= (100*MB)
-    assert calculate_part_size(11*MB+777, 2) * 2 >= (11*MB+777)
-    assert calculate_part_size(101*GB+777, 10000) * 10000 >= (101*GB+777)
+    assert 5*MB <= calculate_part_size(fileSize=3*MB,       partSize=None, min_part_size=5*MB, max_parts=10000) == 5*MB
+    assert 5*MB <= calculate_part_size(fileSize=6*MB,       partSize=None, min_part_size=5*MB, max_parts=2) == 5*MB
+    assert 5*MB <= calculate_part_size(fileSize=11*MB,      partSize=None, min_part_size=5*MB, max_parts=2) == 11*MB / 2.0
+    assert 5*MB <= calculate_part_size(fileSize=100*MB,     partSize=None, min_part_size=5*MB, max_parts=2) >= (100*MB) / 2.0
+    assert 5*MB <= calculate_part_size(fileSize=11*MB+777,  partSize=None, min_part_size=5*MB, max_parts=2) >= (11*MB+777) / 2.0
+    assert 5*MB <= calculate_part_size(fileSize=101*GB+777, partSize=None, min_part_size=5*MB, max_parts=10000) >= (101*GB+777) / 10000.0
+
+    ## OK
+    assert calculate_part_size(6*MB, partSize=10*MB, min_part_size=5*MB, max_parts=10000) == 10*MB
+
+    ## partSize too small
+    assert_raises(ValueError, calculate_part_size, fileSize=100*MB, partSize=1*MB, min_part_size=5*MB, max_parts=10000)
+
+    ## too many parts
+    assert_raises(ValueError, calculate_part_size, fileSize=21*MB, partSize=1*MB, min_part_size=1*MB, max_parts=20)
 
 def test_chunks():
     # Read a file in chunks, write the chunks out, and compare to the original

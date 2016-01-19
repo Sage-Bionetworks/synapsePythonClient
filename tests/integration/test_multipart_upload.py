@@ -102,14 +102,21 @@ def test_randomly_failing_parts():
             print(traceback.format_exc())
 
 
-def test_multipart_upload_string():
-    text = "\n".join((
-        "In Xanadu did Kubla Khan",
-        "A stately pleasure-dome decree:",
-        "Where Alph, the sacred river, ran",
-        "Through caverns measureless to man",
-        "Down to a sunless sea.",
-        "Zürich, 金沢市, 서울, แม่ฮ่องสอน, Москва"))
+def test_multipart_upload_big_string():
+    cities = ["Seattle", "Portland", "Vancouver", "Victoria",
+              "San Francisco", "Los Angeles", "New York",
+              "Oaxaca", "Cancún", "Curaçao", "जोधपुर",
+              "অসম", "ལྷ་ས།", "ཐིམ་ཕུ་", "دبي", "አዲስ አበባ",
+              "São Paulo", "Buenos Aires", "Cartagena",
+              "Amsterdam", "Venice", "Rome", "Dubrovnik",
+              "Sarajevo", "Madrid", "Barcelona", "Paris",
+              "Αθήνα", "Ρόδος", "København", "Zürich",
+              "金沢市", "서울", "แม่ฮ่องสอน", "Москва"]
+
+    text = "Places I wanna go:\n"
+    while len(text.encode('utf-8')) < 5*MB:
+        text += ", ".join( random.choice(cities) for i in range(5000) ) + "\n"
+
     fhid = multipart_upload_string(syn, text)
     print('FileHandle: {fhid}'.format(fhid=fhid))
 
@@ -124,6 +131,4 @@ def test_multipart_upload_string():
         retrieved_text = f.read()
 
     assert retrieved_text == text
-
-
 

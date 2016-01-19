@@ -19,6 +19,8 @@ import mimetypes
 import os
 import requests
 from functools import partial
+from multiprocessing import Value
+
 import synapseclient.exceptions as exceptions
 from .utils import printTransferProgress, md5_for_file, MB, GB
 from .dict_object import DictObject
@@ -53,12 +55,18 @@ def partition(n, seq):
         yield seq[i:i+n]
 
 
-def calculate_part_size(fileSize, max_parts):
+def calculate_part_size(fileSize, partSize=None, min_part_size=MIN_PART_SIZE, max_parts=MAX_NUMBER_OF_PARTS):
     """
     Parts for mutipart upload must be at least 5 MB and there must
     be at most 10,000 parts
     """
-    return max(5*MB, math.ceil(fileSize/float(max_parts)))
+    if partSize is None:
+        partSize = max(min_part_size, math.ceil(fileSize/float(max_parts)))
+    if partSize < min_part_size:
+        raise ValueError('Minimum part size is %d MB.' % (min_part_size/MB))
+    if int(math.ceil(float(fileSize) / partSize)) > max_parts:
+        raise ValueError('A part size of %0.1f MB results in too many parts (%d).' % (float(partSize)/MB, int(math.ceil(fileSize / partSize))))
+    return partSize
 
 
 def get_file_chunk(filepath, n, chunksize=5*MB):
@@ -148,7 +156,7 @@ def _put_chunk(url, chunk, verbose=False):
     exceptions._raise_for_status(response, verbose=verbose)
 
 
-def multipart_upload(syn, filepath, filename=None, partSize=None, contentType=None, retries=7, url_batch_size=6):
+def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs):
     """
     Upload a file to a Synapse upload destination in chunks.
 
@@ -186,14 +194,12 @@ def multipart_upload(syn, filepath, filename=None, partSize=None, contentType=No
                                get_chunk_function=get_chunk_function,
                                md5=md5,
                                fileSize=fileSize,
-                               partSize=partSize,
-                               retries=retries,
-                               url_batch_size=url_batch_size)
+                               **kwargs)
 
     return status["resultFileHandleId"]
 
 
-def multipart_upload_string(syn, text, filename=None, partSize=None, contentType=None, retries=7, url_batch_size=6):
+def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs):
     """
     Upload a string using the multipart file upload.
 
@@ -226,9 +232,7 @@ def multipart_upload_string(syn, text, filename=None, partSize=None, contentType
                                get_chunk_function=get_chunk_function,
                                md5=md5,
                                fileSize=fileSize,
-                               partSize=partSize,
-                               retries=retries,
-                               url_batch_size=url_batch_size)
+                               **kwargs)
 
     return status["resultFileHandleId"]
 
@@ -258,7 +262,7 @@ def _upload_chunk(partNumber, url, completed, status, syn, filename, get_chunk_f
         print("Encountered an exception: %s. Retrying..." % type(ex1))
 
 
-def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, partSize, retries=7, url_batch_size=6):
+def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, partSize=None, retries=7, url_batch_size=10, **kwargs):
     """
     Multipart Upload.
 
@@ -275,15 +279,12 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
     :return: a MultipartUploadStatus_ object
 
+    Additional keyword arguments are passed down to _start_multipart_upload.
+
     .. MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
     .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
-    from multiprocessing import Value
-
-    if partSize is None:
-        partSize = calculate_part_size(fileSize, MAX_NUMBER_OF_PARTS)
-    if partSize < MIN_PART_SIZE:
-        raise ValueError('Minimum part size is %d MB.' % (MIN_PART_SIZE/MB))
+    partSize = calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)
 
     ## make upload_chunk a function of 4 parameters:
     ##    partNumber, url, completed, status
@@ -294,13 +295,24 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                                           partSize=partSize)
 
     for i in range(retries):
-        status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType)
+        ## pass through preview=True, storageLocationId=None, forceRestart=False
+        status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
 
+        ## if we got a forceRestart flag, we only want to do that once
+        if kwargs.get('forceRestart', None):
+            forceRestart = False
+
+        ## keep track of the number of bytes uploaded so far
         completed = Value('d', min(count_completed_parts(status.partsState) * partSize, fileSize))
         printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
 
         ## for each batch of parts to upload, get presigned URLs and attempt upload
         for parts_to_upload in partition(url_batch_size, find_parts_to_download(status.partsState)):
+
+            ## Note: The presigned URLs have a time out, currently set at 15
+            ##       minutes. If they do time out, S3 gives you a 403 error and
+            ##       some XML, which we wrap in a SynapseHTTPError, which
+            ##       is a subclass of IOError, meaning that it will be retried.
             presigned_url_batch = _get_presigned_urls(syn, status.uploadId, parts_to_upload)
             for part in presigned_url_batch.partPresignedUrls:
                 upload_chunk(partNumber=part["partNumber"],
