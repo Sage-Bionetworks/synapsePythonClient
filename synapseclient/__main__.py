@@ -341,11 +341,12 @@ def getProvenance(args, syn):
     activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output=='STDOUT':
-        print(json.dumps(activity,sort_keys=True, indent=2))
+        print(json.dumps(activity, sort_keys=True, indent=2, ensure_ascii=False))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
             f.write('\n')
+
 
 def setAnnotations(args, syn):
     """Method to set annotations on an entity.
@@ -381,7 +382,7 @@ def getAnnotations(args, syn):
     annotations = syn.getAnnotations(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        print(json.dumps(annotations,sort_keys=True, indent=2))
+        print(json.dumps(annotations, sort_keys=True, indent=2, ensure_ascii=False))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
