@@ -612,7 +612,7 @@ class Synapse:
         if utils.is_synapse_id(entity):
             entity = self._getEntity(entity)
         try:
-            print(json.dumps(entity, sort_keys=True, indent=2))
+            print(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=False))
         except TypeError:
             print(str(entity))
 

@@ -1,3 +1,8 @@
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+
 import collections
 import os
 from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces
@@ -81,6 +86,13 @@ def test_Entity():
         assert e.annotations.foo == 456
         assert e.properties['annotations'] == '/repo/v1/entity/syn1234/annotations'
         assert e.properties.annotations == '/repo/v1/entity/syn1234/annotations'
+
+        ## test unicode properties
+        e.train = '時刻表には記載されない　月への列車が来ると聞いて'
+        e.band = "Motörhead"
+        e.lunch = "すし"
+
+        print(e)
 
 
 def test_subclassing():

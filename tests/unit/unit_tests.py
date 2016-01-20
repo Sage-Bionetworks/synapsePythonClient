@@ -276,8 +276,8 @@ def test_is_json():
     assert not utils._is_json('')
 
 def test_unicode_output():
-    a = "ȧƈƈḗƞŧḗḓ uʍop-ǝpısdn ŧḗẋŧ ƒǿř ŧḗşŧīƞɠ"
-    print(a.encode('utf-8'))
+    print("\n")
+    print("ȧƈƈḗƞŧḗḓ uʍop-ǝpısdn ŧḗẋŧ ƒǿř ŧḗşŧīƞɠ")
 
 def test_normalize_whitespace():
     assert "zip tang pow a = 2" == utils.normalize_whitespace("   zip\ttang   pow   \n    a = 2   ")

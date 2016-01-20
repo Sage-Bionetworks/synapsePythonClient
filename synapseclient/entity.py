@@ -118,13 +118,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from future.utils import python_2_unicode_compatible
 from builtins import str
 import six
 
 import collections
 import itertools
 if six.PY2:
-    from cStringIO import StringIO
+    from StringIO import StringIO
 else:
     from io import StringIO
 
@@ -151,6 +152,7 @@ class Versionable(object):
 ## - giving up on the dot notation (implemented in Entity2.py in commit e441fcf5a6963118bcf2b5286c67fc66c004f2b5 in the entity_object branch)
 ## - giving up on hiding the difference between properties and annotations
 
+@python_2_unicode_compatible
 class Entity(collections.MutableMapping):
     """
     A Synapse entity is an object that has metadata, access control, and
