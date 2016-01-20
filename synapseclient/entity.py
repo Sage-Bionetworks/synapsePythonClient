@@ -4,7 +4,7 @@ Entity
 ******
 
 The Entity class is the base class for all entities, including Project, Folder
-and File, as well as deprecated entity types such as Data, Study, Summary,
+and File, Link, as well as deprecated entity types such as Data, Study, Summary,
 etc.
 
 Entities are dictionary-like objects in which both object and dictionary
@@ -12,7 +12,7 @@ notation (entity.foo or entity['foo']) can be used interchangeably.
 
 Imports::
 
-    from synapseclient import Project, Folder, File
+    from synapseclient import Project, Folder, File, Link
 
 .. autoclass:: synapseclient.entity.Entity
 
@@ -33,6 +33,12 @@ File
 ~~~~
 
 .. autoclass:: synapseclient.entity.File
+
+~~~~
+Link
+~~~~
+
+.. autoclass:: synapseclient.entity.Link
 
 ~~~~~~~~~~~~
 Table Schema
@@ -449,6 +455,35 @@ class Folder(Entity):
     def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
         if name: kwargs['name'] = name
         super(Folder, self).__init__(concreteType=Folder._synapse_entity_type, properties=properties,
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+
+class Link(Entity):
+    """
+    Represents a link in Synapse.
+
+    Links must have a target ID and a parent. It is not recommended to have annotations,
+    as the annotations will come from the target ID. When you do syn.get on a Link object,
+    the target ID entity will be returned
+
+    :param targetVersion:       Version of the file you want to create a link for
+
+    ::
+
+        link = Link('targetID', parent=folder)
+        link = syn.store(link)
+    """
+    _property_keys = Entity._property_keys+ ['linksTo','linksToClassName']
+    _local_keys = Entity._local_keys
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.Link'
+
+    def __init__(self, targetId=None, targetVersion=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
+        if targetId is not None:
+            kwargs['linksTo'] = dict(targetId=targetId, targetVersionNumber=targetVersion)
+        elif properties is not None and 'linksTo' in properties:
+            pass
+        else:
+            raise SynapseMalformedEntityError("Must provide a target id")
+        super(Link, self).__init__(concreteType=Link._synapse_entity_type, properties=properties,
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
