@@ -6,6 +6,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from builtins import str
 
 import collections
 import json
@@ -27,7 +28,7 @@ class DictObject(dict):
 
 
     def __str__(self):
-        return json.dumps(self, sort_keys=True, indent=2)
+        return json.dumps(self, sort_keys=True, indent=2, ensure_ascii=False)
 
 
     def json(self):
