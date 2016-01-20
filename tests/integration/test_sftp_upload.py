@@ -66,6 +66,19 @@ def test_synStore_sftpIntegration():
         file = syn.store(File(filepath, parent=project))
         file2  = syn.get(file)
         assert file.externalURL==file2.externalURL and urlparse(file2.externalURL).scheme=='sftp'
+
+        tmpdir = tempfile.mkdtemp()
+        schedule_for_cleanup(tmpdir)
+
+        ## test filename override
+        file2.fileNameOverride = "whats_new_in_baltimore.data"
+        file2 = syn.store(file2)
+        ## TODO We haven't defined how filename override interacts with
+        ## TODO previously cached files so, side-step that for now by
+        ## TODO making sure the file is not in the cache!
+        syn.cache.remove(file2.dataFileHandleId, delete=True)
+        file3 = syn.get(file, downloadLocation=tmpdir)
+        assert os.path.basename(file3.path) == file2.fileNameOverride
     finally:
         try:
             os.remove(filepath)
