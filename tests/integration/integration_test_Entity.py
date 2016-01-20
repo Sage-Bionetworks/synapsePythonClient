@@ -5,7 +5,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, requests, time
+import uuid, filecmp, os, sys, requests, tempfile, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
 from nose.plugins.attrib import attr
@@ -105,6 +105,19 @@ def test_Entity():
     # Make sure we can still get the older version of file
     old_random_data = syn.get(a_file.id, version=1)
     assert filecmp.cmp(old_random_data.path, path)
+
+    tmpdir = tempfile.mkdtemp()
+    schedule_for_cleanup(tmpdir)
+
+    ## test file name override
+    a_file.fileNameOverride = "peaches_en_regalia.zoinks"
+    syn.store(a_file)
+    ## TODO We haven't defined how filename override interacts with
+    ## TODO previously cached files so, side-step that for now by
+    ## TODO making sure the file is not in the cache!
+    syn.cache.remove(a_file.dataFileHandleId, delete=True)
+    a_file_retreived = syn.get(a_file, downloadLocation=tmpdir)
+    assert os.path.basename(a_file_retreived.path) == a_file.fileNameOverride, os.path.basename(a_file_retreived.path)
 
 
 def test_special_characters():

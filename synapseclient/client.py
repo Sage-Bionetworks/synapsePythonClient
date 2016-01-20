@@ -763,7 +763,7 @@ class Synapse:
                     entity.md5 = handle.get('contentMd5', '')
                     entity.fileSize = handle.get('contentSize', None)
                     entity.contentType = handle.get('contentType', None)
-                    fileName = handle['fileName']
+                    fileName = properties['fileNameOverride'] if 'fileNameOverride' in properties else handle['fileName']
                     if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                         entity['externalURL'] = handle['externalURL']
                         #Determine if storage location for this entity matches the url of the

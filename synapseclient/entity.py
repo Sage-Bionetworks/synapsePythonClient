@@ -472,7 +472,7 @@ class File(Entity, Versionable):
         data = syn.store(data)
     """
 
-    _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
+    _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId', 'fileNameOverride']
     _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize', 'contentType']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
