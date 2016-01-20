@@ -2543,7 +2543,7 @@ class Synapse:
         except IOError as ex1:
             with open(fileInfo['path']) as f:
                 markdown = f.read().decode('utf-8')
-        print(markdown)
+        
         wiki.markdown = markdown
         wiki.markdown_path = fileInfo['path']
 
