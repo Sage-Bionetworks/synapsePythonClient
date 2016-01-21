@@ -251,7 +251,13 @@ Row
 Table
 ~~~~~~
 
-.. autoclass:: synapseclient.table.Table
+.. autoclass:: synapseclient.table.TableAbstractBaseClass
+   :members:
+.. autoclass:: synapseclient.table.RowSetTable
+   :members:
+.. autoclass:: synapseclient.table.TableQueryResult
+   :members:
+.. autoclass:: synapseclient.table.CsvFileTable
    :members:
 
 ~~~~~~~~~~~~~~~~~~~~

@@ -1,1 +1,2 @@
 .. automodule:: synapseclient.utils
+   :members:

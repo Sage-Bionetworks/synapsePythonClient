@@ -5,46 +5,6 @@ Utility Functions
 
 Utility functions useful in the implementation and testing of the Synapse client.
 
-~~~~~~~~~~~~~~~~~
-Property Juggling
-~~~~~~~~~~~~~~~~~
-
-.. automethod:: synapseclient.utils.id_of
-.. automethod:: synapseclient.utils.get_properties
-.. automethod:: synapseclient.utils.is_url
-.. automethod:: synapseclient.utils.as_url
-.. automethod:: synapseclient.utils.is_synapse_id
-.. automethod:: synapseclient.utils.to_unix_epoch_time
-.. automethod:: synapseclient.utils.from_unix_epoch_time
-.. automethod:: synapseclient.utils.format_time_interval
-.. automethod:: synapseclient.utils._is_json
-
-~~~~~~~~~~~~~
-File Handling
-~~~~~~~~~~~~~
-
-.. automethod:: synapseclient.utils.md5_for_file
-.. automethod:: synapseclient.utils.download_file
-.. automethod:: synapseclient.utils.extract_filename
-.. automethod:: synapseclient.utils.file_url_to_path
-.. automethod:: synapseclient.utils.is_same_base_url
-.. automethod:: synapseclient.utils.normalize_whitespace
-
-
-~~~~~~~~
-Chunking
-~~~~~~~~
-
-.. autoclass:: synapseclient.utils.Chunk
-.. automethod:: synapseclient.utils.chunks
-
-~~~~~~~
-Testing
-~~~~~~~
-
-.. automethod:: synapseclient.utils.make_bogus_data_file
-.. automethod:: synapseclient.utils.make_bogus_binary_file
-
 """
 from __future__ import absolute_import
 from __future__ import division
