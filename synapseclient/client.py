@@ -1041,7 +1041,7 @@ class Synapse:
         # Update annotations
         annotations['etag'] = properties['etag']
         annotations = self.setAnnotations(properties, annotations)
-        properties['etag'] = annotations['etag']
+        properties['etag'] = annotations.etag
 
         # If the parameters 'used' or 'executed' are given, create an Activity object
         activity = kwargs.get('activity', None)

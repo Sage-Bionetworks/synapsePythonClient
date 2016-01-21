@@ -49,7 +49,7 @@ def test_annotation_name_collision():
 
     a = from_synapse_annotations(sa)
     assert a['tissueType'] == ['Blood']
-    assert a['uri'] == u'/entity/syn47396/annotations'
+##    assert a['uri'] == u'/entity/syn47396/annotations'
 
 
 def test_more_annotations():
