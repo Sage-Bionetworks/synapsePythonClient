@@ -3259,9 +3259,9 @@ class Synapse:
         :returns: The metadata of the created message
         """
 
-        fileHandleId = multipart_upload_string(syn, messageBody, contentType)
+        fileHandleId = multipart_upload_string(self, messageBody, contentType)
         message = dict(
-            recipents=userIds,
+            recipients=userIds,
             subject=messageSubject,
             fileHandleId=fileHandleId)
         return self.restPOST(uri='/message', body=json.dumps(message))
