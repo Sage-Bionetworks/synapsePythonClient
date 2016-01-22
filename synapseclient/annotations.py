@@ -56,6 +56,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
+from builtins import int
 import six
 
 import collections
@@ -73,10 +74,13 @@ def is_synapse_annotations(annotations):
 
 def to_synapse_annotations(annotations):
     """Transforms a simple flat dictionary to a Synapse-style Annotation object."""
-    
+
     if is_synapse_annotations(annotations):
         return annotations
     synapseAnnos = {}
+    for key in Annotations.system_properties:
+        if hasattr(annotations, key):
+            synapseAnnos[key] = getattr(annotations, key)
     for key, value in six.iteritems(annotations):
         if key in ['id', 'etag', 'blobAnnotations', 'creationDate', 'uri']:
             synapseAnnos[key] = value
@@ -88,7 +92,7 @@ def to_synapse_annotations(annotations):
                 synapseAnnos.setdefault('stringAnnotations', {})[key] = elements
             elif all((isinstance(elem, bool) for elem in elements)):
                 synapseAnnos.setdefault('stringAnnotations', {})[key] = [str(element).lower() for element in elements]
-            elif all((isinstance(elem, int) or isinstance(elem, int) for elem in elements)):
+            elif all((isinstance(elem, int) for elem in elements)):
                 synapseAnnos.setdefault('longAnnotations', {})[key] = elements
             elif all((isinstance(elem, float) for elem in elements)):
                 synapseAnnos.setdefault('doubleAnnotations', {})[key] = elements
@@ -104,7 +108,7 @@ def to_synapse_annotations(annotations):
 
 def from_synapse_annotations(annotations):
     """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
-    
+
     def process_user_defined_annotations(kvps, annos, func):
         """
         for each annotation of a given class (date, string, double, ...), process the
@@ -112,25 +116,27 @@ def from_synapse_annotations(annotations):
         """
         for k,v in six.iteritems(kvps):
             ## don't overwrite system keys which won't be lists
-            if k in ['id', 'etag', 'creationDate', 'uri'] or (k in annos and not isinstance(annos[k], list)):
+            if k in Annotations.system_properties:
                 warnings.warn('A user defined annotation, "%s", has the same name as a system defined annotation and will be dropped. Try syn._getRawAnnotations to get annotations in native Synapse format.' % k)
             else:
                 annos.setdefault(k,[]).extend([func(elem) for elem in v])
 
     # Flatten the raw annotations to consolidate doubleAnnotations, longAnnotations,
     # stringAnnotations and dateAnnotations into one dictionary
-    annos = dict()
-    for key, value in six.iteritems(annotations):
-        if key=='dateAnnotations':
+    annos = Annotations()
+    for key, value in annotations.items():
+        if key in Annotations.system_properties:
+            setattr(annos, key, value)
+        elif key=='dateAnnotations':
             process_user_defined_annotations(value, annos, lambda x: from_unix_epoch_time(float(x)))
         elif key in ['stringAnnotations','longAnnotations']:
             process_user_defined_annotations(value, annos, lambda x: x)
         elif key == 'doubleAnnotations':
             process_user_defined_annotations(value, annos, lambda x: float(x))
         elif key=='blobAnnotations':
-            pass ## TODO: blob annotations not supported
+            process_user_defined_annotations(value, annos, lambda x: x)
         else:
-            annos[key] = value
+            warnings.warn('Unknown key in annotations response: %s' % key)
     return annos
 
 
@@ -179,7 +185,7 @@ def to_submission_status_annotations(annotations, is_private=True):
             synapseAnnos[key] = value
         elif isinstance(value, bool):
             synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':str(value).lower(), 'isPrivate':is_private })
-        elif isinstance(value, int) or isinstance(value, int):
+        elif isinstance(value, int):
             synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
         elif isinstance(value, float):
             synapseAnnos.setdefault('doubleAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
@@ -234,3 +240,42 @@ def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'do
                     kvp['isPrivate'] = is_private
                     return kvp
     raise KeyError('The key "%s" couldn\'t be found in the annotations.' % key)
+
+
+class Annotations(dict):
+    """
+    Represent Synapse Entity annotations as a flat dictionary with the system
+    assigned properties id, etag, creationDate and uri as object attributes.
+    """
+    system_properties = ['id', 'etag', 'creationDate', 'uri']
+
+    def __init__(self, *args, **kwargs):
+        """
+        Create an Annotations object taking key value pairs from a dictionary or
+        from keyword arguments. System properties id, etag, creationDate and uri
+        become attributes of the object.
+        """
+        ## make sure all system properties exist
+        for key in Annotations.system_properties:
+            self.__dict__[key] = None
+
+        for arg in args + (kwargs,):
+            if isinstance(arg, collections.Mapping):
+                for key in arg:
+                    if key in Annotations.system_properties:
+                        self.__dict__[key] = arg[key]
+                    else:
+                        self.__setitem__(key, arg[key])
+            else:
+                raise ValueError("Unrecognized argument to constructor of Annotations: %s" + str(arg))
+
+    def __getattr__(self, key):
+        return self[key]
+
+    def __setattr__(self, key, value):
+        if hasattr(self,key):
+            return super(Annotations, self).__setattr__(key, value)
+        else:
+            return self.__setitem__(key, value)
+
+

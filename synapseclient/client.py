@@ -1041,7 +1041,7 @@ class Synapse:
         # Update annotations
         annotations['etag'] = properties['etag']
         annotations = self.setAnnotations(properties, annotations)
-        properties['etag'] = annotations['etag']
+        properties['etag'] = annotations.etag
 
         # If the parameters 'used' or 'executed' are given, create an Activity object
         activity = kwargs.get('activity', None)
@@ -3259,9 +3259,9 @@ class Synapse:
         :returns: The metadata of the created message
         """
 
-        fileHandleId = multipart_upload_string(syn, messageBody, contentType)
+        fileHandleId = multipart_upload_string(self, messageBody, contentType)
         message = dict(
-            recipents=userIds,
+            recipients=userIds,
             subject=messageSubject,
             fileHandleId=fileHandleId)
         return self.restPOST(uri='/message', body=json.dumps(message))

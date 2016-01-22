@@ -3,7 +3,11 @@
 Synapse Multipart Upload
 ************************
 
-see: http://rest.synapse.org/index.html#org.sagebionetworks.file.controller.UploadController
+Implements the client side of `Synapse multipart upload`_, which provides
+a robust means of uploading large files (into the 10s of GB). End users
+should not need to call any of these functions directly.
+
+.. _Synapse multipart upload: http://rest.synapse.org/index.html#org.sagebionetworks.file.controller.UploadController
 
 """
 from __future__ import absolute_import
@@ -87,9 +91,9 @@ def get_data_chunk(data, n, chunksize=5*MB):
 
 def _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, preview=True, storageLocationId=None, forceRestart=False):
     """
-    :returns: A MultipartUploadStatus_
+    :returns: A `MultipartUploadStatus`_
 
-    .. MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
+    .. _MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
     """
     upload_request = {
         'contentMD5Hex': md5,
@@ -163,14 +167,17 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs):
     :param syn: a Synapse object
     :param filepath: the file to upload
     :param filename: upload as a different filename
-    :param contentType: contentType_
+    :param contentType: `contentType`_
     :param partSize: number of bytes per part. Minimum 5MB.
     :param retries: number of times to retry upload
     :param url_batch_size: number of signed URLs to request at once
 
     :return: a File Handle ID
 
-    .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
+    Keyword arguments are passed down to :py:func:`_multipart_upload` and
+    :py:func:`_start_multipart_upload`.
+
+    .. _contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
     if not os.path.exists(filepath):
         raise IOError('File "%s" not found.' % filepath)
@@ -206,14 +213,17 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs
     :param syn: a Synapse object
     :param text: a string to upload as a file.
     :param filename: a string containing the base filename
-    :param contentType: contentType_
+    :param contentType: `contentType`_
     :param partSize: number of bytes per part. Minimum 5MB.
     :param retries: number of times to retry upload
     :param url_batch_size: number of signed URLs to request at once
 
     :return: a File Handle ID
 
-    .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
+    Keyword arguments are passed down to :py:func:`_multipart_upload` and
+    :py:func:`_start_multipart_upload`.
+
+    .. _contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
 
     data = text.encode('utf-8')
@@ -279,7 +289,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
     :return: a MultipartUploadStatus_ object
 
-    Additional keyword arguments are passed down to _start_multipart_upload.
+    Keyword arguments are passed down to :py:func:`_start_multipart_upload`.
 
     .. MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
     .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
