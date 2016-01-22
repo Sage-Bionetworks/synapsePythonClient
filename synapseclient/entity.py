@@ -618,7 +618,7 @@ def is_container(entity):
     elif 'entity.concreteType' in entity:
         concreteType = entity['entity.concreteType'][0]
     elif 'entity.nodeType' in entity:
-        return entity['entity.nodeType'] in [2,4]
+        return entity['entity.nodeType'] in [2,4] or entity['entity.nodeType'] in ['project', 'folder']
     else:
         return False
     return concreteType in (Project._synapse_entity_type, Folder._synapse_entity_type)
