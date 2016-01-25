@@ -5,46 +5,6 @@ Utility Functions
 
 Utility functions useful in the implementation and testing of the Synapse client.
 
-~~~~~~~~~~~~~~~~~
-Property Juggling
-~~~~~~~~~~~~~~~~~
-
-.. automethod:: synapseclient.utils.id_of
-.. automethod:: synapseclient.utils.get_properties
-.. automethod:: synapseclient.utils.is_url
-.. automethod:: synapseclient.utils.as_url
-.. automethod:: synapseclient.utils.is_synapse_id
-.. automethod:: synapseclient.utils.to_unix_epoch_time
-.. automethod:: synapseclient.utils.from_unix_epoch_time
-.. automethod:: synapseclient.utils.format_time_interval
-.. automethod:: synapseclient.utils._is_json
-
-~~~~~~~~~~~~~
-File Handling
-~~~~~~~~~~~~~
-
-.. automethod:: synapseclient.utils.md5_for_file
-.. automethod:: synapseclient.utils.download_file
-.. automethod:: synapseclient.utils.extract_filename
-.. automethod:: synapseclient.utils.file_url_to_path
-.. automethod:: synapseclient.utils.is_same_base_url
-.. automethod:: synapseclient.utils.normalize_whitespace
-
-
-~~~~~~~~
-Chunking
-~~~~~~~~
-
-.. autoclass:: synapseclient.utils.Chunk
-.. automethod:: synapseclient.utils.chunks
-
-~~~~~~~
-Testing
-~~~~~~~
-
-.. automethod:: synapseclient.utils.make_bogus_data_file
-.. automethod:: synapseclient.utils.make_bogus_binary_file
-
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -411,7 +371,7 @@ def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
         progress = 0
         remaining = n
         while remaining > 0:
-            buff_size = min(remaining, 1*MB)
+            buff_size = int(min(remaining, 1*MB))
             f.write(os.urandom(buff_size))
             remaining -= buff_size
             if printprogress:
@@ -509,23 +469,6 @@ def _find_used(activity, predicate):
         if predicate(resource):
             return resource
     return None
-
-
-def nchunks(filepath, chunksize=5*MB):
-    """
-    Computes how many chunks are necessary to upload the given file.
-    """
-    size = os.stat(filepath).st_size
-    return int(math.ceil( float(size) / chunksize))
-
-
-def get_chunk(filepath, chunknumber, chunksize=5*MB):
-    """
-    Read a requested chunk number from the file path. Use with :py:func:`nchunks`.
-    """
-    with open(filepath, 'rb') as f:
-        f.seek((chunknumber-1)*chunksize)
-        return f.read(chunksize)
 
 
 def itersubclasses(cls, _seen=None):
@@ -764,3 +707,4 @@ def unique_filename(path):
         path = base + ("(%d)" % counter) + ext
 
     return path
+

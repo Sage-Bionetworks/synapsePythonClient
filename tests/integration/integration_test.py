@@ -321,7 +321,10 @@ def test_annotations():
     # Get the annotations of an Entity
     entity = syn.store(Folder(parent=project['id']))
     anno = syn.getAnnotations(entity)
-    assert 'etag' in anno
+    assert hasattr(anno, 'id')
+    assert hasattr(anno, 'etag')
+    assert anno.id == entity.id
+    assert anno.etag == entity.etag
 
     # Set the annotations, with keywords too
     anno['bogosity'] = 'total'
@@ -339,7 +342,7 @@ def test_annotations():
     annote['phat_numbers'] = [1234.5678, 8888.3333, 1212.3434, 6677.8899]
     annote['goobers'] = ['chris', 'jen', 'jane']
     annote['present_time'] = datetime.now()
-    syn.setAnnotations(entity, annote, )
+    syn.setAnnotations(entity, annote)
     
     # Check it again
     annotation = syn.getAnnotations(entity)
@@ -359,12 +362,6 @@ def test_get_user_profile():
     ## get by user ID
     p2 = syn.getUserProfile(p1.ownerId)
     assert p2.userName == p1.userName
-
-    ## This is a bad test 'cause it relies on an account being in the system
-    # p = syn.getUserProfile('synapse-test')
-    # assert p.userName == 'synapse-test'
-    # p = syn.getUserProfile(p.ownerId)
-    # assert p.userName == 'synapse-test'
 
 
 def test_teams():

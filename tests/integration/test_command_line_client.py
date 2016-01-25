@@ -32,7 +32,7 @@ import integration
 from integration import schedule_for_cleanup
 
 if six.PY2:
-    from cStringIO import StringIO
+    from StringIO import StringIO
 else:
     from io import StringIO
 
@@ -61,12 +61,13 @@ def run(*command, **kwargs):
         sys.stdout = capturedSTDOUT
         sys.argv = [item for item in command]
         args = parser.parse_args()
+        args.debug = True
         cmdline.perform_main(args, kwargs.get('syn',syn))
     except SystemExit:
         pass # Prevent the test from quitting prematurely
     finally:
         sys.stdout = old_stdout
-        
+
     capturedSTDOUT = capturedSTDOUT.getvalue()
     print(capturedSTDOUT)
     return capturedSTDOUT
@@ -74,7 +75,6 @@ def run(*command, **kwargs):
 
 def parse(regex, output):
     """Returns the first match."""
-    
     m = re.search(regex, output)
     if m:
         if len(m.groups()) > 0:
@@ -192,6 +192,7 @@ def test_command_line_client():
                  'get-provenance', 
                  '--id', 
                  file_entity_id)
+
     activity = json.loads(output)
     assert activity['name'] == 'TestActivity'
     assert activity['description'] == 'A very excellent provenance'

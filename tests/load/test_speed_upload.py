@@ -30,7 +30,7 @@ def test_upload_speed(uploadSize=60 + 777771, threadCount=5):
     print('Made bogus file: ', filepath)
     try:
         t0 = time.time()
-        fh = syn._chunkedUploadFile(filepath, threadCount=threadCount)
+        fh = syn._uploadToFileHandleService(filepath, threadCount=threadCount)
         dt =  time.time()-t0
     finally:
         try:
