@@ -140,6 +140,9 @@ def test_Entity():
     a_file_retreived = syn.get(a_file, downloadLocation=tmpdir)
     assert os.path.basename(a_file_retreived.path) == a_file.fileNameOverride, os.path.basename(a_file_retreived.path)
 
+    print("\n\nList of files in project:\n")
+    syn._list(project, recursive=True)
+
 
 def test_special_characters():
     folder = syn.store(Folder(u'Special Characters Here',

@@ -5,7 +5,7 @@ from builtins import str
 
 import collections
 import os
-from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces
+from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces, is_container
 from synapseclient.exceptions import *
 from nose.tools import assert_raises
 
@@ -152,7 +152,6 @@ def test_parent_id_required():
     assert_raises(SynapseMalformedEntityError, File, 'http://xkcd.com/1343/', name='XKCD: Manuals', synapseStore=False)
 
 
-
 def test_entity_constructors():
     project = Project('TestProject', id='syn1001', foo='bar')
     assert project.name == 'TestProject'
@@ -244,4 +243,16 @@ def test_split_entity_namespaces():
 def test_concrete_type():
     f1 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent='syn1234567', synapseStore=False)
     assert f1.concreteType=='org.sagebionetworks.repo.model.FileEntity'
+
+
+def test_is_container():
+    ## result from a Synapse entity annotation query
+    result = {'entity.versionNumber': 1,
+              'entity.nodeType': 'project',
+              'entity.createdByPrincipalId': 1560252,
+              'entity.createdOn': 1451512703905,
+              'entity.id': 'syn5570912',
+              'entity.name': 'blah'}
+    assert is_container(result)
+
 

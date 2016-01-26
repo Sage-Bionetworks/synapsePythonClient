@@ -34,6 +34,31 @@ File
 
 .. autoclass:: synapseclient.entity.File
 
+Changing File Names
+-------------------
+
+A Synapse File Entity has a name separate from the name of the actual file
+it represents. When a file is uploaded to Synapse, its filename is fixed,
+even though the name of the entity can be changed at any time. Synapse
+provides a way to effectively change the filename by setting a special
+property called "*fileNameOverride*".
+
+Setting the *fileNameOverride* means that the file will then be downloaded
+with the new name.:
+
+>>> e = syn.get(synid)
+>>> print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
+>>> e.fileNameOverride = "my_newname_file.txt"
+>>> e = syn.store(e)
+
+Setting *fileNameOverride* will **not** change the name of a copy of the
+file that's already downloaded into your local cache. Either rename the
+local copy manually or remove it from the cache and re-download.:
+
+>>> syn.cache.remove(e.dataFileHandleId)
+>>> e = syn.get(e)
+>>> print(os.path.basename(e.path))  ## prints "my_newname_file.txt"
+
 ~~~~
 Link
 ~~~~
@@ -618,7 +643,7 @@ def is_container(entity):
     elif 'entity.concreteType' in entity:
         concreteType = entity['entity.concreteType'][0]
     elif 'entity.nodeType' in entity:
-        return entity['entity.nodeType'] in [2,4]
+        return entity['entity.nodeType'] in [2,4] or entity['entity.nodeType'] in ['project', 'folder']
     else:
         return False
     return concreteType in (Project._synapse_entity_type, Folder._synapse_entity_type)
