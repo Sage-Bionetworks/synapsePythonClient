@@ -210,8 +210,9 @@ def move(args, syn):
 
 def copy(args,syn):
     """Copys an entity specifed by args.id to args.parentId"""
-    ent = syn.get(args.id)
-    #CHECK: must be a file entity
+    ent = syn.get(args.id, downloadFile=False)
+    profile = syn.getUserProfile().ownerId
+    #CHECK: Must be a file entity
     if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
         raise ValueError('"synapse cp" can only copy files!')
     #CHECK: If file is in the same parent directory (throw an error)
@@ -219,12 +220,22 @@ def copy(args,syn):
     for i in search:
         if i['file.name'] == ent.name:
             raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
-    new_ent = synapseclient.File(ent['path'],parent=args.parentid)
+    #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
+    if profile == ent.properties.createdBy:
+        tempFile = utils.make_bogus_data_file()
+        new_ent = synapseclient.File(tempFile, name=ent.name,parent=args.parentid)
+        os.remove(tempFile)
+    else:
+        ent = syn.get(args.id)
+        new_ent = synapseclient.File(ent['path'],parent=args.parentid)
     ent_annot = ent.annotations
     annot = dict((key,ent_annot[key]) for key in ent_annot if key not in ('uri','id','creationDate','etag'))
     new_ent.annotations = annot
-    new_ent = syn.store(new_ent,used = args.id, activityName = "Copied File")
-    print('Copied %s to %s' %(ent.id, new_ent.id))
+    new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
+    new_ent = syn._createEntity(new_ent)
+    act = Activity("Copied file", used=args.id)
+    syn.setProvenance(new_ent['id'],act)
+    print('Copied %s to %s' %(ent.id, new_ent['id']))
 
 def associate(args, syn):
     if args.r:
