@@ -158,9 +158,9 @@ def _put_chunk(url, chunk, verbose=False):
         # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
         if response is not None:
             throw_away = response.content
+        exceptions._raise_for_status(response, verbose=verbose)
     except Exception as ex:
         warnings.warn('error reading response: '+str(ex))
-    exceptions._raise_for_status(response, verbose=verbose)
 
 
 def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs):
