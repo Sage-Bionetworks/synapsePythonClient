@@ -25,6 +25,7 @@ import os
 import requests
 from functools import partial
 from multiprocessing import Value
+from multiprocessing.dummy import Pool
 
 import synapseclient.exceptions as exceptions
 from .utils import printTransferProgress, md5_for_file, MB, GB
@@ -297,14 +298,13 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
     partSize = calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)
-
+    mp = Pool(6)
     ## make upload_chunk a function of 4 parameters:
     ##    partNumber, url, completed, status
-    upload_chunk = partial(_upload_chunk, syn=syn,
-                                          filename=filename,
-                                          get_chunk_function=get_chunk_function,
-                                          fileSize=fileSize,
-                                          partSize=partSize)
+    upload_chunk = partial(_upload_chunk, syn=syn, filename=filename,
+                           get_chunk_function=get_chunk_function, fileSize=fileSize,
+                           partSize=partSize)
+
 
     for i in range(retries):
         ## pass through preview=True, storageLocationId=None, forceRestart=False
@@ -320,17 +320,15 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
         ## for each batch of parts to upload, get presigned URLs and attempt upload
         for parts_to_upload in partition(url_batch_size, find_parts_to_download(status.partsState)):
-
             ## Note: The presigned URLs have a time out, currently set at 15
             ##       minutes. If they do time out, S3 gives you a 403 error and
             ##       some XML, which we wrap in a SynapseHTTPError, which
             ##       is a subclass of IOError, meaning that it will be retried.
             presigned_url_batch = _get_presigned_urls(syn, status.uploadId, parts_to_upload)
-            for part in presigned_url_batch.partPresignedUrls:
-                upload_chunk(partNumber=part["partNumber"],
-                             url=part["uploadPresignedUrl"],
-                             completed=completed,
-                             status=status)
+            mp.map(lambda part: upload_chunk(partNumber=part["partNumber"], url=part["uploadPresignedUrl"],
+                                             completed=completed, status=status),
+                presigned_url_batch.partPresignedUrls)
+
 
         ## Are we done, yet?
         if completed.value >= fileSize:
