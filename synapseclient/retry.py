@@ -54,7 +54,7 @@ def _with_retry(function, verbose=False, \
         if response is not None:
             if response.status_code in retry_status_codes:
                 if verbose:
-                    print("retrying on status code: " + str(response.status_code))
+                    sys.stderr.write("retrying on status code: \n" + str(response.status_code))
                 retry = True
 
             elif response.status_code not in range(200,299):
@@ -64,24 +64,24 @@ def _with_retry(function, verbose=False, \
                         json = response.json()
                         ## special case for message throttling
                         if 'Please slow down.  You may send a maximum of 10 message' in json.get('reason', None):
-                            if verbose: print("retrying", json.get('reason', None))
+                            if verbose: sys.stderr.write("retrying"+ json.get('reason', None)+'\n')
                             retry = True
                             wait = 16
                         elif any([msg.lower() in json.get('reason', None).lower() for msg in retry_errors]):
-                            if verbose: print("retrying", json.get('reason', None))
+                            if verbose: sys.stderr.write("retrying"+ json.get('reason', None)+'\n')
                             retry = True
                     except (AttributeError, ValueError) as ex:
                         pass
 
                 ## if the response is not JSON, look for retryable errors in its text content
                 elif any([msg.lower() in response.text.lower() for msg in retry_errors]):
-                    if verbose: print("retrying", response.text)
+                    if verbose: sys.stderr.write("retrying"+ response.text+'\n')
                     retry = True
 
         # Check if we got a retry-able exception
         if exc_info is not None:
             if exc_info[1].__class__.__name__ in retry_exceptions or any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors]):
-                if verbose: print("retrying exception: ", exc_info[1].__class__.__name__, str(exc_info[1]))
+                if verbose: sys.stderr.write("retrying exception: "+ exc_info[1].__class__.__name__ + str(exc_info[1])+'\n')
                 retry = True
 
         # Wait then retry

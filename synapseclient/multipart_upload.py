@@ -20,6 +20,7 @@ import hashlib
 import json
 import math
 import mimetypes
+import sys
 import os
 import requests
 from functools import partial
@@ -268,11 +269,12 @@ def _upload_chunk(partNumber, url, completed, status, syn, filename, get_chunk_f
                 completed.value += len(chunk)
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
     except IOError as ex1:
-        print(ex1)
-        print("Encountered an exception: %s. Retrying..." % type(ex1))
+        sys.stderr.write(str(ex1))
+        sys.stderr.write("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
 
 
-def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, partSize=None, retries=7, url_batch_size=10, **kwargs):
+def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
+                      partSize=None, retries=7, url_batch_size=10, **kwargs):
     """
     Multipart Upload.
 
