@@ -150,10 +150,10 @@ def _complete_multipart_upload(syn, uploadId):
 
 
 def _put_chunk(url, chunk, verbose=False):
-    response = requests.put(url, data=chunk)
-    # Make sure requests closes response stream?:
-    # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
     try:
+        response = requests.put(url, data=chunk)
+        # Make sure requests closes response stream?:
+        # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
         if response is not None:
             throw_away = response.content
     except Exception as ex:
