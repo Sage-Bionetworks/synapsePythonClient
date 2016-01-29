@@ -20,6 +20,7 @@ import hashlib
 import json
 import math
 import mimetypes
+import warnings
 import sys
 import os
 import requests
