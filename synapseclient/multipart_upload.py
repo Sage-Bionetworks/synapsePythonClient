@@ -260,11 +260,8 @@ def _upload_chunk(partNumber, url, completed, status, syn, filename, get_chunk_f
         md5.update(chunk)
 
         ## confirm that part got uploaded
-        add_part_response = _add_part(syn,
-                                      uploadId=status.uploadId,
-                                      partNumber=partNumber,
-                                      partMD5Hex=md5.hexdigest())
-
+        add_part_response = _add_part(syn, uploadId=status.uploadId,
+                                      partNumber=partNumber, partMD5Hex=md5.hexdigest())
         ## if part was successfully uploaded, increment progress
         if add_part_response["addPartState"] == "ADD_SUCCESS":
             with completed.get_lock():
@@ -276,7 +273,7 @@ def _upload_chunk(partNumber, url, completed, status, syn, filename, get_chunk_f
 
 
 def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
-                      partSize=None, retries=7, url_batch_size=10, **kwargs):
+                      partSize=None, retries=7, url_batch_size=5, **kwargs):
     """
     Multipart Upload.
 
@@ -299,13 +296,11 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
     partSize = calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)
-    mp = Pool(6)
-    ## make upload_chunk a function of 4 parameters:
-    ##    partNumber, url, completed, status
+    mp = Pool(8)
+    ## make upload_chunk a function of 4 parameters: partNumber, url, completed, status
     upload_chunk = partial(_upload_chunk, syn=syn, filename=filename,
                            get_chunk_function=get_chunk_function, fileSize=fileSize,
                            partSize=partSize)
-
 
     for i in range(retries):
         ## pass through preview=True, storageLocationId=None, forceRestart=False
@@ -319,17 +314,14 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
         completed = Value('d', min(count_completed_parts(status.partsState) * partSize, fileSize))
         printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
 
-        ## for each batch of parts to upload, get presigned URLs and attempt upload
-        for parts_to_upload in partition(url_batch_size, find_parts_to_download(status.partsState)):
-            ## Note: The presigned URLs have a time out, currently set at 15
-            ##       minutes. If they do time out, S3 gives you a 403 error and
-            ##       some XML, which we wrap in a SynapseHTTPError, which
-            ##       is a subclass of IOError, meaning that it will be retried.
+        def multi_chunk_upload(parts_to_upload):
+            """Function that upload n number of chunks specified by parts_to_upload"""
             presigned_url_batch = _get_presigned_urls(syn, status.uploadId, parts_to_upload)
-            mp.map(lambda part: upload_chunk(partNumber=part["partNumber"], url=part["uploadPresignedUrl"],
-                                             completed=completed, status=status),
-                presigned_url_batch.partPresignedUrls)
-
+            for part in presigned_url_batch.partPresignedUrls:
+                upload_chunk(partNumber=part["partNumber"], url=part["uploadPresignedUrl"],
+                             completed=completed, status=status)
+        #For each thread upload url_batch_size number of chunks until completed
+        mp.map(multi_chunk_upload, partition(url_batch_size, find_parts_to_download(status.partsState)))
 
         ## Are we done, yet?
         if completed.value >= fileSize:
