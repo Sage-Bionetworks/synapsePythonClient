@@ -222,9 +222,7 @@ def copy(args,syn):
             raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
     #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
     if profile == ent.properties.createdBy:
-        tempFile = utils.make_bogus_data_file()
-        new_ent = synapseclient.File(tempFile, name=ent.name,parent=args.parentid)
-        os.remove(tempFile)
+        new_ent = synapseclient.File(name=ent.name, parentId=args.parentid)
     else:
         ent = syn.get(args.id)
         new_ent = synapseclient.File(ent['path'],parent=args.parentid)
