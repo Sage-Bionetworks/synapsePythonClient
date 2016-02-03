@@ -43,7 +43,7 @@ Commands
   * **add**              - add or modify content to Synapse
   * **delete**           - removes a dataset from Synapse
   * **mv**               - move a dataset in Synapse
-  * **cp**               - copy a dataset in Synapse
+  * **cp**               - copy a file in Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
@@ -209,7 +209,7 @@ def move(args, syn):
     print('Moved %s to %s' %(ent.id, ent.parentId))
 
 def copy(args,syn):
-    """Copys an entity specifed by args.id to args.parentId"""
+    """Copys most recent version of a file specifed by args.id to args.parentId"""
     ent = syn.get(args.id, downloadFile=False)
     profile = syn.getUserProfile().ownerId
     #CHECK: Must be a file entity
