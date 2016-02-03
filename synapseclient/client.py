@@ -3045,7 +3045,7 @@ class Synapse:
             import json
 
             results = syn.tableQuery('SELECT * FROM syn12345 LIMIT 100 OFFSET 100')
-            file_map = syn.downloadTableColumns(result, ['foo', 'bar'])
+            file_map = syn.downloadTableColumns(results, ['foo', 'bar'])
 
             for file_handle_id, path in file_map.items():
                 with open(path) as f:
