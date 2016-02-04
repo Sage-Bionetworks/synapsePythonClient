@@ -553,6 +553,18 @@ def _limit_and_offset(uri, limit=None, offset=None):
         query.pop('offset', None)
     else:
         query['offset'] = offset
+
+    ## in Python 2, urllib expects encoded byte-strings
+    if six.PY2:
+        new_query = {}
+        for k,v in query.items():
+            if isinstance(v,list):
+                v = [unicode(element).encode('utf-8') for element in v]
+            elif isinstance(v,str):
+                v = unicode(v).encode('utf-8')
+            new_query[unicode(k).encode('utf-8')] = v
+        query = new_query
+
     new_query_string = urlencode(query, doseq=True)
     return urlunparse(ParseResult(
         scheme=parts.scheme,

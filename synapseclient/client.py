@@ -57,11 +57,6 @@ except ImportError:
     from urllib import quote
     from urllib import unquote
 
-try:
-    import urllib.request, urllib.parse, urllib.error
-except ImportError:
-    import urllib
-
 import requests, webbrowser
 import shutil
 import zipfile
@@ -551,7 +546,7 @@ class Synapse:
             ## if id is unset or a userID, this will succeed
             id = '' if id is None else int(id)
         except (TypeError, ValueError):
-            if 'ownerId' in id:
+            if isinstance(id, collections.Mapping) and 'ownerId' in id:
                 id = id.ownerId
             elif isinstance(id, TeamMember):
                 id = id.member.ownerId
@@ -589,7 +584,10 @@ class Synapse:
              {u'displayName': ... }]
 
         """
-        uri = '/userGroupHeaders?prefix=%s' % query_string
+        ## In Python2, urllib.quote expects encoded byte-strings
+        if six.PY2 and isinstance(query_string, unicode) or isinstance(query_string, str):
+            query_string = query_string.encode('utf-8')
+        uri = '/userGroupHeaders?prefix=%s' % quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
 
