@@ -1795,12 +1795,18 @@ class Synapse:
             raise
 
         # Stream the file to disk
-        toBeTransferred = float(response.headers.get('content-length', len(response.content)))
+        if 'content-length' in response.headers:
+            toBeTransferred = float(response.headers['content-length'])
+        else:
+            toBeTransferred = -1
+        toBeTransferred = -1
+        transferred = 0
         with open(destination, 'wb') as fd:
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
-                utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred, 'Downloading ', os.path.basename(destination))
-            utils.printTransferProgress(toBeTransferred ,toBeTransferred, 'Downloaded  ', os.path.basename(destination))
+                transferred += len(chunk)
+                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ', os.path.basename(destination))
+            utils.printTransferProgress(transferred, transferred, 'Downloaded  ', os.path.basename(destination))
         destination = os.path.abspath(destination)
         return returnDict(destination)
 
