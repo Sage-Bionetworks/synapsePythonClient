@@ -130,7 +130,7 @@ def _get_presigned_urls(syn, uploadId, parts_to_upload):
             batchSize = int(math.ceil(batchSize* 1.5))
         elif (time.time() - lastFetchTime) > 300: #Slow down took >5 min to upload last batch
             batchSize = int(math.ceil(batchSizde/2))
-        print('Batch size = ', batchSize, 'dt = ', time.time() - lastFetchTime)
+        sys.stderr.write('Batch size = %i dt=%f\n' %(batchSize, time.time() - lastFetchTime))
         lastFetchTime = time.time()
 
         partNumbers = parts_to_upload[i:i+batchSize]
@@ -324,7 +324,6 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
         ## keep track of the number of bytes uploaded so far
         completed = Value('d', min(count_completed_parts(status.partsState) * partSize, fileSize))
         printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
-        sys.stderr.write('Partsize=%f\n' % partSize)
 
         chunk_upload = lambda part: _upload_chunk(partNumber=part["partNumber"],
                                                   url=part["uploadPresignedUrl"],
@@ -335,7 +334,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                                                   partSize=partSize)
 
         url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
-        mp.map(chunk_upload, url_generator)
+        map(chunk_upload, url_generator)
 
         ## Are we done, yet?
         if completed.value >= fileSize:
