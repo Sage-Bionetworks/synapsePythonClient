@@ -2288,39 +2288,6 @@ class Synapse:
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
 
 
-    def joinEvaluation(self, evaluation):
-        """
-        Adds the current user to an Evaluation.
-
-        :param evaluation: An Evaluation object or Evaluation ID
-
-        Example::
-
-            evaluation = syn.getEvaluation(12345)
-            syn.joinEvaluation(evaluation)
-
-        See: :py:mod:`synapseclient.evaluation`
-        """
-
-        self.restPOST('/evaluation/%s/participant' % id_of(evaluation), {})
-
-
-    def getParticipants(self, evaluation):
-        """
-        :param evaluation: Evaluation to get Participants from.
-
-        :returns: A generator over Participants (dictionary) for an Evaluation
-
-        See: :py:mod:`synapseclient.evaluation`
-        """
-
-        evaluation_id = id_of(evaluation)
-        url = "/evaluation/%s/participant" % evaluation_id
-
-        for result in self._GET_paginated(url):
-            yield result
-
-
     def getSubmissions(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
