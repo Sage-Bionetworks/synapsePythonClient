@@ -205,6 +205,28 @@ def test_cache_modified_time():
     assert_is_none(a_file)
 
 
+def test_cache_remove():
+    tmp_dir = tempfile.mkdtemp()
+    my_cache = cache.Cache(cache_root_dir=tmp_dir)
+
+    path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
+    my_cache.add(file_handle_id=101201, path=path1)
+
+    alt_dir = tempfile.mkdtemp()
+    path2 = utils.touch(os.path.join(alt_dir, "file2.ext"))
+    my_cache.add(file_handle_id=101201, path=path2)
+
+    ## remove the cached copy at path1
+    rp = my_cache.remove({'dataFileHandleId':101201, 'path':path1})
+
+    assert len(rp) == 1
+    assert utils.equal_paths(rp[0], path1)
+    assert utils.equal_paths(my_cache.get(101201), path2)
+
+    my_cache.remove(101201)
+    assert_is_none(my_cache.get(101201))
+
+
 def test_cache_rules():
 # Cache should (in order of preference):
 #
