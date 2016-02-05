@@ -641,7 +641,7 @@ def is_container(entity):
     if 'concreteType' in entity:
         concreteType = entity['concreteType']
     elif isinstance(entity, collections.Mapping):
-        prefix = os.path.commonprefix(entity.keys())
+        prefix = utils.extract_prefix(entity.keys())
         if prefix+'concreteType' in entity:
             concreteType = entity[prefix+'concreteType'][0]
         elif prefix+'nodeType' in entity:

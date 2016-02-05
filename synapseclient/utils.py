@@ -729,3 +729,23 @@ def unique_filename(path):
 
     return path
 
+
+def extract_prefix(keys):
+    """
+    Takes a list of strings and extracts a common prefix delimited by a dot,
+    for example:
+    >>> extract_prefix(["entity.bang", "entity.bar", "entity.bat"])
+    entity.
+    """
+    prefixes = set()
+    for key in keys:
+        parts = key.split(".")
+        if len(parts) > 1:
+            prefixes.add(parts[0])
+        else:
+            return ""
+    if len(prefixes) == 1:
+        return prefixes.pop() + "."
+    return ""
+
+

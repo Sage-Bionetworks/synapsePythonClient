@@ -1799,7 +1799,6 @@ class Synapse:
             toBeTransferred = float(response.headers['content-length'])
         else:
             toBeTransferred = -1
-        toBeTransferred = -1
         transferred = 0
         with open(destination, 'wb') as fd:
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):

@@ -215,7 +215,7 @@ class Cache():
         """
         Remove a file from the cache.
 
-        :param file_handle_id:
+        :param file_handle_id: Will also extract file handle id from either a File or file handle
         :param path: If the given path is None, remove (and potentially delete)
                      all cached copies. If the path is that of a file in the
                      .cacheMap file, remove it.
