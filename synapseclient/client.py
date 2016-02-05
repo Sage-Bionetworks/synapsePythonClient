@@ -827,12 +827,15 @@ class Synapse:
                             entity.cacheDir = None
                         else:
                             ## TODO apply ifcollision here
-                            downloadPath = utils.normalize_path(os.path.join(downloadLocation, os.path.basename(cached_file_path)))
                             shutil.copy(cached_file_path, downloadPath)
 
                             entity.path = downloadPath
                             entity.files = [os.path.basename(downloadPath)]
                             entity.cacheDir = downloadLocation
+                    else:
+                        entity.path = downloadPath
+                        entity.files = [os.path.basename(downloadPath)]
+                        entity.cacheDir = downloadLocation
 
             elif downloadFile:
 
