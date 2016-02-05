@@ -106,42 +106,29 @@ def _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType,
                                      body=json.dumps(upload_request),
                                      endpoint=syn.fileHandleEndpoint))
 
-
 @threadsafe_generator
 def _get_presigned_urls(syn, uploadId, parts_to_upload):
-    """Iterates over all parts_to_upload and fetches batches of BatchPresignedUploadUrlResponse_
+    """Returns list of urls to upload parts to.
 
     :param syn: a Synapse object
     :param uploadId: The id of the multipart upload
     :param parts_to_upload: A list of integers corresponding to the parts that need to be uploaded
 
-    :returns: PartPresignedUrl
-    .. PartPresignedUrl http://hud.rel.rest.doc.sagebase.org.s3-website-us-east-1.amazonaws.com/org/sagebionetworks/repo/model/file/PartPresignedUrl.html
+
+    :returns: A BatchPresignedUploadUrlResponse_.
     .. BatchPresignedUploadUrlResponse: http://rest.synapse.org/POST/file/multipart/uploadId/presigned/url/batch.html
     """
-    lastFetchTime = time.time()
-    batchSize = 5
+    if len(parts_to_upload)==0:
+        return 
     presigned_url_request = { 'uploadId':uploadId }
     uri = '/file/multipart/{uploadId}/presigned/url/batch'.format(uploadId=uploadId)
 
-    i = 0
-    while i<len(parts_to_upload):
-        if (time.time() - lastFetchTime) < 180:  #Last batch was fetched less than 1 min ago
-            batchSize = int(math.ceil(batchSize* 1.5))
-        elif (time.time() - lastFetchTime) > 300: #Slow down took >5 min to upload last batch
-            batchSize = int(math.ceil(batchSizde/2))
-        sys.stderr.write('Batch size = %i dt=%f\n' %(batchSize, time.time() - lastFetchTime))
-        lastFetchTime = time.time()
-
-        partNumbers = parts_to_upload[i:i+batchSize]
-        i+=batchSize
-        #Get a batch of URLS
-        presigned_url_request['partNumbers'] = partNumbers
-        presigned_url_batch = syn.restPOST(uri, body=json.dumps(presigned_url_request),
-                                           endpoint=syn.fileHandleEndpoint)
-        #Iterate through and yield a new url for each request
-        for part in presigned_url_batch['partPresignedUrls']:
-            yield part
+    presigned_url_request['partNumbers'] = parts_to_upload
+    presigned_url_batch = syn.restPOST(uri, body=json.dumps(presigned_url_request),
+                                       endpoint=syn.fileHandleEndpoint)
+    print('Number of URLs', len(presigned_url_batch['partPresignedUrls']))
+    for part in presigned_url_batch['partPresignedUrls']:
+        yield part
 
 
 def _add_part(syn, uploadId, partNumber, partMD5Hex):
@@ -312,17 +299,13 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     partSize = calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)
     mp = Pool(8)
 
-    for i in range(retries):
-        ## pass through preview=True, storageLocationId=None, forceRestart=False
-        status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
-
-        ## if we got a forceRestart flag, we only want to do that once
-        ##TODO can't we just always set forceRestart=False here?
-        if kwargs.get('forceRestart', None):
-            forceRestart = False
-
+    status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
+    forceRestart = False  #Only restart on first try
+    completedParts = count_completed_parts(status.partsState)
+    progress=True
+    while progress:
         ## keep track of the number of bytes uploaded so far
-        completed = Value('d', min(count_completed_parts(status.partsState) * partSize, fileSize))
+        completed = Value('d', min(completedParts * partSize, fileSize))
         printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
 
         chunk_upload = lambda part: _upload_chunk(partNumber=part["partNumber"],
@@ -334,7 +317,12 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                                                   partSize=partSize)
 
         url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
-        map(chunk_upload, url_generator)
+        mp.map(chunk_upload, url_generator)
+
+        #Check if there are still parts
+        status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
+        oldCompletedParts, completedParts = completedParts, count_completed_parts(status.partsState)
+        progress = (completedParts>oldCompletedParts)
 
         ## Are we done, yet?
         if completed.value >= fileSize:
