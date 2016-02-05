@@ -21,9 +21,9 @@ import json
 import math
 import mimetypes
 import os
+import requests
 import sys
 import time
-import requests
 import urlparse
 import warnings
 from functools import partial
