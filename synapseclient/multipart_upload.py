@@ -38,7 +38,7 @@ from .utils import threadsafe_generator
 
 MAX_NUMBER_OF_PARTS = 10000
 MIN_PART_SIZE = 8*MB
-
+MAX_RETRIES  = 3
 
 
 def find_parts_to_upload(part_status):
@@ -173,8 +173,6 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs):
     :param filename: upload as a different filename
     :param contentType: `contentType`_
     :param partSize: number of bytes per part. Minimum 5MB.
-    :param retries: number of times to retry upload
-    #TODO shouldn't we document forceRestart Here?
 
     :return: a File Handle ID
 
@@ -219,7 +217,6 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs
     :param filename: a string containing the base filename
     :param contentType: `contentType`_
     :param partSize: number of bytes per part. Minimum 5MB.
-    :param retries: number of times to retry upload
 
     #TODO shouldn't we document forceRestart Here?
     :return: a File Handle ID
@@ -278,7 +275,7 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function, fi
 
 
 def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
-                      partSize=None, retries=7, **kwargs):
+                      partSize=None, **kwargs):
     """
     Multipart Upload.
 
@@ -290,7 +287,6 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     :param md5: the part's MD5 as hex.
     :param fileSize: total number of bytes
     :param partSize: number of bytes per part. Minimum 5MB.
-    :param retries: number of times to retry upload
 
     :return: a MultipartUploadStatus_ object
 
@@ -306,7 +302,8 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     forceRestart = False  #Only restart on first try
     completedParts = count_completed_parts(status.partsState)
     progress=True
-    while progress:
+    retries=0
+    while progress and retries<MAX_RETRIES:
         ## keep track of the number of bytes uploaded so far
         completed = Value('d', min(completedParts * partSize, fileSize))
         printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
@@ -317,12 +314,13 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                                                   fileSize=fileSize, partSize=partSize)
 
         url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
-        map(chunk_upload, url_generator)
+        mp.map(chunk_upload, url_generator)
 
         #Check if there are still parts
         status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
         oldCompletedParts, completedParts = completedParts, count_completed_parts(status.partsState)
         progress = (completedParts>oldCompletedParts)
+        retries = retries+1 if not progress else retries
 
         ## Are we done, yet?
         if completed.value >= fileSize:
