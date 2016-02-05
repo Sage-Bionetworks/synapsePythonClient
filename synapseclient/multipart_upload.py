@@ -24,6 +24,7 @@ import os
 import sys
 import time
 import requests
+import urlparse
 import warnings
 from functools import partial
 from multiprocessing import Value
@@ -36,7 +37,7 @@ from .exceptions import SynapseError
 from .utils import threadsafe_generator
 
 MAX_NUMBER_OF_PARTS = 10000
-MIN_PART_SIZE = 5*MB
+MIN_PART_SIZE = 8*MB
 
 
 
@@ -126,7 +127,6 @@ def _get_presigned_urls(syn, uploadId, parts_to_upload):
     presigned_url_request['partNumbers'] = parts_to_upload
     presigned_url_batch = syn.restPOST(uri, body=json.dumps(presigned_url_request),
                                        endpoint=syn.fileHandleEndpoint)
-    print('Number of URLs', len(presigned_url_batch['partPresignedUrls']))
     for part in presigned_url_batch['partPresignedUrls']:
         yield part
 
@@ -251,11 +251,15 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs
     return status["resultFileHandleId"]
 
 
-def _upload_chunk(partNumber, url, completed, status, syn, filename, get_chunk_function, fileSize, partSize):
+def _upload_chunk(part, completed, status, syn, filename, get_chunk_function, fileSize, partSize):
+    partNumber=part["partNumber"]
+    url=part["uploadPresignedUrl"]
+    parsed = urlparse.urlparse(url)
+    expires = float(urlparse.parse_qs(parsed.query)['Expires'][0])
+    if expires<time.time(): return
     try:
         chunk = get_chunk_function(partNumber, partSize)
         _put_chunk(url, chunk, syn.debug)
-
         ## compute the MD5 for the chunk
         md5 = hashlib.md5()
         md5.update(chunk)
@@ -271,7 +275,6 @@ def _upload_chunk(partNumber, url, completed, status, syn, filename, get_chunk_f
     except Exception as ex1:
         sys.stderr.write(str(ex1))
         sys.stderr.write("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
-
 
 
 def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
@@ -308,16 +311,13 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
         completed = Value('d', min(completedParts * partSize, fileSize))
         printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
 
-        chunk_upload = lambda part: _upload_chunk(partNumber=part["partNumber"],
-                                                  url=part["uploadPresignedUrl"],
-                                                  completed=completed, status=status, syn=syn,
-                                                  filename=filename,
+        chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
+                                                  syn=syn, filename=filename,
                                                   get_chunk_function=get_chunk_function,
-                                                  fileSize=fileSize,
-                                                  partSize=partSize)
+                                                  fileSize=fileSize, partSize=partSize)
 
         url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
-        mp.map(chunk_upload, url_generator)
+        map(chunk_upload, url_generator)
 
         #Check if there are still parts
         status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)

@@ -1,14 +1,14 @@
 import filecmp, math, os, tempfile
 from nose.tools import assert_raises
-from synapseclient.multipart_upload import find_parts_to_download, count_completed_parts, partition, calculate_part_size, get_file_chunk
+from synapseclient.multipart_upload import find_parts_to_upload, count_completed_parts, calculate_part_size, get_file_chunk
 from synapseclient.utils import MB, GB, make_bogus_binary_file
 
 
-def test_find_parts_to_download():
-    assert find_parts_to_download("") == []
-    assert find_parts_to_download("111111111111111111") == []
-    assert find_parts_to_download("01010101111111110") == [1,3,5,7,17]
-    assert find_parts_to_download("00000") == [1,2,3,4,5]
+def test_find_parts_to_upload():
+    assert find_parts_to_upload("") == []
+    assert find_parts_to_upload("111111111111111111") == []
+    assert find_parts_to_upload("01010101111111110") == [1,3,5,7,17]
+    assert find_parts_to_upload("00000") == [1,2,3,4,5]
 
 def test_count_completed_parts():
     assert count_completed_parts("") == 0
@@ -16,11 +16,6 @@ def test_count_completed_parts():
     assert count_completed_parts("00000") == 0
     assert count_completed_parts("11111") == 5
 
-def test_partition():
-    assert list(partition(5, [])) == []
-    assert list(partition(3, list(range(10)))) == [[0,1,2], [3,4,5], [6,7,8], [9]]
-    assert list(partition(4, list(range(10)))) == [[0,1,2,3], [4,5,6,7], [8,9]]
-    assert list(partition(10, [1,2,3])) == [[1,2,3]]
 
 def test_calculate_part_size():
     assert 5*MB <= calculate_part_size(fileSize=3*MB,       partSize=None, min_part_size=5*MB, max_parts=10000) == 5*MB
