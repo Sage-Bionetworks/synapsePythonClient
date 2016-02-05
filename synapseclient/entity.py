@@ -640,10 +640,15 @@ def is_container(entity):
     """Test if an entity is a container (ie, a Project or a Folder)"""
     if 'concreteType' in entity:
         concreteType = entity['concreteType']
-    elif 'entity.concreteType' in entity:
-        concreteType = entity['entity.concreteType'][0]
-    elif 'entity.nodeType' in entity:
-        return entity['entity.nodeType'] in [2,4] or entity['entity.nodeType'] in ['project', 'folder']
+    elif isinstance(entity, collections.Mapping):
+        prefix = utils.extract_prefix(entity.keys())
+        if prefix+'concreteType' in entity:
+            concreteType = entity[prefix+'concreteType'][0]
+        elif prefix+'nodeType' in entity:
+            return entity[prefix+'nodeType'] in ['project', 'folder']
+        else:
+            return False
     else:
         return False
     return concreteType in (Project._synapse_entity_type, Folder._synapse_entity_type)
+
