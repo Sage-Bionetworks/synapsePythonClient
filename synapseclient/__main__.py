@@ -227,6 +227,7 @@ def copy(args,syn):
     print('Copied %s to %s' %(ent.id, new_ent.id))
 
 def associate(args, syn):
+    files = []
     if args.r:
         files = [os.path.join(dp, f) for dp, dn, filenames in
                  os.walk(args.path) for f in filenames]
