@@ -323,9 +323,12 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
         ## Are we done, yet?
         if completed.value >= fileSize:
-            status = _complete_multipart_upload(syn, status.uploadId)
-            if status.state == "COMPLETED":
-                break
+            try:
+                status = _complete_multipart_upload(syn, status.uploadId)
+                if status.state == "COMPLETED":
+                    break
+            except Exception as ex1:
+                sys.stderr.write(str(ex1)+"\n")
 
     if status["state"] != "COMPLETED":
         raise SynapseError("Upoad {id} did not complete. Try again.".format(id=status["uploadId"]))
