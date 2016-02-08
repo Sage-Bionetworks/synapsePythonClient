@@ -44,6 +44,7 @@ import collections
 import tempfile
 import platform
 import functools
+import threading
 import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
@@ -681,7 +682,7 @@ def humanizeBytes(bytes):
         if bytes<1024:
             return '%3.1f%s' %(bytes, units[i])
         else:
-            bytes //= 1024
+            bytes /= 1024
     return 'Oops larger than Exabytes'
 
 
@@ -730,6 +731,31 @@ def unique_filename(path):
     return path
 
 
+class threadsafe_iter:
+    """Takes an iterator/generator and makes it thread-safe by
+    serializing call to the `next` method of given iterator/generator.
+    See: http://anandology.com/blog/using-iterators-and-generators/
+    """
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        with self.lock:
+            return self.it.next()
+
+def threadsafe_generator(f):
+    """A decorator that takes a generator function and makes it thread-safe.
+    See: http://anandology.com/blog/using-iterators-and-generators/
+    """
+    def g(*a, **kw):
+        return threadsafe_iter(f(*a, **kw))
+    return g
+
+
 def extract_prefix(keys):
     """
     Takes a list of strings and extracts a common prefix delimited by a dot,
@@ -747,5 +773,4 @@ def extract_prefix(keys):
     if len(prefixes) == 1:
         return prefixes.pop() + "."
     return ""
-
 
