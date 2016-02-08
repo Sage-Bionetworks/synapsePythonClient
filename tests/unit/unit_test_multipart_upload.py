@@ -1,10 +1,6 @@
 import filecmp, math, os, tempfile
 from nose.tools import assert_raises
-<<<<<<< ed93f46ea9744a3dfc959b7b38ad8d482df45dbc
 from synapseclient.multipart_upload import find_parts_to_upload, count_completed_parts, calculate_part_size, get_file_chunk
-=======
-from synapseclient.multipart_upload import find_parts_to_upload, count_completed_parts, partition, calculate_part_size, get_file_chunk
->>>>>>> tweaks to single-threaded multipart upload
 from synapseclient.utils import MB, GB, make_bogus_binary_file
 
 
