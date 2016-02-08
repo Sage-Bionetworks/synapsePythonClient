@@ -159,9 +159,9 @@ def _put_chunk(url, chunk, verbose=False):
         # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
         if response is not None:
             throw_away = response.content
-        exceptions._raise_for_status(response, verbose=verbose)
     except Exception as ex:
         warnings.warn('error reading response: '+str(ex))
+    exceptions._raise_for_status(response, verbose=verbose)
 
 
 def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs):
@@ -218,7 +218,6 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs
     :param contentType: `contentType`_
     :param partSize: number of bytes per part. Minimum 5MB.
 
-    #TODO shouldn't we document forceRestart Here?
     :return: a File Handle ID
 
     Keyword arguments are passed down to :py:func:`_multipart_upload` and
