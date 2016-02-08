@@ -57,11 +57,6 @@ except ImportError:
     from urllib import quote
     from urllib import unquote
 
-try:
-    import urllib.request, urllib.parse, urllib.error
-except ImportError:
-    import urllib
-
 import requests, webbrowser
 import shutil
 import zipfile
@@ -551,7 +546,7 @@ class Synapse:
             ## if id is unset or a userID, this will succeed
             id = '' if id is None else int(id)
         except (TypeError, ValueError):
-            if 'ownerId' in id:
+            if isinstance(id, collections.Mapping) and 'ownerId' in id:
                 id = id.ownerId
             elif isinstance(id, TeamMember):
                 id = id.member.ownerId
@@ -589,7 +584,10 @@ class Synapse:
              {u'displayName': ... }]
 
         """
-        uri = '/userGroupHeaders?prefix=%s' % query_string
+        ## In Python2, urllib.quote expects encoded byte-strings
+        if six.PY2 and isinstance(query_string, unicode) or isinstance(query_string, str):
+            query_string = query_string.encode('utf-8')
+        uri = '/userGroupHeaders?prefix=%s' % quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
 
@@ -1797,12 +1795,17 @@ class Synapse:
             raise
 
         # Stream the file to disk
-        toBeTransferred = float(response.headers['content-length'])
+        if 'content-length' in response.headers:
+            toBeTransferred = float(response.headers['content-length'])
+        else:
+            toBeTransferred = -1
+        transferred = 0
         with open(destination, 'wb') as fd:
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
-                utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred, 'Downloading ', os.path.basename(destination))
-            utils.printTransferProgress(toBeTransferred ,toBeTransferred, 'Downloaded  ', os.path.basename(destination))
+                transferred += len(chunk)
+                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ', os.path.basename(destination))
+            utils.printTransferProgress(transferred, transferred, 'Downloaded  ', os.path.basename(destination))
         destination = os.path.abspath(destination)
         return returnDict(destination)
 
@@ -2288,39 +2291,6 @@ class Synapse:
             evaluation = self.getEvaluation(id_of(evaluation))
 
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
-
-
-    def joinEvaluation(self, evaluation):
-        """
-        Adds the current user to an Evaluation.
-
-        :param evaluation: An Evaluation object or Evaluation ID
-
-        Example::
-
-            evaluation = syn.getEvaluation(12345)
-            syn.joinEvaluation(evaluation)
-
-        See: :py:mod:`synapseclient.evaluation`
-        """
-
-        self.restPOST('/evaluation/%s/participant' % id_of(evaluation), {})
-
-
-    def getParticipants(self, evaluation):
-        """
-        :param evaluation: Evaluation to get Participants from.
-
-        :returns: A generator over Participants (dictionary) for an Evaluation
-
-        See: :py:mod:`synapseclient.evaluation`
-        """
-
-        evaluation_id = id_of(evaluation)
-        url = "/evaluation/%s/participant" % evaluation_id
-
-        for result in self._GET_paginated(url):
-            yield result
 
 
     def getSubmissions(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
@@ -3045,7 +3015,7 @@ class Synapse:
             import json
 
             results = syn.tableQuery('SELECT * FROM syn12345 LIMIT 100 OFFSET 100')
-            file_map = syn.downloadTableColumns(result, ['foo', 'bar'])
+            file_map = syn.downloadTableColumns(results, ['foo', 'bar'])
 
             for file_handle_id, path in file_map.items():
                 with open(path) as f:
