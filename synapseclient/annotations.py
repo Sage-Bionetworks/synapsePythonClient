@@ -24,8 +24,8 @@ Record when we collected the data::
 
 See:
 
-- :py:meth:`synapseclient.Synapse.getAnnotation`
-- :py:meth:`synapseclient.Synapse.setAnnotation`
+- :py:meth:`synapseclient.Synapse.getAnnotations`
+- :py:meth:`synapseclient.Synapse.setAnnotations`
 
 ~~~~~~~~~~~~~~~~~~~~~~~
 Annotating data sources

@@ -140,6 +140,11 @@ def test_Entity():
     a_file_retreived = syn.get(a_file, downloadLocation=tmpdir)
     assert os.path.basename(a_file_retreived.path) == a_file.fileNameOverride, os.path.basename(a_file_retreived.path)
 
+    ## test getting the file from the cache with downloadLocation parameter (SYNPY-330)
+    a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
+    assert a_file_cached.path is not None
+    assert os.path.basename(a_file_cached.path) == a_file.fileNameOverride, a_file_cached.path
+
     print("\n\nList of files in project:\n")
     syn._list(project, recursive=True)
 

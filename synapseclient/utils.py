@@ -10,6 +10,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from future.utils import implements_iterator
 from builtins import str
 import six
 
@@ -44,6 +45,7 @@ import collections
 import tempfile
 import platform
 import functools
+import threading
 import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
@@ -553,6 +555,18 @@ def _limit_and_offset(uri, limit=None, offset=None):
         query.pop('offset', None)
     else:
         query['offset'] = offset
+
+    ## in Python 2, urllib expects encoded byte-strings
+    if six.PY2:
+        new_query = {}
+        for k,v in query.items():
+            if isinstance(v,list):
+                v = [unicode(element).encode('utf-8') for element in v]
+            elif isinstance(v,str):
+                v = unicode(v).encode('utf-8')
+            new_query[unicode(k).encode('utf-8')] = v
+        query = new_query
+
     new_query_string = urlencode(query, doseq=True)
     return urlunparse(ParseResult(
         scheme=parts.scheme,
@@ -626,28 +640,37 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     :param toBeTransferred: total number of items/bytes when completed
     :param prefix: String printed before progress bar
     :param prefix: String printed after progress bar
-    :param isBytes: A boolean indicating weather to convert bytes to kB, MB, GB etc.
+    :param isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
 
     """
     barLength = 20 # Modify this to change the length of the progress bar
-    if toBeTransferred==0:  #There is nothing to be transfered
+    status = ""
+    if toBeTransferred<0:
+        defaultToBeTransferred = (barLength*1*MB)
+        if transferred > defaultToBeTransferred:
+            progress = float(transferred % defaultToBeTransferred) / defaultToBeTransferred
+        else:
+            progress = float(transferred) / defaultToBeTransferred
+    elif toBeTransferred==0:  #There is nothing to be transferred
         progress = 1
         status = "Done...\n"
     else:
-        progress = float(transferred)/toBeTransferred
-        status = ""
-    if progress >= 1:
-        progress = 1
-        status = "Done...\n"
+        progress = float(transferred) / toBeTransferred
+        if progress >= 1:
+            progress = 1
+            status = "Done...\n"
     block = int(round(barLength*progress))
-    if isBytes:
-        nBytes = '%s/%s' % (humanizeBytes(transferred), humanizeBytes(toBeTransferred))
+    nbytes = humanizeBytes(transferred) if isBytes else transferred
+    if toBeTransferred>0:
+        outOf = "/%s" % (humanizeBytes(toBeTransferred) if isBytes else toBeTransferred)
+        percentage = "%4.2f%%"%(progress*100)
     else:
-        nBytes = '%i/%i' % (transferred, toBeTransferred)
-    text = "\r%s [%s]%4.2f%%     %s %s %s    " %(prefix,
+        outOf = ""
+        percentage = ""
+    text = "\r%s [%s]%s     %s%s %s %s    " % (prefix,
                                                "#"*block + "-"*(barLength-block),
-                                               progress*100,
-                                               nBytes,
+                                               percentage,
+                                               nbytes, outOf,
                                                postfix, status)
     sys.stdout.write(text)
     sys.stdout.flush()
@@ -660,7 +683,7 @@ def humanizeBytes(bytes):
         if bytes<1024:
             return '%3.1f%s' %(bytes, units[i])
         else:
-            bytes //= 1024
+            bytes /= 1024
     return 'Oops larger than Exabytes'
 
 
@@ -707,4 +730,49 @@ def unique_filename(path):
         path = base + ("(%d)" % counter) + ext
 
     return path
+
+
+@implements_iterator
+class threadsafe_iter:
+    """Takes an iterator/generator and makes it thread-safe by
+    serializing call to the `next` method of given iterator/generator.
+    See: http://anandology.com/blog/using-iterators-and-generators/
+    """
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        with self.lock:
+            return next(self.it)
+
+def threadsafe_generator(f):
+    """A decorator that takes a generator function and makes it thread-safe.
+    See: http://anandology.com/blog/using-iterators-and-generators/
+    """
+    def g(*a, **kw):
+        return threadsafe_iter(f(*a, **kw))
+    return g
+
+
+def extract_prefix(keys):
+    """
+    Takes a list of strings and extracts a common prefix delimited by a dot,
+    for example:
+    >>> extract_prefix(["entity.bang", "entity.bar", "entity.bat"])
+    entity.
+    """
+    prefixes = set()
+    for key in keys:
+        parts = key.split(".")
+        if len(parts) > 1:
+            prefixes.add(parts[0])
+        else:
+            return ""
+    if len(prefixes) == 1:
+        return prefixes.pop() + "."
+    return ""
 

@@ -57,11 +57,6 @@ except ImportError:
     from urllib import quote
     from urllib import unquote
 
-try:
-    import urllib.request, urllib.parse, urllib.error
-except ImportError:
-    import urllib
-
 import requests, webbrowser
 import shutil
 import zipfile
@@ -551,7 +546,7 @@ class Synapse:
             ## if id is unset or a userID, this will succeed
             id = '' if id is None else int(id)
         except (TypeError, ValueError):
-            if 'ownerId' in id:
+            if isinstance(id, collections.Mapping) and 'ownerId' in id:
                 id = id.ownerId
             elif isinstance(id, TeamMember):
                 id = id.member.ownerId
@@ -589,7 +584,10 @@ class Synapse:
              {u'displayName': ... }]
 
         """
-        uri = '/userGroupHeaders?prefix=%s' % query_string
+        ## In Python2, urllib.quote expects encoded byte-strings
+        if six.PY2 and isinstance(query_string, unicode) or isinstance(query_string, str):
+            query_string = query_string.encode('utf-8')
+        uri = '/userGroupHeaders?prefix=%s' % quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
 
@@ -829,12 +827,15 @@ class Synapse:
                             entity.cacheDir = None
                         else:
                             ## TODO apply ifcollision here
-                            downloadPath = utils.normalize_path(os.path.join(downloadLocation, os.path.basename(cached_file_path)))
                             shutil.copy(cached_file_path, downloadPath)
 
                             entity.path = downloadPath
                             entity.files = [os.path.basename(downloadPath)]
                             entity.cacheDir = downloadLocation
+                    else:
+                        entity.path = downloadPath
+                        entity.files = [os.path.basename(downloadPath)]
+                        entity.cacheDir = downloadLocation
 
             elif downloadFile:
 
@@ -1757,7 +1758,7 @@ class Synapse:
         #The assumption is wrong - we always try to read either the outer or inner requests.get
         #but sometimes we don't have something to read.  I.e. when the type is ftp at which point
         #we still set the cache and filepath based on destination which is wrong because nothing was fetched
-        response = _with_retry(lambda: requests.get(url, headers=self._generateSignedHeaders(url), allow_redirects=False), **STANDARD_RETRY_PARAMS)
+        response = _with_retry(lambda: requests.get(url, headers=self._generateSignedHeaders(url), allow_redirects=False), verbose=self.debug, **STANDARD_RETRY_PARAMS)
 
         if response.status_code in [301,302,303,307,308]:
             url = response.headers['location']
@@ -1797,12 +1798,17 @@ class Synapse:
             raise
 
         # Stream the file to disk
-        toBeTransferred = float(response.headers['content-length'])
+        if 'content-length' in response.headers:
+            toBeTransferred = float(response.headers['content-length'])
+        else:
+            toBeTransferred = -1
+        transferred = 0
         with open(destination, 'wb') as fd:
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
-                utils.printTransferProgress(nChunks*FILE_BUFFER_SIZE ,toBeTransferred, 'Downloading ', os.path.basename(destination))
-            utils.printTransferProgress(toBeTransferred ,toBeTransferred, 'Downloaded  ', os.path.basename(destination))
+                transferred += len(chunk)
+                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ', os.path.basename(destination))
+            utils.printTransferProgress(transferred, transferred, 'Downloaded  ', os.path.basename(destination))
         destination = os.path.abspath(destination)
         return returnDict(destination)
 
@@ -2288,39 +2294,6 @@ class Synapse:
             evaluation = self.getEvaluation(id_of(evaluation))
 
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
-
-
-    def joinEvaluation(self, evaluation):
-        """
-        Adds the current user to an Evaluation.
-
-        :param evaluation: An Evaluation object or Evaluation ID
-
-        Example::
-
-            evaluation = syn.getEvaluation(12345)
-            syn.joinEvaluation(evaluation)
-
-        See: :py:mod:`synapseclient.evaluation`
-        """
-
-        self.restPOST('/evaluation/%s/participant' % id_of(evaluation), {})
-
-
-    def getParticipants(self, evaluation):
-        """
-        :param evaluation: Evaluation to get Participants from.
-
-        :returns: A generator over Participants (dictionary) for an Evaluation
-
-        See: :py:mod:`synapseclient.evaluation`
-        """
-
-        evaluation_id = id_of(evaluation)
-        url = "/evaluation/%s/participant" % evaluation_id
-
-        for result in self._GET_paginated(url):
-            yield result
 
 
     def getSubmissions(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
@@ -2998,7 +2971,7 @@ class Synapse:
         }
         # result is a http://rest.synapse.org/org/sagebionetworks/repo/model/table/TableFileHandleResults.html
         result = self.restPOST("/entity/%s/table/filehandles" % table_id, body=json.dumps(row_reference_set))
-        if len(result['rows'][0]['list']) != 1:
+        if len(result['rows'])==0 or len(result['rows'][0]['list']) != 1:
             raise SynapseError('Couldn\'t get file handle for tableId={id}, column={columnId}, row={rowId}, version={versionNumber}'.format(
                 id=table_id,
                 columnId=column_id,
@@ -3045,7 +3018,7 @@ class Synapse:
             import json
 
             results = syn.tableQuery('SELECT * FROM syn12345 LIMIT 100 OFFSET 100')
-            file_map = syn.downloadTableColumns(result, ['foo', 'bar'])
+            file_map = syn.downloadTableColumns(results, ['foo', 'bar'])
 
             for file_handle_id, path in file_map.items():
                 with open(path) as f:
@@ -3313,7 +3286,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.get(uri, headers=headers, **kwargs), **retryPolicy)
+        response = _with_retry(lambda: requests.get(uri, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3333,7 +3306,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), **retryPolicy)
+        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3354,7 +3327,8 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), **retryPolicy)
+        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), 
+                               verbose = self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3372,7 +3346,8 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), **retryPolicy)
+        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), 
+                               verbose = self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
 
 

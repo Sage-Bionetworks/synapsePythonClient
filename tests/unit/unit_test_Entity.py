@@ -247,12 +247,31 @@ def test_concrete_type():
 
 def test_is_container():
     ## result from a Synapse entity annotation query
+    ## Note: prefix may be capitalized or not, depending on the from clause of the query
     result = {'entity.versionNumber': 1,
               'entity.nodeType': 'project',
-              'entity.createdByPrincipalId': 1560252,
+              'entity.concreteType': ['org.sagebionetworks.repo.model.Project'],
               'entity.createdOn': 1451512703905,
               'entity.id': 'syn5570912',
               'entity.name': 'blah'}
     assert is_container(result)
 
+    result = {'Entity.nodeType': 'project',
+              'Entity.id': 'syn5570912',
+              'Entity.name': 'blah'}
+    assert is_container(result)
+
+    result = {'entity.concreteType': ['org.sagebionetworks.repo.model.Folder'],
+              'entity.id': 'syn5570914',
+              'entity.name': 'flapdoodle'}
+    assert is_container(result)
+
+    result = {'File.concreteType': ['org.sagebionetworks.repo.model.FileEntity'],
+              'File.id': 'syn5570914',
+              'File.name': 'flapdoodle'}
+    assert not is_container(result)
+
+    assert is_container(Folder("Stuff", parentId="syn12345"))
+    assert is_container(Project("My Project", parentId="syn12345"))
+    assert not is_container(File("asdf.png", parentId="syn12345"))
 

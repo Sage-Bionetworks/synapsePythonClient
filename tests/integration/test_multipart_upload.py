@@ -75,7 +75,7 @@ def test_randomly_failing_parts():
     multipart_upload_module._put_chunk = _put_chunk_or_fail_randomly
 
     try:
-        fhid = multipart_upload(syn, filepath, retries=25)
+        fhid = multipart_upload(syn, filepath)
         print('FileHandle: {fhid}'.format(fhid=fhid))
 
         # Download the file and compare it with the original
