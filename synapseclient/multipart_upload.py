@@ -21,14 +21,20 @@ import json
 import math
 import mimetypes
 import os
+import requests
 import sys
 import time
-import requests
-import urlparse
 import warnings
 from functools import partial
 from multiprocessing import Value
 from multiprocessing.dummy import Pool
+
+try:
+    from urllib.parse import urlparse
+    from urllib.parse import parse_qs
+except ImportError:
+    from urlparse import urlparse
+    from urlparse import parse_qs
 
 import synapseclient.exceptions as exceptions
 from .utils import printTransferProgress, md5_for_file, MB, GB
@@ -250,8 +256,8 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs
 def _upload_chunk(part, completed, status, syn, filename, get_chunk_function, fileSize, partSize):
     partNumber=part["partNumber"]
     url=part["uploadPresignedUrl"]
-    parsed = urlparse.urlparse(url)
-    expires = float(urlparse.parse_qs(parsed.query)['Expires'][0])
+    parsed = urlparse(url)
+    expires = float(parse_qs(parsed.query)['Expires'][0])
     if expires<time.time(): return
     try:
         chunk = get_chunk_function(partNumber, partSize)
@@ -323,9 +329,12 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
         ## Are we done, yet?
         if completed.value >= fileSize:
-            status = _complete_multipart_upload(syn, status.uploadId)
-            if status.state == "COMPLETED":
-                break
+            try:
+                status = _complete_multipart_upload(syn, status.uploadId)
+                if status.state == "COMPLETED":
+                    break
+            except Exception as ex1:
+                sys.stderr.write(str(ex1)+"\n")
 
     if status["state"] != "COMPLETED":
         raise SynapseError("Upoad {id} did not complete. Try again.".format(id=status["uploadId"]))

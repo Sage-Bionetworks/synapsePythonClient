@@ -366,3 +366,12 @@ def test_raise_for_status():
 
     assert_raises(SynapseHTTPError, _raise_for_status, response, verbose=False)
 
+
+def test_treadsafe_generator():
+    @utils.threadsafe_generator
+    def generate_letters():
+        for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
+            yield c
+
+    "".join(letter for letter in generate_letters()) == "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+

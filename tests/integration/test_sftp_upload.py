@@ -14,7 +14,7 @@ import filecmp
 import os, sys, traceback
 import json
 import uuid 
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_is_not_none, assert_equals
 import tempfile
 import shutil
 
@@ -79,6 +79,12 @@ def test_synStore_sftpIntegration():
         syn.cache.remove(file2.dataFileHandleId, delete=True)
         file3 = syn.get(file, downloadLocation=tmpdir)
         assert os.path.basename(file3.path) == file2.fileNameOverride
+
+        ## test that we got an MD5 à la SYNPY-185
+        assert_is_not_none(file3.md5)
+        fh = syn._getFileHandle(file3.dataFileHandleId)
+        assert_is_not_none(fh['contentMd5'])
+        assert_equals(file3.md5, fh['contentMd5'])
     finally:
         try:
             os.remove(filepath)

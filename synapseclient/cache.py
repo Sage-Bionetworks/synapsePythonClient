@@ -233,10 +233,10 @@ class Cache():
             cache_map = self._read_cache_map(cache_dir)
 
             if path is None:
-                for cached_file_path in cache_map:
-                    if delete is True:
-                        os.remove(cached_file_path)
-                    removed.append(cached_file_path)
+                for path in cache_map:
+                    if delete is True and os.path.exists(path):
+                        os.remove(path)
+                    removed.append(path)
                 cache_map = {}
             else:
                 path = utils.normalize_path(path)

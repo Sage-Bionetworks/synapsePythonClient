@@ -827,12 +827,15 @@ class Synapse:
                             entity.cacheDir = None
                         else:
                             ## TODO apply ifcollision here
-                            downloadPath = utils.normalize_path(os.path.join(downloadLocation, os.path.basename(cached_file_path)))
                             shutil.copy(cached_file_path, downloadPath)
 
                             entity.path = downloadPath
                             entity.files = [os.path.basename(downloadPath)]
                             entity.cacheDir = downloadLocation
+                    else:
+                        entity.path = downloadPath
+                        entity.files = [os.path.basename(downloadPath)]
+                        entity.cacheDir = downloadLocation
 
             elif downloadFile:
 
@@ -2968,7 +2971,7 @@ class Synapse:
         }
         # result is a http://rest.synapse.org/org/sagebionetworks/repo/model/table/TableFileHandleResults.html
         result = self.restPOST("/entity/%s/table/filehandles" % table_id, body=json.dumps(row_reference_set))
-        if len(result['rows'][0]['list']) != 1:
+        if len(result['rows'])==0 or len(result['rows'][0]['list']) != 1:
             raise SynapseError('Couldn\'t get file handle for tableId={id}, column={columnId}, row={rowId}, version={versionNumber}'.format(
                 id=table_id,
                 columnId=column_id,

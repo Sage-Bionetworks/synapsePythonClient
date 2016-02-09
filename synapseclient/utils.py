@@ -10,6 +10,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from future.utils import implements_iterator
 from builtins import str
 import six
 
@@ -731,6 +732,7 @@ def unique_filename(path):
     return path
 
 
+@implements_iterator
 class threadsafe_iter:
     """Takes an iterator/generator and makes it thread-safe by
     serializing call to the `next` method of given iterator/generator.
@@ -743,9 +745,9 @@ class threadsafe_iter:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         with self.lock:
-            return self.it.next()
+            return next(self.it)
 
 def threadsafe_generator(f):
     """A decorator that takes a generator function and makes it thread-safe.
