@@ -43,7 +43,7 @@ Commands
   * **add**              - add or modify content to Synapse
   * **delete**           - removes a dataset from Synapse
   * **mv**               - move a dataset in Synapse
-  * **cp**               - copy a dataset in Synapse
+  * **cp**               - copy a file in Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
@@ -209,21 +209,31 @@ def move(args, syn):
     print('Moved %s to %s' %(ent.id, ent.parentId))
 
 def copy(args,syn):
-    """Copys an entity specifed by args.id to args.parentId"""
-    ent = syn.get(args.id)
-    #CHECK: must be a file entity
+    """Copys most recent version of a file specifed by args.id to args.parentId"""
+    ent = syn.get(args.id, downloadFile=False)
+    profile = syn.getUserProfile().ownerId
+    #CHECK: Must be a file entity
     if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
         raise ValueError('"synapse cp" can only copy files!')
+    #Grab file handle createdBy annotation to see the user that created fileHandle
+    createdBy = syn.restGET('/entity/%s/filehandles'%args.id)['list'][0]['createdBy']
     #CHECK: If file is in the same parent directory (throw an error)
     search = syn.query('select name from file where parentId =="%s"'%args.parentid)['results']
     for i in search:
         if i['file.name'] == ent.name:
             raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
-    new_ent = synapseclient.File(ent['path'],parent=args.parentid)
-    ent_annot = ent.annotations
-    annot = dict((key,ent_annot[key]) for key in ent_annot if key not in ('uri','id','creationDate','etag'))
-    new_ent.annotations = annot
-    new_ent = syn.store(new_ent,used = args.id, activityName = "Copied File")
+    #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
+    if profile == createdBy:
+        new_ent = synapseclient.File(name=ent.name, parentId=args.parentid)
+        new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
+        new_ent = syn._createEntity(new_ent)
+    else:
+        ent = syn.get(args.id)
+        new_ent = synapseclient.File(ent.path,parent=args.parentid)
+        new_ent = syn.store(new_ent)
+    syn.setAnnotations(new_ent,ent.annotations)
+    act = Activity("Copied file", used=args.id)
+    syn.setProvenance(new_ent.id,act)
     print('Copied %s to %s' %(ent.id, new_ent.id))
 
 def associate(args, syn):
