@@ -330,6 +330,8 @@ def encode_param_in_python2(a, encoding=sys.stdout.encoding):
     But, in Python 3, these have to be unicode strings. Since we're using
     unicode_literals, we'll need to do the conversion in the Python2 case.
     """
+    if not encoding:
+        encoding = 'utf-8'
     if six.PY2 and type(a)==unicode:
         return a.encode(encoding)
     else:

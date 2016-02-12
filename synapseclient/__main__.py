@@ -208,8 +208,9 @@ def move(args, syn):
     ent = syn.store(ent, forceVersion=False)
     print('Moved %s to %s' %(ent.id, ent.parentId))
 
+
 def copy(args,syn):
-    """Copys most recent version of a file specifed by args.id to args.parentId"""
+    """Copies most recent version of a file specifed by args.id to args.parentId"""
     ent = syn.get(args.id, downloadFile=False)
     profile = syn.getUserProfile().ownerId
     #CHECK: Must be a file entity
@@ -229,12 +230,13 @@ def copy(args,syn):
         new_ent = syn._createEntity(new_ent)
     else:
         ent = syn.get(args.id)
-        new_ent = synapseclient.File(ent.path,parent=args.parentid)
+        new_ent = synapseclient.File(ent.path, parent=args.parentid)
         new_ent = syn.store(new_ent)
-    syn.setAnnotations(new_ent,ent.annotations)
+    syn.setAnnotations(new_ent, ent.annotations)
     act = Activity("Copied file", used=args.id)
-    syn.setProvenance(new_ent.id,act)
-    print('Copied %s to %s' %(ent.id, new_ent.id))
+    syn.setProvenance(new_ent['id'], act)
+    print('Copied %s to %s' %(ent.id, new_ent['id']))
+
 
 def associate(args, syn):
     files = []
@@ -352,7 +354,7 @@ def getProvenance(args, syn):
     activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output=='STDOUT':
-        print(json.dumps(activity, sort_keys=True, indent=2, ensure_ascii=False))
+        print(json.dumps(activity, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
@@ -393,7 +395,7 @@ def getAnnotations(args, syn):
     annotations = syn.getAnnotations(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        print(json.dumps(annotations, sort_keys=True, indent=2, ensure_ascii=False))
+        print(json.dumps(annotations, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
