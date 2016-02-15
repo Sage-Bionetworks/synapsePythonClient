@@ -30,7 +30,7 @@ def setup(module):
 
 def test_round_trip():
     fhid = None
-    filepath = utils.make_bogus_binary_file(6*MB + 777771)
+    filepath = utils.make_bogus_binary_file(multipart_upload_module.MIN_PART_SIZE + 777771)
     print('Made bogus file: ', filepath)
     try:
         fhid = multipart_upload(syn, filepath)
@@ -59,7 +59,10 @@ def test_round_trip():
 def test_randomly_failing_parts():
     FAILURE_RATE = 1.0/3.0
     fhid = None
-    filepath = utils.make_bogus_binary_file(6*MB + 777771)
+    multipart_upload_module.MIN_PART_SIZE = 5*MB
+    multipart_upload_module.MAX_RETRIES = 20
+
+    filepath = utils.make_bogus_binary_file(multipart_upload_module.MIN_PART_SIZE*5 + 777771)
     print('Made bogus file: ', filepath)
 
     normal_put_chunk = None
@@ -114,7 +117,7 @@ def test_multipart_upload_big_string():
               "金沢市", "서울", "แม่ฮ่องสอน", "Москва"]
 
     text = "Places I wanna go:\n"
-    while len(text.encode('utf-8')) < 5*MB:
+    while len(text.encode('utf-8')) < multipart_upload_module.MIN_PART_SIZE:
         text += ", ".join( random.choice(cities) for i in range(5000) ) + "\n"
 
     fhid = multipart_upload_string(syn, text)

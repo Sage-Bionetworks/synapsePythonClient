@@ -28,8 +28,8 @@ class DictObject(dict):
 
 
     def __str__(self):
-        return json.dumps(self, sort_keys=True, indent=2, ensure_ascii=False)
+        return json.dumps(self, sort_keys=True, indent=2)
 
 
-    def json(self):
-        return self.__str__()
+    def json(self, ensure_ascii=True):
+        return json.dumps(self, sort_keys=True, indent=2, ensure_ascii=ensure_ascii)

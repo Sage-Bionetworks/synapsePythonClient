@@ -208,8 +208,9 @@ def move(args, syn):
     ent = syn.store(ent, forceVersion=False)
     print('Moved %s to %s' %(ent.id, ent.parentId))
 
+
 def copy(args,syn):
-    """Copys most recent version of a file specifed by args.id to args.parentId"""
+    """Copies most recent version of a file specifed by args.id to args.parentId"""
     ent = syn.get(args.id, downloadFile=False)
     profile = syn.getUserProfile().ownerId
     #CHECK: Must be a file entity
@@ -229,12 +230,13 @@ def copy(args,syn):
         new_ent = syn._createEntity(new_ent)
     else:
         ent = syn.get(args.id)
-        new_ent = synapseclient.File(ent.path,parent=args.parentid)
+        new_ent = synapseclient.File(ent.path, parent=args.parentid)
         new_ent = syn.store(new_ent)
-    syn.setAnnotations(new_ent,ent.annotations)
+    syn.setAnnotations(new_ent, ent.annotations)
     act = Activity("Copied file", used=args.id)
-    syn.setProvenance(new_ent.id,act)
-    print('Copied %s to %s' %(ent.id, new_ent.id))
+    syn.setProvenance(new_ent['id'], act)
+    print('Copied %s to %s' %(ent.id, new_ent['id']))
+
 
 def associate(args, syn):
     files = []
@@ -352,7 +354,7 @@ def getProvenance(args, syn):
     activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output=='STDOUT':
-        print(json.dumps(activity, sort_keys=True, indent=2, ensure_ascii=False))
+        print(json.dumps(activity, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
@@ -371,11 +373,11 @@ def setAnnotations(args, syn):
     try:
         newannots = json.loads(args.annotations)
     except Exception as e:
-        sys.stderr.write("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
+        sys.stderr.write("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1, \"bar\":\"quux\"}'.")
         raise e
 
     if type(newannots) is not dict:
-        raise TypeError("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
+        raise TypeError("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1, \"bar\":\"quux\"}'.")
 
     entity = syn.get(args.id, downloadFile=False)
 
@@ -393,7 +395,7 @@ def getAnnotations(args, syn):
     annotations = syn.getAnnotations(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        print(json.dumps(annotations, sort_keys=True, indent=2, ensure_ascii=False))
+        print(json.dumps(annotations, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
@@ -521,7 +523,7 @@ def build_parser():
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
 
     parser_store.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
-            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
     parser_store.add_argument('--replace', action='store_true',default=False,
             help='Replace all existing annotations with the given annotations')
 
@@ -696,7 +698,7 @@ def build_parser():
     parser_set_annotations.add_argument("--id", metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose annotations we are accessing.')
     parser_set_annotations.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=True,
-            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
     parser_set_annotations.add_argument('-r', '--replace', action='store_true',default=False,
             help='Replace all existing annotations with the given annotations')
     parser_set_annotations.set_defaults(func=setAnnotations)
