@@ -7,7 +7,7 @@ from builtins import str
 
 import uuid, filecmp, os, sys, requests, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equal
 from nose.plugins.attrib import attr
 from mock import patch
 
@@ -112,7 +112,7 @@ def test_Entity():
     assert link['bar'] == [33,44,55]
     assert link['bday'][0] == Datetime(2013,3,15)
     assert link.new_key[0] == 'A newly created value'
-    assert link.path == path
+    assert utils.equal_paths(link.path, path)
     assert link.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
 
     # Upload a new File and verify

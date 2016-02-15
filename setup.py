@@ -37,7 +37,8 @@ setup(name='synapseclient',
     install_requires=[
         'requests>=1.2',
         'six',
-        'future'
+        'future',
+        'backports.csv'
     ],
     extras_require = {
         'pandas':  ["pandas"],
