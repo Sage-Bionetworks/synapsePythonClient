@@ -44,7 +44,7 @@ from .utils import threadsafe_generator
 
 MAX_NUMBER_OF_PARTS = 10000
 MIN_PART_SIZE = 8*MB
-MAX_RETRIES  = 3
+MAX_RETRIES  = 7
 
 
 def find_parts_to_upload(part_status):
@@ -301,14 +301,16 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
     partSize = calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)
-    mp = Pool(8)
-
     status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
-    forceRestart = False  #Only restart on first try
+
+    ## only force restart once
+    kwargs['forceRestart'] = False
+
     completedParts = count_completed_parts(status.partsState)
     progress=True
     retries=0
-    while progress and retries<MAX_RETRIES:
+    mp = Pool(8)
+    while retries<MAX_RETRIES:
         ## keep track of the number of bytes uploaded so far
         completed = Value('d', min(completedParts * partSize, fileSize))
         printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)

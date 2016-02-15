@@ -605,13 +605,13 @@ class Synapse:
             webbrowser.open("%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, id_of(entity), subpageId))
 
 
-    def printEntity(self, entity):
+    def printEntity(self, entity, ensure_ascii=True):
         """Pretty prints an Entity."""
 
         if utils.is_synapse_id(entity):
             entity = self._getEntity(entity)
         try:
-            print(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=False))
+            print(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii))
         except TypeError:
             print(str(entity))
 
