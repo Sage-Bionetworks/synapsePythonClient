@@ -685,7 +685,6 @@ class Synapse:
             if kwargs.get('downloadFile', True):
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
-
         return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
 
 
@@ -742,11 +741,10 @@ class Synapse:
         ifcollision = kwargs.get('ifcollision', 'keep.both')
         submission = kwargs.get('submission', None)
         followLink = kwargs.get('followLink',True)
-
         #If Link, get target ID entity bundle
         if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link' and followLink:
             targetId = entityBundle['entity']['linksTo']['targetId']
-            targetVersion = entityBundle['entity']['linksTo']['targetVersionNumber']
+            targetVersion = entityBundle['entity']['linksTo'].get('targetVersionNumber')
             entityBundle = self._getEntityBundle(targetId, targetVersion)
 
         ## TODO is it an error to specify both downloadFile=False and downloadLocation?
