@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 from __future__ import unicode_literals
-import uuid, filecmp, os, sys, requests, time
+from builtins import str
+
+import uuid, filecmp, os, sys, requests, tempfile, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
 from nose.plugins.attrib import attr
@@ -8,7 +13,7 @@ from mock import patch
 
 import synapseclient.client as client
 import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient import Activity, Entity, Project, Folder, File, Link
 from synapseclient.exceptions import *
 
 import integration
@@ -16,10 +21,10 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
@@ -77,6 +82,7 @@ def test_Entity():
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
 
+
     # Update the File
     a_file.path = path
     a_file['foo'] = 'Another arbitrary chunk of text data'
@@ -87,7 +93,27 @@ def test_Entity():
     assert a_file['bday'][0] == Datetime(2013,3,15)
     assert a_file.new_key[0] == 'A newly created value'
     assert a_file.path == path
-    assert a_file.versionNumber == 1
+    assert a_file.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
+
+    #Test create, store, get Links
+    link = Link(a_file['id'], 
+                targetVersion=a_file.versionNumber,
+                parent=project)
+    link = syn.store(link)
+    assert link['linksTo']['targetId'] == a_file['id']
+    assert link['linksTo']['targetVersionNumber'] == a_file.versionNumber
+    assert link['linksToClassName'] == a_file['concreteType']
+    
+    testLink = syn.get(link, followLink= False)
+    assert testLink == link
+
+    link = syn.getEntity(link)
+    assert link['foo'][0] == 'Another arbitrary chunk of text data'
+    assert link['bar'] == [33,44,55]
+    assert link['bday'][0] == Datetime(2013,3,15)
+    assert link.new_key[0] == 'A newly created value'
+    assert link.path == path
+    assert link.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
 
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
@@ -100,6 +126,27 @@ def test_Entity():
     # Make sure we can still get the older version of file
     old_random_data = syn.get(a_file.id, version=1)
     assert filecmp.cmp(old_random_data.path, path)
+
+    tmpdir = tempfile.mkdtemp()
+    schedule_for_cleanup(tmpdir)
+
+    ## test file name override
+    a_file.fileNameOverride = "peaches_en_regalia.zoinks"
+    syn.store(a_file)
+    ## TODO We haven't defined how filename override interacts with
+    ## TODO previously cached files so, side-step that for now by
+    ## TODO making sure the file is not in the cache!
+    syn.cache.remove(a_file.dataFileHandleId, delete=True)
+    a_file_retreived = syn.get(a_file, downloadLocation=tmpdir)
+    assert os.path.basename(a_file_retreived.path) == a_file.fileNameOverride, os.path.basename(a_file_retreived.path)
+
+    ## test getting the file from the cache with downloadLocation parameter (SYNPY-330)
+    a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
+    assert a_file_cached.path is not None
+    assert os.path.basename(a_file_cached.path) == a_file.fileNameOverride, a_file_cached.path
+
+    print("\n\nList of files in project:\n")
+    syn._list(project, recursive=True)
 
 
 def test_special_characters():
@@ -118,7 +165,6 @@ def test_special_characters():
 
 
 def test_get_local_file():
-    """Tests synapse.get() with local a local file """
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
     folder = Folder('TestFindFileFolder', parent=project, description='A place to put my junk')
@@ -176,7 +222,7 @@ def test_store_with_flags():
     
     # Re-store again, essentially the same condition
     mutaBogus = syn.store(mutaBogus, createOrUpdate=True, forceVersion=False)
-    assert mutaBogus.versionNumber == 1
+    assert mutaBogus.versionNumber == 1, "expected version 1 but got version %s" % mutaBogus.versionNumber
     
     # And again, but up the version this time
     mutaBogus = syn.store(mutaBogus, forceVersion=True)

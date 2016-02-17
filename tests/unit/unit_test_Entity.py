@@ -1,15 +1,20 @@
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+
 import collections
 import os
-from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces
+from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces, is_container
 from synapseclient.exceptions import *
 from nose.tools import assert_raises
 
 
 def setup():
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
 
 
 def test_Entity():
@@ -35,6 +40,10 @@ def test_Entity():
         assert e['foo'] == 123
         assert e.annotations['foo'] == 123
         assert e.annotations.foo == 123
+
+        assert hasattr(e, 'parentId')
+        assert hasattr(e, 'foo')
+        assert not hasattr(e, 'qwerqwer')
 
         # Annotations is a bit funny, because there is a property call
         # 'annotations', which will be masked by a member of the object
@@ -77,6 +86,13 @@ def test_Entity():
         assert e.annotations.foo == 456
         assert e.properties['annotations'] == '/repo/v1/entity/syn1234/annotations'
         assert e.properties.annotations == '/repo/v1/entity/syn1234/annotations'
+
+        ## test unicode properties
+        e.train = '時刻表には記載されない　月への列車が来ると聞いて'
+        e.band = "Motörhead"
+        e.lunch = "すし"
+
+        print(e)
 
 
 def test_subclassing():
@@ -134,7 +150,6 @@ def test_parent_id_required():
     assert xkcd2.parentId == 'syn1000002'
 
     assert_raises(SynapseMalformedEntityError, File, 'http://xkcd.com/1343/', name='XKCD: Manuals', synapseStore=False)
-
 
 
 def test_entity_constructors():
@@ -228,4 +243,35 @@ def test_split_entity_namespaces():
 def test_concrete_type():
     f1 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent='syn1234567', synapseStore=False)
     assert f1.concreteType=='org.sagebionetworks.repo.model.FileEntity'
+
+
+def test_is_container():
+    ## result from a Synapse entity annotation query
+    ## Note: prefix may be capitalized or not, depending on the from clause of the query
+    result = {'entity.versionNumber': 1,
+              'entity.nodeType': 'project',
+              'entity.concreteType': ['org.sagebionetworks.repo.model.Project'],
+              'entity.createdOn': 1451512703905,
+              'entity.id': 'syn5570912',
+              'entity.name': 'blah'}
+    assert is_container(result)
+
+    result = {'Entity.nodeType': 'project',
+              'Entity.id': 'syn5570912',
+              'Entity.name': 'blah'}
+    assert is_container(result)
+
+    result = {'entity.concreteType': ['org.sagebionetworks.repo.model.Folder'],
+              'entity.id': 'syn5570914',
+              'entity.name': 'flapdoodle'}
+    assert is_container(result)
+
+    result = {'File.concreteType': ['org.sagebionetworks.repo.model.FileEntity'],
+              'File.id': 'syn5570914',
+              'File.name': 'flapdoodle'}
+    assert not is_container(result)
+
+    assert is_container(Folder("Stuff", parentId="syn12345"))
+    assert is_container(Project("My Project", parentId="syn12345"))
+    assert not is_container(File("asdf.png", parentId="syn12345"))
 

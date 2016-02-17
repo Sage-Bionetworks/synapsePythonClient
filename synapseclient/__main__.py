@@ -3,12 +3,23 @@
 Synapse command line client
 ***************************
 
-The Synapse client can be used from the command line via the **synapse**
-command. For help, type::
+The Synapse Python Client can be used from the command line via the **synapse**
+command.
+
+Installation
+============
+
+The command line client is installed along with `installation of the Synapse
+Python client <http://python-docs.synapse.org/index.html#installation>`_.
+
+Help
+====
+
+For help, type::
 
     synapse -h.
 
-For help on commands, type::
+For help on specific commands, type::
 
     synapse [command] -h
 
@@ -32,6 +43,7 @@ Commands
   * **add**              - add or modify content to Synapse
   * **delete**           - removes a dataset from Synapse
   * **mv**               - move a dataset in Synapse
+  * **cp**               - copy a file in Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
@@ -45,6 +57,13 @@ Commands
 A few more commands (cat, create, update, associate)
 
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+from builtins import input
+import six
 
 import argparse
 import os
@@ -52,11 +71,13 @@ import collections
 import shutil
 import sys
 import synapseclient
-from synapseclient import Activity
-import utils
+from . import Activity
+from . import utils
 import signal
 import json
-from synapseclient.exceptions import *
+import warnings
+from .exceptions import *
+import getpass
 
 
 def query(args, syn):
@@ -64,7 +85,7 @@ def query(args, syn):
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
     except (AttributeError, ValueError):
         ## Different OS's have different signals defined. In particular,
-        ## SIGPIPE doesn't exist one Windows. The docs have this to say,
+        ## SIGPIPE doesn't exist on Windows. The docs have this to say,
         ## "On Windows, signal() can only be called with SIGABRT, SIGFPE,
         ## SIGILL, SIGINT, SIGSEGV, or SIGTERM. A ValueError will be raised
         ## in any other case."
@@ -109,7 +130,7 @@ def _recursiveGet(id, path, syn):
             except OSError as err:
                 if err.errno!=17:
                     raise
-            print 'making dir', new_path
+            print('making dir', new_path)
             _recursiveGet(result['entity.id'], new_path, syn)
         else:
             syn.get(result['entity.id'], downloadLocation=path)
@@ -127,8 +148,20 @@ def get(args, syn):
         for id in ids:
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
-        entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch,
-                        downloadLocation=args.downloadLocation)
+        ## search by MD5
+        if isinstance(args.id, six.string_types) and os.path.isfile(args.id):
+            entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
+            if "path" in entity and entity.path is not None and os.path.exists(entity.path):
+                print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
+        ## normal syn.get operation
+        else:
+            entity = syn.get(args.id, version=args.version, # limitSearch=args.limitSearch,
+                             downloadLocation=args.downloadLocation)
+            if "path" in entity and entity.path is not None and os.path.exists(entity.path):
+                print("Downloaded file: %s" % os.path.basename(entity.path))
+            else:
+                print('WARNING: No files associated with entity %s\n' % entity.id)
+                print(entity)
 
         print 'Creating %s' % entity.path
 
@@ -145,7 +178,7 @@ def store(args, syn):
     if args.id is not None:
         entity = syn.get(args.id, downloadFile=False)
     else:
-        entity = {'concreteType': u'org.sagebionetworks.repo.model.%s' % args.type,
+        entity = {'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type,
                   'name': utils.guess_file_name(args.file) if args.file and not args.name else None,
                   'parentId' : None,
                   'description' : None,
@@ -160,7 +193,7 @@ def store(args, syn):
     used = _convertProvenanceList(args.used, args.limitSearch, syn)
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
     entity = syn.store(entity, used=used, executed=executed)
-    print 'Created/Updated entity: %s\t%s' %(entity['id'], entity['name'])
+    print('Created/Updated entity: %s\t%s' %(entity['id'], entity['name']))
 
     # After creating/updating, if there are annotations to add then
     # add them
@@ -175,10 +208,40 @@ def move(args, syn):
     ent = syn.get(args.id, downloadFile=False)
     ent.parentId= args.parentid
     ent = syn.store(ent, forceVersion=False)
-    print 'Moved %s to %s' %(ent.id, ent.parentId)
+    print('Moved %s to %s' %(ent.id, ent.parentId))
+
+
+def copy(args,syn):
+    """Copies most recent version of a file specifed by args.id to args.parentId"""
+    ent = syn.get(args.id, downloadFile=False)
+    profile = syn.getUserProfile().ownerId
+    #CHECK: Must be a file entity
+    if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
+        raise ValueError('"synapse cp" can only copy files!')
+    #Grab file handle createdBy annotation to see the user that created fileHandle
+    createdBy = syn.restGET('/entity/%s/filehandles'%args.id)['list'][0]['createdBy']
+    #CHECK: If file is in the same parent directory (throw an error)
+    search = syn.query('select name from file where parentId =="%s"'%args.parentid)['results']
+    for i in search:
+        if i['file.name'] == ent.name:
+            raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
+    #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
+    if profile == createdBy:
+        new_ent = synapseclient.File(name=ent.name, parentId=args.parentid)
+        new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
+        new_ent = syn._createEntity(new_ent)
+    else:
+        ent = syn.get(args.id)
+        new_ent = synapseclient.File(ent.path, parent=args.parentid)
+        new_ent = syn.store(new_ent)
+    syn.setAnnotations(new_ent, ent.annotations)
+    act = Activity("Copied file", used=args.id)
+    syn.setProvenance(new_ent['id'], act)
+    print('Copied %s to %s' %(ent.id, new_ent['id']))
 
 
 def associate(args, syn):
+    files = []
     if args.r:
         files = [os.path.join(dp, f) for dp, dn, filenames in
                  os.walk(args.path) for f in filenames]
@@ -191,9 +254,9 @@ def associate(args, syn):
         try:
             ent = syn.get(fp, limitSearch=args.limitSearch)
         except SynapseFileNotFoundError:
-            print 'WARNING: The file %s is not available in Synapse' %fp
+            print('WARNING: The file %s is not available in Synapse' %fp)
         else:
-            print '%s.%i\t%s' %(ent.id, ent.versionNumber, fp)
+            print('%s.%i\t%s' %(ent.id, ent.versionNumber, fp))
 
 
 def cat(args, syn):
@@ -227,23 +290,27 @@ def show(args, syn):
     sys.stdout.write('Provenance:\n')
     try:
         prov = syn.getProvenance(ent)
-        print prov
+        print(prov)
     except SynapseHTTPError:
-        print '  No Activity specified.\n'
+        print('  No Activity specified.\n')
 
 
 def delete(args, syn):
-    syn.delete(args.id)
-    print 'Deleted entity: %s' % args.id
+	if args.version:
+	    syn.delete(args.id, args.version)
+	    print('Deleted entity %s, version %s' % (args.id, args.version))
+	else:
+	    syn.delete(args.id)
+	    print('Deleted entity: %s' % args.id)
 
 
 def create(args, syn):
     entity={'name': args.name,
             'parentId': args.parentid,
             'description':args.description,
-            'concreteType': u'org.sagebionetworks.repo.model.%s' %args.type}
+            'concreteType': 'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
-    print 'Created entity: %s\t%s\n' %(entity['id'],entity['name'])
+    print('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
 
 
 def onweb(args, syn):
@@ -254,7 +321,7 @@ def _convertProvenanceList(usedList, limitSearch, syn):
     if usedList is None:
         return None
     usedList = [syn.get(target, limitSearch=limitSearch) if
-                (os.path.isfile(target) if isinstance(target, basestring) else False) else target for
+                (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
                 target in usedList]
     return usedList
 
@@ -282,18 +349,19 @@ def setProvenance(args, syn):
                 f.write(json.dumps(activity))
                 f.write('\n')
     else:
-        print 'Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id))
+        print('Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id)))
 
 
 def getProvenance(args, syn):
-    activity = syn.getProvenance(args.id)
+    activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output=='STDOUT':
-        print json.dumps(activity,sort_keys=True, indent=2)
+        print(json.dumps(activity, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
             f.write('\n')
+
 
 def setAnnotations(args, syn):
     """Method to set annotations on an entity.
@@ -307,11 +375,11 @@ def setAnnotations(args, syn):
     try:
         newannots = json.loads(args.annotations)
     except Exception as e:
-        sys.stderr.write("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
+        sys.stderr.write("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1, \"bar\":\"quux\"}'.")
         raise e
 
     if type(newannots) is not dict:
-        raise TypeError("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1}'.")
+        raise TypeError("Please check that your JSON string is properly formed and evaluates to a dictionary (key/value pairs). For example, to set an annotations called 'foo' to the value 1, the format should be '{\"foo\": 1, \"bar\":\"quux\"}'.")
 
     entity = syn.get(args.id, downloadFile=False)
 
@@ -329,7 +397,7 @@ def getAnnotations(args, syn):
     annotations = syn.getAnnotations(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        print json.dumps(annotations,sort_keys=True, indent=2)
+        print(json.dumps(annotations, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
@@ -337,30 +405,18 @@ def getAnnotations(args, syn):
 
 def submit(args, syn):
     '''
-    Method to allow challenge participants to submit to an evaluation queue
+    Method to allow challenge participants to submit to an evaluation queue.
 
-    Examples:
-    1. #submit to a eval Queue by eval ID , uploading the submission file
-    synapse submit --evalID 2343117 -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-
-    2. support for deprecated --evaluation option
-    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --pid syn2345030 --used syn2351967 --executed syn2351968
-
+    Examples::
+    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --parentId syn2345030 --used syn2351967 --executed syn2351968
+    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --parentId syn2345030 --used syn2351967 --executed syn2351968
     '''
-
-    #backward compatibility support
+    #check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
     if args.evaluation is not None:
-        sys.stdout.write('[Warning]: Use of --evaluation is deprecated. Use -evalId or -evalName \n')
-        #check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
         try:
             args.evaluationID = str(int(args.evaluation))
         except ValueError:
             args.evaluationName = args.evaluation
-
-    #set the user teamname to username if none is specified
-    if args.teamName is None:
-        args.teamName = syn.getUserProfile()['userName']
 
     # checking if user has entered a evaluation ID or evaluation Name
     if args.evaluationID is None and args.evaluationName is None:
@@ -371,8 +427,7 @@ def submit(args, syn):
         try:
             args.evaluationID = syn.getEvaluationByName(args.evaluationName)['id']
         except Exception:
-            raise ValueError('could not find evaluationID for evaluationName: %s \n' % args.evaluationName)
-
+            raise ValueError('Could not find an evaluation named: %s \n' % args.evaluationName)
 
     # checking if a entity id or file was specified by the user
     if args.entity is None and args.file is None:
@@ -390,14 +445,29 @@ def submit(args, syn):
                             executed=_convertProvenanceList(args.executed, args.limitSearch, syn))
         args.entity = synFile.id
 
-    submission = syn.submit(args.evaluationID, args.entity, name=args.name, teamName=args.teamName)
+    submission = syn.submit(args.evaluationID, args.entity, name=args.name, team=args.teamName)
     sys.stdout.write('Submitted (id: %s) entity: %s\t%s to Evaluation: %s\n' \
         % (submission['id'], submission['entityId'], submission['name'], submission['evaluationId']))
 
 
 def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
-    syn.login(args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe)
+    login_with_prompt(syn, args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe, forced=True)
+    profile = syn.getUserProfile()
+    print("Logged in as: {userName} ({ownerId})".format(**profile))
+
+
+def test_encoding(args, syn):
+    import locale
+    import platform
+    print("python version =               ", platform.python_version())
+    print("sys.stdout.encoding =          ", sys.stdout.encoding)
+    print("sys.stdout.isatty() =          ", sys.stdout.isatty())
+    print("locale.getpreferredencoding() =", locale.getpreferredencoding())
+    print("sys.getfilesystemencoding() =  ", sys.getfilesystemencoding())
+    print("PYTHONIOENCODING =             ", os.environ.get("PYTHONIOENCODING", None))
+    print("latin1 chars =                 D\xe9j\xe0 vu, \xfcml\xf8\xfats")
+    print("Some non-ascii chars =         '\u0227\u0188\u0188\u1e17\u019e\u0167\u1e17\u1e13 u\u028dop-\u01ddp\u0131sdn \u0167\u1e17\u1e8b\u0167 \u0192\u01ff\u0159 \u0167\u1e17\u015f\u0167\u012b\u019e\u0260'", )
 
 
 def build_parser():
@@ -457,7 +527,7 @@ def build_parser():
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
 
     parser_store.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
-            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
     parser_store.add_argument('--replace', action='store_true',default=False,
             help='Replace all existing annotations with the given annotations')
 
@@ -486,7 +556,7 @@ def build_parser():
     parser_add.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_add.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
-            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
     parser_add.add_argument('--replace', action='store_true',default=False,
             help='Replace all existing annotations with the given annotations')
     parser_add.add_argument('--file', type=str, help=argparse.SUPPRESS)
@@ -502,6 +572,13 @@ def build_parser():
             help='Synapse ID of project or folder where file/folder will be moved ')
     parser_mv.set_defaults(func=move)
 
+    parser_cp = subparsers.add_parser('cp',
+            help='Copies a file in Synapse')
+    parser_cp.add_argument('--id', metavar='syn123', type=str, required=True,
+            help='Id of entity in Synapse to be copied.')
+    parser_cp.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=True, dest='parentid',
+            help='Synapse ID of project or folder where file will be moved ')
+    parser_cp.set_defaults(func=copy)
 
     parser_associate = subparsers.add_parser('associate',
             help=('Associate local files with the files stored in Synapse so that calls to '
@@ -520,6 +597,8 @@ def build_parser():
             help='removes a dataset from Synapse')
     parser_delete.add_argument('id', metavar='syn123', type=str,
             help='Synapse ID of form syn123 of desired data object')
+    parser_delete.add_argument('--version', type=str,
+            help='Version number to delete of given entity.')
     parser_delete.set_defaults(func=delete)
 
     parser_query = subparsers.add_parser('query',
@@ -531,28 +610,30 @@ def build_parser():
 
     parser_submit = subparsers.add_parser('submit',
             help='submit an entity or a file for evaluation')
-    parser_submit.add_argument('--evaluationID', '--evalID', type=str,
+    parser_submit.add_argument('--evaluationID', '--evaluationId', '--evalID', type=str,
             help='Evaluation ID where the entity/file will be submitted')
     parser_submit.add_argument('--evaluationName', '--evalN', type=str,
             help='Evaluation Name where the entity/file will be submitted')
     parser_submit.add_argument('--evaluation', type=str,
             help=argparse.SUPPRESS)  #mainly to maintain the backward compatibility
-    parser_submit.add_argument('--entity', '--eid', '--entityId', type=str,
+    parser_submit.add_argument('--entity', '--eid', '--entityId', '--id', type=str,
             help='Synapse ID of the entity to be submitted')
     parser_submit.add_argument('--file', '-f', type=str,
             help='File to be submitted to the challenge')
-    parser_submit.add_argument('--parentId', '--pid', type=str, dest='parentid',
+    parser_submit.add_argument('--parentId', '--parentid', '--parent', type=str, dest='parentid',
             help='Synapse ID of project or folder where to upload data')
     parser_submit.add_argument('--name', type=str,
             help='Name of the submission')
     parser_submit.add_argument('--teamName', '--team', type=str,
-            help='Publicly displayed name of team for the submission[defaults to username]')
+            help='Submit of behalf of a registered team')
+    parser_submit.add_argument('--submitterAlias', '--alias', metavar='ALIAS', type=str,
+            help='A nickname, possibly for display in leaderboards')
     parser_submit.add_argument('--used', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path from which the '
+            help=('Synapse ID of a file entity or url from which the '
                   'specified entity is derived'))
     parser_submit.add_argument('--executed', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path that was executed '
-                  'to generate the specified entity is derived'))
+            help=('Synapse ID of a file entity or url indicating code executed '
+                  'to generate the specified entity'))
     parser_submit.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_submit.set_defaults(func=submit)
@@ -608,6 +689,9 @@ def build_parser():
             help='show provenance records')
     parser_get_provenance.add_argument('-id', '--id', metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose provenance we are accessing.')
+    parser_get_provenance.add_argument('--version', metavar='version', type=int, required=False,
+            help='version of Synapse entity whose provenance we are accessing.')
+
     parser_get_provenance.add_argument('-o', '-output', '--output', metavar='OUTPUT_FILE', dest='output',
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
@@ -618,7 +702,7 @@ def build_parser():
     parser_set_annotations.add_argument("--id", metavar='syn123', type=str, required=True,
             help='Synapse ID of entity whose annotations we are accessing.')
     parser_set_annotations.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=True,
-            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1}'")
+            help="Annotations to add as a JSON formatted string, should evaluate to a dictionary (key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
     parser_set_annotations.add_argument('-r', '--replace', action='store_true',default=False,
             help='Replace all existing annotations with the given annotations')
     parser_set_annotations.set_defaults(func=setAnnotations)
@@ -659,7 +743,7 @@ def build_parser():
 
     ## the purpose of the login command (as opposed to just using the -u and -p args) is
     ## to allow the command line user to cache credentials
-    parser_login = subparsers.add_parser( 'login',
+    parser_login = subparsers.add_parser('login',
             help='login to Synapse and (optionally) cache credentials')
     parser_login.add_argument('-u', '--username', dest='synapseUser',
             help='Username used to connect to Synapse')
@@ -668,6 +752,11 @@ def build_parser():
     parser_login.add_argument('--rememberMe', '--remember-me', dest='rememberMe', action='store_true', default=False,
             help='Cache credentials for automatic authentication on future interactions with Synapse')
     parser_login.set_defaults(func=login)
+
+    ## test character encoding
+    parser_test_encoding = subparsers.add_parser('test-encoding',
+            help='test character encoding to help diagnose problems')
+    parser_test_encoding.set_defaults(func=test_encoding)
 
     return parser
 
@@ -682,12 +771,24 @@ def perform_main(args, syn):
             else:
                 sys.stderr.write(utils._synapse_error_msg(ex))
 
+def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
+    try:
+        syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
+    except SynapseNoCredentialsError:
+        # if there were no credentials in the cache nor provided, prompt the user and try again
+        if user is None:
+            user = input("Synapse username: ")
+
+        passwd = getpass.getpass("Password for " + user + ": ")
+        syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
     syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
-    syn.login(args.synapseUser, args.synapsePassword, silent=True)
+    if not ('func' in args and args.func == login):
+        # if we're not executing the "login" operation, automatically authenticate before running operation
+        login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
     perform_main(args, syn)
 
 

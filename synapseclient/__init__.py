@@ -50,7 +50,7 @@ Installing from source::
 
 You can stay on the master branch to get the latest stable release or check out the develop branch or a tagged revision::
 
-    get checkout <branch or tag>
+    git checkout <branch or tag>
 
 Next, either install the package in the site-packages directory ``python setup.py install`` or ``python setup.py develop`` to make the installation follow the head without having to reinstall::
 
@@ -85,7 +85,7 @@ Imports
 Several components of the synapseclient can be imported as needed::
 
     from synapseclient import Activity
-    from synapseclient import Entity, Project, Folder, File
+    from synapseclient import Entity, Project, Folder, File, Link
     from synapseclient import Evaluation, Submission, SubmissionStatus
     from synapseclient import Wiki
 
@@ -103,7 +103,7 @@ and also downloads the file to a local cache::
 
 View the entity's metadata in the Python console::
 
-    print entity
+    print(entity)
 
 This is one simple way to read in a small matrix::
 
@@ -131,7 +131,7 @@ entities in a hierarchical or tree structure. Projects are at the top level and
 must be uniquely named::
 
     import synapseclient
-    from synapseclient import Project, Folder, File
+    from synapseclient import Project, Folder, File, Link
 
     project = Project('My uniquely named project')
     project = syn.store(project)
@@ -157,6 +157,7 @@ See also:
 - :py:class:`synapseclient.entity.Project`
 - :py:class:`synapseclient.entity.Folder`
 - :py:class:`synapseclient.entity.File`
+- :py:class:`synapseclient.entity.Link`
 - :py:func:`synapseclient.Synapse.store`
 
 Annotating Synapse entities
@@ -231,7 +232,7 @@ Synapse supports a `SQL-like query language <https://sagebionetworks.jira.com/wi
     results = syn.query('SELECT id, name FROM entity WHERE parentId=="syn1899495"')
 
     for result in results['results']:
-        print result['entity.id'], result['entity.name']
+        print(result['entity.id'], result['entity.name'])
 
 Querying for my projects. Finding projects owned by the current user::
 
@@ -239,7 +240,7 @@ Querying for my projects. Finding projects owned by the current user::
     results = syn.query('SELECT id, name FROM project WHERE project.createdByPrincipalId==%s' % profile['ownerId'])
 
     for result in results['results']:
-        print result['entity.id'], result['entity.name']
+        print(result['project.id'], result['project.name'])
 
 See:
 
@@ -287,23 +288,31 @@ Getting updates
 To get information about new versions of the client including development versions
 see `synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_ and `synapseclient.release_notes() <Versions.html#synapseclient.version_check.release_notes>`_.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+from .client import Synapse, login
+from .client import PUBLIC, AUTHENTICATED_USERS
+from .client import ROOT_ENTITY
+
+from .activity import Activity
+from .entity import Entity, Project, Folder, File, Link
+from .evaluation import Evaluation, Submission, SubmissionStatus
+from .table import Schema, Column, RowSet, Row, as_table_columns, Table
+from .team import Team, UserProfile, UserGroupHeader, TeamMember
+from .wiki import Wiki
+
+from .version_check import check_for_updates
+from .version_check import release_notes
 
 import json
 import pkg_resources
-__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))['latestVersion']
+__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient').decode())['latestVersion']
 
 import requests
 USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
+import logging 
+logging.getLogger("requests").setLevel(logging.WARNING)
 
-from client import Synapse, login
-from activity import Activity
-from entity import Entity, Project, Folder, File
-from evaluation import Evaluation, Submission, SubmissionStatus
-from table import Schema, Column, RowSet, Row, as_table_columns, Table
-from wiki import Wiki
-
-from version_check import check_for_updates
-from version_check import release_notes
-
-from client import PUBLIC, AUTHENTICATED_USERS
-from client import ROOT_ENTITY

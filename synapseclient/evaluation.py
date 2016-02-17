@@ -24,7 +24,7 @@ Like entities, evaluations are access controlled via ACLs. The
 The :py:func:`synapseclient.Synapse.submit` method returns a Submission_ object::
 
     entity = syn.get(synapse_id)
-    submission = syn.submit(evaluation, entity, name='My Data', teamName='My Team')
+    submission = syn.submit(evaluation, entity, name='My Data', team='My Team')
 
 The Submission object can then be used to check the `status <#submission-status>`_ of the submission::
 
@@ -77,6 +77,10 @@ Submission Status
    :members: __init__
 
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
 
 import sys
 

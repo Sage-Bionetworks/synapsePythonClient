@@ -1,5 +1,5 @@
 import os, json, tempfile, filecmp
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equal, assert_in
 from mock import MagicMock, patch
 import unit
 import synapseclient
@@ -9,10 +9,10 @@ from synapseclient import Evaluation
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = unit.syn
 
 
@@ -64,17 +64,17 @@ def test_getWithEntityBundle(download_file_mock):
         'annotations': {}}
 
     fileHandle = bundle['fileHandles'][0]['id']
-    cacheDir = synapseclient.cache.determine_cache_directory(fileHandle)
-    print "cacheDir=", cacheDir
+    cacheDir = syn.cache.get_cache_dir(fileHandle)
+    print("cacheDir=", cacheDir)
 
     # Make sure the .cacheMap file does not already exist
     cacheMap = os.path.join(cacheDir, '.cacheMap')
     if os.path.exists(cacheMap):
-        print "removing cacheMap file: ", cacheMap
+        print("removing cacheMap file: ", cacheMap)
         os.remove(cacheMap)
 
     def _downloadFileEntity(entity, path, submission):
-        print "mock downloading file to:", path
+        print("mock downloading file to:", path)
         ## touch file at path
         with open(path, 'a'):
             os.utime(path, None)
@@ -88,12 +88,12 @@ def test_getWithEntityBundle(download_file_mock):
     # download file to an alternate location
 
     temp_dir1 = tempfile.mkdtemp()
-    print "temp_dir1=", temp_dir1
+    print("temp_dir1=", temp_dir1)
 
     e = syn._getWithEntityBundle(entityBundle=bundle,
                                  downloadLocation=temp_dir1,
                                  ifcollision="overwrite.local")
-    print e
+    print(e)
 
     assert e.name == bundle["entity"]["name"]
     assert e.parentId == bundle["entity"]["parentId"]
@@ -102,18 +102,14 @@ def test_getWithEntityBundle(download_file_mock):
     assert e.path == os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])
 
     # 2. ----------------------------------------------------------------------
-    # download to cache
+    # get without specifying downloadLocation
     e = syn._getWithEntityBundle(entityBundle=bundle, ifcollision="overwrite.local")
 
-    print e
+    print(e)
 
     assert e.name == bundle["entity"]["name"]
     assert e.parentId == bundle["entity"]["parentId"]
     assert bundle["fileHandles"][0]["fileName"] in e.files
-
-    # should this put the file in the cache?
-    assert e.cacheDir == cacheDir
-    assert e.path == os.path.join(cacheDir, bundle["entity"]["name"])
 
     # 3. ----------------------------------------------------------------------
     # download to another location
@@ -122,12 +118,12 @@ def test_getWithEntityBundle(download_file_mock):
     e = syn._getWithEntityBundle(entityBundle=bundle,
                                  downloadLocation=temp_dir2,
                                  ifcollision="overwrite.local")
-    print "temp_dir2=", temp_dir2
-    print e
+    print("temp_dir2=", temp_dir2)
+    print(e)
 
-    assert bundle["fileHandles"][0]["fileName"] in e.files
+    assert_in(bundle["fileHandles"][0]["fileName"], e.files)
     assert e.path is not None
-    assert os.path.dirname(e.path) == temp_dir2
+    assert utils.equal_paths( os.path.dirname(e.path), temp_dir2 )
 
     # 4. ----------------------------------------------------------------------
     ## test preservation of local state
@@ -183,7 +179,7 @@ def test_submit(*mocks):
         return submission
     POST_mock.side_effect = shim
     
-    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', teamName='Team X')
+    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', submitterAlias='Team X')
     assert GET_mock.call_count == 2
 
     assert submission.id == 1234
@@ -191,4 +187,29 @@ def test_submit(*mocks):
     assert submission.name == 'George'
     assert submission.submitterAlias == 'Team X'
 
-    print submission
+    print(submission)
+
+
+def test_send_message():
+    with patch("synapseclient.multipart_upload._multipart_upload") as up_mock, patch("synapseclient.client.Synapse.restPOST") as post_mock:
+            up_mock.return_value = {
+                'startedOn': '2016-01-22T00:00:00.000Z',
+                'state': 'COMPLETED',
+                'uploadId': '1234',
+                'updatedOn': '2016-01-22T00:00:00.000Z',
+                'partsState': '11',
+                'startedBy': '377358',
+                'resultFileHandleId': '7365905' }
+            syn.sendMessage(
+                userIds=[1421212],
+                messageSubject="Xanadu",
+                messageBody=   ("In Xanadu did Kubla Khan\n"
+                                "A stately pleasure-dome decree:\n"
+                                "Where Alph, the sacred river, ran\n"
+                                "Through caverns measureless to man\n"
+                                "Down to a sunless sea.\n"))
+            msg = json.loads(post_mock.call_args_list[0][1]['body'])
+            assert msg["fileHandleId"] == "7365905", msg
+            assert msg["recipients"] == [1421212], msg
+            assert msg["subject"] == "Xanadu", msg
+

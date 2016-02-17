@@ -5,64 +5,57 @@ Utility Functions
 
 Utility functions useful in the implementation and testing of the Synapse client.
 
-~~~~~~~~~~~~~~~~~
-Property Juggling
-~~~~~~~~~~~~~~~~~
-
-.. automethod:: synapseclient.utils.id_of
-.. automethod:: synapseclient.utils.get_properties
-.. automethod:: synapseclient.utils.is_url
-.. automethod:: synapseclient.utils.as_url
-.. automethod:: synapseclient.utils.is_synapse_id
-.. automethod:: synapseclient.utils.to_unix_epoch_time
-.. automethod:: synapseclient.utils.from_unix_epoch_time
-.. automethod:: synapseclient.utils.format_time_interval
-.. automethod:: synapseclient.utils._is_json
-
-~~~~~~~~~~~~~
-File Handling
-~~~~~~~~~~~~~
-
-.. automethod:: synapseclient.utils.md5_for_file
-.. automethod:: synapseclient.utils.download_file
-.. automethod:: synapseclient.utils.extract_filename
-.. automethod:: synapseclient.utils.file_url_to_path
-.. automethod:: synapseclient.utils.is_same_base_url
-.. automethod:: synapseclient.utils.normalize_whitespace
-
-
-~~~~~~~~
-Chunking
-~~~~~~~~
-
-.. autoclass:: synapseclient.utils.Chunk
-.. automethod:: synapseclient.utils.chunks
-
-~~~~~~~
-Testing
-~~~~~~~
-
-.. automethod:: synapseclient.utils.make_bogus_data_file
-.. automethod:: synapseclient.utils.make_bogus_binary_file
-
 """
-#!/usr/bin/env python2.7
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from future.utils import implements_iterator
+from builtins import str
+import six
 
+try:
+    from urllib.parse import urlparse
+    from urllib.parse import urlencode
+    from urllib.parse import parse_qs
+    from urllib.parse import urlunparse
+    from urllib.parse import ParseResult
+    from urllib.parse import urlsplit
+except ImportError:
+    from urlparse import urlparse
+    from urllib import urlencode
+    from urlparse import parse_qs
+    from urlparse import urlunparse
+    from urlparse import ParseResult
+    from urlparse import urlsplit
+
+try:
+    import urllib.request, urllib.error
+except ImportError:
+    import urllib
+
+import os, sys
+import hashlib, re
 import cgi
-import math, os, sys, urllib, urlparse, hashlib, re
+import errno
+import math
 import random
 import requests
 import collections
 import tempfile
 import platform
 import functools
+import threading
+import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
+from datetime import timedelta
 from numbers import Number
 
 
 UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
+ISO_FORMAT_MICROS = "%Y-%m-%dT%H:%M:%S.%fZ"
 GB = 2**30
 MB = 2**20
 KB = 2**10
@@ -115,11 +108,11 @@ def download_file(url, localFilepath=None):
         for nChunks, chunk in enumerate(r.iter_content(chunk_size=1024*10)):
             if chunk:
                 f.write(chunk)
-                printTransferProgress(nChunks*1024*10 ,toBeTransferred)
+                printTransferProgress(nChunks*1024*10, toBeTransferred)
     finally:
         if f:
             f.close()
-            printTransferProgress(toBeTransferred ,toBeTransferred)
+            printTransferProgress(toBeTransferred, toBeTransferred)
 
     return localFilepath
 
@@ -182,18 +175,19 @@ def id_of(obj):
 
     :returns: The ID or throws an exception
     """
-
-    if isinstance(obj, basestring):
-        return obj
+    if isinstance(obj, six.string_types):
+        return str(obj)
     if isinstance(obj, Number):
         return str(obj)
     result = _get_from_members_items_or_properties(obj, 'id')
+    if result is None:
+        result = _get_from_members_items_or_properties(obj, 'ownerId')
     if result is None:
         raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
     return result
 
 def is_in_path(id, path):
-    """Determines weather id is in the path as returned from /entity/{id}/path
+    """Determines whether id is in the path as returned from /entity/{id}/path
 
     :param id: synapse id string
     :param path: object as returned from '/entity/{id}/path'
@@ -210,10 +204,9 @@ def get_properties(entity):
 
 def is_url(s):
     """Return True if the string appears to be a valid URL."""
-
-    if isinstance(s, basestring):
+    if isinstance(s, six.string_types):
         try:
-            url_parts = urlparse.urlsplit(s)
+            url_parts = urlsplit(s)
             ## looks like a Windows drive letter?
             if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
                 return False
@@ -227,23 +220,20 @@ def is_url(s):
 
 def as_url(s):
     """Tries to convert the input into a proper URL."""
-
-    url_parts = urlparse.urlsplit(s)
+    url_parts = urlsplit(s)
     ## Windows drive letter?
     if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
-        return 'file:///%s' % unicode(s).replace("\\","/")
+        return 'file:///%s' % str(s).replace("\\","/")
     if url_parts.scheme:
         return url_parts.geturl()
     else:
-        return 'file://%s' % unicode(s)
+        return 'file://%s' % str(s)
 
 
 def guess_file_name(string):
     """Tries to derive a filename from an arbitrary string."""
-
-    path = urlparse.urlparse(string).path
-    path = normalize_path(path)
-    tokens = filter(lambda x: x != '', path.split('/'))
+    path = normalize_path(urlparse(string).path)
+    tokens = [x for x in path.split('/') if x != '']
     if len(tokens) > 0:
         return tokens[-1]
 
@@ -259,7 +249,15 @@ def normalize_path(path):
     """Transforms a path into an absolute path with forward slashes only."""
     if path is None:
         return None
-    return re.sub(r'\\', '/', os.path.abspath(path))
+    return re.sub(r'\\', '/', os.path.normcase(os.path.abspath(path)))
+
+
+def equal_paths(path1, path2):
+    """
+    Compare file paths in a platform neutral way
+    """
+    return normalize_path(path1) == normalize_path(path2)
+
 
 def file_url_to_path(url, verify_exists=False):
     """
@@ -272,8 +270,7 @@ def file_url_to_path(url, verify_exists=False):
     :returns: a dict containing keys `path`, `files` and `cacheDir` or an empty
               dict if the URL is not a file URL.
     """
-
-    parts = urlparse.urlsplit(url)
+    parts = urlsplit(url)
     if parts.scheme=='file' or parts.scheme=='':
         path = parts.path
         ## A windows file URL, for example file:///c:/WINDOWS/asdf.txt
@@ -290,7 +287,6 @@ def file_url_to_path(url, verify_exists=False):
     return {}
 
 
-
 def is_same_base_url(url1, url2):
     """Compares two urls to see if they are the same excluding up to the base path
 
@@ -299,22 +295,20 @@ def is_same_base_url(url1, url2):
 
     :returns: Boolean
     """
-    url1 = urlparse.urlsplit(url1)
-    url2 = urlparse.urlsplit(url2)
+    url1 = urlsplit(url1)
+    url2 = urlsplit(url2)
     return (url1.scheme==url2.scheme and
             url1.netloc==url2.netloc)
 
 
-
-
 def is_synapse_id(obj):
     """If the input is a Synapse ID return it, otherwise return None"""
-
-    if isinstance(obj, basestring):
+    if isinstance(obj, six.string_types):
         m = re.match(r'(syn\d+)', obj)
         if m:
             return m.group(1)
     return None
+
 
 def _is_date(dt):
     """Objects of class datetime.date and datetime.datetime will be recognized as dates"""
@@ -323,7 +317,7 @@ def _is_date(dt):
 
 def _to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
-    if isinstance(value, collections.Iterable) and not isinstance(value, basestring):
+    if isinstance(value, collections.Iterable) and not isinstance(value, six.string_types):
         return list(value)
     else:
         return [value]
@@ -331,7 +325,7 @@ def _to_list(value):
 
 def _to_iterable(value):
     """Convert the value (an iterable or a scalar value) to an iterable."""
-    if isinstance(value, basestring):
+    if isinstance(value, six.string_types):
         return (value,)
     if isinstance(value, collections.Iterable):
         return value
@@ -353,9 +347,9 @@ def make_bogus_data_file(n=100, seed=None):
         random.seed(seed)
     data = [random.gauss(mu=0.0, sigma=1.0) for i in range(n)]
 
-    f = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+    f = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
     try:
-        f.write(", ".join((str(n) for n in data)))
+        f.write(", ".join(str(n) for n in data))
         f.write("\n")
     finally:
         f.close()
@@ -363,7 +357,7 @@ def make_bogus_data_file(n=100, seed=None):
     return f.name
 
 
-def make_bogus_binary_file(n=1*MB, printprogress=False):
+def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
     """
     Makes a bogus binary data file for testing.
     It is the caller's responsibility to clean up the file when finished.
@@ -373,17 +367,19 @@ def make_bogus_binary_file(n=1*MB, printprogress=False):
     :returns: The name of the file
     """
 
-    progress = 0
-    remaining = n
-    with tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+    with open(filepath, 'wb') if filepath else tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+        if not filepath:
+            filepath = f.name
+        progress = 0
+        remaining = n
         while remaining > 0:
-            buff_size = min(remaining, 1*MB)
+            buff_size = int(min(remaining, 1*MB))
             f.write(os.urandom(buff_size))
             remaining -= buff_size
             if printprogress:
                 progress += buff_size
-                printTransferProgress(progress, n, 'Generated ', f.name)
-    return f.name
+                printTransferProgress(progress, n, 'Generated ', filepath)
+        return filepath
 
 
 def to_unix_epoch_time(dt):
@@ -397,19 +393,52 @@ def to_unix_epoch_time(dt):
     return int((dt - UNIX_EPOCH).total_seconds() * 1000)
 
 
-def from_unix_epoch_time(ms):
-    """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
+def to_unix_epoch_time_secs(dt):
+    """
+    Convert either `datetime.date or datetime.datetime objects 
+    <http://docs.python.org/2/library/datetime.html>`_ to UNIX time.
+    """
 
-    if isinstance(ms, basestring):
-        ms = int(ms)
+    if type(dt) == Date:
+        return (dt - UNIX_EPOCH.date()).total_seconds()
+    return (dt - UNIX_EPOCH).total_seconds()
+
+
+def from_unix_epoch_time_secs(secs):
+    """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
+    if isinstance(secs, six.string_types):
+        secs = float(secs)
 
     # utcfromtimestamp() fails for negative values (dates before 1970-1-1) on Windows
     # so, here's a hack that enables ancient events, such as Chris's birthday to be
     # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!
-    if platform.system()=='Windows' and ms < 0:
-        mirror_date = Datetime.utcfromtimestamp(abs(ms)/1000.0)
+    if platform.system()=='Windows' and secs < 0:
+        mirror_date = Datetime.utcfromtimestamp(abs(secs))
         return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
-    return Datetime.utcfromtimestamp(ms/1000.0)
+    return Datetime.utcfromtimestamp(secs)
+
+
+def from_unix_epoch_time(ms):
+    """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
+
+    if isinstance(ms, six.string_types):
+        ms = float(ms)
+    return from_unix_epoch_time_secs(ms/1000.0)
+
+
+def datetime_to_iso(dt):
+    ## Round microseconds to milliseconds (as expected by older clients)
+    ## and add back the "Z" at the end.
+    ## see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
+    fmt = "{time.year:04}-{time.month:02}-{time.day:02}T{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
+    if dt.microsecond >= 999500:
+        dt -= timedelta(microseconds=dt.microsecond)
+        dt += timedelta(seconds=1)
+    return fmt.format(time=dt, millisecond=int(round(dt.microsecond/1000.0)), tz="Z")
+
+
+def iso_to_datetime(iso_time):
+    return Datetime.strptime(iso_time, ISO_FORMAT_MICROS)
 
 
 def format_time_interval(seconds):
@@ -442,23 +471,6 @@ def _find_used(activity, predicate):
         if predicate(resource):
             return resource
     return None
-
-
-def nchunks(filepath, chunksize=5*MB):
-    """
-    Computes how many chunks are necessary to upload the given file.
-    """
-    size = os.stat(filepath).st_size
-    return int(math.ceil( float(size) / chunksize))
-
-
-def get_chunk(filepath, chunknumber, chunksize=5*MB):
-    """
-    Read a requested chunk number from the file path. Use with :py:func:`nchunks`.
-    """
-    with open(filepath, 'rb') as f:
-        f.seek((chunknumber-1)*chunksize)
-        return f.read(chunksize)
 
 
 def itersubclasses(cls, _seen=None):
@@ -509,12 +521,12 @@ def normalize_whitespace(s):
     Strips the string and replace all whitespace sequences and other
     non-printable characters with a single space.
     """
-    assert isinstance(s, basestring)
+    assert isinstance(s, six.string_types)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
 
 
 def normalize_lines(s):
-    assert isinstance(s, basestring)
+    assert isinstance(s, six.string_types)
     s2 = re.sub(r'[\t ]*\n[\t ]*', '\n', s.strip())
     return re.sub(r'[\t ]+', ' ', s2)
 
@@ -523,19 +535,18 @@ def _synapse_error_msg(ex):
     """
     Format a human readable error message
     """
-
-    if isinstance(ex, basestring):
+    if isinstance(ex, six.string_types):
         return ex
 
-    return '\n' + ex.__class__.__name__ + ': ' + unicode(ex) + '\n\n'
+    return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
 
 
 def _limit_and_offset(uri, limit=None, offset=None):
     """
     Set limit and/or offset query parameters of the given URI.
     """
-    parts = urlparse.urlparse(uri)
-    query = urlparse.parse_qs(parts.query)
+    parts = urlparse(uri)
+    query = parse_qs(parts.query)
     if limit is None:
         query.pop('limit', None)
     else:
@@ -544,8 +555,20 @@ def _limit_and_offset(uri, limit=None, offset=None):
         query.pop('offset', None)
     else:
         query['offset'] = offset
-    new_query_string = urllib.urlencode(query, doseq=True)
-    return urlparse.urlunparse(urlparse.ParseResult(
+
+    ## in Python 2, urllib expects encoded byte-strings
+    if six.PY2:
+        new_query = {}
+        for k,v in query.items():
+            if isinstance(v,list):
+                v = [unicode(element).encode('utf-8') for element in v]
+            elif isinstance(v,str):
+                v = unicode(v).encode('utf-8')
+            new_query[unicode(k).encode('utf-8')] = v
+        query = new_query
+
+    new_query_string = urlencode(query, doseq=True)
+    return urlunparse(ParseResult(
         scheme=parts.scheme,
         netloc=parts.netloc,
         path=parts.path,
@@ -610,19 +633,6 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
-# http://stackoverflow.com/questions/5478351/python-time-measure-function
-def timing(f):
-    import time
-    @functools.wraps(f)
-    def wrap(*args, **kwargs):
-        time1 = time.time()
-        ret = f(*args)
-        time2 = time.time()
-        print 'function %s took %0.3f ms' % (f.func_name, (time2-time1)*1000.0)
-        return ret
-    return wrap
-
-
 def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True):
     """Prints a progress bar
 
@@ -630,28 +640,37 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     :param toBeTransferred: total number of items/bytes when completed
     :param prefix: String printed before progress bar
     :param prefix: String printed after progress bar
-    :param isBytes: A boolean indicating weather to convert bytes to kB, MB, GB etc.
+    :param isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
 
     """
     barLength = 20 # Modify this to change the length of the progress bar
-    if toBeTransferred==0:  #There is nothing to be transfered
+    status = ""
+    if toBeTransferred<0:
+        defaultToBeTransferred = (barLength*1*MB)
+        if transferred > defaultToBeTransferred:
+            progress = float(transferred % defaultToBeTransferred) / defaultToBeTransferred
+        else:
+            progress = float(transferred) / defaultToBeTransferred
+    elif toBeTransferred==0:  #There is nothing to be transferred
         progress = 1
         status = "Done...\n"
     else:
-        progress = float(transferred)/toBeTransferred
-        status = ""
-    if progress >= 1:
-        progress = 1
-        status = "Done...\n"
+        progress = float(transferred) / toBeTransferred
+        if progress >= 1:
+            progress = 1
+            status = "Done...\n"
     block = int(round(barLength*progress))
-    if isBytes:
-        nBytes = '%s/%s' % (humanizeBytes(transferred), humanizeBytes(toBeTransferred))
+    nbytes = humanizeBytes(transferred) if isBytes else transferred
+    if toBeTransferred>0:
+        outOf = "/%s" % (humanizeBytes(toBeTransferred) if isBytes else toBeTransferred)
+        percentage = "%4.2f%%"%(progress*100)
     else:
-        nBytes = '%i/%i' % (transferred, toBeTransferred)
-    text = "\r%s [%s]%4.2f%% \t%s %s %s    " %(prefix,
+        outOf = ""
+        percentage = ""
+    text = "\r%s [%s]%s     %s%s %s %s    " % (prefix,
                                                "#"*block + "-"*(barLength-block),
-                                               progress*100,
-                                               nBytes,
+                                               percentage,
+                                               nbytes, outOf,
                                                postfix, status)
     sys.stdout.write(text)
     sys.stdout.flush()
@@ -668,8 +687,92 @@ def humanizeBytes(bytes):
     return 'Oops larger than Exabytes'
 
 
+def touch(path, times=None):
+    """
+    Make sure a file exists. Update its access and modified times.
+    """
+    basedir = os.path.dirname(path)
+    if not os.path.exists(basedir):
+        try:
+            os.makedirs(basedir)
+        except OSError as err:
+            ## alternate processes might be creating these at the same time
+            if err.errno != errno.EEXIST:
+                raise
+
+    with open(path, 'a'):
+        os.utime(path, times)
+    return path
+
+
 def _is_json(content_type):
     """detect if a content-type is JSON"""
     ## The value of Content-Type defined here:
     ## http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
     return content_type.lower().strip().startswith('application/json') if content_type else False
+
+
+def find_data_file_handle(bundle):
+    """Return the fileHandle whose ID matches the dataFileHandleId in an entity bundle"""
+    for fileHandle in bundle['fileHandles']:
+        if fileHandle['id'] == bundle['entity']['dataFileHandleId']:
+            return fileHandle
+    return None
+
+
+def unique_filename(path):
+    """Returns a unique path by appending (n) for some number n to the end of the filename."""
+
+    base, ext = os.path.splitext(path)
+    counter = 0
+    while os.path.exists(path):
+        counter += 1
+        path = base + ("(%d)" % counter) + ext
+
+    return path
+
+
+@implements_iterator
+class threadsafe_iter:
+    """Takes an iterator/generator and makes it thread-safe by
+    serializing call to the `next` method of given iterator/generator.
+    See: http://anandology.com/blog/using-iterators-and-generators/
+    """
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        with self.lock:
+            return next(self.it)
+
+def threadsafe_generator(f):
+    """A decorator that takes a generator function and makes it thread-safe.
+    See: http://anandology.com/blog/using-iterators-and-generators/
+    """
+    def g(*a, **kw):
+        return threadsafe_iter(f(*a, **kw))
+    return g
+
+
+def extract_prefix(keys):
+    """
+    Takes a list of strings and extracts a common prefix delimited by a dot,
+    for example:
+    >>> extract_prefix(["entity.bang", "entity.bar", "entity.bat"])
+    entity.
+    """
+    prefixes = set()
+    for key in keys:
+        parts = key.split(".")
+        if len(parts) > 1:
+            prefixes.add(parts[0])
+        else:
+            return ""
+    if len(prefixes) == 1:
+        return prefixes.pop() + "."
+    return ""
+

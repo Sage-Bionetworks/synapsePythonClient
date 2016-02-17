@@ -1,9 +1,14 @@
 Python Synapse Client
 =====================
 
-A python client for [Sage Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
+ branch  | build status
+ --------|--------------
+ develop | [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
+ master  | [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
 
-There's also a [Synapse client for R](https://sagebionetworks.jira.com/wiki/display/SYNR/Home).
+A Python client for [Sage Bionetwork's](https://www.sagebase.org) [Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
+
+There is also a [Synapse client for R](https://github.com/Sage-Bionetworks/rSynapseClient/).
 
 
 Documentation
@@ -23,7 +28,7 @@ For more information about interacting with Synapse, see:
 Installation
 ------------
 
-The python synapse client has been tested on python 2.7 on Mac OS X, Ubuntu Linux and Windows.
+The Python Synapse client has been tested on Python 2.7, 3.4 and 3.5 on Mac OS X, Ubuntu Linux and Windows.
 
 ### Install using pip
 
@@ -35,8 +40,8 @@ The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclien
 
     (sudo) pip install --upgrade synapseclient
 
-The dependencies on pandas and pysftp are optional. Synapse [Tables](http://python-docs.synapse.org/Table.html) integrate
-with [Pandas](http://pandas.pydata.org/). The library pysftp is required for users of
+The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://python-docs.synapse.org/Table.html) integrate
+with [Pandas](http://pandas.pydata.org/). The library `pysftp` is required for users of
 [SFTP](http://python-docs.synapse.org/sftp.html) file storage. Both libraries require native code
 to be compiled or installed separately from prebuilt binaries.
 
@@ -50,7 +55,7 @@ Clone the [source code repository](https://github.com/Sage-Bionetworks/synapsePy
 
 #### Install develop branch
 
-Installing the [develop](https://github.com/Sage-Bionetworks/synapsePythonClient/tree/develop) branch can be useful for testing or for access to the latest features, with the acceptence of an increased risk of experiencing bugs. Using [virtualenv](http://www.virtualenv.org/) to create an isolated test environment is a good idea.
+Installing the [develop](https://github.com/Sage-Bionetworks/synapsePythonClient/tree/develop) branch can be useful for testing or for access to the latest features, with the acceptance of an increased risk of experiencing bugs. Using [virtualenv](http://www.virtualenv.org/) to create an isolated test environment is a good idea.
 
     git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
     cd synapsePythonClient
@@ -58,6 +63,10 @@ Installing the [develop](https://github.com/Sage-Bionetworks/synapsePythonClient
     python setup.py install
 
 Replace `python setup.py install` with `python setup.py develop` to make the installation follow the head without having to reinstall.
+
+Pip will nicely install from a branch in one step:
+
+    pip install git+https://github.com/Sage-Bionetworks/synapsePythonClient.git@develop
 
 #### Installing a tagged version
 
@@ -113,9 +122,9 @@ The synapse client can be used to write software that interacts with the Sage Sy
     matrix = syn.get('syn1901033')
 
     ## inspect its properties
-    print matrix.name
-    print matrix.description
-    print matrix.path
+    print(matrix.name)
+    print(matrix.description)
+    print(matrix.path)
 
     ## load the data matrix into a dictionary with an entry for each column
     with open(matrix.path, 'r') as f:
@@ -175,6 +184,6 @@ Caching credentials can also be done from the command line client:
 License and Copyright
 ---------------------
 
-&copy; Copyright 2013 Sage Bionetworks
+&copy; Copyright 2013-15 Sage Bionetworks
 
 This software is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).
