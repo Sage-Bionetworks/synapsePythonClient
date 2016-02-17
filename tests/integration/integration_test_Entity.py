@@ -7,7 +7,7 @@ from builtins import str
 
 import uuid, filecmp, os, sys, requests, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal
+from nose.tools import assert_raises
 from nose.plugins.attrib import attr
 from mock import patch
 
