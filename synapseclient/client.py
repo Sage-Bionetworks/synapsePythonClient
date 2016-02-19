@@ -1136,7 +1136,7 @@ class Synapse:
         """
         Copies most recent version of a file to a specified synapse ID.
 
-        :param obj: A synapse ID of a file
+        :param obj: A synapse ID or entity of a file
                     
         :param parentId: Synapse ID of a folder/project that the file wants to be copied to
        
@@ -1147,7 +1147,7 @@ class Synapse:
         if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
             raise ValueError('"synapse cp" can only copy files!')
         #Grab file handle createdBy annotation to see the user that created fileHandle
-        createdBy = self.restGET('/entity/%s/filehandles'%obj)['list'][0]['createdBy']
+        createdBy = self.restGET('/entity/%s/filehandles'%ent.id)['list'][0]['createdBy']
         #CHECK: If file is in the same parent directory (throw an error)
         search = self.query('select name from file where parentId =="%s"'%parentId)['results']
         for i in search:
@@ -1163,7 +1163,7 @@ class Synapse:
             new_ent = synapseclient.File(ent.path, parent=parentId)
             new_ent = self.store(new_ent)
         self.setAnnotations(new_ent, ent.annotations)
-        act = Activity("Copied file", used=obj)
+        act = Activity("Copied file", used=ent)
         self.setProvenance(new_ent['id'], act)
         print('Copied %s to %s' %(ent.id, new_ent['id']))
 
