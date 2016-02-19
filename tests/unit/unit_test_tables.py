@@ -251,7 +251,6 @@ def test_csv_table():
     schema1 = Schema(id='syn1234', name='Jazz Guys', columns=cols, parent="syn1000001")
 
     #TODO: use StringIO.StringIO(data) rather than writing files
-    import six
     try:
         ## create CSV file
         with tempfile.NamedTemporaryFile(delete=False) as temp:
