@@ -1124,6 +1124,41 @@ class Synapse:
 
         return bundle
 
+    def copy(self, obj, parentId):
+        """
+        Copies most recent version of a file to a specified synapse ID.
+
+        :param obj: A synapse ID of a file
+                    
+        :param parentId: Synapse ID of a folder/project that the file wants to be copied to
+       
+        """
+        ent = self.get(obj, downloadFile=False)
+        profile = self.getUserProfile().ownerId
+        #CHECK: Must be a file entity
+        if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
+            raise ValueError('"synapse cp" can only copy files!')
+        #Grab file handle createdBy annotation to see the user that created fileHandle
+        createdBy = self.restGET('/entity/%s/filehandles'%obj)['list'][0]['createdBy']
+        #CHECK: If file is in the same parent directory (throw an error)
+        search = self.query('select name from file where parentId =="%s"'%parentId)['results']
+        for i in search:
+            if i['file.name'] == ent.name:
+                raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
+        #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
+        if profile == createdBy:
+            new_ent = synapseclient.File(name=ent.name, parentId=parentId)
+            new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
+            new_ent = self._createEntity(new_ent)
+        else:
+            ent = self.get(obj)
+            new_ent = synapseclient.File(ent.path, parent=parentId)
+            new_ent = self.store(new_ent)
+        self.setAnnotations(new_ent, ent.annotations)
+        act = Activity("Copied file", used=obj)
+        self.setProvenance(new_ent['id'], act)
+        print('Copied %s to %s' %(ent.id, new_ent['id']))
+
     def delete(self, obj, version=None):
         """
         Removes an object from Synapse.
