@@ -62,7 +62,7 @@ def test_randomly_failing_parts():
     multipart_upload_module.MIN_PART_SIZE = 5*MB
     multipart_upload_module.MAX_RETRIES = 20
 
-    filepath = utils.make_bogus_binary_file(multipart_upload_module.MIN_PART_SIZE*5 + 777771)
+    filepath = utils.make_bogus_binary_file(multipart_upload_module.MIN_PART_SIZE*2 + 777771)
     print('Made bogus file: ', filepath)
 
     normal_put_chunk = None

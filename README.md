@@ -3,8 +3,10 @@ Python Synapse Client
 
  branch  | build status
  --------|--------------
- develop | [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
- master  | [![Build Status](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
+ develop | [![Build Status develop branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
+ master  | [![Build Status master branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
+
+[![Get the synapseclient from PyPI](https://img.shields.io/pypi/v/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Monthly downloads of synapseclient from PyPI](https://img.shields.io/pypi/dm/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/)
 
 A Python client for [Sage Bionetwork's](https://www.sagebase.org) [Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
 

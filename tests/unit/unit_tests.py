@@ -276,8 +276,9 @@ def test_is_json():
     assert not utils._is_json('')
 
 def test_unicode_output():
-    print("\nPython thinks your character encoding is:", sys.stdout.encoding)
-    if sys.stdout.encoding and sys.stdout.encoding.lower() == 'utf-8':
+    encoding = sys.stdout.encoding if hasattr(sys.stdout, 'encoding') else 'no encoding'
+    print("\nPython thinks your character encoding is:", encoding)
+    if encoding and encoding.lower() in ['utf-8', 'utf-16']:
         print("ȧƈƈḗƞŧḗḓ uʍop-ǝpısdn ŧḗẋŧ ƒǿř ŧḗşŧīƞɠ")
     else:
         print("can't display unicode, skipping test_unicode_output...")

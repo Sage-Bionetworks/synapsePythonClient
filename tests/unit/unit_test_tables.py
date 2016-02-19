@@ -4,8 +4,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
+from backports import csv
+import io
 import math
-import csv
 import os
 import sys
 import tempfile
@@ -181,10 +182,13 @@ def test_pandas_to_table():
 
         ## A dataframe with no row id and version
         table = Table(schema, df)
+
         for i, row in enumerate(table):
             print(row)
             assert row[0]==(i+1)
             assert row[1]==["c", "d", "e"][i]
+
+        assert len(table)==3
 
         ## If includeRowIdAndRowVersion=True, include empty row id an versions
         ## ROW_ID,ROW_VERSION,a,b
@@ -249,15 +253,17 @@ def test_csv_table():
     schema1 = Schema(id='syn1234', name='Jazz Guys', columns=cols, parent="syn1000001")
 
     #TODO: use StringIO.StringIO(data) rather than writing files
-
     try:
         ## create CSV file
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as temp:
-            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=os.linesep)
+        with tempfile.NamedTemporaryFile(delete=False) as temp:
+            filename = temp.name
+
+        with io.open(filename, mode='w', encoding="utf-8", newline='') as temp:
+            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=str(os.linesep))
             headers = ['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols]
             writer.writerow(headers)
-            filename = temp.name
             for row in data:
+                print(row)
                 writer.writerow(row)
 
         table = Table(schema1, filename)
