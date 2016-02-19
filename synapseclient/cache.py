@@ -10,13 +10,20 @@ with a `FileHandle <https://rest.synapse.org/org/sagebionetworks/repo/model/file
 This is part of the internal implementation of the client and should not be
 accessed directly by users of the client.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
 
+import collections
 import datetime
 import json
 import operator
 import os
 import re
 import shutil
+import six
 from math import floor
 import synapseclient.utils as utils
 from synapseclient.lock import Lock
@@ -84,6 +91,11 @@ class Cache():
 
 
     def get_cache_dir(self, file_handle_id):
+        if isinstance(file_handle_id, collections.Mapping):
+            if 'dataFileHandleId' in file_handle_id:
+                file_handle_id = file_handle_id['dataFileHandleId']
+            elif 'concreteType' in file_handle_id and 'id' in file_handle_id and file_handle_id['concreteType'].startswith('org.sagebionetworks.repo.model.file'):
+                file_handle_id = file_handle_id['id']
         return os.path.join(self.cache_root_dir, str(int(file_handle_id) % self.fanout), str(file_handle_id))
 
 
@@ -161,7 +173,7 @@ class Cache():
             if path is not None:
                 ## If we're given a path to a directory, look for a cached file in that directory
                 if os.path.isdir(path):
-                    for cached_file_path, cached_time in cache_map.iteritems():
+                    for cached_file_path, cached_time in six.iteritems(cache_map):
                         if path == os.path.dirname(cached_file_path):
                             return cached_file_path if compare_timestamps(_get_modified_time(cached_file_path), cached_time) else None
 
@@ -203,7 +215,7 @@ class Cache():
         """
         Remove a file from the cache.
 
-        :param file_handle_id:
+        :param file_handle_id: Will also extract file handle id from either a File or file handle
         :param path: If the given path is None, remove (and potentially delete)
                      all cached copies. If the path is that of a file in the
                      .cacheMap file, remove it.
@@ -212,14 +224,19 @@ class Cache():
         """
         removed = []
         cache_dir = self.get_cache_dir(file_handle_id)
+
+        ## if we've passed an entity and not a path, get path from entity
+        if path is None and isinstance(file_handle_id, collections.Mapping) and 'path' in file_handle_id:
+            path = file_handle_id['path']
+
         with Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
 
             if path is None:
-                if delete is True:
-                    for cached_file_path in cache_map:
-                        os.remove(cached_file_path)
-                        removed.append(cached_file_path)
+                for path in cache_map:
+                    if delete is True and os.path.exists(path):
+                        os.remove(path)
+                    removed.append(path)
                 cache_map = {}
             else:
                 path = utils.normalize_path(path)
@@ -264,7 +281,7 @@ class Cache():
             ## OK to purge directories in the cache that have no .cacheMap file
             if before_date > _get_modified_time(os.path.join(cache_dir, self.cache_map_file_name)):
                 if dry_run:
-                    print cache_dir
+                    print(cache_dir)
                 else:
                     shutil.rmtree(cache_dir)
                 count += 1

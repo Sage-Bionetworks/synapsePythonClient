@@ -1,4 +1,12 @@
-import csv
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+
+from backports import csv
+import io
 import json
 import filecmp
 import math
@@ -8,7 +16,7 @@ import sys
 import tempfile
 import time
 import uuid
-from itertools import izip
+from builtins import zip
 from nose.tools import assert_raises
 from datetime import datetime
 from mock import patch
@@ -26,20 +34,20 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
-    print "Crank up timeout on async calls"
+    print("Crank up timeout on async calls")
     module.syn.table_query_timeout = 423
 
 
 def test_rowset_tables():
 
-    # print "Project ID:", project.id
+    # print("Project ID:", project.id)
     # del integration._to_cleanup[:]
 
     cols = []
@@ -51,14 +59,14 @@ def test_rowset_tables():
 
     schema1 = syn.store(Schema(name='Foo Table', columns=cols, parent=project))
 
-    print "Table Schema:", schema1.id
+    print("Table Schema:", schema1.id)
 
     ## Get columns associated with the given table
     retrieved_cols = list(syn.getTableColumns(schema1))
 
     ## Test that the columns we get are the same as the ones we stored
     assert len(retrieved_cols) == len(cols)
-    for retrieved_col, col in izip(retrieved_cols, cols):
+    for retrieved_col, col in zip(retrieved_cols, cols):
         assert retrieved_col.name == col.name
         assert retrieved_col.columnType == col.columnType
 
@@ -87,7 +95,7 @@ def test_rowset_tables():
 
     ## test that the values made the round trip
     expected = sorted(data1 + data2)
-    for expected_values, row in izip(expected, results):
+    for expected_values, row in zip(expected, results):
         assert expected_values == row['values'], 'got %s but expected %s' % (row['values'], expected_values)
 
     ## To modify rows, we have to select then first.
@@ -122,7 +130,7 @@ def test_rowset_tables():
 
     ## put data in new column
     bdays = ('2013-3-15', '2008-1-3', '1973-12-8', '1969-4-28')
-    for bday, row in izip(bdays, rs.rows):
+    for bday, row in zip(bdays, rs.rows):
         row['values'][5] = bday
     row_reference_set = syn.store(rs)
 
@@ -139,14 +147,14 @@ def test_rowset_tables():
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
     results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id, resultsAs="rowset")
-    for bday, row in izip(bdays, results):
+    for bday, row in zip(bdays, results):
         assert row['values'][0] == datetime.strptime(bday, "%Y-%m-%d"), "got %s but expected %s" % (row['values'][0], bday)
 
     try:
         import pandas as pd
         results = syn.tableQuery("select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id, resultsAs="rowset")
         df = results.asDataFrame()
-        print df
+        print(df)
         assert df.shape == (3,4)
         assert all(df.iloc[:,0] == ["bar", "bat", "foo"])
         assert all(df.iloc[:,1] == [88.888, 88.888, 88.888])
@@ -201,7 +209,7 @@ def test_tables_csv():
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
 
     ## Test that CSV file came back as expected
-    for expected_row, row in izip(data, results):
+    for expected_row, row in zip(data, results):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
     try:
@@ -247,8 +255,8 @@ def test_tables_csv():
 
     ## test that CSV file now has more jazz guys
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
-    for expected_row, row in izip(data+more_jazz_guys, results):
-        for field, expected_field in izip(row[2:], expected_row):
+    for expected_row, row in zip(data+more_jazz_guys, results):
+        for field, expected_field in zip(row[2:], expected_row):
             if type(field) is float and math.isnan(field):
                 assert type(expected_field) is float and math.isnan(expected_field)
             elif type(expected_field) is float and math.isnan(expected_field):
@@ -275,7 +283,7 @@ def test_tables_csv():
         import pandas as pd
         results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
         df = results.asDataFrame()
-        print "\nUpdated hipness to 8.5", df
+        print("\nUpdated hipness to 8.5", df)
         all(df['Born'].values == 1930)
         all(df['Hipness'].values == 8.5)
 
@@ -359,7 +367,7 @@ def test_download_table_files():
         path = utils.make_bogus_data_file()
         original_files.append(path)
         schedule_for_cleanup(path)
-        file_handle = syn._chunkedUploadFile(path)
+        file_handle = syn._uploadToFileHandleService(path)
         row[4] = file_handle['id']
 
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
@@ -367,7 +375,7 @@ def test_download_table_files():
     ## retrieve the files for each row and verify that they are identical to the originals
     results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, resultsAs="rowset")
     for i, row in enumerate(results):
-        print "%s_%s" % (row.rowId, row.versionNumber), row.values
+        print("%s_%s" % (row.rowId, row.versionNumber), row.values)
         file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
         assert filecmp.cmp(original_files[i], file_info['path'])
         schedule_for_cleanup(file_info['path'])
@@ -379,7 +387,7 @@ def test_download_table_files():
 
         results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
         for i, row in enumerate(results):
-            print "%s_%s" % (row.rowId, row.versionNumber), row.values
+            print("%s_%s" % (row.rowId, row.versionNumber), row.values)
             file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
             assert filecmp.cmp(original_files[i], file_info['path'])
 
@@ -407,8 +415,8 @@ def dontruntest_big_tables():
 
     table1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
-    print "Created table:", table1.id
-    print "with columns:", table1.columnIds
+    print("Created table:", table1.id)
+    print("with columns:", table1.columnIds)
 
     rows_per_append = 10
 
@@ -417,21 +425,21 @@ def dontruntest_big_tables():
         for j in range(rows_per_append):
             foo = cols[1].enumValues[random.randint(0,2)]
             rows.append(Row(('Robot ' + str(i*rows_per_append + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
-        print "added %d rows" % rows_per_append
+        print("added %d rows" % rows_per_append)
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
     results = syn.tableQuery("select * from %s" % table1.id)
-    print "etag:", results.etag
-    print "tableId:", results.tableId
+    print("etag:", results.etag)
+    print("tableId:", results.tableId)
 
     for row in results:
-        print row
+        print(row)
 
     results = syn.tableQuery("select n, COUNT(n), MIN(x), AVG(x), MAX(x), SUM(x) from %s group by n" % table1.id)
     df = results.asDataFrame()
 
-    print df.shape
-    print df
+    print(df.shape)
+    print(df)
 
 
 def dontruntest_big_csvs():
@@ -444,29 +452,32 @@ def dontruntest_big_csvs():
 
     schema1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
-    print "Created table:", schema1.id
-    print "with columns:", schema1.columnIds
+    print("Created table:", schema1.id)
+    print("with columns:", schema1.columnIds)
 
     ## write rows to CSV file
     with tempfile.NamedTemporaryFile(delete=False) as temp:
         schedule_for_cleanup(temp.name)
-        writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=os.linesep)
+        filename = temp.name
+
+    with io.open(filename, mode='w', encoding="utf-8", newline='') as temp:
+        writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=str(os.linesep))
         writer.writerow([col.name for col in cols])
 
         for i in range(10):
             for j in range(100):
                 foo = cols[1].enumValues[random.randint(0,2)]
                 writer.writerow(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5))
-            print "wrote 100 rows to disk"
+            print("wrote 100 rows to disk")
 
     ## upload CSV
     UploadToTableResult = syn._uploadCsv(filepath=temp.name, schema=schema1)
 
     from synapseclient.table import CsvFileTable
     results = CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
-    print "etag:", results.etag
-    print "tableId:", results.tableId
+    print("etag:", results.etag)
+    print("tableId:", results.tableId)
 
     for row in results:
-        print row
+        print(row)
 

@@ -1,16 +1,29 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+import six
+
 import filecmp
 import os
 import re
 import sys
 import uuid
 import json
-from cStringIO import StringIO
 from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
 import shutil
+from mock import MagicMock, patch
+try:
+    import ConfigParser
+except:
+    import configparser as ConfigParser
 
 import synapseclient
+import synapseclient.client as client
 import synapseclient.utils as utils
 import synapseclient.__main__ as cmdline
 from synapseclient.evaluation import Evaluation
@@ -18,44 +31,50 @@ from synapseclient.evaluation import Evaluation
 import integration
 from integration import schedule_for_cleanup
 
+if six.PY2:
+    from StringIO import StringIO
+else:
+    from io import StringIO
+
+
 
 def setup_module(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.parser = cmdline.build_parser()
 
 
-def run(*command):
+def run(*command, **kwargs):
     """
     Sends the given command list to the command line client.
     
     :returns: The STDOUT output of the command.
     """
     
-    print ' '.join(command)
+    print(' '.join(command))
     old_stdout = sys.stdout
     capturedSTDOUT = StringIO()
     try:
         sys.stdout = capturedSTDOUT
         sys.argv = [item for item in command]
         args = parser.parse_args()
-        cmdline.perform_main(args, syn)
+        args.debug = True
+        cmdline.perform_main(args, kwargs.get('syn',syn))
     except SystemExit:
         pass # Prevent the test from quitting prematurely
     finally:
         sys.stdout = old_stdout
-        
+
     capturedSTDOUT = capturedSTDOUT.getvalue()
-    print capturedSTDOUT
+    print(capturedSTDOUT)
     return capturedSTDOUT
     
 
 def parse(regex, output):
     """Returns the first match."""
-    
     m = re.search(regex, output)
     if m:
         if len(m.groups()) > 0:
@@ -173,6 +192,7 @@ def test_command_line_client():
                  'get-provenance', 
                  '--id', 
                  file_entity_id)
+
     activity = json.loads(output)
     assert activity['name'] == 'TestActivity'
     assert activity['description'] == 'A very excellent provenance'
@@ -502,8 +522,6 @@ def test_command_line_store_and_submit():
                  )
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
-
-
     # Delete project
     output = run('synapse', 
                  '--skip-checks',
@@ -528,14 +546,12 @@ def test_command_get_recursive_and_query():
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = synapseclient.File(f, parent=folder_entity)
-        file_entity.location = 'folder'
         file_entity = syn.store(file_entity)
     #Add a file in the project level as well
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = synapseclient.File(f, parent=project_entity)
-    file_entity.location = 'project'
     file_entity = syn.store(file_entity)
 
     ### Test recursive get
@@ -547,23 +563,74 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        print uploaded, downloaded
+        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
     schedule_for_cleanup(new_paths[0])
 
-
     ### Test query get
+    ### Note: We're not querying on annotations because tests can fail if there
+    ###       are lots of jobs queued as happens when staging is syncing
     output = run('synapse', '--skip-checks',
-                 'get', '-q', "select id from file where parentId=='%s' and location=='folder'" %
+                 'get', '-q', "select id from file where parentId=='%s'" %
                  folder_entity.id)
     #Verify that we downloaded files:
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
-        print uploaded, downloaded
+        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
+
+def test_command_copy():
+    """Tests the 'synapse cp' function"""
+    # Create a Project
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    # Create a Folder in Project
+    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+                                                   parent=project_entity))
+    # Create and upload a file in Folder
+    dummy = utils.make_bogus_data_file()
+    schedule_for_cleanup(dummy)
+    dummy_entity = syn.store(synapseclient.File(dummy, parent=folder_entity))
+    
+    repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+    annots = {'test':'hello_world'}
+    # Create, upload, and set annotations on a file in Folder
+    filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    file_entity = syn.store(synapseclient.File(filename, parent=folder_entity),used=dummy_entity.id,executed=repo_url)
+    syn.setAnnotations(file_entity,annots)
+
+    ### Test cp function
+    output = run('synapse', '--skip-checks',
+                 'cp', '--id',file_entity.id,
+                 '--parentid',project_entity.id)
+    
+    copied_id = parse(r'Copied syn\d+ to (syn\d+)',output)
+    #Verify that our copied files are identical
+    copied_ent = syn.get(copied_id)
+    schedule_for_cleanup(copied_id)
+    copied_ent_annot = syn.getAnnotations(copied_ent)
+
+    copied_annot = dict((key,copied_ent_annot[key].pop()) for key in copied_ent_annot if key not in ('uri','id','creationDate','etag'))
+    copied_prov = syn.getProvenance(copied_ent)['used'][0]['reference']['targetId']
+
+    assert copied_prov == file_entity.id
+    assert copied_annot == annots
+    #Verify that errors are being thrown when folders/projects are attempted to be copied,
+    #or file is copied to a foler/project that has a file with the same filename
+    assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
+                 'cp', '--id',folder_entity.id,
+                 '--parentid',project_entity.id)
+    assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
+                 'cp', '--id',project_entity.id,
+                 '--parentid',project_entity.id)
+    assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
+                 'cp', '--id',file_entity.id,
+                 '--parentid',project_entity.id)    
 
 
 def test_command_line_using_paths():
@@ -590,11 +657,11 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'get', 
                  '--limitSearch', folder_entity.id, 
                  filename)
-    print "output = \"", output, "\""
+    print("output = \"", output, "\"")
     id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
     name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
     assert_equals(file_entity.id, id)
-    assert_equals(name, filename)
+    assert utils.equal_paths(name, filename)
 
     #Verify that set-provenance works with filepath
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
@@ -636,3 +703,27 @@ def test_command_line_using_paths():
     shutil.copy(filename2, path)
     output = run('synapse', '--skip-checks', 'associate', path, '-r')
     output = run('synapse', '--skip-checks', 'show', filename)
+
+def test_login():
+    try:
+        config = ConfigParser.ConfigParser()
+        config.read(client.CONFIG_FILE)
+        other_user = {}
+        other_user['username'] = config.get('test-authentication', 'username')
+        other_user['password'] = config.get('test-authentication', 'password')
+
+        with patch("synapseclient.client.Synapse._writeSessionCache") as write_session_cache_mock:
+            alt_syn = synapseclient.Synapse()
+            output = run('synapse', '--skip-checks', 'login',
+                         '-u', other_user['username'],
+                         '-p', other_user['password'],
+                         '--rememberMe',
+                         syn=alt_syn)
+            cached_sessions = write_session_cache_mock.call_args[0][0]
+            assert cached_sessions["<mostRecent>"] == other_user['username']
+            assert other_user['username'] in cached_sessions
+            assert alt_syn.username == other_user['username']
+            assert alt_syn.apiKey is not None
+
+    except ConfigParser.Error:
+        print("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)

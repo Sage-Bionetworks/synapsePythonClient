@@ -1,9 +1,20 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+import six
+from builtins import str
+
 import tempfile, time, os, re, sys, filecmp, shutil, requests, json
 import uuid, random, base64
 from datetime import datetime
 from nose.tools import assert_raises
 
-import ConfigParser
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
@@ -17,10 +28,10 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
@@ -47,7 +58,7 @@ def test_evaluations():
         
         # -- Get the Evaluation by project
         evalProj = syn.getEvaluationByContentSource(project)
-        evalProj = evalProj.next()
+        evalProj = next(evalProj)
         assert ev['contentSource'] == evalProj['contentSource']
         assert ev['createdOn'] == evalProj['createdOn']
         assert ev['description'] == evalProj['description']
@@ -62,25 +73,10 @@ def test_evaluations():
         ev = syn.store(ev, createOrUpdate=True)
         assert ev.status == 'OPEN'
 
-        # TODO is "participation" deprecated? Should these be removed?
-        # Add the current user as a participant
+        # # Add the current user as a participant
         myOwnerId = int(syn.getUserProfile()['ownerId'])
         syn._allowParticipation(ev, myOwnerId)
-        syn.joinEvaluation(ev)
 
-        # Find this user in the participant list
-        foundMe = False
-        for item in syn.getParticipants(ev):
-            if int(item['userId']) == myOwnerId:
-                foundMe = True
-                break
-        assert foundMe
-
-        # Add public READ permissions on evaluation
-        # syn.setPermissions(ev, "AUTHENTICATED_USERS", accessType=['READ'])
-        # syn.setPermissions(ev, "PUBLIC", accessType=['READ'])
-
-        # Temporary? work-around for PLFM-3339,
         # AUTHENTICATED_USERS = 273948
         # PUBLIC = 273949
         syn.setPermissions(ev, 273948, accessType=['READ'])
@@ -100,12 +96,12 @@ def test_evaluations():
         # -- Get a Submission attachment belonging to another user (SYNR-541) --
         # See if the configuration contains test authentication
         try:
-            config = ConfigParser.ConfigParser()
+            config = configparser.ConfigParser()
             config.read(client.CONFIG_FILE)
             other_user = {}
             other_user['username'] = config.get('test-authentication', 'username')
             other_user['password'] = config.get('test-authentication', 'password')
-            print "Testing SYNR-541"
+            print("Testing SYNR-541")
 
             # Login as the test user
             testSyn = client.Synapse(skip_checks=True)
@@ -119,21 +115,11 @@ def test_evaluations():
             # Give the test user permission to read and join the evaluation
             syn._allowParticipation(ev, testOwnerId)
 
-            # Have the test user join the evaluation
-            testSyn.joinEvaluation(ev)
-
-            # Find the test user in the participants list
-            foundMe = False
-            for item in syn.getParticipants(ev):
-                if int(item['userId']) == testOwnerId:
-                    foundMe = True
-                    break
-            assert foundMe
-
             # Make a file to submit
-            fd, filename = tempfile.mkstemp()
-            os.write(fd, str(random.gauss(0,1)) + '\n')
-            os.close(fd)
+            with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+                filename = f.name
+                f.write(str(random.gauss(0,1)) + '\n')
+
             f = File(filename, parentId=other_project.id,
                      name='Submission 999',
                      description ="Haha!  I'm inaccessible...")
@@ -153,19 +139,19 @@ def test_evaluations():
             assert filecmp.cmp(filename, fetched['filePath'])
 
 
-        except ConfigParser.Error:
-            print 'Skipping test for SYNR-541: No [test-authentication] in %s' % client.CONFIG_FILE
+        except configparser.Error:
+            print('Skipping test for SYNR-541: No [test-authentication] in %s' % client.CONFIG_FILE)
 
         # Increase this to fully test paging by getEvaluationSubmissions
         # not to be less than 2
         num_of_submissions = 2
 
         # Create a bunch of Entities and submit them for scoring
-        print "Creating Submissions"
+        print("Creating Submissions")
         for i in range(num_of_submissions):
-            fd, filename = tempfile.mkstemp()
-            os.write(fd, str(random.gauss(0,1)) + '\n')
-            os.close(fd)
+            with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+                filename = f.name
+                f.write(str(random.gauss(0,1)) + '\n')
 
             f = File(filename, parentId=project.id, name='entry-%02d' % i,
                      description='An entry for testing evaluation')
@@ -174,7 +160,7 @@ def test_evaluations():
 
         # Score the submissions
         submissions = syn.getSubmissions(ev, limit=num_of_submissions-1)
-        print "Scoring Submissions"
+        print("Scoring Submissions")
         for submission in submissions:
             assert re.match('Submission \d+', submission['name'])
             status = syn.getSubmissionStatus(submission)
@@ -188,7 +174,7 @@ def test_evaluations():
             syn.store(status)
 
         # Annotate the submissions
-        print "Annotating Submissions"
+        print("Annotating Submissions")
         bogosity = {}
         submissions = syn.getSubmissions(ev)
         b = 123
@@ -216,18 +202,18 @@ def test_evaluations():
         attempts = 2
         while attempts > 0:
             try:
-                print "Querying for submissions"
+                print("Querying for submissions")
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s" % ev.id)
-                print results
+                print(results)
                 assert results[u'totalNumberOfResults'] == num_of_submissions+1
 
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
-                print results
+                print(results)
                 assert results[u'totalNumberOfResults'] == num_of_submissions
             except AssertionError as ex1:
-                print "failed query: ", ex1
+                print("failed query: ", ex1)
                 attempts -= 1
-                if attempts > 0: print "retrying..."
+                if attempts > 0: print("retrying...")
                 time.sleep(2)
             else:
                 attempts = 0

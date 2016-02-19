@@ -8,10 +8,10 @@ from synapseclient.lock import Lock
 
 
 def setup():
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
 
 
 def test_lock():
@@ -51,7 +51,7 @@ def test_lock_timeout():
         assert user1_lock.held == True
         assert user1_lock.get_age() < 1.0
         assert not user2_lock.acquire(break_old_locks=True)
-        time.sleep(1)
+        time.sleep(1.1)
         assert user1_lock.get_age() > 1.0
         assert user2_lock.acquire(break_old_locks=True)
 

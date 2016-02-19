@@ -74,7 +74,7 @@ With a bit of luck, we now have a table populated with data. Let's try to query:
 
     results = syn.tableQuery("select * from %s where Chromosome='1' and Start < 41000 and End > 20000" % table.schema.id)
     for row in results:
-        print row
+        print(row)
 
 ------
 Pandas
@@ -189,7 +189,7 @@ later::
 
     ## upload album covers
     for row in data:
-        file_handle = syn._chunkedUploadFile(os.path.join(covers_dir, row[4]))
+        file_handle = syn._uploadToFileHandleService(os.path.join(covers_dir, row[4]))
         row[4] = file_handle['id']
 
     ## store the table data
@@ -199,7 +199,7 @@ later::
     results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'Sonny Rollins'" % schema.id, resultsAs="rowset")
     for row in results:
         file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-        print "%s_%s" % (row.rowId, row.versionNumber), ", ".join(unicode(a) for a in row.values), file_info['path']
+        print("%s_%s" % (row.rowId, row.versionNumber), ", ".join(str(a) for a in row.values), file_info['path'])
 
 -------------
 Deleting rows
@@ -251,7 +251,13 @@ Row
 Table
 ~~~~~~
 
-.. autoclass:: synapseclient.table.Table
+.. autoclass:: synapseclient.table.TableAbstractBaseClass
+   :members:
+.. autoclass:: synapseclient.table.RowSetTable
+   :members:
+.. autoclass:: synapseclient.table.TableQueryResult
+   :members:
+.. autoclass:: synapseclient.table.CsvFileTable
    :members:
 
 ~~~~~~~~~~~~~~~~~~~~
@@ -270,17 +276,25 @@ See also:
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
 """
-import csv
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+
+from backports import csv
+import io
 import json
 import os
 import re
+import six
 import sys
 import tempfile
 from collections import OrderedDict
-from itertools import izip
+from builtins import zip
 
 import synapseclient
-import synapseclient.utils
+import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.entity import Entity, Versionable
@@ -310,6 +324,23 @@ def test_import_pandas():
         raise
 
 
+def encode_param_in_python2(a, encoding=None):
+    """
+    In Python2, the csv module takes parameters that must be encoded byte
+    strings - for example: delimiter, escapechar, lineterminator, quotechar.
+    But, in Python 3, these have to be unicode strings. Since we're using
+    unicode_literals, we'll need to do the conversion in the Python2 case.
+    """
+    if hasattr(sys.stdout, 'encoding'):
+        encoding = sys.stdout.encoding
+    if not encoding:
+        encoding = 'utf-8'
+    if six.PY2 and type(a)==unicode:
+        return a.encode(encoding)
+    else:
+        return a
+
+
 def as_table_columns(df):
     """
     Return a list of Synapse table :py:class:`Column` objects that correspond to
@@ -336,7 +367,7 @@ def df2Table(df, syn, tableName, parentProject):
     """
 
     #Create columns:
-    print df.shape
+    print(df.shape)
     cols = as_table_columns(df)
     cols = [syn.store(col) for col in cols]
 
@@ -349,10 +380,10 @@ def df2Table(df, syn, tableName, parentProject):
     for i in range(0, df.shape[0]/1200+1):
         start =  i*1200
         end = min((i+1)*1200, df.shape[0])
-        print start, end
+        print(start, end)
         rowset1 = RowSet(columns=cols, schema=schema1,
                          rows=[Row(list(df.ix[j,:])) for j in range(start,end)])
-        #print len(rowset1.rows)
+        #print(len(rowset1.rows))
         rowset1 = syn.store(rowset1)
 
     return schema1
@@ -367,7 +398,7 @@ def to_boolean(value):
     if isinstance(value, bool):
         return value
 
-    if isinstance(value, basestring):
+    if isinstance(value, six.string_types):
         lower_value = value.lower()
         if lower_value in ['true', 't', '1']:
             return True
@@ -399,7 +430,7 @@ def cast_values(values, headers):
         raise ValueError('Each field in the row must have a matching column header. %d fields, %d headers' % (len(values), len(headers)))
 
     result = []
-    for header, field in izip(headers, values):
+    for header, field in zip(headers, values):
 
         columnType = header.get('columnType', 'STRING')
 
@@ -460,27 +491,27 @@ class Schema(Entity, Versionable):
         if name: kwargs['name'] = name
         if columns:
             for column in columns:
-                if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
+                if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
                     kwargs.setdefault('columnIds',[]).append(utils.id_of(column))
                 elif isinstance(column, Column):
                     kwargs.setdefault('columns_to_store',[]).append(column)
                 else:
-                    raise ValueError("Not a column? %s" % unicode(column))
-        super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties, 
-                                   annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+                    raise ValueError("Not a column? %s" % str(column))
+        super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties,
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
     def addColumn(self, column):
         """
         :param column: a column object or its ID
         """
-        if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
+        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
             self.properties.columnIds.append(utils.id_of(column))
         elif isinstance(column, Column):
             if not self.__dict__.get('columns_to_store', None):
                 self.__dict__['columns_to_store'] = []
             self.__dict__['columns_to_store'].append(column)
         else:
-            raise ValueError("Not a column? %s" % unicode(column))
+            raise ValueError("Not a column? %s" % str(column))
 
     def addColumns(self, columns):
         """
@@ -493,12 +524,12 @@ class Schema(Entity, Versionable):
         """
         :param column: a column object or its ID
         """
-        if isinstance(column, basestring) or isinstance(column, int) or hasattr(column, 'id'):
+        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
             self.properties.columnIds.remove(utils.id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
         else:
-            ValueError("Can't remove column %s" + unicode(column))
+            ValueError("Can't remove column %s" + str(column))
 
     def has_columns(self):
         """Does this schema have columns specified?"""
@@ -586,7 +617,7 @@ class RowSet(DictObject):
     """
     A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://rest.synapse.org/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
-    :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId    
+    :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
     :param tableId:  The ID of the TableEntity than owns these rows
     :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
@@ -617,11 +648,24 @@ class RowSet(DictObject):
             raise ValueError("Table schema ID must be defined to create a RowSet")
         if not kwargs.get('headers',None):
             raise ValueError("Column headers must be defined to create a RowSet")
+        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.table.RowSet'
 
         super(RowSet, self).__init__(kwargs)
 
-    def postURI(self):
-        return '/entity/{id}/table'.format(id=self['tableId'])
+    def _synapse_store(self, syn):
+        """
+        Creates and POSTs an AppendableRowSetRequest_
+
+        .. AppendableRowSetRequest: http://rest.synapse.org/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
+        """
+        arsr = dict(
+            concreteType='org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
+            toAppend=self,
+            entityId=self.tableId)
+
+        uri = "/entity/{id}/table/append/async".format(id=self.tableId)
+        response = syn._waitForAsync(uri=uri, request=arsr)
+        return response.get('rowReferenceSet', response)
 
     def _synapse_delete(self, syn):
         """
@@ -720,7 +764,7 @@ def Table(schema, values, **kwargs):
         return CsvFileTable.from_list_of_rows(schema, values, **kwargs)
 
     ## filename of a csv file
-    elif isinstance(values, basestring):
+    elif isinstance(values, six.string_types):
         return CsvFileTable(schema, filepath=values, **kwargs)
 
     ## pandas DataFrame
@@ -741,7 +785,7 @@ class TableAbstractBaseClass(object):
             self.tableId = schema.id if schema and 'id' in schema else None
             self.headers = headers if headers else [SelectColumn(id=id) for id in schema.columnIds]
             self.etag = etag
-        elif isinstance(schema, basestring):
+        elif isinstance(schema, six.string_types):
             self.schema = None
             self.tableId = schema
             self.headers = headers
@@ -754,7 +798,7 @@ class TableAbstractBaseClass(object):
 
     def asInteger(self):
         try:
-            first_row = self.__iter__().next()
+            first_row = next(iter(self))
             return int(first_row[0])
         except (KeyError, TypeError) as ex1:
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an integer.")
@@ -836,7 +880,7 @@ class TableQueryResult(TableAbstractBaseClass):
 
         results = syn.tableQuery("select * from syn1234")
         for row in results:
-            print row
+            print(row)
     """
     def __init__(self, synapse, query, limit=None, offset=None, isConsistent=True):
         self.syn = synapse
@@ -884,7 +928,8 @@ class TableQueryResult(TableAbstractBaseClass):
                 return row_labels_from_rows(rowset['rows'])
             except KeyError:
                 ## if we don't have row id and version, just number the rows
-                return range(offset,offset+len(rowset['rows']))
+                # python3 cast range to list for safety
+                return list(range(offset,offset+len(rowset['rows'])))
 
         ## first page of rows
         offset = 0
@@ -928,6 +973,9 @@ class TableQueryResult(TableAbstractBaseClass):
         return self
 
     def next(self):
+        """
+        Python 2 iterator
+        """
         self.i += 1
         if self.i >= len(self.rowset['rows']):
             if self.nextPageToken:
@@ -939,6 +987,12 @@ class TableQueryResult(TableAbstractBaseClass):
                 raise StopIteration()
         return self.rowset['rows'][self.i]
 
+    def __next__(self):
+        """
+        Python 3 iterator
+        """
+        return self.next()
+
 
 class CsvFileTable(TableAbstractBaseClass):
     """
@@ -947,7 +1001,7 @@ class CsvFileTable(TableAbstractBaseClass):
     """
 
     @classmethod
-    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
+    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", header=True, includeRowIdAndRowVersion=True):
         """
         Create a Table object wrapping a CSV file resulting from querying a Synapse table.
         Mostly for internal use.
@@ -957,20 +1011,20 @@ class CsvFileTable(TableAbstractBaseClass):
             query=query,
             quoteCharacter=quoteCharacter,
             escapeCharacter=escapeCharacter,
-            lineEnd=os.linesep,
+            lineEnd=lineEnd,
             separator=separator,
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
         ## A dirty hack to find out if we got back row ID and Version
         ## in particular, we don't get these back from aggregate queries
-        with open(file_info['path'], 'r') as f:
+        with io.open(file_info['path'], 'r', encoding='utf-8') as f:
             reader = csv.reader(f,
                 delimiter=separator,
                 escapechar=escapeCharacter,
                 lineterminator=lineEnd,
                 quotechar=quoteCharacter)
-            first_line = reader.next()
+            first_line = next(reader)
         if len(download_from_table_result['headers']) + 2 == len(first_line):
             includeRowIdAndRowVersion = True
         else:
@@ -982,7 +1036,7 @@ class CsvFileTable(TableAbstractBaseClass):
             etag=download_from_table_result.get('etag', None),
             quoteCharacter=quoteCharacter,
             escapeCharacter=escapeCharacter,
-            lineEnd=os.linesep,
+            lineEnd=lineEnd,
             separator=separator,
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion,
@@ -991,7 +1045,7 @@ class CsvFileTable(TableAbstractBaseClass):
         return self
 
     @classmethod
-    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None, **kwargs):
+    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None, **kwargs):
         ## infer columns from data frame if not specified
         if not headers:
             cols = as_table_columns(df)
@@ -1007,7 +1061,7 @@ class CsvFileTable(TableAbstractBaseClass):
         row_id = []
         row_version = []
         for row_name in df.index.values:
-            m = row_id_version_pattern.match(unicode(row_name))
+            m = row_id_version_pattern.match(str(row_name))
             row_id.append(m.group(1) if m else None)
             row_version.append(m.group(2) if m else None)
 
@@ -1021,20 +1075,25 @@ class CsvFileTable(TableAbstractBaseClass):
 
         f = None
         try:
-            if filepath:
-                f = open(filepath)
+            if not filepath:
+                temp_dir = tempfile.mkdtemp()
+                filepath = os.path.join(temp_dir, 'table.csv')
+
+            if six.PY2:
+                ## pandas uses the Python standard library csv module
+                ## see: http://stackoverflow.com/a/3348664/199166
+                f = open(filepath, 'wb')
             else:
-                f = tempfile.NamedTemporaryFile(delete=False)
-                filepath = f.name
+                f = io.open(filepath, mode='w', encoding='utf-8', newline='')
 
             df.to_csv(f,
                 index=False,
-                sep=separator,
-                header=header,
-                quotechar=quoteCharacter,
-                escapechar=escapeCharacter,
-                line_terminator=lineEnd,
-                na_rep=kwargs.get('na_rep',''))
+                sep=encode_param_in_python2(separator),
+                header=encode_param_in_python2(header),
+                quotechar=encode_param_in_python2(quoteCharacter),
+                escapechar=encode_param_in_python2(escapeCharacter),
+                line_terminator=encode_param_in_python2(lineEnd),
+                na_rep=encode_param_in_python2(kwargs.get('na_rep','')))
         finally:
             if f: f.close()
 
@@ -1051,16 +1110,16 @@ class CsvFileTable(TableAbstractBaseClass):
             headers=headers)
 
     @classmethod
-    def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
+    def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
 
         ## create CSV file
         f = None
         try:
-            if filepath:
-                f = open(filepath)
-            else:
-                f = tempfile.NamedTemporaryFile(delete=False)
-                filepath = f.name
+            if not filepath:
+                temp_dir = tempfile.mkdtemp()
+                filepath = os.path.join(temp_dir, 'table.csv')
+
+            f = io.open(filepath, 'w', encoding='utf-8', newline='')
 
             writer = csv.writer(f,
                 quoting=csv.QUOTE_NONNUMERIC,
@@ -1102,7 +1161,7 @@ class CsvFileTable(TableAbstractBaseClass):
             includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
 
-    def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
+    def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
         self.filepath = filepath
 
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
@@ -1168,9 +1227,14 @@ class CsvFileTable(TableAbstractBaseClass):
         import pandas as pd
 
         try:
+            ## assign line terminator only if for single character
+            ## line terminators (e.g. not '\r\n') 'cause pandas doesn't
+            ## longer line terminators. See:
+            ##    https://github.com/pydata/pandas/issues/3501
+            ## "ValueError: Only length-1 line terminators supported"
             df = pd.read_csv(self.filepath,
                     sep=self.separator,
-                    lineterminator=self.lineEnd,
+                    lineterminator=self.lineEnd if len(self.lineEnd) == 1 else None,
                     quotechar=self.quoteCharacter,
                     escapechar=self.escapeCharacter,
                     header = 0 if self.header else None,
@@ -1182,7 +1246,7 @@ class CsvFileTable(TableAbstractBaseClass):
             ## combine row-ids (in index) and row-versions (in column 0) to
             ## make new row labels consisting of the row id and version
             ## separated by a dash.
-            df.index = row_labels_from_id_and_version(izip(df["ROW_ID"], df["ROW_VERSION"]))
+            df.index = row_labels_from_id_and_version(zip(df["ROW_ID"], df["ROW_VERSION"]))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
 
@@ -1227,14 +1291,18 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def __iter__(self):
         def iterate_rows(filepath, headers):
-            with open(filepath) as f:
+            with io.open(filepath, encoding='utf-8') as f:
                 reader = csv.reader(f,
                     delimiter=self.separator,
                     escapechar=self.escapeCharacter,
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
                 if self.header:
-                    header = reader.next()
+                    header = next(reader)
                 for row in reader:
                     yield cast_values(row, headers)
         return iterate_rows(self.filepath, self.headers)
+
+    def __len__(self):
+        return sum(1 for row in self)
+

@@ -1,6 +1,17 @@
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import str
+
 import tempfile, os, sys, filecmp, shutil, requests, json, time
 import uuid, random, base64
-import ConfigParser
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
 from datetime import datetime
 from nose.tools import assert_raises, assert_equals
 from nose.plugins.attrib import attr
@@ -22,10 +33,10 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
@@ -34,7 +45,7 @@ def test_login():
         # Test that we fail gracefully with wrong user
         assert_raises(SynapseAuthenticationError, syn.login, 'asdf', 'notarealpassword')
 
-        config = ConfigParser.ConfigParser()
+        config = configparser.ConfigParser()
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
@@ -48,7 +59,11 @@ def test_login():
         syn.logout(forgetMe=True)
         
         # Config file is read-only for the client, so it must be mocked!
-        with patch("ConfigParser.ConfigParser.has_option") as config_has_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
+        if (sys.version < '3'):
+            configparser_package_name = 'ConfigParser'
+        else:
+            configparser_package_name = 'configparser'
+        with patch("%s.ConfigParser.has_option" % configparser_package_name) as config_has_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
 
             config_has_mock.return_value = False
             read_session_mock.return_value = {}
@@ -64,7 +79,7 @@ def test_login():
             
             config_has_mock.reset_mock()
             config_has_mock.side_effect = lambda section, option: section == "authentication" and option == "sessiontoken"
-            with patch("ConfigParser.ConfigParser.get") as config_get_mock:
+            with patch("%s.ConfigParser.get" % configparser_package_name) as config_get_mock:
 
                 # Login with a session token from the config file
                 config_get_mock.return_value = sessionToken
@@ -89,8 +104,8 @@ def test_login():
         # Login with ID only
         syn.login(username, silent=True)
         syn.logout(forgetMe=True)
-    except ConfigParser.Error:
-        print "To fully test the login method, please supply a username and password in the configuration file"
+    except configparser.Error:
+        print("To fully test the login method, please supply a username and password in the configuration file")
 
     finally:
         # Login with config file
@@ -106,7 +121,7 @@ def testCustomConfigFile():
         syn2 = synapseclient.Synapse(configPath=configPath)
         syn2.login()
     else:
-        print "To fully test the login method a configuration file is required"
+        print("To fully test the login method a configuration file is required")
 
 
 def test_entity_version():
@@ -215,7 +230,7 @@ def test_uploadFileEntity():
     # Download and verify
     entity = syn.downloadEntity(entity)
 
-    print entity['files']
+    print(entity['files'])
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
@@ -232,7 +247,7 @@ def test_uploadFileEntity():
 
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)
-    print entity['files']
+    print(entity['files'])
     assert_equals(entity['files'][0], os.path.basename(fname))
     assert filecmp.cmp(fname, entity['path'])
 
@@ -267,20 +282,18 @@ def test_provenance():
     schedule_for_cleanup(fname)
     data_entity = syn.store(File(fname, parent=project['id']))
 
-
     # Create a File Entity of Code
     fd, path = tempfile.mkstemp(suffix=".py")
-    os.write(fd, """
-                 ## Chris's fabulous random data generator
-                 ############################################################
-                 import random
-                 random.seed(12345)
-                 data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
-                 """)
-    os.close(fd)
+    with os.fdopen(fd, 'w') as f:
+        f.write(utils.normalize_lines("""
+            ## Chris's fabulous random data generator
+            ############################################################
+            import random
+            random.seed(12345)
+            data = [random.gauss(mu=0.0, sigma=1.0) for i in range(100)]
+            """))
     schedule_for_cleanup(path)
     code_entity = syn.store(File(path, parent=project['id']))
-
     
     # Create a new Activity asserting that the Code Entity was 'used'
     activity = Activity(name='random.gauss', description='Generate some random numbers')
@@ -308,7 +321,10 @@ def test_annotations():
     # Get the annotations of an Entity
     entity = syn.store(Folder(parent=project['id']))
     anno = syn.getAnnotations(entity)
-    assert 'etag' in anno
+    assert hasattr(anno, 'id')
+    assert hasattr(anno, 'etag')
+    assert anno.id == entity.id
+    assert anno.etag == entity.etag
 
     # Set the annotations, with keywords too
     anno['bogosity'] = 'total'
@@ -326,7 +342,7 @@ def test_annotations():
     annote['phat_numbers'] = [1234.5678, 8888.3333, 1212.3434, 6677.8899]
     annote['goobers'] = ['chris', 'jen', 'jane']
     annote['present_time'] = datetime.now()
-    syn.setAnnotations(entity, annote, )
+    syn.setAnnotations(entity, annote)
     
     # Check it again
     annotation = syn.getAnnotations(entity)
@@ -346,12 +362,6 @@ def test_get_user_profile():
     ## get by user ID
     p2 = syn.getUserProfile(p1.ownerId)
     assert p2.userName == p1.userName
-
-    ## This is a bad test 'cause it relies on an account being in the system
-    # p = syn.getUserProfile('synapse-test')
-    # assert p.userName == 'synapse-test'
-    # p = syn.getUserProfile(p.ownerId)
-    # assert p.userName == 'synapse-test'
 
 
 def test_teams():

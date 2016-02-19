@@ -13,10 +13,10 @@ syn = None
 
 
 def setup(module):
-    print '\n'
-    print '~' * 60
-    print os.path.basename(__file__)
-    print '~' * 60
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
     module.syn = synapseclient.Synapse()
     module.syn.login()
 
@@ -27,16 +27,16 @@ def test_upload_speed(uploadSize=60 + 777771, threadCount=5):
     import time
     fh = None
     filepath = utils.make_bogus_binary_file(uploadSize*MB)
-    print 'Made bogus file: ', filepath
+    print('Made bogus file: ', filepath)
     try:
         t0 = time.time()
-        fh = syn._chunkedUploadFile(filepath, threadCount=threadCount)
+        fh = syn._uploadToFileHandleService(filepath, threadCount=threadCount)
         dt =  time.time()-t0
     finally:
         try:
             os.remove(filepath)
         except Exception:
-            print traceback.format_exc()
+            print(traceback.format_exc())
         if fh:
             syn._deleteFileHandle(fh)
     return dt
@@ -57,8 +57,8 @@ def main():
     for size in sizes:
         for thread in threads:
             results.ix[size,thread] = test_upload_speed(size, thread)
-            print results
-        print 
+            print(results)
+        print()
 
 
 if __name__ == "__main__":
