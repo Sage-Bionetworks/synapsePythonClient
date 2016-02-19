@@ -135,7 +135,7 @@ mimetypes.add_type('text/x-markdown', '.markdown', strict=False)
 
 def login(*args, **kwargs):
     """
-    Convience method to create a Synapse object and login.
+    Convenience method to create a Synapse object and login.
 
     See :py:func:`synapseclient.Synapse.login` for arguments and usage.
 
