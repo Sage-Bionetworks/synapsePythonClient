@@ -188,6 +188,8 @@ def test_pandas_to_table():
             assert row[0]==(i+1)
             assert row[1]==["c", "d", "e"][i]
 
+        assert len(table)==3
+
         ## If includeRowIdAndRowVersion=True, include empty row id an versions
         ## ROW_ID,ROW_VERSION,a,b
         ## ,,1,c

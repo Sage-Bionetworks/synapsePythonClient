@@ -1302,3 +1302,7 @@ class CsvFileTable(TableAbstractBaseClass):
                 for row in reader:
                     yield cast_values(row, headers)
         return iterate_rows(self.filepath, self.headers)
+
+    def __len__(self):
+        return sum(1 for row in self)
+
