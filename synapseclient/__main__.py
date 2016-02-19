@@ -459,7 +459,7 @@ def test_encoding(args, syn):
     import locale
     import platform
     print("python version =               ", platform.python_version())
-    print("sys.stdout.encoding =          ", sys.stdout.encoding)
+    print("sys.stdout.encoding =          ", sys.stdout.encoding if hasattr(sys.stdout, 'encoding') else 'no encoding attribute')
     print("sys.stdout.isatty() =          ", sys.stdout.isatty())
     print("locale.getpreferredencoding() =", locale.getpreferredencoding())
     print("sys.getfilesystemencoding() =  ", sys.getfilesystemencoding())

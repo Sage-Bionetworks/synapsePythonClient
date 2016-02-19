@@ -37,7 +37,8 @@ setup(name='synapseclient',
     install_requires=[
         'requests>=1.2',
         'six',
-        'future'
+        'future',
+        'backports.csv'
     ],
     extras_require = {
         'pandas':  ["pandas"],
@@ -54,6 +55,8 @@ setup(name='synapseclient',
         'Development Status :: 5 - Production/Stable',
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',

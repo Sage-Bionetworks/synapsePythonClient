@@ -546,14 +546,12 @@ def test_command_get_recursive_and_query():
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = synapseclient.File(f, parent=folder_entity)
-        file_entity.location = 'folder'
         file_entity = syn.store(file_entity)
     #Add a file in the project level as well
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = synapseclient.File(f, parent=project_entity)
-    file_entity.location = 'project'
     file_entity = syn.store(file_entity)
 
     ### Test recursive get
@@ -571,9 +569,10 @@ def test_command_get_recursive_and_query():
     schedule_for_cleanup(new_paths[0])
 
     ### Test query get
-    ### Note: This test can fail if there are lots of jobs queued as happens when staging is syncing
+    ### Note: We're not querying on annotations because tests can fail if there
+    ###       are lots of jobs queued as happens when staging is syncing
     output = run('synapse', '--skip-checks',
-                 'get', '-q', "select id from file where parentId=='%s' and location=='folder'" %
+                 'get', '-q', "select id from file where parentId=='%s'" %
                  folder_entity.id)
     #Verify that we downloaded files:
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]

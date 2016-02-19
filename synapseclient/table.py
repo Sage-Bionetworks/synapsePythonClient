@@ -282,7 +282,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import csv
+from backports import csv
+import io
 import json
 import os
 import re
@@ -323,13 +324,15 @@ def test_import_pandas():
         raise
 
 
-def encode_param_in_python2(a, encoding=sys.stdout.encoding):
+def encode_param_in_python2(a, encoding=None):
     """
     In Python2, the csv module takes parameters that must be encoded byte
     strings - for example: delimiter, escapechar, lineterminator, quotechar.
     But, in Python 3, these have to be unicode strings. Since we're using
     unicode_literals, we'll need to do the conversion in the Python2 case.
     """
+    if hasattr(sys.stdout, 'encoding'):
+        encoding = sys.stdout.encoding
     if not encoding:
         encoding = 'utf-8'
     if six.PY2 and type(a)==unicode:
@@ -998,7 +1001,7 @@ class CsvFileTable(TableAbstractBaseClass):
     """
 
     @classmethod
-    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
+    def from_table_query(cls, synapse, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", header=True, includeRowIdAndRowVersion=True):
         """
         Create a Table object wrapping a CSV file resulting from querying a Synapse table.
         Mostly for internal use.
@@ -1008,19 +1011,19 @@ class CsvFileTable(TableAbstractBaseClass):
             query=query,
             quoteCharacter=quoteCharacter,
             escapeCharacter=escapeCharacter,
-            lineEnd=os.linesep,
+            lineEnd=lineEnd,
             separator=separator,
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
         ## A dirty hack to find out if we got back row ID and Version
         ## in particular, we don't get these back from aggregate queries
-        with open(file_info['path'], 'r') as f:
+        with io.open(file_info['path'], 'r', encoding='utf-8') as f:
             reader = csv.reader(f,
-                delimiter=encode_param_in_python2(separator),
-                escapechar=encode_param_in_python2(escapeCharacter),
-                lineterminator=encode_param_in_python2(lineEnd),
-                quotechar=encode_param_in_python2(quoteCharacter))
+                delimiter=separator,
+                escapechar=escapeCharacter,
+                lineterminator=lineEnd,
+                quotechar=quoteCharacter)
             first_line = next(reader)
         if len(download_from_table_result['headers']) + 2 == len(first_line):
             includeRowIdAndRowVersion = True
@@ -1033,7 +1036,7 @@ class CsvFileTable(TableAbstractBaseClass):
             etag=download_from_table_result.get('etag', None),
             quoteCharacter=quoteCharacter,
             escapeCharacter=escapeCharacter,
-            lineEnd=os.linesep,
+            lineEnd=lineEnd,
             separator=separator,
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion,
@@ -1042,7 +1045,7 @@ class CsvFileTable(TableAbstractBaseClass):
         return self
 
     @classmethod
-    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None, **kwargs):
+    def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None, **kwargs):
         ## infer columns from data frame if not specified
         if not headers:
             cols = as_table_columns(df)
@@ -1072,11 +1075,16 @@ class CsvFileTable(TableAbstractBaseClass):
 
         f = None
         try:
-            if filepath:
-                f = open(filepath, 'w')
+            if not filepath:
+                temp_dir = tempfile.mkdtemp()
+                filepath = os.path.join(temp_dir, 'table.csv')
+
+            if six.PY2:
+                ## pandas uses the Python standard library csv module
+                ## see: http://stackoverflow.com/a/3348664/199166
+                f = open(filepath, 'wb')
             else:
-                f = tempfile.NamedTemporaryFile(mode='w', delete=False)
-                filepath = f.name
+                f = io.open(filepath, mode='w', encoding='utf-8', newline='')
 
             df.to_csv(f,
                 index=False,
@@ -1085,7 +1093,7 @@ class CsvFileTable(TableAbstractBaseClass):
                 quotechar=encode_param_in_python2(quoteCharacter),
                 escapechar=encode_param_in_python2(escapeCharacter),
                 line_terminator=encode_param_in_python2(lineEnd),
-                na_rep=kwargs.get('na_rep',''))
+                na_rep=encode_param_in_python2(kwargs.get('na_rep','')))
         finally:
             if f: f.close()
 
@@ -1102,23 +1110,23 @@ class CsvFileTable(TableAbstractBaseClass):
             headers=headers)
 
     @classmethod
-    def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
+    def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
 
         ## create CSV file
         f = None
         try:
-            if filepath:
-                f = open(filepath, 'w')
-            else:
-                f = tempfile.NamedTemporaryFile(mode="w", delete=False)
-                filepath = f.name
+            if not filepath:
+                temp_dir = tempfile.mkdtemp()
+                filepath = os.path.join(temp_dir, 'table.csv')
+
+            f = io.open(filepath, 'w', encoding='utf-8', newline='')
 
             writer = csv.writer(f,
                 quoting=csv.QUOTE_NONNUMERIC,
-                delimiter=encode_param_in_python2(separator),
-                escapechar=encode_param_in_python2(escapeCharacter),
-                lineterminator=encode_param_in_python2(lineEnd),
-                quotechar=encode_param_in_python2(quoteCharacter),
+                delimiter=separator,
+                escapechar=escapeCharacter,
+                lineterminator=lineEnd,
+                quotechar=quoteCharacter,
                 skipinitialspace=linesToSkip)
 
             ## if we haven't explicitly set columns, try to grab them from
@@ -1153,7 +1161,7 @@ class CsvFileTable(TableAbstractBaseClass):
             includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
 
-    def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
+    def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
         self.filepath = filepath
 
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
@@ -1219,9 +1227,14 @@ class CsvFileTable(TableAbstractBaseClass):
         import pandas as pd
 
         try:
+            ## assign line terminator only if for single character
+            ## line terminators (e.g. not '\r\n') 'cause pandas doesn't
+            ## longer line terminators. See:
+            ##    https://github.com/pydata/pandas/issues/3501
+            ## "ValueError: Only length-1 line terminators supported"
             df = pd.read_csv(self.filepath,
                     sep=self.separator,
-                    lineterminator=self.lineEnd,
+                    lineterminator=self.lineEnd if len(self.lineEnd) == 1 else None,
                     quotechar=self.quoteCharacter,
                     escapechar=self.escapeCharacter,
                     header = 0 if self.header else None,
@@ -1278,14 +1291,18 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def __iter__(self):
         def iterate_rows(filepath, headers):
-            with open(filepath) as f:
+            with io.open(filepath, encoding='utf-8') as f:
                 reader = csv.reader(f,
-                    delimiter=encode_param_in_python2(self.separator),
-                    escapechar=encode_param_in_python2(self.escapeCharacter),
-                    lineterminator=encode_param_in_python2(self.lineEnd),
-                    quotechar=encode_param_in_python2(self.quoteCharacter))
+                    delimiter=self.separator,
+                    escapechar=self.escapeCharacter,
+                    lineterminator=self.lineEnd,
+                    quotechar=self.quoteCharacter)
                 if self.header:
                     header = next(reader)
                 for row in reader:
                     yield cast_values(row, headers)
         return iterate_rows(self.filepath, self.headers)
+
+    def __len__(self):
+        return sum(1 for row in self)
+

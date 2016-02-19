@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
+from builtins import str, ascii
 
 import collections
-import os
+import os, sys
 from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces, is_container
 from synapseclient.exceptions import *
 from nose.tools import assert_raises
@@ -92,7 +92,10 @@ def test_Entity():
         e.band = "Motörhead"
         e.lunch = "すし"
 
-        print(e)
+        if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding and sys.stdout.encoding.lower() == 'utf-8':
+            print(e)
+        else:
+            print(ascii(e))
 
 
 def test_subclassing():
