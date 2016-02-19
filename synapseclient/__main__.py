@@ -140,13 +140,13 @@ def get(args, syn):
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
-        _recursiveGet(args.id, '.', syn)  #Todo should be updated with destination folder instead of '.'
+        _recursiveGet(args.id, args.downloadLocation, syn)  #Todo should be updated with destination folder instead of '.'
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are dowloading a query.')
         ids = _getIdsFromQuery(args.queryString, syn)
         for id in ids:
-            syn.get(id, downloadLocation='.')
+            syn.get(id, downloadLocation=args.downloadLocation)
     else:
         ## search by MD5
         if isinstance(args.id, six.string_types) and os.path.isfile(args.id):
@@ -155,13 +155,15 @@ def get(args, syn):
                 print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
         ## normal syn.get operation
         else:
-            entity = syn.get(args.id, version=args.version, downloadLocation='.')
+            entity = syn.get(args.id, version=args.version, # limitSearch=args.limitSearch,
+                             downloadLocation=args.downloadLocation)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print("Downloaded file: %s" % os.path.basename(entity.path))
             else:
                 print('WARNING: No files associated with entity %s\n' % entity.id)
                 print(entity)
 
+        print 'Creating %s' % entity.path
 
 def store(args, syn):
     #If we are storing a fileEntity we need to have id or parentId
@@ -176,7 +178,7 @@ def store(args, syn):
     if args.id is not None:
         entity = syn.get(args.id, downloadFile=False)
     else:
-        entity = {'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type, 
+        entity = {'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type,
                   'name': utils.guess_file_name(args.file) if args.file and not args.name else None,
                   'parentId' : None,
                   'description' : None,
@@ -295,7 +297,7 @@ def show(args, syn):
 
 def delete(args, syn):
 	if args.version:
-	    syn.delete(args.id, args.version)	
+	    syn.delete(args.id, args.version)
 	    print('Deleted entity %s, version %s' % (args.id, args.version))
 	else:
 	    syn.delete(args.id)
@@ -496,6 +498,8 @@ def build_parser():
             help='Fetches content in Synapse recursively contained in the parentId specified by id.')
     parser_get.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for files if using a path.')
+    parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
+            help='Directory to download file to [default: %(default)s].')
     parser_get.add_argument('id',  metavar='syn123', nargs='?', type=str,
             help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)

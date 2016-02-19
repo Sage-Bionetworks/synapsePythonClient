@@ -309,7 +309,7 @@ class Synapse:
         :param rememberMe: Whether the authentication information should be cached locally
                            for usage across sessions and clients.
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
-        :param forced:     Defaults to False.  Bypass the credential cache if set. 
+        :param forced:     Defaults to False.  Bypass the credential cache if set.
 
         Example::
 
@@ -667,8 +667,11 @@ class Synapse:
         #If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, six.string_types) and os.path.isfile(entity):
             bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
+            # bundle['path'] = entity
+            # kwargs['downloadFile']=False
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
+
         elif isinstance(entity, six.string_types) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
                                             ' or a valid entity id' %entity))
@@ -714,8 +717,13 @@ class Synapse:
                              'Will use the first one returned: \n'
                              '%s version %i\n' %(filepath,  id_txts, results[0]['id'], results[0]['versionNumber']))
         entity = results[0]
+
+        # bundle = self._getEntityBundle(entity)
+        # cache.add_local_file_to_cache(path = filepath, **bundle['entity'])
+
         bundle = self._getEntityBundle(entity, version=entity['versionNumber'])
         self.cache.add(file_handle_id=bundle['entity']['dataFileHandleId'], path=filepath)
+
         return bundle
 
 
@@ -790,7 +798,7 @@ class Synapse:
 
             # Determine if the file should be downloaded
             # downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
-            # if downloadFile: 
+            # if downloadFile:
             #     downloadFile = cache.local_file_has_changed(entityBundle, True, downloadPath)
             # # Determine where the file should be downloaded to
             # if downloadFile:
@@ -1130,9 +1138,9 @@ class Synapse:
 
         :param obj: An existing object stored on Synapse
                     such as Evaluation, File, Project, WikiPage etc
-                    
+
         :param version: For entities, specify a particular version to delete.
-        
+
         """
         # Handle all strings as the Entity ID for backward compatibility
         if isinstance(obj, six.string_types):
@@ -1414,7 +1422,7 @@ class Synapse:
             # Build the sub-query
             subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
 
-            try: 
+            try:
                 response = self.restGET('/query?query=' + quote(subqueryStr))
                 for res in response['results']:
                     yield res
@@ -2514,7 +2522,7 @@ class Synapse:
         except IOError as ex1:
             with open(fileInfo['path']) as f:
                 markdown = f.read().decode('utf-8')
-        
+
         wiki.markdown = markdown
         wiki.markdown_path = fileInfo['path']
 
@@ -2617,7 +2625,7 @@ class Synapse:
 
         return self._storeWiki(destWiki)
 
-         
+
     ############################################################
     ##                     Tables                             ##
     ############################################################
@@ -3325,7 +3333,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs), 
+        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs),
                                verbose = self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
@@ -3344,7 +3352,7 @@ class Synapse:
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs), 
+        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs),
                                verbose = self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
 
