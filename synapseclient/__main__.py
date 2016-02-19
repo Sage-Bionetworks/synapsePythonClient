@@ -163,7 +163,7 @@ def get(args, syn):
                 print('WARNING: No files associated with entity %s\n' % entity.id)
                 print(entity)
 
-        print 'Creating %s' % entity.path
+        print('Creating %s' % entity.path)
 
 def store(args, syn):
     #If we are storing a fileEntity we need to have id or parentId
