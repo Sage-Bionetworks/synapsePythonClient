@@ -154,7 +154,7 @@ def to_submission_status_annotations(annotations, is_private=True):
 
     :param annotations: A normal Python dictionary whose values are strings, floats, ints or doubles
 
-    :param isPrivate: Set privacy on all annotations at once. These can be set individually using :py:func:`set_privacy`.
+    :param is_private: Set privacy on all annotations at once. These can be set individually using :py:func:`set_privacy`.
 
     Example::
 
