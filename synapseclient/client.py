@@ -2140,7 +2140,7 @@ class Synapse:
             yield TeamMember(**result)
 
 
-    def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None):
+    def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
@@ -2149,6 +2149,7 @@ class Synapse:
         :param name:       A name for this submission
         :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered for the challenge
         :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
+        :param teamName: (deprecated) A synonym for submitterAlias
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
 
@@ -2243,6 +2244,8 @@ class Synapse:
             submission['contributors'] = contributors
         if submitterAlias:
             submission['submitterAlias'] = submitterAlias
+        elif teamName:
+            submission['submitterAlias'] = teamName
         elif team:
             submission['submitterAlias'] = team.name
 
