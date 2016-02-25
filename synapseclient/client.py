@@ -1143,6 +1143,8 @@ class Synapse:
         """
         ent = self.get(obj, downloadFile=False)
         profile = self.getUserProfile().ownerId
+        store = True
+        path = ent.path
         #CHECK: Must be a file entity
         if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
             raise ValueError('"synapse cp" can only copy files!')
@@ -1153,14 +1155,18 @@ class Synapse:
         for i in search:
             if i['file.name'] == ent.name:
                 raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
+        #CHECK: If the synapse entity is linked to an external URL, change path and store
+        if ent.externalURL != None:
+            store = False
+            path = ent.externalURL
         #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
         if profile == createdBy:
             new_ent = synapseclient.File(name=ent.name, parentId=parentId)
             new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
             new_ent = self._createEntity(new_ent)
         else:
-            ent = self.get(obj)
-            new_ent = synapseclient.File(ent.path, parent=parentId)
+            ent = self.get(obj,downloadFile=store)
+            new_ent = synapseclient.File(path, name=ent.name, parent=parentId, synapseStore=store)
             new_ent = self.store(new_ent)
         self.setAnnotations(new_ent, ent.annotations)
         act = Activity("Copied file", used=ent)
