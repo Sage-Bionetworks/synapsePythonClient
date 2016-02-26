@@ -1132,7 +1132,7 @@ class Synapse:
 
         return bundle
 
-    def copy(self, obj, parentId):
+    def copy(self, entity, parentId):
         """
         Copies most recent version of a file to a specified synapse ID.
 
@@ -1141,31 +1141,38 @@ class Synapse:
         :param parentId: Synapse ID of a folder/project that the file wants to be copied to
        
         """
-        ent = self.get(obj, downloadFile=False)
-        profile = self.getUserProfile().ownerId
-        store = True
-        path = ent.path
+        ent = self.get(entity, downloadFile=False)
+        #profile = self.getUserProfile().ownerId
         #CHECK: Must be a file entity
         if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
             raise ValueError('"synapse cp" can only copy files!')
+        store = True
+        path = ent.path
+        createdBy = True
+        try:
+            #You can only get the file handlle information if you are the owner of the file
+            self._getFileHandle(ent.properties.dataFileHandleId)
+        except:
+            createdBy = False
         #Grab file handle createdBy annotation to see the user that created fileHandle
-        createdBy = self.restGET('/entity/%s/filehandles'%ent.id)['list'][0]['createdBy']
+        #NOTE: May not always be the first index
+        #createdBy = self.restGET('/entity/%s/filehandles'%ent.id)['list'][0]['createdBy']
         #CHECK: If file is in the same parent directory (throw an error)
         search = self.query('select name from file where parentId =="%s"'%parentId)['results']
         for i in search:
             if i['file.name'] == ent.name:
                 raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
-        #CHECK: If the synapse entity is linked to an external URL, change path and store
-        if ent.externalURL != None:
+        #CHECK: If the synapse entity is an external URL, change path and store
+        if ent.externalURL != None and ent.path == None:
             store = False
             path = ent.externalURL
         #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
-        if profile == createdBy:
+        if createdBy:
             new_ent = synapseclient.File(name=ent.name, parentId=parentId)
             new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
             new_ent = self._createEntity(new_ent)
         else:
-            ent = self.get(obj,downloadFile=store)
+            ent = self.get(entity,downloadFile=store)
             new_ent = synapseclient.File(path, name=ent.name, parent=parentId, synapseStore=store)
             new_ent = self.store(new_ent)
         self.setAnnotations(new_ent, ent.annotations)
