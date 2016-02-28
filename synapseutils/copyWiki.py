@@ -1,65 +1,51 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import str
-from builtins import input
+# from __future__ import absolute_import
+# from __future__ import division
+# from __future__ import print_function
+# from __future__ import unicode_literals
+# from builtins import str
+# from builtins import input
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+# try:
+#     import configparser
+# except ImportError:
+#     import ConfigParser as configparser
 
-import collections
-import os, sys, stat, re, json, time
-import base64, hashlib, hmac
-import six
+# import collections
+# import os, sys, stat, re, json, time
+# import base64, hashlib, hmac
+# import six
 
-try:
-    from urllib.parse import urlparse
-    from urllib.parse import urlunparse
-    from urllib.parse import quote
-    from urllib.parse import unquote
-except ImportError:
-    from urlparse import urlparse
-    from urlparse import urlunparse
-    from urllib import quote
-    from urllib import unquote
+# try:
+#     from urllib.parse import urlparse
+#     from urllib.parse import urlunparse
+#     from urllib.parse import quote
+#     from urllib.parse import unquote
+# except ImportError:
+#     from urlparse import urlparse
+#     from urlparse import urlunparse
+#     from urllib import quote
+#     from urllib import unquote
 
-try:
-    import urllib.request, urllib.parse, urllib.error
-except ImportError:
-    import urllib
+# try:
+#     import urllib.request, urllib.parse, urllib.error
+# except ImportError:
+#     import urllib
 
-import requests, webbrowser
-import shutil
-import zipfile
-import mimetypes
+# import requests, webbrowser
+# import shutil
+# import zipfile
+# import mimetypes
 import tempfile
-import warnings
-import getpass
-from collections import OrderedDict
+import re
+# import warnings
+# import getpass
+# from collections import OrderedDict
 
 import synapseclient
-from . import utils
-from . import cache
-from . import exceptions
-from .exceptions import *
-from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, nchunks, get_chunk, find_data_file_handle
-from .annotations import from_synapse_annotations, to_synapse_annotations
-from .annotations import to_submission_status_annotations, from_submission_status_annotations
-from .activity import Activity
-from .entity import Entity, File, Project, Folder, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
-from .dict_object import DictObject
-from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
-from .team import UserProfile, Team, TeamMember, UserGroupHeader
-from .wiki import Wiki, WikiAttachment
-from .retry import _with_retry
+from synapseclient import Wiki
 
 
-def copyProjectWiki(self, oldOwnerId,newOwnerId,updateLinks=True,updateSynIds=True,entityMap=None):
+def copyProjectWiki(syn, oldOwnerId,newOwnerId,updateLinks=True,updateSynIds=True,entityMap=None):
     oldOwn = syn.get(oldOwnerId)
     oldWh = syn.getWikiHeaders(oldOwn)  
     newOwn =syn.get(newOwnerId)
@@ -129,7 +115,7 @@ def copyProjectWiki(self, oldOwnerId,newOwnerId,updateLinks=True,updateSynIds=Tr
     
     print("Storing new Wikis\n")
     for oldWikiId in wikiIdMap.keys():
-        newWikiId = wikiIdMap[wikiIdMap]
+        newWikiId = wikiIdMap[oldWikiId]
         newWikis[newWikiId] = syn.store(newWikis[newWikiId])
         print("\tStored: %s\n",newWikiId)
 
