@@ -1137,9 +1137,9 @@ class Synapse:
         Copies most recent version of a file to a specified synapse ID.
 
         :param obj: A synapse ID or entity of a file
-                    
+
         :param parentId: Synapse ID of a folder/project that the file wants to be copied to
-       
+
         """
         #Set provenance should take a string (none, traceback, existing)
         ent = self.get(entity, downloadFile=False, version=version, followLink=False)
@@ -1158,30 +1158,33 @@ class Synapse:
         #Grab file handle createdBy annotation to see the user that created fileHandle
         #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle )
         fileHandle = self.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
+
+        # not guaranteed to get preview and regular file in same order, need filter here
         createdBy = fileHandle['list'][0]['createdBy']
+
         #CHECK: If file is in the same parent directory (throw an error)
         search = self.query('select name from file where parentId =="%s"'%parentId)
         for i in search['results']:
             if i['file.name'] == ent.name:
                 raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
-        #CHECK: If the synapse entity is an external URL, change path and store
-        if ent.externalURL != None: #and ent.path == None:
-            #####If you have never downloaded the file before, the path is None
-            store = False
-            path = ent.externalURL
-        else:
-            store = True
-            path = ent.path
 
         #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
         if profile.ownerId == createdBy:
             new_ent = synapseclient.File(name=ent.name, parentId=parentId)
             new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
-            new_ent = self._createEntity(new_ent)
         else:
+            #CHECK: If the synapse entity is an external URL, change path and store
+            if ent.externalURL is None: #and ent.path == None:
+                #####If you have never downloaded the file before, the path is None
+                store = True
+                path = ent.path
+            else:
+                store = False
+                path = ent.externalURL
+
             ent = self.get(entity,downloadFile=store,version=version)
             new_ent = synapseclient.File(path, name=ent.name, parent=parentId, synapseStore=store)
-            new_ent = self.store(new_ent)
+            # new_ent = self.store(new_ent)
         self.setAnnotations(new_ent, ent.annotations)
         # If traceback, set activity to old entity
         if setProvenance == "traceback":
@@ -1200,9 +1203,17 @@ class Synapse:
         else:
             raise ValueError('setProvenance must be one of None, existing, or traceback')
         #Store provenance if act is not None
-        if act is not None:
-            self.setProvenance(new_ent.id, act)
 
+        # This is needed, but won't work now b/c setProvenance stores.
+        if profile.ownerId == createdBy:
+            if act is not None:
+                new_ent = self._createEntity(new_ent)
+        if act is not None:
+            self.store(new_ent, act)
+        else:
+            self.store(new_ent)
+
+        # command line only, remove
         print('Copied %s to %s' %(ent.id, new_ent.id))
 
     def delete(self, obj, version=None):
