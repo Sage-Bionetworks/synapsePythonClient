@@ -1143,6 +1143,11 @@ class Synapse:
         """
         #Set provenance should take a string (none, traceback, existing)
         ent = self.get(entity, downloadFile=False, version=version, followLink=False)
+        #CHECK: If file is in the same parent directory (throw an error)
+        search = self.query('select name from file where parentId =="%s"'%parentId)
+        for i in search['results']:
+            if i['file.name'] == ent.name:
+                raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
         profile = self.getUserProfile()
         #CHECK: Must be a file entity
         #if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
@@ -1158,15 +1163,10 @@ class Synapse:
         #Grab file handle createdBy annotation to see the user that created fileHandle
         #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle )
         fileHandle = self.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
-
+        
         # not guaranteed to get preview and regular file in same order, need filter here
         createdBy = fileHandle['list'][0]['createdBy']
 
-        #CHECK: If file is in the same parent directory (throw an error)
-        search = self.query('select name from file where parentId =="%s"'%parentId)
-        for i in search['results']:
-            if i['file.name'] == ent.name:
-                raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
 
         #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
         if profile.ownerId == createdBy:
