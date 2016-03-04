@@ -432,12 +432,12 @@ def test_copy():
     assert_raises(ValueError,syn.copy,file_entity.id,parentId = project_entity.id) 
 
     # TEST: set_Provenance = None
-    output = syn.copy(file_entity.id,second_folder.id,set_Provenance = None)
+    output = syn.copy(file_entity.id,second_folder.id,setProvenance = None)
     assert_raises(SynapseHTTPError,syn.getProvenance,output)
     schedule_for_cleanup(output)
 
     # TEST: set_Provenance = "existing"
-    output_URL = syn.copy(externalURL_entity.id,second_folder.id,set_Provenance = "existing")
+    output_URL = syn.copy(externalURL_entity.id,second_folder.id,setProvenance = "existing")
     output_prov = syn.getProvenance(output_URL)
     schedule_for_cleanup(output_URL)
     assert output_prov['name'] == prov['name']
