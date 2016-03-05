@@ -1215,7 +1215,7 @@ class Synapse:
             self.store(new_ent, act)
         else:
             self.store(new_ent)
-        return new_ent
+        return new_ent['id']
 
     def delete(self, obj, version=None):
         """
