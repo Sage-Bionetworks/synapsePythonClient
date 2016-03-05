@@ -1153,7 +1153,6 @@ class Synapse:
         #if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
         #if not isinstance(ent, File):
         #    raise ValueError('"synapse cp" can only copy files!')
-
         #createdBy = True
         #try:
         #    #You can only get the file handlle information if you are the owner of the file
@@ -1165,7 +1164,10 @@ class Synapse:
         fileHandle = self.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
         
         # not guaranteed to get preview and regular file in same order, need filter here
-        createdBy = fileHandle['list'][0]['createdBy']
+        if fileHandle['list'][0]['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle':
+            createdBy = fileHandle['list'][0]['createdBy']
+        else:
+            createdBy = fileHandle['list'][1]['createdBy']
 
 
         #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
@@ -1185,7 +1187,8 @@ class Synapse:
             ent = self.get(entity,downloadFile=store,version=version)
             new_ent = synapseclient.File(path, name=ent.name, parent=parentId, synapseStore=store)
             # new_ent = self.store(new_ent)
-        self.setAnnotations(new_ent, ent.annotations)
+        #self.setAnnotations(new_ent, ent.annotations)
+        new_ent.annotations = ent.annotations
         # If traceback, set activity to old entity
         if setProvenance == "traceback":
             act = Activity("Copied file", used=ent)
@@ -1212,9 +1215,7 @@ class Synapse:
             self.store(new_ent, act)
         else:
             self.store(new_ent)
-
-        # command line only, remove
-        print('Copied %s to %s' %(ent.id, new_ent.id))
+        return new_ent
 
     def delete(self, obj, version=None):
         """
