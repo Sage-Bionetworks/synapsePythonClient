@@ -1187,7 +1187,6 @@ class Synapse:
             ent = self.get(entity,downloadFile=store,version=version)
             new_ent = synapseclient.File(path, name=ent.name, parent=parentId, synapseStore=store)
             # new_ent = self.store(new_ent)
-        #self.setAnnotations(new_ent, ent.annotations)
         new_ent.annotations = ent.annotations
         # If traceback, set activity to old entity
         if setProvenance == "traceback":
