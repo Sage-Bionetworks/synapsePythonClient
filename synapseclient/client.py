@@ -1171,7 +1171,6 @@ class Synapse:
         else:
             createdBy = fileHandle['list'][1]['createdBy']
 
-
         #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
         if profile.ownerId == createdBy:
             new_ent = synapseclient.File(name=ent.name, parentId=parentId)
@@ -1207,15 +1206,10 @@ class Synapse:
         else:
             raise ValueError('setProvenance must be one of None, existing, or traceback')
         #Store provenance if act is not None
-
-        # This is needed, but won't work now b/c setProvenance stores.
-        if profile.ownerId == createdBy:
-            if act is not None:
-                new_ent = self._createEntity(new_ent)
         if act is not None:
-            self.store(new_ent, act)
+            new_ent = self.store(new_ent, act)
         else:
-            self.store(new_ent)
+            new_ent = self.store(new_ent)
         return new_ent['id']
 
     def delete(self, obj, version=None):
