@@ -104,10 +104,10 @@ def test_Entity():
     assert link['linksTo']['targetVersionNumber'] == a_file.versionNumber
     assert link['linksToClassName'] == a_file['concreteType']
     
-    testLink = syn.get(link, followLink= False)
+    testLink = syn.get(link)
     assert testLink == link
 
-    link = syn.getEntity(link)
+    link = syn.get(link,followLink= True)
     assert link['foo'][0] == 'Another arbitrary chunk of text data'
     assert link['bar'] == [33,44,55]
     assert link['bday'][0] == Datetime(2013,3,15)
