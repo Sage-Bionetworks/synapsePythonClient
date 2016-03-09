@@ -190,6 +190,7 @@ def store(args, syn):
     entity['path'] = args.file if args.file is not None else None
     entity['synapseStore'] = not utils.is_url(args.file)
 
+
     used = _convertProvenanceList(args.used, args.limitSearch, syn)
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
     entity = syn.store(entity, used=used, executed=executed)
