@@ -1151,44 +1151,7 @@ class Synapse:
             if i['file.name'] == ent.name:
                 raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
         profile = self.getUserProfile()
-        #CHECK: Must be a file entity
-        #if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
-        #if not isinstance(ent, File):
-        #    raise ValueError('"synapse cp" can only copy files!')
-        #createdBy = True
-        #try:
-        #    #You can only get the file handlle information if you are the owner of the file
-        #    self._getFileHandle(ent.properties.dataFileHandleId)
-        #except:
-        #    createdBy = False
-        #Grab file handle createdBy annotation to see the user that created fileHandle
-        #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle )
-        fileHandle = self.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
-        
-        # not guaranteed to get preview and regular file in same order, need filter here
-        if fileHandle['list'][0]['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle':
-            createdBy = fileHandle['list'][0]['createdBy']
-        else:
-            createdBy = fileHandle['list'][1]['createdBy']
-
-        #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
-        if profile.ownerId == createdBy:
-            new_ent = synapseclient.File(name=ent.name, parentId=parentId)
-            new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
-        else:
-            #CHECK: If the synapse entity is an external URL, change path and store
-            if ent.externalURL is None: #and ent.path == None:
-                #####If you have never downloaded the file before, the path is None
-                store = True
-                path = ent.path
-            else:
-                store = False
-                path = ent.externalURL
-
-            ent = self.get(entity,downloadFile=store,version=version)
-            new_ent = synapseclient.File(path, name=ent.name, parent=parentId, synapseStore=store)
-            # new_ent = self.store(new_ent)
-        new_ent.annotations = ent.annotations
+        # get provenance earlier to prevent errors from being called in the end
         # If traceback, set activity to old entity
         if setProvenance == "traceback":
             act = Activity("Copied file", used=ent)
@@ -1205,11 +1168,39 @@ class Synapse:
             act = None
         else:
             raise ValueError('setProvenance must be one of None, existing, or traceback')
+        #Grab file handle createdBy annotation to see the user that created fileHandle
+        #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle )
+        fileHandle = self.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
+        # not guaranteed to get preview and regular file in same order, need filter here
+        # External URL's are not 'org.sagebionetworks.repo.model.file.S3FileHandle'
+        if fileHandle['list'][0]['concreteType'] != 'org.sagebionetworks.repo.model.file.PreviewFileHandle':
+            createdBy = fileHandle['list'][0]['createdBy']
+        else:
+            createdBy = fileHandle['list'][1]['createdBy']
+        #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
+        if profile.ownerId == createdBy:
+            new_ent = synapseclient.File(name=ent.name, parentId=parentId)
+            new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
+        else:
+            #CHECK: If the synapse entity is an external URL, change path and store
+            if ent.externalURL is None: #and ent.path == None:
+                #####If you have never downloaded the file before, the path is None
+                store = True
+                path = ent.path
+            else:
+                store = False
+                path = ent.externalURL
+
+            ent = self.get(entity,downloadFile=store,version=version)
+            new_ent = synapseclient.File(path, name=ent.name, parent=parentId, synapseStore=store)
+        #Set annotations here
+        new_ent.annotations = ent.annotations
         #Store provenance if act is not None
         if act is not None:
-            new_ent = self.store(new_ent, act)
+            new_ent = self.store(new_ent, activity=act)
         else:
             new_ent = self.store(new_ent)
+        #Leave this return statement for test
         return new_ent['id']
 
     def delete(self, obj, version=None):
