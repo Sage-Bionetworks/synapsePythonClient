@@ -544,8 +544,8 @@ class File(Entity, Versionable):
                  annotations=None, local_state=None, **kwargs):
         if path and 'name' not in kwargs:
             kwargs['name'] = utils.guess_file_name(path)
-        if 'dataFileHandleId' in kwargs:
-            path = None
+        if path and 'dataFileHandleId' in kwargs:
+            raise ValueError('Please only specify path or dataFileHandleId')
         self.__dict__['path'] = path
         if path:
             cacheDir, basename = os.path.split(path)

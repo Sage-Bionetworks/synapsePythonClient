@@ -103,7 +103,11 @@ def test_Entity():
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
 
+    assert_raises(ValueError,File,a_file.path,parent=folder,dataFileHandleId=56456)
+    b_file = File(name="blah",parent=folder,dataFileHandleId=a_file.dataFileHandleId)
+    b_file = syn.store(b_file)
 
+    assert b_file.dataFileHandleId == a_file.dataFileHandleId
     # Update the File
     a_file.path = path
     a_file['foo'] = 'Another arbitrary chunk of text data'
@@ -456,6 +460,7 @@ def test_copy():
     assert_raises(AttributeError,syn.copy,folder_entity.id,parentId = project_entity.id)
     assert_raises(AttributeError,syn.copy,project_entity.id,parentId = project_entity.id)
     assert_raises(ValueError,syn.copy,file_entity.id,parentId = project_entity.id) 
+    assert_raises(ValueError,syn.copy,file_entity.id,parentId = third_folder.id,setProvenance = "gib")
 
     print("Test: setProvenance = None")
     output = syn.copy(file_entity.id,second_folder.id,setProvenance = None)
