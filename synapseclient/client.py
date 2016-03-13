@@ -1252,9 +1252,10 @@ class Synapse:
         version = kwargs.get('version', None)
         setProvenance = kwargs.get('setProvenance', "traceback")
         recursive = kwargs.get('recursive',True)
-
+        copiedId = None
         ent = self.get(entity,downloadFile=False)
         if isinstance(ent, Project):
+            mapping[ent.id] = parentId
             entities = self.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
             for i in entities:
                 mapping = self._copyRecursive(i['entity.id'], parentId, mapping=mapping, **kwargs)
@@ -1264,10 +1265,14 @@ class Synapse:
             copiedId = self._copyFile(ent.id, parentId, version=version, setProvenance=setProvenance)
         elif isinstance(ent, Link):
             copiedId = self._copyLink(ent.id, parentId)
+        elif isinstance(ent, Schema):
+            copiedId = self._copyTable(ent.id, parentId)
         else:
             raise ValueError("Not able to copy this type of file")
-        print("Copied %s to %s" % (ent.id,copiedId))
-        mapping[ent.id] = copiedId
+        #have to assign copied id something or else an error may be thrown
+        if copiedId != None:
+            print("Copied %s to %s" % (ent.id,copiedId))
+            mapping[ent.id] = copiedId
         return(mapping)
         
     def _copyFile(self, entity, parentId, version=None, setProvenance="traceback"):
@@ -1377,7 +1382,7 @@ class Synapse:
         :param entityMap:       An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the wiki
                                 Defaults to None 
         """
-        oldOwn = self.get(entity)
+        oldOwn = self.get(entity,downloadFile=False)
         # getWikiHeaders fails when there is no wiki
         try:
             oldWh = self.getWikiHeaders(oldOwn)
@@ -1385,7 +1390,7 @@ class Synapse:
         except SynapseHTTPError:
             store = False
         if store:
-            newOwn =self.get(parentId)
+            newOwn =self.get(parentId,downloadFile=False)
             wikiIdMap =dict()
             newWikis=dict()
             for i in oldWh:
@@ -1498,6 +1503,7 @@ class Synapse:
         """
         #There is no way of knowing if the same table name exists right now...
         # Must check for this...
+        #syn.query('select name from table where projectId == "syn4990358"')
         print("Getting table %s" % entity)
         myTableSchema = self.get(entity)
         d = self.tableQuery('select * from %s' % myTableSchema.id)
@@ -1517,10 +1523,11 @@ class Synapse:
             print("Created new table using schema %s" % newTableSchema.name)
             newTable = Table(schema=newTableSchema,values=d)
             newTable = self.store(newTable)
+            return(newTable.schema.id)
         else:
             print("No data, so storing schema %s" % newTableSchema.name)
             newTableSchema = self.store(newTableSchema)
-        return(newTableSchema.id)
+            return(newTableSchema.id)
 
     def _copyFolder(self, entity, parentId, mapping=dict(), recursive=True, **kwargs):
         """
