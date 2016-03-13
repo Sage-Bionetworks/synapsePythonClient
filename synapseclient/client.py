@@ -1252,6 +1252,10 @@ class Synapse:
         #if len(copied):
         if mapping!=None
             return(mapping.append(dict(oldEnt=ent.id,newEnt=copiedId))
+        else:
+            return(dict(oldEnt=ent.id,newEnt=copiedId))
+
+
         #else:
         #    mapping.append(dict(oldEnt=ent.id,newEnt=copiedId))
         #    return(mapping)
