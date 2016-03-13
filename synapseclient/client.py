@@ -1217,13 +1217,16 @@ class Synapse:
     ##                 Copy Functions                         ##
     ############################################################
 
-    def copy(self, entity, parentId, **kwargs):
+    def copy(self, entity, parentId, copyWiki=True, **kwargs):
         """
         Copies synapse entities including the wikis
 
         :param entity:          A synapse entity ID
 
         :param parentId:        Synapse ID of a folder/project that the copied entity is being copied to
+
+        :param copyWiki:        Determines whether the wiki of the entity is copied over
+                                Default is True
 
         :param kwargs:          Parameters that can be passed to the hidden copy functions called
         """
@@ -1232,9 +1235,9 @@ class Synapse:
         updateSynIds = kwargs.get('updateSynIds', True)
 
         mapping = self._copyRecursive(entity, parentId, mapping=mapping,**kwargs)
-        for oldEnt in mapping:
-            newWikig = self._copyProjectWiki(oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
-        print(mapping)
+        if copyWiki:
+            for oldEnt in mapping:
+                newWikig = self._copyWiki(oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
         return(mapping)
              
     def _copyRecursive(self, entity, parentId, mapping = dict(), **kwargs):
@@ -1266,6 +1269,7 @@ class Synapse:
         elif isinstance(ent, Link):
             copiedId = self._copyLink(ent.id, parentId)
         elif isinstance(ent, Schema):
+
             copiedId = self._copyTable(ent.id, parentId)
         else:
             raise ValueError("Not able to copy this type of file")
@@ -1293,7 +1297,7 @@ class Synapse:
         """
         #Set provenance should take a string (none, traceback, existing)
         ent = self.get(entity, downloadFile=False, version=version, followLink=False)
-        #CHECK: If file is in the same parent directory (throw an error)
+        #CHECK: If File is in the same parent directory (throw an error)
         search = self.query('select name from file where parentId =="%s"'%parentId)
         for i in search['results']:
             if i['file.name'] == ent.name:
@@ -1361,11 +1365,17 @@ class Synapse:
         :param parentId:        Synapse ID of a folder/project that the file wants to be copied to
         """
         ent = self.get(entity)
+        #CHECK: If Link is in the same parent directory (throw an error)
+        search = self.query('select name from link where parentId =="%s"'%parentId)
+        for i in search['results']:
+            if i['link.name'] == ent.name:
+                raise ValueError('Linkname already exists in directory you would like to copy to, either rename or check if Link has already been copied!')
+
         newLink = Link(ent.linksTo['targetId'],parent=parentId,targetVersion=ent.linksTo['targetVersionNumber'])
         newLink = self.store(newLink)
         return(newLink.id)
    
-    def _copyProjectWiki(self, entity, parentId, updateLinks=True, updateSynIds=True, entityMap=None):
+    def _copyWiki(self, entity, parentId, updateLinks=True, updateSynIds=True, entityMap=None):
         """
         Copies wikis and updates internal links
 
@@ -1501,11 +1511,15 @@ class Synapse:
         :param setAnnotations:  Set the annotations of the copied table to be the annotations of the entity    
                                 Defaults to False     
         """
-        #There is no way of knowing if the same table name exists right now...
-        # Must check for this...
-        #syn.query('select name from table where projectId == "syn4990358"')
+
         print("Getting table %s" % entity)
         myTableSchema = self.get(entity)
+        #CHECK: If Table name already exists, raise value error
+        search = syn.query('select name from table where projectId == "%s"' % parentId)
+        for i in search['results']:
+            if i['table.name'] == myTableSchema.name:
+                raise ValueError('Tablename exists in project you would like to copy to, either rename or check if Table has already been copied!')
+
         d = self.tableQuery('select * from %s' % myTableSchema.id)
         d = d.asDataFrame()
         d = d.reset_index()
@@ -1541,6 +1555,12 @@ class Synapse:
                                 Defaults to True     
         """
         oldFolder = self.get(entity)
+        #CHECK: If Folder name already exists, raise value error
+        search = syn.query('select name from folder where parentId == "%s"' % parentId)
+        for i in search['results']:
+            if i['folder.name'] == oldFolder.name:
+                raise ValueError('Foldername already exists in project you would like to copy to, either rename or check if Folder has already been copied!')
+
         newFolder = Folder(name = oldFolder.name,parent= parentId)
         newFolder.annotations = oldFolder.annotations
         newFolder = self.store(newFolder)
