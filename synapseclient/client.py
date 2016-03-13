@@ -1217,13 +1217,13 @@ class Synapse:
     ##                 Copy Functions                         ##
     ############################################################
 
-    def copy(self, entity, parentId, version=None, setProvenance="traceback"):
+    def copy(self, entity, parentId, mapping = None, version=None, setProvenance="traceback"):
         """
         Copies synapse entities.
 
         :param obj:             A synapse ID or entity of a file
 
-        :param parentId:        Synapse ID of a folder/project that the file wants to be copied to
+        :param parentId:        Synapse ID of a folder/project that the copied entity is being copied to
 
         :param version:         Can specify version of a file. 
                                 Default to None
@@ -1233,8 +1233,36 @@ class Synapse:
                                     existing: Sets to source entity's original provenance (if it exists)
                                     None: No provenance is set
         """
-        copied = self._copyFile(entity, parentId, version, setProvenance)
-        return(copied)
+        ent = self.get(entity,downloadFile=False)
+
+        if isinstance(ent, Project):
+            entities = self.chunkedQuery('select id, name from entity where parentId=="%s"'%ent.id)
+            for i in entities:
+                mapping = self.copy(i['entity.id'], parentId, mapping, version, setProvenance)
+            #newWiki = self._copyProjectWiki(ent['entity.id'], parentId)
+        elif isinstance(ent, Folder):
+            copiedId = self._copyFolder(ent.id,parentId,mapping)
+        elif isinstance(ent, File):
+            copiedId = self._copyFile(ent.id, parentId, version, setProvenance)
+        elif isinstance(ent, Link):
+            copiedId = self._copyLink(ent.id, parentId)
+        else:
+            raise ValueError("Not able to copy this type of file")
+        print("Copied %s to %s" % (ent.id,copiedId))
+        #if len(copied):
+        if mapping!=None
+            return(mapping.append(dict(oldEnt=ent.id,newEnt=copiedId))
+        #else:
+        #    mapping.append(dict(oldEnt=ent.id,newEnt=copiedId))
+        #    return(mapping)
+        #return(copied)
+
+
+        list1=[1,2,3,4,5]
+list2=[123,234,456]
+d={'a':[],'b':[]}
+d['a'].append(list1)
+d['a'].append(list2)
         
     def _copyFile(self, entity, parentId, version=None, setProvenance="traceback"):
         """
@@ -1312,6 +1340,12 @@ class Synapse:
             new_ent = self.store(new_ent)
         #Leave this return statement for test
         return new_ent['id']
+
+    def _copyLink(self, entity, parentId):
+        ent = self.get(entity)
+        newLink = Link(ent.linksTo['targetId'],parent=parentId,targetVersion=ent.linksTo['targetVersionNumber'])
+        newLink = self.store(newLink)
+        return(newLink.id)
 
     def _copyProjectWiki(self, oldOwnerId, newOwnerId, updateLinks=True, updateSynIds=True, entityMap=None):
         oldOwn = self.get(oldOwnerId)
@@ -1416,9 +1450,11 @@ class Synapse:
 
 
 
-    def _copyTable(self, tableId, parentId, setAnnotations=False):
-        print("Getting table %s" % tableId)
-        myTableSchema = self.get(tableId)
+    def _copyTable(self, entity, parentId, setAnnotations=False):
+        #There is no way of knowing if the same table name exists right now...
+        # Must check for this...
+        print("Getting table %s" % entity)
+        myTableSchema = self.get(entity)
         d = self.tableQuery('select * from %s' % myTableSchema.id)
         d = d.asDataFrame()
         d = d.reset_index()
@@ -1439,7 +1475,34 @@ class Synapse:
         else:
             print("No data, so storing schema %s" % newTableSchema.name)
             newTableSchema = self.store(newTableSchema)
+        return(newTableSchema.id)
 
+    def _copyFolder(self, entity, parentId,mapping=None,recursive=True):
+        oldFolder = self.get(entity)
+        newFolder = Folder(name = oldFolder.name,parent= parentId)
+        newFolder.annotations = oldFolder.annotations
+        newFolder = self.store(newFolder)
+        mapping.append(dict(oldEnt=oldFolder.id,newEnt=newFolder.id))
+        if recursive:
+            entities = self.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
+            for ent in entities:
+                copied = self.copy(ent['entity.id'],newFolder.id,mapping)
+        return(newFolder.id)
+
+    #Copies projects
+    # def _copyProject(self,projectId,newProjectId=None):
+    #     oldProject = self.get(projectId)
+    #     if newProjectId==None:
+    #         newProject = self.store(Project(name=oldProject.name))
+    #         newProjectId = newProject.id
+    #     else:
+    #         entities = self.chunkedQuery('select id, name, concreteType from entity where parentId=="%s"'%projectId)
+    #         for ent in entities:
+    #             print(ent)
+    #             if ent['entity.concreteType'] == ['org.sagebionetworks.repo.model.Folder']:
+    #                 copied = self._copyFolder(ent['entity.id'],newProjectId)
+    #             elif ent['entity.concreteType'] == ['org.sagebionetworks.repo.model.FileEntity']:
+    #                 copied = self._copyFile(ent['entity.id'],newProjectId)
     ############################################################
     ##                   Deprecated methods                   ##
     ############################################################
