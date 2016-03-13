@@ -1258,6 +1258,8 @@ class Synapse:
         copiedId = None
         ent = self.get(entity,downloadFile=False)
         if isinstance(ent, Project):
+            if not isinstance(self.get(parentId),Project):
+                raise ValueError("You must give a parentId of a new project to copy projects")
             mapping[ent.id] = parentId
             entities = self.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
             for i in entities:
@@ -1379,7 +1381,7 @@ class Synapse:
         """
         Copies wikis and updates internal links
 
-        :param entity:          A synapse ID of an entity
+        :param entity:          A synapse ID of an entity whose wiki you want to copy
 
         :param parentId:        Synapse ID of a folder/project that the wiki wants to be copied to
         
@@ -1515,7 +1517,7 @@ class Synapse:
         print("Getting table %s" % entity)
         myTableSchema = self.get(entity)
         #CHECK: If Table name already exists, raise value error
-        search = syn.query('select name from table where projectId == "%s"' % parentId)
+        search = self.query('select name from table where projectId == "%s"' % parentId)
         for i in search['results']:
             if i['table.name'] == myTableSchema.name:
                 raise ValueError('Tablename exists in project you would like to copy to, either rename or check if Table has already been copied!')
@@ -1556,7 +1558,7 @@ class Synapse:
         """
         oldFolder = self.get(entity)
         #CHECK: If Folder name already exists, raise value error
-        search = syn.query('select name from folder where parentId == "%s"' % parentId)
+        search = self.query('select name from folder where parentId == "%s"' % parentId)
         for i in search['results']:
             if i['folder.name'] == oldFolder.name:
                 raise ValueError('Foldername already exists in project you would like to copy to, either rename or check if Folder has already been copied!')
