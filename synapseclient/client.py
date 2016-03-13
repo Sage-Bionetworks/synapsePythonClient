@@ -1258,7 +1258,6 @@ class Synapse:
             entities = self.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
             for i in entities:
                 mapping = self._copyRecursive(i['entity.id'], parentId, mapping=mapping, **kwargs)
-            #newWiki = self._copyProjectWiki(ent['entity.id'], parentId)
         elif isinstance(ent, Folder):
             copiedId = self._copyFolder(ent.id, parentId, mapping=mapping, recursive=recursive, **kwargs)
         elif isinstance(ent, File):
@@ -1379,6 +1378,7 @@ class Synapse:
                                 Defaults to None 
         """
         oldOwn = self.get(entity)
+        # getWikiHeaders fails when there is no wiki
         try:
             oldWh = self.getWikiHeaders(oldOwn)
             store = True
