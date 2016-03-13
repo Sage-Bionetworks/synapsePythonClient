@@ -1217,7 +1217,28 @@ class Synapse:
     ##                 Copy Functions                         ##
     ############################################################
 
-    def copy(self, entity, parentId, mapping = None, version=None, setProvenance="traceback"):
+    def copy(self, entity, parentId):
+        """
+        Copies synapse entities.
+
+        :param obj:             A synapse ID or entity of a file
+
+        :param parentId:        Synapse ID of a folder/project that the copied entity is being copied to
+
+        :param version:         Can specify version of a file. 
+                                Default to None
+
+        :param setProvenance:   Has three values to set the provenance of the copied entity:
+                                    traceback: Sets to the source entity
+                                    existing: Sets to source entity's original provenance (if it exists)
+                                    None: No provenance is set
+        """
+        mapping = self._copyRecursive(entity, parentId)
+        for oldEnt in mapping:
+            newWikig = self._copyProjectWiki(oldEnt, mapping[oldEnt],entityMap=mapping)
+        print(mapping)
+             
+    def _copyRecursive(self, entity, parentId, mapping = dict(), version=None, setProvenance="traceback"):
         """
         Copies synapse entities.
 
@@ -1234,14 +1255,13 @@ class Synapse:
                                     None: No provenance is set
         """
         ent = self.get(entity,downloadFile=False)
-
         if isinstance(ent, Project):
             entities = self.chunkedQuery('select id, name from entity where parentId=="%s"'%ent.id)
             for i in entities:
-                mapping = self.copy(i['entity.id'], parentId, mapping, version, setProvenance)
+                mapping = self._copyRecursive(i['entity.id'], parentId, mapping, version, setProvenance)
             #newWiki = self._copyProjectWiki(ent['entity.id'], parentId)
         elif isinstance(ent, Folder):
-            copiedId = self._copyFolder(ent.id,parentId,mapping)
+            copiedId = self._copyFolder(ent.id, parentId, mapping)
         elif isinstance(ent, File):
             copiedId = self._copyFile(ent.id, parentId, version, setProvenance)
         elif isinstance(ent, Link):
@@ -1249,11 +1269,8 @@ class Synapse:
         else:
             raise ValueError("Not able to copy this type of file")
         print("Copied %s to %s" % (ent.id,copiedId))
-        #if len(copied):
-        if mapping!=None
-            return(mapping.append(dict(oldEnt=ent.id,newEnt=copiedId))
-        else:
-            return(dict(oldEnt=ent.id,newEnt=copiedId))
+        mapping[ent.id] = copiedId
+        return(mapping)
 
 
         #else:
@@ -1261,12 +1278,6 @@ class Synapse:
         #    return(mapping)
         #return(copied)
 
-
-        list1=[1,2,3,4,5]
-list2=[123,234,456]
-d={'a':[],'b':[]}
-d['a'].append(list1)
-d['a'].append(list2)
         
     def _copyFile(self, entity, parentId, version=None, setProvenance="traceback"):
         """
@@ -1353,79 +1364,87 @@ d['a'].append(list2)
 
     def _copyProjectWiki(self, oldOwnerId, newOwnerId, updateLinks=True, updateSynIds=True, entityMap=None):
         oldOwn = self.get(oldOwnerId)
-        oldWh = self.getWikiHeaders(oldOwn)  
-        newOwn =self.get(newOwnerId)
-        wikiIdMap =dict()
-        newWikis=dict()
-        for i in oldWh:
-            attDir=tempfile.NamedTemporaryFile(prefix='attdir',suffix='')
-            #print i['id']
-            wiki = self.getWiki(oldOwn, i.id)
-            print('Got wiki %s' % i.id)
-            if wiki['attachmentFileHandleIds'] == []:
-                attachments = []
-            elif wiki['attachmentFileHandleIds'] != []:
-                uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
-                results = self.restGET(uri)
-                file_handles = {fh['id']:fh for fh in results['list']}
-                ## need to download an re-upload wiki attachments, ug!
-                attachments = []
-                tempdir = tempfile.gettempdir()
-                for fhid in wiki.attachmentFileHandleIds:
-                    file_info = self._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
-                    attachments.append(file_info['path'])
-            if hasattr(wiki, 'parentWikiId'):
-                wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
-                wNew = self.store(wNew)
-            else:
-                wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments)
-                wNew = self.store(wNew)
-                parentWikiId = wNew.id
-            newWikis[wNew.id]=wNew
-            wikiIdMap[wiki.id] =wNew.id
+        try:
+            oldWh = self.getWikiHeaders(oldOwn)
+            store = True
+        except SynapseHTTPError:
+            store = False
+        if store:
+            newOwn =self.get(newOwnerId)
+            wikiIdMap =dict()
+            newWikis=dict()
+            for i in oldWh:
+                attDir=tempfile.NamedTemporaryFile(prefix='attdir',suffix='')
+                #print i['id']
+                wiki = self.getWiki(oldOwn, i.id)
+                print('Got wiki %s' % i.id)
+                if wiki['attachmentFileHandleIds'] == []:
+                    attachments = []
+                elif wiki['attachmentFileHandleIds'] != []:
+                    uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
+                    results = self.restGET(uri)
+                    file_handles = {fh['id']:fh for fh in results['list']}
+                    ## need to download an re-upload wiki attachments, ug!
+                    attachments = []
+                    tempdir = tempfile.gettempdir()
+                    for fhid in wiki.attachmentFileHandleIds:
+                        file_info = self._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
+                        attachments.append(file_info['path'])
+                if hasattr(wiki, 'parentWikiId'):
+                    wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
+                    wNew = self.store(wNew)
+                else:
+                    wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments)
+                    wNew = self.store(wNew)
+                    parentWikiId = wNew.id
+                newWikis[wNew.id]=wNew
+                wikiIdMap[wiki.id] =wNew.id
 
-        if updateLinks:
-            print("Updating internal links:\n")
-            for oldWikiId in wikiIdMap.keys():
-                # go through each wiki page once more:
-                newWikiId=wikiIdMap[oldWikiId]
-                newWiki=newWikis[newWikiId]
-                print("\tUpdating internal links for Page: %s\n" % newWikiId)
-                s=newWiki.markdown
-                # in the markdown field, replace all occurrences of oldOwnerId/wiki/abc with newOwnerId/wiki/xyz,
-                # where wikiIdMap maps abc->xyz
-                # replace <oldOwnerId>/wiki/<oldWikiId> with <newOwnerId>/wiki/<newWikiId> 
-                for oldWikiId2 in wikiIdMap.keys():
-                    oldProjectAndWikiId = "%s/wiki/%s" % (oldOwnerId, oldWikiId2)
-                    newProjectAndWikiId = "%s/wiki/%s" % (newOwnerId, wikiIdMap[oldWikiId2])
-                    s=re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
-                # now replace any last references to oldOwnerId with newOwnerId
-                s=re.sub(oldOwnerId, newOwnerId, s)
-                newWikis[newWikiId].markdown=s
-
-        if updateSynIds and entityMap != None:
-            print("Updating Synapse references:\n")
-            for oldWikiId in wikiIdMap.keys():
-                # go through each wiki page once more:
-                newWikiId = wikiIdMap[oldWikiId]
-                newWiki = newWikis[newWikiId]
-                print('Updated Synapse references for Page: %s\n' %newWikiId)
-                s = newWiki.markdown
-
-                for oldSynId in entityMap.keys():
+            if updateLinks:
+                print("Updating internal links:\n")
+                for oldWikiId in wikiIdMap.keys():
                     # go through each wiki page once more:
-                    newSynId = entityMap[oldSynId]
-                    s = re.sub(oldSynId, newSynId, s)
-                print("Done updating Synpase IDs.\n")
-                newWikis[newWikiId].markdown = s
-        
-        print("Storing new Wikis\n")
-        for oldWikiId in wikiIdMap.keys():
-            newWikiId = wikiIdMap[oldWikiId]
-            newWikis[newWikiId] = self.store(newWikis[newWikiId])
-            print("\tStored: %s\n",newWikiId)
-        newWh = self.getWikiHeaders(newOwn)
-        return(newWh)
+                    newWikiId=wikiIdMap[oldWikiId]
+                    newWiki=newWikis[newWikiId]
+                    print("\tUpdating internal links for Page: %s\n" % newWikiId)
+                    s=newWiki.markdown
+                    # in the markdown field, replace all occurrences of oldOwnerId/wiki/abc with newOwnerId/wiki/xyz,
+                    # where wikiIdMap maps abc->xyz
+                    # replace <oldOwnerId>/wiki/<oldWikiId> with <newOwnerId>/wiki/<newWikiId> 
+                    for oldWikiId2 in wikiIdMap.keys():
+                        oldProjectAndWikiId = "%s/wiki/%s" % (oldOwnerId, oldWikiId2)
+                        newProjectAndWikiId = "%s/wiki/%s" % (newOwnerId, wikiIdMap[oldWikiId2])
+                        s=re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
+                    # now replace any last references to oldOwnerId with newOwnerId
+                    s=re.sub(oldOwnerId, newOwnerId, s)
+                    newWikis[newWikiId].markdown=s
+
+            if updateSynIds and entityMap != None:
+                print("Updating Synapse references:\n")
+                for oldWikiId in wikiIdMap.keys():
+                    # go through each wiki page once more:
+                    newWikiId = wikiIdMap[oldWikiId]
+                    newWiki = newWikis[newWikiId]
+                    print('Updated Synapse references for Page: %s\n' %newWikiId)
+                    s = newWiki.markdown
+
+                    for oldSynId in entityMap.keys():
+                        # go through each wiki page once more:
+                        newSynId = entityMap[oldSynId]
+                        s = re.sub(oldSynId, newSynId, s)
+                    print("Done updating Synpase IDs.\n")
+                    newWikis[newWikiId].markdown = s
+            
+            print("Storing new Wikis\n")
+            for oldWikiId in wikiIdMap.keys():
+                newWikiId = wikiIdMap[oldWikiId]
+                newWikis[newWikiId] = self.store(newWikis[newWikiId])
+                print("\tStored: %s\n",newWikiId)
+            newWh = self.getWikiHeaders(newOwn)
+            return(newWh)
+        else:
+            return("no wiki")
+
     
     def _copyWiki(self, wiki, destWiki):
         """
@@ -1451,8 +1470,6 @@ d['a'].append(list2)
         destWiki.update({'attachments':attachments, 'markdown':wiki.markdown, 'title':wiki.title})
 
         return self._storeWiki(destWiki)
-
-
 
     def _copyTable(self, entity, parentId, setAnnotations=False):
         #There is no way of knowing if the same table name exists right now...
@@ -1481,32 +1498,17 @@ d['a'].append(list2)
             newTableSchema = self.store(newTableSchema)
         return(newTableSchema.id)
 
-    def _copyFolder(self, entity, parentId,mapping=None,recursive=True):
+    def _copyFolder(self, entity, parentId, mapping, recursive=True):
         oldFolder = self.get(entity)
         newFolder = Folder(name = oldFolder.name,parent= parentId)
         newFolder.annotations = oldFolder.annotations
         newFolder = self.store(newFolder)
-        mapping.append(dict(oldEnt=oldFolder.id,newEnt=newFolder.id))
         if recursive:
             entities = self.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
             for ent in entities:
-                copied = self.copy(ent['entity.id'],newFolder.id,mapping)
+                copied = self._copyRecursive(ent['entity.id'],newFolder.id,mapping)
         return(newFolder.id)
 
-    #Copies projects
-    # def _copyProject(self,projectId,newProjectId=None):
-    #     oldProject = self.get(projectId)
-    #     if newProjectId==None:
-    #         newProject = self.store(Project(name=oldProject.name))
-    #         newProjectId = newProject.id
-    #     else:
-    #         entities = self.chunkedQuery('select id, name, concreteType from entity where parentId=="%s"'%projectId)
-    #         for ent in entities:
-    #             print(ent)
-    #             if ent['entity.concreteType'] == ['org.sagebionetworks.repo.model.Folder']:
-    #                 copied = self._copyFolder(ent['entity.id'],newProjectId)
-    #             elif ent['entity.concreteType'] == ['org.sagebionetworks.repo.model.FileEntity']:
-    #                 copied = self._copyFile(ent['entity.id'],newProjectId)
     ############################################################
     ##                   Deprecated methods                   ##
     ############################################################
