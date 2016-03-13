@@ -1233,7 +1233,7 @@ class Synapse:
 
         mapping = self._copyRecursive(entity, parentId, mapping=mapping,**kwargs)
         for oldEnt in mapping:
-            newWikig = self._copyProjectWiki(oldEnt, mapping[oldEnt],entityMap=mapping)
+            newWikig = self._copyProjectWiki(oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
         print(mapping)
         return(mapping)
              
