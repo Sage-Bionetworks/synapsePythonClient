@@ -1265,7 +1265,7 @@ class Synapse:
             for i in entities:
                 mapping = self._copyRecursive(i['entity.id'], parentId, mapping=mapping, **kwargs)
         elif isinstance(ent, Folder):
-            copiedId = self._copyFolder(ent.id, parentId, mapping=mapping, recursive=recursive, **kwargs)
+            copiedId = self._copyFolder(ent.id, parentId, mapping=mapping, **kwargs)
         elif isinstance(ent, File):
             copiedId = self._copyFile(ent.id, parentId, version=version, setProvenance=setProvenance)
         elif isinstance(ent, Link):
@@ -1281,7 +1281,7 @@ class Synapse:
             mapping[ent.id] = copiedId
         return(mapping)
 
-    def _copyFolder(self, entity, parentId, mapping=dict(), recursive=True, **kwargs):
+    def _copyFolder(self, entity, parentId, mapping=dict(), **kwargs):
         """
         Copies synapse folders
 
@@ -1293,11 +1293,12 @@ class Synapse:
                                 Defaults to True
         """
         oldFolder = self.get(entity)
+        recursive = kwargs.get('recursive',True)
         #CHECK: If Folder name already exists, raise value error
         search = self.query('select name from entity where parentId == "%s"' % parentId)
         for i in search['results']:
             if i['entity.name'] == oldFolder.name:
-                raise ValueError('An item named "%s" already exists in this location. Folder could not be copied'%ent.name)
+                raise ValueError('An item named "%s" already exists in this location. Folder could not be copied'%oldFolder.name)
 
         newFolder = Folder(name = oldFolder.name,parent= parentId)
         newFolder.annotations = oldFolder.annotations
@@ -1403,7 +1404,7 @@ class Synapse:
         search = self.query('select name from table where projectId == "%s"' % parentId)
         for i in search['results']:
             if i['table.name'] == myTableSchema.name:
-                raise ValueError('A table named "%s" already exists in this location. Table could not be copied'%ent.name)
+                raise ValueError('A table named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
 
         d = self.tableQuery('select * from %s' % myTableSchema.id)
         d = d.asDataFrame()
