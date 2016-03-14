@@ -1392,9 +1392,9 @@ class Synapse:
         :param entity:          A synapse ID of Table Schema
 
         :param parentId:        Synapse ID of a project that the Table wants to be copied to
-        
-        :param setAnnotations:  Set the annotations of the copied table to be the annotations of the entity    
-                                Defaults to False     
+
+        :param setAnnotations:  Set the annotations of the copied table to be the annotations of the entity
+                                Defaults to False
         """
 
         print("Getting table %s" % entity)
