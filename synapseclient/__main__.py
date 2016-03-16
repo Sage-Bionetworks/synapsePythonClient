@@ -190,6 +190,7 @@ def store(args, syn):
     entity['path'] = args.file if args.file is not None else None
     entity['synapseStore'] = not utils.is_url(args.file)
 
+
     used = _convertProvenanceList(args.used, args.limitSearch, syn)
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
     entity = syn.store(entity, used=used, executed=executed)
@@ -211,34 +212,10 @@ def move(args, syn):
     print('Moved %s to %s' %(ent.id, ent.parentId))
 
 
-def copy(args,syn):
+def copy(args, syn):
     """Copies most recent version of a file specifed by args.id to args.parentId"""
-    ent = syn.get(args.id, downloadFile=False)
-    profile = syn.getUserProfile().ownerId
-    #CHECK: Must be a file entity
-    if ent.entityType!='org.sagebionetworks.repo.model.FileEntity':
-        raise ValueError('"synapse cp" can only copy files!')
-    #Grab file handle createdBy annotation to see the user that created fileHandle
-    createdBy = syn.restGET('/entity/%s/filehandles'%args.id)['list'][0]['createdBy']
-    #CHECK: If file is in the same parent directory (throw an error)
-    search = syn.query('select name from file where parentId =="%s"'%args.parentid)['results']
-    for i in search:
-        if i['file.name'] == ent.name:
-            raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
-    #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
-    if profile == createdBy:
-        new_ent = synapseclient.File(name=ent.name, parentId=args.parentid)
-        new_ent.properties.dataFileHandleId = ent.properties.dataFileHandleId
-        new_ent = syn._createEntity(new_ent)
-    else:
-        ent = syn.get(args.id)
-        new_ent = synapseclient.File(ent.path, parent=args.parentid)
-        new_ent = syn.store(new_ent)
-    syn.setAnnotations(new_ent, ent.annotations)
-    act = Activity("Copied file", used=args.id)
-    syn.setProvenance(new_ent['id'], act)
-    print('Copied %s to %s' %(ent.id, new_ent['id']))
-
+    ent = syn.copy(args.id, parentId=args.parentid, version=args.version, setProvenance=args.setProvenance)
+    print('Copied %s to %s' %(args.id, ent))
 
 def associate(args, syn):
     files = []
@@ -578,6 +555,13 @@ def build_parser():
             help='Id of entity in Synapse to be copied.')
     parser_cp.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=True, dest='parentid',
             help='Synapse ID of project or folder where file will be moved ')
+    parser_cp.add_argument('-v', '--version', metavar='VERSION', type=int, default=None,
+            help='Synapse version number of entity to retrieve. Defaults to most recent version.')
+    parser_cp.add_argument('--setProvenance', metavar='MODE', type=str, default='traceback',
+            help=('Has three values to set the provenance of the copied entity-'
+                        'traceback: Sets to the source entity'
+                        'existing: Sets to source entity\'s original provenance (if it exists)'
+                        'None/none: No provenance is set'))
     parser_cp.set_defaults(func=copy)
 
     parser_associate = subparsers.add_parser('associate',

@@ -591,35 +591,54 @@ def test_command_copy():
     # Create a Folder in Project
     folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
                                                    parent=project_entity))
+    schedule_for_cleanup(folder_entity.id)
     # Create and upload a file in Folder
-    dummy = utils.make_bogus_data_file()
-    schedule_for_cleanup(dummy)
-    dummy_entity = syn.store(synapseclient.File(dummy, parent=folder_entity))
-    
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
-    annots = {'test':'hello_world'}
+    annots = {'test':['hello_world']}
     # Create, upload, and set annotations on a file in Folder
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
-    file_entity = syn.store(synapseclient.File(filename, parent=folder_entity),used=dummy_entity.id,executed=repo_url)
+    file_entity = syn.store(synapseclient.File(filename, parent=folder_entity))
+    externalURL_entity = syn.store(synapseclient.File(repo_url,name='rand',parent=folder_entity,synapseStore=False))
     syn.setAnnotations(file_entity,annots)
+    syn.setAnnotations(externalURL_entity,annots)
+    schedule_for_cleanup(file_entity.id)
+    schedule_for_cleanup(externalURL_entity.id)
 
     ### Test cp function
     output = run('synapse', '--skip-checks',
                  'cp', '--id',file_entity.id,
                  '--parentid',project_entity.id)
-    
+    output_URL = run('synapse', '--skip-checks',
+                 'cp', '--id',externalURL_entity.id,
+                 '--parentid',project_entity.id)
+
     copied_id = parse(r'Copied syn\d+ to (syn\d+)',output)
+    copied_URL_id = parse(r'Copied syn\d+ to (syn\d+)',output_URL)
+
     #Verify that our copied files are identical
     copied_ent = syn.get(copied_id)
+    copied_URL_ent = syn.get(copied_URL_id,downloadFile=False)
     schedule_for_cleanup(copied_id)
-    copied_ent_annot = syn.getAnnotations(copied_ent)
+    schedule_for_cleanup(copied_URL_id)
+    copied_ent_annot = syn.getAnnotations(copied_id)
+    copied_url_annot = syn.getAnnotations(copied_URL_id)
 
-    copied_annot = dict((key,copied_ent_annot[key].pop()) for key in copied_ent_annot if key not in ('uri','id','creationDate','etag'))
-    copied_prov = syn.getProvenance(copied_ent)['used'][0]['reference']['targetId']
+    copied_prov = syn.getProvenance(copied_id)['used'][0]['reference']['targetId']
+    copied_url_prov = syn.getProvenance(copied_URL_id)['used'][0]['reference']['targetId']
 
+    #Make sure copied files are the same
     assert copied_prov == file_entity.id
-    assert copied_annot == annots
+    assert copied_ent_annot == annots
+    assert copied_ent.properties.dataFileHandleId == file_entity.properties.dataFileHandleId
+
+    #Make sure copied URLs are the same
+    assert copied_url_prov == externalURL_entity.id
+    assert copied_url_annot == annots
+    assert copied_URL_ent.externalURL == repo_url  
+    assert copied_URL_ent.name == 'rand'
+    assert copied_URL_ent.properties.dataFileHandleId == externalURL_entity.properties.dataFileHandleId
+
     #Verify that errors are being thrown when folders/projects are attempted to be copied,
     #or file is copied to a foler/project that has a file with the same filename
     assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
@@ -630,7 +649,9 @@ def test_command_copy():
                  '--parentid',project_entity.id)
     assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
                  'cp', '--id',file_entity.id,
-                 '--parentid',project_entity.id)    
+                 '--parentid',project_entity.id) 
+
+
 
 
 def test_command_line_using_paths():
