@@ -98,7 +98,7 @@ STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/r
 
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.synapseConfig')
 SESSION_FILENAME = '.session'
-FILE_BUFFER_SIZE = 4*KB
+FILE_BUFFER_SIZE = 2*MB
 CHUNK_SIZE = 5*MB
 QUERY_LIMIT = 1000
 CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
