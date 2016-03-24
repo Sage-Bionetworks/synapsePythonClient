@@ -978,7 +978,7 @@ class Synapse:
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
                 if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
-                    needs_upload = False
+                    needs_upload = (fileHandle['externalURL'] != entity['externalURL'])
                 else:
                     ## Check if we need to upload a new version of an existing
                     ## file. If the file referred to by entity['path'] has been
@@ -2003,7 +2003,9 @@ class Synapse:
                   containing externalURL and content-type
         """
         #If it is already an exteranal URL just return
-        if utils.is_url(entity['path']):
+        if local_state.get('externalURL', None):
+            return local_state['externalURL'], local_state
+        elif utils.is_url(entity['path']):
             local_state['externalURL'] = entity['path']
             #If the url is a local path compute the md5
             url = urlparse(entity['path'])
@@ -3090,7 +3092,7 @@ class Synapse:
             return file_info
 
 
-    def downloadTableColumns(self, table, columns):
+    def downloadTableColumns(self, table, columns, **kwargs):
         """
         Bulk download of table-associated files.
 
@@ -3117,7 +3119,7 @@ class Synapse:
         FAILURE_CODES = ["NOT_FOUND", "UNAUTHORIZED", "DUPLICATE", "EXCEEDS_SIZE_LIMIT", "UNKNOWN_ERROR"]
         RETRIABLE_FAILURE_CODES = ["EXCEEDS_SIZE_LIMIT"]
         MAX_DOWNLOAD_TRIES = 100
-        MAX_FILES_PER_REQUEST = 2500
+        max_files_per_request = kwargs.get('max_files_per_request', 2500)
 
         def _is_integer(x):
             try:
@@ -3159,6 +3161,8 @@ class Synapse:
                             associateObjectType="TableEntity",
                             fileHandleId=file_handle_id,
                             associateObjectId=table.tableId))
+                else:
+                    warnings.warn("Weird file handle: %s" % file_handle_id)
 
         print("Downloading %d files, %d cached locally" % (len(file_handle_associations), len(file_handle_to_path_map)))
 
@@ -3168,7 +3172,7 @@ class Synapse:
         while len(file_handle_associations) > 0 and attempts < MAX_DOWNLOAD_TRIES:
             attempts += 1
 
-            file_handle_associations_batch = file_handle_associations[:MAX_FILES_PER_REQUEST]
+            file_handle_associations_batch = file_handle_associations[:max_files_per_request]
 
             ##------------------------------------------------------------
             ## call async service to build zip file
