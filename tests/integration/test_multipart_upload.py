@@ -37,7 +37,7 @@ def test_round_trip():
         print('FileHandle: {fhid}'.format(fhid=fhid))
 
         # Download the file and compare it with the original
-        junk = File(filepath, parent=project, dataFileHandleId=fhid)
+        junk = File(parent=project, dataFileHandleId=fhid)
         junk.properties.update(syn._createEntity(junk.properties))
         (tmp_f, tmp_path) = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
@@ -82,7 +82,7 @@ def test_randomly_failing_parts():
         print('FileHandle: {fhid}'.format(fhid=fhid))
 
         # Download the file and compare it with the original
-        junk = File(filepath, parent=project, dataFileHandleId=fhid)
+        junk = File(parent=project, dataFileHandleId=fhid)
         junk.properties.update(syn._createEntity(junk.properties))
         (tmp_f, tmp_path) = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
@@ -124,7 +124,7 @@ def test_multipart_upload_big_string():
     print('FileHandle: {fhid}'.format(fhid=fhid))
 
     # Download the file and compare it with the original
-    junk = File("message.txt", parent=project, dataFileHandleId=fhid)
+    junk = File(parent=project, dataFileHandleId=fhid)
     junk.properties.update(syn._createEntity(junk.properties))
     (tmp_f, tmp_path) = tempfile.mkstemp()
     schedule_for_cleanup(tmp_path)
