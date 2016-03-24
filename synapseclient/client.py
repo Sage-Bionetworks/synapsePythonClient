@@ -978,7 +978,7 @@ class Synapse:
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
                 if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
-                    needs_upload = False
+                    needs_upload = (fileHandle['externalURL'] != entity['externalURL'])
                 else:
                     ## Check if we need to upload a new version of an existing
                     ## file. If the file referred to by entity['path'] has been
@@ -1924,7 +1924,9 @@ class Synapse:
                   containing externalURL and content-type
         """
         #If it is already an exteranal URL just return
-        if utils.is_url(entity['path']):
+        if local_state.get('externalURL', None):
+            return local_state['externalURL'], local_state
+        elif utils.is_url(entity['path']):
             local_state['externalURL'] = entity['path']
             #If the url is a local path compute the md5
             url = urlparse(entity['path'])
