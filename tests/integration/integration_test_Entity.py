@@ -394,6 +394,13 @@ def test_ExternalFileHandle():
     assert singapore.externalURL == singapore_url
     assert os.path.exists(singapore.path)
 
+    # Update external URL
+    singapore_2_url = 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Singapore_Panorama_v2.jpg'
+    singapore.externalURL = singapore_2_url
+    singapore = syn.store(singapore)
+    s2 = syn.get(singapore, downloadFile=False)
+    assert s2.externalURL == singapore_2_url
+
 
 def test_copy():
     """Tests the copy function"""

@@ -246,7 +246,7 @@ def cat(args, syn):
         ## SIGILL, SIGINT, SIGSEGV, or SIGTERM. A ValueError will be raised
         ## in any other case."
         pass
-    entity = syn.get(args.id)
+    entity = syn.get(args.id, version=args.version)
     if 'files' in entity:
         for filepath in entity['files']:
             with open(os.path.join(entity['cacheDir'], filepath)) as inputfile:
@@ -633,6 +633,8 @@ def build_parser():
     parser_cat = subparsers.add_parser('cat', help='prints a dataset from Synapse')
     parser_cat.add_argument('id', metavar='syn123', type=str,
             help='Synapse ID of form syn123 of desired data object')
+    parser_cat.add_argument('-v', '--version', metavar='VERSION', type=int, default=None,
+            help='Synapse version number of entity to display. Defaults to most recent version.')
     parser_cat.set_defaults(func=cat)
 
     parser_list = subparsers.add_parser('list',

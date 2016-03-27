@@ -298,7 +298,7 @@ def is_same_base_url(url1, url2):
     url1 = urlsplit(url1)
     url2 = urlsplit(url2)
     return (url1.scheme==url2.scheme and
-            url1.netloc==url2.netloc)
+            url1.hostname==url2.hostname)
 
 
 def is_synapse_id(obj):
