@@ -984,7 +984,7 @@ class Synapse:
                     ## file. If the file referred to by entity['path'] has been
                     ## modified, we want to upload the new version.
                     needs_upload = not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
-            elif entity.get('dataFileHandleId',False):
+            elif entity.get('dataFileHandleId',None) is not None:
                 needs_upload = False
             else:
                 needs_upload = True
