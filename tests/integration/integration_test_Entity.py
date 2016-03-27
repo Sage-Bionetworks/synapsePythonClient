@@ -437,8 +437,8 @@ def test_copy():
     # ------------------------------------
     # TEST COPY FILE
     # ------------------------------------
-    output = syn.copy(file_entity.id,project_entity.id)
-    output_URL = syn.copy(externalURL_entity.id,project_entity.id)
+    output = syn.copy(file_entity.id,destinationId=project_entity.id)
+    output_URL = syn.copy(externalURL_entity.id,destinationId=project_entity.id)
 
     #Verify that our copied files are identical
     copied_ent = syn.get(output[file_entity.id])
@@ -472,12 +472,12 @@ def test_copy():
     assert_raises(ValueError,syn.copy,file_entity.id,destinationId = third_folder.id,setProvenance = "gib")
 
     print("Test: setProvenance = None")
-    output = syn.copy(file_entity.id,second_folder.id,setProvenance = None)
+    output = syn.copy(file_entity.id,destinationId=second_folder.id,setProvenance = None)
     assert_raises(SynapseHTTPError,syn.getProvenance,output[file_entity.id])
     schedule_for_cleanup(output[file_entity.id])
 
     print("Test: setProvenance = Existing")
-    output_URL = syn.copy(externalURL_entity.id,second_folder.id,setProvenance = "existing")
+    output_URL = syn.copy(externalURL_entity.id,destinationId=second_folder.id,setProvenance = "existing")
     output_prov = syn.getProvenance(output_URL[externalURL_entity.id])
     schedule_for_cleanup(output_URL[externalURL_entity.id])
     assert output_prov['name'] == prov['name']
@@ -492,14 +492,14 @@ def test_copy():
         syn_other = synapseclient.Synapse(skip_checks=True)
         syn_other.login(other_user['username'], other_user['password'])
 
-        output = syn_other.copy(file_entity.id,third_folder.id)
+        output = syn_other.copy(file_entity.id,destinationId=third_folder.id)
         new_copied_ent = syn.get(output[file_entity.id])
         new_copied_ent_annot = syn.getAnnotations(new_copied_ent)
         schedule_for_cleanup(new_copied_ent.id)
         
         copied_URL_ent.externalURL = "https://www.google.com"
         copied_URL_ent = syn.store(copied_URL_ent)
-        output = syn_other.copy(copied_URL_ent.id,third_folder.id,version=1)
+        output = syn_other.copy(copied_URL_ent.id,destinationId=third_folder.id,version=1)
         new_copied_URL = syn.get(output[copied_URL_ent.id],downloadFile=False)
         schedule_for_cleanup(new_copied_URL.id)
 
@@ -590,7 +590,7 @@ def test_copy():
     third_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(third_project.id)
 
-    mapping = syn.copy(project_entity.id,third_project.id)
+    mapping = syn.copy(project_entity.id,destinationId=third_project.id)
     for i in mapping:
         old = syn.get(i,downloadFile=False)
         new = syn.get(mapping[i],downloadFile=False)
