@@ -1217,15 +1217,21 @@ class Synapse:
     ##                 Copy Functions                         ##
     ############################################################
 
-    def copy(self, entity, parentId, copyWiki=True, **kwargs):
+    def copy(self, entity, destinationId=None, copyWiki=True, onlyCopyWiki=False, **kwargs):
         """
         Copies synapse entities including the wikis
 
         :param entity:          A synapse entity ID
 
-        :param parentId:        Synapse ID of a folder/project that the copied entity is being copied to
+        :param destinationId:   Synapse ID of a folder/project that the copied entity is being copied to
 
         :param copyWiki:        Determines whether the wiki of the entity is copied over
+                                Default is True
+
+        :param onlyCopyWiki:    Determines whether only the wiki of the entity is copied
+                                Default is False
+
+        :param copyTable:       Determines whether tables are copied
                                 Default is True
 
         :param kwargs:          Parameters that can be passed to the hidden copy functions called
@@ -1233,46 +1239,51 @@ class Synapse:
         mapping = kwargs.get('mapping', dict())
         updateLinks = kwargs.get('updateLinks', True)
         updateSynIds = kwargs.get('updateSynIds', True)
-
-        mapping = self._copyRecursive(entity, parentId, mapping=mapping,**kwargs)
-        if copyWiki:
-            for oldEnt in mapping:
-                newWikig = self._copyWiki(oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
+        if onlyCopyWiki:
+            self._copyWiki(entity, destinationId, updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
+        else:
+            mapping = self._copyRecursive(entity, destinationId, mapping=mapping,**kwargs)
+            if copyWiki:
+                for oldEnt in mapping:
+                    newWikig = self._copyWiki(oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
         return(mapping)
              
-    def _copyRecursive(self, entity, parentId, mapping = dict(), **kwargs):
+    def _copyRecursive(self, entity, destinationId, mapping = dict(), **kwargs):
         """
         Recursively copies synapse entites, but does not copy the wikis
 
         :param entity:             A synapse entity ID
 
-        :param parentId:        Synapse ID of a folder/project that the copied entity is being copied to
+        :param destinationId:      Synapse ID of a folder/project that the copied entity is being copied to
 
-        :param mapping:         Takes a mapping {'oldSynId': 'newSynId'} to help with copying syn ids that aren't already part of the entity
-                                Default to dict() and builds the mapping of all the synapse entities copied
+        :param mapping:            Takes a mapping {'oldSynId': 'newSynId'} to help with copying syn ids that aren't already part of the entity
+                                   Default to dict() and builds the mapping of all the synapse entities copied
         """
 
         version = kwargs.get('version', None)
         setProvenance = kwargs.get('setProvenance', "traceback")
         recursive = kwargs.get('recursive',True)
+        copyTable = kwargs.get('copyTable',True)
         copiedId = None
         ent = self.get(entity,downloadFile=False)
         if isinstance(ent, Project):
-            if not isinstance(self.get(parentId),Project):
-                raise ValueError("You must give a parentId of a new project to copy projects")
-            mapping[ent.id] = parentId
+            if destinationId == None:
+                newProject = self.store(Project("Copied %s %s" %(time.time(),ent.name)))
+                destinationId = newProject.id
+            elif not isinstance(self.get(destinationId),Project):
+                raise ValueError("You must give a destinationId of a new project to copy projects")
+            mapping[ent.id] = destinationId
             entities = self.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
             for i in entities:
-                mapping = self._copyRecursive(i['entity.id'], parentId, mapping=mapping, **kwargs)
+                mapping = self._copyRecursive(i['entity.id'], destinationId, mapping=mapping, **kwargs)
         elif isinstance(ent, Folder):
-            copiedId = self._copyFolder(ent.id, parentId, mapping=mapping, **kwargs)
+            copiedId = self._copyFolder(ent.id, destinationId, mapping=mapping, **kwargs)
         elif isinstance(ent, File):
-            copiedId = self._copyFile(ent.id, parentId, version=version, setProvenance=setProvenance)
+            copiedId = self._copyFile(ent.id, destinationId, version=version, setProvenance=setProvenance)
         elif isinstance(ent, Link):
-            copiedId = self._copyLink(ent.id, parentId)
-        elif isinstance(ent, Schema):
-
-            copiedId = self._copyTable(ent.id, parentId)
+            copiedId = self._copyLink(ent.id, destinationId)
+        elif isinstance(ent, Schema) and copyTable:
+            copiedId = self._copyTable(ent.id, destinationId)
         else:
             raise ValueError("Not able to copy this type of file")
         #have to assign copied id something or else an error may be thrown
@@ -1281,13 +1292,13 @@ class Synapse:
             mapping[ent.id] = copiedId
         return(mapping)
 
-    def _copyFolder(self, entity, parentId, mapping=dict(), **kwargs):
+    def _copyFolder(self, entity, destinationId, mapping=dict(), **kwargs):
         """
         Copies synapse folders
 
         :param entity:          A synapse ID of a Folder entity
 
-        :param parentId:        Synapse ID of a project/folder that the folder wants to be copied to
+        :param destinationId:   Synapse ID of a project/folder that the folder wants to be copied to
         
         :param recursive:       Decides whether to copy everything in the folder.
                                 Defaults to True
@@ -1295,12 +1306,12 @@ class Synapse:
         oldFolder = self.get(entity)
         recursive = kwargs.get('recursive',True)
         #CHECK: If Folder name already exists, raise value error
-        search = self.query('select name from entity where parentId == "%s"' % parentId)
+        search = self.query('select name from entity where parentId == "%s"' % destinationId)
         for i in search['results']:
             if i['entity.name'] == oldFolder.name:
                 raise ValueError('An item named "%s" already exists in this location. Folder could not be copied'%oldFolder.name)
 
-        newFolder = Folder(name = oldFolder.name,parent= parentId)
+        newFolder = Folder(name = oldFolder.name,parent= destinationId)
         newFolder.annotations = oldFolder.annotations
         newFolder = self.store(newFolder)
         if recursive:
@@ -1309,13 +1320,13 @@ class Synapse:
                 copied = self._copyRecursive(ent['entity.id'],newFolder.id,mapping, **kwargs)
         return(newFolder.id)
 
-    def _copyFile(self, entity, parentId, version=None, setProvenance="traceback"):
+    def _copyFile(self, entity, destinationId, version=None, setProvenance="traceback"):
         """
         Copies most recent version of a file to a specified synapse ID.
 
         :param entity:          A synapse ID of a File entity
 
-        :param parentId:        Synapse ID of a folder/project that the file wants to be copied to
+        :param destinationId:   Synapse ID of a folder/project that the file wants to be copied to
 
         :param version:         Can specify version of a file. 
                                 Default to None
@@ -1328,7 +1339,7 @@ class Synapse:
         #Set provenance should take a string (none, traceback, existing)
         ent = self.get(entity, downloadFile=False, version=version, followLink=False)
         #CHECK: If File is in the same parent directory (throw an error)
-        search = self.query('select name from entity where parentId =="%s"'%parentId)
+        search = self.query('select name from entity where parentId =="%s"'%destinationId)
         for i in search['results']:
             if i['entity.name'] == ent.name:
                 raise ValueError('An item named "%s" already exists in this location. File could not be copied'%ent.name)
@@ -1362,7 +1373,7 @@ class Synapse:
             createdBy = None
         #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
         if profile.ownerId == createdBy:
-            new_ent = synapseclient.File(name=ent.name, parentId=parentId)
+            new_ent = synapseclient.File(name=ent.name, parentId=destinationId)
             new_ent.dataFileHandleId = ent.dataFileHandleId
         else:
             #CHECK: If the synapse entity is an external URL, change path and store
@@ -1375,7 +1386,7 @@ class Synapse:
                 path = ent.externalURL
 
             ent = self.get(entity,downloadFile=store,version=version)
-            new_ent = synapseclient.File(path, name=ent.name, parent=parentId, synapseStore=store)
+            new_ent = synapseclient.File(path, name=ent.name, parentId=destinationId, synapseStore=store)
         #Set annotations here
         new_ent.annotations = ent.annotations
         #Store provenance if act is not None
@@ -1386,13 +1397,13 @@ class Synapse:
         #Leave this return statement for test
         return new_ent['id']
 
-    def _copyTable(self, entity, parentId, setAnnotations=False):
+    def _copyTable(self, entity, destinationId, setAnnotations=False):
         """
         Copies synapse Tables
 
         :param entity:          A synapse ID of Table Schema
 
-        :param parentId:        Synapse ID of a project that the Table wants to be copied to
+        :param destinationId:   Synapse ID of a project that the Table wants to be copied to
 
         :param setAnnotations:  Set the annotations of the copied table to be the annotations of the entity
                                 Defaults to False
@@ -1401,7 +1412,7 @@ class Synapse:
         print("Getting table %s" % entity)
         myTableSchema = self.get(entity)
         #CHECK: If Table name already exists, raise value error
-        search = self.query('select name from table where projectId == "%s"' % parentId)
+        search = self.query('select name from table where projectId == "%s"' % destinationId)
         for i in search['results']:
             if i['table.name'] == myTableSchema.name:
                 raise ValueError('A table named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
@@ -1414,7 +1425,7 @@ class Synapse:
         colIds = myTableSchema.columnIds
 
         newTableSchema = Schema(name = myTableSchema.name,
-                               parent = parentId,
+                               parent = destinationId,
                                columns=colIds)
         if setAnnotations:
             newTableSchema.annotations = myTableSchema.annotations
@@ -1429,32 +1440,32 @@ class Synapse:
             newTableSchema = self.store(newTableSchema)
             return(newTableSchema.id)
 
-    def _copyLink(self, entity, parentId):
+    def _copyLink(self, entity, destinationId):
         """
         Copies Link entities
 
         :param entity:          A synapse ID of a Link entity
 
-        :param parentId:        Synapse ID of a folder/project that the file wants to be copied to
+        :param destinationId:   Synapse ID of a folder/project that the file wants to be copied to
         """
         ent = self.get(entity)
         #CHECK: If Link is in the same parent directory (throw an error)
-        search = self.query('select name from entity where parentId =="%s"'%parentId)
+        search = self.query('select name from entity where parentId =="%s"'%destinationId)
         for i in search['results']:
             if i['entity.name'] == ent.name:
                 raise ValueError('An item named "%s" already exists in this location. Link could not be copied'%ent.name)
 
-        newLink = Link(ent.linksTo['targetId'],parent=parentId,targetVersion=ent.linksTo['targetVersionNumber'])
+        newLink = Link(ent.linksTo['targetId'],parent=destinationId,targetVersion=ent.linksTo['targetVersionNumber'])
         newLink = self.store(newLink)
         return(newLink.id)
 
-    def _copyWiki(self, entity, parentId, updateLinks=True, updateSynIds=True, entityMap=None):
+    def _copyWiki(self, entity, destinationId, updateLinks=True, updateSynIds=True, entityMap=None):
         """
         Copies wikis and updates internal links
 
         :param entity:          A synapse ID of an entity whose wiki you want to copy
 
-        :param parentId:        Synapse ID of a folder/project that the wiki wants to be copied to
+        :param destinationId:   Synapse ID of a folder/project that the wiki wants to be copied to
         
         :param updateLinks:     Update all the internal links
                                 Defaults to True
@@ -1473,7 +1484,7 @@ class Synapse:
         except SynapseHTTPError:
             store = False
         if store:
-            newOwn =self.get(parentId,downloadFile=False)
+            newOwn =self.get(destinationId,downloadFile=False)
             wikiIdMap =dict()
             newWikis=dict()
             for i in oldWh:
@@ -1511,15 +1522,15 @@ class Synapse:
                     newWiki=newWikis[newWikiId]
                     print("\tUpdating internal links for Page: %s\n" % newWikiId)
                     s=newWiki.markdown
-                    # in the markdown field, replace all occurrences of entity/wiki/abc with parentId/wiki/xyz,
+                    # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
                     # where wikiIdMap maps abc->xyz
-                    # replace <entity>/wiki/<oldWikiId> with <parentId>/wiki/<newWikiId> 
+                    # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId> 
                     for oldWikiId2 in wikiIdMap.keys():
                         oldProjectAndWikiId = "%s/wiki/%s" % (entity, oldWikiId2)
-                        newProjectAndWikiId = "%s/wiki/%s" % (parentId, wikiIdMap[oldWikiId2])
+                        newProjectAndWikiId = "%s/wiki/%s" % (destinationId, wikiIdMap[oldWikiId2])
                         s=re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
-                    # now replace any last references to entity with parentId
-                    s=re.sub(entity, parentId, s)
+                    # now replace any last references to entity with destinationId
+                    s=re.sub(entity, destinationId, s)
                     newWikis[newWikiId].markdown=s
 
             if updateSynIds and entityMap != None:

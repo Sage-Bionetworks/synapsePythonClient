@@ -467,9 +467,9 @@ def test_copy():
     assert copied_URL_ent.dataFileHandleId == externalURL_entity.dataFileHandleId
 
     # TEST: Throw error if file is copied to a folder/project that has a file with the same filename
-    assert_raises(ValueError,syn.copy,project_entity.id,parentId = project_entity.id)
-    assert_raises(ValueError,syn.copy,file_entity.id,parentId = project_entity.id) 
-    assert_raises(ValueError,syn.copy,file_entity.id,parentId = third_folder.id,setProvenance = "gib")
+    assert_raises(ValueError,syn.copy,project_entity.id,destinationId = project_entity.id)
+    assert_raises(ValueError,syn.copy,file_entity.id,destinationId = project_entity.id) 
+    assert_raises(ValueError,syn.copy,file_entity.id,destinationId = third_folder.id,setProvenance = "gib")
 
     print("Test: setProvenance = None")
     output = syn.copy(file_entity.id,second_folder.id,setProvenance = None)
@@ -520,7 +520,7 @@ def test_copy():
     second_file_entity = syn.store(File(second_file, parent=project_entity))
     link_entity = Link(second_file_entity.id,parent=folder_entity.id)
     link_entity = syn.store(link_entity)
-    copied_link = syn.copy(link_entity.id, parentId=second_folder.id)
+    copied_link = syn.copy(link_entity.id, destinationId=second_folder.id)
     for i in copied_link:
         old = syn.get(i)
         new = syn.get(copied_link[i])
@@ -530,7 +530,7 @@ def test_copy():
     schedule_for_cleanup(link_entity.id)
     schedule_for_cleanup(copied_link[link_entity.id])
 
-    assert_raises(ValueError,syn.copy, link_entity.id, parentId=second_folder.id)
+    assert_raises(ValueError,syn.copy, link_entity.id, destinationId=second_folder.id)
 
 
     # ------------------------------------
@@ -549,14 +549,14 @@ def test_copy():
     schema = syn.store(Schema(name='Testing', columns=cols, parent=project_entity.id))
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
 
-    table_map = syn.copy(schema.id, parentId=second_project.id)
+    table_map = syn.copy(schema.id, destinationId=second_project.id)
     copied_table = syn.tableQuery('select * from %s' %table_map[schema.id])
     rows = copied_table.asRowSet()['rows']
     # TEST: Check if all values are the same
     for i,row in enumerate(rows):
         assert row['values'] == data[i]
 
-    assert_raises(ValueError,syn.copy, schema.id, parentId=second_project.id)
+    assert_raises(ValueError,syn.copy, schema.id, destinationId=second_project.id)
 
     schedule_for_cleanup(schema.id)
     schedule_for_cleanup(table_map[schema.id])
@@ -565,7 +565,7 @@ def test_copy():
     # TEST COPY FOLDER
     # ------------------------------------
     print("Test: Copy Folder")
-    mapping = syn.copy(folder_entity.id,parentId=second_project.id)
+    mapping = syn.copy(folder_entity.id,destinationId=second_project.id)
     for i in mapping:
         old = syn.get(i,downloadFile=False)
         new = syn.get(mapping[i],downloadFile=False)
@@ -573,15 +573,15 @@ def test_copy():
         assert old.annotations == new.annotations
         assert old.concreteType == new.concreteType
 
-    assert_raises(ValueError,syn.copy, folder_entity.id,parentId=second_project.id)
+    assert_raises(ValueError,syn.copy, folder_entity.id,destinationId=second_project.id)
 
     # TEST: Recursive = False, only the folder is created
-    second = syn.copy(second_folder.id,parentId=second_project.id,recursive=False)
+    second = syn.copy(second_folder.id,destinationId=second_project.id,recursive=False)
     copied_folder = syn.get(second[second_folder.id])
     assert copied_folder.name == second_folder.name
     assert len(second) == 1
     # TEST: Make sure error is thrown if foldername already exists
-    assert_raises(ValueError,syn.copy,second_folder.id,parentId = second_project.id)
+    assert_raises(ValueError,syn.copy,second_folder.id, destinationId=second_project.id)
 
     # ------------------------------------
     # TEST COPY PROJECT
@@ -600,7 +600,7 @@ def test_copy():
         assert old.concreteType == new.concreteType
 
     # TEST: Can't copy project to a folder
-    assert_raises(ValueError,syn.copy,project_entity.id,parentId = second_folder.id)
+    assert_raises(ValueError,syn.copy,project_entity.id,destinationId=second_folder.id)
 
 
 
