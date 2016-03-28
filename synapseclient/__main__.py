@@ -214,7 +214,7 @@ def move(args, syn):
 
 def copy(args, syn):
     """Copies most recent version of a file specifed by args.id to args.parentId"""
-    ent = syn.copy(args.id, parentId=args.parentid, version=args.version, setProvenance=args.setProvenance)
+    ent = syn.copy(args.id, destinationId=args.parentid, version=args.version, setProvenance=args.setProvenance)
     print('Copied %s to %s' %(args.id, ent))
 
 def associate(args, syn):
