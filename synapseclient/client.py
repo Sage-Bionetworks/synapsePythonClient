@@ -1559,32 +1559,6 @@ class Synapse:
         else:
             return("no wiki")
     
-    # def _copyWiki(self, wiki, destWiki):
-    #     """
-    #     Copy wiki contents including attachments from one wiki to another.
-
-    #     :param wiki: source :py:class:`synapseclient.wiki.Wiki`
-    #     :param destWiki: destination :py:class:`synapseclient.wiki.Wiki`
-
-    #     Both Wikis must already exist.
-    #     """
-    #     uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
-    #     results = self.restGET(uri)
-
-    #     file_handles = {fh['id']:fh for fh in results['list']}
-
-    #     ## need to download an re-upload wiki attachments, ug!
-    #     attachments = []
-    #     tempdir = tempfile.gettempdir()
-    #     for fhid in wiki.attachmentFileHandleIds:
-    #         file_info = self._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
-    #         attachments.append(file_info['path'])
-
-    #     destWiki.update({'attachments':attachments, 'markdown':wiki.markdown, 'title':wiki.title})
-
-    #     return self._storeWiki(destWiki)
-
-
     ############################################################
     ##                   Deprecated methods                   ##
     ############################################################
