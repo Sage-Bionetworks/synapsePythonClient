@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki
 from .copy import copy, copyWiki, _copyFile, _copyFolder, _copyTable, _copyLink, _copyRecursive
 
 import json
