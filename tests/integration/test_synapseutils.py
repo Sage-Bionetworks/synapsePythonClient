@@ -120,7 +120,7 @@ def test_copy():
     assert_raises(ValueError,synu.copy,syn,file_entity.id,destinationId = third_folder.id,setProvenance = "gib")
 
     print("Test: setProvenance = None")
-    output = synu.copy(file_entity.id,destinationId=second_folder.id,setProvenance = None)
+    output = synu.copy(syn,file_entity.id,destinationId=second_folder.id,setProvenance = None)
     assert_raises(SynapseHTTPError,syn.getProvenance,output[file_entity.id])
     schedule_for_cleanup(output[file_entity.id])
 
@@ -213,7 +213,7 @@ def test_copy():
     # TEST COPY FOLDER
     # ------------------------------------
     print("Test: Copy Folder")
-    mapping = synu.copy(folder_entity.id,destinationId=second_project.id)
+    mapping = synu.copy(syn,folder_entity.id,destinationId=second_project.id)
     for i in mapping:
         old = syn.get(i,downloadFile=False)
         new = syn.get(mapping[i],downloadFile=False)

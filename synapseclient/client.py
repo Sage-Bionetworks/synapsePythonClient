@@ -67,6 +67,7 @@ import getpass
 from collections import OrderedDict
 
 import synapseclient
+import synapseutils as synu
 from . import utils
 from . import cache
 from . import exceptions
