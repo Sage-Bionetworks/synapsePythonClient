@@ -1,3 +1,4 @@
+import synapseclient
 from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Activity, exceptions
 import time
 from synapseclient.exceptions import *
