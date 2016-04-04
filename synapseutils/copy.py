@@ -8,7 +8,7 @@ import re
 ##                 Copy Functions                         ##
 ############################################################
 
-def copy(syn, entity, destinationId=None, copyWiki=True, **kwargs):
+def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     """
     Copies synapse entities including the wikis
 
@@ -16,7 +16,7 @@ def copy(syn, entity, destinationId=None, copyWiki=True, **kwargs):
 
     :param destinationId:   Synapse ID of a folder/project that the copied entity is being copied to
 
-    :param copyWiki:        Determines whether the wiki of the entity is copied over
+    :param copyWikiPage:    Determines whether the wiki of the entity is copied over
                             Default is True
 
     :param copyTable:       Determines whether tables are copied
@@ -29,7 +29,7 @@ def copy(syn, entity, destinationId=None, copyWiki=True, **kwargs):
     updateSynIds = kwargs.get('updateSynIds', True)
 
     mapping = _copyRecursive(syn, entity, destinationId, mapping=mapping,**kwargs)
-    if copyWiki:
+    if copyWikiPage:
         for oldEnt in mapping:
             newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
     return(mapping)
