@@ -1,4 +1,3 @@
-import synapseutils as synu
 from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Activity, exceptions
 import time
 from synapseclient.exceptions import *
@@ -28,10 +27,10 @@ def copy(syn, entity, destinationId=None, copyWiki=True, **kwargs):
     updateLinks = kwargs.get('updateLinks', True)
     updateSynIds = kwargs.get('updateSynIds', True)
 
-    mapping = synu._copyRecursive(syn, entity, destinationId, mapping=mapping,**kwargs)
+    mapping = _copyRecursive(syn, entity, destinationId, mapping=mapping,**kwargs)
     if copyWiki:
         for oldEnt in mapping:
-            newWikig = synu.copyWiki(syn, oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
+            newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
     return(mapping)
          
 def _copyRecursive(syn, entity, destinationId, mapping = dict(), **kwargs):
@@ -61,18 +60,18 @@ def _copyRecursive(syn, entity, destinationId, mapping = dict(), **kwargs):
         copiedId = destinationId
         entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
         for i in entities:
-            mapping = synu._copyRecursive(syn, i['entity.id'], destinationId, mapping=mapping, **kwargs)
+            mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping=mapping, **kwargs)
     else:
         if destinationId is None:
             raise ValueError("You must give a destinationId unless you are copying a project")
         elif isinstance(ent, Folder):
-            copiedId = synu._copyFolder(syn, ent.id, destinationId, mapping=mapping, **kwargs)
+            copiedId = _copyFolder(syn, ent.id, destinationId, mapping=mapping, **kwargs)
         elif isinstance(ent, File):
-            copiedId = synu._copyFile(syn, ent.id, destinationId, version=version, setProvenance=setProvenance)
+            copiedId = _copyFile(syn, ent.id, destinationId, version=version, setProvenance=setProvenance)
         elif isinstance(ent, Link):
-            copiedId = synu._copyLink(syn, ent.id, destinationId)
+            copiedId = _copyLink(syn, ent.id, destinationId)
         elif isinstance(ent, Schema) and copyTable:
-            copiedId = synu._copyTable(syn, ent.id, destinationId)
+            copiedId = _copyTable(syn, ent.id, destinationId)
         else:
             raise ValueError("Not able to copy this type of file")
 
@@ -105,7 +104,7 @@ def _copyFolder(syn, entity, destinationId, mapping=dict(), **kwargs):
     if recursive:
         entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
         for ent in entities:
-            copied = synu._copyRecursive(syn, ent['entity.id'],newFolder.id,mapping, **kwargs)
+            copied = _copyRecursive(syn, ent['entity.id'],newFolder.id,mapping, **kwargs)
     return(newFolder.id)
 
 def _copyFile(syn, entity, destinationId, version=None, setProvenance="traceback"):
