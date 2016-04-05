@@ -33,7 +33,8 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
         for oldEnt in mapping:
             newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
     return(mapping)
-         
+
+#Recursive copy function to return mapping    
 def _copyRecursive(syn, entity, destinationId, mapping = dict(), **kwargs):
     """
     Recursively copies synapse entites, but does not copy the wikis
@@ -108,6 +109,7 @@ def _copyFolder(syn, entity, destinationId, mapping=dict(), **kwargs):
             copied = _copyRecursive(syn, ent['entity.id'],newFolder.id,mapping, **kwargs)
     return(newFolder.id)
 
+#Copy File
 def _copyFile(syn, entity, destinationId, version=None, setProvenance="traceback"):
     """
     Copies most recent version of a file to a specified synapse ID.
@@ -185,6 +187,7 @@ def _copyFile(syn, entity, destinationId, version=None, setProvenance="traceback
     #Leave this return statement for test
     return new_ent['id']
 
+#Copy Table
 def _copyTable(syn, entity, destinationId, setAnnotations=False):
     """
     Copies synapse Tables
@@ -228,6 +231,7 @@ def _copyTable(syn, entity, destinationId, setAnnotations=False):
         newTableSchema = syn.store(newTableSchema)
         return(newTableSchema.id)
 
+#copy link
 def _copyLink(syn, entity, destinationId):
     """
     Copies Link entities
@@ -247,22 +251,45 @@ def _copyLink(syn, entity, destinationId):
     newLink = syn.store(newLink)
     return(newLink.id)
 
+#Function to assist in getting wiki headers of subwikipages
+def getSubWikiHeaders(wikiHeaders,subPageId,mapping=[]):
+    subPageId = str(subPageId)
+    for i in wikiHeaders:
+        if i['id'] == subPageId and len(mapping) == 0:
+            i.pop("parentId",None)
+            mapping.append(i)
+        elif i['id'] == subPageId:
+            mapping.append(i)
+        elif i.get('parentId',None) is not None:
+            if i['parentId'] == subPageId:
+                mapping = getSubWikiHeaders(wikiHeaders,subPageId=i['id'],mapping=mapping)
+    return(mapping)
+
+#Copy wiki 
 def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPageId=None, updateLinks=True, updateSynIds=True, entityMap=None):
     """
     Copies wikis and updates internal links
 
-    :param entity:          A synapse ID of an entity whose wiki you want to copy
+    :param entity:                  A synapse ID of an entity whose wiki you want to copy
 
-    :param destinationId:   Synapse ID of a folder/project that the wiki wants to be copied to
+    :param destinationId:           Synapse ID of a folder/project that the wiki wants to be copied to
     
-    :param updateLinks:     Update all the internal links
-                            Defaults to True
+    :param updateLinks:             Update all the internal links
+                                    Defaults to True
 
-    :param updateSynIds:    Update all the synapse ID's referenced in the wikis
-                            Defaults to True but needs an entityMap
+    :param updateSynIds:            Update all the synapse ID's referenced in the wikis
+                                    Defaults to True but needs an entityMap
 
-    :param entityMap:       An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the wiki
-                            Defaults to None 
+    :param entityMap:               An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the wiki
+                                    Defaults to None 
+
+    :param entitySubPageId:         Can specify subPageId and copy all of its subwikis
+                                    Defaults to None, which copies the entire wiki
+                                    subPageId can be found: https://www.synapse.org/#!Synapse:syn123/wiki/1234
+                                    In this case, 1234 is the subPageId. 
+
+    :param destinationSubPageId:    Can specify destination subPageId to copy wikis to
+                                    Defaults to None
     """
     oldOwn = syn.get(entity,downloadFile=False)
     # getWikiHeaders fails when there is no wiki
@@ -272,6 +299,8 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     except SynapseHTTPError:
         store = False
     if store:
+        if entitySubPageId is not None:
+            oldWh = getSubWikiHeaders(oldWh,entitySubPageId,mapping=[])
         newOwn =syn.get(destinationId,downloadFile=False)
         wikiIdMap =dict()
         newWikis=dict()
@@ -292,11 +321,11 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
                 for fhid in wiki.attachmentFileHandleIds:
                     file_info = syn._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
                     attachments.append(file_info['path'])
-            if hasattr(wiki, 'parentWikiId'):
+            if hasattr(i, 'parentId'):
                 wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
                 wNew = syn.store(wNew)
             else:
-                wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments)
+                wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments, parentWikiId=destinationSubPageId)
                 wNew = syn.store(wNew)
                 parentWikiId = wNew.id
             newWikis[wNew.id]=wNew
