@@ -27,11 +27,13 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     mapping = kwargs.get('mapping', dict())
     updateLinks = kwargs.get('updateLinks', True)
     updateSynIds = kwargs.get('updateSynIds', True)
+    entitySubPageId = kwargs.get('entitySubPageId',None)
+    destinationSubPageId = kwargs.get('destinationSubPageId',None)
 
     mapping = _copyRecursive(syn, entity, destinationId, mapping=mapping,**kwargs)
     if copyWikiPage:
         for oldEnt in mapping:
-            newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
+            newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId=entitySubPageId, destinationSubPageId=destinationSubPageId, updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
     return(mapping)
 
 #Recursive copy function to return mapping    
