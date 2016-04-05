@@ -1337,12 +1337,12 @@ class Synapse:
 
         :returns: A dictionary
         """
-
-        uri = '/entity/%s/annotations' % id_of(entity)
+        entity = self.get(entity,downloadFile=False)
+        uri = '/entity/%s/annotations' % entity.id
 
         annotations.update(kwargs)
         synapseAnnos = to_synapse_annotations(annotations)
-        synapseAnnos['id'] = id_of(entity)
+        synapseAnnos['id'] = entity.id
         if 'etag' in entity and 'etag' not in synapseAnnos:
             synapseAnnos['etag'] = entity['etag']
 
