@@ -211,12 +211,6 @@ def move(args, syn):
     ent = syn.store(ent, forceVersion=False)
     print('Moved %s to %s' %(ent.id, ent.parentId))
 
-
-def copy(args, syn):
-    """Copies most recent version of a file specifed by args.id to args.parentId"""
-    ent = syn.copy(args.id, destinationId=args.parentid, version=args.version, setProvenance=args.setProvenance)
-    print('Copied %s to %s' %(args.id, ent))
-
 def associate(args, syn):
     files = []
     if args.r:
