@@ -53,6 +53,7 @@ def _copyRecursive(syn, entity, destinationId, mapping = dict(), **kwargs):
     setProvenance = kwargs.get('setProvenance', "traceback")
     recursive = kwargs.get('recursive',True)
     copyTable = kwargs.get('copyTable',True)
+    replace = kwargs.get('replace',False)
 
     ent = syn.get(entity,downloadFile=False)
     if isinstance(ent, Project):
@@ -71,7 +72,7 @@ def _copyRecursive(syn, entity, destinationId, mapping = dict(), **kwargs):
         elif isinstance(ent, Folder):
             copiedId = _copyFolder(syn, ent.id, destinationId, mapping=mapping, **kwargs)
         elif isinstance(ent, File):
-            copiedId = _copyFile(syn, ent.id, destinationId, version=version, setProvenance=setProvenance)
+            copiedId = _copyFile(syn, ent.id, destinationId, version=version, replace=replace, setProvenance=setProvenance)
         elif isinstance(ent, Link):
             copiedId = _copyLink(syn, ent.id, destinationId)
         elif isinstance(ent, Schema) and copyTable:
@@ -112,7 +113,7 @@ def _copyFolder(syn, entity, destinationId, mapping=dict(), **kwargs):
     return(newFolder.id)
 
 #Copy File
-def _copyFile(syn, entity, destinationId, version=None, setProvenance="traceback"):
+def _copyFile(syn, entity, destinationId, version=None, replace=False, setProvenance="traceback"):
     """
     Copies most recent version of a file to a specified synapse ID.
 
@@ -130,11 +131,12 @@ def _copyFile(syn, entity, destinationId, version=None, setProvenance="traceback
     """
     #Set provenance should take a string (none, traceback, existing)
     ent = syn.get(entity, downloadFile=False, version=version, followLink=False)
-    #CHECK: If File is in the same parent directory (throw an error)
-    search = syn.query('select name from entity where parentId =="%s"'%destinationId)
-    for i in search['results']:
-        if i['entity.name'] == ent.name:
-            raise ValueError('An item named "%s" already exists in this location. File could not be copied'%ent.name)
+    #CHECK: If File is in the same parent directory (throw an error) (Can choose to replace files)
+    if not replace:
+        search = syn.query('select name from entity where parentId =="%s"'%destinationId)
+        for i in search['results']:
+            if i['entity.name'] == ent.name:
+                raise ValueError('An item named "%s" already exists in this location. File could not be copied'%ent.name)
     profile = syn.getUserProfile()
     # get provenance earlier to prevent errors from being called in the end
     # If traceback, set activity to old entity
@@ -172,12 +174,15 @@ def _copyFile(syn, entity, destinationId, version=None, setProvenance="traceback
         if ent.externalURL is None: #and ent.path == None:
             #####If you have never downloaded the file before, the path is None
             store = True
+            #This needs to be here, because if the file has never been downloaded before
+            #there wont be a ent.path
+            ent = syn.get(entity,downloadFile=store,version=version)
             path = ent.path
         else:
             store = False
+            ent = syn.get(entity,downloadFile=store,version=version)
             path = ent.externalURL
 
-        ent = syn.get(entity,downloadFile=store,version=version)
         new_ent = File(path, name=ent.name, parentId=destinationId, synapseStore=store)
     #Set annotations here
     new_ent.annotations = ent.annotations
@@ -254,7 +259,7 @@ def _copyLink(syn, entity, destinationId):
     return(newLink.id)
 
 #Function to assist in getting wiki headers of subwikipages
-def getSubWikiHeaders(wikiHeaders,subPageId,mapping=[]):
+def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=[]):
     subPageId = str(subPageId)
     for i in wikiHeaders:
         if i['id'] == subPageId and len(mapping) == 0:
@@ -302,7 +307,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         store = False
     if store:
         if entitySubPageId is not None:
-            oldWh = getSubWikiHeaders(oldWh,entitySubPageId,mapping=[])
+            oldWh = _getSubWikiHeaders(oldWh,entitySubPageId,mapping=[])
         newOwn =syn.get(destinationId,downloadFile=False)
         wikiIdMap =dict()
         newWikis=dict()
