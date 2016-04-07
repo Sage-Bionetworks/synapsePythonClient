@@ -124,6 +124,9 @@ def _copyFile(syn, entity, destinationId, version=None, replace=False, setProven
     :param version:         Can specify version of a file. 
                             Default to None
 
+    :param replace:         Can choose to replace files that have the same name 
+                            Default to False
+    
     :param setProvenance:   Has three values to set the provenance of the copied entity:
                                 traceback: Sets to the source entity
                                 existing: Sets to source entity's original provenance (if it exists)
