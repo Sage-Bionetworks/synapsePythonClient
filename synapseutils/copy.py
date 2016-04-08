@@ -331,11 +331,12 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
                 for fhid in wiki.attachmentFileHandleIds:
                     file_info = syn._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
                     attachments.append(file_info['path'])
+            #for some reason some wikis don't have titles?
             if hasattr(i, 'parentId'):
-                wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
+                wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
                 wNew = syn.store(wNew)
             else:
-                wNew = Wiki(owner=newOwn, title=wiki.title, markdown=wiki.markdown, attachments=attachments, parentWikiId=destinationSubPageId)
+                wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=destinationSubPageId)
                 wNew = syn.store(wNew)
                 parentWikiId = wNew.id
             newWikis[wNew.id]=wNew
