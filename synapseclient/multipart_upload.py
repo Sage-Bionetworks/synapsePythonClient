@@ -310,34 +310,36 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     progress=True
     retries=0
     mp = Pool(8)
-    while retries<MAX_RETRIES:
-        ## keep track of the number of bytes uploaded so far
-        completed = Value('d', min(completedParts * partSize, fileSize))
-        printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
+    try:
+        while retries<MAX_RETRIES:
+            ## keep track of the number of bytes uploaded so far
+            completed = Value('d', min(completedParts * partSize, fileSize))
+            printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
 
-        chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
-                                                  syn=syn, filename=filename,
-                                                  get_chunk_function=get_chunk_function,
-                                                  fileSize=fileSize, partSize=partSize)
+            chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
+                                                      syn=syn, filename=filename,
+                                                      get_chunk_function=get_chunk_function,
+                                                      fileSize=fileSize, partSize=partSize)
 
-        url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
-        mp.map(chunk_upload, url_generator)
+            url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
+            mp.map(chunk_upload, url_generator)
 
-        #Check if there are still parts
-        status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
-        oldCompletedParts, completedParts = completedParts, count_completed_parts(status.partsState)
-        progress = (completedParts>oldCompletedParts)
-        retries = retries+1 if not progress else retries
+            #Check if there are still parts
+            status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
+            oldCompletedParts, completedParts = completedParts, count_completed_parts(status.partsState)
+            progress = (completedParts>oldCompletedParts)
+            retries = retries+1 if not progress else retries
 
-        ## Are we done, yet?
-        if completed.value >= fileSize:
-            try:
-                status = _complete_multipart_upload(syn, status.uploadId)
-                if status.state == "COMPLETED":
-                    break
-            except Exception as ex1:
-                sys.stderr.write(str(ex1)+"\n")
-    mp.terminate()
+            ## Are we done, yet?
+            if completed.value >= fileSize:
+                try:
+                    status = _complete_multipart_upload(syn, status.uploadId)
+                    if status.state == "COMPLETED":
+                        break
+                except Exception as ex1:
+                    sys.stderr.write(str(ex1)+"\n")
+    finally:
+        mp.terminate()
     if status["state"] != "COMPLETED":
         raise SynapseError("Upoad {id} did not complete. Try again.".format(id=status["uploadId"]))
 
