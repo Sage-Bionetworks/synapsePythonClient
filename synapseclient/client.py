@@ -1853,17 +1853,12 @@ class Synapse:
                 pathinfo = utils.file_url_to_path(url, verify_exists=True)
                 if 'path' not in pathinfo:
                     raise IOError("Could not download non-existent file (%s)." % url)
-                else:
-                    #TODO does this make sense why not just ignore the download and return.
-                    raise NotImplementedError('File can already be accessed.  '
-                                              'Consider setting downloadFile to False')
             elif scheme == 'sftp':
                 destination = self._sftpDownloadFile(url, destination)
                 return returnDict(destination)
             elif scheme == 'http' or scheme == 'https':
                 #TODO add support for username/password
                 response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
-
                 ## get filename from content-disposition, if we don't have it already
                 if os.path.isdir(destination):
                     filename = utils.extract_filename(
