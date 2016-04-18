@@ -18,10 +18,10 @@ except ImportError:
 import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Project, Folder, File, Link, Column, Schema, RowSet, Row
+from synapseclient import Activity, Entity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
 from synapseclient.exceptions import *
 import synapseutils as synu
-
+import re
 import integration
 from integration import schedule_for_cleanup
 
@@ -249,3 +249,141 @@ def test_copy():
 
     # TEST: Can't copy project to a folder
     assert_raises(ValueError,synu.copy,syn,project_entity.id,destinationId=second_folder.id)
+
+
+def test_copyWiki():
+    # Create a Project
+    project_entity = syn.store(Project(name=str(uuid.uuid4())))
+
+    schedule_for_cleanup(project_entity.id)
+
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
+                                               parent=project_entity))
+    schedule_for_cleanup(folder_entity.id)
+    second_folder = syn.store(Folder(name=str(uuid.uuid4()),
+                                                   parent=project_entity))
+    schedule_for_cleanup(second_folder.id)
+    third_folder = syn.store(Folder(name=str(uuid.uuid4()),
+                                                   parent=project_entity))
+    schedule_for_cleanup(third_folder.id)
+
+    filename = utils.make_bogus_data_file()
+    attachname = utils.make_bogus_data_file()
+
+    schedule_for_cleanup(filename)
+    file_entity = syn.store(File(filename, parent=folder_entity))
+    nested_folder = syn.store(Folder(name=str(uuid.uuid4()),
+                                               parent=folder_entity))
+    second_file = syn.store(File(filename, parent=nested_folder))
+
+    schedule_for_cleanup(file_entity.id)
+    schedule_for_cleanup(nested_folder.id)
+    schedule_for_cleanup(second_file.id)
+
+    fileWiki = Wiki(owner=second_file, title='A Test Wiki', markdown="Test")
+    fileWiki = syn.store(fileWiki)
+
+    
+    #Create mock wiki
+    md = """
+    This is a test wiki
+    =======================
+
+    Blabber jabber blah blah boo.
+    %s
+    %s
+    """ %(file_entity.id,second_file.id)
+
+    wiki = Wiki(owner=project_entity, title='A Test Wiki', markdown=md, 
+                attachments=[attachname])
+    wiki = syn.store(wiki)
+
+    # Create a Wiki sub-page
+    subwiki = Wiki(owner=project_entity, title='A sub-wiki', 
+                   markdown='%s' % file_entity.id, parentWikiId=wiki.id)
+    subwiki = syn.store(subwiki)
+
+    second_md = """
+    Testing internal links
+    ======================
+
+    [test](#!Synapse:%s/wiki/%s)
+
+    %s)
+    """ % (project_entity.id,subwiki.id, second_file.id)
+
+    sub_subwiki = Wiki(owner=project_entity, title='A sub-sub-wiki', 
+                   markdown=second_md, parentWikiId=subwiki.id,
+                   attachments=[attachname])
+    sub_subwiki = syn.store(sub_subwiki)
+
+    #Copy wiki to second project
+    second_project = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(second_project.id)
+
+    fileMapping = synu.copy(syn, project_entity, second_project.id, copyWikiPage=False)
+    
+    print("Test: copyWikiPage = False")
+    assert_raises(SynapseHTTPError,syn.getWiki,second_project.id)
+
+    first_headers = syn.getWikiHeaders(project_entity)
+    second_headers = synu.copyWiki(syn, project_entity.id, second_project.id, entityMap=fileMapping)
+
+    mapping = dict()
+
+    print("Test: Check that all wikis were copied correctly with the correct mapping")
+    for index,info in enumerate(second_headers):
+        mapping[first_headers[index]['id']] = info['id']
+        assert first_headers[index]['title'] == info['title']
+        if info.get('parentId',None) is not None:
+            #Check if parent Ids are mapping correctly in the copied Wikis
+            assert info['parentId'] == mapping[first_headers[index]['parentId']]
+
+    print("Test: Check that all wikis have the correct attachments and have correct internal synapse link/file mapping")
+    for index,info in enumerate(second_headers):
+        #Check if markdown is the correctly mapped
+        orig_wikiPage= syn.getWiki(project_entity, first_headers[index]['id'])
+        new_wikiPage = syn.getWiki(second_project, info['id'])
+        s = orig_wikiPage.markdown
+        for oldWikiId in mapping.keys():
+            oldProjectAndWikiId = "%s/wiki/%s" % (project_entity.id, oldWikiId)
+            newProjectAndWikiId = "%s/wiki/%s" % (second_project.id, mapping[oldWikiId])
+            s=re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
+        for oldFileId in fileMapping.keys():
+            s = re.sub(oldFileId, fileMapping[oldFileId], s)
+        assert s == new_wikiPage.markdown
+        orig_attach = syn.getWikiAttachments(orig_wikiPage)
+        new_attach = syn.getWikiAttachments(new_wikiPage)
+        #check that attachment file names are the same
+        assert orig_attach == new_attach
+
+    print("Test: copyWikiPage = True (Default) (Should copy all wikis including wikis on files)")
+    third_project = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(third_project.id)
+
+    copiedFile = synu.copy(syn, second_file, third_project.id)
+    copiedWiki = syn.getWiki(copiedFile[second_file.id])
+    assert copiedWiki.title == fileWiki.title
+    assert copiedWiki.markdown == fileWiki.markdown
+
+    print("Test: entitySubPageId")
+    third_header = synu.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=sub_subwiki.id, destinationSubPageId=None, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
+    test_ent_subpage = syn.getWiki(third_project.id,third_header[0]['id'])
+
+    print("Test: No internal links updated")
+    assert test_ent_subpage.markdown == sub_subwiki.markdown
+    assert test_ent_subpage.title == sub_subwiki.title
+
+    print("Test: destinationSubPageId")
+    fourth_header = synu.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=subwiki.id, destinationSubPageId=test_ent_subpage.id, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
+    temp = syn.getWiki(third_project.id, fourth_header[1]['id'])
+    assert temp.title == subwiki.title
+    assert temp.markdown == subwiki.markdown
+
+    temp = syn.getWiki(third_project.id, fourth_header[2]['id'])
+    assert temp.title == sub_subwiki.title
+    assert temp.markdown == sub_subwiki.markdown
+    assert fourth_header[0] == third_header[0]
+
+
+

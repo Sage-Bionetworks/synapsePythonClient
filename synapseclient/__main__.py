@@ -43,7 +43,6 @@ Commands
   * **add**              - add or modify content to Synapse
   * **delete**           - removes a dataset from Synapse
   * **mv**               - move a dataset in Synapse
-  * **cp**               - copy a file in Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records

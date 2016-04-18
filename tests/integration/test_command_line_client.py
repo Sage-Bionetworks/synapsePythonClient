@@ -651,7 +651,6 @@ def test_command_get_recursive_and_query():
 #                  'cp', '--id',file_entity.id,
 #                  '--parentid',project_entity.id) 
 
-
 def test_command_line_using_paths():
     # Create a Project
     project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))

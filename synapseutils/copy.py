@@ -265,14 +265,18 @@ def _copyLink(syn, entity, destinationId):
 def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=[]):
     subPageId = str(subPageId)
     for i in wikiHeaders:
+        # This is for the first match 
+        # If it isnt the actual parent, it will turn the first match into a parent node which will not have a parentId
         if i['id'] == subPageId and len(mapping) == 0:
             i.pop("parentId",None)
             mapping.append(i)
+        #If a mapping already exists, it means that these pages have a parent node
         elif i['id'] == subPageId:
             mapping.append(i)
+        #If parentId is not None, and if parent id is the subpage Id, pass it back into the function
         elif i.get('parentId',None) is not None:
             if i['parentId'] == subPageId:
-                mapping = getSubWikiHeaders(wikiHeaders,subPageId=i['id'],mapping=mapping)
+                mapping = _getSubWikiHeaders(wikiHeaders,subPageId=i['id'],mapping=mapping)
     return(mapping)
 
 #Copy wiki 
