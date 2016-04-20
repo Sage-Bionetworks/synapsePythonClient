@@ -43,7 +43,6 @@ Commands
   * **add**              - add or modify content to Synapse
   * **delete**           - removes a dataset from Synapse
   * **mv**               - move a dataset in Synapse
-  * **cp**               - copy a file in Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
   * **set-provenance**   - create provenance records
@@ -210,12 +209,6 @@ def move(args, syn):
     ent.parentId= args.parentid
     ent = syn.store(ent, forceVersion=False)
     print('Moved %s to %s' %(ent.id, ent.parentId))
-
-
-def copy(args, syn):
-    """Copies most recent version of a file specifed by args.id to args.parentId"""
-    ent = syn.copy(args.id, parentId=args.parentid, version=args.version, setProvenance=args.setProvenance)
-    print('Copied %s to %s' %(args.id, ent))
 
 def associate(args, syn):
     files = []
@@ -549,20 +542,20 @@ def build_parser():
             help='Synapse ID of project or folder where file/folder will be moved ')
     parser_mv.set_defaults(func=move)
 
-    parser_cp = subparsers.add_parser('cp',
-            help='Copies a file in Synapse')
-    parser_cp.add_argument('--id', metavar='syn123', type=str, required=True,
-            help='Id of entity in Synapse to be copied.')
-    parser_cp.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=True, dest='parentid',
-            help='Synapse ID of project or folder where file will be moved ')
-    parser_cp.add_argument('-v', '--version', metavar='VERSION', type=int, default=None,
-            help='Synapse version number of entity to retrieve. Defaults to most recent version.')
-    parser_cp.add_argument('--setProvenance', metavar='MODE', type=str, default='traceback',
-            help=('Has three values to set the provenance of the copied entity-'
-                        'traceback: Sets to the source entity'
-                        'existing: Sets to source entity\'s original provenance (if it exists)'
-                        'None/none: No provenance is set'))
-    parser_cp.set_defaults(func=copy)
+    # parser_cp = subparsers.add_parser('cp',
+    #         help='Copies a file in Synapse')
+    # parser_cp.add_argument('--id', metavar='syn123', type=str, required=True,
+    #         help='Id of entity in Synapse to be copied.')
+    # parser_cp.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=True, dest='parentid',
+    #         help='Synapse ID of project or folder where file will be moved ')
+    # parser_cp.add_argument('-v', '--version', metavar='VERSION', type=int, default=None,
+    #         help='Synapse version number of entity to retrieve. Defaults to most recent version.')
+    # parser_cp.add_argument('--setProvenance', metavar='MODE', type=str, default='traceback',
+    #         help=('Has three values to set the provenance of the copied entity-'
+    #                     'traceback: Sets to the source entity'
+    #                     'existing: Sets to source entity\'s original provenance (if it exists)'
+    #                     'None/none: No provenance is set'))
+    # parser_cp.set_defaults(func=copy)
 
     parser_associate = subparsers.add_parser('associate',
             help=('Associate local files with the files stored in Synapse so that calls to '

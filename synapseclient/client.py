@@ -79,7 +79,7 @@ from .activity import Activity
 from .entity import Entity, File, Project, Folder, Link, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Column, RowSet, Row, TableQueryResult, CsvFileTable
+from .table import Schema, Table, Column, RowSet, Row, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
@@ -984,7 +984,7 @@ class Synapse:
                     ## file. If the file referred to by entity['path'] has been
                     ## modified, we want to upload the new version.
                     needs_upload = not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
-            elif entity.get('dataFileHandleId',False):
+            elif entity.get('dataFileHandleId',None) is not None:
                 needs_upload = False
             else:
                 needs_upload = True
@@ -1134,82 +1134,6 @@ class Synapse:
 
         return bundle
 
-    def copy(self, entity, parentId, version=None, setProvenance="traceback"):
-        """
-        Copies most recent version of a file to a specified synapse ID.
-
-        :param obj:             A synapse ID or entity of a file
-
-        :param parentId:        Synapse ID of a folder/project that the file wants to be copied to
-
-        :param version:         Can specify version of a file. 
-                                Default to None
-
-        :param setProvenance:   Has three values to set the provenance of the copied entity:
-                                    traceback: Sets to the source entity
-                                    existing: Sets to source entity's original provenance (if it exists)
-                                    None: No provenance is set
-        """
-        #Set provenance should take a string (none, traceback, existing)
-        ent = self.get(entity, downloadFile=False, version=version, followLink=False)
-        #CHECK: If file is in the same parent directory (throw an error)
-        search = self.query('select name from file where parentId =="%s"'%parentId)
-        for i in search['results']:
-            if i['file.name'] == ent.name:
-                raise ValueError('Filename exists in directory you would like to copy to, either rename or check if file has already been copied!')
-        profile = self.getUserProfile()
-        # get provenance earlier to prevent errors from being called in the end
-        # If traceback, set activity to old entity
-        if setProvenance == "traceback":
-            act = Activity("Copied file", used=ent)
-        # if existing, check if provenance exists
-        elif setProvenance == "existing":
-            try:
-                act = self.getProvenance(ent.id)
-            except Exception as e:
-                if e.message.find('No activity') >= 0:
-                    act = None
-                else:
-                    raise e
-        elif setProvenance is None or setProvenance.lower() == 'none':
-            act = None
-        else:
-            raise ValueError('setProvenance must be one of None, existing, or traceback')
-        #Grab file handle createdBy annotation to see the user that created fileHandle
-        fileHandleList = self.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
-        #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle)
-        #Loop through to check which dataFileHandles match and return createdBy
-        for fileHandle in fileHandleList['list']:
-            if fileHandle['id'] == ent.dataFileHandleId:
-                createdBy = fileHandle['createdBy']
-                break
-        else:
-            createdBy = None
-        #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
-        if profile.ownerId == createdBy:
-            new_ent = synapseclient.File(name=ent.name, parentId=parentId)
-            new_ent.dataFileHandleId = ent.dataFileHandleId
-        else:
-            #CHECK: If the synapse entity is an external URL, change path and store
-            if ent.externalURL is None: #and ent.path == None:
-                #####If you have never downloaded the file before, the path is None
-                store = True
-                path = ent.path
-            else:
-                store = False
-                path = ent.externalURL
-
-            ent = self.get(entity,downloadFile=store,version=version)
-            new_ent = synapseclient.File(path, name=ent.name, parent=parentId, synapseStore=store)
-        #Set annotations here
-        new_ent.annotations = ent.annotations
-        #Store provenance if act is not None
-        if act is not None:
-            new_ent = self.store(new_ent, activity=act)
-        else:
-            new_ent = self.store(new_ent)
-        #Leave this return statement for test
-        return new_ent['id']
 
     def delete(self, obj, version=None):
         """
@@ -1413,14 +1337,17 @@ class Synapse:
 
         :returns: A dictionary
         """
-
         uri = '/entity/%s/annotations' % id_of(entity)
 
         annotations.update(kwargs)
         synapseAnnos = to_synapse_annotations(annotations)
         synapseAnnos['id'] = id_of(entity)
-        if 'etag' in entity and 'etag' not in synapseAnnos:
-            synapseAnnos['etag'] = entity['etag']
+        if 'etag' not in synapseAnnos:
+            if 'etag' in entity:
+                synapseAnnos['etag'] = entity['etag']
+            else:
+                old_annos = self.restGET(uri)
+                synapseAnnos['etag'] = old_annos['etag']
 
         return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
 
@@ -2678,32 +2605,6 @@ class Synapse:
         results = self.restGET(uri)
         file_handles = list(WikiAttachment(**fh) for fh in results['list'])
         return file_handles
-
-    def _copyWiki(self, wiki, destWiki):
-        """
-        Copy wiki contents including attachments from one wiki to another.
-
-        :param wiki: source :py:class:`synapseclient.wiki.Wiki`
-        :param destWiki: destination :py:class:`synapseclient.wiki.Wiki`
-
-        Both Wikis must already exist.
-        """
-        uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
-        results = self.restGET(uri)
-
-        file_handles = {fh['id']:fh for fh in results['list']}
-
-        ## need to download an re-upload wiki attachments, ug!
-        attachments = []
-        tempdir = tempfile.gettempdir()
-        for fhid in wiki.attachmentFileHandleIds:
-            file_info = self._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
-            attachments.append(file_info['path'])
-
-        destWiki.update({'attachments':attachments, 'markdown':wiki.markdown, 'title':wiki.title})
-
-        return self._storeWiki(destWiki)
-
 
     ############################################################
     ##                     Tables                             ##

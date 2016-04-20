@@ -18,7 +18,7 @@ except ImportError:
 import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Project, Folder, File, Link
+from synapseclient import Activity, Entity, Project, Folder, File, Link, Column, Schema, RowSet, Row
 from synapseclient.exceptions import *
 
 import integration
@@ -400,118 +400,6 @@ def test_ExternalFileHandle():
     singapore = syn.store(singapore)
     s2 = syn.get(singapore, downloadFile=False)
     assert s2.externalURL == singapore_2_url
-
-
-def test_copy():
-    """Tests the 'synapse cp' function"""
-    # Create a Project
-    project_entity = syn.store(Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
-    acl = syn.setPermissions(project_entity, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE'])
-    # Create two Folders in Project
-    folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
-    second_folder = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
-    third_folder = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
-    schedule_for_cleanup(folder_entity.id)
-    schedule_for_cleanup(second_folder.id)
-    schedule_for_cleanup(third_folder.id)
-
-    # Annotations and provenance
-    repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
-    annots = {'test':['hello_world']}
-    prov = Activity(name = "test",used = repo_url)
-    # Create, upload, and set annotations/provenance on a file in Folder
-    filename = utils.make_bogus_data_file()
-    schedule_for_cleanup(filename)
-    file_entity = syn.store(File(filename, parent=folder_entity))
-    externalURL_entity = syn.store(File(repo_url,name='rand',parent=folder_entity,synapseStore=False))
-    syn.setAnnotations(file_entity,annots)
-    syn.setAnnotations(externalURL_entity,annots)
-    syn.setProvenance(externalURL_entity.id, prov)
-    schedule_for_cleanup(file_entity.id)
-    schedule_for_cleanup(externalURL_entity.id)
-    
-    output = syn.copy(file_entity.id,project_entity.id)
-    output_URL = syn.copy(externalURL_entity.id,project_entity.id)
-
-    #Verify that our copied files are identical
-    copied_ent = syn.get(output)
-    copied_URL_ent = syn.get(output_URL,downloadFile=False)
-    copied_ent_annot = syn.getAnnotations(output)
-    copied_url_annot = syn.getAnnotations(output_URL)
-    copied_prov = syn.getProvenance(output)
-    copied_url_prov = syn.getProvenance(output_URL)
-    schedule_for_cleanup(output)
-    schedule_for_cleanup(output_URL)
-
-    # TEST: set_Provenance = Traceback
-    print("Test: setProvenance = Traceback")
-    assert copied_prov['used'][0]['reference']['targetId'] == file_entity.id
-    assert copied_url_prov['used'][0]['reference']['targetId'] == externalURL_entity.id
-
-    # TEST: Make sure copied files are the same
-    assert copied_ent_annot == annots
-    assert copied_ent.dataFileHandleId == file_entity.dataFileHandleId
-
-    # TEST: Make sure copied URLs are the same
-    assert copied_url_annot == annots
-    assert copied_URL_ent.externalURL == repo_url
-    assert copied_URL_ent.name == 'rand'
-    assert copied_URL_ent.dataFileHandleId == externalURL_entity.dataFileHandleId
-
-    #Verify that errors are being thrown when folders/projects are attempted to be copied,
-    #or file is copied to a folder/project that has a file with the same filename
-    assert_raises(AttributeError,syn.copy,folder_entity.id,parentId = project_entity.id)
-    assert_raises(AttributeError,syn.copy,project_entity.id,parentId = project_entity.id)
-    assert_raises(ValueError,syn.copy,file_entity.id,parentId = project_entity.id) 
-    assert_raises(ValueError,syn.copy,file_entity.id,parentId = third_folder.id,setProvenance = "gib")
-
-    print("Test: setProvenance = None")
-    output = syn.copy(file_entity.id,second_folder.id,setProvenance = None)
-    assert_raises(SynapseHTTPError,syn.getProvenance,output)
-    schedule_for_cleanup(output)
-
-    print("Test: setProvenance = Existing")
-    output_URL = syn.copy(externalURL_entity.id,second_folder.id,setProvenance = "existing")
-    output_prov = syn.getProvenance(output_URL)
-    schedule_for_cleanup(output_URL)
-    assert output_prov['name'] == prov['name']
-    assert output_prov['used'] == prov['used']
-
-    if 'username' not in other_user or 'password' not in other_user:
-        sys.stderr.write('\nWarning: no test-authentication configured. skipping testing copy function when trying to copy file made by another user.\n')
-        return
-
-    try:
-        print("Test: Other user copy should result in different data file handle")
-        syn_other = synapseclient.Synapse(skip_checks=True)
-        syn_other.login(other_user['username'], other_user['password'])
-
-        output = syn_other.copy(file_entity.id,third_folder.id)
-        new_copied_ent = syn.get(output)
-        new_copied_ent_annot = syn.getAnnotations(output)
-        schedule_for_cleanup(new_copied_ent)
-        
-        copied_URL_ent.externalURL = "https://www.google.com"
-        copied_URL_ent = syn.store(copied_URL_ent)
-        output = syn_other.copy(copied_URL_ent.id,third_folder.id,version=1)
-        new_copied_URL = syn.get(output,downloadFile=False)
-
-        schedule_for_cleanup(new_copied_URL)
-
-        assert new_copied_ent_annot == annots
-        assert new_copied_ent.dataFileHandleId != copied_ent.dataFileHandleId
-        #Test if copying different versions gets you the correct file
-        assert new_copied_URL.versionNumber == 1
-        assert new_copied_URL.externalURL == repo_url
-        assert new_copied_URL.dataFileHandleId != copied_URL_ent.dataFileHandleId
-    finally:
-        syn_other.logout()
-    #Test: Different users copying- > Data file handle will be different
-    #Test: versioning
 
 
 def test_synapseStore_flag():
