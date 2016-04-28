@@ -58,12 +58,9 @@ def test_copy():
     schedule_for_cleanup(project_entity.id)
     acl = syn.setPermissions(project_entity, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE'])
     # Create two Folders in Project
-    folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
-    second_folder = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
-    third_folder = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+    second_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+    third_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
     schedule_for_cleanup(folder_entity.id)
     schedule_for_cleanup(second_folder.id)
     schedule_for_cleanup(third_folder.id)
@@ -257,14 +254,11 @@ def test_copyWiki():
 
     schedule_for_cleanup(project_entity.id)
 
-    folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
-                                               parent=project_entity))
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
     schedule_for_cleanup(folder_entity.id)
-    second_folder = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
+    second_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
     schedule_for_cleanup(second_folder.id)
-    third_folder = syn.store(Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
+    third_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
     schedule_for_cleanup(third_folder.id)
 
     filename = utils.make_bogus_data_file()
@@ -272,8 +266,7 @@ def test_copyWiki():
 
     schedule_for_cleanup(filename)
     file_entity = syn.store(File(filename, parent=folder_entity))
-    nested_folder = syn.store(Folder(name=str(uuid.uuid4()),
-                                               parent=folder_entity))
+    nested_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
     second_file = syn.store(File(filename, parent=nested_folder))
 
     schedule_for_cleanup(file_entity.id)
@@ -385,5 +378,58 @@ def test_copyWiki():
     assert temp.markdown == sub_subwiki.markdown
     assert fourth_header[0] == third_header[0]
 
+def test_walk():
+        # Create a Project
+    # path = os.path.join(os.path.dirname(os.path.realpath(__file__)),"../")
+    # temp = os.walk(path)
+    # for dirpath, dirname, filename in temp:
+    #     print(dirpath)
+    #     print(dirname)
+    #     print(filename)
+    walked = []
+    firstfile = utils.make_bogus_data_file()
+    project_entity = syn.store(Project(name=str(uuid.uuid4())))
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+    second_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+    file_entity = syn.store(File(firstfile, parent=project_entity))
+
+    walked.append(([(project_entity.name,project_entity.id)],
+                   [(folder_entity.name, folder_entity.id),
+                    (second_folder.name, second_folder.id)],
+                   [(file_entity.name, file_entity.id)]))
+
+    nested_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
+    
+    secondfile = utils.make_bogus_data_file()
+    second_file = syn.store(File(secondfile, parent=nested_folder))
+    thirdfile = utils.make_bogus_data_file()
+    third_file = syn.store(File(thirdfile, parent=second_folder))
+
+    walked.append(([(os.path.join(project_entity.name,folder_entity.name),folder_entity.id)],
+                   [(nested_folder.name,nested_folder.id)],
+                   []))
+    walked.append(([(os.path.join(project_entity.name,second_folder.name),second_folder.id)],
+                   [],
+                   [(third_file.name,third_file.id)]))
+    walked.append(([(os.path.join(os.path.join(project_entity.name,folder_entity.name),nested_folder.name),nested_folder.id)],
+                   [],
+                   [(second_file.name,second_file.id)]))
+
+    temp = synu.walk(syn, project_entity.id)
+    temp = list(temp)
+
+    for i in temp:
+        assert i in walked
+
+    schedule_for_cleanup(project_entity.id)
+    schedule_for_cleanup(folder_entity.id)
+    schedule_for_cleanup(second_folder.id)
+    schedule_for_cleanup(nested_folder.id)
+    schedule_for_cleanup(file_entity.id)
+    schedule_for_cleanup(second_file.id)
+    schedule_for_cleanup(third_file.id)
+    schedule_for_cleanup(firstfile)
+    schedule_for_cleanup(secondfile)
+    schedule_for_cleanup(thirdfile)
 
 
