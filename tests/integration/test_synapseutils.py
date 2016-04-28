@@ -379,13 +379,6 @@ def test_copyWiki():
     assert fourth_header[0] == third_header[0]
 
 def test_walk():
-        # Create a Project
-    # path = os.path.join(os.path.dirname(os.path.realpath(__file__)),"../")
-    # temp = os.walk(path)
-    # for dirpath, dirname, filename in temp:
-    #     print(dirpath)
-    #     print(dirname)
-    #     print(filename)
     walked = []
     firstfile = utils.make_bogus_data_file()
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
@@ -418,8 +411,20 @@ def test_walk():
     temp = synu.walk(syn, project_entity.id)
     temp = list(temp)
 
+    #Must sort the tuples returned, because order matters for the assert
+    #Folders are returned in a different ordering depending on the name
+    for i in walked:
+        for y in i:
+            y.sort()
+
     for i in temp:
+        for y in i:
+            y.sort()
         assert i in walked
+
+    print("CHECK: Cannot synu.walk a file")
+    temp = synu.walk(syn, second_file.id)
+    assert_raises(ValueError,list, temp)
 
     schedule_for_cleanup(project_entity.id)
     schedule_for_cleanup(folder_entity.id)

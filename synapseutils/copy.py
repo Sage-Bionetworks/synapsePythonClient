@@ -12,6 +12,8 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     """
     Copies synapse entities including the wikis
 
+    :param syn:             A synapse object: syn = synapseclient.Synapse()
+
     :param entity:          A synapse entity ID
 
     :param destinationId:   Synapse ID of a folder/project that the copied entity is being copied to
@@ -283,6 +285,8 @@ def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=[]):
 def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPageId=None, updateLinks=True, updateSynIds=True, entityMap=None):
     """
     Copies wikis and updates internal links
+
+    :param syn:                     A synapse object: syn = synapseclient.Synapse()
 
     :param entity:                  A synapse ID of an entity whose wiki you want to copy
 
