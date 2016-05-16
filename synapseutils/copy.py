@@ -12,7 +12,7 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     """
     Copies synapse entities including the wikis
 
-    :param syn:             A synapse object: syn = synapseclient.Synapse()
+    :param syn:             A synapse object: syn = synapseclient.login()- Must be logged into synapse
 
     :param entity:          A synapse entity ID
 
@@ -286,7 +286,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     """
     Copies wikis and updates internal links
 
-    :param syn:                     A synapse object: syn = synapseclient.Synapse()
+    :param syn:                     A synapse object: syn = synapseclient.login()- Must be logged into synapse
 
     :param entity:                  A synapse ID of an entity whose wiki you want to copy
 
