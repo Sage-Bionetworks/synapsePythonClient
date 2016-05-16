@@ -2,9 +2,12 @@ import synapseclient
 from synapseclient.entity import is_container
 import os
 
-def walk(syn,synId,newpath=None):
+def walk(syn, synId):
     """
-    Traverses through the synId specified returning a tuple (directory path, directory names, file names)
+    Traverse through the hierarchy of files and folders stored under the synId. Has the same behavior
+    as os.walk()
+
+    :param syn:            A synapse object: syn = synapseclient.login()- Must be logged into synapse
 
     :param synId:          A synapse ID of a folder or project
 
@@ -18,9 +21,14 @@ def walk(syn,synId,newpath=None):
             print(filename) #All the files in the directory path
 
     """
+    return(_helpWalk(syn,synId))
+
+#Helper function to hide the newpath parameter
+def _helpWalk(syn,synId,newpath=None):
     starting = syn.get(synId,downloadFile=False)
+    #If the first file is not a container, return immediately
     if newpath is None and not is_container(starting):
-        raise ValueError('Cannot traverse through a file, please give a folder or project synId')
+        return
     elif newpath is None:
         dirpath = [(starting.name, synId)]
     else:
@@ -36,7 +44,7 @@ def walk(syn,synId,newpath=None):
     yield dirpath, dirs, nondirs
     for name in dirs:
         newpath = os.path.join(dirpath[0][0],name[0])
-        for x in walk(syn, name[1], newpath):
+        for x in _helpWalk(syn, name[1], newpath):
             yield x
 
 

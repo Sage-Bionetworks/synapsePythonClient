@@ -381,10 +381,15 @@ def test_copyWiki():
 def test_walk():
     walked = []
     firstfile = utils.make_bogus_data_file()
+    schedule_for_cleanup(firstfile)
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+    schedule_for_cleanup(folder_entity.id)
     second_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+    schedule_for_cleanup(second_folder.id)
     file_entity = syn.store(File(firstfile, parent=project_entity))
+    schedule_for_cleanup(file_entity.id)
 
     walked.append(([(project_entity.name,project_entity.id)],
                    [(folder_entity.name, folder_entity.id),
@@ -392,11 +397,16 @@ def test_walk():
                    [(file_entity.name, file_entity.id)]))
 
     nested_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
-    
+    schedule_for_cleanup(nested_folder.id)
     secondfile = utils.make_bogus_data_file()
+    schedule_for_cleanup(secondfile)
     second_file = syn.store(File(secondfile, parent=nested_folder))
+    schedule_for_cleanup(second_file.id)
     thirdfile = utils.make_bogus_data_file()
+    schedule_for_cleanup(thirdfile)
     third_file = syn.store(File(thirdfile, parent=second_folder))
+    schedule_for_cleanup(third_file.id)
+
 
     walked.append(([(os.path.join(project_entity.name,folder_entity.name),folder_entity.id)],
                    [(nested_folder.name,nested_folder.id)],
@@ -413,28 +423,13 @@ def test_walk():
 
     #Must sort the tuples returned, because order matters for the assert
     #Folders are returned in a different ordering depending on the name
-    for i in walked:
-        for y in i:
-            y.sort()
+    for i,j in zip(temp, walked):
+        for x,y in zip(i,j):
+            assert x.sort() == y.sort()
 
-    for i in temp:
-        for y in i:
-            y.sort()
-        assert i in walked
-
-    print("CHECK: Cannot synu.walk a file")
+    print("CHECK: Cannot synu.walk a file returns empty generator")
     temp = synu.walk(syn, second_file.id)
-    assert_raises(ValueError,list, temp)
+    assert list(temp) == []
 
-    schedule_for_cleanup(project_entity.id)
-    schedule_for_cleanup(folder_entity.id)
-    schedule_for_cleanup(second_folder.id)
-    schedule_for_cleanup(nested_folder.id)
-    schedule_for_cleanup(file_entity.id)
-    schedule_for_cleanup(second_file.id)
-    schedule_for_cleanup(third_file.id)
-    schedule_for_cleanup(firstfile)
-    schedule_for_cleanup(secondfile)
-    schedule_for_cleanup(thirdfile)
 
 
