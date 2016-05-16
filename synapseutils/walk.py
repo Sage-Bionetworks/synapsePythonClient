@@ -30,9 +30,9 @@ def _helpWalk(syn,synId,newpath=None):
     if newpath is None and not is_container(starting):
         return
     elif newpath is None:
-        dirpath = [(starting.name, synId)]
+        dirpath = (starting.name, synId)
     else:
-        dirpath = [(newpath,synId)]
+        dirpath = (newpath,synId)
     dirs = []
     nondirs = []
     results = syn.chunkedQuery('select id, name, nodeType from entity where parentId == "%s"'%synId)
@@ -43,7 +43,7 @@ def _helpWalk(syn,synId,newpath=None):
             nondirs.append((i['entity.name'],i['entity.id']))
     yield dirpath, dirs, nondirs
     for name in dirs:
-        newpath = os.path.join(dirpath[0][0],name[0])
+        newpath = os.path.join(dirpath[0],name[0])
         for x in _helpWalk(syn, name[1], newpath):
             yield x
 

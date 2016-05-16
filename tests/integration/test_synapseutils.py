@@ -391,7 +391,7 @@ def test_walk():
     file_entity = syn.store(File(firstfile, parent=project_entity))
     schedule_for_cleanup(file_entity.id)
 
-    walked.append(([(project_entity.name,project_entity.id)],
+    walked.append(((project_entity.name,project_entity.id),
                    [(folder_entity.name, folder_entity.id),
                     (second_folder.name, second_folder.id)],
                    [(file_entity.name, file_entity.id)]))
@@ -408,24 +408,27 @@ def test_walk():
     schedule_for_cleanup(third_file.id)
 
 
-    walked.append(([(os.path.join(project_entity.name,folder_entity.name),folder_entity.id)],
+    walked.append(((os.path.join(project_entity.name,folder_entity.name),folder_entity.id),
                    [(nested_folder.name,nested_folder.id)],
                    []))
-    walked.append(([(os.path.join(project_entity.name,second_folder.name),second_folder.id)],
-                   [],
-                   [(third_file.name,third_file.id)]))
-    walked.append(([(os.path.join(os.path.join(project_entity.name,folder_entity.name),nested_folder.name),nested_folder.id)],
+    walked.append(((os.path.join(os.path.join(project_entity.name,folder_entity.name),nested_folder.name),nested_folder.id),
                    [],
                    [(second_file.name,second_file.id)]))
+    walked.append(((os.path.join(project_entity.name,second_folder.name),second_folder.id),
+                   [],
+                   [(third_file.name,third_file.id)]))
+
 
     temp = synu.walk(syn, project_entity.id)
     temp = list(temp)
-
     #Must sort the tuples returned, because order matters for the assert
     #Folders are returned in a different ordering depending on the name
     for i,j in zip(temp, walked):
         for x,y in zip(i,j):
-            assert x.sort() == y.sort()
+            if type(x) == tuple:
+                assert x == y
+            else:
+                assert x.sort() == y.sort()
 
     print("CHECK: Cannot synu.walk a file returns empty generator")
     temp = synu.walk(syn, second_file.id)
