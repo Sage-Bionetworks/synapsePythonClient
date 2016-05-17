@@ -423,12 +423,12 @@ def test_walk():
     temp = list(temp)
     #Must sort the tuples returned, because order matters for the assert
     #Folders are returned in a different ordering depending on the name
-    for i,j in zip(temp, walked):
-        for x,y in zip(i,j):
-            if type(x) == tuple:
-                assert x == y
-            else:
-                assert x.sort() == y.sort()
+    for i in walked:
+        for x in i:
+            if type(x) == list:
+                x = x.sort()
+    for i in temp:
+        assert i in walked
 
     print("CHECK: Cannot synu.walk a file returns empty generator")
     temp = synu.walk(syn, second_file.id)
