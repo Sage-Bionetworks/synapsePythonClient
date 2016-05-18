@@ -120,7 +120,7 @@ def _recursiveGet(id, path, syn):
     """Traverses a heirarchy and download files and create subfolders as necessary."""
     from synapseclient.entity import is_container
 
-    results = syn.chunkedQuery("select id, name, concreteType from entity where entity.parentId=='%s'" %id)
+    results = syn.chunkedQuery("select id, name, nodeType from entity where entity.parentId=='%s'" %id)
     for result in results:
         if is_container(result):
             new_path = os.path.join(path, result['entity.name'])
