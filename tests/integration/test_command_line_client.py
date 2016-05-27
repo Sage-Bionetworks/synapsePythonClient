@@ -13,7 +13,6 @@ import sys
 import uuid
 import json
 from nose.plugins.attrib import attr
-from nose.exc import SkipTest 
 from nose.tools import assert_raises, assert_equals
 import tempfile
 import shutil

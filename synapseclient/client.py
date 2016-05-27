@@ -1737,7 +1737,6 @@ class Synapse:
 
         :returns: A file info dictionary with keys path, cacheDir, files
         """
-        print(entity.md5)
         if submission is not None:
             url = '%s/evaluation/submission/%s/file/%s' % (self.repoEndpoint, id_of(submission),
                                                            entity['dataFileHandleId'])
@@ -1811,15 +1810,15 @@ class Synapse:
         else:
             toBeTransferred = -1
         transferred = 0
-        sig = hashlib.md5()
+        #sig = hashlib.md5()
         with open(destination, 'wb') as fd:
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
-                sig.update(chunk)
+                #sig.update(chunk)
                 transferred += len(chunk)
                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ', os.path.basename(destination))
             utils.printTransferProgress(transferred, transferred, 'Downloaded  ', os.path.basename(destination))
-        sig.hexdigest()
+        #sig.hexdigest()
         destination = os.path.abspath(destination)
         return returnDict(destination)
 
