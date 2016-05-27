@@ -598,7 +598,8 @@ class Synapse:
         :param entity:    Either an Entity or a Synapse ID
         :param subpageId: (Optional) ID of one of the wiki's sub-pages
         """
-
+        if isinstance(entity, six.string_types) and os.path.isfile(entity):
+            entity = self.get(entity, downloadFile=False)
         if subpageId is None:
             webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
         else:
