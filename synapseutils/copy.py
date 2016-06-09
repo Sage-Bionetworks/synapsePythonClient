@@ -24,7 +24,38 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     :param copyTable:       Determines whether tables are copied
                             Default is True
 
-    :param kwargs:          Parameters that can be passed to the hidden copy functions called
+    :param mapping:         Takes a mapping {'oldSynId': 'newSynId'} to help with replacing syn ids in the new wiki pages that aren't part of the entities being copied
+                            Default to dict() and builds the mapping of all the synapse entities copied
+        
+        import synapseutils as synu
+        import synapseclient
+        syn = synapseclient.login()
+        synu.copy(syn, ...)
+
+    # Examples and extra parameters unique to each copy function
+    ### Copying File Entites ###
+
+    :param version:         Can specify version of a file. 
+                            Default to None
+
+    :param replace:         Can choose to replace files that have the same name 
+                            Default to False
+    
+    :param setProvenance:   Has three values to set the provenance of the copied entity:
+                                traceback: Sets to the source entity
+                                existing: Sets to source entity's original provenance (if it exists)
+                                None: No provenance is set
+
+        synu.copy(syn,"file_syn123","destination_synId", replace=False,setProvenance = "traceback",version=None)
+
+    ### Copying Folder Entities ###
+
+    :param recursive:       Decides whether to copy everything in the folder.
+                            Defaults to True
+
+        #This will recursively copy everything in the folder into the destination Id
+        synu.copy(syn, "folder_syn123","destination_synId",recursive=True)
+
     """
     mapping = kwargs.get('mapping', dict())
     updateLinks = kwargs.get('updateLinks', True)
@@ -47,7 +78,7 @@ def _copyRecursive(syn, entity, destinationId, mapping = dict(), **kwargs):
 
     :param destinationId:      Synapse ID of a folder/project that the copied entity is being copied to
 
-    :param mapping:            Takes a mapping {'oldSynId': 'newSynId'} to help with copying syn ids that aren't already part of the entity
+    :param mapping:            Takes a mapping {'oldSynId': 'newSynId'} to help with replacing syn ids in the new wiki pages that aren't part of the entities being copied
                                Default to dict() and builds the mapping of all the synapse entities copied
     """
 
