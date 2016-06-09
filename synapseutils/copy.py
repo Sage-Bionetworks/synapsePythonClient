@@ -8,7 +8,7 @@ import re
 ##                 Copy Functions                         ##
 ############################################################
 
-def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
+def copy(syn, entity, destinationId=None, copyWikiPage=True, mapping = dict(), **kwargs):
     """
     Copies synapse entities including the wikis
 
@@ -57,7 +57,6 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
         synu.copy(syn, "folder_syn123","destination_synId",recursive=True)
 
     """
-    mapping = kwargs.get('mapping', dict())
     updateLinks = kwargs.get('updateLinks', True)
     updateSynIds = kwargs.get('updateSynIds', True)
     entitySubPageId = kwargs.get('entitySubPageId',None)
@@ -99,6 +98,7 @@ def _copyRecursive(syn, entity, destinationId, mapping = dict(), **kwargs):
         entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
         for i in entities:
             mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping=mapping, **kwargs)
+            #mapping = newmapping
     else:
         if destinationId is None:
             raise ValueError("You must give a destinationId unless you are copying a project")
@@ -114,7 +114,8 @@ def _copyRecursive(syn, entity, destinationId, mapping = dict(), **kwargs):
             raise ValueError("Not able to copy this type of file")
 
     print("Copied %s to %s" % (ent.id,copiedId))
-    mapping[ent.id] = copiedId
+    if copiedId is not None:
+        mapping[ent.id] = copiedId
     return(mapping)
 
 def _copyFolder(syn, entity, destinationId, mapping=dict(), **kwargs):
@@ -291,8 +292,13 @@ def _copyLink(syn, entity, destinationId):
             raise ValueError('An item named "%s" already exists in this location. Link could not be copied'%ent.name)
 
     newLink = Link(ent.linksTo['targetId'],parent=destinationId,targetVersion=ent.linksTo['targetVersionNumber'])
-    newLink = syn.store(newLink)
-    return(newLink.id)
+    try:
+        newLink = syn.store(newLink)
+        return(newLink.id)
+    except Exception as e:
+        print("WARNING: The target of this link %s no longer exists" % ent.id)
+        return(None)
+
 
 #Function to assist in getting wiki headers of subwikipages
 def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=[]):
