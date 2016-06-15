@@ -69,7 +69,7 @@ def calculate_part_size(fileSize, partSize=None, min_part_size=MIN_PART_SIZE, ma
     be at most 10,000 parts
     """
     if partSize is None:
-        partSize = max(min_part_size, math.ceil(fileSize/float(max_parts)))
+        partSize = max(min_part_size, int(math.ceil(fileSize/float(max_parts))))
     if partSize < min_part_size:
         raise ValueError('Minimum part size is %d MB.' % (min_part_size/MB))
     if int(math.ceil(float(fileSize) / partSize)) > max_parts:
@@ -280,6 +280,7 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
         if syn.debug:
             sys.stderr.write(str(ex1))
             sys.stderr.write("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
+
 
 def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
                       partSize=None, **kwargs):
