@@ -2993,7 +2993,7 @@ class Synapse:
         Bulk download of table-associated files.
 
         :param table:            table query result
-        :param column:           a list of column names as strings
+        :param columns:           a list of column names as strings
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
