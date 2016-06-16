@@ -426,15 +426,15 @@ def from_unix_epoch_time(ms):
     return from_unix_epoch_time_secs(ms/1000.0)
 
 
-def datetime_to_iso(dt):
+def datetime_to_iso(dt, sep="T"):
     ## Round microseconds to milliseconds (as expected by older clients)
     ## and add back the "Z" at the end.
     ## see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
-    fmt = "{time.year:04}-{time.month:02}-{time.day:02}T{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
+    fmt = "{time.year:04}-{time.month:02}-{time.day:02}{sep}{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
     if dt.microsecond >= 999500:
         dt -= timedelta(microseconds=dt.microsecond)
         dt += timedelta(seconds=1)
-    return fmt.format(time=dt, millisecond=int(round(dt.microsecond/1000.0)), tz="Z")
+    return fmt.format(time=dt, millisecond=int(round(dt.microsecond/1000.0)), tz="Z", sep=sep)
 
 
 def iso_to_datetime(iso_time):
