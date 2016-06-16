@@ -165,12 +165,12 @@ def test_copy():
     second_file_entity = syn.store(File(second_file, parent=project_entity))
     link_entity = Link(second_file_entity.id,parent=folder_entity.id)
     link_entity = syn.store(link_entity)
+
     copied_link = synu.copy(syn,link_entity.id, destinationId=second_folder.id)
-    for i in copied_link:
-        old = syn.get(i)
-        new = syn.get(copied_link[i])
-        assert old.linksTo['targetId'] == new.linksTo['targetId']
-        assert old.linksTo['targetVersionNumber'] == new.linksTo['targetVersionNumber']
+    old = syn.get(link_entity.id,followLink=False)
+    new = syn.get(copied_link[link_entity.id],followLink=False)
+    assert old.linksTo['targetId'] == new.linksTo['targetId']
+    assert old.linksTo['targetVersionNumber'] == new.linksTo['targetVersionNumber']
     schedule_for_cleanup(second_file_entity.id)
     schedule_for_cleanup(link_entity.id)
     schedule_for_cleanup(copied_link[link_entity.id])

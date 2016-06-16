@@ -8,7 +8,7 @@ import re
 ##                 Copy Functions                         ##
 ############################################################
 
-def copy(syn, entity, destinationId=None, copyWikiPage=True, mapping = dict(), **kwargs):
+def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     """
     Copies synapse entities including the wikis
 
@@ -61,15 +61,16 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, mapping = dict(), *
     updateSynIds = kwargs.get('updateSynIds', True)
     entitySubPageId = kwargs.get('entitySubPageId',None)
     destinationSubPageId = kwargs.get('destinationSubPageId',None)
+    mapping = kwargs.pop('mapping',dict())
 
-    mapping = _copyRecursive(syn, entity, destinationId, mapping=mapping,**kwargs)
+    mapping = _copyRecursive(syn, entity, destinationId, mapping=mapping, **kwargs)
     if copyWikiPage:
         for oldEnt in mapping:
             newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId=entitySubPageId, destinationSubPageId=destinationSubPageId, updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
     return(mapping)
 
 #Recursive copy function to return mapping    
-def _copyRecursive(syn, entity, destinationId, mapping = dict(), **kwargs):
+def _copyRecursive(syn, entity, destinationId, mapping=dict(),**kwargs):
     """
     Recursively copies synapse entites, but does not copy the wikis
 
