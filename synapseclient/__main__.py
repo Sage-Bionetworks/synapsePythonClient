@@ -567,13 +567,13 @@ def build_parser():
                         'traceback: Sets to the source entity'
                         'existing: Sets to source entity\'s original provenance (if it exists)'
                         'None/none: No provenance is set'))
-    parser_cp.add_argument('-skipCopyTable', action='store_false',
+    parser_cp.add_argument('--skipCopyTable', action='store_false',
             help='Skips Table Entities when copying projects')
-    parser_cp.add_argument('-replace', action='store_true',
+    parser_cp.add_argument('--replace', action='store_true',
             help='Replace File Entities even if there is a file entities that are named the same in the destination')
-    parser_cp.add_argument('-notRecursive', action='store_false',
+    parser_cp.add_argument('--notRecursive', action='store_false',
             help='Do not copy everything recusively')
-    parser_cp.add_argument('-skipCopyWiki', action='store_false',
+    parser_cp.add_argument('--skipCopyWiki', action='store_false',
             help='Do not copy the wiki pages')
     parser_cp.set_defaults(func=copy)
 
