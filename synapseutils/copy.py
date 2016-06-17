@@ -99,7 +99,6 @@ def _copyRecursive(syn, entity, destinationId, mapping=dict(),**kwargs):
         entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
         for i in entities:
             mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping=mapping, **kwargs)
-            #mapping = newmapping
     else:
         if destinationId is None:
             raise ValueError("You must give a destinationId unless you are copying a project")
@@ -115,6 +114,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=dict(),**kwargs):
             raise ValueError("Not able to copy this type of file")
 
     print("Copied %s to %s" % (ent.id,copiedId))
+    #This is for copying Links, if the link target Id doesn't exist, copiedId will be None
     if copiedId is not None:
         mapping[ent.id] = copiedId
     return(mapping)
