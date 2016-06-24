@@ -382,9 +382,15 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
                 wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
                 wNew = syn.store(wNew)
             else:
-                wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=destinationSubPageId)
-                wNew = syn.store(wNew)
-                parentWikiId = wNew.id
+                if destinationSubPageId is not None:
+                    wNew = syn.getWiki(newOwn, destinationSubPageId)
+                    wNew.attachments = attachments
+                    wNew.markdown = wiki.markdown
+                    #Need to add logic to update titles here
+                    wNew = syn.store(wNew)
+                else:
+                    wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=destinationSubPageId)
+                    wNew = syn.store(wNew)
             newWikis[wNew.id]=wNew
             wikiIdMap[wiki.id] =wNew.id
 
