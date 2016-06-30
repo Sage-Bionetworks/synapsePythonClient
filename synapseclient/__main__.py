@@ -475,7 +475,7 @@ def build_parser():
 
     parser_store = subparsers.add_parser('store', #Python 3.2+ would support alias=['store']
             help='uploads and adds a file to Synapse')
-    parser_store.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
+    parser_store.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=True, dest='parentid',
             help='Synapse ID of project or folder where to upload data (must be specified if --id is not used.')
     parser_store.add_argument('--id', metavar='syn123', type=str, required=False,
             help='Optional Id of entity in Synapse to be updated.')
