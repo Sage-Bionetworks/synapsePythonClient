@@ -254,7 +254,7 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs
 
 
 def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
-                  fileSize, partSize):
+                  fileSize, partSize, t0):
     partNumber=part["partNumber"]
     url=part["uploadPresignedUrl"]
     parsed = urlparse(url)
@@ -274,7 +274,7 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
         if add_part_response["addPartState"] == "ADD_SUCCESS":
             with completed.get_lock():
                 completed.value += len(chunk)
-            printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
+            printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0)
     except Exception as ex1:
         #If we are not in verbose debug mode we will swallow the error and retry.
         if syn.debug:
@@ -318,11 +318,10 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             ## keep track of the number of bytes uploaded so far
             completed = Value('d', min(completedParts * partSize, fileSize))
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
-
             chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
-                                                      fileSize=fileSize, partSize=partSize)
+                                                      fileSize=fileSize, partSize=partSize, t0=time.time())
 
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)

@@ -1812,12 +1812,13 @@ class Synapse:
         transferred = 0
         #sig = hashlib.md5()
         with open(destination, 'wb') as fd:
+            t0 = time.time()
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
                 #sig.update(chunk)
                 transferred += len(chunk)
-                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ', os.path.basename(destination))
-            utils.printTransferProgress(transferred, transferred, 'Downloaded  ', os.path.basename(destination))
+                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
+                                            os.path.basename(destination), dt = time.time()-t0)
         #sig.hexdigest()
         destination = os.path.abspath(destination)
         return returnDict(destination)

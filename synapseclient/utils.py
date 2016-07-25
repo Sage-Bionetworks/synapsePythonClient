@@ -633,7 +633,7 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
-def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True):
+def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True, dt=None):
     """Prints a progress bar
 
     :param transferred: a number of items/bytes completed
@@ -641,10 +641,15 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     :param prefix: String printed before progress bar
     :param prefix: String printed after progress bar
     :param isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
+    :param dt: The time in seconds that has passed since transfer started is used to calculate rate.
 
     """
     barLength = 20 # Modify this to change the length of the progress bar
-    status = ""
+    status = ''
+    rate = ''
+    if dt is not None:
+        rate = transferred/float(dt)
+        rate = '(%s/s)' % humanizeBytes(rate) if isBytes else rate
     if toBeTransferred<0:
         defaultToBeTransferred = (barLength*1*MB)
         if transferred > defaultToBeTransferred:
@@ -667,11 +672,11 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     else:
         outOf = ""
         percentage = ""
-    text = "\r%s [%s]%s     %s%s %s %s    " % (prefix,
-                                               "#"*block + "-"*(barLength-block),
-                                               percentage,
-                                               nbytes, outOf,
-                                               postfix, status)
+    text = "\r%s [%s]%s   %s%s %s %s %s    " % (prefix,
+                                                  "#"*block + "-"*(barLength-block),
+                                                  percentage, 
+                                                  nbytes, outOf, rate,
+                                                  postfix, status)
     sys.stdout.write(text)
     sys.stdout.flush()
 
