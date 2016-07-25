@@ -644,6 +644,8 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     :param dt: The time in seconds that has passed since transfer started is used to calculate rate.
 
     """
+    if not sys.stdout.isatty():
+        return 
     barLength = 20 # Modify this to change the length of the progress bar
     status = ''
     rate = ''
