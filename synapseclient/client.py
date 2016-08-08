@@ -598,7 +598,8 @@ class Synapse:
         :param entity:    Either an Entity or a Synapse ID
         :param subpageId: (Optional) ID of one of the wiki's sub-pages
         """
-
+        if isinstance(entity, six.string_types) and os.path.isfile(entity):
+            entity = self.get(entity, downloadFile=False)
         if subpageId is None:
             webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
         else:
@@ -1736,7 +1737,6 @@ class Synapse:
 
         :returns: A file info dictionary with keys path, cacheDir, files
         """
-
         if submission is not None:
             url = '%s/evaluation/submission/%s/file/%s' % (self.repoEndpoint, id_of(submission),
                                                            entity['dataFileHandleId'])
@@ -1810,12 +1810,16 @@ class Synapse:
         else:
             toBeTransferred = -1
         transferred = 0
+        #sig = hashlib.md5()
         with open(destination, 'wb') as fd:
+            t0 = time.time()
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
+                #sig.update(chunk)
                 transferred += len(chunk)
-                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ', os.path.basename(destination))
-            utils.printTransferProgress(transferred, transferred, 'Downloaded  ', os.path.basename(destination))
+                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
+                                            os.path.basename(destination), dt = time.time()-t0)
+        #sig.hexdigest()
         destination = os.path.abspath(destination)
         return returnDict(destination)
 

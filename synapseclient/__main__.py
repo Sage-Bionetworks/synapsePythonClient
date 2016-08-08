@@ -120,7 +120,7 @@ def _recursiveGet(id, path, syn):
     """Traverses a heirarchy and download files and create subfolders as necessary."""
     from synapseclient.entity import is_container
 
-    results = syn.chunkedQuery("select id, name, concreteType from entity where entity.parentId=='%s'" %id)
+    results = syn.chunkedQuery("select id, name, nodeType from entity where entity.parentId=='%s'" %id)
     for result in results:
         if is_container(result):
             new_path = os.path.join(path, result['entity.name'])
@@ -475,17 +475,19 @@ def build_parser():
 
     parser_store = subparsers.add_parser('store', #Python 3.2+ would support alias=['store']
             help='uploads and adds a file to Synapse')
-    parser_store.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
+    parent_id_group = parser_store.add_mutually_exclusive_group(required=True)
+    parent_id_group.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
             help='Synapse ID of project or folder where to upload data (must be specified if --id is not used.')
-    parser_store.add_argument('--id', metavar='syn123', type=str, required=False,
+    parent_id_group.add_argument('--id', metavar='syn123', type=str, required=False,
             help='Optional Id of entity in Synapse to be updated.')
+    parent_id_group.add_argument('--type', type=str, default='File',
+            help='Type of object, such as "File", "Folder", or '
+                 '"Project", to create in Synapse. Defaults to "File"')
+    
     parser_store.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
     parser_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
-    parser_store.add_argument('--type', type=str, default='File',
-            help='Type of object, such as "File", "Folder", or '
-                 '"Project", to create in Synapse. Defaults to "File"')
     parser_store.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
             help=('Synapse ID of a data entity, a url, or a file path from which the '
                   'specified entity is derived'))
@@ -507,10 +509,15 @@ def build_parser():
 
     parser_add = subparsers.add_parser('add', #Python 3.2+ would support alias=['store']
             help='uploads and adds a file to Synapse')
-    parser_add.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
+    parent_id_group = parser_add.add_mutually_exclusive_group(required=True)
+    parent_id_group.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
             help='Synapse ID of project or folder where to upload data (must be specified if --id is not used.')
-    parser_add.add_argument('--id', metavar='syn123', type=str, required=False,
+    parent_id_group.add_argument('--id', metavar='syn123', type=str, required=False,
             help='Optional Id of entity in Synapse to be updated.')
+    parent_id_group.add_argument('--type', type=str, default='File',
+            help='Type of object, such as "File", "Folder", or '
+                 '"Project", to create in Synapse. Defaults to "File"')
+
     parser_add.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
     parser_add.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,

@@ -181,7 +181,28 @@ Caching credentials can also be done from the command line client:
     synapse login -u me@nowhere.com -p secret --rememberMe
 
 
+Synapse Utilities (synapseutils)
+--------------------------------
 
+The synapse utils contain helper functions such as synu.copy().
+
+### Example
+
+    import synapseutils as synu
+    import synapseclient
+    syn = synapseclient.login()
+    
+    #COPY: copies all synapse entities to a destination location
+    synu.copy(syn, "syn1234", destinationId = "syn2345")
+
+    #WALK: Traverses through synapse directories, behaves exactly like os.walk()
+    walkedPath = synu.walk(syn, "syn1234")
+
+    for dirpath, dirname, filename in walkedPath:
+        print(dirpath)
+        print(dirname)
+        print(filename)
+        
 
 License and Copyright
 ---------------------
