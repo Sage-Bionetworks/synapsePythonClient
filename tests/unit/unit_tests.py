@@ -379,3 +379,10 @@ def test_treadsafe_generator():
 
     "".join(letter for letter in generate_letters()) == "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
+
+def test_extract_synapse_id_from_query():
+    assert utils._extract_synapse_id_from_query("select * from syn1234567") == "syn1234567"
+    assert utils._extract_synapse_id_from_query("select * from syn1234567 where foo = 'bar'") == "syn1234567"
+    assert utils._extract_synapse_id_from_query("select * from syn1") == "syn1"
+    assert utils._extract_synapse_id_from_query("select foo from syn99999999999") == "syn99999999999"
+

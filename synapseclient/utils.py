@@ -613,7 +613,7 @@ def _extract_synapse_id_from_query(query):
     form "select column1, column2 from syn12345 where...." needed to build
     URLs for table services.
     """
-    m = re.search(r"from\s+(syn\d+)[^\s]", query, re.IGNORECASE)
+    m = re.search(r"from\s+(syn\d+)", query, re.IGNORECASE)
     if m:
         return m.group(1)
     else:
