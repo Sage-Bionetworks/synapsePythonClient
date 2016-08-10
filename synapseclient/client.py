@@ -998,6 +998,10 @@ class Synapse:
                                                              md5=local_state.get('md5', None),
                                                              fileSize=local_state.get('fileSize', None))
                 properties['dataFileHandleId'] = fileHandle['id']
+                print(fileHandle)
+                local_state['md5'] = fileHandle.get('contentMd5', None)
+                local_state['fileSize'] = fileHandle.get('contentSize', None)
+                local_state['contentType'] = fileHandle.get('contentType', None)
 
                 ## Add file to cache, unless it's an external URL
                 if fileHandle['concreteType'] != "org.sagebionetworks.repo.model.file.ExternalFileHandle":
@@ -1754,7 +1758,7 @@ class Synapse:
         return self._downloadFile(url, destination)
 
 
-    def _downloadFile(self, url, destination):
+    def _downloadFile(self, url, destination, expected_md5=None):
         """
         Download a file from a URL to a the given file path.
 
@@ -1810,16 +1814,17 @@ class Synapse:
         else:
             toBeTransferred = -1
         transferred = 0
-        #sig = hashlib.md5()
+        sig = hashlib.md5()
         with open(destination, 'wb') as fd:
             t0 = time.time()
             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                 fd.write(chunk)
-                #sig.update(chunk)
+                sig.update(chunk)
                 transferred += len(chunk)
                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
                                             os.path.basename(destination), dt = time.time()-t0)
-        #sig.hexdigest()
+        if expected_md5 is not None and sig.hexdigest() != expected_md5:
+            raise SynapseMd5MismatchError("Downloaded file does not match expected MD5 of %s" % str(expected_md5))
         destination = os.path.abspath(destination)
         return returnDict(destination)
 
