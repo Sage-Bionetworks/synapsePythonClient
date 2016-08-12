@@ -1755,7 +1755,8 @@ class Synapse:
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
-        return self._downloadFile(url, destination)
+
+        return self._downloadFile(url, destination, expected_md5=entity.get("md5", None))
 
 
     def _downloadFile(self, url, destination, expected_md5=None):
@@ -1769,6 +1770,9 @@ class Synapse:
             return  {'path': destination,
                      'files': [None] if destination is None else [os.path.basename(destination)],
                      'cacheDir': None if destination is None else os.path.dirname(destination) }
+
+        if expected_md5 == '':
+            expected_md5 = None
 
         # We expect to be redirected to a signed S3 URL or externalURL
         #The assumption is wrong - we always try to read either the outer or inner requests.get
@@ -1784,8 +1788,22 @@ class Synapse:
                 pathinfo = utils.file_url_to_path(url, verify_exists=True)
                 if 'path' not in pathinfo:
                     raise IOError("Could not download non-existent file (%s)." % url)
+                ## check md5
+                if expected_md5 is not None:
+                    actual_md5 = utils.md5_for_file(pathinfo['path']).hexdigest()
+                    if actual_md5 != expected_md5:
+                        raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
+                            filename=pathinfo['path'], md5=actual_md5, expected_md5=expected_md5))
+                return pathinfo
             elif scheme == 'sftp':
                 destination = self._sftpDownloadFile(url, destination)
+                ## check md5
+                if expected_md5 is not None:
+                    print('checking MD5')
+                    actual_md5 = utils.md5_for_file(destination).hexdigest()
+                    if actual_md5 != expected_md5:
+                        raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
+                            filename=destination, md5=actual_md5, expected_md5=expected_md5))
                 return returnDict(destination)
             elif scheme == 'http' or scheme == 'https':
                 #TODO add support for username/password
@@ -1824,7 +1842,8 @@ class Synapse:
                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
                                             os.path.basename(destination), dt = time.time()-t0)
         if expected_md5 is not None and sig.hexdigest() != expected_md5:
-            raise SynapseMd5MismatchError("Downloaded file does not match expected MD5 of %s" % str(expected_md5))
+            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
+                filename=destination, md5=sig.hexdigest(), expected_md5=expected_md5))
         destination = os.path.abspath(destination)
         return returnDict(destination)
 
