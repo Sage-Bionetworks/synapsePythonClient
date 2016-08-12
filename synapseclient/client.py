@@ -1774,6 +1774,9 @@ class Synapse:
         if expected_md5 == '':
             expected_md5 = None
 
+        ## download via http unless we're redirected to some other scheme
+        download_via_http = True
+
         # We expect to be redirected to a signed S3 URL or externalURL
         #The assumption is wrong - we always try to read either the outer or inner requests.get
         #but sometimes we don't have something to read.  I.e. when the type is ftp at which point
@@ -1785,40 +1788,26 @@ class Synapse:
             scheme = urlparse(url).scheme
             # If it's a file URL, turn it into a path and return it
             if scheme == 'file':
-                pathinfo = utils.file_url_to_path(url, verify_exists=True)
-                if 'path' not in pathinfo:
-                    raise IOError("Could not download non-existent file (%s)." % url)
-                ## check md5
+                destination = utils.file_url_to_path(url, verify_exists=True)
+                if destination is None:
+                    raise IOError("Local file (%s) does not exist." % url)
                 if expected_md5 is not None:
-                    actual_md5 = utils.md5_for_file(pathinfo['path']).hexdigest()
-                    if actual_md5 != expected_md5:
-                        raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
-                            filename=pathinfo['path'], md5=actual_md5, expected_md5=expected_md5))
-                return pathinfo
+                    actual_md5 = utils.md5_for_file(destination).hexdigest()
+                download_via_http = False
             elif scheme == 'sftp':
                 destination = self._sftpDownloadFile(url, destination)
-                ## check md5
                 if expected_md5 is not None:
-                    print('checking MD5')
                     actual_md5 = utils.md5_for_file(destination).hexdigest()
-                    if actual_md5 != expected_md5:
-                        raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
-                            filename=destination, md5=actual_md5, expected_md5=expected_md5))
-                return returnDict(destination)
+                download_via_http = False
             elif scheme == 'http' or scheme == 'https':
                 #TODO add support for username/password
                 response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
-                ## get filename from content-disposition, if we don't have it already
-                if os.path.isdir(destination):
-                    filename = utils.extract_filename(
-                        content_disposition_header=response.headers.get('content-disposition', None),
-                        default_filename=utils.guess_file_name(url))
-                    destination = os.path.join(destination, filename)
 
             #TODO LARSSON add support of ftp download
             else:
-                sys.stderr.write('Unable to download this type of URL.  ')
+                sys.stderr.write('Unable to download URLs of type %s' % scheme)
                 return returnDict(None)
+
         try:
             exceptions._raise_for_status(response, verbose=self.debug)
         except SynapseHTTPError as err:
@@ -1826,25 +1815,37 @@ class Synapse:
                 raise SynapseError("Could not download the file at %s" % url)
             raise
 
-        # Stream the file to disk
-        if 'content-length' in response.headers:
-            toBeTransferred = float(response.headers['content-length'])
-        else:
-            toBeTransferred = -1
-        transferred = 0
-        sig = hashlib.md5()
-        with open(destination, 'wb') as fd:
-            t0 = time.time()
-            for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
-                fd.write(chunk)
-                sig.update(chunk)
-                transferred += len(chunk)
-                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
-                                            os.path.basename(destination), dt = time.time()-t0)
-        if expected_md5 is not None and sig.hexdigest() != expected_md5:
+        if download_via_http:
+            ## get filename from content-disposition, if we don't have it already
+            if os.path.isdir(destination):
+                filename = utils.extract_filename(
+                    content_disposition_header=response.headers.get('content-disposition', None),
+                    default_filename=utils.guess_file_name(url))
+                destination = os.path.join(destination, filename)
+
+            # Stream the file to disk
+            if 'content-length' in response.headers:
+                toBeTransferred = float(response.headers['content-length'])
+            else:
+                toBeTransferred = -1
+            transferred = 0
+            sig = hashlib.md5()
+            with open(destination, 'wb') as fd:
+                t0 = time.time()
+                for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
+                    fd.write(chunk)
+                    sig.update(chunk)
+                    transferred += len(chunk)
+                    utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
+                                                os.path.basename(destination), dt = time.time()-t0)
+            actual_md5 = sig.hexdigest()
+
+        ## check md5 if given
+        if expected_md5 is not None and actual_md5 != expected_md5:
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
-                filename=destination, md5=sig.hexdigest(), expected_md5=expected_md5))
+                filename=destination, md5=actual_md5, expected_md5=expected_md5))
         destination = os.path.abspath(destination)
+
         return returnDict(destination)
 
 
