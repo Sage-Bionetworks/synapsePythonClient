@@ -998,7 +998,6 @@ class Synapse:
                                                              md5=local_state.get('md5', None),
                                                              fileSize=local_state.get('fileSize', None))
                 properties['dataFileHandleId'] = fileHandle['id']
-                print(fileHandle)
                 local_state['md5'] = fileHandle.get('contentMd5', None)
                 local_state['fileSize'] = fileHandle.get('contentSize', None)
                 local_state['contentType'] = fileHandle.get('contentType', None)
