@@ -153,7 +153,7 @@ def test_is_url():
 def test_windows_file_urls():
     url = 'file:///c:/WINDOWS/clock.avi'
     assert utils.is_url(url)
-    assert utils.file_url_to_path(url, verify_exists=False).get('path',None) == 'c:/WINDOWS/clock.avi', utils.file_url_to_path(url)
+    assert utils.file_url_to_path(url, verify_exists=False) == 'c:/WINDOWS/clock.avi', utils.file_url_to_path(url)
 
 
 def test_is_in_path():
@@ -378,4 +378,11 @@ def test_treadsafe_generator():
             yield c
 
     "".join(letter for letter in generate_letters()) == "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def test_extract_synapse_id_from_query():
+    assert utils._extract_synapse_id_from_query("select * from syn1234567") == "syn1234567"
+    assert utils._extract_synapse_id_from_query("select * from syn1234567 where foo = 'bar'") == "syn1234567"
+    assert utils._extract_synapse_id_from_query("select * from syn1") == "syn1"
+    assert utils._extract_synapse_id_from_query("select foo from syn99999999999") == "syn99999999999"
 
