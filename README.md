@@ -194,6 +194,10 @@ The synapse utils contain helper functions such as synu.copy().
     
     #COPY: copies all synapse entities to a destination location
     synu.copy(syn, "syn1234", destinationId = "syn2345")
+    
+    #COPY WIKI: copies the wiki from the entity to a destionation entity. Only a project can have subwikipages.
+    synu.copyWiki(syn, "syn1234", destinationId = "syn2345")
+
 
     #WALK: Traverses through synapse directories, behaves exactly like os.walk()
     walkedPath = synu.walk(syn, "syn1234")

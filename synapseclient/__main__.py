@@ -528,11 +528,11 @@ def build_parser():
             help='Description of data object in Synapse.')
     parser_add.add_argument('-type', type=str, default='File', help=argparse.SUPPRESS)
     parser_add.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path from which the '
-                  'specified entity is derived'))
+            help=('Synapse ID of a data entity, a url, or a file path to a file that has already been uploaded onto synapse '
+                  'from which the specified entity is derived'))
     parser_add.add_argument('--executed', '-executed', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path that was executed '
-                  'to generate the specified entity is derived'))
+            help=('Synapse ID of a data entity, a url, or a file path to a file that has already been uploaded onto synapse '
+                  'that was executed to generate the specified entity is derived'))
     parser_add.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_add.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
