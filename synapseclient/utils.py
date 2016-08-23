@@ -62,13 +62,13 @@ KB = 2**10
 BUFFER_SIZE = 8*KB
 
 
-def md5_for_file(filename, block_size=2**20):
+def md5_for_file(filename, block_size=2*MB):
     """
     Calculates the MD5 of the given file.  See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
 
     :param filename:   The file to read in
     :param block_size: How much of the file to read in at once (bytes).
-                       Defaults to 1 MB
+                       Defaults to 2 MB
 
     :returns: The MD5
     """
@@ -267,8 +267,7 @@ def file_url_to_path(url, verify_exists=False):
     :param verify_exists: If true, return an populated dict only if the
                           resulting file path exists on the local file system.
 
-    :returns: a dict containing keys `path`, `files` and `cacheDir` or an empty
-              dict if the URL is not a file URL.
+    :returns: a path or None if the URL is not a file URL.
     """
     parts = urlsplit(url)
     if parts.scheme=='file' or parts.scheme=='':
@@ -280,11 +279,8 @@ def file_url_to_path(url, verify_exists=False):
         if re.match(r'\/[A-Za-z]:', path):
             path = path[1:]
         if os.path.exists(path) or not verify_exists:
-            return {
-                'path': path,
-                'files': [os.path.basename(path)],
-                'cacheDir': os.path.dirname(path) }
-    return {}
+            return path
+    return None
 
 
 def is_same_base_url(url1, url2):
@@ -613,7 +609,7 @@ def _extract_synapse_id_from_query(query):
     form "select column1, column2 from syn12345 where...." needed to build
     URLs for table services.
     """
-    m = re.search(r"from\s+(syn\d+)[^\s]", query, re.IGNORECASE)
+    m = re.search(r"from\s+(syn\d+)", query, re.IGNORECASE)
     if m:
         return m.group(1)
     else:
@@ -633,7 +629,7 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
-def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True):
+def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True, dt=None):
     """Prints a progress bar
 
     :param transferred: a number of items/bytes completed
@@ -641,10 +637,17 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     :param prefix: String printed before progress bar
     :param prefix: String printed after progress bar
     :param isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
+    :param dt: The time in seconds that has passed since transfer started is used to calculate rate.
 
     """
+    if not sys.stdout.isatty():
+        return 
     barLength = 20 # Modify this to change the length of the progress bar
-    status = ""
+    status = ''
+    rate = ''
+    if dt is not None:
+        rate = transferred/float(dt)
+        rate = '(%s/s)' % humanizeBytes(rate) if isBytes else rate
     if toBeTransferred<0:
         defaultToBeTransferred = (barLength*1*MB)
         if transferred > defaultToBeTransferred:
@@ -667,11 +670,11 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     else:
         outOf = ""
         percentage = ""
-    text = "\r%s [%s]%s     %s%s %s %s    " % (prefix,
-                                               "#"*block + "-"*(barLength-block),
-                                               percentage,
-                                               nbytes, outOf,
-                                               postfix, status)
+    text = "\r%s [%s]%s   %s%s %s %s %s    " % (prefix,
+                                                  "#"*block + "-"*(barLength-block),
+                                                  percentage, 
+                                                  nbytes, outOf, rate,
+                                                  postfix, status)
     sys.stdout.write(text)
     sys.stdout.flush()
 

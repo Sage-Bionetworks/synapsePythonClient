@@ -24,6 +24,9 @@ import synapseclient.utils as utils
 class SynapseError(Exception):
     """Generic exception thrown by the client."""
 
+class SynapseMd5MismatchError(SynapseError, IOError):
+    """Error raised when MD5 computed for a download file fails to match the MD5 of its file handle."""
+
 class SynapseFileNotFoundError(SynapseError):
     """Error thrown when a local file is not found in Synapse."""
 

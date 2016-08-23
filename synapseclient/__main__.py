@@ -453,6 +453,12 @@ def test_encoding(args, syn):
 def build_parser():
     """Builds the argument parser and returns the result."""
 
+    USED_HELP=('Synapse ID, a url, or a local file path (of a file previously' 
+               'uploaded to Synapse) from which the specified entity is derived')
+    EXECUTED_HELP=('Synapse ID, a url, or a local file path (of a file previously' 
+                   'uploaded to Synapse) that was executed to generate the specified entity')
+
+    
     parser = argparse.ArgumentParser(description='Interfaces with the Synapse repository.')
     parser.add_argument('--version',  action='version',
             version='Synapse Client %s' % synapseclient.__version__)
@@ -486,23 +492,23 @@ def build_parser():
 
     parser_store = subparsers.add_parser('store', #Python 3.2+ would support alias=['store']
             help='uploads and adds a file to Synapse')
-    parser_store.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
+    parent_id_group = parser_store.add_mutually_exclusive_group(required=True)
+    parent_id_group.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
             help='Synapse ID of project or folder where to upload data (must be specified if --id is not used.')
-    parser_store.add_argument('--id', metavar='syn123', type=str, required=False,
+    parent_id_group.add_argument('--id', metavar='syn123', type=str, required=False,
             help='Optional Id of entity in Synapse to be updated.')
+    parent_id_group.add_argument('--type', type=str, default='File',
+            help='Type of object, such as "File", "Folder", or '
+                 '"Project", to create in Synapse. Defaults to "File"')
+    
     parser_store.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
     parser_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
-    parser_store.add_argument('--type', type=str, default='File',
-            help='Type of object, such as "File", "Folder", or '
-                 '"Project", to create in Synapse. Defaults to "File"')
     parser_store.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path from which the '
-                  'specified entity is derived'))
+            help=USED_HELP)
     parser_store.add_argument('--executed', '-executed', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path that was executed '
-                  'to generate the specified entity is derived'))
+            help=EXECUTED_HELP)
     parser_store.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
 
@@ -518,21 +524,24 @@ def build_parser():
 
     parser_add = subparsers.add_parser('add', #Python 3.2+ would support alias=['store']
             help='uploads and adds a file to Synapse')
-    parser_add.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
+    parent_id_group = parser_add.add_mutually_exclusive_group(required=True)
+    parent_id_group.add_argument('--parentid', '--parentId', '-parentid', '-parentId', metavar='syn123', type=str, required=False, dest='parentid',
             help='Synapse ID of project or folder where to upload data (must be specified if --id is not used.')
-    parser_add.add_argument('--id', metavar='syn123', type=str, required=False,
+    parent_id_group.add_argument('--id', metavar='syn123', type=str, required=False,
             help='Optional Id of entity in Synapse to be updated.')
+    parent_id_group.add_argument('--type', type=str, default='File',
+            help='Type of object, such as "File", "Folder", or '
+                 '"Project", to create in Synapse. Defaults to "File"')
+
     parser_add.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
     parser_add.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
     parser_add.add_argument('-type', type=str, default='File', help=argparse.SUPPRESS)
     parser_add.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path to a file that has already been uploaded onto synapse '
-                  'from which the specified entity is derived'))
+            help=USED_HELP)
     parser_add.add_argument('--executed', '-executed', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path to a file that has already been uploaded onto synapse '
-                  'that was executed to generate the specified entity is derived'))
+            help=EXECUTED_HELP)
     parser_add.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_add.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
@@ -626,11 +635,9 @@ def build_parser():
     parser_submit.add_argument('--submitterAlias', '--alias', metavar='ALIAS', type=str,
             help='A nickname, possibly for display in leaderboards')
     parser_submit.add_argument('--used', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a file entity or url from which the '
-                  'specified entity is derived'))
+            help=USED_HELP)
     parser_submit.add_argument('--executed', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a file entity or url indicating code executed '
-                  'to generate the specified entity'))
+            help=EXECUTED_HELP)
     parser_submit.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_submit.set_defaults(func=submit)
@@ -675,11 +682,9 @@ def build_parser():
             const='STDOUT', nargs='?', type=str,
             help='Output the provenance record in JSON format')
     parser_set_provenance.add_argument('-used', '--used', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path from which the '
-                  'specified entity is derived'))
+            help=USED_HELP)
     parser_set_provenance.add_argument('-executed', '--executed', metavar='target', type=str, nargs='*',
-            help=('Synapse ID of a data entity, a url, or a file path that was executed '
-                  'to generate the specified entity is derived'))
+            help=EXECUTED_HELP)
     parser_set_provenance.add_argument('-limitSearch', '--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for provenance files.')
     parser_set_provenance.set_defaults(func=setProvenance)

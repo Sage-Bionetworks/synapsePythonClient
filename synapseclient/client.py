@@ -598,7 +598,8 @@ class Synapse:
         :param entity:    Either an Entity or a Synapse ID
         :param subpageId: (Optional) ID of one of the wiki's sub-pages
         """
-
+        if isinstance(entity, six.string_types) and os.path.isfile(entity):
+            entity = self.get(entity, downloadFile=False)
         if subpageId is None:
             webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
         else:
@@ -997,6 +998,9 @@ class Synapse:
                                                              md5=local_state.get('md5', None),
                                                              fileSize=local_state.get('fileSize', None))
                 properties['dataFileHandleId'] = fileHandle['id']
+                local_state['md5'] = fileHandle.get('contentMd5', None)
+                local_state['fileSize'] = fileHandle.get('contentSize', None)
+                local_state['contentType'] = fileHandle.get('contentType', None)
 
                 ## Add file to cache, unless it's an external URL
                 if fileHandle['concreteType'] != "org.sagebionetworks.repo.model.file.ExternalFileHandle":
@@ -1736,7 +1740,6 @@ class Synapse:
 
         :returns: A file info dictionary with keys path, cacheDir, files
         """
-
         if submission is not None:
             url = '%s/evaluation/submission/%s/file/%s' % (self.repoEndpoint, id_of(submission),
                                                            entity['dataFileHandleId'])
@@ -1751,10 +1754,11 @@ class Synapse:
         except OSError as exception:
             if exception.errno != os.errno.EEXIST:
                 raise
-        return self._downloadFile(url, destination)
+
+        return self._downloadFile(url, destination, expected_md5=entity.get("md5", None))
 
 
-    def _downloadFile(self, url, destination):
+    def _downloadFile(self, url, destination, expected_md5=None):
         """
         Download a file from a URL to a the given file path.
 
@@ -1765,6 +1769,12 @@ class Synapse:
             return  {'path': destination,
                      'files': [None] if destination is None else [os.path.basename(destination)],
                      'cacheDir': None if destination is None else os.path.dirname(destination) }
+
+        if expected_md5 == '':
+            expected_md5 = None
+
+        ## download via http unless we're redirected to some other scheme
+        download_via_http = True
 
         # We expect to be redirected to a signed S3 URL or externalURL
         #The assumption is wrong - we always try to read either the outer or inner requests.get
@@ -1777,26 +1787,26 @@ class Synapse:
             scheme = urlparse(url).scheme
             # If it's a file URL, turn it into a path and return it
             if scheme == 'file':
-                pathinfo = utils.file_url_to_path(url, verify_exists=True)
-                if 'path' not in pathinfo:
-                    raise IOError("Could not download non-existent file (%s)." % url)
+                destination = utils.file_url_to_path(url, verify_exists=True)
+                if destination is None:
+                    raise IOError("Local file (%s) does not exist." % url)
+                if expected_md5 is not None:
+                    actual_md5 = utils.md5_for_file(destination).hexdigest()
+                download_via_http = False
             elif scheme == 'sftp':
                 destination = self._sftpDownloadFile(url, destination)
-                return returnDict(destination)
+                if expected_md5 is not None:
+                    actual_md5 = utils.md5_for_file(destination).hexdigest()
+                download_via_http = False
             elif scheme == 'http' or scheme == 'https':
                 #TODO add support for username/password
                 response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
-                ## get filename from content-disposition, if we don't have it already
-                if os.path.isdir(destination):
-                    filename = utils.extract_filename(
-                        content_disposition_header=response.headers.get('content-disposition', None),
-                        default_filename=utils.guess_file_name(url))
-                    destination = os.path.join(destination, filename)
 
             #TODO LARSSON add support of ftp download
             else:
-                sys.stderr.write('Unable to download this type of URL.  ')
+                sys.stderr.write('Unable to download URLs of type %s' % scheme)
                 return returnDict(None)
+
         try:
             exceptions._raise_for_status(response, verbose=self.debug)
         except SynapseHTTPError as err:
@@ -1804,19 +1814,37 @@ class Synapse:
                 raise SynapseError("Could not download the file at %s" % url)
             raise
 
-        # Stream the file to disk
-        if 'content-length' in response.headers:
-            toBeTransferred = float(response.headers['content-length'])
-        else:
-            toBeTransferred = -1
-        transferred = 0
-        with open(destination, 'wb') as fd:
-            for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
-                fd.write(chunk)
-                transferred += len(chunk)
-                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ', os.path.basename(destination))
-            utils.printTransferProgress(transferred, transferred, 'Downloaded  ', os.path.basename(destination))
+        if download_via_http:
+            ## get filename from content-disposition, if we don't have it already
+            if os.path.isdir(destination):
+                filename = utils.extract_filename(
+                    content_disposition_header=response.headers.get('content-disposition', None),
+                    default_filename=utils.guess_file_name(url))
+                destination = os.path.join(destination, filename)
+
+            # Stream the file to disk
+            if 'content-length' in response.headers:
+                toBeTransferred = float(response.headers['content-length'])
+            else:
+                toBeTransferred = -1
+            transferred = 0
+            sig = hashlib.md5()
+            with open(destination, 'wb') as fd:
+                t0 = time.time()
+                for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
+                    fd.write(chunk)
+                    sig.update(chunk)
+                    transferred += len(chunk)
+                    utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
+                                                os.path.basename(destination), dt = time.time()-t0)
+            actual_md5 = sig.hexdigest()
+
+        ## check md5 if given
+        if expected_md5 is not None and actual_md5 != expected_md5:
+            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
+                filename=destination, md5=actual_md5, expected_md5=expected_md5))
         destination = os.path.abspath(destination)
+
         return returnDict(destination)
 
 
