@@ -44,6 +44,9 @@ class IterateContents(object):
         return self
 
     def next(self):
+        return self.__next__()
+
+    def __next__(self):
         if self.i >= len(self.contents):
             raise StopIteration()
         if self.partial and self.i >= self.partial:
@@ -53,7 +56,7 @@ class IterateContents(object):
         if self.partial:
             end = min(end, self.partial)
         self.i = end
-        return self.contents[start:end]
+        return self.contents[start:end].encode('utf-8')
 
 
 def create_mock_response(url, response_type, **kwargs):
@@ -106,7 +109,7 @@ def test_mock_download():
 
     ## compute MD5 of contents
     m = hashlib.md5()
-    m.update(contents)
+    m.update(contents.encode('utf-8'))
     contents_md5 = m.hexdigest()
 
     url = "https://repo-prod.prod.sagebase.org/repo/v1/entity/syn6403467/file"
