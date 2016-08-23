@@ -62,7 +62,7 @@ KB = 2**10
 BUFFER_SIZE = 8*KB
 
 
-def md5_for_file(filename, block_size=2*MB):
+def md5_for_file(filename, block_size=2*MB, hash=None):
     """
     Calculates the MD5 of the given file.  See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
 
@@ -73,13 +73,13 @@ def md5_for_file(filename, block_size=2*MB):
     :returns: The MD5
     """
 
-    md5 = hashlib.md5()
-    f = open(filename,'rb')
-    while True:
-        data = f.read(block_size)
-        if not data:
-            break
-        md5.update(data)
+    md5 = hash if hash else hashlib.md5()
+    with open(filename,'rb') as f:
+        while True:
+            data = f.read(block_size)
+            if not data:
+                break
+            md5.update(data)
     return(md5)
 
 
