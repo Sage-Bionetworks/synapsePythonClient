@@ -13,5 +13,5 @@ before_install:
   -in test.synapseConfig.enc -out test.synapseConfig -d; mv test.synapseConfig ~/.synapseConfig; fi'
 - pip install pysftp
 - pip install pandas
-before_script:
-  - echo -e "Host amazonaws.com\n\tStrictHostKeyChecking no\n" >> ~/.ssh/config
+addons:
+  ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
