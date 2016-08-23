@@ -1801,6 +1801,9 @@ class Synapse:
             elif scheme == 'http' or scheme == 'https':
                 #TODO add support for username/password
                 response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
+                #File proxies have to have the "deflate encoding or it will truncate the file"
+                if "/file-proxy/" in url:
+                    response = requests.get(url, headers=self._generateSignedHeaders(url, {'Accept-Encoding': 'deflate'}), stream=True)
 
             #TODO LARSSON add support of ftp download
             else:
