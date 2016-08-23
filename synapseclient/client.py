@@ -2601,9 +2601,7 @@ class Synapse:
         wiki = Wiki(**wiki)
 
         path = self.cache.get(wiki.markdownFileHandleId)
-        if path:
-            fileInfo = {'path':path}
-        else:
+        if not path:
             url = "{endpoint}/entity/{ownerId}/wiki2/{wikiId}/markdown".format(endpoint=self.repoEndpoint, ownerId=id_of(owner), wikiId=wiki.id)
             if version is not None:
                 url += "?wikiVersion={version}".format(version=version)
@@ -2612,20 +2610,20 @@ class Synapse:
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
 
-            fileInfo = self._downloadFile(url, cache_dir)
+            path = self._download_with_retries(url, cache_dir, file_handle_id=wiki.markdownFileHandleId)
 
-            self.cache.add(wiki.markdownFileHandleId, fileInfo['path'])
+            self.cache.add(wiki.markdownFileHandleId, path)
 
         try:
             import gzip
-            with gzip.open(fileInfo['path']) as f:
+            with gzip.open(path) as f:
                 markdown = f.read().decode('utf-8')
         except IOError as ex1:
-            with open(fileInfo['path']) as f:
+            with open(path) as f:
                 markdown = f.read().decode('utf-8')
 
         wiki.markdown = markdown
-        wiki.markdown_path = fileInfo['path']
+        wiki.markdown_path = path
 
         return wiki
 
@@ -2965,7 +2963,7 @@ class Synapse:
             cache_dir = self.cache.get_cache_dir(file_handle_id)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            file_info = self._downloadFile(url, os.path.join(cache_dir, "query_results.csv"))
+            file_info = self._downloadFile(url, cache_dir, file_handle_id=file_handle_id)
             self.cache.add(file_handle_id, file_info['path'])
         return (download_from_table_result, file_info)
 
@@ -3076,7 +3074,7 @@ class Synapse:
                     columnId=column_id,
                     rowId=rowId,
                     versionNumber=versionNumber)
-            file_info = self._downloadFile(url, downloadLocation)
+            file_info = self._downloadFile(url, downloadLocation, file_handle_id=file_handle_id)
 
             self.cache.add(file_handle_id, file_info['path'])
 
@@ -3184,7 +3182,9 @@ class Synapse:
             zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
             url = "%s/fileHandle/%s/url" % (self.fileHandleEndpoint, response['resultZipFileHandleId'])
             try:
-                self._downloadFile(url, destination=zipfilepath)
+                zipfilepath = self._download_with_retries(url,
+                                      destination=zipfilepath,
+                                      file_handle_id=response['resultZipFileHandleId'])
 
                 ## TODO handle case when no zip file is returned
                 ## TODO test case when we give it partial or all bad file handles
