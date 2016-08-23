@@ -374,16 +374,18 @@ def test_teams():
 
     ## Asynchronously populates index, so wait 'til it's there
     retry = 0
-    backoff = 0.1
-    while retry < 5:
+    backoff = 0.2
+    while retry < 10:
         retry += 1
         time.sleep(backoff)
         backoff *= 2
         found_teams = list(syn._findTeam(team.name))
         if len(found_teams) > 0:
             break
-
-    assert team == found_teams[0]
+    else:
+        print("Failed to create team. May not be a real error.")
 
     syn.delete(team)
+
+    assert team == found_teams[0]
 
