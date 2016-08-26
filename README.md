@@ -18,13 +18,13 @@ Documentation
 
 For more information about the Python client, see:
 
- * [Python client API docs](http://python-docs.synapse.org/) 
+ * [Python client API docs](http://docs.synapse.org/python/) 
 
 For more information about interacting with Synapse, see:
 
- * [Synapse API docs](http://rest.synapse.org/)
- * [Getting started with the Synapse python client](https://www.synapse.org/#!Help:PythonClient)
- * [Getting Started Guide to Synapse](https://www.synapse.org/#!Help:GettingStarted)
+ * [Synapse API docs](http://docs.synapse.org/rest/)
+ * [User guides (including Python examples)](http://docs.synapse.org/articles/)
+ * [Getting Started Guide to Synapse](http://docs.synapse.org/articles/getting_started.html)
 
 
 Installation
@@ -42,9 +42,9 @@ The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclien
 
     (sudo) pip install --upgrade synapseclient
 
-The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://python-docs.synapse.org/Table.html) integrate
+The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://docs.synapse.org/python/#tables) integrate
 with [Pandas](http://pandas.pydata.org/). The library `pysftp` is required for users of
-[SFTP](http://python-docs.synapse.org/sftp.html) file storage. Both libraries require native code
+[SFTP](http://docs.synapse.org/python/sftp.html) file storage. Both libraries require native code
 to be compiled or installed separately from prebuilt binaries.
 
 ### Install from source
