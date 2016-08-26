@@ -585,10 +585,7 @@ def test_command_get_recursive_and_query():
 
 def test_command_copy():
     """Tests the 'synapse cp' function"""
-<<<<<<< HEAD
-=======
-    raise SkipTest("Currently not implemented correctly") 
->>>>>>> cd44fd0c6e037bd897510161144ccb6ca53e6f8a
+
     # Create a Project
     project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
