@@ -56,7 +56,9 @@ class SynapseHTTPError(SynapseError, requests.exceptions.HTTPError):
 
 class SynapseDownloadError(SynapseHTTPError):
     """Error during file download"""
-
+    def __init__(self, *args, **kwargs):
+        self.progress = kwargs.pop('progress', None)
+        super(SynapseDownloadError, self).__init__(*args, **kwargs)
 
 def _raise_for_status(response, verbose=False):
     """

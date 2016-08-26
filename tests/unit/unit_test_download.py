@@ -8,7 +8,7 @@ import tempfile, os, hashlib
 import unit
 from mock import MagicMock, patch
 from synapseclient.utils import MB, GB
-from synapseclient.exceptions import SynapseDownloadError
+from synapseclient.exceptions import SynapseDownloadError, SynapseHTTPError
 
 
 
@@ -72,8 +72,8 @@ def create_mock_response(url, response_type, **kwargs):
         response.headers = {'location': kwargs['location']}
     elif response_type=="error":
         response.status_code = kwargs.get('status_code', 500)
-        response.reason = kwargs['reason']
-        response.text = '{"reason":"{}"}'.format(kwargs['reason'])
+        response.reason = kwargs.get('reason', 'fake reason')
+        response.text = '{{"reason":"{}"}}'.format(kwargs.get('reason', 'fake reason'))
         response.json = lambda: json.loads(response.text)
     elif response_type=="stream":
         response.status_code = kwargs.get('status_code', 200)
@@ -116,6 +116,7 @@ def test_mock_download():
     url = "https://repo-prod.prod.sagebase.org/repo/v1/entity/syn6403467/file"
 
     ## 1. No redirects
+    print("\n1. No redirects", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "stream", contents=contents, buffer_size=1024)
     ])
@@ -128,6 +129,7 @@ def test_mock_download():
 
 
     ## 2. Multiple redirects
+    print("\n2. Multiple redirects", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "redirect", location="https://fakeurl.com/qwer"),
@@ -142,6 +144,7 @@ def test_mock_download():
 
 
     ## 3. recover from partial download
+    print("\n3. recover from partial download", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_end=len(contents)//7*3, status_code=200),
@@ -156,16 +159,36 @@ def test_mock_download():
         path = syn._download_with_retries(url, destination=temp_dir, file_handle_id=12345, expected_md5=contents_md5)
 
 
-    ## 4. don't recover, a partial download that never completes
-    ##    should eventually throw an exception
+    ## 4. as long as we're making progress, keep trying
+    print("\n4. as long as we're making progress, keep trying", "-"*60)
     caught_exception = None
     responses = [
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=0, partial_end=len(contents)//11, status_code=200)
     ]
-    for i in range(1,10):
+    for i in range(1,12):
         responses.append(
             create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents)//11*i, partial_end=len(contents)//11*(i+1), status_code=206))
+    mock_requests_get = MockRequestGetFunction(responses)
+
+    ## patch requests.get and also the method that generates signed
+    ## headers (to avoid having to be logged in to Synapse)
+    with patch.object(requests, 'get', side_effect=mock_requests_get), \
+         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
+        path = syn._download_with_retries(url, destination=temp_dir, file_handle_id=12345, expected_md5=contents_md5)
+
+
+    ## 5. don't recover, a partial download that never completes
+    ##    should eventually throw an exception
+    print("\n5. don't recover", "-"*60)
+    caught_exception = None
+    responses = [
+        create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
+        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=0, partial_end=len(contents)//11, status_code=200),
+    ]
+    for i in range(1,10):
+        responses.append(
+            create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents)//11, partial_end=len(contents)//11, status_code=200))
     mock_requests_get = MockRequestGetFunction(responses)
 
     ## patch requests.get and also the method that generates signed
@@ -181,7 +204,8 @@ def test_mock_download():
     assert caught_exception, "Expected a SynapseDownloadError"
 
 
-    ## 5. 206 Range header not supported, respond with 200 and full file
+    ## 6. 206 Range header not supported, respond with 200 and full file
+    print("\n6. 206 Range header not supported", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial=len(contents)//7*3, status_code=200),
@@ -193,4 +217,22 @@ def test_mock_download():
     with patch.object(requests, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
         path = syn._download_with_retries(url, destination=temp_dir, file_handle_id=12345, expected_md5=contents_md5)
+
+
+    ## 6. 206 Range header not supported, respond with 200 and full file
+    print("\n7. Too many redirects", "-"*60)
+    mock_requests_get = MockRequestGetFunction([
+        create_mock_response(url, "redirect", location="https://fakeurl.com/asdf") for i in range(100)])
+
+    ## patch requests.get and also the method that generates signed
+    ## headers (to avoid having to be logged in to Synapse)
+    with patch.object(requests, 'get', side_effect=mock_requests_get), \
+         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
+        try:
+            path = syn._download_with_retries(url, destination=temp_dir, file_handle_id=12345, expected_md5=contents_md5)
+        except SynapseHTTPError as ex:
+            caught_exception = ex
+            print("Caught expected exception: ", str(ex))
+
+    assert caught_exception, "Expected a SynapseDownloadError"
 

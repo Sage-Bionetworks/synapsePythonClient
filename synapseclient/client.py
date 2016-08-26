@@ -113,7 +113,7 @@ REDIRECT_LIMIT = 5
 # Defines the standard retry policy applied to the rest methods
 ## The retry period needs to span a minute because sending
 ## messages is limited to 10 per 60 seconds.
-STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 502, 503, 504],
+STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
                          "retry_errors"      : ["proxy error", "slow down", "timeout", "timed out",
                                                 "connection reset by peer", "unknown ssl protocol error",
                                                 "couldn't connect to host", "slowdown", "try again",
@@ -1782,7 +1782,8 @@ class Synapse:
                 return self._download(url, destination, file_handle_id, expected_md5)
             except SynapseDownloadError as ex:
                 exc_info = sys.exc_info()
-                retries -= 1
+                if not ex.progress:
+                    retries -= 1
         ## Re-raise exception
         raise exc_info[0](exc_info[1])
 
@@ -1804,6 +1805,7 @@ class Synapse:
         """
 
         destination = os.path.abspath(destination)
+        actual_md5 = None
 
         redirect_count = 0
         while redirect_count < REDIRECT_LIMIT:
@@ -1866,14 +1868,18 @@ class Synapse:
                     else:
                         toBeTransferred = -1
                     transferred = 0
-                    sig = hashlib.md5()
 
                     ## Servers that respect the Range header return 206 Partial Content
                     if response.status_code==206:
-                        utils.md5_for_file(temp_destination, hash=sig)
                         mode = 'ab'
+                        previouslyTransferred = os.path.getsize(temp_destination)
+                        toBeTransferred += previouslyTransferred
+                        transferred += previouslyTransferred
+                        sig = utils.md5_for_file(temp_destination)
                     else:
                         mode = 'wb'
+                        previouslyTransferred = 0
+                        sig = hashlib.md5()
 
                     ## It's been observed that AWS/S3 sometimes causes a
                     ## requests.exceptions.ChunkedEncodingError
@@ -1893,7 +1899,7 @@ class Synapse:
                                                             os.path.basename(temp_destination), dt = time.time()-t0)
                     ## wrap retryable errors
                     except (requests.exceptions.BaseHTTPError, requests.exceptions.RequestException) as ex:
-                        raise SynapseDownloadError(str(ex), response)
+                        raise SynapseDownloadError(str(ex), response, progress=transferred-previouslyTransferred)
 
                     actual_md5 = sig.hexdigest()
 
@@ -1906,6 +1912,9 @@ class Synapse:
             else:
                 sys.stderr.write('Unable to download URLs of type %s' % scheme)
                 return returnDict(None)
+
+        else: ## didn't break out of loop
+            raise SynapseHTTPError('Too many redirects')
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
@@ -1985,6 +1994,11 @@ class Synapse:
     ############################################################
     ##                   SFTP                                 ##
     ############################################################
+
+    def _getDefaultUploadDestination(self, entity):
+        return self.restGET('/entity/%s/uploadDestination'% id_of(entity),
+                     endpoint=self.fileHandleEndpoint)
+
 
     def __getStorageLocation(self, entity):
         storageLocations = self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
