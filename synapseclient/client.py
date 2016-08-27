@@ -73,7 +73,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle
+from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
@@ -868,7 +868,8 @@ class Synapse:
                         raise ValueError('Invalid parameter: "%s" is not a valid value '
                                          'for "ifcollision"' % ifcollision)
 
-                entity.update(self._downloadFileEntity(entity, downloadPath, submission))
+                entity.update(self._downloadFileEntity(entity, downloadPath, submission,
+                                                       file_handle_id=entityBundle['entity']['dataFileHandleId']))
 
                 self.cache.add(file_handle_id=entityBundle['entity']['dataFileHandleId'], path=downloadPath)
 
@@ -1738,7 +1739,7 @@ class Synapse:
     ##               File handle service calls                ##
     ############################################################
 
-    def _downloadFileEntity(self, entity, destination, submission=None):
+    def _downloadFileEntity(self, entity, destination, submission=None, file_handle_id=None):
         """
         Downloads the file associated with a FileEntity to the given file path.
 
@@ -1759,7 +1760,7 @@ class Synapse:
             if exception.errno != os.errno.EEXIST:
                 raise
 
-        return self._downloadFile(url, destination, expected_md5=entity.get("md5", None))
+        return self._downloadFile(url, destination, file_handle_id, entity.get("md5", None))
 
 
     def _downloadFile(self, url, destination, file_handle_id=None, expected_md5=None):
@@ -1783,6 +1784,7 @@ class Synapse:
                 return self._download(url, destination, file_handle_id, expected_md5)
             except SynapseDownloadError as ex:
                 exc_info = sys.exc_info()
+                log_error('Retrying download of %s after progressing %i bytes\n'% (url, ex.progress), self.debug)
                 if not ex.progress:
                     retries -= 1
         ## Re-raise exception

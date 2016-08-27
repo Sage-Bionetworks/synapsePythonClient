@@ -56,7 +56,7 @@ def _with_retry(function, verbose=False,
                 response_message = _get_message(response)
                 retry = True
                 log_error("retrying on status code: %s" % str(response.status_code), verbose)
-                log_error(response_message)
+                log_error(str(response_message))
                 if (response.status_code == 429) and (wait>10):
                     sys.stderr.write('%s...\n' % response_message)
                     sys.stderr.write('Retrying in %i seconds' %wait)
