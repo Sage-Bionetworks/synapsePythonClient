@@ -66,7 +66,7 @@ def test_resume_partial_download():
 
     ## simulate an imcomplete download by putting the
     ## complete file back into its temporary location
-    tmp_path = os.path.join(temp_dir, "synapse_download_" + str(entity.dataFileHandleId))
+    tmp_path = utils.temp_download_filename(temp_dir, entity.dataFileHandleId)
     shutil.move(path, tmp_path)
 
     ## ...and truncating it to some fraction of its original size

@@ -8,7 +8,7 @@ from __future__ import unicode_literals
 
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
-import os, sys
+import os, re, sys
 
 import synapseclient.utils as utils
 from synapseclient.activity import Activity
@@ -385,4 +385,13 @@ def test_extract_synapse_id_from_query():
     assert utils._extract_synapse_id_from_query("select * from syn1234567 where foo = 'bar'") == "syn1234567"
     assert utils._extract_synapse_id_from_query("select * from syn1") == "syn1"
     assert utils._extract_synapse_id_from_query("select foo from syn99999999999") == "syn99999999999"
+
+
+def test_temp_download_filename():
+    temp_destination = utils.temp_download_filename("/foo/bar/bat", 12345)
+    assert temp_destination == "/foo/bar/bat.synapse_download_12345", temp_destination
+
+    regex = r'/foo/bar/bat.synapse_download_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    assert re.match(regex, utils.temp_download_filename("/foo/bar/bat", None))
+
 

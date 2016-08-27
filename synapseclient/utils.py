@@ -46,6 +46,7 @@ import tempfile
 import platform
 import functools
 import threading
+import uuid
 import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
@@ -777,4 +778,13 @@ def extract_prefix(keys):
     if len(prefixes) == 1:
         return prefixes.pop() + "."
     return ""
+
+
+def temp_download_filename(destination, file_handle_id):
+    suffix = "synapse_download_" + (str(file_handle_id) \
+                                    if file_handle_id else \
+                                    str(uuid.uuid4()))
+    return os.path.join(destination, suffix) \
+            if os.path.isdir(destination) else \
+            destination + '.' + suffix
 

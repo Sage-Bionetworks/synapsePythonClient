@@ -1826,12 +1826,7 @@ class Synapse:
             elif scheme == 'http' or scheme == 'https':
                 ## if a partial download exists with the temporary name,
                 ## find it and restart the download from where it left off
-                suffix = "synapse_download_" + (str(file_handle_id) \
-                                                if file_handle_id else \
-                                                str(uuid.uuid4()))
-                temp_destination = os.path.join(destination, suffix) \
-                                    if os.path.isdir(destination) else \
-                                    destination + '.' + suffix
+                temp_destination = utils.temp_download_filename(destination, file_handle_id)
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                                 if os.path.exists(temp_destination) else {}
 

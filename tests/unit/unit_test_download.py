@@ -219,7 +219,7 @@ def test_mock_download():
         path = syn._download_with_retries(url, destination=temp_dir, file_handle_id=12345, expected_md5=contents_md5)
 
 
-    ## 6. 206 Range header not supported, respond with 200 and full file
+    ## 7. Too many redirects
     print("\n7. Too many redirects", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf") for i in range(100)])
