@@ -12,7 +12,7 @@ from synapseclient.utils import _is_json
 
 
 def _with_retry(function, verbose=False, \
-        retry_status_codes=[429, 502, 503, 504], retry_errors=[], retry_exceptions=[], \
+        retry_status_codes=[429, 500, 502, 503, 504], retry_errors=[], retry_exceptions=[], \
         retries=3, wait=1, back_off=2, max_wait=30):
     """
     Retries the given function under certain conditions.
