@@ -52,8 +52,8 @@ def _with_retry(function, verbose=False,
 
         # Check if we got a retry-able error
         if response is not None:
-            response_message = _get_message(response)
             if response.status_code in retry_status_codes:
+                response_message = _get_message(response)
                 retry = True
                 log_error("retrying on status code: %s" % str(response.status_code), verbose)
                 log_error(response_message)
@@ -63,6 +63,7 @@ def _with_retry(function, verbose=False,
                 
             elif response.status_code not in range(200,299):
                 ## For all other non 200 messages look for retryable errors in the body or reason field
+                response_message = _get_message(response)
                 if any([msg.lower() in response_message.lower() for msg in retry_errors]):
                     retry = True
                     log_error('retrying %s' %response_message, verbose)
