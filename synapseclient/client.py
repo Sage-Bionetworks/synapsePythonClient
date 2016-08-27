@@ -1892,7 +1892,7 @@ class Synapse:
                                 sig.update(chunk)
                                 transferred += len(chunk)
                                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
-                                                            os.path.basename(temp_destination), dt = time.time()-t0)
+                                                            os.path.basename(destination), dt = time.time()-t0)
                     ## wrap retryable errors
                     except (requests.exceptions.BaseHTTPError, requests.exceptions.RequestException) as ex:
                         raise SynapseDownloadError(str(ex), response, progress=transferred-previouslyTransferred)
