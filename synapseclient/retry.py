@@ -56,6 +56,7 @@ def _with_retry(function, verbose=False,
             if response.status_code in retry_status_codes:
                 retry = True
                 log_error("retrying on status code: %s" % str(response.status_code), verbose)
+                log_error(response_message)
                 if (response.status_code == 429) and (wait>10):
                     sys.stderr.write('%s...\n' % response_message)
                     sys.stderr.write('Retrying in %i seconds' %wait)
@@ -82,8 +83,8 @@ def _with_retry(function, verbose=False,
         retries -= 1
         if retries >= 0 and retry:
             randomized_wait = wait*random.uniform(0.5,1.5)
-            log_error(('total wait time {total_wait} seconds\n'
-                       '... Retrying in {wait} seconds...'.format(total_wait=total_wait, wait=randomized_wait)),
+            log_error(('total wait time {total_wait:5.0f} seconds\n'
+                       '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait, wait=randomized_wait)),
                        verbose)
             total_wait +=randomized_wait
             time.sleep(randomized_wait)
