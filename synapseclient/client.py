@@ -119,8 +119,9 @@ STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
                                                 "couldn't connect to host", "slowdown", "try again",
                                                 "connection reset by peer"],
                          "retry_exceptions"  : ["ConnectionError", "Timeout", "timeout", "ChunkedEncodingError"],
-                         "retries"           : 8,
+                         "retries"           : 60, #Retries for up to about 30 minutes
                          "wait"              : 1,
+                         "max_wait"          : 30,
                          "back_off"          : 2}
 
 # Add additional mimetypes
