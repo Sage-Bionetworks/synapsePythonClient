@@ -56,7 +56,10 @@ def _with_retry(function, verbose=False, \
                 if verbose:
                     sys.stderr.write("retrying on status code: \n" + str(response.status_code))
                 retry = True
-
+                if (response.status_code == 429) and (wait>10):
+                    print(str(response.text))
+                    print('Retrying in %s seconds' %wait)
+                
             elif response.status_code not in range(200,299):
                 ## if the response is JSON, look for retryable errors in the 'reason' field
                 if _is_json(response.headers.get('content-type', None)):
