@@ -73,7 +73,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle
+from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
@@ -119,8 +119,9 @@ STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
                                                 "couldn't connect to host", "slowdown", "try again",
                                                 "connection reset by peer"],
                          "retry_exceptions"  : ["ConnectionError", "Timeout", "timeout", "ChunkedEncodingError"],
-                         "retries"           : 8,
+                         "retries"           : 60, #Retries for up to about 30 minutes
                          "wait"              : 1,
+                         "max_wait"          : 30,
                          "back_off"          : 2}
 
 # Add additional mimetypes
@@ -867,7 +868,8 @@ class Synapse:
                         raise ValueError('Invalid parameter: "%s" is not a valid value '
                                          'for "ifcollision"' % ifcollision)
 
-                entity.update(self._downloadFileEntity(entity, downloadPath, submission))
+                entity.update(self._downloadFileEntity(entity, downloadPath, submission,
+                                                       file_handle_id=entityBundle['entity']['dataFileHandleId']))
 
                 self.cache.add(file_handle_id=entityBundle['entity']['dataFileHandleId'], path=downloadPath)
 
@@ -1737,7 +1739,7 @@ class Synapse:
     ##               File handle service calls                ##
     ############################################################
 
-    def _downloadFileEntity(self, entity, destination, submission=None):
+    def _downloadFileEntity(self, entity, destination, submission=None, file_handle_id=None):
         """
         Downloads the file associated with a FileEntity to the given file path.
 
@@ -1758,7 +1760,7 @@ class Synapse:
             if exception.errno != os.errno.EEXIST:
                 raise
 
-        return self._downloadFile(url, destination, expected_md5=entity.get("md5", None))
+        return self._downloadFile(url, destination, file_handle_id, entity.get("md5", None))
 
 
     def _downloadFile(self, url, destination, file_handle_id=None, expected_md5=None):
@@ -1777,12 +1779,30 @@ class Synapse:
 
 
     def _download_with_retries(self, url, destination, file_handle_id=None, expected_md5=None, retries=5):
+        """
+        Download a file from the given URL to the local file system.
+
+        :param url: source of download
+        :param destination: destination on local file system
+        :param file_handle_id: (optional) if given, the file will be given a
+                               temporary name that includes the file handle id
+                               which allows resuming partial downloads of the same
+                               file from previous sessions
+        :param expected_md5:   (optional) if given, check that the MD5 of the
+                               downloaded file matched the expected MD5
+        :param retries:        (default=5) Number of download retries attempted before 
+                               throwing an exception.
+
+        :returns: path to downloaded file
+        """
         while retries > 0:
             try:
                 return self._download(url, destination, file_handle_id, expected_md5)
-            except SynapseDownloadError as ex:
+            except Exception as ex:
                 exc_info = sys.exc_info()
-                if not ex.progress:
+                ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
+                log_error('\nRetrying download of %s after progressing %i bytes\n'% (url, ex.progress), self.debug)
+                if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
         ## Re-raise exception
         raise exc_info[0](exc_info[1])
@@ -1829,14 +1849,10 @@ class Synapse:
                 temp_destination = utils.temp_download_filename(destination, file_handle_id)
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                                 if os.path.exists(temp_destination) else {}
-
                 response = _with_retry(
-                   lambda: requests.get(url,
-                                        headers=self._generateSignedHeaders(url, range_header),
-                                        stream=True,
-                                        allow_redirects=False),
-                   verbose=self.debug, **STANDARD_RETRY_PARAMS)
-
+                    lambda: requests.get(url, headers=self._generateSignedHeaders(url, range_header),
+                                         stream=True, allow_redirects=False),
+                    verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
                     exceptions._raise_for_status(response, verbose=self.debug)
                 except SynapseHTTPError as err:
@@ -1856,7 +1872,6 @@ class Synapse:
                             content_disposition_header=response.headers.get('content-disposition', None),
                             default_filename=utils.guess_file_name(url))
                         destination = os.path.join(destination, filename)
-
                     # Stream the file to disk
                     if 'content-length' in response.headers:
                         toBeTransferred = float(response.headers['content-length'])
@@ -1876,13 +1891,6 @@ class Synapse:
                         previouslyTransferred = 0
                         sig = hashlib.md5()
 
-                    ## It's been observed that AWS/S3 sometimes causes a
-                    ## requests.exceptions.ChunkedEncodingError
-                    ## Connection broken: error 104 Connection reset by peer
-
-                    ## We want to retry on HTTPError and RequestException,
-                    ## but not on local errors like being out of space or failing
-                    ## to have permission on the destination directory
                     try:
                         with open(temp_destination, mode) as fd:
                             t0 = time.time()
@@ -1891,10 +1899,10 @@ class Synapse:
                                 sig.update(chunk)
                                 transferred += len(chunk)
                                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
-                                                            os.path.basename(temp_destination), dt = time.time()-t0)
-                    ## wrap retryable errors
-                    except (requests.exceptions.BaseHTTPError, requests.exceptions.RequestException) as ex:
-                        raise SynapseDownloadError(str(ex), response, progress=transferred-previouslyTransferred)
+                                                            os.path.basename(destination), dt = time.time()-t0)
+                    except Exception as ex:  #We will add a progress parameter then push it back to retry.
+                        ex.progress  = transferred-previouslyTransferred
+                        raise
 
                     actual_md5 = sig.hexdigest()
 

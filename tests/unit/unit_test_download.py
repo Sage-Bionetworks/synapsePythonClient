@@ -7,8 +7,9 @@ import synapseclient
 import tempfile, os, hashlib
 import unit
 from mock import MagicMock, patch
+from nose.tools import assert_raises
 from synapseclient.utils import MB, GB
-from synapseclient.exceptions import SynapseDownloadError, SynapseHTTPError
+from synapseclient.exceptions import SynapseHTTPError
 
 
 
@@ -161,7 +162,6 @@ def test_mock_download():
 
     ## 4. as long as we're making progress, keep trying
     print("\n4. as long as we're making progress, keep trying", "-"*60)
-    caught_exception = None
     responses = [
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=0, partial_end=len(contents)//11, status_code=200)
@@ -181,7 +181,6 @@ def test_mock_download():
     ## 5. don't recover, a partial download that never completes
     ##    should eventually throw an exception
     print("\n5. don't recover", "-"*60)
-    caught_exception = None
     responses = [
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=0, partial_end=len(contents)//11, status_code=200),
@@ -195,14 +194,9 @@ def test_mock_download():
     ## headers (to avoid having to be logged in to Synapse)
     with patch.object(requests, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
-        try:
-            path = syn._download_with_retries(url, destination=temp_dir, file_handle_id=12345, expected_md5=contents_md5)
-        except SynapseDownloadError as ex:
-            caught_exception = ex
-            print("Caught expected exception: ", str(ex))
-
-    assert caught_exception, "Expected a SynapseDownloadError"
-
+        assert_raises(Exception,
+                      syn._download_with_retries, url, destination=temp_dir, file_handle_id=12345,
+                      expected_md5=contents_md5)
 
     ## 6. 206 Range header not supported, respond with 200 and full file
     print("\n6. 206 Range header not supported", "-"*60)
@@ -228,11 +222,7 @@ def test_mock_download():
     ## headers (to avoid having to be logged in to Synapse)
     with patch.object(requests, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
-        try:
-            path = syn._download_with_retries(url, destination=temp_dir, file_handle_id=12345, expected_md5=contents_md5)
-        except SynapseHTTPError as ex:
-            caught_exception = ex
-            print("Caught expected exception: ", str(ex))
+        assert_raises(SynapseHTTPError, syn._download_with_retries, url, destination=temp_dir,
+                      file_handle_id=12345, expected_md5=contents_md5)
 
-    assert caught_exception, "Expected a SynapseDownloadError"
 

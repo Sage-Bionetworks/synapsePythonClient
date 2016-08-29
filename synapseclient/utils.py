@@ -788,3 +788,7 @@ def temp_download_filename(destination, file_handle_id):
             if os.path.isdir(destination) else \
             destination + '.' + suffix
 
+
+def log_error(message, verbose=True):
+    if verbose:
+        sys.stderr.write(message+'\n')
