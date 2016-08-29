@@ -46,7 +46,7 @@ def _with_retry(function, verbose=False,
             response = function()
         except Exception as ex:
             exc_info = sys.exc_info()
-            log_error(str(ex.message), verbose)
+            log_error(str(ex), verbose)
             if hasattr(ex, 'response'):
                 response = ex.response
 
