@@ -1798,10 +1798,11 @@ class Synapse:
         while retries > 0:
             try:
                 return self._download(url, destination, file_handle_id, expected_md5)
-            except SynapseDownloadError as ex:
+            except Exception as ex:
                 exc_info = sys.exc_info()
+                ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
                 log_error('Retrying download of %s after progressing %i bytes\n'% (url, ex.progress), self.debug)
-                if not ex.progress:
+                if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
         ## Re-raise exception
         raise exc_info[0](exc_info[1])
@@ -1899,8 +1900,9 @@ class Synapse:
                                 transferred += len(chunk)
                                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
                                                             os.path.basename(destination), dt = time.time()-t0)
-                    except Exception as ex:  #We will pass A downloadError always and proceed with retry
-                        raise SynapseDownloadError(str(ex), response, progress=transferred-previouslyTransferred)
+                    except Exception as ex:  #We will add a progress parameter then push it back to retry.
+                        ex.progress  = transferred-previouslyTransferred
+                        raise
 
                     actual_md5 = sig.hexdigest()
 

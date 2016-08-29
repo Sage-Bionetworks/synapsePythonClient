@@ -54,12 +54,7 @@ class SynapseProvenanceError(SynapseError):
 class SynapseHTTPError(SynapseError, requests.exceptions.HTTPError):
     """Wraps recognized HTTP errors.  See `HTTPError <http://docs.python-requests.org/en/latest/api/?highlight=exceptions#requests.exceptions.HTTPError>`_"""
 
-class SynapseDownloadError(SynapseHTTPError):
-    """Error during file download"""
-    def __init__(self, *args, **kwargs):
-        self.progress = kwargs.pop('progress', None)
-        super(SynapseDownloadError, self).__init__(*args, **kwargs)
-
+    
 def _raise_for_status(response, verbose=False):
     """
     Replacement for requests.response.raise_for_status(). 
