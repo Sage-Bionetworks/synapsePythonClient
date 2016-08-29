@@ -9,7 +9,7 @@ import unit
 from mock import MagicMock, patch
 from nose.tools import assert_raises
 from synapseclient.utils import MB, GB
-from synapseclient.exceptions import SynapseDownloadError, SynapseHTTPError
+from synapseclient.exceptions import SynapseHTTPError
 
 
 
