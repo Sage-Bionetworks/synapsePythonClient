@@ -1801,7 +1801,7 @@ class Synapse:
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
-                log_error('Retrying download of %s after progressing %i bytes\n'% (url, ex.progress), self.debug)
+                log_error('\nRetrying download of %s after progressing %i bytes\n'% (url, ex.progress), self.debug)
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
         ## Re-raise exception
