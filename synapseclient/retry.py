@@ -101,7 +101,6 @@ def _with_retry(function, verbose=False,
             print(exc_info[2])
             # Re-raise exception, preserving original stack trace
             raise exc_info[0](exc_info[1])
-            #raise
         return response
 
 
