@@ -27,13 +27,13 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     :param mapping:         Takes a mapping {'oldSynId': 'newSynId'} to help with replacing syn ids in the new wiki pages that aren't part of the entities being copied
                             Default to dict() and builds the mapping of all the synapse entities copied
         
-        import synapseutils as synu
+        import synapseutils
         import synapseclient
         syn = synapseclient.login()
-        synu.copy(syn, ...)
+        synapseutils.copy(syn, ...)
 
     # Examples and extra parameters unique to each copy function
-    ### Copying File Entites ###
+    ### Copying Files ###
 
     :param version:         Can specify version of a file. 
                             Default to None
@@ -46,15 +46,15 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
                                 existing: Sets to source entity's original provenance (if it exists)
                                 None: No provenance is set
 
-        synu.copy(syn,"file_syn123","destination_synId", replace=False,setProvenance = "traceback",version=None)
+        synapseutils.copy(syn,"file_syn123","destination_synId", replace=False,setProvenance = "traceback",version=None)
 
-    ### Copying Folder Entities ###
+    ### Copying Folders/Projects ###
 
-    :param recursive:       Decides whether to copy everything in the folder.
-                            Defaults to True
+    :param excludeTypes:    Accepts a list of entity types (file, table, link) which determines which entity types to not copy.
+                            Defaults to an empty list.
 
-        #This will recursively copy everything in the folder into the destination Id
-        synu.copy(syn, "folder_syn123","destination_synId",recursive=True)
+        #This will copy everything in the project into the destinationId except files and tables.
+        synapseutils.copy(syn, "project_syn123","destination_synId",excludeTypes=["file","table"])
 
     """
     updateLinks = kwargs.get('updateLinks', True)
@@ -84,9 +84,14 @@ def _copyRecursive(syn, entity, destinationId, mapping=dict(),**kwargs):
 
     version = kwargs.get('version', None)
     setProvenance = kwargs.get('setProvenance', "traceback")
-    recursive = kwargs.get('recursive',True)
-    copyTable = kwargs.get('copyTable',True)
+    excludeTypes = kwargs.get('excludeTypes',[])
     replace = kwargs.get('replace',False)
+
+    if not isinstance(excludeTypes,list):
+        excludeTypes = list(excludeTypes)
+    #Check that passed in excludeTypes is file, table, and link
+    if not all([i in ["file","link","table"] for i in excludeTypes]):
+        raise ValueError("Excluded types can only be a list of these values: file, table, and link") 
 
     ent = syn.get(entity,downloadFile=False)
     if isinstance(ent, Project):
@@ -105,11 +110,23 @@ def _copyRecursive(syn, entity, destinationId, mapping=dict(),**kwargs):
         elif isinstance(ent, Folder):
             copiedId = _copyFolder(syn, ent.id, destinationId, mapping=mapping, **kwargs)
         elif isinstance(ent, File):
-            copiedId = _copyFile(syn, ent.id, destinationId, version=version, replace=replace, setProvenance=setProvenance)
+            if "file" not in excludeTypes:
+                copiedId = _copyFile(syn, ent.id, destinationId, version=version, replace=replace, setProvenance=setProvenance)
+            else:
+                copiedId = None
+                print("Skipped copying files")
         elif isinstance(ent, Link):
-            copiedId = _copyLink(syn, ent.id, destinationId)
-        elif isinstance(ent, Schema) and copyTable:
-            copiedId = _copyTable(syn, ent.id, destinationId)
+            if "link" not in excludeTypes:
+                copiedId = _copyLink(syn, ent.id, destinationId)
+            else:
+                copiedId = None
+                print("Skipped copying links")
+        elif isinstance(ent, Schema):
+            if "table" not in excludeTypes:
+                copiedId = _copyTable(syn, ent.id, destinationId)
+            else:
+                copiedId = None
+                print("Skipped copying tables")
         else:
             raise ValueError("Not able to copy this type of file")
 
@@ -127,11 +144,10 @@ def _copyFolder(syn, entity, destinationId, mapping=dict(), **kwargs):
 
     :param destinationId:   Synapse ID of a project/folder that the folder wants to be copied to
     
-    :param recursive:       Decides whether to copy everything in the folder.
-                            Defaults to True
+    :param excludeTypes:    Accepts a list of entity types (file, table, link) which determines which entity types to not copy.
+                            Defaults to an empty list.
     """
     oldFolder = syn.get(entity)
-    recursive = kwargs.get('recursive',True)
     #CHECK: If Folder name already exists, raise value error
     search = syn.query('select name from entity where parentId == "%s"' % destinationId)
     for i in search['results']:
@@ -141,10 +157,9 @@ def _copyFolder(syn, entity, destinationId, mapping=dict(), **kwargs):
     newFolder = Folder(name = oldFolder.name,parent= destinationId)
     newFolder.annotations = oldFolder.annotations
     newFolder = syn.store(newFolder)
-    if recursive:
-        entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
-        for ent in entities:
-            copied = _copyRecursive(syn, ent['entity.id'],newFolder.id,mapping, **kwargs)
+    entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
+    for ent in entities:
+        copied = _copyRecursive(syn, ent['entity.id'],newFolder.id,mapping, **kwargs)
     return(newFolder.id)
 
 #Copy File
@@ -433,7 +448,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         for oldWikiId in wikiIdMap.keys():
             newWikiId = wikiIdMap[oldWikiId]
             newWikis[newWikiId] = syn.store(newWikis[newWikiId])
-            print("\tStored: %s\n",newWikiId)
+            print("\tStored: %s\n" % newWikiId)
         newWh = syn.getWikiHeaders(newOwn)
         return(newWh)
     else:

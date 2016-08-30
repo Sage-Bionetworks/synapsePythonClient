@@ -219,14 +219,16 @@ def test_copy():
         assert old.concreteType == new.concreteType
 
     assert_raises(ValueError,synu.copy,syn,folder_entity.id,destinationId=second_project.id)
-
-    # TEST: Recursive = False, only the folder is created
-    second = synu.copy(syn,second_folder.id,destinationId=second_project.id,recursive=False)
+    # TEST: Throw error if excludeTypes isn't in file, link and table
+    assert_raises(ValueError,synu.copy,syn,second_folder.id,excludeTypes="foo")
+    # TEST: excludeType = ["file"], only the folder is created
+    second = synu.copy(syn,second_folder.id,destinationId=second_project.id,excludeTypes=["file","table","link"])
     copied_folder = syn.get(second[second_folder.id])
     assert copied_folder.name == second_folder.name
     assert len(second) == 1
     # TEST: Make sure error is thrown if foldername already exists
     assert_raises(ValueError,synu.copy,syn,second_folder.id, destinationId=second_project.id)
+
 
     # ------------------------------------
     # TEST COPY PROJECT

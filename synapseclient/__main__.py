@@ -71,7 +71,7 @@ import collections
 import shutil
 import sys
 import synapseclient
-import synapseutils as synu
+import synapseutils
 from . import Activity
 from . import utils
 import signal
@@ -230,13 +230,12 @@ def associate(args, syn):
             print('%s.%i\t%s' %(ent.id, ent.versionNumber, fp))
 
 def copy(args,syn):
-    mappings = synu.copy(syn, args.id, args.destinationId, 
+    mappings = synapseutils.copy(syn, args.id, args.destinationId, 
                          copyWikiPage=args.skipCopyWiki, 
-                         copyTable=args.skipCopyTable, 
+                         excludeTypes=args.excludeTypes, 
                          mapping=args.mapping, 
                          version=args.version, replace=args.replace,
-                         setProvenance=args.setProvenance, 
-                         recursive=args.notRecursive)
+                         setProvenance=args.setProvenance)
     print(mappings)
 
 def cat(args, syn):
@@ -562,7 +561,7 @@ def build_parser():
     parser_mv.set_defaults(func=move)
 
     parser_cp = subparsers.add_parser('cp',
-            help='Copies a file in Synapse')
+            help='Copies specific versions of synapse content such as files, folders and projects by recursively copying all sub-content')
     parser_cp.add_argument('id', metavar='syn123', type=str,
             help='Id of entity in Synapse to be copied.')
     parser_cp.add_argument('--destinationId', metavar='syn123', type=str,
@@ -576,12 +575,10 @@ def build_parser():
                         'traceback: Sets to the source entity'
                         'existing: Sets to source entity\'s original provenance (if it exists)'
                         'None/none: No provenance is set'))
-    parser_cp.add_argument('--skipCopyTable', action='store_false',
-            help='Skips Table Entities when copying projects')
     parser_cp.add_argument('--replace', action='store_true',
-            help='Replace File Entities even if there is a file entities that are named the same in the destination')
-    parser_cp.add_argument('--notRecursive', action='store_false',
-            help='Do not copy everything recusively')
+            help='File Entities even if there is a file entities that are named the same in the destination')
+    parser_cp.add_argument('--excludeTypes',metavar='[file, table]',type=list, default=list(),
+            help='Accepts a list of entity types (file, table, link) which determines which entity types to not copy.')
     parser_cp.add_argument('--skipCopyWiki', action='store_false',
             help='Do not copy the wiki pages')
     parser_cp.set_defaults(func=copy)
