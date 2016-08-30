@@ -46,6 +46,7 @@ import tempfile
 import platform
 import functools
 import threading
+import uuid
 import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
@@ -69,17 +70,16 @@ def md5_for_file(filename, block_size=2*MB):
     :param filename:   The file to read in
     :param block_size: How much of the file to read in at once (bytes).
                        Defaults to 2 MB
-
     :returns: The MD5
     """
 
     md5 = hashlib.md5()
-    f = open(filename,'rb')
-    while True:
-        data = f.read(block_size)
-        if not data:
-            break
-        md5.update(data)
+    with open(filename,'rb') as f:
+        while True:
+            data = f.read(block_size)
+            if not data:
+                break
+            md5.update(data)
     return(md5)
 
 
@@ -779,3 +779,16 @@ def extract_prefix(keys):
         return prefixes.pop() + "."
     return ""
 
+
+def temp_download_filename(destination, file_handle_id):
+    suffix = "synapse_download_" + (str(file_handle_id) \
+                                    if file_handle_id else \
+                                    str(uuid.uuid4()))
+    return os.path.join(destination, suffix) \
+            if os.path.isdir(destination) else \
+            destination + '.' + suffix
+
+
+def log_error(message, verbose=True):
+    if verbose:
+        sys.stderr.write(message+'\n')

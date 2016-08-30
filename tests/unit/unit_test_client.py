@@ -73,7 +73,7 @@ def test_getWithEntityBundle(download_file_mock):
         print("removing cacheMap file: ", cacheMap)
         os.remove(cacheMap)
 
-    def _downloadFileEntity(entity, path, submission):
+    def _downloadFileEntity(entity, path, submission, file_handle_id):
         print("mock downloading file to:", path)
         ## touch file at path
         with open(path, 'a'):

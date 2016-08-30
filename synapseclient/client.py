@@ -45,6 +45,7 @@ import collections
 import math, os, sys, stat, re, json, time
 import base64, hashlib, hmac
 import six
+import uuid
 
 try:
     from urllib.parse import urlparse
@@ -72,7 +73,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle
+from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
@@ -106,18 +107,21 @@ ROOT_ENTITY = 'syn4489'
 PUBLIC = 273949  #PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
+REDIRECT_LIMIT = 5
 
 
 # Defines the standard retry policy applied to the rest methods
 ## The retry period needs to span a minute because sending
 ## messages is limited to 10 per 60 seconds.
-STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 502, 503, 504],
+STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
                          "retry_errors"      : ["proxy error", "slow down", "timeout", "timed out",
                                                 "connection reset by peer", "unknown ssl protocol error",
-                                                "couldn't connect to host", "slowdown", "try again"],
-                         "retry_exceptions"  : ["ConnectionError", "Timeout", "timeout"],
-                         "retries"           : 8,
+                                                "couldn't connect to host", "slowdown", "try again",
+                                                "connection reset by peer"],
+                         "retry_exceptions"  : ["ConnectionError", "Timeout", "timeout", "ChunkedEncodingError"],
+                         "retries"           : 60, #Retries for up to about 30 minutes
                          "wait"              : 1,
+                         "max_wait"          : 30,
                          "back_off"          : 2}
 
 # Add additional mimetypes
@@ -864,7 +868,8 @@ class Synapse:
                         raise ValueError('Invalid parameter: "%s" is not a valid value '
                                          'for "ifcollision"' % ifcollision)
 
-                entity.update(self._downloadFileEntity(entity, downloadPath, submission))
+                entity.update(self._downloadFileEntity(entity, downloadPath, submission,
+                                                       file_handle_id=entityBundle['entity']['dataFileHandleId']))
 
                 self.cache.add(file_handle_id=entityBundle['entity']['dataFileHandleId'], path=downloadPath)
 
@@ -1734,7 +1739,7 @@ class Synapse:
     ##               File handle service calls                ##
     ############################################################
 
-    def _downloadFileEntity(self, entity, destination, submission=None):
+    def _downloadFileEntity(self, entity, destination, submission=None, file_handle_id=None):
         """
         Downloads the file associated with a FileEntity to the given file path.
 
@@ -1755,10 +1760,10 @@ class Synapse:
             if exception.errno != os.errno.EEXIST:
                 raise
 
-        return self._downloadFile(url, destination, expected_md5=entity.get("md5", None))
+        return self._downloadFile(url, destination, file_handle_id, entity.get("md5", None))
 
 
-    def _downloadFile(self, url, destination, expected_md5=None):
+    def _downloadFile(self, url, destination, file_handle_id=None, expected_md5=None):
         """
         Download a file from a URL to a the given file path.
 
@@ -1770,81 +1775,156 @@ class Synapse:
                      'files': [None] if destination is None else [os.path.basename(destination)],
                      'cacheDir': None if destination is None else os.path.dirname(destination) }
 
-        if expected_md5 == '':
-            expected_md5 = None
+        return returnDict(self._download_with_retries(url, destination, file_handle_id, expected_md5))
 
-        ## download via http unless we're redirected to some other scheme
-        download_via_http = True
 
-        # We expect to be redirected to a signed S3 URL or externalURL
-        #The assumption is wrong - we always try to read either the outer or inner requests.get
-        #but sometimes we don't have something to read.  I.e. when the type is ftp at which point
-        #we still set the cache and filepath based on destination which is wrong because nothing was fetched
-        response = _with_retry(lambda: requests.get(url, headers=self._generateSignedHeaders(url), allow_redirects=False), verbose=self.debug, **STANDARD_RETRY_PARAMS)
+    def _download_with_retries(self, url, destination, file_handle_id=None, expected_md5=None, retries=5):
+        """
+        Download a file from the given URL to the local file system.
 
-        if response.status_code in [301,302,303,307,308]:
-            url = response.headers['location']
+        :param url: source of download
+        :param destination: destination on local file system
+        :param file_handle_id: (optional) if given, the file will be given a
+                               temporary name that includes the file handle id
+                               which allows resuming partial downloads of the same
+                               file from previous sessions
+        :param expected_md5:   (optional) if given, check that the MD5 of the
+                               downloaded file matched the expected MD5
+        :param retries:        (default=5) Number of download retries attempted before 
+                               throwing an exception.
+
+        :returns: path to downloaded file
+        """
+        while retries > 0:
+            try:
+                return self._download(url, destination, file_handle_id, expected_md5)
+            except Exception as ex:
+                exc_info = sys.exc_info()
+                ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
+                log_error('\nRetrying download of %s after progressing %i bytes\n'% (url, ex.progress), self.debug)
+                if ex.progress==0 :  #No progress was made reduce remaining retries.
+                    retries -= 1
+        ## Re-raise exception
+        raise exc_info[0](exc_info[1])
+
+
+    def _download(self, url, destination, file_handle_id=None, expected_md5=None):
+        """
+        Download a file from the given URL to the local file system.
+
+        :param url: source of download
+        :param destination: destination on local file system
+        :param file_handle_id: (optional) if given, the file will be given a
+                               temporary name that includes the file handle id
+                               which allows resuming partial downloads of the same
+                               file from previous sessions
+        :param expected_md5:   (optional) if given, check that the MD5 of the
+                               downloaded file matched the expected MD5
+
+        :returns: path to downloaded file
+        """
+
+        destination = os.path.abspath(destination)
+        actual_md5 = None
+
+        redirect_count = 0
+        while redirect_count < REDIRECT_LIMIT:
+            redirect_count += 1
             scheme = urlparse(url).scheme
-            # If it's a file URL, turn it into a path and return it
             if scheme == 'file':
                 destination = utils.file_url_to_path(url, verify_exists=True)
                 if destination is None:
                     raise IOError("Local file (%s) does not exist." % url)
-                if expected_md5 is not None:
+                if expected_md5:
                     actual_md5 = utils.md5_for_file(destination).hexdigest()
-                download_via_http = False
+                break
             elif scheme == 'sftp':
                 destination = self._sftpDownloadFile(url, destination)
-                if expected_md5 is not None:
+                if expected_md5:
                     actual_md5 = utils.md5_for_file(destination).hexdigest()
-                download_via_http = False
+                break
             elif scheme == 'http' or scheme == 'https':
-                #TODO add support for username/password
-                response = requests.get(url, headers=self._generateSignedHeaders(url, {}), stream=True)
+                ## if a partial download exists with the temporary name,
+                ## find it and restart the download from where it left off
+                temp_destination = utils.temp_download_filename(destination, file_handle_id)
+                range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
+                                if os.path.exists(temp_destination) else {}
+                response = _with_retry(
+                    lambda: requests.get(url, headers=self._generateSignedHeaders(url, range_header),
+                                         stream=True, allow_redirects=False),
+                    verbose=self.debug, **STANDARD_RETRY_PARAMS)
+                try:
+                    exceptions._raise_for_status(response, verbose=self.debug)
+                except SynapseHTTPError as err:
+                    if err.response.status_code == 404:
+                        raise SynapseError("Could not download the file at %s" % url)
+                    raise
+
+                ## handle redirects
+                if response.status_code in [301,302,303,307,308]:
+                    url = response.headers['location']
+                    ## don't break, loop again
+                else:
+
+                    ## get filename from content-disposition, if we don't have it already
+                    if os.path.isdir(destination):
+                        filename = utils.extract_filename(
+                            content_disposition_header=response.headers.get('content-disposition', None),
+                            default_filename=utils.guess_file_name(url))
+                        destination = os.path.join(destination, filename)
+                    # Stream the file to disk
+                    if 'content-length' in response.headers:
+                        toBeTransferred = float(response.headers['content-length'])
+                    else:
+                        toBeTransferred = -1
+                    transferred = 0
+
+                    ## Servers that respect the Range header return 206 Partial Content
+                    if response.status_code==206:
+                        mode = 'ab'
+                        previouslyTransferred = os.path.getsize(temp_destination)
+                        toBeTransferred += previouslyTransferred
+                        transferred += previouslyTransferred
+                        sig = utils.md5_for_file(temp_destination)
+                    else:
+                        mode = 'wb'
+                        previouslyTransferred = 0
+                        sig = hashlib.md5()
+
+                    try:
+                        with open(temp_destination, mode) as fd:
+                            t0 = time.time()
+                            for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
+                                fd.write(chunk)
+                                sig.update(chunk)
+                                transferred += len(chunk)
+                                utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
+                                                            os.path.basename(destination), dt = time.time()-t0)
+                    except Exception as ex:  #We will add a progress parameter then push it back to retry.
+                        ex.progress  = transferred-previouslyTransferred
+                        raise
+
+                    actual_md5 = sig.hexdigest()
+
+                    ## rename to final destination
+                    shutil.move(temp_destination, destination)
+
+                    break
+
             #TODO LARSSON add support of ftp download
             else:
                 sys.stderr.write('Unable to download URLs of type %s' % scheme)
                 return returnDict(None)
 
-        try:
-            exceptions._raise_for_status(response, verbose=self.debug)
-        except SynapseHTTPError as err:
-            if err.response.status_code == 404:
-                raise SynapseError("Could not download the file at %s" % url)
-            raise
-
-        if download_via_http:
-            ## get filename from content-disposition, if we don't have it already
-            if os.path.isdir(destination):
-                filename = utils.extract_filename(
-                    content_disposition_header=response.headers.get('content-disposition', None),
-                    default_filename=utils.guess_file_name(url))
-                destination = os.path.join(destination, filename)
-
-            # Stream the file to disk
-            if 'content-length' in response.headers:
-                toBeTransferred = float(response.headers['content-length'])
-            else:
-                toBeTransferred = -1
-            transferred = 0
-            sig = hashlib.md5()
-            with open(destination, 'wb') as fd:
-                t0 = time.time()
-                for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
-                    fd.write(chunk)
-                    sig.update(chunk)
-                    transferred += len(chunk)
-                    utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
-                                                os.path.basename(destination), dt = time.time()-t0)
-            actual_md5 = sig.hexdigest()
+        else: ## didn't break out of loop
+            raise SynapseHTTPError('Too many redirects')
 
         ## check md5 if given
-        if expected_md5 is not None and actual_md5 != expected_md5:
+        if expected_md5 and actual_md5 != expected_md5:
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
                 filename=destination, md5=actual_md5, expected_md5=expected_md5))
-        destination = os.path.abspath(destination)
 
-        return returnDict(destination)
+        return destination
 
 
     def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None):
@@ -1917,6 +1997,11 @@ class Synapse:
     ############################################################
     ##                   SFTP                                 ##
     ############################################################
+
+    def _getDefaultUploadDestination(self, entity):
+        return self.restGET('/entity/%s/uploadDestination'% id_of(entity),
+                     endpoint=self.fileHandleEndpoint)
+
 
     def __getStorageLocation(self, entity):
         storageLocations = self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
@@ -2533,9 +2618,7 @@ class Synapse:
         wiki = Wiki(**wiki)
 
         path = self.cache.get(wiki.markdownFileHandleId)
-        if path:
-            fileInfo = {'path':path}
-        else:
+        if not path:
             url = "{endpoint}/entity/{ownerId}/wiki2/{wikiId}/markdown".format(endpoint=self.repoEndpoint, ownerId=id_of(owner), wikiId=wiki.id)
             if version is not None:
                 url += "?wikiVersion={version}".format(version=version)
@@ -2544,20 +2627,20 @@ class Synapse:
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
 
-            fileInfo = self._downloadFile(url, cache_dir)
+            path = self._download_with_retries(url, cache_dir, file_handle_id=wiki.markdownFileHandleId)
 
-            self.cache.add(wiki.markdownFileHandleId, fileInfo['path'])
+            self.cache.add(wiki.markdownFileHandleId, path)
 
         try:
             import gzip
-            with gzip.open(fileInfo['path']) as f:
+            with gzip.open(path) as f:
                 markdown = f.read().decode('utf-8')
         except IOError as ex1:
-            with open(fileInfo['path']) as f:
+            with open(path) as f:
                 markdown = f.read().decode('utf-8')
 
         wiki.markdown = markdown
-        wiki.markdown_path = fileInfo['path']
+        wiki.markdown_path = path
 
         return wiki
 
@@ -2897,7 +2980,7 @@ class Synapse:
             cache_dir = self.cache.get_cache_dir(file_handle_id)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            file_info = self._downloadFile(url, os.path.join(cache_dir, "query_results.csv"))
+            file_info = self._downloadFile(url, cache_dir, file_handle_id=file_handle_id)
             self.cache.add(file_handle_id, file_info['path'])
         return (download_from_table_result, file_info)
 
@@ -3008,7 +3091,7 @@ class Synapse:
                     columnId=column_id,
                     rowId=rowId,
                     versionNumber=versionNumber)
-            file_info = self._downloadFile(url, downloadLocation)
+            file_info = self._downloadFile(url, downloadLocation, file_handle_id=file_handle_id)
 
             self.cache.add(file_handle_id, file_info['path'])
 
@@ -3116,7 +3199,9 @@ class Synapse:
             zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
             url = "%s/fileHandle/%s/url" % (self.fileHandleEndpoint, response['resultZipFileHandleId'])
             try:
-                self._downloadFile(url, destination=zipfilepath)
+                zipfilepath = self._download_with_retries(url,
+                                      destination=zipfilepath,
+                                      file_handle_id=response['resultZipFileHandleId'])
 
                 ## TODO handle case when no zip file is returned
                 ## TODO test case when we give it partial or all bad file handles
