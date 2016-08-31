@@ -190,9 +190,7 @@ later::
 
     ## Later, we'll want to query the table and download our album covers
     results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'Sonny Rollins'" % schema.id, resultsAs="rowset")
-    for row in results:
-        file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-        print("%s_%s" % (row.rowId, row.versionNumber), ", ".join(str(a) for a in row.values), file_info['path'])
+    synDownloadTableColumns(results, "4")
 
 -------------
 Deleting rows
