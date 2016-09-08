@@ -234,7 +234,7 @@ def copy(args,syn):
                          copyWikiPage=args.skipCopyWiki, 
                          excludeTypes=args.excludeTypes, 
                          mapping=args.mapping, 
-                         version=args.version, replace=args.replace,
+                         version=args.version, update=args.update,
                          setProvenance=args.setProvenance)
     print(mappings)
 
@@ -575,8 +575,8 @@ def build_parser():
                         'traceback: Sets to the source entity'
                         'existing: Sets to source entity\'s original provenance (if it exists)'
                         'None/none: No provenance is set'))
-    parser_cp.add_argument('--replace', action='store_true',
-            help='File Entities even if there is a file entities that are named the same in the destination')
+    parser_cp.add_argument('--update', action='store_true',
+            help='Will update the file if there is already a file that is named the same in the destination')
     parser_cp.add_argument('--excludeTypes',metavar='[file, table]',type=list, default=list(),
             help='Accepts a list of entity types (file, table, link) which determines which entity types to not copy.')
     parser_cp.add_argument('--skipCopyWiki', action='store_false',

@@ -49,7 +49,8 @@ def setup(module):
         other_user['principalId'] = 1560252
         other_user['username'] = 'synapse-test'
 
-
+###Add Test for UPDATE
+###Add test for existing provenance but the orig doesn't have provenance
 def test_copy():
     """Tests the copy function"""
 
@@ -219,8 +220,9 @@ def test_copy():
         assert old.concreteType == new.concreteType
 
     assert_raises(ValueError,synu.copy,syn,folder_entity.id,destinationId=second_project.id)
-    # TEST: Throw error if excludeTypes isn't in file, link and table
-    assert_raises(ValueError,synu.copy,syn,second_folder.id,excludeTypes="foo")
+    # TEST: Throw error if excludeTypes isn't in file, link and table or isn't a list
+    assert_raises(ValueError,synu.copy,syn,second_folder.id,excludeTypes=["foo"])
+    assert_raises(ValueError,synu.copy,syn,second_folder.id,excludeTypes="file")
     # TEST: excludeType = ["file"], only the folder is created
     second = synu.copy(syn,second_folder.id,destinationId=second_project.id,excludeTypes=["file","table","link"])
     copied_folder = syn.get(second[second_folder.id])
@@ -228,7 +230,6 @@ def test_copy():
     assert len(second) == 1
     # TEST: Make sure error is thrown if foldername already exists
     assert_raises(ValueError,synu.copy,syn,second_folder.id, destinationId=second_project.id)
-
 
     # ------------------------------------
     # TEST COPY PROJECT

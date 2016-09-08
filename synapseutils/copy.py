@@ -10,7 +10,10 @@ import re
 
 def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     """
-    Copies synapse entities including the wikis
+    - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
+      and will recursively copy everything in directories.
+    - A Mapping of the old entities to the new entities will be created and all the wikis of each entity
+      will also be copied over and links to synapse Ids will be updated.
 
     :param syn:             A synapse object: syn = synapseclient.login()- Must be logged into synapse
 
@@ -21,12 +24,6 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     :param copyWikiPage:    Determines whether the wiki of the entity is copied over
                             Default is True
 
-    :param copyTable:       Determines whether tables are copied
-                            Default is True
-
-    :param mapping:         Takes a mapping {'oldSynId': 'newSynId'} to help with replacing syn ids in the new wiki pages that aren't part of the entities being copied
-                            Default to dict() and builds the mapping of all the synapse entities copied
-        
         import synapseutils
         import synapseclient
         syn = synapseclient.login()
@@ -38,7 +35,7 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     :param version:         Can specify version of a file. 
                             Default to None
 
-    :param replace:         Can choose to replace files that have the same name 
+    :param update:          Can choose to update files that have the same name 
                             Default to False
     
     :param setProvenance:   Has three values to set the provenance of the copied entity:
@@ -46,7 +43,7 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
                                 existing: Sets to source entity's original provenance (if it exists)
                                 None: No provenance is set
 
-        synapseutils.copy(syn,"file_syn123","destination_synId", replace=False,setProvenance = "traceback",version=None)
+        synapseutils.copy(syn, "syn12345", "syn45678", update=False, setProvenance = "traceback",version=None)
 
     ### Copying Folders/Projects ###
 
@@ -54,8 +51,9 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
                             Defaults to an empty list.
 
         #This will copy everything in the project into the destinationId except files and tables.
-        synapseutils.copy(syn, "project_syn123","destination_synId",excludeTypes=["file","table"])
+        synapseutils.copy(syn, "syn123450","syn345678",excludeTypes=["file","table"])
 
+    Returns a mapping between the original and copied entity: {'syn1234':'syn33455'}
     """
     updateLinks = kwargs.get('updateLinks', True)
     updateSynIds = kwargs.get('updateSynIds', True)
@@ -63,13 +61,14 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     destinationSubPageId = kwargs.get('destinationSubPageId',None)
     mapping = kwargs.pop('mapping',dict())
 
-    mapping = _copyRecursive(syn, entity, destinationId, mapping=mapping, **kwargs)
+    mapping = _copyRecursive(syn, entity, destinationId, mapping = mapping, **kwargs)
     if copyWikiPage:
         for oldEnt in mapping:
-            newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId=entitySubPageId, destinationSubPageId=destinationSubPageId, updateLinks=updateLinks, updateSynIds=updateSynIds, entityMap=mapping)
+            newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId = entitySubPageId,
+                                destinationSubPageId = destinationSubPageId, updateLinks = updateLinks, 
+                                updateSynIds = updateSynIds, entityMap = mapping)
     return(mapping)
 
-#Recursive copy function to return mapping    
 def _copyRecursive(syn, entity, destinationId, mapping=dict(),**kwargs):
     """
     Recursively copies synapse entites, but does not copy the wikis
@@ -80,60 +79,59 @@ def _copyRecursive(syn, entity, destinationId, mapping=dict(),**kwargs):
 
     :param mapping:            Takes a mapping {'oldSynId': 'newSynId'} to help with replacing syn ids in the new wiki pages that aren't part of the entities being copied
                                Default to dict() and builds the mapping of all the synapse entities copied
+    
+    Returns a mapping between the original and copied entity: {'syn1234':'syn33455'}
     """
 
     version = kwargs.get('version', None)
     setProvenance = kwargs.get('setProvenance', "traceback")
     excludeTypes = kwargs.get('excludeTypes',[])
-    replace = kwargs.get('replace',False)
-
-    if not isinstance(excludeTypes,list):
-        excludeTypes = list(excludeTypes)
+    update = kwargs.get('update',False)
+    copiedId = None
     #Check that passed in excludeTypes is file, table, and link
-    if not all([i in ["file","link","table"] for i in excludeTypes]):
+    if not isinstance(excludeTypes,list):
+        raise ValueError("Excluded types must be a list") 
+    elif not all([i in ["file","link","table"] for i in excludeTypes]):
         raise ValueError("Excluded types can only be a list of these values: file, table, and link") 
 
     ent = syn.get(entity,downloadFile=False)
     if isinstance(ent, Project):
-        if destinationId is None:
-            newProject = syn.store(Project("Copied %s %s" %(time.time(),ent.name)))
-            destinationId = newProject.id
-        elif not isinstance(syn.get(destinationId),Project):
+        if version is not None:
+            raise ValueError("Cannot specify version when copying a project of folder")
+        if not isinstance(syn.get(destinationId),Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
         copiedId = destinationId
+        mapping[ent.id] = copiedId
         entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
         for i in entities:
-            mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping=mapping, **kwargs)
-    else:
-        if destinationId is None:
-            raise ValueError("You must give a destinationId unless you are copying a project")
-        elif isinstance(ent, Folder):
-            copiedId = _copyFolder(syn, ent.id, destinationId, mapping=mapping, **kwargs)
-        elif isinstance(ent, File):
-            if "file" not in excludeTypes:
-                copiedId = _copyFile(syn, ent.id, destinationId, version=version, replace=replace, setProvenance=setProvenance)
-            else:
-                copiedId = None
-                print("Skipped copying files")
-        elif isinstance(ent, Link):
-            if "link" not in excludeTypes:
-                copiedId = _copyLink(syn, ent.id, destinationId)
-            else:
-                copiedId = None
-                print("Skipped copying links")
-        elif isinstance(ent, Schema):
-            if "table" not in excludeTypes:
-                copiedId = _copyTable(syn, ent.id, destinationId)
-            else:
-                copiedId = None
-                print("Skipped copying tables")
-        else:
-            raise ValueError("Not able to copy this type of file")
-
-    print("Copied %s to %s" % (ent.id,copiedId))
-    #This is for copying Links, if the link target Id doesn't exist, copiedId will be None
-    if copiedId is not None:
+            mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, **kwargs)
+    elif isinstance(ent, Folder):
+        if version is not None:
+            raise ValueError("Cannot specify version when copying a project of folder")
+        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, **kwargs)
         mapping[ent.id] = copiedId
+    elif isinstance(ent, File):
+        if "file" not in excludeTypes:
+            copiedId = _copyFile(syn, ent.id, destinationId, version = version, update = update, 
+                                 setProvenance = setProvenance)
+            mapping[ent.id] = copiedId
+    elif isinstance(ent, Link):
+        if "link" not in excludeTypes:
+            copiedId = _copyLink(syn, ent.id, destinationId)
+            #This is for copying Links, if the link target Id doesn't exist, copiedId will be None
+            if copiedId is not None:
+                mapping[ent.id] = copiedId
+    elif isinstance(ent, Schema):
+        if "table" not in excludeTypes:
+            copiedId = _copyTable(syn, ent.id, destinationId)
+            mapping[ent.id] = copiedId
+    else:
+        raise ValueError("Not able to copy this type of file")
+    
+    if copiedId is not None:
+        print("Copied %s to %s" % (ent.id,copiedId))
+    else:
+        print("%s not copied" % ent.id)
     return(mapping)
 
 def _copyFolder(syn, entity, destinationId, mapping=dict(), **kwargs):
@@ -162,8 +160,7 @@ def _copyFolder(syn, entity, destinationId, mapping=dict(), **kwargs):
         copied = _copyRecursive(syn, ent['entity.id'],newFolder.id,mapping, **kwargs)
     return(newFolder.id)
 
-#Copy File
-def _copyFile(syn, entity, destinationId, version=None, replace=False, setProvenance="traceback"):
+def _copyFile(syn, entity, destinationId, version=None, update=False, setProvenance="traceback"):
     """
     Copies most recent version of a file to a specified synapse ID.
 
@@ -174,7 +171,7 @@ def _copyFile(syn, entity, destinationId, version=None, replace=False, setProven
     :param version:         Can specify version of a file. 
                             Default to None
 
-    :param replace:         Can choose to replace files that have the same name 
+    :param update:          Can choose to update files that have the same name 
                             Default to False
     
     :param setProvenance:   Has three values to set the provenance of the copied entity:
@@ -182,10 +179,9 @@ def _copyFile(syn, entity, destinationId, version=None, replace=False, setProven
                                 existing: Sets to source entity's original provenance (if it exists)
                                 None: No provenance is set
     """
-    #Set provenance should take a string (none, traceback, existing)
     ent = syn.get(entity, downloadFile=False, version=version, followLink=False)
-    #CHECK: If File is in the same parent directory (throw an error) (Can choose to replace files)
-    if not replace:
+    #CHECK: If File is in the same parent directory (throw an error) (Can choose to update files)
+    if not update:
         search = syn.query('select name from entity where parentId =="%s"'%destinationId)
         for i in search['results']:
             if i['entity.name'] == ent.name:
@@ -199,11 +195,9 @@ def _copyFile(syn, entity, destinationId, version=None, replace=False, setProven
     elif setProvenance == "existing":
         try:
             act = syn.getProvenance(ent.id)
-        except Exception as e:
-            if e.message.find('No activity') >= 0:
-                act = None
-            else:
-                raise e
+        except SynapseHTTPError as e:
+            # Should catch the 404
+            act = None
     elif setProvenance is None or setProvenance.lower() == 'none':
         act = None
     else:
@@ -212,6 +206,7 @@ def _copyFile(syn, entity, destinationId, version=None, replace=False, setProven
     fileHandleList = syn.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
     #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle)
     #Loop through to check which dataFileHandles match and return createdBy
+    # Look at convenience function
     for fileHandle in fileHandleList['list']:
         if fileHandle['id'] == ent.dataFileHandleId:
             createdBy = fileHandle['createdBy']
@@ -247,7 +242,6 @@ def _copyFile(syn, entity, destinationId, version=None, replace=False, setProven
     #Leave this return statement for test
     return new_ent['id']
 
-#Copy Table
 def _copyTable(syn, entity, destinationId, setAnnotations=False):
     """
     Copies synapse Tables
@@ -291,7 +285,6 @@ def _copyTable(syn, entity, destinationId, setAnnotations=False):
         newTableSchema = syn.store(newTableSchema)
         return(newTableSchema.id)
 
-#copy link
 def _copyLink(syn, entity, destinationId):
     """
     Copies Link entities
@@ -315,9 +308,8 @@ def _copyLink(syn, entity, destinationId):
         print("WARNING: The target of this link %s no longer exists" % ent.id)
         return(None)
 
-
-#Function to assist in getting wiki headers of subwikipages
 def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=[]):
+    #Function to assist in getting wiki headers of subwikipages
     subPageId = str(subPageId)
     for i in wikiHeaders:
         # This is for the first match 
@@ -334,7 +326,6 @@ def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=[]):
                 mapping = _getSubWikiHeaders(wikiHeaders,subPageId=i['id'],mapping=mapping)
     return(mapping)
 
-#Copy wiki 
 def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPageId=None, updateLinks=True, updateSynIds=True, entityMap=None):
     """
     Copies wikis and updates internal links
