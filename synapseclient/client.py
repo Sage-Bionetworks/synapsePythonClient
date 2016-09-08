@@ -3128,7 +3128,7 @@ class Synapse:
         max_files_per_request = kwargs.get('max_files_per_request', 2500)
         #Rowset tableQuery result not allowed
         if isinstance(table, TableQueryResult):
-            raise ValueError("Cannot specify resultsAs='rowset' in syn.tableQuery()")
+            raise ValueError("downloadTableColumn doesn't work with rowsets. Please use default tableQuery settings.")
         def _is_integer(x):
             try:
                 return float.is_integer(x)
