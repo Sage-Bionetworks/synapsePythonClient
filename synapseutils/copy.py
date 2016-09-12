@@ -30,8 +30,8 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     syn = synapseclient.login()
     synapseutils.copy(syn, ...)
 
-    # Examples and extra parameters unique to each copy function
-    ### Copying Files ###
+    Examples and extra parameters unique to each copy function
+    -- COPYING FILES
 
     :param version:         Can specify version of a file. 
                             Default to None
@@ -47,7 +47,7 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     Examples::
     synapseutils.copy(syn, "syn12345", "syn45678", update=False, setProvenance = "traceback",version=None)
 
-    ### Copying Folders/Projects ###
+    -- COPYING FOLDERS/PROJECTS
 
     :param excludeTypes:    Accepts a list of entity types (file, table, link) which determines which entity types to not copy.
                             Defaults to an empty list.
@@ -107,27 +107,18 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         if not isinstance(syn.get(destinationId),Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
         copiedId = destinationId
-        #mapping[ent.id] = copiedId
         entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
         for i in entities:
             mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, **kwargs)
     elif isinstance(ent, Folder):
         copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, **kwargs)
-        #mapping[ent.id] = copiedId
     elif isinstance(ent, File) and "file" not in excludeTypes:
         copiedId = _copyFile(syn, ent.id, destinationId, version = version, update = update, 
                              setProvenance = setProvenance)
-        #mapping[ent.id] = copiedId
     elif isinstance(ent, Link) and "link" not in excludeTypes:
-        #if "link" not in excludeTypes:
         copiedId = _copyLink(syn, ent.id, destinationId)
-        #This is for copying Links, if the link target Id doesn't exist, copiedId will be None
-       # if copiedId is not None:
-        #    mapping[ent.id] = copiedId
     elif isinstance(ent, Schema) and "table" not in excludeTypes:
-        #if "table" not in excludeTypes:
         copiedId = _copyTable(syn, ent.id, destinationId)
-        #mapping[ent.id] = copiedId
 
     if copiedId is not None:
         mapping[ent.id] = copiedId
@@ -206,33 +197,18 @@ def _copyFile(syn, entity, destinationId, version=None, update=False, setProvena
         act = None
     else:
         raise ValueError('setProvenance must be one of None, existing, or traceback')
-    #Grab file handle createdBy annotation to see the user that created fileHandle
-    #fileHandleList = syn.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
+    #Grab entity bundle
     bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber)
     #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle)
-    #Loop through to check which dataFileHandles match and return createdBy
-    #try:
     fileHandle = synapseclient.utils.find_data_file_handle(bundle)
     createdBy = fileHandle['createdBy']
-    #except SynapseHTTPError as e:
-    #    if e.response.code == 400:
-    #        createdBy = None
-    #    else:
-    #        raise e
-    # Look at convenience function (find_data_file_handle, which returns the filehandle)
-    #for fileHandle in fileHandleList['list']:
-    #    if fileHandle['id'] == ent.dataFileHandleId:
-    #        createdBy = fileHandle['createdBy']
-    #        break
-    #else:
-    #    createdBy = None
     #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
     if profile.ownerId == createdBy:
         new_ent = File(name=ent.name, parentId=destinationId)
         new_ent.dataFileHandleId = ent.dataFileHandleId
     else:
         #CHECK: If the synapse entity is an external URL, change path and store
-        if fileHandle['concreteType'] != 'org.sagebionetworks.repo.model.file.ExternalFileHandle': #and ent.path == None:
+        if fileHandle['concreteType'] != 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
             #####If you have never downloaded the file before, the path is None
             store = True
             #This needs to be here, because if the file has never been downloaded before
@@ -275,10 +251,6 @@ def _copyTable(syn, entity, destinationId, setAnnotations=False):
         raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
 
     d = syn.tableQuery('select * from %s' % myTableSchema.id, includeRowIdAndRowVersion=False)
-    #d = d.asDataFrame()
-    #Use csv to upload
-    #d = d.reset_index()
-    #del d['index']
 
     colIds = myTableSchema.columnIds
 
@@ -288,15 +260,10 @@ def _copyTable(syn, entity, destinationId, setAnnotations=False):
     if setAnnotations:
         newTableSchema.annotations = myTableSchema.annotations
 
-    #if len(d) > 0:
     print("Created new table using schema %s" % newTableSchema.name)
     newTable = Table(schema=newTableSchema,values=d.filepath)
     newTable = syn.store(newTable)
     return(newTable.schema.id)
-    #else:
-    #    print("No data, so storing schema %s" % newTableSchema.name)
-    #    newTableSchema = syn.store(newTableSchema)
-    #    return(newTableSchema.id)
 
 def _copyLink(syn, entity, destinationId):
     """
@@ -321,26 +288,20 @@ def _copyLink(syn, entity, destinationId):
         return(None)
 
 def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=None):
-    #Function to assist in getting wiki headers of subwikipages
+    """
+    Function to assist in getting wiki headers of subwikipages
+    """
     subPageId = str(subPageId)
-
     for i in wikiHeaders:
         # This is for the first match 
         # If it isnt the actual parent, it will turn the first match into a parent node which will not have a parentId
-        if i['id'] == subPageId:# and mapping is None:
+        if i['id'] == subPageId:
             if mapping is None:
                 i.pop("parentId",None)
                 mapping = [i]
             else:
                 mapping.append(i)
-                
-        #     mapping = [i]
-        # #If a mapping already exists, it means that these pages have a parent node
-        # elif i['id'] == subPageId:
-        #     mapping.append(i)
-        #If parentId is not None, and if parent id is the subpage Id, pass it back into the function
         elif i.get('parentId') == subPageId:
-            #if i['parentId'] == subPageId:
             mapping = _getSubWikiHeaders(wikiHeaders,subPageId=i['id'],mapping=mapping)
     return(mapping)
 
@@ -382,10 +343,10 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         store = False
     if store:
         if entitySubPageId is not None:
-            oldWh = _getSubWikiHeaders(oldWh,entitySubPageId,mapping=[])
+            oldWh = _getSubWikiHeaders(oldWh,entitySubPageId)
         newOwn =syn.get(destinationId,downloadFile=False)
-        wikiIdMap =dict()
-        newWikis=dict()
+        wikiIdMap = dict()
+        newWikis = dict()
         for i in oldWh:
             attDir=tempfile.NamedTemporaryFile(prefix='attdir',suffix='')
             #print i['id']
