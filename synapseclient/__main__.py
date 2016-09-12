@@ -233,7 +233,6 @@ def copy(args,syn):
     mappings = synapseutils.copy(syn, args.id, args.destinationId, 
                          copyWikiPage=args.skipCopyWiki, 
                          excludeTypes=args.excludeTypes, 
-                         mapping=args.mapping, 
                          version=args.version, update=args.update,
                          setProvenance=args.setProvenance)
     print(mappings)
@@ -568,8 +567,6 @@ def build_parser():
             help='Synapse ID of project or folder where file will be copied to.  If no destinationId specified, a new project is created')
     parser_cp.add_argument('--version','-v', metavar='1', type=int, default=None,
             help='Synapse version number of entity to retrieve. Defaults to most recent version.')
-    parser_cp.add_argument('--mapping', metavar='{test:testing}', type=dict, default=dict(),
-            help="Takes a mapping {'oldSynId': 'newSynId'} to help with replacing syn ids in the new wiki pages that aren't part of the entities being copied. Defaults to dict()")
     parser_cp.add_argument('--setProvenance', metavar='traceback', type=str, default='traceback',
             help=('Has three values to set the provenance of the copied entity-'
                         'traceback: Sets to the source entity'
