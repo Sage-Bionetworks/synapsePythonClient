@@ -100,6 +100,9 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
     if (isinstance(ent, Project) or isinstance(ent, Folder)) and version is not None:
         raise ValueError("Cannot specify version when copying a project of folder")
 
+    if not isinstance(ent, (Project, Folder, File, Link, Schema)):
+        raise ValueError("Not able to copy this type of file")
+
     if isinstance(ent, Project):
         if not isinstance(syn.get(destinationId),Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
@@ -125,9 +128,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         #if "table" not in excludeTypes:
         copiedId = _copyTable(syn, ent.id, destinationId)
         #mapping[ent.id] = copiedId
-    else:
-        raise ValueError("Not able to copy this type of file")
-    
+
     if copiedId is not None:
         mapping[ent.id] = copiedId
         print("Copied %s to %s" % (ent.id,copiedId))
@@ -273,7 +274,7 @@ def _copyTable(syn, entity, destinationId, setAnnotations=False):
     if search is not None:
         raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
 
-    d = syn.tableQuery('select * from %s' % myTableSchema.id)
+    d = syn.tableQuery('select * from %s' % myTableSchema.id, includeRowIdAndRowVersion=False)
     #d = d.asDataFrame()
     #Use csv to upload
     #d = d.reset_index()
