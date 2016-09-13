@@ -145,7 +145,7 @@ def _version_tuple(version, levels=2):
 
 def _get_version_info(version_url=_VERSION_URL):
     if version_url is None:
-        return json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient'))
+        return json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient').decode())
     else:
         headers = { 'Accept': 'application/json; charset=UTF-8' }
         headers.update(synapseclient.USER_AGENT)
