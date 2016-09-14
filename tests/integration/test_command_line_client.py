@@ -642,7 +642,7 @@ def test_command_copy():
     assert copied_URL_ent.properties.dataFileHandleId == externalURL_entity.properties.dataFileHandleId
 
     #Verify that errors are being thrown when a 
-    #file is copied to a foler/project that has a file with the same filename
+    #file is copied to a folder/project that has a file with the same filename
     assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
                  'cp',file_entity.id,
                  '--destinationId',project_entity.id) 

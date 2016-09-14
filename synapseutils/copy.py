@@ -36,7 +36,9 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     :param version:         Can specify version of a file. 
                             Default to None
 
-    :param update:          Can choose to update files that have the same name 
+    :param updateExisting:          When the destionation has an entity that has the same name, 
+                            users can choose to update that entity.  
+                            It must be the same entity type
                             Default to False
     
     :param setProvenance:   Has three values to set the provenance of the copied entity:
@@ -85,7 +87,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
     version = kwargs.get('version', None)
     setProvenance = kwargs.get('setProvenance', "traceback")
     excludeTypes = kwargs.get('excludeTypes',[])
-    update = kwargs.get('update',False)
+    update = kwargs.get('updateExisting',False)
     copiedId = None
     if mapping is None:
         mapping=dict()
@@ -111,14 +113,14 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         for i in entities:
             mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, **kwargs)
     elif isinstance(ent, Folder):
-        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, **kwargs)
+        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, update = update, **kwargs)
     elif isinstance(ent, File) and "file" not in excludeTypes:
         copiedId = _copyFile(syn, ent.id, destinationId, version = version, update = update, 
                              setProvenance = setProvenance)
     elif isinstance(ent, Link) and "link" not in excludeTypes:
-        copiedId = _copyLink(syn, ent.id, destinationId)
+        copiedId = _copyLink(syn, ent.id, destinationId, update = update)
     elif isinstance(ent, Schema) and "table" not in excludeTypes:
-        copiedId = _copyTable(syn, ent.id, destinationId)
+        copiedId = _copyTable(syn, ent.id, destinationId, update = update)
 
     if copiedId is not None:
         mapping[ent.id] = copiedId
@@ -127,7 +129,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         print("%s not copied" % ent.id)
     return(mapping)
 
-def _copyFolder(syn, entity, destinationId, mapping=None, **kwargs):
+def _copyFolder(syn, entity, destinationId, mapping=None, update=False, **kwargs):
     """
     Copies synapse folders
 
@@ -142,9 +144,10 @@ def _copyFolder(syn, entity, destinationId, mapping=None, **kwargs):
     if mapping is None:
         mapping=dict()
     #CHECK: If Folder name already exists, raise value error
-    search = syn._findEntityIdByNameAndParent(oldFolder.name, parent=destinationId)
-    if search is not None:
-        raise ValueError('An entity named "%s" already exists in this location. Folder could not be copied'%oldFolder.name)
+    if not update:
+        existingEntity = syn._findEntityIdByNameAndParent(oldFolder.name, parent=destinationId)
+        if existingEntity is not None:
+            raise ValueError('An entity named "%s" already exists in this location. Folder could not be copied'%oldFolder.name)
 
     newFolder = Folder(name = oldFolder.name, parent = destinationId)
     newFolder.annotations = oldFolder.annotations
@@ -176,8 +179,8 @@ def _copyFile(syn, entity, destinationId, version=None, update=False, setProvena
     ent = syn.get(entity, downloadFile=False, version=version, followLink=False)
     #CHECK: If File is in the same parent directory (throw an error) (Can choose to update files)
     if not update:
-        search = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
-        if search is not None:
+        existingEntity = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
+        if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. File could not be copied'%ent.name)
     profile = syn.getUserProfile()
     # get provenance earlier to prevent errors from being called in the end
@@ -198,27 +201,32 @@ def _copyFile(syn, entity, destinationId, version=None, update=False, setProvena
     else:
         raise ValueError('setProvenance must be one of None, existing, or traceback')
     #Grab entity bundle
-    bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber)
+    fileHandleList = syn.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
+    for fileHandle in fileHandleList['list']:
+        if fileHandle['id'] == ent.dataFileHandleId:
+            createdBy = fileHandle['createdBy']
+            break
+    else:
+        createdBy = None
     #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle)
-    fileHandle = synapseclient.utils.find_data_file_handle(bundle)
-    createdBy = fileHandle['createdBy']
+    #fileHandle = synapseclient.utils.find_data_file_handle({"fileHandles": fileHandleList['list']})
+    #createdBy = fileHandle['createdBy']
     #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
     if profile.ownerId == createdBy:
         new_ent = File(name=ent.name, parentId=destinationId)
         new_ent.dataFileHandleId = ent.dataFileHandleId
     else:
         #CHECK: If the synapse entity is an external URL, change path and store
-        if fileHandle['concreteType'] != 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
+        if fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
+            store = False
+            path = ent.externalURL
+        else:
             #####If you have never downloaded the file before, the path is None
             store = True
             #This needs to be here, because if the file has never been downloaded before
             #there wont be a ent.path
             ent = syn.get(entity,downloadFile=store,version=version)
             path = ent.path
-        else:
-            store = False
-            #ent = syn.get(entity,downloadFile=store,version=version)
-            path = ent.externalURL
 
         new_ent = File(path, name=ent.name, parentId=destinationId, synapseStore=store)
     #Set annotations here
@@ -231,7 +239,7 @@ def _copyFile(syn, entity, destinationId, version=None, update=False, setProvena
     #Leave this return statement for test
     return new_ent['id']
 
-def _copyTable(syn, entity, destinationId, setAnnotations=False):
+def _copyTable(syn, entity, destinationId, update=False):
     """
     Copies synapse Tables
 
@@ -239,16 +247,15 @@ def _copyTable(syn, entity, destinationId, setAnnotations=False):
 
     :param destinationId:   Synapse ID of a project that the Table wants to be copied to
 
-    :param setAnnotations:  Set the annotations of the copied table to be the annotations of the entity
-                            Defaults to False
     """
 
     print("Getting table %s" % entity)
     myTableSchema = syn.get(entity)
     #CHECK: If Table name already exists, raise value error
-    search = syn._findEntityIdByNameAndParent(myTableSchema.name, parent=destinationId)
-    if search is not None:
-        raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
+    if not update:
+        existingEntity = syn._findEntityIdByNameAndParent(myTableSchema.name, parent=destinationId)
+        if existingEntity is not None:
+            raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
 
     d = syn.tableQuery('select * from %s' % myTableSchema.id, includeRowIdAndRowVersion=False)
 
@@ -257,15 +264,13 @@ def _copyTable(syn, entity, destinationId, setAnnotations=False):
     newTableSchema = Schema(name = myTableSchema.name,
                            parent = destinationId,
                            columns=colIds)
-    if setAnnotations:
-        newTableSchema.annotations = myTableSchema.annotations
 
     print("Created new table using schema %s" % newTableSchema.name)
     newTable = Table(schema=newTableSchema,values=d.filepath)
     newTable = syn.store(newTable)
     return(newTable.schema.id)
 
-def _copyLink(syn, entity, destinationId):
+def _copyLink(syn, entity, destinationId, update=False):
     """
     Copies Link entities
 
@@ -275,17 +280,21 @@ def _copyLink(syn, entity, destinationId):
     """
     ent = syn.get(entity)
     #CHECK: If Link is in the same parent directory (throw an error)
-    search = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
-    if search is not None:
-        raise ValueError('An entity named "%s" already exists in this location. Link could not be copied'%ent.name)
+    if not update:
+        existingEntity = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
+        if existingEntity is not None:
+            raise ValueError('An entity named "%s" already exists in this location. Link could not be copied'%ent.name)
 
     newLink = Link(ent.linksTo['targetId'],parent=destinationId,targetVersion=ent.linksTo['targetVersionNumber'])
     try:
         newLink = syn.store(newLink)
         return(newLink.id)
-    except Exception as e:
-        print("WARNING: The target of this link %s no longer exists" % ent.id)
-        return(None)
+    except SynapseHTTPError as e:
+        if e.response.code == 404:
+            print("WARNING: The target of this link %s no longer exists" % ent.id)
+            return(None)
+        else:
+            raise e
 
 def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=None):
     """
@@ -304,6 +313,46 @@ def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=None):
         elif i.get('parentId') == subPageId:
             mapping = _getSubWikiHeaders(wikiHeaders,subPageId=i['id'],mapping=mapping)
     return(mapping)
+
+
+def _updateSynIds(newWikis, wikiIdMap, entityMap):
+    print("Updating Synapse references:\n")
+    for oldWikiId in wikiIdMap.keys():
+        # go through each wiki page once more:
+        newWikiId = wikiIdMap[oldWikiId]
+        newWiki = newWikis[newWikiId]
+        print('Updated Synapse references for Page: %s\n' %newWikiId)
+        s = newWiki.markdown
+
+        for oldSynId in entityMap.keys():
+            # go through each wiki page once more:
+            newSynId = entityMap[oldSynId]
+            s = re.sub(oldSynId, newSynId, s)
+        print("Done updating Synpase IDs.\n")
+        newWikis[newWikiId].markdown = s
+    return(newWikis)
+
+
+def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId ):
+    print("Updating internal links:\n")
+    for oldWikiId in wikiIdMap.keys():
+        # go through each wiki page once more:
+        newWikiId=wikiIdMap[oldWikiId]
+        newWiki=newWikis[newWikiId]
+        print("\tUpdating internal links for Page: %s\n" % newWikiId)
+        s=newWiki.markdown
+        # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
+        # where wikiIdMap maps abc->xyz
+        # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId> 
+        for oldWikiId2 in wikiIdMap.keys():
+            oldProjectAndWikiId = "%s/wiki/%s" % (entity, oldWikiId2)
+            newProjectAndWikiId = "%s/wiki/%s" % (destinationId, wikiIdMap[oldWikiId2])
+            s=re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
+        # now replace any last references to entity with destinationId
+        s=re.sub(entity, destinationId, s)
+        newWikis[newWikiId].markdown=s
+    return(newWikis)
+
 
 def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPageId=None, updateLinks=True, updateSynIds=True, entityMap=None):
     """
@@ -338,90 +387,58 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     # getWikiHeaders fails when there is no wiki
     try:
         oldWh = syn.getWikiHeaders(oldOwn)
-        store = True
     except SynapseHTTPError:
-        store = False
-    if store:
-        if entitySubPageId is not None:
-            oldWh = _getSubWikiHeaders(oldWh,entitySubPageId)
-        newOwn =syn.get(destinationId,downloadFile=False)
-        wikiIdMap = dict()
-        newWikis = dict()
-        for i in oldWh:
-            attDir=tempfile.NamedTemporaryFile(prefix='attdir',suffix='')
-            #print i['id']
-            wiki = syn.getWiki(oldOwn, i.id)
-            print('Got wiki %s' % i.id)
-            if wiki['attachmentFileHandleIds'] == []:
-                attachments = []
-            elif wiki['attachmentFileHandleIds'] != []:
-                uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
-                results = syn.restGET(uri)
-                file_handles = {fh['id']:fh for fh in results['list']}
-                ## need to download an re-upload wiki attachments, ug!
-                attachments = []
-                tempdir = tempfile.gettempdir()
-                for fhid in wiki.attachmentFileHandleIds:
-                    file_info = syn._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
-                    attachments.append(file_info['path'])
-            #for some reason some wikis don't have titles?
-            if hasattr(i, 'parentId'):
-                wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
+        return([])
+
+    if entitySubPageId is not None:
+        oldWh = _getSubWikiHeaders(oldWh,entitySubPageId)
+    newOwn =syn.get(destinationId,downloadFile=False)
+    wikiIdMap = dict()
+    newWikis = dict()
+    for wikiHeader in oldWh:
+        attDir=tempfile.NamedTemporaryFile(prefix='attdir',suffix='')
+        #print i['id']
+        wiki = syn.getWiki(oldOwn, wikiHeader.id)
+        print('Got wiki %s' % wikiHeader.id)
+        if wiki['attachmentFileHandleIds'] == []:
+            attachments = []
+        elif wiki['attachmentFileHandleIds'] != []:
+            uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
+            results = syn.restGET(uri)
+            file_handles = {fh['id']:fh for fh in results['list']}
+            ## need to download an re-upload wiki attachments, ug!
+            attachments = []
+            tempdir = tempfile.gettempdir()
+            for fhid in wiki.attachmentFileHandleIds:
+                file_info = syn._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
+                attachments.append(file_info['path'])
+        #for some reason some wikis don't have titles?
+        if hasattr(wikiHeader, 'parentId'):
+            wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
+            wNew = syn.store(wNew)
+        else:
+            if destinationSubPageId is not None:
+                wNew = syn.getWiki(newOwn, destinationSubPageId)
+                wNew.attachments = attachments
+                wNew.markdown = wiki.markdown
+                #Need to add logic to update titles here
                 wNew = syn.store(wNew)
             else:
-                if destinationSubPageId is not None:
-                    wNew = syn.getWiki(newOwn, destinationSubPageId)
-                    wNew.attachments = attachments
-                    wNew.markdown = wiki.markdown
-                    #Need to add logic to update titles here
-                    wNew = syn.store(wNew)
-                else:
-                    wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=destinationSubPageId)
-                    wNew = syn.store(wNew)
-            newWikis[wNew.id]=wNew
-            wikiIdMap[wiki.id] =wNew.id
+                wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=destinationSubPageId)
+                wNew = syn.store(wNew)
+        newWikis[wNew.id]=wNew
+        wikiIdMap[wiki.id] =wNew.id
 
-        if updateLinks:
-            print("Updating internal links:\n")
-            for oldWikiId in wikiIdMap.keys():
-                # go through each wiki page once more:
-                newWikiId=wikiIdMap[oldWikiId]
-                newWiki=newWikis[newWikiId]
-                print("\tUpdating internal links for Page: %s\n" % newWikiId)
-                s=newWiki.markdown
-                # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
-                # where wikiIdMap maps abc->xyz
-                # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId> 
-                for oldWikiId2 in wikiIdMap.keys():
-                    oldProjectAndWikiId = "%s/wiki/%s" % (entity, oldWikiId2)
-                    newProjectAndWikiId = "%s/wiki/%s" % (destinationId, wikiIdMap[oldWikiId2])
-                    s=re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
-                # now replace any last references to entity with destinationId
-                s=re.sub(entity, destinationId, s)
-                newWikis[newWikiId].markdown=s
+    if updateLinks:
+        newWikis = _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId)
 
-        if updateSynIds and entityMap is not None:
-            print("Updating Synapse references:\n")
-            for oldWikiId in wikiIdMap.keys():
-                # go through each wiki page once more:
-                newWikiId = wikiIdMap[oldWikiId]
-                newWiki = newWikis[newWikiId]
-                print('Updated Synapse references for Page: %s\n' %newWikiId)
-                s = newWiki.markdown
-
-                for oldSynId in entityMap.keys():
-                    # go through each wiki page once more:
-                    newSynId = entityMap[oldSynId]
-                    s = re.sub(oldSynId, newSynId, s)
-                print("Done updating Synpase IDs.\n")
-                newWikis[newWikiId].markdown = s
-        
-        print("Storing new Wikis\n")
-        for oldWikiId in wikiIdMap.keys():
-            newWikiId = wikiIdMap[oldWikiId]
-            newWikis[newWikiId] = syn.store(newWikis[newWikiId])
-            print("\tStored: %s\n" % newWikiId)
-        newWh = syn.getWikiHeaders(newOwn)
-        return(newWh)
-    else:
-        return("no wiki")
+    if updateSynIds and entityMap is not None:
+        newWikis = _updateSynIds(newWikis, wikiIdMap, entityMap)
+    
+    print("Storing new Wikis\n")
+    for oldWikiId in wikiIdMap.keys():
+        newWikiId = wikiIdMap[oldWikiId]
+        newWikis[newWikiId] = syn.store(newWikis[newWikiId])
+        print("\tStored: %s\n" % newWikiId)
+    newWh = syn.getWikiHeaders(newOwn)
+    return(newWh)
