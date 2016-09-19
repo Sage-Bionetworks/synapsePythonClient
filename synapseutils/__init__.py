@@ -5,3 +5,4 @@ from __future__ import unicode_literals
 
 from .copy import copy, copyWiki
 from .walk import walk
+from .sync import syncFromSynapse
