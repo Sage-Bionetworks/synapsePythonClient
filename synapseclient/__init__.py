@@ -274,6 +274,16 @@ See:
 - :py:func:`synapseclient.Synapse.restPUT`
 - :py:func:`synapseclient.Synapse.restDELETE`
 
+
+Synapse utilites
+================
+
+There is a companion module called synapseutils that provide higher level functionality such as recursive copying of content, syncing with Synapse and additinal query fucntionality.
+
+See: 
+- :py:mod:`synapseutils`
+
+
 More information
 ================
 
