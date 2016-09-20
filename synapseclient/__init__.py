@@ -278,7 +278,9 @@ See:
 Synapse utilites
 ================
 
-There is a companion module called synapseutils that provide higher level functionality such as recursive copying of content, syncing with Synapse and additinal query fucntionality.
+There is a companion module called synapseutils that provide higher
+level functionality such as recursive copying of content, syncing with
+Synapse and additional query functionality.
 
 See: 
 - :py:mod:`synapseutils`
@@ -297,6 +299,7 @@ Getting updates
 
 To get information about new versions of the client including development versions
 see `synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_ and `synapseclient.release_notes() <Versions.html#synapseclient.version_check.release_notes>`_.
+
 """
 from __future__ import absolute_import
 from __future__ import division

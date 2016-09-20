@@ -465,6 +465,7 @@ def test_syncFromSynapse():
     ### Test recursive get
     output = synapseutils.syncFromSynapse(syn, project_entity)
 
+    assert len(output) == len(uploaded_paths)
     for f in output:
         print(f.path)
         assert f.path in uploaded_paths

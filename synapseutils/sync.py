@@ -1,3 +1,4 @@
+import errno
 from synapseclient.entity import is_container
 from synapseclient.utils import id_of
 import os
@@ -19,7 +20,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                           Defaults to "overwrite.local".
 
 
-    :returns: list of fileEntities
+    :returns: list of entities (files, tables, links)
 
     This function will crawl all subfolders of the project/folder
     specified by `id` and download all files that have not already
@@ -32,7 +33,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     Download and print the paths of all downloaded files::
 
         entities = syncFromSynapse(syn, "syn1234")
-        for f in files:
+        for f in entities:
             print(f.path)
     """
     if allFiles is None: allFiles = list()
@@ -45,7 +46,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                 try:
                     os.mkdir(new_path)
                 except OSError as err:
-                    if err.errno!=17:
+                    if err.errno!=errno.EEXIST:
                         raise
                 print('making dir', new_path)
             else:
