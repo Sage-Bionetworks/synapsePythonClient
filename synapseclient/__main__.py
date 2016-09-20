@@ -70,6 +70,7 @@ import collections
 import shutil
 import sys
 import synapseclient
+import synapseutils
 from . import Activity
 from . import utils
 import signal
@@ -116,30 +117,11 @@ def _getIdsFromQuery(queryString, syn):
     return ids
 
 
-def _recursiveGet(id, path, syn):
-    """Traverses a heirarchy and download files and create subfolders as necessary."""
-    from synapseclient.entity import is_container
-
-    results = syn.chunkedQuery("select id, name, nodeType from entity where entity.parentId=='%s'" %id)
-    for result in results:
-        if is_container(result):
-            new_path = os.path.join(path, result['entity.name'])
-            try:
-                os.mkdir(new_path)
-            except OSError as err:
-                if err.errno!=17:
-                    raise
-            print('making dir', new_path)
-            _recursiveGet(result['entity.id'], new_path, syn)
-        else:
-            syn.get(result['entity.id'], downloadLocation=path)
-
-
 def get(args, syn):
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
-        _recursiveGet(args.id, args.downloadLocation, syn)  #Todo should be updated with destination folder instead of '.'
+        synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation)
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are dowloading a query.')

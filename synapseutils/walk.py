@@ -11,9 +11,9 @@ def walk(syn, synId):
 
     :param synId:          A synapse ID of a folder or project
 
-    Example:
+    Example::
 
-        walkedPath = synu.walk(syn, "syn1234")
+        walkedPath = walk(syn, "syn1234")
 
         for dirpath, dirname, filename in walkedPath:
             print(dirpath)

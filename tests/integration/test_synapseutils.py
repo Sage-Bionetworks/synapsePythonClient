@@ -20,7 +20,7 @@ import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient import Activity, Entity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
 from synapseclient.exceptions import *
-import synapseutils as synu
+import synapseutils
 import re
 import integration
 from integration import schedule_for_cleanup
@@ -82,8 +82,8 @@ def test_copy():
     # ------------------------------------
     # TEST COPY FILE
     # ------------------------------------
-    output = synu.copy(syn,file_entity.id,destinationId=project_entity.id)
-    output_URL = synu.copy(syn,externalURL_entity.id,destinationId=project_entity.id)
+    output = synapseutils.copy(syn,file_entity.id,destinationId=project_entity.id)
+    output_URL = synapseutils.copy(syn,externalURL_entity.id,destinationId=project_entity.id)
 
     #Verify that our copied files are identical
     copied_ent = syn.get(output[file_entity.id])
@@ -112,17 +112,17 @@ def test_copy():
     assert copied_URL_ent.dataFileHandleId == externalURL_entity.dataFileHandleId
 
     # TEST: Throw error if file is copied to a folder/project that has a file with the same filename
-    assert_raises(ValueError,synu.copy,syn,project_entity.id,destinationId = project_entity.id)
-    assert_raises(ValueError,synu.copy,syn,file_entity.id,destinationId = project_entity.id) 
-    assert_raises(ValueError,synu.copy,syn,file_entity.id,destinationId = third_folder.id,setProvenance = "gib")
+    assert_raises(ValueError,synapseutils.copy,syn,project_entity.id,destinationId = project_entity.id)
+    assert_raises(ValueError,synapseutils.copy,syn,file_entity.id,destinationId = project_entity.id)
+    assert_raises(ValueError,synapseutils.copy,syn,file_entity.id,destinationId = third_folder.id,setProvenance = "gib")
 
     print("Test: setProvenance = None")
-    output = synu.copy(syn,file_entity.id,destinationId=second_folder.id,setProvenance = None)
+    output = synapseutils.copy(syn,file_entity.id,destinationId=second_folder.id,setProvenance = None)
     assert_raises(SynapseHTTPError,syn.getProvenance,output[file_entity.id])
     schedule_for_cleanup(output[file_entity.id])
 
     print("Test: setProvenance = Existing")
-    output_URL = synu.copy(syn,externalURL_entity.id,destinationId=second_folder.id,setProvenance = "existing")
+    output_URL = synapseutils.copy(syn,externalURL_entity.id,destinationId=second_folder.id,setProvenance = "existing")
     output_prov = syn.getProvenance(output_URL[externalURL_entity.id])
     schedule_for_cleanup(output_URL[externalURL_entity.id])
     assert output_prov['name'] == prov['name']
@@ -137,14 +137,14 @@ def test_copy():
         syn_other = synapseclient.Synapse(skip_checks=True)
         syn_other.login(other_user['username'], other_user['password'])
 
-        output = synu.copy(syn_other,file_entity.id,destinationId=third_folder.id)
+        output = synapseutils.copy(syn_other,file_entity.id,destinationId=third_folder.id)
         new_copied_ent = syn.get(output[file_entity.id])
         new_copied_ent_annot = syn.getAnnotations(new_copied_ent)
         schedule_for_cleanup(new_copied_ent.id)
         
         copied_URL_ent.externalURL = "https://www.google.com"
         copied_URL_ent = syn.store(copied_URL_ent)
-        output = synu.copy(syn_other,copied_URL_ent.id,destinationId=third_folder.id,version=1)
+        output = synapseutils.copy(syn_other,copied_URL_ent.id,destinationId=third_folder.id,version=1)
         new_copied_URL = syn.get(output[copied_URL_ent.id],downloadFile=False)
         schedule_for_cleanup(new_copied_URL.id)
 
@@ -165,7 +165,7 @@ def test_copy():
     second_file_entity = syn.store(File(second_file, parent=project_entity))
     link_entity = Link(second_file_entity.id,parent=folder_entity.id)
     link_entity = syn.store(link_entity)
-    copied_link = synu.copy(syn,link_entity.id, destinationId=second_folder.id)
+    copied_link = synapseutils.copy(syn,link_entity.id, destinationId=second_folder.id)
     for i in copied_link:
         old = syn.get(i)
         new = syn.get(copied_link[i])
@@ -175,7 +175,7 @@ def test_copy():
     schedule_for_cleanup(link_entity.id)
     schedule_for_cleanup(copied_link[link_entity.id])
 
-    assert_raises(ValueError,synu.copy,syn,link_entity.id,destinationId=second_folder.id)
+    assert_raises(ValueError,synapseutils.copy,syn,link_entity.id,destinationId=second_folder.id)
 
 
     # ------------------------------------
@@ -194,14 +194,14 @@ def test_copy():
     schema = syn.store(Schema(name='Testing', columns=cols, parent=project_entity.id))
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
 
-    table_map = synu.copy(syn,schema.id, destinationId=second_project.id)
+    table_map = synapseutils.copy(syn,schema.id, destinationId=second_project.id)
     copied_table = syn.tableQuery('select * from %s' %table_map[schema.id])
     rows = copied_table.asRowSet()['rows']
     # TEST: Check if all values are the same
     for i,row in enumerate(rows):
         assert row['values'] == data[i]
 
-    assert_raises(ValueError,synu.copy,syn,schema.id,destinationId=second_project.id)
+    assert_raises(ValueError,synapseutils.copy,syn,schema.id,destinationId=second_project.id)
 
     schedule_for_cleanup(schema.id)
     schedule_for_cleanup(table_map[schema.id])
@@ -210,7 +210,7 @@ def test_copy():
     # TEST COPY FOLDER
     # ------------------------------------
     print("Test: Copy Folder")
-    mapping = synu.copy(syn,folder_entity.id,destinationId=second_project.id)
+    mapping = synapseutils.copy(syn,folder_entity.id,destinationId=second_project.id)
     for i in mapping:
         old = syn.get(i,downloadFile=False)
         new = syn.get(mapping[i],downloadFile=False)
@@ -218,15 +218,15 @@ def test_copy():
         assert old.annotations == new.annotations
         assert old.concreteType == new.concreteType
 
-    assert_raises(ValueError,synu.copy,syn,folder_entity.id,destinationId=second_project.id)
+    assert_raises(ValueError,synapseutils.copy,syn,folder_entity.id,destinationId=second_project.id)
 
     # TEST: Recursive = False, only the folder is created
-    second = synu.copy(syn,second_folder.id,destinationId=second_project.id,recursive=False)
+    second = synapseutils.copy(syn,second_folder.id,destinationId=second_project.id,recursive=False)
     copied_folder = syn.get(second[second_folder.id])
     assert copied_folder.name == second_folder.name
     assert len(second) == 1
     # TEST: Make sure error is thrown if foldername already exists
-    assert_raises(ValueError,synu.copy,syn,second_folder.id, destinationId=second_project.id)
+    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id, destinationId=second_project.id)
 
     # ------------------------------------
     # TEST COPY PROJECT
@@ -235,7 +235,7 @@ def test_copy():
     third_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(third_project.id)
 
-    mapping = synu.copy(syn,project_entity.id,destinationId=third_project.id)
+    mapping = synapseutils.copy(syn,project_entity.id,destinationId=third_project.id)
     for i in mapping:
         old = syn.get(i,downloadFile=False)
         new = syn.get(mapping[i],downloadFile=False)
@@ -245,7 +245,7 @@ def test_copy():
         assert old.concreteType == new.concreteType
 
     # TEST: Can't copy project to a folder
-    assert_raises(ValueError,synu.copy,syn,project_entity.id,destinationId=second_folder.id)
+    assert_raises(ValueError,synapseutils.copy,syn,project_entity.id,destinationId=second_folder.id)
 
 
 def test_copyWiki():
@@ -314,13 +314,13 @@ def test_copyWiki():
     second_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(second_project.id)
 
-    fileMapping = synu.copy(syn, project_entity, second_project.id, copyWikiPage=False)
+    fileMapping = synapseutils.copy(syn, project_entity, second_project.id, copyWikiPage=False)
     
     print("Test: copyWikiPage = False")
     assert_raises(SynapseHTTPError,syn.getWiki,second_project.id)
 
     first_headers = syn.getWikiHeaders(project_entity)
-    second_headers = synu.copyWiki(syn, project_entity.id, second_project.id, entityMap=fileMapping)
+    second_headers = synapseutils.copyWiki(syn, project_entity.id, second_project.id, entityMap=fileMapping)
 
     mapping = dict()
 
@@ -354,13 +354,13 @@ def test_copyWiki():
     third_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(third_project.id)
 
-    copiedFile = synu.copy(syn, second_file, third_project.id)
+    copiedFile = synapseutils.copy(syn, second_file, third_project.id)
     copiedWiki = syn.getWiki(copiedFile[second_file.id])
     assert copiedWiki.title == fileWiki.title
     assert copiedWiki.markdown == fileWiki.markdown
 
     print("Test: entitySubPageId")
-    third_header = synu.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=sub_subwiki.id, destinationSubPageId=None, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
+    third_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=sub_subwiki.id, destinationSubPageId=None, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
     test_ent_subpage = syn.getWiki(third_project.id,third_header[0]['id'])
 
     print("Test: No internal links updated")
@@ -368,7 +368,7 @@ def test_copyWiki():
     assert test_ent_subpage.title == sub_subwiki.title
 
     print("Test: destinationSubPageId")
-    fourth_header = synu.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=subwiki.id, destinationSubPageId=test_ent_subpage.id, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
+    fourth_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=subwiki.id, destinationSubPageId=test_ent_subpage.id, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
     temp = syn.getWiki(third_project.id, fourth_header[1]['id'])
     assert temp.title == subwiki.title
     assert temp.markdown == subwiki.markdown
@@ -419,7 +419,7 @@ def test_walk():
                    [(third_file.name,third_file.id)]))
 
 
-    temp = synu.walk(syn, project_entity.id)
+    temp = synapseutils.walk(syn, project_entity.id)
     temp = list(temp)
     #Must sort the tuples returned, because order matters for the assert
     #Folders are returned in a different ordering depending on the name
@@ -430,9 +430,42 @@ def test_walk():
     for i in temp:
         assert i in walked
 
-    print("CHECK: Cannot synu.walk a file returns empty generator")
-    temp = synu.walk(syn, second_file.id)
+    print("CHECK: synapseutils.walk on a file should return empty generator")
+    temp = synapseutils.walk(syn, second_file.id)
     assert list(temp) == []
 
 
+def test_syncFromSynapse():
+    """This function tests recursive download as defined in syncFromSynapse
+    most of the functionality of this function are already tested in the 
+    tests/integration/test_command_line_client::test_command_get_recursive_and_query
 
+    which means that the only test if for path=None
+    """
+    # Create a Project
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    # Create a Folder in Project
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+
+    # Create and upload two files in Folder
+    uploaded_paths = []
+    for i in range(2):
+        f  = utils.make_bogus_data_file()
+        uploaded_paths.append(f)
+        schedule_for_cleanup(f)
+        file_entity = syn.store(File(f, parent=folder_entity))
+    #Add a file in the project level as well
+    f  = utils.make_bogus_data_file()
+    uploaded_paths.append(f)
+    schedule_for_cleanup(f)
+    file_entity = syn.store(File(f, parent=project_entity))
+
+    ### Test recursive get
+    output = synapseutils.syncFromSynapse(syn, project_entity)
+
+    assert len(output) == len(uploaded_paths)
+    for f in output:
+        print(f.path)
+        assert f.path in uploaded_paths
