@@ -233,7 +233,7 @@ def copy(args,syn):
     mappings = synapseutils.copy(syn, args.id, args.destinationId, 
                          copyWikiPage=args.skipCopyWiki, 
                          excludeTypes=args.excludeTypes, 
-                         version=args.version, update=args.update,
+                         version=args.version, updateExisting=args.updateExisting,
                          setProvenance=args.setProvenance)
     print(mappings)
 
@@ -566,15 +566,17 @@ def build_parser():
     parser_cp.add_argument('--destinationId', metavar='syn123', type=str,
             help='Synapse ID of project or folder where file will be copied to.  If no destinationId specified, a new project is created')
     parser_cp.add_argument('--version','-v', metavar='1', type=int, default=None,
-            help='Synapse version number of entity to retrieve. Defaults to most recent version.')
+            help=('Synapse version number of file, and link to retrieve.' 
+                'This parameter can only be used when copying files, links or tables'
+                'Defaults to most recent version.'))
     parser_cp.add_argument('--setProvenance', metavar='traceback', type=str, default='traceback',
             help=('Has three values to set the provenance of the copied entity-'
                         'traceback: Sets to the source entity'
                         'existing: Sets to source entity\'s original provenance (if it exists)'
                         'None/none: No provenance is set'))
-    parser_cp.add_argument('--update', action='store_true',
+    parser_cp.add_argument('--updateExisting', action='store_true',
             help='Will update the file if there is already a file that is named the same in the destination')
-    parser_cp.add_argument('--excludeTypes',metavar='[file, table]',type=list, default=list(),
+    parser_cp.add_argument('--excludeTypes',nargs='*', metavar='file table',type=str, default=list(),
             help='Accepts a list of entity types (file, table, link) which determines which entity types to not copy.')
     parser_cp.add_argument('--skipCopyWiki', action='store_false',
             help='Do not copy the wiki pages')

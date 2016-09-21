@@ -36,7 +36,7 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
     :param version:         Can specify version of a file. 
                             Default to None
 
-    :param updateExisting:          When the destionation has an entity that has the same name, 
+    :param updateExisting:  When the destination has an entity that has the same name, 
                             users can choose to update that entity.  
                             It must be the same entity type
                             Default to False
@@ -87,7 +87,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
     version = kwargs.get('version', None)
     setProvenance = kwargs.get('setProvenance', "traceback")
     excludeTypes = kwargs.get('excludeTypes',[])
-    update = kwargs.get('updateExisting',False)
+    updateExisting = kwargs.get('updateExisting',False)
     copiedId = None
     if mapping is None:
         mapping=dict()
@@ -113,14 +113,14 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         for i in entities:
             mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, **kwargs)
     elif isinstance(ent, Folder):
-        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, update = update, **kwargs)
+        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, updateExisting = updateExisting, **kwargs)
     elif isinstance(ent, File) and "file" not in excludeTypes:
-        copiedId = _copyFile(syn, ent.id, destinationId, version = version, update = update, 
+        copiedId = _copyFile(syn, ent.id, destinationId, version = version, updateExisting = updateExisting, 
                              setProvenance = setProvenance)
     elif isinstance(ent, Link) and "link" not in excludeTypes:
-        copiedId = _copyLink(syn, ent.id, destinationId, update = update)
+        copiedId = _copyLink(syn, ent.id, destinationId, updateExisting = updateExisting)
     elif isinstance(ent, Schema) and "table" not in excludeTypes:
-        copiedId = _copyTable(syn, ent.id, destinationId, update = update)
+        copiedId = _copyTable(syn, ent.id, destinationId, updateExisting = updateExisting)
 
     if copiedId is not None:
         mapping[ent.id] = copiedId
@@ -129,7 +129,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         print("%s not copied" % ent.id)
     return(mapping)
 
-def _copyFolder(syn, entity, destinationId, mapping=None, update=False, **kwargs):
+def _copyFolder(syn, entity, destinationId, mapping=None, updateExisting=False, **kwargs):
     """
     Copies synapse folders
 
@@ -144,7 +144,7 @@ def _copyFolder(syn, entity, destinationId, mapping=None, update=False, **kwargs
     if mapping is None:
         mapping=dict()
     #CHECK: If Folder name already exists, raise value error
-    if not update:
+    if not updateExisting:
         existingEntity = syn._findEntityIdByNameAndParent(oldFolder.name, parent=destinationId)
         if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. Folder could not be copied'%oldFolder.name)
@@ -157,7 +157,7 @@ def _copyFolder(syn, entity, destinationId, mapping=None, update=False, **kwargs
         copied = _copyRecursive(syn, ent['entity.id'],newFolder.id,mapping, **kwargs)
     return(newFolder.id)
 
-def _copyFile(syn, entity, destinationId, version=None, update=False, setProvenance="traceback"):
+def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback"):
     """
     Copies most recent version of a file to a specified synapse ID.
 
@@ -168,7 +168,7 @@ def _copyFile(syn, entity, destinationId, version=None, update=False, setProvena
     :param version:         Can specify version of a file. 
                             Default to None
 
-    :param update:          Can choose to update files that have the same name 
+    :param updateExisting:  Can choose to update files that have the same name 
                             Default to False
     
     :param setProvenance:   Has three values to set the provenance of the copied entity:
@@ -178,7 +178,7 @@ def _copyFile(syn, entity, destinationId, version=None, update=False, setProvena
     """
     ent = syn.get(entity, downloadFile=False, version=version, followLink=False)
     #CHECK: If File is in the same parent directory (throw an error) (Can choose to update files)
-    if not update:
+    if not updateExisting:
         existingEntity = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
         if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. File could not be copied'%ent.name)
@@ -201,13 +201,16 @@ def _copyFile(syn, entity, destinationId, version=None, update=False, setProvena
     else:
         raise ValueError('setProvenance must be one of None, existing, or traceback')
     #Grab entity bundle
-    fileHandleList = syn.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
-    for fileHandle in fileHandleList['list']:
-        if fileHandle['id'] == ent.dataFileHandleId:
-            createdBy = fileHandle['createdBy']
-            break
-    else:
-        createdBy = None
+    bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, bitFlags=0x800|0x1)
+    fileHandle = synapseclient.utils.find_data_file_handle(bundle)
+    createdBy = fileHandle['createdBy']
+    # fileHandleList = syn.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
+    # for fileHandle in fileHandleList['list']:
+    #     if fileHandle['id'] == ent.dataFileHandleId:
+    #         createdBy = fileHandle['createdBy']
+    #         break
+    # else:
+    #     createdBy = None
     #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle)
     #fileHandle = synapseclient.utils.find_data_file_handle({"fileHandles": fileHandleList['list']})
     #createdBy = fileHandle['createdBy']
@@ -239,7 +242,7 @@ def _copyFile(syn, entity, destinationId, version=None, update=False, setProvena
     #Leave this return statement for test
     return new_ent['id']
 
-def _copyTable(syn, entity, destinationId, update=False):
+def _copyTable(syn, entity, destinationId, updateExisting=False):
     """
     Copies synapse Tables
 
@@ -252,7 +255,7 @@ def _copyTable(syn, entity, destinationId, update=False):
     print("Getting table %s" % entity)
     myTableSchema = syn.get(entity)
     #CHECK: If Table name already exists, raise value error
-    if not update:
+    if not updateExisting:
         existingEntity = syn._findEntityIdByNameAndParent(myTableSchema.name, parent=destinationId)
         if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
@@ -270,7 +273,7 @@ def _copyTable(syn, entity, destinationId, update=False):
     newTable = syn.store(newTable)
     return(newTable.schema.id)
 
-def _copyLink(syn, entity, destinationId, update=False):
+def _copyLink(syn, entity, destinationId, updateExisting=False):
     """
     Copies Link entities
 
@@ -280,7 +283,7 @@ def _copyLink(syn, entity, destinationId, update=False):
     """
     ent = syn.get(entity)
     #CHECK: If Link is in the same parent directory (throw an error)
-    if not update:
+    if not updateExisting:
         existingEntity = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
         if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. Link could not be copied'%ent.name)
