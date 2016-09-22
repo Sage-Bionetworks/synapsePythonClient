@@ -330,6 +330,7 @@ def _updateSynIds(newWikis, wikiIdMap, entityMap):
         for oldSynId in entityMap.keys():
             # go through each wiki page once more:
             newSynId = entityMap[oldSynId]
+            oldSynId = oldSynId + "\\b"
             s = re.sub(oldSynId, newSynId, s)
         print("Done updating Synpase IDs.\n")
         newWikis[newWikiId].markdown = s
@@ -348,7 +349,7 @@ def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId ):
         # where wikiIdMap maps abc->xyz
         # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId> 
         for oldWikiId2 in wikiIdMap.keys():
-            oldProjectAndWikiId = "%s/wiki/%s" % (entity, oldWikiId2)
+            oldProjectAndWikiId = "%s/wiki/%s\\b" % (entity, oldWikiId2)
             newProjectAndWikiId = "%s/wiki/%s" % (destinationId, wikiIdMap[oldWikiId2])
             s=re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
         # now replace any last references to entity with destinationId
