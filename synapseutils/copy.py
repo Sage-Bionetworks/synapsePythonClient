@@ -368,10 +368,10 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 
     :param destinationId:           Synapse ID of a folder/project that the wiki wants to be copied to
     
-    :param updateLinks:             Update all the internal links
+    :param updateLinks:             Update all the internal links. (syn1234/wiki/34345 -> syn3345/wiki/49508)
                                     Defaults to True
 
-    :param updateSynIds:            Update all the synapse ID's referenced in the wikis
+    :param updateSynIds:            Update all the synapse ID's referenced in the wikis. (syn1234 -> syn2345)
                                     Defaults to True but needs an entityMap
 
     :param entityMap:               An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the wiki
