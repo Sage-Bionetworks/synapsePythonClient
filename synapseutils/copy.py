@@ -391,8 +391,11 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     # getWikiHeaders fails when there is no wiki
     try:
         oldWh = syn.getWikiHeaders(oldOwn)
-    except SynapseHTTPError:
-        return([])
+    except SynapseHTTPError as e:
+        if e.response.code == 404:
+            return([])
+        else:
+            raise e
 
     if entitySubPageId is not None:
         oldWh = _getSubWikiHeaders(oldWh,entitySubPageId)
