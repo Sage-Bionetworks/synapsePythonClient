@@ -47,7 +47,7 @@ def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
                                 None: No provenance is set
 
     Examples::
-    synapseutils.copy(syn, "syn12345", "syn45678", update=False, setProvenance = "traceback",version=None)
+    synapseutils.copy(syn, "syn12345", "syn45678", updateExisting=False, setProvenance = "traceback",version=None)
 
     -- COPYING FOLDERS/PROJECTS
 
