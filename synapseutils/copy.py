@@ -192,7 +192,7 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
         try:
             act = syn.getProvenance(ent.id)
         except SynapseHTTPError as e:
-            if e.response.code == 404:
+            if e.response.status_code == 404:
                 act = None
             else:
                 raise e
@@ -293,7 +293,7 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
         newLink = syn.store(newLink)
         return(newLink.id)
     except SynapseHTTPError as e:
-        if e.response.code == 404:
+        if e.response.status_code == 404:
             print("WARNING: The target of this link %s no longer exists" % ent.id)
             return(None)
         else:
@@ -392,7 +392,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     try:
         oldWh = syn.getWikiHeaders(oldOwn)
     except SynapseHTTPError as e:
-        if e.response.code == 404:
+        if e.response.status_code == 404:
             return([])
         else:
             raise e
