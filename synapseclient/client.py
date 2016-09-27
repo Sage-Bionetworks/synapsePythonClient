@@ -1801,7 +1801,8 @@ class Synapse:
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
-                log_error('\nRetrying download of %s after progressing %i bytes\n'% (url, ex.progress), self.debug)
+                log_error('\nRetrying download on %s after progressing %i bytes\n'%
+                          (exc_info[0](exc_info[1]), ex.progress), self.debug)
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
         ## Re-raise exception
@@ -2154,6 +2155,7 @@ class Synapse:
         import pysftp
 
         parsedURL = urlparse(url)
+        log_error('sftpDownload: %s\n'% (url), self.debug)
         if parsedURL.scheme!='sftp':
             raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
                                       " form sftp://..."))
