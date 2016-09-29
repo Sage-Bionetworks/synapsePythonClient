@@ -167,7 +167,7 @@ def test_copy():
     link_entity = Link(second_file_entity.id,parent=folder_entity.id)
     link_entity = syn.store(link_entity)
 
-    copied_link = synu.copy(syn,link_entity.id, destinationId=second_folder.id)
+    copied_link = synapseutils.copy(syn,link_entity.id, destinationId=second_folder.id)
     old = syn.get(link_entity.id,followLink=False)
     new = syn.get(copied_link[link_entity.id],followLink=False)
     assert old.linksTo['targetId'] == new.linksTo['targetId']
@@ -221,12 +221,12 @@ def test_copy():
         assert old.concreteType == new.concreteType
 
 
-    assert_raises(ValueError,synu.copy,syn,folder_entity.id,destinationId=second_project.id)
+    assert_raises(ValueError,synapseutils.copy,syn,folder_entity.id,destinationId=second_project.id)
     # TEST: Throw error if excludeTypes isn't in file, link and table or isn't a list
-    assert_raises(ValueError,synu.copy,syn,second_folder.id,excludeTypes=["foo"])
-    assert_raises(ValueError,synu.copy,syn,second_folder.id,excludeTypes="file")
+    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,excludeTypes=["foo"])
+    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,excludeTypes="file")
     # TEST: excludeType = ["file"], only the folder is created
-    second = synu.copy(syn,second_folder.id,destinationId=second_project.id,excludeTypes=["file","table","link"])
+    second = synapseutils.copy(syn,second_folder.id,destinationId=second_project.id,excludeTypes=["file","table","link"])
 
     copied_folder = syn.get(second[second_folder.id])
     assert copied_folder.name == second_folder.name
@@ -374,7 +374,7 @@ def test_copyWiki():
     assert test_ent_subpage.title == sub_subwiki.title
 
     print("Test: destinationSubPageId")
-    fourth_header = synu.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=subwiki.id, destinationSubPageId=test_ent_subpage.id, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
+    fourth_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=subwiki.id, destinationSubPageId=test_ent_subpage.id, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
     temp = syn.getWiki(third_project.id, fourth_header[0]['id'])
     #There are issues where some title pages are blank.  This is an issue that needs to be addressed
     #assert temp.title == subwiki.title
