@@ -33,7 +33,7 @@ setup(name='synapseclient',
     author='Synapse Team',
     author_email='platform@sagebase.org',
     license='Apache',
-    packages=['synapseclient'],
+    packages=['synapseclient','synapseutils'],
     install_requires=[
         'requests>=1.2',
         'six',

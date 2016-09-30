@@ -184,19 +184,23 @@ Caching credentials can also be done from the command line client:
 Synapse Utilities (synapseutils)
 --------------------------------
 
-The synapse utils contain helper functions such as synu.copy().
+The purpose of synapseutils is to create a space filled with convenience functions that includes traversing through large projects, copying entities, recursively downloading files and many more.
 
 ### Example
 
-    import synapseutils as synu
+    import synapseutils
     import synapseclient
     syn = synapseclient.login()
     
     #COPY: copies all synapse entities to a destination location
-    synu.copy(syn, "syn1234", destinationId = "syn2345")
+    synapseutils.copy(syn, "syn1234", destinationId = "syn2345")
+    
+    #COPY WIKI: copies the wiki from the entity to a destionation entity. Only a project can have subwikipages.
+    synapseutils.copyWiki(syn, "syn1234", destinationId = "syn2345")
+
 
     #WALK: Traverses through synapse directories, behaves exactly like os.walk()
-    walkedPath = synu.walk(syn, "syn1234")
+    walkedPath = synapseutils.walk(syn, "syn1234")
 
     for dirpath, dirname, filename in walkedPath:
         print(dirpath)

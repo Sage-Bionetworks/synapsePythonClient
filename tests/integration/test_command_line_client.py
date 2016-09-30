@@ -585,7 +585,7 @@ def test_command_get_recursive_and_query():
 
 def test_command_copy():
     """Tests the 'synapse cp' function"""
-    raise SkipTest("Currently not implemented correctly") 
+
     # Create a Project
     project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
@@ -609,11 +609,11 @@ def test_command_copy():
 
     ### Test cp function
     output = run('synapse', '--skip-checks',
-                 'cp', '--id',file_entity.id,
-                 '--parentid',project_entity.id)
+                 'cp',file_entity.id,
+                 '--destinationId',project_entity.id)
     output_URL = run('synapse', '--skip-checks',
-                 'cp', '--id',externalURL_entity.id,
-                 '--parentid',project_entity.id)
+                 'cp',externalURL_entity.id,
+                 '--destinationId',project_entity.id)
 
     copied_id = parse(r'Copied syn\d+ to (syn\d+)',output)
     copied_URL_id = parse(r'Copied syn\d+ to (syn\d+)',output_URL)
@@ -641,18 +641,11 @@ def test_command_copy():
     assert copied_URL_ent.name == 'rand'
     assert copied_URL_ent.properties.dataFileHandleId == externalURL_entity.properties.dataFileHandleId
 
-    #Verify that errors are being thrown when folders/projects are attempted to be copied,
-    #or file is copied to a foler/project that has a file with the same filename
+    #Verify that errors are being thrown when a 
+    #file is copied to a folder/project that has a file with the same filename
     assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
-                 'cp', '--id',folder_entity.id,
-                 '--parentid',project_entity.id)
-    assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
-                 'cp', '--id',project_entity.id,
-                 '--parentid',project_entity.id)
-    assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
-                 'cp', '--id',file_entity.id,
-                 '--parentid',project_entity.id) 
-
+                 'cp',file_entity.id,
+                 '--destinationId',project_entity.id) 
 
 def test_command_line_using_paths():
     # Create a Project
