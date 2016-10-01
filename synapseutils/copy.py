@@ -91,8 +91,6 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
     copiedId = None
     if mapping is None:
         mapping=dict()
-
-
     #Check that passed in excludeTypes is file, table, and link
     if not isinstance(excludeTypes,list):
         raise ValueError("Excluded types must be a list") 
