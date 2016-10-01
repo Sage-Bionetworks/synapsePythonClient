@@ -204,16 +204,6 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, bitFlags=0x800|0x1)
     fileHandle = synapseclient.utils.find_data_file_handle(bundle)
     createdBy = fileHandle['createdBy']
-    # fileHandleList = syn.restGET('/entity/%s/version/%s/filehandles'%(ent.id,ent.versionNumber))
-    # for fileHandle in fileHandleList['list']:
-    #     if fileHandle['id'] == ent.dataFileHandleId:
-    #         createdBy = fileHandle['createdBy']
-    #         break
-    # else:
-    #     createdBy = None
-    #NOTE: May not always be the first index (need to filter to make sure not PreviewFileHandle)
-    #fileHandle = synapseclient.utils.find_data_file_handle({"fileHandles": fileHandleList['list']})
-    #createdBy = fileHandle['createdBy']
     #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
     if profile.ownerId == createdBy:
         new_ent = File(name=ent.name, parentId=destinationId)
@@ -255,10 +245,9 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
     print("Getting table %s" % entity)
     myTableSchema = syn.get(entity)
     #CHECK: If Table name already exists, raise value error
-    if not updateExisting:
-        existingEntity = syn._findEntityIdByNameAndParent(myTableSchema.name, parent=destinationId)
-        if existingEntity is not None:
-            raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
+    existingEntity = syn._findEntityIdByNameAndParent(myTableSchema.name, parent=destinationId)
+    if existingEntity is not None:
+        raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
 
     d = syn.tableQuery('select * from %s' % myTableSchema.id, includeRowIdAndRowVersion=False)
 
@@ -368,10 +357,10 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 
     :param destinationId:           Synapse ID of a folder/project that the wiki wants to be copied to
     
-    :param updateLinks:             Update all the internal links. (syn1234/wiki/34345 -> syn3345/wiki/49508)
+    :param updateLinks:             Update all the internal links. (e.g. syn1234/wiki/34345 becomes syn3345/wiki/49508)
                                     Defaults to True
 
-    :param updateSynIds:            Update all the synapse ID's referenced in the wikis. (syn1234 -> syn2345)
+    :param updateSynIds:            Update all the synapse ID's referenced in the wikis. (e.g. syn1234 becomes syn2345)
                                     Defaults to True but needs an entityMap
 
     :param entityMap:               An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the wiki
