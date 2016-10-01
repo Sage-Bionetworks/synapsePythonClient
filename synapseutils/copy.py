@@ -98,7 +98,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         raise ValueError("Excluded types can only be a list of these values: file, table, and link") 
 
     ent = syn.get(entity,downloadFile=False)
-    if ent.id == destionationId:
+    if ent.id == destinationId:
         raise ValueError("destinationId cannot be the same as entity id")
 
     if (isinstance(ent, Project) or isinstance(ent, Folder)) and version is not None:
