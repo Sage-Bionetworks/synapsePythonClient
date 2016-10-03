@@ -116,6 +116,7 @@ def test_copy():
     assert_raises(ValueError,synapseutils.copy,syn,project_entity.id,destinationId = project_entity.id)
     assert_raises(ValueError,synapseutils.copy,syn,file_entity.id,destinationId = project_entity.id)
     assert_raises(ValueError,synapseutils.copy,syn,file_entity.id,destinationId = third_folder.id,setProvenance = "gib")
+    assert_raises(ValueError,synapseutils.copy,syn,file_entity.id,destinationId = file_entity.id)
 
     print("Test: setProvenance = None")
     output = synapseutils.copy(syn,file_entity.id,destinationId=second_folder.id,setProvenance = None)
