@@ -350,7 +350,7 @@ def make_bogus_data_file(n=100, seed=None):
     finally:
         f.close()
 
-    return f.name
+    return normalize_path(f.name)
 
 
 def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
@@ -375,7 +375,7 @@ def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
             if printprogress:
                 progress += buff_size
                 printTransferProgress(progress, n, 'Generated ', filepath)
-        return filepath
+        return normalize_path(filepath)
 
 
 def to_unix_epoch_time(dt):
