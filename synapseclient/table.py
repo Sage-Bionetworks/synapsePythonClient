@@ -271,6 +271,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
+from future.utils import bytes_to_native_str
 from builtins import str
 
 from backports import csv
@@ -1226,7 +1227,8 @@ class CsvFileTable(TableAbstractBaseClass):
             df = pd.read_csv(self.filepath,
                     sep=self.separator,
                     lineterminator=self.lineEnd if len(self.lineEnd) == 1 else None,
-                    quotechar=self.quoteCharacter,
+                    #Handle bug in pandas 0.19 requiring quotechar to be str not unicode or newstr
+                    quotechar=bytes_to_native_str(bytes(self.quoteCharacter)),
                     escapechar=self.escapeCharacter,
                     header = 0 if self.header else None,
                     skiprows=self.linesToSkip)
