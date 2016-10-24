@@ -1219,6 +1219,8 @@ class CsvFileTable(TableAbstractBaseClass):
         import pandas as pd
 
         try:
+            #Handle bug in pandas 0.19 requiring quotechar to be str not unicode or newstr
+            quoteChar = bytes_to_native_str(bytes(self.quoteCharacter)) if six.PY2 else self.quoteCharacter
             ## assign line terminator only if for single character
             ## line terminators (e.g. not '\r\n') 'cause pandas doesn't
             ## longer line terminators. See:
@@ -1227,8 +1229,7 @@ class CsvFileTable(TableAbstractBaseClass):
             df = pd.read_csv(self.filepath,
                     sep=self.separator,
                     lineterminator=self.lineEnd if len(self.lineEnd) == 1 else None,
-                    #Handle bug in pandas 0.19 requiring quotechar to be str not unicode or newstr
-                    quotechar=bytes_to_native_str(bytes(self.quoteCharacter)),
+                    quotechar=quoteChar,
                     escapechar=self.escapeCharacter,
                     header = 0 if self.header else None,
                     skiprows=self.linesToSkip)
@@ -1283,6 +1284,7 @@ class CsvFileTable(TableAbstractBaseClass):
         self.headers = headers
 
     def __iter__(self):
+        print(self.quoteCharacter, type(self.quoteCharacter))
         def iterate_rows(filepath, headers):
             with io.open(filepath, encoding='utf-8') as f:
                 reader = csv.reader(f,
