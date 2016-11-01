@@ -66,10 +66,6 @@ Installing the [develop](https://github.com/Sage-Bionetworks/synapsePythonClient
 
 Replace `python setup.py install` with `python setup.py develop` to make the installation follow the head without having to reinstall.
 
-Pip will nicely install from a branch in one step:
-
-    pip install git+https://github.com/Sage-Bionetworks/synapsePythonClient.git@develop
-
 #### Installing a tagged version
 
 Checking out a tagged version will ensure that [JIRA issues](https://sagebionetworks.jira.com/issues/?jql=project%20%3D%20SYNR%20AND%20component%20in%20%28EMPTY%2C%20%22Command%20Line%20Client%22%2C%20%22Python%20Client%22%29%20AND%20status%20%3D%20Resolved%20ORDER%20BY%20updatedDate%20DESC) are validated on the correct version of the client code. Instead of checking out the develop branch, check out the tag instead, for example:
