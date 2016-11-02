@@ -4,7 +4,7 @@ from synapseclient.utils import id_of
 import os
 
 
-def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles = None):
+def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles = None, followLink=False):
     """Synchronizes all the files in a folder (including subfolders) from Synapse.
 
     :param syn:    A synapse object as obtained with syn = synapseclient.login()
@@ -19,6 +19,8 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                           May be "overwrite.local", "keep.local", or "keep.both".
                           Defaults to "overwrite.local".
 
+    :param followLink:  Determines whether the link returns the target Entity.
+                        Defaults to False
 
     :returns: list of entities (files, tables, links)
 
@@ -53,6 +55,6 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                 new_path = None
             syncFromSynapse(syn, result['entity.id'], new_path, ifcollision, allFiles)
         else:
-            ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision)
+            ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
             allFiles.append(ent)
     return allFiles

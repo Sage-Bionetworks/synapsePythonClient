@@ -122,7 +122,7 @@ def get(args, syn):
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
-        synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation)
+        synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation,followLink = args.followLink)
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are dowloading a query.')
@@ -138,6 +138,7 @@ def get(args, syn):
         ## normal syn.get operation
         else:
             entity = syn.get(args.id, version=args.version, # limitSearch=args.limitSearch,
+                             followLink=args.followLink,
                              downloadLocation=args.downloadLocation)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print("Downloaded file: %s" % os.path.basename(entity.path))
@@ -461,6 +462,8 @@ def build_parser():
             help='Synapse version number of entity to retrieve. Defaults to most recent version.')
     parser_get.add_argument('-r', '--recursive', action='store_true', default=False,
             help='Fetches content in Synapse recursively contained in the parentId specified by id.')
+    parser_get.add_argument('--followLink', action='store_true', default=False,
+            help='Determines whether the link returns the target Entity.')
     parser_get.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for files if using a path.')
     parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
