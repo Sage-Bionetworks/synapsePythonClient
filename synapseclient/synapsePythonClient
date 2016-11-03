@@ -1,6 +1,6 @@
 {
   "client":"synapsePythonClient",
-  "latestVersion":"1.5.2.dev1",
+  "latestVersion":"1.6.1",
   "blacklist":["0.0.0", "0.4.1", "0.4.0", "0.3.0", "0.2.1", "0.2.0", "0.1.4"],
-  "releaseNotes":"Adds Python 3 compatibility and enhanced file upload reliability"
+  "releaseNotes":"Adds robustness for large downloads and new synapseutils package"
 }
