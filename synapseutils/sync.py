@@ -19,6 +19,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                           May be "overwrite.local", "keep.local", or "keep.both".
                           Defaults to "overwrite.local".
 
+
     :returns: list of entities (files, tables, links)
 
     This function will crawl all subfolders of the project/folder
