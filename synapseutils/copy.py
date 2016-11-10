@@ -207,28 +207,24 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, bitFlags=0x800|0x1)
     fileHandle = synapseclient.utils.find_data_file_handle(bundle)
     createdBy = fileHandle['createdBy']
-    #CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
-    path=ent.path
-    store=True
+    #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
     if profile.ownerId == createdBy:
-        newdataFileHandleId = ent.dataFileHandleId
+        new_ent = File(name=ent.name, parentId=destinationId)
+        new_ent.dataFileHandleId = ent.dataFileHandleId
     else:
-        copyFileHandleRequest = {"copyRequests": [{"newContentType":fileHandle['contentType'],
-                                                   "newFileName":fileHandle['fileName'],
-                                                   "originalFile":{"associateObjectType":"FileEntity",
-                                                                   "fileHandleId":fileHandle['id'],
-                                                                   "associateObjectId":bundle['entity']['id']}}]}
-
-        copiedFileHandle = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
-        newdataFileHandleId = copiedFileHandle['copyResults'][0]['newFileHandle']['id']
         #CHECK: If the synapse entity is an external URL, change path and store
         if fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
             store = False
             path = ent.externalURL
+        else:
+            #####If you have never downloaded the file before, the path is None
+            store = True
+            #This needs to be here, because if the file has never been downloaded before
+            #there wont be a ent.path
+            ent = syn.get(entity,downloadFile=store,version=version)
+            path = ent.path
 
-    new_ent = File(path,  name=ent.name, parentId=destinationId, synapseStore=store)
-    new_ent.dataFileHandleId = newdataFileHandleId
-
+        new_ent = File(path, name=ent.name, parentId=destinationId, synapseStore=store)
     #Set annotations here
     new_ent.annotations = ent.annotations
     #Store provenance if act is not None
