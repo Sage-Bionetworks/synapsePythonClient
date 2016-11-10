@@ -4,6 +4,7 @@ import time
 from synapseclient.exceptions import *
 import tempfile
 import re
+import json
 ############################################################
 ##                 Copy Functions                         ##
 ############################################################
@@ -206,24 +207,28 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, bitFlags=0x800|0x1)
     fileHandle = synapseclient.utils.find_data_file_handle(bundle)
     createdBy = fileHandle['createdBy']
-    #CHECK: If the user created the file, copy the file by using fileHandleId else hard copy
+    #CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
+    path=ent.path
+    store=True
     if profile.ownerId == createdBy:
-        new_ent = File(name=ent.name, parentId=destinationId)
-        new_ent.dataFileHandleId = ent.dataFileHandleId
+        newdataFileHandleId = ent.dataFileHandleId
     else:
+        copyFileHandleRequest = {"copyRequests": [{"newContentType":fileHandle['contentType'],
+                                                   "newFileName":fileHandle['fileName'],
+                                                   "originalFile":{"associateObjectType":"FileEntity",
+                                                                   "fileHandleId":fileHandle['id'],
+                                                                   "associateObjectId":bundle['entity']['id']}}]}
+
+        copiedFileHandle = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
+        newdataFileHandleId = copiedFileHandle['copyResults'][0]['newFileHandle']['id']
         #CHECK: If the synapse entity is an external URL, change path and store
         if fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
             store = False
             path = ent.externalURL
-        else:
-            #####If you have never downloaded the file before, the path is None
-            store = True
-            #This needs to be here, because if the file has never been downloaded before
-            #there wont be a ent.path
-            ent = syn.get(entity,downloadFile=store,version=version)
-            path = ent.path
 
-        new_ent = File(path, name=ent.name, parentId=destinationId, synapseStore=store)
+    new_ent = File(path,  name=ent.name, parentId=destinationId, synapseStore=store)
+    new_ent.dataFileHandleId = newdataFileHandleId
+
     #Set annotations here
     new_ent.annotations = ent.annotations
     #Store provenance if act is not None
@@ -402,6 +407,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             attachments = []
         elif wiki['attachmentFileHandleIds'] != []:
             uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
+            #### Change this (Can copy wiki attachments with the copy filehandle function)
             results = syn.restGET(uri)
             file_handles = {fh['id']:fh for fh in results['list']}
             ## need to download an re-upload wiki attachments, ug!
