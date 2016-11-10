@@ -4,7 +4,6 @@ import time
 from synapseclient.exceptions import *
 import tempfile
 import re
-import json
 ############################################################
 ##                 Copy Functions                         ##
 ############################################################
@@ -403,7 +402,6 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             attachments = []
         elif wiki['attachmentFileHandleIds'] != []:
             uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
-            #### Change this (Can copy wiki attachments with the copy filehandle function)
             results = syn.restGET(uri)
             file_handles = {fh['id']:fh for fh in results['list']}
             ## need to download an re-upload wiki attachments, ug!
