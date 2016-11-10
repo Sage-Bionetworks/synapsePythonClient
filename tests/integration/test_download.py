@@ -4,6 +4,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
+from nose.tools import assert_raises
 
 import filecmp, os, tempfile, shutil
 
@@ -36,16 +37,11 @@ def test_download_check_md5():
 
     print('expected MD5:', entity['md5'])
 
-    url = '%s/entity/%s/file' % (syn.repoEndpoint, entity.id)
-    syn._downloadFile(url, destination=tempfile.gettempdir(), expected_md5=entity['md5'])
-
-    try:
-        syn._downloadFile(url, destination=tempfile.gettempdir(), expected_md5='10000000000000000000000000000001')
-    except SynapseMd5MismatchError as ex1:
-        print("Expected exception:", ex1)
-    else:
-        assert False, "Should have raised SynapseMd5MismatchError"
-
+    fileResult = syn._getFileHandleDownload(entity['dataFileHandleId'],entity['id'])
+    syn._downloadFileHandle(fileResult['preSignedURL'], tempfile.gettempdir(), fileResult['fileHandle'])
+    assert_raises(SynapseMd5MismatchError, syn._downloadFileHandle, fileResult['preSignedURL'],
+                  tempfile.gettempdir(), {'contentMd5': '100000000000000000000',
+                                          'id':entity['dataFileHandleId']})
 
 def test_resume_partial_download():
     original_file = utils.make_bogus_data_file(40000)
