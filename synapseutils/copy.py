@@ -398,37 +398,39 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     newOwn =syn.get(destinationId,downloadFile=False)
     wikiIdMap = dict()
     newWikis = dict()
+
     for wikiHeader in oldWh:
         attDir=tempfile.NamedTemporaryFile(prefix='attdir',suffix='')
-        #print i['id']
         wiki = syn.getWiki(oldOwn, wikiHeader.id)
         print('Got wiki %s' % wikiHeader.id)
         if wiki['attachmentFileHandleIds'] == []:
-            attachments = []
+            new_file_handles = []
         elif wiki['attachmentFileHandleIds'] != []:
             uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
-            #### Change this (Can copy wiki attachments with the copy filehandle function)
             results = syn.restGET(uri)
-            file_handles = {fh['id']:fh for fh in results['list']}
-            ## need to download an re-upload wiki attachments, ug!
-            attachments = []
-            tempdir = tempfile.gettempdir()
-            for fhid in wiki.attachmentFileHandleIds:
-                file_info = syn._downloadWikiAttachment(wiki.ownerId, wiki, file_handles[fhid]['fileName'], destination=tempdir)
-                attachments.append(file_info['path'])
+            copyFileHandleRequest = {"copyRequests":[]}
+            for attachment in results['list']:
+                copyFileHandleRequest['copyRequests'].append({"newContentType":attachment['contentType'],
+                                                              "newFileName":attachment['fileName'],
+                                                              "originalFile":{"associateObjectType":"WikiAttachment",
+                                                                              "fileHandleId":attachment['id'],
+                                                                              "associateObjectId":wiki.id}})
+            copiedFileHandles = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
+            new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
+
         #for some reason some wikis don't have titles?
         if hasattr(wikiHeader, 'parentId'):
-            wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=wikiIdMap[wiki.parentWikiId])
+            wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])
             wNew = syn.store(wNew)
         else:
             if destinationSubPageId is not None:
                 wNew = syn.getWiki(newOwn, destinationSubPageId)
-                wNew.attachments = attachments
+                wNew.fileHandles = new_file_handles
                 wNew.markdown = wiki.markdown
                 #Need to add logic to update titles here
                 wNew = syn.store(wNew)
             else:
-                wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, attachments=attachments, parentWikiId=destinationSubPageId)
+                wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
                 wNew = syn.store(wNew)
         newWikis[wNew.id]=wNew
         wikiIdMap[wiki.id] =wNew.id

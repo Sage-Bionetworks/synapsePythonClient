@@ -354,8 +354,12 @@ def test_copyWiki():
         assert s == new_wikiPage.markdown
         orig_attach = syn.getWikiAttachments(orig_wikiPage)
         new_attach = syn.getWikiAttachments(new_wikiPage)
+
+        orig_file = [i['fileName'] for i in orig_attach if i['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+        new_file = [i['fileName'] for i in new_attach if i['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+        
         #check that attachment file names are the same
-        assert orig_attach == new_attach
+        assert orig_file == new_file
 
     print("Test: copyWikiPage = True (Default) (Should copy all wikis including wikis on files)")
     third_project = syn.store(Project(name=str(uuid.uuid4())))
