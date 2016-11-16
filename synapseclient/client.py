@@ -864,9 +864,10 @@ class Synapse:
                     else:
                         raise ValueError('Invalid parameter: "%s" is not a valid value '
                                          'for "ifcollision"' % ifcollision)
-
+                objectType =  'FileEntity' if submission is None else 'SubmissionAttachment'
+                objectId = entity['id'] if submission is None else submission
                 fileResult = self._getFileHandleDownload(entityBundle['entity']['dataFileHandleId'],
-                                                         entity['id'])
+                                                         objectId, objectType)
                 entity['path'] = self._downloadFileHandle(fileResult['preSignedURL'],
                                                           downloadPath, fileResult['fileHandle'])
 
