@@ -4,6 +4,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
+from nose.tools import assert_raises
 
 import filecmp, os, tempfile, shutil
 
@@ -36,16 +37,11 @@ def test_download_check_md5():
 
     print('expected MD5:', entity['md5'])
 
-    url = '%s/entity/%s/file' % (syn.repoEndpoint, entity.id)
-    syn._downloadFile(url, destination=tempfile.gettempdir(), expected_md5=entity['md5'])
-
-    try:
-        syn._downloadFile(url, destination=tempfile.gettempdir(), expected_md5='10000000000000000000000000000001')
-    except SynapseMd5MismatchError as ex1:
-        print("Expected exception:", ex1)
-    else:
-        assert False, "Should have raised SynapseMd5MismatchError"
-
+    fileResult = syn._getFileHandleDownload(entity['dataFileHandleId'],entity['id'])
+    syn._downloadFileHandle(fileResult['preSignedURL'], tempfile.gettempdir(), fileResult['fileHandle'])
+    assert_raises(SynapseMd5MismatchError, syn._downloadFileHandle, fileResult['preSignedURL'],
+                  tempfile.gettempdir(), {'contentMd5': '100000000000000000000',
+                                          'id':entity['dataFileHandleId']})
 
 def test_resume_partial_download():
     original_file = utils.make_bogus_data_file(40000)
@@ -62,7 +58,7 @@ def test_resume_partial_download():
     temp_dir = tempfile.gettempdir()
 
     url = '%s/entity/%s/file' % (syn.repoEndpoint, entity.id)
-    path = syn._download(url, destination=temp_dir, file_handle_id=entity.dataFileHandleId, expected_md5=entity.md5)
+    path = syn._download(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
 
     ## simulate an imcomplete download by putting the
     ## complete file back into its temporary location
@@ -74,7 +70,7 @@ def test_resume_partial_download():
         f.truncate(3*os.path.getsize(original_file)//7)
 
     ## this should complete the partial download
-    path = syn._download(url, destination=temp_dir, file_handle_id=entity.dataFileHandleId, expected_md5=entity.md5)
+    path = syn._download(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
 
     assert filecmp.cmp(original_file, path), "File comparison failed"
 

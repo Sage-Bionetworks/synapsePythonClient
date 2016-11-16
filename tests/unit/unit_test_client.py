@@ -37,16 +37,14 @@ def test_logout(*mocks):
     assert not write_session_mock.called
 
 
-@patch('synapseclient.Synapse._downloadFileEntity')
-def test_getWithEntityBundle(download_file_mock):
-
+@patch('synapseclient.Synapse._getFileHandleDownload')
+@patch('synapseclient.Synapse._downloadFileHandle')
+def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock):
     ## Note: one thing that remains unexplained is why the previous version of
     ## this test worked if you had a .cacheMap file of the form:
     ## {"/Users/chris/.synapseCache/663/-1337/anonymous": "2014-09-15T22:54:57.000Z",
     ##  "/var/folders/ym/p7cr7rrx4z7fw36sxv04pqh00000gq/T/tmpJ4nz8U": "2014-09-15T23:27:25.000Z"}
     ## ...but failed if you didn't.
-
-    ## TODO: Uncomment failing asserts after SYNR-790 and SYNR-697 are fixed
 
     bundle = {
         'entity': {
@@ -73,16 +71,20 @@ def test_getWithEntityBundle(download_file_mock):
         print("removing cacheMap file: ", cacheMap)
         os.remove(cacheMap)
 
-    def _downloadFileEntity(entity, path, submission, file_handle_id):
+    def _downloadFileHandle(url, path, fileHandle, retries=5):
         print("mock downloading file to:", path)
         ## touch file at path
         with open(path, 'a'):
             os.utime(path, None)
         dest_dir, filename = os.path.split(path)
-        return {"path": path,
-                "files": [filename],
-                "cacheDir": dest_dir}
-    download_file_mock.side_effect = _downloadFileEntity
+        return path
+
+    def _getFileHandleDownload(fileHandleId,  objectId, objectType='FileHandle'):
+        print("getting metadata for:", fileHandleId)
+        return {'fileHandle':bundle['fileHandles'][0], 'fileHandleId':fileHandleId, 'preSignedURL':'http://example.com'}
+
+    download_file_mock.side_effect = _downloadFileHandle
+    get_file_URL_and_metadata_mock.side_effect = _getFileHandleDownload
 
     # 1. ----------------------------------------------------------------------
     # download file to an alternate location
@@ -97,8 +99,8 @@ def test_getWithEntityBundle(download_file_mock):
 
     assert e.name == bundle["entity"]["name"]
     assert e.parentId == bundle["entity"]["parentId"]
-    assert e.cacheDir == temp_dir1
-    assert bundle["fileHandles"][0]["fileName"] in e.files
+    assert os.path.dirname(e.path) == temp_dir1
+    assert bundle["fileHandles"][0]["fileName"] == os.path.basename(e.path)
     assert e.path == os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])
 
     # 2. ----------------------------------------------------------------------

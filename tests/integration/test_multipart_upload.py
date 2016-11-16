@@ -41,7 +41,9 @@ def test_round_trip():
         junk.properties.update(syn._createEntity(junk.properties))
         (tmp_f, tmp_path) = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
-        junk.update(syn._downloadFileEntity(junk, tmp_path))
+
+        fileResult = syn._getFileHandleDownload(fhid, junk['id'])
+        junk['path'] = syn._downloadFileHandle(fileResult['preSignedURL'], tmp_path, fileResult['fileHandle'])
         assert filecmp.cmp(filepath, junk.path)
 
     finally:
@@ -86,7 +88,9 @@ def test_randomly_failing_parts():
         junk.properties.update(syn._createEntity(junk.properties))
         (tmp_f, tmp_path) = tempfile.mkstemp()
         schedule_for_cleanup(tmp_path)
-        junk.update(syn._downloadFileEntity(junk, tmp_path))
+
+        fileResult = syn._getFileHandleDownload(fhid, junk['id'])
+        junk['path'] = syn._downloadFileHandle(fileResult['preSignedURL'], tmp_path, fileResult['fileHandle'])
         assert filecmp.cmp(filepath, junk.path)
 
     finally:
@@ -128,7 +132,9 @@ def test_multipart_upload_big_string():
     junk.properties.update(syn._createEntity(junk.properties))
     (tmp_f, tmp_path) = tempfile.mkstemp()
     schedule_for_cleanup(tmp_path)
-    junk.update(syn._downloadFileEntity(junk, tmp_path))
+
+    fileResult = syn._getFileHandleDownload(fhid, junk['id'])
+    junk['path'] = syn._downloadFileHandle(fileResult['preSignedURL'], tmp_path, fileResult['fileHandle'])
 
     with open(junk.path, encoding='utf-8') as f:
         retrieved_text = f.read()

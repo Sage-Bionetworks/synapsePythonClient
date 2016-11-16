@@ -82,16 +82,6 @@ def test_wikiAttachment():
     file_names = [fh['fileName'] for fh in file_handles]
     assert all( os.path.basename(fn) in file_names for fn in [filename, attachname] )
 
-    # # Retrieve the file attachment
-    # tmpdir = tempfile.mkdtemp()
-    # file_props = syn._downloadWikiAttachment(project, wiki, 
-    #                         os.path.basename(filename), dest_dir=tmpdir)
-    # path = file_props['path']
-    # assert os.path.exists(path)
-    # assert filecmp.cmp(original_path, path)
-
-    # Clean up
-    # syn._deleteFileHandle(fileHandle)
     syn.delete(subwiki)
     syn.delete(wiki)
     assert_raises(SynapseHTTPError, syn.getWiki, project)

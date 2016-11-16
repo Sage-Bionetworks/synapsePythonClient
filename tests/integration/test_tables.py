@@ -376,20 +376,20 @@ def test_download_table_files():
     results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, resultsAs="rowset")
     for i, row in enumerate(results):
         print("%s_%s" % (row.rowId, row.versionNumber), row.values)
-        file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-        assert filecmp.cmp(original_files[i], file_info['path'])
-        schedule_for_cleanup(file_info['path'])
+        path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
+        assert filecmp.cmp(original_files[i], path)
+        schedule_for_cleanup(path)
 
     ## test that cached copies are returned for already downloaded files
-    original_downloadFile_method = syn._downloadFile
-    with patch("synapseclient.Synapse._downloadFile") as _downloadFile_mock:
+    original_downloadFile_method = syn._downloadFileHandle
+    with patch("synapseclient.Synapse._downloadFileHandle") as _downloadFile_mock:
         _downloadFile_mock.side_effect = original_downloadFile_method
 
         results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
         for i, row in enumerate(results):
             print("%s_%s" % (row.rowId, row.versionNumber), row.values)
-            file_info = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-            assert filecmp.cmp(original_files[i], file_info['path'])
+            file_path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
+            assert filecmp.cmp(original_files[i], file_path)
 
         assert not _downloadFile_mock.called, "Should have used cached copy of file and not called _downloadFile"
 
