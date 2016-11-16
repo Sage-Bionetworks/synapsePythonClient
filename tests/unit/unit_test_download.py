@@ -126,7 +126,7 @@ def test_mock_download():
     ## headers (to avoid having to be logged in to Synapse)
     with patch.object(requests, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
-        path = syn._download(url, destination=temp_dir, file_handle_id=12345, expected_md5=contents_md5)
+        path = syn._download(url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5)
 
 
     ## 2. Multiple redirects
@@ -141,7 +141,7 @@ def test_mock_download():
     ## headers (to avoid having to be logged in to Synapse)
     with patch.object(requests, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
-        path = syn._download(url, destination=temp_dir, file_handle_id=12345, expected_md5=contents_md5)
+        path = syn._download(url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5)
 
 
     ## 3. recover from partial download

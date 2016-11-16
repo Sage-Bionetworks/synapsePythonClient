@@ -1738,7 +1738,7 @@ class Synapse:
     ##               File handle service calls                ##
     ############################################################
 
-    def _getFileHandleDownload(self, file_handle_id,  objectId, objectType='FileEntity'):
+    def _getFileHandleDownload(self, fileHandleId,  objectId, objectType='FileEntity'):
         """
         Gets the URL and the metadata as filehandle object for a filehandle or fileHandleId
 
@@ -1749,7 +1749,7 @@ class Synapse:
         :returns: dictionary with keys: fileHandle, fileHandleId and preSignedURL
         """
         body = {'includeFileHandles':True, 'includePreSignedURLs': True,
-                'requestedFiles':[{'fileHandleId':file_handle_id,
+                'requestedFiles':[{'fileHandleId':fileHandleId,
                                    'associateObjectId': objectId,
                                    'associateObjectType':objectType}]}
         results = self.restPOST('/fileHandle/batch', body=json.dumps(body),
@@ -1788,13 +1788,13 @@ class Synapse:
         raise exc_info[0](exc_info[1])
 
 
-    def _download(self, url, destination, file_handle_id=None, expected_md5=None):
+    def _download(self, url, destination, fileHandleId=None, expected_md5=None):
         """
         Download a file from the given URL to the local file system.
 
         :param url: source of download
         :param destination: destination on local file system
-        :param file_handle_id: (optional) if given, the file will be given a
+        :param fileHandleId: (optional) if given, the file will be given a
                                temporary name that includes the file handle id
                                which allows resuming partial downloads of the same
                                file from previous sessions
@@ -1826,7 +1826,7 @@ class Synapse:
             elif scheme == 'http' or scheme == 'https':
                 ## if a partial download exists with the temporary name,
                 ## find it and restart the download from where it left off
-                temp_destination = utils.temp_download_filename(destination, file_handle_id)
+                temp_destination = utils.temp_download_filename(destination, fileHandleId)
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                                 if os.path.exists(temp_destination) else {}
                 response = _with_retry(

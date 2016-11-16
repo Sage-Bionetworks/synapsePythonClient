@@ -46,8 +46,6 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     ##  "/var/folders/ym/p7cr7rrx4z7fw36sxv04pqh00000gq/T/tmpJ4nz8U": "2014-09-15T23:27:25.000Z"}
     ## ...but failed if you didn't.
 
-    ## TODO: Uncomment failing asserts after SYNR-790 and SYNR-697 are fixed
-
     bundle = {
         'entity': {
             'id': 'syn10101',
