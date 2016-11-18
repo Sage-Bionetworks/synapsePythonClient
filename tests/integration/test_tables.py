@@ -56,6 +56,8 @@ def test_rowset_tables():
     cols.append(Column(name='x', columnType='DOUBLE'))
     cols.append(Column(name='age', columnType='INTEGER'))
     cols.append(Column(name='cartoon', columnType='BOOLEAN'))
+    cols.append(Column(name='description', columnType='LARGETEXT'))
+
 
     schema1 = syn.store(Schema(name='Foo Table', columns=cols, parent=project))
 
@@ -70,21 +72,20 @@ def test_rowset_tables():
         assert retrieved_col.name == col.name
         assert retrieved_col.columnType == col.columnType
 
-    data1 =[['Chris',  'bar', 11.23, 45, False],
-            ['Jen',    'bat', 14.56, 40, False],
-            ['Jane',   'bat', 17.89,  6, False],
-            ['Henry',  'bar', 10.12,  1, False]]
+    data1 =[['Chris',  'bar', 11.23, 45, False, 'a'],
+            ['Jen',    'bat', 14.56, 40, False, 'b'],
+            ['Jane',   'bat', 17.89,  6, False, 'c'*1002],
+            ['Henry',  'bar', 10.12,  1, False, 'd']]
     row_reference_set1 = syn.store(
         RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data1]))
 
     assert len(row_reference_set1['rows']) == 4
 
     ## add more new rows
-    ## TODO: use 'NaN', '+Infinity', '-Infinity' when supported by server
-    data2 =[['Fred',   'bat', 21.45, 20, True],
-            ['Daphne', 'foo', 27.89, 20, True],
-            ['Shaggy', 'foo', 23.45, 20, True],
-            ['Velma',  'bar', 25.67, 20, True]]
+    data2 =[['Fred',   'bat', 21.45, 20, True, 'e'],
+            ['Daphne', 'foo', 27.89, 20, True, 'f'],
+            ['Shaggy', 'foo', 23.45, 20, True, 'g'],
+            ['Velma',  'bar', 25.67, 20, True, 'h']]
     syn.store(
         RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data2]))
 
@@ -131,7 +132,7 @@ def test_rowset_tables():
     ## put data in new column
     bdays = ('2013-3-15', '2008-1-3', '1973-12-8', '1969-4-28')
     for bday, row in zip(bdays, rs.rows):
-        row['values'][5] = bday
+        row['values'][6] = bday
     row_reference_set = syn.store(rs)
 
     ## query by date and check that we get back two kids
