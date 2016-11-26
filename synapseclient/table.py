@@ -999,7 +999,7 @@ class CsvFileTable(TableAbstractBaseClass):
         Mostly for internal use.
         """
 
-        download_from_table_result, file_info = synapse._queryTableCsv(
+        download_from_table_result, path = synapse._queryTableCsv(
             query=query,
             quoteCharacter=quoteCharacter,
             escapeCharacter=escapeCharacter,
@@ -1010,7 +1010,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
         ## A dirty hack to find out if we got back row ID and Version
         ## in particular, we don't get these back from aggregate queries
-        with io.open(file_info['path'], 'r', encoding='utf-8') as f:
+        with io.open(path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f,
                 delimiter=separator,
                 escapechar=escapeCharacter,
@@ -1023,7 +1023,7 @@ class CsvFileTable(TableAbstractBaseClass):
             includeRowIdAndRowVersion = False
 
         self = cls(
-            filepath=file_info['path'],
+            filepath=path,
             schema=download_from_table_result.get('tableId', None),
             etag=download_from_table_result.get('etag', None),
             quoteCharacter=quoteCharacter,
