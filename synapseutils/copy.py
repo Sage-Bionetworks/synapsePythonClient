@@ -12,15 +12,17 @@ def copyFileHandleId(syn, fileHandles, associateObjectType, associateObjectId, n
     """
     Given a list of fileHandle Objects, copy the fileHandles
 
-    :param fileHandles:   List of fileHandle Objects
+    :param fileHandles:         List of fileHandle Objects
 
-    :param associateObjectType:    List of associated object types: FileEntity, TableEntity, WikiAttachment, UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment, VerificationSubmission (Must be the same length as fileHandles)
+    :param associateObjectType: List of associated object types: FileEntity, TableEntity, WikiAttachment, UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment, VerificationSubmission (Must be the same length as fileHandles)
     
     :param associateObjectId:   List of associated object Ids: If copying a file, the objectId is the synapse id, and if copying a wiki attachment, the object id is the wiki subpage id. (Must be the same length as fileHandles)
     
-    :param newContentType:    List of new content types (Can change a filetype of a filehandle). Defaults to None, keeping the old filetype
+    :param newContentType:      List of new content types (Can change a filetype of a filehandle). Defaults to None, keeping the old filetype
 
-    :param newFileName:  List of new filenames (Can change a filename of a filehandle). Defaults to None, keeping the old filename
+    :param newFileName:         List of new filenames (Can change a filename of a filehandle). Defaults to None, keeping the old filename
+    
+    :return:                    List of batch filehandle copy results
     """
 
 
