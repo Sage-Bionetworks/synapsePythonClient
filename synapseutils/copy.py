@@ -46,7 +46,6 @@ def copyFileHandleId(syn, fileHandles, associateObjectType, associateObjectId, n
                                                       "originalFile":{"associateObjectType":associateObjectType[index],
                                                                       "fileHandleId":attachment['id'],
                                                                       "associateObjectId":associateObjectId[index]}})
-
     copiedFileHandle = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
 
     return(copiedFileHandle)
@@ -445,7 +444,9 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         elif wiki['attachmentFileHandleIds'] != []:
             uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
             results = syn.restGET(uri)
-            copiedFileHandles = copyFileHandleId(syn, results['list'], ["WikiAttachment"]*len(results['list']), [wiki.id]*len(results['list']))
+            #Get rid of the previews
+            nopreviews = [attach for attach in results['list'] if attach['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+            copiedFileHandles = copyFileHandleId(syn, nopreviews, ["WikiAttachment"]*len(nopreviews), [wiki.id]*len(nopreviews))
             new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
 
         #for some reason some wikis don't have titles?
