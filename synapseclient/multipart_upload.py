@@ -343,7 +343,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     finally:
         mp.terminate()
     if status["state"] != "COMPLETED":
-        raise SynapseError("Upoad {id} did not complete. Try again.".format(id=status["uploadId"]))
+        raise SynapseError("Upload {id} did not complete. Try again.".format(id=status["uploadId"]))
 
     return status
 
