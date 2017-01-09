@@ -79,7 +79,7 @@ import json
 import warnings
 from .exceptions import *
 import getpass
-
+import csv
 
 def query(args, syn):
     try:
@@ -111,10 +111,23 @@ def query(args, syn):
 
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
+
+    queryType = 'synapse'
+
     ids = []
-    for item in  syn.chunkedQuery(queryString):
-        key = [k for k in  item.keys() if k.split('.', 1)[1]=='id'][0]
-        ids.append(item[key])
+
+    if queryString.tolower().find("from syn"):
+
+        tbl = syn.tableQuery(queryString)
+
+        check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
+        assert check_for_id_col, ValueError("Query does not include the id column.")
+
+        ids = ['syn%s' % (x['id'], ) for x in csv.DictReader(file(tbl.filepath))]
+    else:
+        for item in syn.chunkedQuery(queryString):
+            key = [k for k in  item.keys() if k.split('.', 1)[1]=='id'][0]
+            ids.append(item[key])
     return ids
 
 
@@ -211,9 +224,9 @@ def associate(args, syn):
             print('%s.%i\t%s' %(ent.id, ent.versionNumber, fp))
 
 def copy(args,syn):
-    mappings = synapseutils.copy(syn, args.id, args.destinationId, 
-                         copyWikiPage=args.skipCopyWiki, 
-                         excludeTypes=args.excludeTypes, 
+    mappings = synapseutils.copy(syn, args.id, args.destinationId,
+                         copyWikiPage=args.skipCopyWiki,
+                         excludeTypes=args.excludeTypes,
                          version=args.version, updateExisting=args.updateExisting,
                          setProvenance=args.setProvenance)
     print(mappings)
@@ -432,12 +445,12 @@ def test_encoding(args, syn):
 def build_parser():
     """Builds the argument parser and returns the result."""
 
-    USED_HELP=('Synapse ID, a url, or a local file path (of a file previously' 
+    USED_HELP=('Synapse ID, a url, or a local file path (of a file previously'
                'uploaded to Synapse) from which the specified entity is derived')
-    EXECUTED_HELP=('Synapse ID, a url, or a local file path (of a file previously' 
+    EXECUTED_HELP=('Synapse ID, a url, or a local file path (of a file previously'
                    'uploaded to Synapse) that was executed to generate the specified entity')
 
-    
+
     parser = argparse.ArgumentParser(description='Interfaces with the Synapse repository.')
     parser.add_argument('--version',  action='version',
             version='Synapse Client %s' % synapseclient.__version__)
@@ -479,7 +492,7 @@ def build_parser():
     parent_id_group.add_argument('--type', type=str, default='File',
             help='Type of object, such as "File", "Folder", or '
                  '"Project", to create in Synapse. Defaults to "File"')
-    
+
     parser_store.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
     parser_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
@@ -547,7 +560,7 @@ def build_parser():
     parser_cp.add_argument('--destinationId', metavar='syn123', type=str,
             help='Synapse ID of project or folder where file will be copied to.  If no destinationId specified, a new project is created')
     parser_cp.add_argument('--version','-v', metavar='1', type=int, default=None,
-            help=('Synapse version number of file, and link to retrieve.' 
+            help=('Synapse version number of file, and link to retrieve.'
                 'This parameter can only be used when copying files, or links'
                 'Defaults to most recent version.'))
     parser_cp.add_argument('--setProvenance', metavar='traceback', type=str, default='traceback',
