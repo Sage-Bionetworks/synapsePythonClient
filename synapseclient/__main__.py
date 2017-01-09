@@ -124,6 +124,8 @@ def _getIdsFromQuery(queryString, syn):
         check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
         assert check_for_id_col, ValueError("Query does not include the id column.")
 
+        # Filed issue for below (adding syn explicitly to id) - PLFM-4207
+        # This code should be removed once that is fixed.
         ids = ['syn%s' % (x['id'], ) for x in csv.DictReader(file(tbl.filepath))]
     else:
         for item in syn.chunkedQuery(queryString):
