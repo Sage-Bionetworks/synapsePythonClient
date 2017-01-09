@@ -80,6 +80,7 @@ import warnings
 from .exceptions import *
 import getpass
 import csv
+import re
 
 def query(args, syn):
     try:
@@ -116,7 +117,7 @@ def _getIdsFromQuery(queryString, syn):
 
     ids = []
 
-    if queryString.tolower().find("from syn"):
+    if re.search('from syn\d', queryString.lower()):
 
         tbl = syn.tableQuery(queryString)
 
