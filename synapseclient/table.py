@@ -10,8 +10,7 @@ A table has a :py:class:`Schema` and holds a set of rows conforming to
 that schema.
 
 A :py:class:`Schema` defines a series of :py:class:`Column` of the following
-types: STRING, DOUBLE, INTEGER, BOOLEAN, DATE, ENTITYID, FILEHANDLEID.
-
+types: STRING, DOUBLE, INTEGER, BOOLEAN, DATE, ENTITYID, FILEHANDLEID, LINK, LARGETEXT, USERID
 ~~~~~~~
 Example
 ~~~~~~~
@@ -346,8 +345,12 @@ def as_table_columns(df):
     for col in df:
         columnType = DTYPE_2_TABLETYPE[df[col].dtype.char]
         if columnType == 'STRING':
-            size = min(1000, max(30, df[col].str.len().max()*1.5))  #Determine lenght of longest string
-            cols.append(Column(name=col, columnType=columnType, maximumSize=size, defaultValue=''))
+            maxStrLen = df[col].str.len().max()
+            if maxStrLen>1000:
+                cols.append(Column(name=col, columnType='LARGETEXT', defaultValue=''))
+            else:
+                size = min(1000, max(30, maxStrLen*1.5))  #Determine lenght of longest string
+                cols.append(Column(name=col, columnType=columnType, maximumSize=size, defaultValue=''))
         else:
             cols.append(Column(name=col, columnType=columnType))
     return cols
@@ -429,7 +432,7 @@ def cast_values(values, headers):
         ## convert field to column type
         if field is None or field=='':
             result.append(None)
-        elif columnType in ['STRING', 'ENTITYID', 'FILEHANDLEID']:
+        elif columnType in ['STRING', 'ENTITYID', 'FILEHANDLEID', 'LARGETEXT']:
             result.append(field)
         elif columnType=='DOUBLE':
             result.append(float(field))
@@ -542,7 +545,7 @@ synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
 
 ## allowed column types
 ## see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
-ColumnTypes = ['STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK']
+ColumnTypes = ['STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK', 'LARGETEXT', 'USERID']
 
 
 class SelectColumn(DictObject):
