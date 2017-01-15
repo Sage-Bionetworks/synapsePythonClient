@@ -5,7 +5,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, requests, tempfile, time
+import uuid, filecmp, os, sys, requests, tempfile, time, urllib, json
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
 from nose.plugins.attrib import attr
@@ -400,6 +400,31 @@ def test_ExternalFileHandle():
     singapore = syn.store(singapore)
     s2 = syn.get(singapore, downloadFile=False)
     assert s2.externalURL == singapore_2_url
+
+
+def test_ftp_download():
+    """Test downloading an Entity that points to a file on an FTP server. """
+    
+    # Another test with an external reference. This is because we only need to test FTP download; not upload. Also so we don't have to maintain an FTP server just for this purpose.
+    # Make an entity that points to an FTP server file.
+	entity = File(parent=project['id'], name = '1KB.zip')
+	fileHandle = {}
+	fileHandle['externalURL'] = 'ftp://speedtest.tele2.net/1KB.zip'
+	fileHandle["fileName"] = entity.name
+	fileHandle["contentType"] = "application/zip"
+	fileHandle["contentMd5"] = '0f343b0931126a20f133d67c2b018a3b'
+	fileHandle["contentSize"] = 1024
+	fileHandle["concreteType"] = "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+	fileHandle = syn.restPOST('/externalFileHandle', json.dumps(fileHandle), syn.fileHandleEndpoint)
+	entity.dataFileHandleId = fileHandle['id']
+	entity = syn.store(entity)
+
+	# Download the entity and check that MD5 matches expected
+	FTPfile = syn.get(entity.id, downloadLocation=os.getcwd(), downloadFile=True)
+	assert FTPfile.md5==utils.md5_for_file(FTPfile.path).hexdigest()
+	schedule_for_cleanup(entity)
+	os.remove(FTPfile.path)
+
 
 
 def test_synapseStore_flag():
