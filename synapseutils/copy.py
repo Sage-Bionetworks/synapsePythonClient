@@ -50,7 +50,7 @@ def copyFileHandleId(syn, fileHandles, associateObjectType, associateObjectId, n
 
     return(copiedFileHandle)
 
-def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
+def copy(syn, entity, destinationId, copyWikiPage=True, **kwargs):
     """
     - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
       and will recursively copy everything in directories.
@@ -157,7 +157,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         for i in entities:
             mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, **kwargs)
     elif isinstance(ent, Folder):
-        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, updateExisting = updateExisting, **kwargs)
+        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, **kwargs)
     elif isinstance(ent, File) and "file" not in excludeTypes:
         copiedId = _copyFile(syn, ent.id, destinationId, version = version, updateExisting = updateExisting, 
                              setProvenance = setProvenance)
@@ -173,7 +173,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         print("%s not copied" % ent.id)
     return(mapping)
 
-def _copyFolder(syn, entity, destinationId, mapping=None, updateExisting=False, **kwargs):
+def _copyFolder(syn, entity, destinationId, mapping=None, **kwargs):
     """
     Copies synapse folders
 
@@ -185,6 +185,8 @@ def _copyFolder(syn, entity, destinationId, mapping=None, updateExisting=False, 
                             Defaults to an empty list.
     """
     oldFolder = syn.get(entity)
+    updateExisting = kwargs.get('updateExisting',False)
+
     if mapping is None:
         mapping=dict()
     #CHECK: If Folder name already exists, raise value error

@@ -544,8 +544,8 @@ def build_parser():
             help='Copies specific versions of synapse content such as files, folders and projects by recursively copying all sub-content')
     parser_cp.add_argument('id', metavar='syn123', type=str,
             help='Id of entity in Synapse to be copied.')
-    parser_cp.add_argument('--destinationId', metavar='syn123', type=str,
-            help='Synapse ID of project or folder where file will be copied to.  If no destinationId specified, a new project is created')
+    parser_cp.add_argument('--destinationId', metavar='syn123', default = None, required=True, 
+            help='Synapse ID of project or folder where file will be copied to.')
     parser_cp.add_argument('--version','-v', metavar='1', type=int, default=None,
             help=('Synapse version number of file, and link to retrieve.' 
                 'This parameter can only be used when copying files, or links'
