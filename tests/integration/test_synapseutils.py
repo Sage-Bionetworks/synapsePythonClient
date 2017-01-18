@@ -224,8 +224,8 @@ def test_copy():
 
     assert_raises(ValueError,synapseutils.copy,syn,folder_entity.id,destinationId=second_project.id)
     # TEST: Throw error if excludeTypes isn't in file, link and table or isn't a list
-    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,excludeTypes=["foo"])
-    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,excludeTypes="file")
+    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,destinationId=second_project.id,excludeTypes=["foo"])
+    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,destinationId=second_project.id,excludeTypes="file")
     # TEST: excludeType = ["file"], only the folder is created
     second = synapseutils.copy(syn,second_folder.id,destinationId=second_project.id,excludeTypes=["file","table","link"])
 
