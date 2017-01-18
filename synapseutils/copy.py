@@ -1,5 +1,5 @@
 import synapseclient
-from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Activity, exceptions
+from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity, exceptions
 import time
 from synapseclient.exceptions import *
 import tempfile
@@ -146,7 +146,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
     if (isinstance(ent, Project) or isinstance(ent, Folder)) and version is not None:
         raise ValueError("Cannot specify version when copying a project of folder")
 
-    if not isinstance(ent, (Project, Folder, File, Link, Schema)):
+    if not isinstance(ent, (Project, Folder, File, Link, Schema, Entity)):
         raise ValueError("Not able to copy this type of file")
 
     if isinstance(ent, Project):
