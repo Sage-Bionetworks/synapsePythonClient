@@ -464,6 +464,18 @@ class Project(Entity):
         super(Project, self).__init__(concreteType=Project._synapse_entity_type, properties=properties,
                                       annotations=annotations, local_state=local_state, **kwargs)
 
+class Docker(Entity):
+    """
+    Represents a Docker in Synapse.
+
+    You cannot create a Synapse Docker image with this function, please follow instructions here (http://docs.synapse.org/articles/docker.html) to create one.
+    """
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.docker.DockerRepository'
+
+    def __init__(self, name=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
+        if name: kwargs['name'] = name
+        super(Docker, self).__init__(concreteType=Docker._synapse_entity_type, properties=properties,
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 class Folder(Entity):
     """
