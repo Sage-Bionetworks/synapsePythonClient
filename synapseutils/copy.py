@@ -8,46 +8,40 @@ import json
 ############################################################
 ##                 Copy Functions                         ##
 ############################################################
-def copyFileHandleId(syn, fileHandles, associateObjectType, associateObjectId, newContentType=None, newFileName=None):
+def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, newContentTypes=None, newFileNames=None):
     """
     Given a list of fileHandle Objects, copy the fileHandles
 
-    :param fileHandles:         List of fileHandle Objects
+    :param fileHandles:          List of fileHandle Objects
 
-    :param associateObjectType: List of associated object types: FileEntity, TableEntity, WikiAttachment, UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment, VerificationSubmission (Must be the same length as fileHandles)
+    :param associateObjectTypes: List of associated object types: FileEntity, TableEntity, WikiAttachment, UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment, VerificationSubmission (Must be the same length as fileHandles)
     
-    :param associateObjectId:   List of associated object Ids: If copying a file, the objectId is the synapse id, and if copying a wiki attachment, the object id is the wiki subpage id. (Must be the same length as fileHandles)
+    :param associateObjectIds:   List of associated object Ids: If copying a file, the objectId is the synapse id, and if copying a wiki attachment, the object id is the wiki subpage id. (Must be the same length as fileHandles)
     
-    :param newContentType:      List of new content types (Can change a filetype of a filehandle). Defaults to None, keeping the old filetype
+    :param newContentTypes:      List of new content types (Can change a filetype of a filehandle). Defaults to None, keeping the old filetype
 
-    :param newFileName:         List of new filenames (Can change a filename of a filehandle). Defaults to None, keeping the old filename
+    :param newFileNames:         List of new filenames (Can change a filename of a filehandle). Defaults to None, keeping the old filename
     
-    :return:                    List of batch filehandle copy results
+    :return:                     List of batch filehandle copy results
     """
 
-
-    if len(fileHandles) != len(associateObjectType) or len(fileHandles) != len(associateObjectId):
-        raise ValueError("Length of fileHandles, associateObjectType, and associateObjectId must be the same")
-
+    newContentTypes = [None]*len(fileHandles) if newContentTypes is None else newContentTypes
+    newFileNames = [None]*len(fileHandles) if newFileNames is None else newFileNames
+    if (len(fileHandles) != len(associateObjectTypes) or len(fileHandles) != len(associateObjectIds) or
+        len(fileHandles) != len(newContentTypes) or len(fileHandles) != len(newFileNames)):
+        raise ValueError("Length of fileHandles, associateObjectTypes, and associateObjectIds must be the same")
     copyFileHandleRequest = {"copyRequests":[]}
-    for index, attachment in enumerate(fileHandles):
+    for filehandle, newContentType, newFileName, associateObjectType, associateObjectId in zip(fileHandles, newContentTypes, newFileNames, associateObjectTypes, associateObjectIds):
         if newContentType is not None:
-            if len(fileHandles) != len(newContentType):
-                raise ValueError("Length of newContentType must be the same as fileHandles")
-            else:
-                attachment['contentType'] = newContentType[index]
+            filehandle['contentType'] = newContentType
         if newFileName is not None:
-            if len(fileHandles) != len(newFileName):
-                raise ValueError("Length of newFileName must be the same as fileHandles")
-            else:
-                attachment['fileName'] = newFileName[index]
-        copyFileHandleRequest['copyRequests'].append({"newContentType":attachment['contentType'],
-                                                      "newFileName":attachment['fileName'],
-                                                      "originalFile":{"associateObjectType":associateObjectType[index],
-                                                                      "fileHandleId":attachment['id'],
-                                                                      "associateObjectId":associateObjectId[index]}})
+            filehandle['fileName'] = newFileName
+        copyFileHandleRequest['copyRequests'].append({"newContentType":filehandle['contentType'],
+                                                      "newFileName":filehandle['fileName'],
+                                                      "originalFile":{"associateObjectType":associateObjectType,
+                                                                      "fileHandleId":filehandle['id'],
+                                                                      "associateObjectId":associateObjectId}})
     copiedFileHandle = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
-
     return(copiedFileHandle)
 
 def copy(syn, entity, destinationId, copyWikiPage=True, **kwargs):
@@ -251,21 +245,21 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     fileHandle = synapseclient.utils.find_data_file_handle(bundle)
     createdBy = fileHandle['createdBy']
     #CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
-    path=ent.path
-    store=True
+    #path=ent.path
+    #store=True
     if profile.ownerId == createdBy:
         newdataFileHandleId = ent.dataFileHandleId
     else:
-        copiedFileHandle = copyFileHandleId(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']])
+        copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']])
 
         newdataFileHandleId = copiedFileHandle['copyResults'][0]['newFileHandle']['id']
         #CHECK: If the synapse entity is an external URL, change path and store
-        if fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
-            store = False
-            path = ent.externalURL
+        # if fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
+        #     store = False
+        #     path = ent.externalURL
 
-    new_ent = File(path,  name=ent.name, parentId=destinationId, synapseStore=store)
-    new_ent.dataFileHandleId = newdataFileHandleId
+    new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
+    #new_ent.dataFileHandleId = newdataFileHandleId
 
     #Set annotations here
     new_ent.annotations = ent.annotations
@@ -448,7 +442,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             results = syn.restGET(uri)
             #Get rid of the previews
             nopreviews = [attach for attach in results['list'] if attach['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
-            copiedFileHandles = copyFileHandleId(syn, nopreviews, ["WikiAttachment"]*len(nopreviews), [wiki.id]*len(nopreviews))
+            copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews), [wiki.id]*len(nopreviews))
             new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
 
         #for some reason some wikis don't have titles?

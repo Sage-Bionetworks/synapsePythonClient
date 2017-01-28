@@ -53,7 +53,6 @@ def setup(module):
 ###Add test for existing provenance but the orig doesn't have provenance
 def test_copy():
     """Tests the copy function"""
-
     # Create a Project
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
@@ -158,6 +157,7 @@ def test_copy():
         assert new_copied_URL.dataFileHandleId != copied_URL_ent.dataFileHandleId
     finally:
         syn_other.logout()
+
     # ------------------------------------
     # TEST COPY LINKS
     # ------------------------------------
@@ -441,6 +441,9 @@ def test_walk():
             if type(x) == list:
                 x = x.sort()
     for i in temp:
+        for x in i:
+            if type(x) == list:
+                x = x.sort()
         assert i in walked
 
     print("CHECK: synapseutils.walk on a file should return empty generator")
