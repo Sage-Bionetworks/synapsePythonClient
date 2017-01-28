@@ -44,7 +44,7 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
     copiedFileHandle = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
     return(copiedFileHandle)
 
-def copy(syn, entity, destinationId, copyWikiPage=True, **kwargs):
+def copy(syn, entity, destinationId, copyWikiPage=True, copyAnnotations=True, **kwargs):
     """
     - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
       and will recursively copy everything in directories.
@@ -58,6 +58,9 @@ def copy(syn, entity, destinationId, copyWikiPage=True, **kwargs):
     :param destinationId:   Synapse ID of a folder/project that the copied entity is being copied to
 
     :param copyWikiPage:    Determines whether the wiki of the entity is copied over
+                            Default is True
+
+    :param copyAnnotations: Determines whether annotations of a File/Folder is copied over
                             Default is True
 
     Examples::                        
@@ -101,7 +104,7 @@ def copy(syn, entity, destinationId, copyWikiPage=True, **kwargs):
     entitySubPageId = kwargs.get('entitySubPageId',None)
     destinationSubPageId = kwargs.get('destinationSubPageId',None)
 
-    mapping = _copyRecursive(syn, entity, destinationId, **kwargs)
+    mapping = _copyRecursive(syn, entity, destinationId, copyAnnotations = copyAnnotations, **kwargs)
     if copyWikiPage:
         for oldEnt in mapping:
             newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId = entitySubPageId,
@@ -109,7 +112,7 @@ def copy(syn, entity, destinationId, copyWikiPage=True, **kwargs):
                                 updateSynIds = updateSynIds, entityMap = mapping)
     return(mapping)
 
-def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
+def _copyRecursive(syn, entity, destinationId, mapping=None, copyAnnotations = True, **kwargs):
     """
     Recursively copies synapse entites, but does not copy the wikis
 
@@ -149,12 +152,12 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         copiedId = destinationId
         entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
         for i in entities:
-            mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, **kwargs)
+            mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, copyAnnotations = copyAnnotations, **kwargs)
     elif isinstance(ent, Folder):
-        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, **kwargs)
+        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, copyAnnotations = copyAnnotations, **kwargs)
     elif isinstance(ent, File) and "file" not in excludeTypes:
         copiedId = _copyFile(syn, ent.id, destinationId, version = version, updateExisting = updateExisting, 
-                             setProvenance = setProvenance)
+                             setProvenance = setProvenance, copyAnnotations = copyAnnotations)
     elif isinstance(ent, Link) and "link" not in excludeTypes:
         copiedId = _copyLink(syn, ent.id, destinationId, updateExisting = updateExisting)
     elif isinstance(ent, Schema) and "table" not in excludeTypes:
@@ -167,7 +170,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, **kwargs):
         print("%s not copied" % ent.id)
     return(mapping)
 
-def _copyFolder(syn, entity, destinationId, mapping=None, **kwargs):
+def _copyFolder(syn, entity, destinationId, mapping=None, copyAnnotations=True, **kwargs):
     """
     Copies synapse folders
 
@@ -190,14 +193,15 @@ def _copyFolder(syn, entity, destinationId, mapping=None, **kwargs):
             raise ValueError('An entity named "%s" already exists in this location. Folder could not be copied'%oldFolder.name)
 
     newFolder = Folder(name = oldFolder.name, parent = destinationId)
-    newFolder.annotations = oldFolder.annotations
+    if copyAnnotations:
+        newFolder.annotations = oldFolder.annotations
     newFolder = syn.store(newFolder)
     entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
     for ent in entities:
         copied = _copyRecursive(syn, ent['entity.id'],newFolder.id,mapping, **kwargs)
     return(newFolder.id)
 
-def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback"):
+def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback", copyAnnotations=True):
     """
     Copies most recent version of a file to a specified synapse ID.
 
@@ -245,24 +249,16 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     fileHandle = synapseclient.utils.find_data_file_handle(bundle)
     createdBy = fileHandle['createdBy']
     #CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
-    #path=ent.path
-    #store=True
     if profile.ownerId == createdBy:
         newdataFileHandleId = ent.dataFileHandleId
     else:
         copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']])
-
         newdataFileHandleId = copiedFileHandle['copyResults'][0]['newFileHandle']['id']
-        #CHECK: If the synapse entity is an external URL, change path and store
-        # if fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
-        #     store = False
-        #     path = ent.externalURL
 
     new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
-    #new_ent.dataFileHandleId = newdataFileHandleId
-
     #Set annotations here
-    new_ent.annotations = ent.annotations
+    if copyAnnotations:
+        new_ent.annotations = ent.annotations
     #Store provenance if act is not None
     if act is not None:
         new_ent = syn.store(new_ent, activity=act)
@@ -418,7 +414,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     oldOwn = syn.get(entity,downloadFile=False)
     # getWikiHeaders fails when there is no wiki
     try:
-        oldWh = syn.getWikiHeaders(oldOwn)
+        oldWikiHeaders = syn.getWikiHeaders(oldOwn)
     except SynapseHTTPError as e:
         if e.response.status_code == 404:
             return([])
@@ -426,41 +422,43 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             raise e
 
     if entitySubPageId is not None:
-        oldWh = _getSubWikiHeaders(oldWh,entitySubPageId)
+        oldWikiHeaders = _getSubWikiHeaders(oldWikiHeaders,entitySubPageId)
+        #If entitySubPageId is given but not destinationSubPageId, set the pageId to "" (will get the root page)
+        if destinationSubPageId is None:
+            destinationSubPageId = ""
     newOwn =syn.get(destinationId,downloadFile=False)
     wikiIdMap = dict()
     newWikis = dict()
 
-    for wikiHeader in oldWh:
-        attDir=tempfile.NamedTemporaryFile(prefix='attdir',suffix='')
+    for wikiHeader in oldWikiHeaders:
         wiki = syn.getWiki(oldOwn, wikiHeader.id)
         print('Got wiki %s' % wikiHeader.id)
         if wiki['attachmentFileHandleIds'] == []:
             new_file_handles = []
         elif wiki['attachmentFileHandleIds'] != []:
-            uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
-            results = syn.restGET(uri)
+            results = [syn._getFileHandleDownload(filehandleId, wiki.id, objectType='WikiAttachment') for filehandleId in wiki['attachmentFileHandleIds']]
             #Get rid of the previews
-            nopreviews = [attach for attach in results['list'] if attach['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+            nopreviews = [attach['fileHandle'] for attach in results if attach['fileHandle']['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
             copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews), [wiki.id]*len(nopreviews))
             new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
 
         #for some reason some wikis don't have titles?
         if hasattr(wikiHeader, 'parentId'):
-            wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])
-            wNew = syn.store(wNew)
+            newWikiPage = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])
+            newWikiPage = syn.store(newWikiPage)
         else:
             if destinationSubPageId is not None:
-                wNew = syn.getWiki(newOwn, destinationSubPageId)
-                wNew.fileHandles = new_file_handles
-                wNew.markdown = wiki.markdown
+                newWikiPage = syn.getWiki(newOwn, destinationSubPageId)
+                newWikiPage.fileHandles = new_file_handles
+                newWikiPage.markdown = wiki.markdown
+                newWikiPage.title = wiki.get('title','')
                 #Need to add logic to update titles here
-                wNew = syn.store(wNew)
+                newWikiPage = syn.store(newWikiPage)
             else:
-                wNew = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
-                wNew = syn.store(wNew)
-        newWikis[wNew.id]=wNew
-        wikiIdMap[wiki.id] =wNew.id
+                newWikiPage = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
+                newWikiPage = syn.store(newWikiPage)
+        newWikis[newWikiPage.id]=newWikiPage
+        wikiIdMap[wiki.id] =newWikiPage.id
 
     if updateLinks:
         newWikis = _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId)

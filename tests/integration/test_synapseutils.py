@@ -83,7 +83,7 @@ def test_copy():
     # TEST COPY FILE
     # ------------------------------------
     output = synapseutils.copy(syn,file_entity.id,destinationId=project_entity.id)
-    output_URL = synapseutils.copy(syn,externalURL_entity.id,destinationId=project_entity.id)
+    output_URL = synapseutils.copy(syn,externalURL_entity.id,destinationId=project_entity.id,copyAnnotations=False)
 
     #Verify that our copied files are identical
     copied_ent = syn.get(output[file_entity.id])
@@ -106,7 +106,7 @@ def test_copy():
     assert copied_ent.dataFileHandleId == file_entity.dataFileHandleId
 
     # TEST: Make sure copied URLs are the same
-    assert copied_url_annot == annots
+    assert copied_url_annot == {}
     assert copied_URL_ent.externalURL == repo_url
     assert copied_URL_ent.name == 'rand'
     assert copied_URL_ent.dataFileHandleId == externalURL_entity.dataFileHandleId
@@ -382,14 +382,13 @@ def test_copyWiki():
     fourth_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=subwiki.id, destinationSubPageId=test_ent_subpage.id, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
     temp = syn.getWiki(third_project.id, fourth_header[0]['id'])
     #There are issues where some title pages are blank.  This is an issue that needs to be addressed
-    #assert temp.title == subwiki.title
+    assert temp.title == subwiki.title
 
     assert temp.markdown == subwiki.markdown
 
     temp = syn.getWiki(third_project.id, fourth_header[1]['id'])
     assert temp.title == sub_subwiki.title
     assert temp.markdown == sub_subwiki.markdown
-    assert fourth_header[0] == third_header[0]
 
 def test_walk():
     walked = []
