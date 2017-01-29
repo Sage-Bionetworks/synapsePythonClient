@@ -421,14 +421,21 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         else:
             raise e
 
-    if entitySubPageId is not None:
-        oldWikiHeaders = _getSubWikiHeaders(oldWikiHeaders,entitySubPageId)
-        #If entitySubPageId is given but not destinationSubPageId, set the pageId to "" (will get the root page)
-        if destinationSubPageId is None:
-            destinationSubPageId = ""
     newOwn =syn.get(destinationId,downloadFile=False)
     wikiIdMap = dict()
     newWikis = dict()
+    #If entitySubPageId is given but not destinationSubPageId, set the pageId to "" (will get the root page)
+    #A entitySubPage could be copied to a project without any wiki pages, this has to be checked
+    newWikiPage = None
+    try:
+        newWikiPage = syn.getWiki(newOwn, destinationSubPageId)
+    except SynapseHTTPError as e:
+        if e.response.status_code == 404:
+            pass
+        else:
+            raise e
+    if entitySubPageId is not None:
+        oldWikiHeaders = _getSubWikiHeaders(oldWikiHeaders,entitySubPageId)
 
     for wikiHeader in oldWikiHeaders:
         wiki = syn.getWiki(oldOwn, wikiHeader.id)
@@ -447,8 +454,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             newWikiPage = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])
             newWikiPage = syn.store(newWikiPage)
         else:
-            if destinationSubPageId is not None:
-                newWikiPage = syn.getWiki(newOwn, destinationSubPageId)
+            if destinationSubPageId is not None and newWikiPage is not None:
                 newWikiPage.fileHandles = new_file_handles
                 newWikiPage.markdown = wiki.markdown
                 newWikiPage.title = wiki.get('title','')
