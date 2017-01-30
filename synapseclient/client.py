@@ -46,6 +46,7 @@ import math, os, sys, stat, re, json, time
 import base64, hashlib, hmac
 import six
 import uuid
+import urllib
 
 try:
     from urllib.parse import urlparse
@@ -1816,13 +1817,16 @@ class Synapse:
                 destination = utils.file_url_to_path(url, verify_exists=True)
                 if destination is None:
                     raise IOError("Local file (%s) does not exist." % url)
-                if expected_md5:
-                    actual_md5 = utils.md5_for_file(destination).hexdigest()
+                actual_md5 = utils.md5_for_file(destination).hexdigest()
                 break
             elif scheme == 'sftp':
                 destination = self._sftpDownloadFile(url, destination)
-                if expected_md5:
-                    actual_md5 = utils.md5_for_file(destination).hexdigest()
+                actual_md5 = utils.md5_for_file(destination).hexdigest()
+                break
+            elif scheme == 'ftp':
+                #username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
+                urllib.urlretrieve(url, destination)
+                actual_md5 = utils.md5_for_file(destination).hexdigest()
                 break
             elif scheme == 'http' or scheme == 'https':
                 ## if a partial download exists with the temporary name,
@@ -1846,7 +1850,6 @@ class Synapse:
                     url = response.headers['location']
                     ## don't break, loop again
                 else:
-
                     ## get filename from content-disposition, if we don't have it already
                     if os.path.isdir(destination):
                         filename = utils.extract_filename(
@@ -1884,15 +1887,10 @@ class Synapse:
                     except Exception as ex:  #We will add a progress parameter then push it back to retry.
                         ex.progress  = transferred-previouslyTransferred
                         raise
-
                     actual_md5 = sig.hexdigest()
-
                     ## rename to final destination
                     shutil.move(temp_destination, destination)
-
                     break
-
-            #TODO LARSSON add support of ftp download
             else:
                 sys.stderr.write('Unable to download URLs of type %s' % scheme)
                 return returnDict(None)
@@ -1902,8 +1900,7 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
-                filename=destination, md5=actual_md5, expected_md5=expected_md5))
+            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
 
@@ -2121,11 +2118,8 @@ class Synapse:
         Performs download of a file from an sftp server.
 
         :param url: URL where file will be deposited.  Path will be chopped out.
-
         :param localFilepath: location where to store file
-
         :param username: username on server
-
         :param password: password for authentication on  server
 
         :returns: localFilePath
