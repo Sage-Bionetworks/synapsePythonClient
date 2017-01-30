@@ -2,6 +2,13 @@ import errno
 from synapseclient.entity import is_container
 from synapseclient.utils import id_of
 import os
+from concurrent.futures import ThreadPoolExecutor
+
+pool = ThreadPoolExecutor(max_workers=3)  # Synapse allows up to 3 concurrent requests
+
+def getOneEntity(syn, entity_id, downloadLocation, ifcollision, allFilesList):
+    ent = syn.get(entity_id, downloadLocation=downloadLocation, ifcollision=ifcollision)
+    allFilesList.append(ent)  # lists are thread-safe
 
 
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles = None):
@@ -36,7 +43,11 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
         for f in entities:
             print(f.path)
     """
-    if allFiles is None: allFiles = list()
+    global pool
+    wait_at_finish = False
+    if allFiles is None:  # initial call
+        allFiles = list()
+        wait_at_finish = True
     id = id_of(entity)
     results = syn.chunkedQuery("select id, name, nodeType from entity where entity.parentId=='%s'" %id)
     for result in results:
@@ -53,6 +64,12 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                 new_path = None
             syncFromSynapse(syn, result['entity.id'], new_path, ifcollision, allFiles)
         else:
-            ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision)
-            allFiles.append(ent)
+            # use multi-threaded get function
+            pool.submit(getOneEntity, syn, result['entity.id'], path, ifcollision, allFiles)
+            # ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision)
+            # allFiles.append(ent)
+
+    if wait_at_finish:
+        pool.shutdown(wait=True)  # wait till all objects were downloaded before returning
+
     return allFiles
