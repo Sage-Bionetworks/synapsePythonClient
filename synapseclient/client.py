@@ -46,18 +46,19 @@ import math, os, sys, stat, re, json, time
 import base64, hashlib, hmac
 import six
 import uuid
-import urllib
 
 try:
     from urllib.parse import urlparse
     from urllib.parse import urlunparse
     from urllib.parse import quote
     from urllib.parse import unquote
+    from urllib.request import urlretrieve
 except ImportError:
     from urlparse import urlparse
     from urlparse import urlunparse
     from urllib import quote
     from urllib import unquote
+    from urllib import urlretrieve
 
 import requests, webbrowser
 import shutil
@@ -1825,7 +1826,7 @@ class Synapse:
                 break
             elif scheme == 'ftp':
                 #username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
-                urllib.urlretrieve(url, destination)
+                urlretrieve(url, destination)
                 actual_md5 = utils.md5_for_file(destination).hexdigest()
                 break
             elif scheme == 'http' or scheme == 'https':
