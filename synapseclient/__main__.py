@@ -212,8 +212,8 @@ def associate(args, syn):
 
 def copy(args,syn):
     mappings = synapseutils.copy(syn, args.id, args.destinationId, 
-                         copyWikiPage=args.skipCopyWiki,
-                         copyAnnotations=args.skipAnnotations,
+                         skipCopyWikiPage=args.skipCopyWiki,
+                         skipCopyAnnotations=args.skipCopyAnnotations,
                          excludeTypes=args.excludeTypes, 
                          version=args.version, updateExisting=args.updateExisting,
                          setProvenance=args.setProvenance)
@@ -558,7 +558,7 @@ def build_parser():
                         'None/none: No provenance is set'))
     parser_cp.add_argument('--updateExisting', action='store_true',
             help='Will update the file if there is already a file that is named the same in the destination')
-    parser_cp.add_argument('--skipAnnotations', action='store_false',
+    parser_cp.add_argument('--skipCopyAnnotations', action='store_false',
             help='Do not copy the annotations')
     parser_cp.add_argument('--excludeTypes',nargs='*', metavar='file table',type=str, default=list(),
             help='Accepts a list of entity types (file, table, link) which determines which entity types to not copy.')

@@ -44,24 +44,24 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
     copiedFileHandle = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
     return(copiedFileHandle)
 
-def copy(syn, entity, destinationId, copyWikiPage=True, copyAnnotations=True, **kwargs):
+def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
     """
     - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
       and will recursively copy everything in directories.
     - A Mapping of the old entities to the new entities will be created and all the wikis of each entity
       will also be copied over and links to synapse Ids will be updated.
 
-    :param syn:             A synapse object: syn = synapseclient.login()- Must be logged into synapse
+    :param syn:                 A synapse object: syn = synapseclient.login()- Must be logged into synapse
 
-    :param entity:          A synapse entity ID
+    :param entity:              A synapse entity ID
 
-    :param destinationId:   Synapse ID of a folder/project that the copied entity is being copied to
+    :param destinationId:       Synapse ID of a folder/project that the copied entity is being copied to
 
-    :param copyWikiPage:    Determines whether the wiki of the entity is copied over
-                            Default is True
+    :param skipCopyWikiPage:    Skip copying the wiki pages
+                                Default is False
 
-    :param copyAnnotations: Determines whether annotations of a File/Folder is copied over
-                            Default is True
+    :param skipCopyAnnotations: Skips copying the annotations
+                                Default is False
 
     Examples::                        
     import synapseutils
@@ -104,22 +104,25 @@ def copy(syn, entity, destinationId, copyWikiPage=True, copyAnnotations=True, **
     entitySubPageId = kwargs.get('entitySubPageId',None)
     destinationSubPageId = kwargs.get('destinationSubPageId',None)
 
-    mapping = _copyRecursive(syn, entity, destinationId, copyAnnotations = copyAnnotations, **kwargs)
-    if copyWikiPage:
+    mapping = _copyRecursive(syn, entity, destinationId, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
+    if not skipCopyWikiPage:
         for oldEnt in mapping:
             newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId = entitySubPageId,
                                 destinationSubPageId = destinationSubPageId, updateLinks = updateLinks, 
                                 updateSynIds = updateSynIds, entityMap = mapping)
     return(mapping)
 
-def _copyRecursive(syn, entity, destinationId, mapping=None, copyAnnotations = True, **kwargs):
+def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs):
     """
     Recursively copies synapse entites, but does not copy the wikis
 
-    :param entity:             A synapse entity ID
+    :param entity:              A synapse entity ID
 
-    :param destinationId:      Synapse ID of a folder/project that the copied entity is being copied to
+    :param destinationId:       Synapse ID of a folder/project that the copied entity is being copied to
     
+    :param skipCopyAnnotations: Skips copying the annotations
+                                Default is False
+
     :returns: a mapping between the original and copied entity: {'syn1234':'syn33455'}
     """
 
@@ -152,12 +155,12 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, copyAnnotations = T
         copiedId = destinationId
         entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
         for i in entities:
-            mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, copyAnnotations = copyAnnotations, **kwargs)
+            mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
     elif isinstance(ent, Folder):
-        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, copyAnnotations = copyAnnotations, **kwargs)
+        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
     elif isinstance(ent, File) and "file" not in excludeTypes:
         copiedId = _copyFile(syn, ent.id, destinationId, version = version, updateExisting = updateExisting, 
-                             setProvenance = setProvenance, copyAnnotations = copyAnnotations)
+                             setProvenance = setProvenance, skipCopyAnnotations = skipCopyAnnotations)
     elif isinstance(ent, Link) and "link" not in excludeTypes:
         copiedId = _copyLink(syn, ent.id, destinationId, updateExisting = updateExisting)
     elif isinstance(ent, Schema) and "table" not in excludeTypes:
@@ -170,16 +173,16 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, copyAnnotations = T
         print("%s not copied" % ent.id)
     return(mapping)
 
-def _copyFolder(syn, entity, destinationId, mapping=None, copyAnnotations=True, **kwargs):
+def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs):
     """
     Copies synapse folders
 
-    :param entity:          A synapse ID of a Folder entity
+    :param entity:              A synapse ID of a Folder entity
 
-    :param destinationId:   Synapse ID of a project/folder that the folder wants to be copied to
+    :param destinationId:       Synapse ID of a project/folder that the folder wants to be copied to
     
-    :param excludeTypes:    Accepts a list of entity types (file, table, link) which determines which entity types to not copy.
-                            Defaults to an empty list.
+    :param skipCopyAnnotations: Skips copying the annotations
+                                Default is False
     """
     oldFolder = syn.get(entity)
     updateExisting = kwargs.get('updateExisting',False)
@@ -193,32 +196,34 @@ def _copyFolder(syn, entity, destinationId, mapping=None, copyAnnotations=True, 
             raise ValueError('An entity named "%s" already exists in this location. Folder could not be copied'%oldFolder.name)
 
     newFolder = Folder(name = oldFolder.name, parent = destinationId)
-    if copyAnnotations:
+    if not skipCopyAnnotations:
         newFolder.annotations = oldFolder.annotations
     newFolder = syn.store(newFolder)
     entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
     for ent in entities:
-        copied = _copyRecursive(syn, ent['entity.id'],newFolder.id,mapping, **kwargs)
+        copied = _copyRecursive(syn, ent['entity.id'],newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations **kwargs)
     return(newFolder.id)
 
-def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback", copyAnnotations=True):
+def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback", skipCopyAnnotations=False):
     """
     Copies most recent version of a file to a specified synapse ID.
 
-    :param entity:          A synapse ID of a File entity
+    :param entity:              A synapse ID of a File entity
 
-    :param destinationId:   Synapse ID of a folder/project that the file wants to be copied to
+    :param destinationId:       Synapse ID of a folder/project that the file wants to be copied to
 
-    :param version:         Can specify version of a file. 
-                            Default to None
+    :param version:             Can specify version of a file. 
+                                Default to None
 
-    :param updateExisting:  Can choose to update files that have the same name 
-                            Default to False
+    :param updateExisting:      Can choose to update files that have the same name 
+                                Default to False
     
-    :param setProvenance:   Has three values to set the provenance of the copied entity:
-                                traceback: Sets to the source entity
-                                existing: Sets to source entity's original provenance (if it exists)
-                                None: No provenance is set
+    :param setProvenance:       Has three values to set the provenance of the copied entity:
+                                    traceback: Sets to the source entity
+                                    existing: Sets to source entity's original provenance (if it exists)
+                                    None: No provenance is set
+    :param skipCopyAnnotations: Skips copying the annotations
+                                Default is False
     """
     ent = syn.get(entity, downloadFile=False, version=version, followLink=False)
     #CHECK: If File is in the same parent directory (throw an error) (Can choose to update files)
@@ -257,7 +262,7 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
 
     new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
     #Set annotations here
-    if copyAnnotations:
+    if not skipCopyAnnotations:
         new_ent.annotations = ent.annotations
     #Store provenance if act is not None
     if act is not None:
@@ -275,6 +280,8 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
 
     :param destinationId:   Synapse ID of a project that the Table wants to be copied to
 
+    :param updateExisting:  Can choose to update files that have the same name 
+                            Default to False
     """
 
     print("Getting table %s" % entity)
@@ -304,6 +311,9 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
     :param entity:          A synapse ID of a Link entity
 
     :param destinationId:   Synapse ID of a folder/project that the file wants to be copied to
+    
+    :param updateExisting:  Can choose to update files that have the same name 
+                            Default to False
     """
     ent = syn.get(entity)
     #CHECK: If Link is in the same parent directory (throw an error)

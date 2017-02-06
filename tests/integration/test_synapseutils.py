@@ -83,7 +83,7 @@ def test_copy():
     # TEST COPY FILE
     # ------------------------------------
     output = synapseutils.copy(syn,file_entity.id,destinationId=project_entity.id)
-    output_URL = synapseutils.copy(syn,externalURL_entity.id,destinationId=project_entity.id,copyAnnotations=False)
+    output_URL = synapseutils.copy(syn,externalURL_entity.id,destinationId=project_entity.id,skipCopyAnnotations=True)
 
     #Verify that our copied files are identical
     copied_ent = syn.get(output[file_entity.id])
@@ -321,7 +321,7 @@ def test_copyWiki():
     second_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(second_project.id)
 
-    fileMapping = synapseutils.copy(syn, project_entity, second_project.id, copyWikiPage=False)
+    fileMapping = synapseutils.copy(syn, project_entity, second_project.id, skipCopyWikiPage=True)
     
     print("Test: copyWikiPage = False")
     assert_raises(SynapseHTTPError,syn.getWiki,second_project.id)
