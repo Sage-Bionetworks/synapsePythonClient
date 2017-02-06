@@ -104,7 +104,7 @@ def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations
     entitySubPageId = kwargs.get('entitySubPageId',None)
     destinationSubPageId = kwargs.get('destinationSubPageId',None)
 
-    mapping = _copyRecursive(syn, entity, destinationId, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
+    mapping = _copyRecursive(syn, entity, destinationId, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
     if not skipCopyWikiPage:
         for oldEnt in mapping:
             newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId = entitySubPageId,
@@ -201,7 +201,7 @@ def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=Fa
     newFolder = syn.store(newFolder)
     entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
     for ent in entities:
-        copied = _copyRecursive(syn, ent['entity.id'],newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations **kwargs)
+        copied = _copyRecursive(syn, ent['entity.id'],newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
     return(newFolder.id)
 
 def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback", skipCopyAnnotations=False):
