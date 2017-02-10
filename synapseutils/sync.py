@@ -19,7 +19,9 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                           May be "overwrite.local", "keep.local", or "keep.both".
                           Defaults to "overwrite.local".
 
-
+    :param followLink:  Determines whether the link returns the target Entity.
+                        Defaults to False
+                        
     :returns: list of entities (files, tables, links)
 
     This function will crawl all subfolders of the project/folder
@@ -53,6 +55,6 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                 new_path = None
             syncFromSynapse(syn, result['entity.id'], new_path, ifcollision, allFiles)
         else:
-            ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision, followLink=False)
+            ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
             allFiles.append(ent)
     return allFiles
