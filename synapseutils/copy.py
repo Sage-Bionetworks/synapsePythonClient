@@ -4,7 +4,6 @@ import time
 from synapseclient.exceptions import *
 import tempfile
 import re
-import json
 ############################################################
 ##                 Copy Functions                         ##
 ############################################################
@@ -458,7 +457,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             nopreviews = [attach['fileHandle'] for attach in results if attach['fileHandle']['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
             copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews), [wiki.id]*len(nopreviews))
             new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
-
+        
         #for some reason some wikis don't have titles?
         if hasattr(wikiHeader, 'parentId'):
             newWikiPage = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])

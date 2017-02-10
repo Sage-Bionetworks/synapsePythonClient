@@ -5,7 +5,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, requests, tempfile, time
+import uuid, filecmp, os, sys, requests, tempfile, time, urllib, json
 from datetime import datetime as Datetime
 from nose.tools import assert_raises
 from nose.plugins.attrib import attr
@@ -400,6 +400,7 @@ def test_ExternalFileHandle():
     singapore = syn.store(singapore)
     s2 = syn.get(singapore, downloadFile=False)
     assert s2.externalURL == singapore_2_url
+
 
 
 def test_synapseStore_flag():
