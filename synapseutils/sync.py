@@ -21,7 +21,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     :param followLink:  Determines whether the link returns the target Entity.
                         Defaults to False
-                        
+
     :returns: list of entities (files, tables, links)
 
     This function will crawl all subfolders of the project/folder
