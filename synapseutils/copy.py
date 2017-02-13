@@ -4,10 +4,11 @@ import time
 from synapseclient.exceptions import *
 import tempfile
 import re
+import json
 ############################################################
 ##                 Copy Functions                         ##
 ############################################################
-def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, newContentTypes=None, newFileNames=None):
+def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, newContentTypes=None, newFileNames=None, checkFileHandle=True):
     """
     Given a list of fileHandle Objects, copy the fileHandles
 
@@ -23,7 +24,9 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
     
     :return:                     List of batch filehandle copy results
     """
-
+    print(fileHandles)
+    print(associateObjectTypes)
+    print(associateObjectIds)
     newContentTypes = [None]*len(fileHandles) if newContentTypes is None else newContentTypes
     newFileNames = [None]*len(fileHandles) if newFileNames is None else newFileNames
     if (len(fileHandles) != len(associateObjectTypes) or len(fileHandles) != len(associateObjectIds) or
@@ -31,16 +34,31 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
         raise ValueError("Length of fileHandles, associateObjectTypes, and associateObjectIds must be the same")
     copyFileHandleRequest = {"copyRequests":[]}
     for filehandle, newContentType, newFileName, associateObjectType, associateObjectId in zip(fileHandles, newContentTypes, newFileNames, associateObjectTypes, associateObjectIds):
+        valid = True
+        if checkFileHandle:
+            try:
+                check = syn._getFileHandleDownload(filehandle['id'], associateObjectId, associateObjectType)
+                failureCode = check.get("failureCode")
+                if failureCode is not None:
+                    valid=False
+                    print("%s dataFileHandleId: %s" % (failureCode,filehandle['id']))
+            except SynapseHTTPError as e:
+                valid = False
+                print("%s, %s, %s combination is not correct.  This filehandle will not be copied" % (filehandle['id'], associateObjectId, associateObjectType))
         if newContentType is not None:
             filehandle['contentType'] = newContentType
         if newFileName is not None:
             filehandle['fileName'] = newFileName
-        copyFileHandleRequest['copyRequests'].append({"newContentType":filehandle['contentType'],
-                                                      "newFileName":filehandle['fileName'],
-                                                      "originalFile":{"associateObjectType":associateObjectType,
-                                                                      "fileHandleId":filehandle['id'],
-                                                                      "associateObjectId":associateObjectId}})
-    copiedFileHandle = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
+        if valid:
+            copyFileHandleRequest['copyRequests'].append({"newContentType":filehandle['contentType'],
+                                                          "newFileName":filehandle['fileName'],
+                                                          "originalFile":{"associateObjectType":associateObjectType,
+                                                                          "fileHandleId":filehandle['id'],
+                                                                          "associateObjectId":associateObjectId}})
+    if len(copyFileHandleRequest['copyRequests']) > 0:
+        copiedFileHandle = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
+    else:
+        copiedFileHandle = {'copyResults':[]}
     return(copiedFileHandle)
 
 def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
