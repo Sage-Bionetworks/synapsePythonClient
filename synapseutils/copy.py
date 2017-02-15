@@ -24,9 +24,6 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
     
     :return:                     List of batch filehandle copy results
     """
-    print(fileHandles)
-    print(associateObjectTypes)
-    print(associateObjectIds)
     newContentTypes = [None]*len(fileHandles) if newContentTypes is None else newContentTypes
     newFileNames = [None]*len(fileHandles) if newFileNames is None else newFileNames
     if (len(fileHandles) != len(associateObjectTypes) or len(fileHandles) != len(associateObjectIds) or
