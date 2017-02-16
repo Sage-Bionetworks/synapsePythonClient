@@ -484,3 +484,15 @@ def test_syncFromSynapse():
     for f in output:
         print(f.path)
         assert f.path in uploaded_paths
+
+
+def test_copyFileHandle():
+    #list of 2 to copy
+    #Entity, wikiattachment
+
+    #List of 2 to copy
+    #Entity (UNAUTHORIZED), wikiattachment
+
+    #Renaming (New filename, new contenttype)
+    #Just one
+    return("")
