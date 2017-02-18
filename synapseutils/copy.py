@@ -8,37 +8,33 @@ import json
 ############################################################
 ##                 Copy Functions                         ##
 ############################################################
-def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, newContentTypes=None, newFileNames=None):
+
+def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, contentTypes, fileNames):
     """
     Given a list of fileHandle Objects, copy the fileHandles
 
-    :param fileHandles:          List of fileHandle Objects
+    :param fileHandles:          List of fileHandle Ids or Objects
 
     :param associateObjectTypes: List of associated object types: FileEntity, TableEntity, WikiAttachment, UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment, VerificationSubmission (Must be the same length as fileHandles)
     
     :param associateObjectIds:   List of associated object Ids: If copying a file, the objectId is the synapse id, and if copying a wiki attachment, the object id is the wiki subpage id. (Must be the same length as fileHandles)
     
-    :param newContentTypes:      List of new content types (Can change a filetype of a filehandle). Defaults to None, keeping the old filetype
+    :param contentTypes:        List of content types (Can change a filetype of a filehandle).
 
-    :param newFileNames:         List of new filenames (Can change a filename of a filehandle). Defaults to None, keeping the old filename
+    :param fileNames:           List of filenames (Can change a filename of a filehandle).
     
     :return:                     List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
     """
-    newContentTypes = [None]*len(fileHandles) if newContentTypes is None else newContentTypes
-    newFileNames = [None]*len(fileHandles) if newFileNames is None else newFileNames
     if (len(fileHandles) != len(associateObjectTypes) or len(fileHandles) != len(associateObjectIds) or
-        len(fileHandles) != len(newContentTypes) or len(fileHandles) != len(newFileNames)):
+        len(fileHandles) != len(contentTypes) or len(fileHandles) != len(fileNames)):
         raise ValueError("Length of fileHandles, associateObjectTypes, and associateObjectIds must be the same")
+    fileHandles = [synapseclient.utils.id_of(handle) for handle in fileHandles]
     copyFileHandleRequest = {"copyRequests":[]}
-    for filehandle, newContentType, newFileName, associateObjectType, associateObjectId in zip(fileHandles, newContentTypes, newFileNames, associateObjectTypes, associateObjectIds):
-        if newContentType is not None:
-            filehandle['contentType'] = newContentType
-        if newFileName is not None:
-            filehandle['fileName'] = newFileName
-        copyFileHandleRequest['copyRequests'].append({"newContentType":filehandle['contentType'],
-                                                      "newFileName":filehandle['fileName'],
+    for filehandleId, contentType, fileName, associateObjectType, associateObjectId in zip(fileHandles, contentTypes, fileNames, associateObjectTypes, associateObjectIds):
+        copyFileHandleRequest['copyRequests'].append({"newContentType":contentType,
+                                                      "newFileName":fileName,
                                                       "originalFile":{"associateObjectType":associateObjectType,
-                                                                      "fileHandleId":filehandle['id'],
+                                                                      "fileHandleId":filehandleId,
                                                                       "associateObjectId":associateObjectId}})
     copiedFileHandles = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
     return(copiedFileHandles)
@@ -256,9 +252,12 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     if profile.ownerId == createdBy:
         newdataFileHandleId = ent.dataFileHandleId
     else:
-        copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']])
-        #Handle the error for copyFileHandles
-        newdataFileHandleId = copiedFileHandle['copyResults'][0]['newFileHandle']['id']
+        copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']], [fileHandle['contentType']], [fileHandle['fileName']])
+        #Check if failurecodes exist
+        copyResults = copiedFileHandle['copyResults'][0]
+        if copyResults.get("failureCode") is not None:
+            raise ValueError("%s dataFileHandleId: %s" % (copyResults["failureCode"],copyResults['originalFileHandleId']))
+        newdataFileHandleId = copyResults['newFileHandle']['id']
 
     new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
     #Set annotations here
@@ -456,10 +455,14 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             results = [syn._getFileHandleDownload(filehandleId, wiki.id, objectType='WikiAttachment') for filehandleId in wiki['attachmentFileHandleIds']]
             #Get rid of the previews
             nopreviews = [attach['fileHandle'] for attach in results if attach['fileHandle']['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
-            copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews), [wiki.id]*len(nopreviews))
-            #Handle error...
+            contentTypes = [attach['contentType'] for attach in nopreviews]
+            fileNames = [attach['fileName'] for attach in nopreviews]
+            copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews), [wiki.id]*len(nopreviews), contentTypes, fileNames)
+            #Check if failurecodes exist
+            for filehandle in copiedFileHandles['copyResults']:
+                if filehandle.get("failureCode") is not None:
+                    raise ValueError("%s dataFileHandleId: %s" % (filehandle["failureCode"],filehandle['originalFileHandleId']))
             new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
-        
         #for some reason some wikis don't have titles?
         if hasattr(wikiHeader, 'parentId'):
             newWikiPage = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])
