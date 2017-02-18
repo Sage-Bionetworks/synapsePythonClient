@@ -485,14 +485,42 @@ def test_syncFromSynapse():
         print(f.path)
         assert f.path in uploaded_paths
 
-
 def test_copyFileHandle():
-    #list of 2 to copy
-    #Entity, wikiattachment
+    project_entity = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+    filename = utils.make_bogus_data_file()
+    attachname = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    schedule_for_cleanup(attachname)
+    file_entity = syn.store(File(filename, parent=project_entity))
+    schedule_for_cleanup(file_entity.id)
+    wiki = Wiki(owner=project_entity, title='A Test Wiki', markdown="testing", 
+                attachments=[attachname])
+    wiki = syn.store(wiki)
+    wikiattachments = syn._getFileHandle(wiki.attachmentFileHandleIds[0])
+    #CHECK: Can batch copy two file handles (wiki attachments and file entity)
+    copiedFileHandles = synapseutils.copyFileHandles(syn, [file_entity.dataFileHandleId, wiki.attachmentFileHandleIds[0]], [file_entity.concreteType.split(".")[-1], "WikiAttachment"], [file_entity.id, wiki.id], [file_entity.contentType, wikiattachments['contentType']], [file_entity.name, wikiattachments['fileName']])
+    assert all([results.get("failureCode") is None for results in copiedFileHandles['copyResults']]), "NOT FOUND and UNAUTHORIZED failure codes."
 
-    #List of 2 to copy
-    #Entity (UNAUTHORIZED), wikiattachment
+    files = {file_entity.name:{"contentType":file_entity['contentType'],
+                               "md5":file_entity['md5']},
+             wikiattachments['fileName']:{"contentType":wikiattachments['contentType'],
+                                          "md5":wikiattachments['contentMd5']}}
+    for results in copiedFileHandles['copyResults']:
+        i = results['newFileHandle']
+        assert files.get(i['fileName']) is not None, "Filename has to be the same"
+        assert files[i['fileName']]['contentType'] == i['contentType'], "Content type has to be the same"
+        assert files[i['fileName']]['md5'] == i['contentMd5'], "Md5 has to be the same"
 
-    #Renaming (New filename, new contenttype)
-    #Just one
-    return("")
+    assert all([results.get("failureCode") is None for results in copiedFileHandles['copyResults']]), "There should not be NOT FOUND and UNAUTHORIZED failure codes."
+    syn_other = synapseclient.Synapse(skip_checks=True)
+    syn_other.login(other_user['username'], other_user['password'])
+    #CHECK: UNAUTHORIZED failure code should be returned
+    output = synapseutils.copyFileHandles(syn_other,[file_entity.dataFileHandleId, wiki.attachmentFileHandleIds[0]], [file_entity.concreteType.split(".")[-1], "WikiAttachment"], [file_entity.id, wiki.id], [file_entity.contentType, wikiattachments['contentType']], [file_entity.name, wikiattachments['fileName']])
+    assert all([results.get("failureCode") == "UNAUTHORIZED" for results in output['copyResults']]), "UNAUTHORIZED codes."
+    #CHECK: Changing content type and downloadAs
+    results = synapseutils.changeFileMetaData(syn, file_entity, contentType="application/x-tar", downloadAs="newName.txt")
+    copiedResults = results['copyResults'][0]
+    assert file_entity.md5 == copiedResults['newFileHandle']['contentMd5'], "Md5s must be equal after copying"
+    assert copiedResults['newFileHandle']['fileName'] == "newName.txt", "Set new file name to be newName.txt"
+    assert copiedResults['newFileHandle']['contentType'] == "application/x-tar", "Set new content type to be application/x-tar"

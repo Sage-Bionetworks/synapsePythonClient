@@ -19,9 +19,9 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
     
     :param associateObjectIds:   List of associated object Ids: If copying a file, the objectId is the synapse id, and if copying a wiki attachment, the object id is the wiki subpage id. (Must be the same length as fileHandles)
     
-    :param contentTypes:        List of content types (Can change a filetype of a filehandle).
+    :param contentTypes:         List of content types (Can change a filetype of a filehandle).
 
-    :param fileNames:           List of filenames (Can change a filename of a filehandle).
+    :param fileNames:            List of filenames (Can change a filename of a filehandle).
     
     :return:                     List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
     """
@@ -37,6 +37,24 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
                                                                       "fileHandleId":filehandleId,
                                                                       "associateObjectId":associateObjectId}})
     copiedFileHandles = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
+    return(copiedFileHandles)
+
+def changeFileMetaData(syn, entity, contentType=None, downloadAs=None):
+    """
+    :param entity:        Synapse entity Id or object
+
+    :param contentType:   Specify content type to change the content type of a filehandle
+
+    :param downloadAs:    Specify filename to change the filename of a filehandle
+
+    :return:              Filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
+    """
+    ent = syn.get(entity,downloadFile=False)
+    if contentType is None:
+        contentType = ent.contentType
+    if downloadAs is None:
+        downloadAs = ent.name
+    copiedFileHandles = copyFileHandles(syn, [ent.dataFileHandleId], [ent.concreteType.split(".")[-1]], [ent.id], [contentType], [downloadAs])
     return(copiedFileHandles)
 
 def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):

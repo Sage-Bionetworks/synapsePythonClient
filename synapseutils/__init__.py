@@ -19,6 +19,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from .copy import copy, copyWiki, copyFileHandles
+from .copy import copy, copyWiki, copyFileHandles, changeFileMetaData
 from .walk import walk
 from .sync import syncFromSynapse
