@@ -2397,7 +2397,7 @@ class Synapse:
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
 
 
-    def getSubmissions(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
+    def getSubmissions(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
@@ -2435,7 +2435,7 @@ class Synapse:
             yield Submission(**result)
 
 
-    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
+    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
@@ -2471,7 +2471,7 @@ class Synapse:
         return self._GET_paginated(url, limit=limit, offset=offset)
 
 
-    def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
+    def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
