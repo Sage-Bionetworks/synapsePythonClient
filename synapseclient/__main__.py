@@ -109,7 +109,6 @@ def query(args, syn):
             out.append(str(res.get(key, "")))
         sys.stdout.write('%s\n' % "\t".join(out))
 
-
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
 
@@ -123,10 +122,8 @@ def _getIdsFromQuery(queryString, syn):
 
         check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
         assert check_for_id_col, ValueError("Query does not include the id column.")
-
-        # Filed issue for below (adding syn explicitly to id) - PLFM-4207
-        # This code should be removed once that is fixed.
-        ids = ['syn%s' % (x['id'], ) for x in csv.DictReader(file(tbl.filepath))]
+        
+        ids = [x['id'] for x in csv.DictReader(file(tbl.filepath))]
     else:
         for item in syn.chunkedQuery(queryString):
             key = [k for k in  item.keys() if k.split('.', 1)[1]=='id'][0]
