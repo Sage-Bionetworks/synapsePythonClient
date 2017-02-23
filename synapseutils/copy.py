@@ -47,15 +47,19 @@ def changeFileMetaData(syn, entity, contentType=None, downloadAs=None):
 
     :param downloadAs:    Specify filename to change the filename of a filehandle
 
-    :return:              Filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
+    :return:              Synapse Entity
     """
     ent = syn.get(entity,downloadFile=False)
-    if contentType is None:
-        contentType = ent.contentType
-    if downloadAs is None:
-        downloadAs = ent.name
-    copiedFileHandles = copyFileHandles(syn, [ent.dataFileHandleId], [ent.concreteType.split(".")[-1]], [ent.id], [contentType], [downloadAs])
-    return(copiedFileHandles)
+    fileResult = syn._getFileHandleDownload(ent.dataFileHandleId, ent.id)
+    ent.contentType = ent.contentType if contentType is None else contentType
+    downloadAs = fileResult['fileHandle']['fileName'] if downloadAs is None else downloadAs
+    copiedFileHandle = copyFileHandles(syn, [ent.dataFileHandleId], [ent.concreteType.split(".")[-1]], [ent.id], [contentType], [downloadAs])
+    copyResult = copiedFileHandle['copyResults'][0]
+    if copyResult.get("failureCode") is not None:
+        raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],copyResult['originalFileHandleId']))
+    ent.dataFileHandleId = copyResult['newFileHandle']['id']
+    ent = syn.store(ent)
+    return(ent)
 
 def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
     """
@@ -272,10 +276,10 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     else:
         copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']], [fileHandle['contentType']], [fileHandle['fileName']])
         #Check if failurecodes exist
-        copyResults = copiedFileHandle['copyResults'][0]
-        if copyResults.get("failureCode") is not None:
-            raise ValueError("%s dataFileHandleId: %s" % (copyResults["failureCode"],copyResults['originalFileHandleId']))
-        newdataFileHandleId = copyResults['newFileHandle']['id']
+        copyResult = copiedFileHandle['copyResults'][0]
+        if copyResult.get("failureCode") is not None:
+            raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],copyResult['originalFileHandleId']))
+        newdataFileHandleId = copyResult['newFileHandle']['id']
 
     new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
     #Set annotations here

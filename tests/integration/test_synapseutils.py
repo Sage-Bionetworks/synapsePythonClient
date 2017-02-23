@@ -485,7 +485,7 @@ def test_syncFromSynapse():
         print(f.path)
         assert f.path in uploaded_paths
 
-def test_copyFileHandle():
+def test_copyFileHandleAndchangeFileMetadata():
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
     filename = utils.make_bogus_data_file()
@@ -519,8 +519,9 @@ def test_copyFileHandle():
     output = synapseutils.copyFileHandles(syn_other,[file_entity.dataFileHandleId, wiki.attachmentFileHandleIds[0]], [file_entity.concreteType.split(".")[-1], "WikiAttachment"], [file_entity.id, wiki.id], [file_entity.contentType, wikiattachments['contentType']], [file_entity.name, wikiattachments['fileName']])
     assert all([results.get("failureCode") == "UNAUTHORIZED" for results in output['copyResults']]), "UNAUTHORIZED codes."
     #CHECK: Changing content type and downloadAs
-    results = synapseutils.changeFileMetaData(syn, file_entity, contentType="application/x-tar", downloadAs="newName.txt")
-    copiedResults = results['copyResults'][0]
-    assert file_entity.md5 == copiedResults['newFileHandle']['contentMd5'], "Md5s must be equal after copying"
-    assert copiedResults['newFileHandle']['fileName'] == "newName.txt", "Set new file name to be newName.txt"
-    assert copiedResults['newFileHandle']['contentType'] == "application/x-tar", "Set new content type to be application/x-tar"
+    new_entity = synapseutils.changeFileMetaData(syn, file_entity, contentType="application/x-tar", downloadAs="newName.txt")
+    schedule_for_cleanup(new_entity.id)
+    assert file_entity.md5 == new_entity.md5, "Md5s must be equal after copying"
+    fileResult = syn._getFileHandleDownload(new_entity.dataFileHandleId, new_entity.id)
+    assert fileResult['fileHandle']['fileName'] == "newName.txt", "Set new file name to be newName.txt"
+    assert new_entity.contentType == "application/x-tar", "Set new content type to be application/x-tar"
