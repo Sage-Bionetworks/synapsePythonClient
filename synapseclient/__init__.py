@@ -264,7 +264,7 @@ Accessing the API directly
 
 These methods enable access to the Synapse REST(ish) API taking care of details
 like endpoints and authentication. See the
-`REST API documentation <http://rest.synapse.org/>`_.
+`REST API documentation <http://docs.synapse.org/rest/>`_.
 
 See:
 
