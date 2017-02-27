@@ -39,7 +39,7 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
     copiedFileHandles = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
     return(copiedFileHandles)
 
-def changeFileMetaData(syn, entity, contentType=None, downloadAs=None):
+def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     """
     :param entity:        Synapse entity Id or object
 
