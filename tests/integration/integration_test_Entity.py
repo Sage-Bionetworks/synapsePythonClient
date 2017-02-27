@@ -155,20 +155,10 @@ def test_Entity():
     tmpdir = tempfile.mkdtemp()
     schedule_for_cleanup(tmpdir)
 
-    ## test file name override
-    a_file.fileNameOverride = "peaches_en_regalia.zoinks"
-    syn.store(a_file)
-    ## TODO We haven't defined how filename override interacts with
-    ## TODO previously cached files so, side-step that for now by
-    ## TODO making sure the file is not in the cache!
-    syn.cache.remove(a_file.dataFileHandleId, delete=True)
-    a_file_retreived = syn.get(a_file, downloadLocation=tmpdir)
-    assert os.path.basename(a_file_retreived.path) == a_file.fileNameOverride, os.path.basename(a_file_retreived.path)
-
     ## test getting the file from the cache with downloadLocation parameter (SYNPY-330)
     a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
     assert a_file_cached.path is not None
-    assert os.path.basename(a_file_cached.path) == a_file.fileNameOverride, a_file_cached.path
+    assert os.path.basename(a_file_cached.path) == a_file.path, a_file_cached.path
 
     print("\n\nList of files in project:\n")
     syn._list(project, recursive=True)

@@ -70,16 +70,6 @@ def test_synStore_sftpIntegration():
         tmpdir = tempfile.mkdtemp()
         schedule_for_cleanup(tmpdir)
 
-        ## test filename override
-        file2.fileNameOverride = "whats_new_in_baltimore.data"
-        file2 = syn.store(file2)
-        ## TODO We haven't defined how filename override interacts with
-        ## TODO previously cached files so, side-step that for now by
-        ## TODO making sure the file is not in the cache!
-        syn.cache.remove(file2.dataFileHandleId, delete=True)
-        file3 = syn.get(file, downloadLocation=tmpdir)
-        assert os.path.basename(file3.path) == file2.fileNameOverride
-
         ## test that we got an MD5 à la SYNPY-185
         assert_is_not_none(file3.md5)
         fh = syn._getFileHandle(file3.dataFileHandleId)
