@@ -543,18 +543,23 @@ def test_command_get_recursive_and_query():
 
     # Create and upload two files in Folder
     uploaded_paths = []
+    file_entities = []
+
     for i in range(2):
         f  = utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = synapseclient.File(f, parent=folder_entity)
         file_entity = syn.store(file_entity)
+        file_entities.append(file_entity)
+
     #Add a file in the project level as well
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = synapseclient.File(f, parent=project_entity)
     file_entity = syn.store(file_entity)
+    file_entities.append(file_entity)
 
     ### Test recursive get
     output = run('synapse', '--skip-checks',
@@ -583,6 +588,28 @@ def test_command_get_recursive_and_query():
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
+
+    ### Test query get using a Table with an entity column
+    ### This should be replaced when Table File Views are implemented in the client
+    cols = []
+    cols.append(synapseclient.Column(name='id', columnType='ENTITYID'))
+
+    schema1 = syn.store(synapseclient.Schema(name='Foo Table', columns=cols, parent=project_entity))
+    schedule_for_cleanup(schema1.id)
+
+    data1 =[[x.id] for x in file_entities]
+
+    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+                                   rows=[synapseclient.Row(r) for r in data1]))
+
+    output = run('synapse', '--skip-checks', 'get', '-q',
+                 "select id from  %s" % schema1.id)
+
+    output_rows = list(csv.reader(StringIO(output), delimiter="\t".encode('ascii')))
+
+    # Check the length of the output
+    assert len(output_rows) == 4
+
 
 def test_command_copy():
     """Tests the 'synapse cp' function"""
