@@ -71,10 +71,10 @@ def test_synStore_sftpIntegration():
         schedule_for_cleanup(tmpdir)
 
         ## test that we got an MD5 à la SYNPY-185
-        assert_is_not_none(file3.md5)
-        fh = syn._getFileHandle(file3.dataFileHandleId)
+        assert_is_not_none(file2.md5)
+        fh = syn._getFileHandle(file2.dataFileHandleId)
         assert_is_not_none(fh['contentMd5'])
-        assert_equals(file3.md5, fh['contentMd5'])
+        assert_equals(file2.md5, fh['contentMd5'])
     finally:
         try:
             os.remove(filepath)

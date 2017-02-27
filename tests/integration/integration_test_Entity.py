@@ -158,7 +158,7 @@ def test_Entity():
     ## test getting the file from the cache with downloadLocation parameter (SYNPY-330)
     a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
     assert a_file_cached.path is not None
-    assert os.path.basename(a_file_cached.path) == a_file.path, a_file_cached.path
+    assert os.path.basename(a_file_cached.path) == os.path.basename(a_file.path), a_file_cached.path
 
     print("\n\nList of files in project:\n")
     syn._list(project, recursive=True)
