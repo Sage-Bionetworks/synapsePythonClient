@@ -8,7 +8,65 @@ import re
 ##                 Copy Functions                         ##
 ############################################################
 
-def copy(syn, entity, destinationId=None, copyWikiPage=True, **kwargs):
+def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, contentTypes, fileNames):
+    """
+    Given a list of fileHandle Objects, copy the fileHandles
+
+    :param fileHandles:          List of fileHandle Ids or Objects
+
+    :param associateObjectTypes: List of associated object types: FileEntity, TableEntity, WikiAttachment, UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment, VerificationSubmission (Must be the same length as fileHandles)
+    
+    :param associateObjectIds:   List of associated object Ids: If copying a file, the objectId is the synapse id, and if copying a wiki attachment, the object id is the wiki subpage id. (Must be the same length as fileHandles)
+    
+    :param contentTypes:         List of content types (Can change a filetype of a filehandle).
+
+    :param fileNames:            List of filenames (Can change a filename of a filehandle).
+    
+    :return:                     List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
+    """
+    if (len(fileHandles) != len(associateObjectTypes) or len(fileHandles) != len(associateObjectIds) or
+        len(fileHandles) != len(contentTypes) or len(fileHandles) != len(fileNames)):
+        raise ValueError("Length of fileHandles, associateObjectTypes, and associateObjectIds must be the same")
+    fileHandles = [synapseclient.utils.id_of(handle) for handle in fileHandles]
+    copyFileHandleRequest = {"copyRequests":[]}
+    for filehandleId, contentType, fileName, associateObjectType, associateObjectId in zip(fileHandles, contentTypes, fileNames, associateObjectTypes, associateObjectIds):
+        copyFileHandleRequest['copyRequests'].append({"newContentType":contentType,
+                                                      "newFileName":fileName,
+                                                      "originalFile":{"associateObjectType":associateObjectType,
+                                                                      "fileHandleId":filehandleId,
+                                                                      "associateObjectId":associateObjectId}})
+    copiedFileHandles = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
+    return(copiedFileHandles)
+
+def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
+    """
+    :param entity:        Synapse entity Id or object
+
+    :param contentType:   Specify content type to change the content type of a filehandle
+
+    :param downloadAs:    Specify filename to change the filename of a filehandle
+
+    :return:              Synapse Entity
+
+    Can be used to change the fileaname or the file content-type without downloading.
+
+    >>> e = syn.get(synid)
+    >>> print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
+    >>> e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
+    """
+    ent = syn.get(entity,downloadFile=False)
+    fileResult = syn._getFileHandleDownload(ent.dataFileHandleId, ent.id)
+    ent.contentType = ent.contentType if contentType is None else contentType
+    downloadAs = fileResult['fileHandle']['fileName'] if downloadAs is None else downloadAs
+    copiedFileHandle = copyFileHandles(syn, [ent.dataFileHandleId], [ent.concreteType.split(".")[-1]], [ent.id], [contentType], [downloadAs])
+    copyResult = copiedFileHandle['copyResults'][0]
+    if copyResult.get("failureCode") is not None:
+        raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],copyResult['originalFileHandleId']))
+    ent.dataFileHandleId = copyResult['newFileHandle']['id']
+    ent = syn.store(ent)
+    return(ent)
+
+def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
     """
     - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
       and will recursively copy everything in directories.
