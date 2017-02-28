@@ -513,6 +513,11 @@ def test_copyFileHandleAndchangeFileMetadata():
         assert files[i['fileName']]['md5'] == i['contentMd5'], "Md5 has to be the same"
 
     assert all([results.get("failureCode") is None for results in copiedFileHandles['copyResults']]), "There should not be NOT FOUND and UNAUTHORIZED failure codes."
+
+    if 'username' not in other_user or 'password' not in other_user:
+        sys.stderr.write('\nWarning: no test-authentication configured. skipping testing copy function when trying to copy file made by another user.\n')
+        return
+
     syn_other = synapseclient.Synapse(skip_checks=True)
     syn_other.login(other_user['username'], other_user['password'])
     #CHECK: UNAUTHORIZED failure code should be returned
