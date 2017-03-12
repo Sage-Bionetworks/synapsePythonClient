@@ -125,16 +125,21 @@ def test_evaluations():
                      description ="Haha!  I'm inaccessible...")
             entity = testSyn.store(f)
 
+            l = File("http://www.google.com", parentId=other_project.id, synapseStore=False)
+            linkEntity = testSyn.store(l)
+
             ## test submission by evaluation ID
             submission = testSyn.submit(ev.id, entity, submitterAlias="My Nickname")
-
+            linkSubmission = testSyn.submit(ev.id, linkEntity, submitterAlias="My Nickname")
             # Mess up the cached file so that syn._getWithEntityBundle must download again
             os.utime(filename, (0, 0))
 
             # Grab the Submission as the original user
             fetched = syn.getSubmission(submission['id'])
+            fetchedLink = syn.getSubmission(linkSubmission['id'])
             assert os.path.exists(fetched['filePath'])
-
+            assert fetchedLink['externalURL'] == "http://www.google.com"
+            syn.delete(fetchedLink)
             # make sure the fetched file is the same as the original (PLFM-2666)
             assert filecmp.cmp(filename, fetched['filePath'])
 
