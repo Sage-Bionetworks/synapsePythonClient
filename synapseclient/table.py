@@ -1183,7 +1183,7 @@ class CsvFileTable(TableAbstractBaseClass):
             self.schema = syn.store(self.schema)
             self.tableId = self.schema.id
 
-        upload_to_table_result = syn._uploadCsv(
+        result = syn._uploadCsv(
             self.filepath,
             self.schema if self.schema else self.tableId,
             updateEtag=self.etag,
@@ -1193,6 +1193,9 @@ class CsvFileTable(TableAbstractBaseClass):
             separator=self.separator,
             header=self.header,
             linesToSkip=self.linesToSkip)
+
+        upload_to_table_result = result['results'][0]
+        assert upload_to_table_result['concreteType'] == 'org.sagebionetworks.repo.model.table.UploadToTableResult', "Not an UploadToTableResult."
 
         if 'etag' in upload_to_table_result:
             self.etag = upload_to_table_result['etag']
