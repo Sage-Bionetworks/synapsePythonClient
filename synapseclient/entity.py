@@ -39,17 +39,15 @@ Changing File Names
 
 A Synapse File Entity has a name separate from the name of the actual file
 it represents. When a file is uploaded to Synapse, its filename is fixed,
-even though the name of the entity can be changed at any time. Synapse
-provides a way to effectively change the filename by setting a special
-property called "*fileNameOverride*".
+even though the name of the entity can be changed at any time. Synapse provides
+a way to change this filename and the content-type of the file for future downloads
+by creating a new version of the file with a modified copy of itself.  This can be 
+done with the synapseutils.copy.changeFileMetaData function.
 
-Setting the *fileNameOverride* means that the file will then be downloaded
-with the new name.:
-
+>>> import synapseutils
 >>> e = syn.get(synid)
 >>> print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
->>> e.fileNameOverride = "my_newname_file.txt"
->>> e = syn.store(e)
+>>> e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
 
 Setting *fileNameOverride* will **not** change the name of a copy of the
 file that's already downloaded into your local cache. Either rename the
@@ -534,7 +532,7 @@ class File(Entity, Versionable):
         data = syn.store(data)
     """
 
-    _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId', 'fileNameOverride']
+    _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
     _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize', 'contentType']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
