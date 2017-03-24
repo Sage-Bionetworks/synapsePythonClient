@@ -281,7 +281,7 @@ There is a companion module called synapseutils that provide higher
 level functionality such as recursive copying of content, syncing with
 Synapse and additional query functionality.
 
-See: 
+See:
 - :py:mod:`synapseutils`
 
 
@@ -312,7 +312,7 @@ from .client import ROOT_ENTITY
 from .activity import Activity
 from .entity import Entity, Project, Folder, File, Link
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Column, RowSet, Row, as_table_columns, Table
+from .table import Schema, ViewSchema, Column, RowSet, Row, as_table_columns, Table
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
@@ -325,6 +325,5 @@ __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapse
 
 import requests
 USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
-import logging 
+import logging
 logging.getLogger("requests").setLevel(logging.WARNING)
-
