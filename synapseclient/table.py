@@ -540,6 +540,7 @@ class Schema(Entity, Versionable):
 
 class ViewSchema(Schema):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
+    _viewType = 'file'
 
     def _addScope(self):
         raise NotImplementedError
@@ -1198,8 +1199,9 @@ class CsvFileTable(TableAbstractBaseClass):
             linesToSkip=self.linesToSkip)
 
         upload_to_table_result = result['results'][0]
-        assert upload_to_table_result['concreteType'] == 'org.sagebionetworks.repo.model.table.UploadToTableResult', "Not an UploadToTableResult."
 
+        assert upload_to_table_result['concreteType'] in ('org.sagebionetworks.repo.model.table.EntityUpdateResults',
+                                                          'org.sagebionetworks.repo.model.table.UploadToTableResult'), "Not an UploadToTableResult or EntityUpdateResults."
         if 'etag' in upload_to_table_result:
             self.etag = upload_to_table_result['etag']
         return self
