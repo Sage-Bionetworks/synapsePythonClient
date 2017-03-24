@@ -82,7 +82,7 @@ from .activity import Activity
 from .entity import Entity, File, Project, Folder, Link, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Table, Column, RowSet, Row, TableQueryResult, CsvFileTable
+from .table import Schema, ViewSchema, Table, Column, RowSet, Row, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
