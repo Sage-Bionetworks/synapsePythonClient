@@ -192,19 +192,47 @@ def test_view_update_csv():
         sys.stderr.write(
             'Pandas is not installed, skipping testing entity-view update via user-defined manifest CSV.\n\n')
 
+    view_id = "syn8529621"
+    query = "select * from %s" % view_id
+
     df = pd.DataFrame({
-        'id': ("syn8450577", "syn8450620", "syn8450619", "syn8450583"),
-        'dataSubtype': ("raw", "processed", "raw", "processed"),
-        'species': ("Human", "Human", "Human", "Mouse")})
+            'id': ("syn8528274", "syn8528280", "syn8528283", "syn8528288"),
+            'fileFormat': ("jpg", "jpg", "jpg", "jpg"),
+            'dataType': ("image", "image", "image", "image"),
+            'artist': ("Banksy", "Banksy", "Banksy", "Banksy"),
+            'medium': ("Print", "Print", "Print", "Print"),
+            'title': ("Gangsta Rat", "Girl With Ballon", "Pulp Fiction", "Radar Rat"),
+            })
 
-    view = syn.store(synapseclient.Table("syn8524857", df))
+    # get the current view-schema
+    view = syn.tableQuery(query)
+    view_df = view.asDataFrame()
 
-    updated_view = syn.tableQuery("select * from " + "syn8524857")
-    updated_view = list(csv.DictReader(file(updated_view.filepath)))
+    # check if the user-defined schema is a subset of view-schema
+    assert df.columns.isin(view_df.columns).all()
 
-    updated_df = pd.DataFrame(updated_view)
-    assert 'Mouse' in list(df.ix[:, 'species'])
-    assert 'raw' in list(df.ix[:, 'dataSubtype'])
+    # update the view-schema by user-defined data-frame manifest
+    view = syn.store(synapseclient.Table(view_id, df))
+
+    # get the updated view-schema
+    updated_view = syn.tableQuery(query)
+    updated_df = updated_view.asDataFrame()
+
+    # check if syn.store() updated the view-schema
+    assert 'Banksy' in list(df.ix[:, 'artist'])
+    assert 'jpg' in list(df.ix[:, 'fileFormat'])
+    assert 'Pulp Fiction' in list(df.ix[:, 'title'])
+
+    # revert view-schema changes for next test
+    df = pd.DataFrame({
+            'id': ("syn8528274", "syn8528280", "syn8528283", "syn8528288"),
+            'fileFormat': ("png", "png", "png", "png"),
+            'dataType': ("image", "image", "image", "image"),
+            'artist': ("Banksy", "Banksy", "Banksy", "Banksy"),
+            'medium': ("Print", "Print", "Print", "Print"),
+            'title': ("Gangsta Rat", "Girl With Ballon", "Girl With Ballon", "Radar Rat"),
+            })
+    view = syn.store(synapseclient.Table(view_id, df))
 
 
 def test_tables_csv():
