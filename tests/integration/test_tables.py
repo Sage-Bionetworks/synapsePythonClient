@@ -204,26 +204,26 @@ def test_view_update_csv():
             'title': ("Gangsta Rat", "Girl With Ballon", "Pulp Fiction", "Radar Rat"),
             })
 
-    # get the current view-schema
+    ## get the current view-schema
     view = syn.tableQuery(query)
     view_df = view.asDataFrame()
 
-    # check if the user-defined schema is a subset of view-schema
+    ## check if the user-defined schema is a subset of view-schema
     assert df.columns.isin(view_df.columns).all()
 
-    # update the view-schema by user-defined data-frame manifest
+    ## update the view-schema by user-defined data-frame manifest
     view = syn.store(synapseclient.Table(view_id, df))
 
-    # get the updated view-schema
+    ## get the updated view-schema
     updated_view = syn.tableQuery(query)
     updated_df = updated_view.asDataFrame()
 
-    # check if syn.store() updated the view-schema
+    ## check if syn.store() updated the view-schema
     assert 'Banksy' in list(df.ix[:, 'artist'])
     assert 'jpg' in list(df.ix[:, 'fileFormat'])
     assert 'Pulp Fiction' in list(df.ix[:, 'title'])
 
-    # revert view-schema changes for next test
+    ## revert view-schema changes for next test
     df = pd.DataFrame({
             'id': ("syn8528274", "syn8528280", "syn8528283", "syn8528288"),
             'fileFormat': ("png", "png", "png", "png"),
