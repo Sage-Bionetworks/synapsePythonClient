@@ -195,6 +195,7 @@ def test_view_update_csv():
     view_id = "syn8529621"
     query = "select * from %s" % view_id
 
+    ## the format of this data will be used to create a de-novo entity-view (when creation of entity-view is implemented)
     df = pd.DataFrame({
             'id': ("syn8528274", "syn8528280", "syn8528283", "syn8528288"),
             'fileFormat': ("jpg", "jpg", "jpg", "jpg"),
@@ -224,15 +225,7 @@ def test_view_update_csv():
     assert 'Pulp Fiction' in list(df.ix[:, 'title'])
 
     ## revert view-schema changes for next test
-    df = pd.DataFrame({
-            'id': ("syn8528274", "syn8528280", "syn8528283", "syn8528288"),
-            'fileFormat': ("png", "png", "png", "png"),
-            'dataType': ("image", "image", "image", "image"),
-            'artist': ("Banksy", "Banksy", "Banksy", "Banksy"),
-            'medium': ("Print", "Print", "Print", "Print"),
-            'title': ("Gangsta Rat", "Girl With Ballon", "Girl With Ballon", "Radar Rat"),
-            })
-    view = syn.store(synapseclient.Table(view_id, df))
+    view = syn.store(synapseclient.Table(view_id, view_df))
 
 
 def test_tables_csv():
