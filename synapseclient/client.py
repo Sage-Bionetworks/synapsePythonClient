@@ -25,7 +25,7 @@ Synapse
 More information
 ~~~~~~~~~~~~~~~~
 
-See also the `Synapse API documentation <http://rest.synapse.org>`_.
+See also the `Synapse API documentation <http://docs.synapse.org/rest/>`_.
 
 """
 
