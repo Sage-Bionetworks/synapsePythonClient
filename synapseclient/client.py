@@ -2636,7 +2636,7 @@ class Synapse:
         """
 
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
-        return [DictObject(**header) for header in self.restGET(uri)['results']]
+        return [DictObject(**header) for header in self._GET_paginated(uri)]
 
 
     def _storeWiki(self, wiki):
