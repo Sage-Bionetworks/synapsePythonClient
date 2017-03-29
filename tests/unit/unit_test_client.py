@@ -141,22 +141,14 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     ## TODO: separate into another test?
 
 
-@patch('synapseclient.Synapse.restGET')
 @patch('synapseclient.Synapse.restPOST')
 @patch('synapseclient.Synapse.getEvaluation')
 def test_submit(*mocks):
     mocks = [item for item in mocks]
-    GET_mock        = mocks.pop()
     POST_mock       = mocks.pop()
     getEvaluation_mock = mocks.pop()
     
     # -- Unmet access rights --
-    GET_mock.return_value = {'totalNumberOfResults': 2, 
-                             'results': [
-                                {'accessType': 'Foo', 
-                                 'termsOfUse': 'Bar'}, 
-                                {'accessType': 'bat', 
-                                 'termsOfUse': 'baz'}]}
     getEvaluation_mock.return_value = Evaluation(**{u'contentSource': u'syn1001',
                                                     u'createdOn': u'2013-11-06T06:04:26.789Z',
                                                     u'etag': u'86485ea1-8c89-4f24-a0a4-2f63bc011091',
@@ -166,13 +158,8 @@ def test_submit(*mocks):
                                                     u'status': u'OPEN',
                                                     u'submissionReceiptMessage': u'mmmm yummy!'})
 
-    assert_raises(SynapseAuthenticationError, syn.submit, "9090", "syn1001")
-    GET_mock.assert_called_once_with('/evaluation/9090/accessRequirementUnfulfilled')
     
     # -- Normal submission --
-    # Pretend the user has access rights 
-    GET_mock.return_value = {'totalNumberOfResults': 0, 'results': []}
-    
     # insert a shim that returns the dictionary it was passed after adding a bogus id
     def shim(*args):
         assert args[0] == '/evaluation/submission?etag=Fake eTag'
@@ -182,7 +169,6 @@ def test_submit(*mocks):
     POST_mock.side_effect = shim
     
     submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', submitterAlias='Team X')
-    assert GET_mock.call_count == 2
 
     assert submission.id == 1234
     assert submission.evaluationId == '9090'
