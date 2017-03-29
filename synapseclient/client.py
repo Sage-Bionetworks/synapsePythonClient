@@ -2263,8 +2263,10 @@ class Synapse:
         :param evaluation: Evaluation board to submit to
         :param entity:     The Entity containing the Submission
         :param name:       A name for this submission
-        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered for the challenge
-        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
+        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered
+                           for the challenge
+        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place 
+                           of the submitter's name
         :param teamName: (deprecated) A synonym for submitterAlias
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
@@ -2286,12 +2288,6 @@ class Synapse:
         ## default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
-
-        # Check for access rights
-        unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
-        if unmetRights['totalNumberOfResults'] > 0:
-            accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
-            raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
 
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
@@ -2317,22 +2313,6 @@ class Synapse:
         if team:
             ## see http://rest.synapse.org/GET/evaluation/evalId/team/id/submissionEligibility.html
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=evaluation_id, id=team.id))
-
-            # {'eligibilityStateHash': -100952509,
-            #  'evaluationId': '3317421',
-            #  'membersEligibility': [
-            #   {'hasConflictingSubmission': False,
-            #    'isEligible': True,
-            #    'isQuotaFilled': False,
-            #    'isRegistered': True,
-            #    'principalId': 377358},
-            #   ...],
-            #  'teamEligibility': {
-            #   'isEligible': True,
-            #   'isQuotaFilled': False,
-            #   'isRegistered': True},
-            #  'teamId': '3325434'}
-            ## Note that isRegistered may be missing
 
             ## Check team eligibility and raise an exception if not eligible
             if not eligibility['teamEligibility'].get('isEligible', True):
