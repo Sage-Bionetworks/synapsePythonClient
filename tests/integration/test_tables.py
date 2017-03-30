@@ -185,14 +185,82 @@ def test_rowset_tables():
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
 
-def test_view_update_csv():
+def test_view_and_update_csv():
     try:
         import pandas as pd
     except ImportError as e1:
         sys.stderr.write(
             'Pandas is not installed, skipping testing entity-view update via user-defined manifest CSV.\n\n')
 
-    view_id = "syn8529621"
+    ## Update the project
+    project_name = str(uuid.uuid4())
+    project = Project(name=project_name)
+    project = syn.store(project)
+    schedule_for_cleanup(project)
+    project = syn.getEntity(project)
+    #print(project.id)
+    assert project.name == project_name
+    
+    ## Create and get a Folder Do I need folders ?
+    folder = Folder('De-Novo Folder', parent=project, description='creating a file-view')
+    folder = syn.createEntity(folder)
+    folder = syn.getEntity(folder)
+    assert folder.name == 'De-Novo Folder'
+    assert folder.parentId == project.id
+    #print(folder)
+    assert folder.description == 'creating a file-view'
+
+    ## Create dummy files with annotations in our de-novo folder
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    a_file = File(path, parent=folder, description=u'',
+                  contentType='text/flapdoodle',
+                  fileFormat='jpg',
+                  dataType='image',
+                  artist='Banksy',
+                  medium='print',
+                  title='Girl With Ballon')
+    a_file = syn.store(a_file)
+    file_info = syn.getEntity(a_file)
+    print(a_file)
+    print(file_info)
+    assert a_file.path == path
+
+    ## get scopeIds: The list of container IDs (projects or folders) that define the scope of this view
+    '''body = {u'concreteType': u'org.sagebionetworks.repo.model.table.ViewScope', u'scope': [file_info.id]}
+    entity_scope = syn.restPOST(uri='/column/view/scope', body=json.dumps(body))
+    print(entity_scope)'''
+
+    # minimal_schema_columnIds = [u'2510', u'23543', u'23544', u'23545', u'31783', u'26823', u'31784', u'23550', u'30514', u'31785', u'31782', u'31786']
+
+    ## Create an empty entity-view
+    body = {u'columnIds': [],
+            u'concreteType': u'org.sagebionetworks.repo.model.table.EntityView',
+            u'entityType': u'org.sagebionetworks.repo.model.table.EntityView',
+            u'name': u'empty file view',
+            u'parentId': project.id,
+            u'scopeIds': [folder['id'][3:]],
+            u'type': u'file'}
+    
+    entity_view = syn.restPOST(uri='/entity', body=json.dumps(body))
+    print(entity_view)
+    entity_info = syn.getEntity(entity_view)
+    print(entity_info)
+
+    #view = syn.store(synapseclient.Table(view_id, view_df))
+
+    ## add folder to entity-view
+    ## we can declare our containers scope here
+
+
+    ## get the current view-schema and update some annotation 
+
+    ## get columnIds 
+
+
+
+
+    '''view_id = "syn8529621"
     query = "select * from %s" % view_id
 
     ## the format of this data will be used to create a de-novo entity-view (when creation of entity-view is implemented)
@@ -225,7 +293,7 @@ def test_view_update_csv():
     assert 'Pulp Fiction' in list(df.ix[:, 'title'])
 
     ## revert view-schema changes for next test
-    view = syn.store(synapseclient.Table(view_id, view_df))
+    view = syn.store(synapseclient.Table(view_id, view_df))'''
 
 
 def test_tables_csv():
