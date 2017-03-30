@@ -598,18 +598,24 @@ class Synapse:
 
 
     def onweb(self, entity, subpageId=None):
-        """
-        Opens up a browser window to the entity page or wiki-subpage.
+        """Opens up a browser window to the entity page or wiki-subpage.
 
         :param entity:    Either an Entity or a Synapse ID
         :param subpageId: (Optional) ID of one of the wiki's sub-pages
         """
         if isinstance(entity, six.string_types) and os.path.isfile(entity):
             entity = self.get(entity, downloadFile=False)
+        else:
+            try:
+                entity = entity.tableId
+                webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
+            except AttributeError:
+                pass
         if subpageId is None:
             webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
         else:
             webbrowser.open("%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, id_of(entity), subpageId))
+
 
 
     def printEntity(self, entity, ensure_ascii=True):
