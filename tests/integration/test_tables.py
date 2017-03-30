@@ -150,7 +150,7 @@ def test_rowset_tables():
                              resultsAs="rowset")
     for bday, row in zip(bdays, results):
         assert row['values'][0] == datetime.strptime(bday, "%Y-%m-%d"), "got %s but expected %s" % (
-        row['values'][0], bday)
+            row['values'][0], bday)
 
     try:
         import pandas as pd
@@ -198,16 +198,16 @@ def test_view_and_update_csv():
     project = syn.store(project)
     schedule_for_cleanup(project)
     project = syn.getEntity(project)
-    #print(project.id)
+    # print(project.id)
     assert project.name == project_name
-    
-    ## Create and get a Folder Do I need folders ?
+
+    ## Create and get a de-novo folder
     folder = Folder('De-Novo Folder', parent=project, description='creating a file-view')
     folder = syn.createEntity(folder)
     folder = syn.getEntity(folder)
     assert folder.name == 'De-Novo Folder'
     assert folder.parentId == project.id
-    #print(folder)
+    # print(folder)
     assert folder.description == 'creating a file-view'
 
     ## Create dummy files with annotations in our de-novo folder
@@ -222,18 +222,19 @@ def test_view_and_update_csv():
                   title='Girl With Ballon')
     a_file = syn.store(a_file)
     file_info = syn.getEntity(a_file)
-    print(a_file)
-    print(file_info)
+    # print(a_file)
+    # print(file_info)
     assert a_file.path == path
 
-    ## get scopeIds: The list of container IDs (projects or folders) that define the scope of this view
+    ## How-to get scopeIds, not required yet: The list of container IDs (projects or folders) that define the scope of this view
     '''body = {u'concreteType': u'org.sagebionetworks.repo.model.table.ViewScope', u'scope': [file_info.id]}
     entity_scope = syn.restPOST(uri='/column/view/scope', body=json.dumps(body))
     print(entity_scope)'''
 
-    # minimal_schema_columnIds = [u'2510', u'23543', u'23544', u'23545', u'31783', u'26823', u'31784', u'23550', u'30514', u'31785', u'31782', u'31786']
+    # minimal_schema_columnIds = [u'2510', u'23543', u'23544', u'23545', u'31783', u'26823', u'31784', u'23550',
+    #                            u'30514', u'31785', u'31782', u'31786']
 
-    ## Create an empty entity-view
+    ## Create an empty entity-view with defined scope as folder 
     body = {u'columnIds': [],
             u'concreteType': u'org.sagebionetworks.repo.model.table.EntityView',
             u'entityType': u'org.sagebionetworks.repo.model.table.EntityView',
@@ -241,25 +242,27 @@ def test_view_and_update_csv():
             u'parentId': project.id,
             u'scopeIds': [folder['id'][3:]],
             u'type': u'file'}
-    
+
     entity_view = syn.restPOST(uri='/entity', body=json.dumps(body))
-    print(entity_view)
+    # print(entity_view)
     entity_info = syn.getEntity(entity_view)
-    print(entity_info)
+    # print(entity_info)
 
-    #view = syn.store(synapseclient.Table(view_id, view_df))
+    ## add folder to entity-view (stuck)
+    # view_1 = syn.store(synapseclient.Table(entity_info['id'], path))
 
-    ## add folder to entity-view
-    ## we can declare our containers scope here
+    ## do we need to define the view-schema columns? 
+    cols = [
+        Column(name='fileFormat', columnType='STRING', maximumSize=20),
+        Column(name='dataType', columnType='STRING', maximumSize=20),
+        Column(name='artist', columnType='STRING', maximumSize=20),
+        Column(name='medium', columnType='STRING', maximumSize=20),
+        Column(name='title', columnType='STRING', maximumSize=20)]
 
+    schema = Schema(name='my view schema', columns=cols, parent=entity_info.id)
+    # print(schema) # columnIds are not defined
 
-    ## get the current view-schema and update some annotation 
-
-    ## get columnIds 
-
-
-
-
+    ## None de-novo test 
     '''view_id = "syn8529621"
     query = "select * from %s" % view_id
 
