@@ -134,7 +134,7 @@ def test_evaluations():
             # Grab the Submission as the original user
             fetched = syn.getSubmission(submission['id'])
             assert os.path.exists(fetched['filePath'])
-            
+
             # make sure the fetched file is the same as the original (PLFM-2666)
             assert filecmp.cmp(filename, fetched['filePath'])
 
