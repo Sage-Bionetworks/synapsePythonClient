@@ -52,11 +52,13 @@ try:
     from urllib.parse import urlunparse
     from urllib.parse import quote
     from urllib.parse import unquote
+    from urllib.request import urlretrieve
 except ImportError:
     from urlparse import urlparse
     from urlparse import urlunparse
     from urllib import quote
     from urllib import unquote
+    from urllib import urlretrieve
 
 import requests, webbrowser
 import shutil
@@ -778,7 +780,6 @@ class Synapse:
                     entity.md5 = handle.get('contentMd5', '')
                     entity.fileSize = handle.get('contentSize', None)
                     entity.contentType = handle.get('contentType', None)
-                    fileName = properties['fileNameOverride'] if 'fileNameOverride' in properties else handle['fileName']
                     if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                         entity['externalURL'] = handle['externalURL']
                         #Determine if storage location for this entity matches the url of the
@@ -1816,13 +1817,16 @@ class Synapse:
                 destination = utils.file_url_to_path(url, verify_exists=True)
                 if destination is None:
                     raise IOError("Local file (%s) does not exist." % url)
-                if expected_md5:
-                    actual_md5 = utils.md5_for_file(destination).hexdigest()
+                actual_md5 = utils.md5_for_file(destination).hexdigest()
                 break
             elif scheme == 'sftp':
                 destination = self._sftpDownloadFile(url, destination)
-                if expected_md5:
-                    actual_md5 = utils.md5_for_file(destination).hexdigest()
+                actual_md5 = utils.md5_for_file(destination).hexdigest()
+                break
+            elif scheme == 'ftp':
+                #username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
+                urlretrieve(url, destination)
+                actual_md5 = utils.md5_for_file(destination).hexdigest()
                 break
             elif scheme == 'http' or scheme == 'https':
                 ## if a partial download exists with the temporary name,
@@ -1846,7 +1850,6 @@ class Synapse:
                     url = response.headers['location']
                     ## don't break, loop again
                 else:
-
                     ## get filename from content-disposition, if we don't have it already
                     if os.path.isdir(destination):
                         filename = utils.extract_filename(
@@ -1884,15 +1887,10 @@ class Synapse:
                     except Exception as ex:  #We will add a progress parameter then push it back to retry.
                         ex.progress  = transferred-previouslyTransferred
                         raise
-
                     actual_md5 = sig.hexdigest()
-
                     ## rename to final destination
                     shutil.move(temp_destination, destination)
-
                     break
-
-            #TODO LARSSON add support of ftp download
             else:
                 sys.stderr.write('Unable to download URLs of type %s' % scheme)
                 return returnDict(None)
@@ -1902,8 +1900,7 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(
-                filename=destination, md5=actual_md5, expected_md5=expected_md5))
+            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
 
@@ -2121,11 +2118,8 @@ class Synapse:
         Performs download of a file from an sftp server.
 
         :param url: URL where file will be deposited.  Path will be chopped out.
-
         :param localFilepath: location where to store file
-
         :param username: username on server
-
         :param password: password for authentication on  server
 
         :returns: localFilePath
@@ -2244,8 +2238,10 @@ class Synapse:
         :param evaluation: Evaluation board to submit to
         :param entity:     The Entity containing the Submission
         :param name:       A name for this submission
-        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered for the challenge
-        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
+        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered
+                           for the challenge
+        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place 
+                           of the submitter's name
         :param teamName: (deprecated) A synonym for submitterAlias
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
@@ -2267,12 +2263,6 @@ class Synapse:
         ## default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
-
-        # Check for access rights
-        unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
-        if unmetRights['totalNumberOfResults'] > 0:
-            accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
-            raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
 
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
@@ -2298,22 +2288,6 @@ class Synapse:
         if team:
             ## see http://rest.synapse.org/GET/evaluation/evalId/team/id/submissionEligibility.html
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=evaluation_id, id=team.id))
-
-            # {'eligibilityStateHash': -100952509,
-            #  'evaluationId': '3317421',
-            #  'membersEligibility': [
-            #   {'hasConflictingSubmission': False,
-            #    'isEligible': True,
-            #    'isQuotaFilled': False,
-            #    'isRegistered': True,
-            #    'principalId': 377358},
-            #   ...],
-            #  'teamEligibility': {
-            #   'isEligible': True,
-            #   'isQuotaFilled': False,
-            #   'isRegistered': True},
-            #  'teamId': '3325434'}
-            ## Note that isRegistered may be missing
 
             ## Check team eligibility and raise an exception if not eligible
             if not eligibility['teamEligibility'].get('isEligible', True):
@@ -2402,7 +2376,7 @@ class Synapse:
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
 
 
-    def getSubmissions(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
+    def getSubmissions(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
@@ -2440,7 +2414,7 @@ class Synapse:
             yield Submission(**result)
 
 
-    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
+    def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
@@ -2476,7 +2450,7 @@ class Synapse:
         return self._GET_paginated(url, limit=limit, offset=offset)
 
 
-    def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=100, offset=0):
+    def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
@@ -2604,7 +2578,7 @@ class Synapse:
             cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            fileResult = self._getFileHandleDownload(wiki['markdownFileHandleId'], wiki['id'], 'WikiAttachment')
+            fileResult = self._getFileHandleDownload(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown')
             path = self._downloadFileHandle(fileResult['preSignedURL'], cache_dir, fileResult['fileHandle'])
             self.cache.add(wiki.markdownFileHandleId, path)
         try:
@@ -2631,7 +2605,7 @@ class Synapse:
         """
 
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
-        return [DictObject(**header) for header in self.restGET(uri)['results']]
+        return [DictObject(**header) for header in self._GET_paginated(uri)]
 
 
     def _storeWiki(self, wiki):

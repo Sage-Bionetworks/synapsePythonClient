@@ -17,7 +17,7 @@ from synapseclient import Activity, Entity, Project, Folder, File
 
 import integration
 from integration import schedule_for_cleanup
-
+import json
 
 
 def setup(module):
@@ -75,3 +75,25 @@ def test_resume_partial_download():
     assert filecmp.cmp(original_file, path), "File comparison failed"
 
 
+def test_ftp_download():
+    """Test downloading an Entity that points to a file on an FTP server. """
+    
+    # Another test with an external reference. This is because we only need to test FTP download; not upload. Also so we don't have to maintain an FTP server just for this purpose.
+    # Make an entity that points to an FTP server file.
+    entity = File(parent=project['id'], name = '1KB.zip')
+    fileHandle = {}
+    fileHandle['externalURL'] = 'ftp://speedtest.tele2.net/1KB.zip'
+    fileHandle["fileName"] = entity.name
+    fileHandle["contentType"] = "application/zip"
+    fileHandle["contentMd5"] = '0f343b0931126a20f133d67c2b018a3b'
+    fileHandle["contentSize"] = 1024
+    fileHandle["concreteType"] = "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+    fileHandle = syn.restPOST('/externalFileHandle', json.dumps(fileHandle), syn.fileHandleEndpoint)
+    entity.dataFileHandleId = fileHandle['id']
+    entity = syn.store(entity)
+
+    # Download the entity and check that MD5 matches expected
+    FTPfile = syn.get(entity.id, downloadLocation=os.getcwd(), downloadFile=True)
+    assert FTPfile.md5==utils.md5_for_file(FTPfile.path).hexdigest()
+    schedule_for_cleanup(entity)
+    os.remove(FTPfile.path)

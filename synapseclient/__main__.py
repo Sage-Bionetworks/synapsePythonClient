@@ -143,7 +143,7 @@ def get(args, syn):
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
-        synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation)
+        synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation,followLink = args.followLink)
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
             raise ValueError('You cannot specify a version or id when you are dowloading a query.')
@@ -159,6 +159,7 @@ def get(args, syn):
         ## normal syn.get operation
         else:
             entity = syn.get(args.id, version=args.version, # limitSearch=args.limitSearch,
+                             followLink=args.followLink,
                              downloadLocation=args.downloadLocation)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print("Downloaded file: %s" % os.path.basename(entity.path))
@@ -233,7 +234,8 @@ def associate(args, syn):
 
 def copy(args,syn):
     mappings = synapseutils.copy(syn, args.id, args.destinationId,
-                         copyWikiPage=args.skipCopyWiki,
+                         skipCopyWikiPage=args.skipCopyWiki,
+                         skipCopyAnnotations=args.skipCopyAnnotations,
                          excludeTypes=args.excludeTypes,
                          version=args.version, updateExisting=args.updateExisting,
                          setProvenance=args.setProvenance)
@@ -466,6 +468,9 @@ def build_parser():
             help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword',
             help='Password used to connect to Synapse')
+    parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
+                        help='Path to configuration file used to connect to Synapse [default: %(default)s]')
+
     parser.add_argument('--debug', dest='debug',  action='store_true')
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
             help='suppress checking for version upgrade messages and endpoint redirection')
@@ -482,6 +487,8 @@ def build_parser():
             help='Synapse version number of entity to retrieve. Defaults to most recent version.')
     parser_get.add_argument('-r', '--recursive', action='store_true', default=False,
             help='Fetches content in Synapse recursively contained in the parentId specified by id.')
+    parser_get.add_argument('--followLink', action='store_true', default=False,
+            help='Determines whether the link returns the target Entity.')
     parser_get.add_argument('--limitSearch', metavar='projId', type=str,
             help='Synapse ID of a container such as project or folder to limit search for files if using a path.')
     parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
@@ -565,8 +572,8 @@ def build_parser():
             help='Copies specific versions of synapse content such as files, folders and projects by recursively copying all sub-content')
     parser_cp.add_argument('id', metavar='syn123', type=str,
             help='Id of entity in Synapse to be copied.')
-    parser_cp.add_argument('--destinationId', metavar='syn123', type=str,
-            help='Synapse ID of project or folder where file will be copied to.  If no destinationId specified, a new project is created')
+    parser_cp.add_argument('--destinationId', metavar='syn123', required=True,
+            help='Synapse ID of project or folder where file will be copied to.')
     parser_cp.add_argument('--version','-v', metavar='1', type=int, default=None,
             help=('Synapse version number of file, and link to retrieve.'
                 'This parameter can only be used when copying files, or links'
@@ -578,9 +585,11 @@ def build_parser():
                         'None/none: No provenance is set'))
     parser_cp.add_argument('--updateExisting', action='store_true',
             help='Will update the file if there is already a file that is named the same in the destination')
+    parser_cp.add_argument('--skipCopyAnnotations', action='store_true',
+            help='Do not copy the annotations')
     parser_cp.add_argument('--excludeTypes',nargs='*', metavar='file table',type=str, default=list(),
             help='Accepts a list of entity types (file, table, link) which determines which entity types to not copy.')
-    parser_cp.add_argument('--skipCopyWiki', action='store_false',
+    parser_cp.add_argument('--skipCopyWiki', action='store_true',
             help='Do not copy the wiki pages')
     parser_cp.set_defaults(func=copy)
 
@@ -787,7 +796,7 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
-    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
+    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks, configPath=args.configPath)
     if not ('func' in args and args.func == login):
         # if we're not executing the "login" operation, automatically authenticate before running operation
         login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
