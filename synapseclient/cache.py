@@ -6,7 +6,7 @@ File Caching
 ************
 
 Implements a cache on local disk for Synapse file entities and other objects
-with a `FileHandle <https://rest.synapse.org/org/sagebionetworks/repo/model/file/FileHandle.html>`_.
+with a `FileHandle <https://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html>`_.
 This is part of the internal implementation of the client and should not be
 accessed directly by users of the client.
 """
