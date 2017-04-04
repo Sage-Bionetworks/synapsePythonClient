@@ -13,6 +13,7 @@ import re
 import sys
 import uuid
 import json
+import csv
 from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
@@ -532,7 +533,7 @@ def test_command_line_store_and_submit():
                  project_id)
 
 
-def test_command_get_recursive_and_query():
+def test_command_get_recursive():
     """Tests the 'synapse get -r' and 'synapse get -q' functions"""
     # Create a Project
     project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
@@ -544,18 +545,23 @@ def test_command_get_recursive_and_query():
 
     # Create and upload two files in Folder
     uploaded_paths = []
+    file_entities = []
+
     for i in range(2):
         f  = utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = synapseclient.File(f, parent=folder_entity)
         file_entity = syn.store(file_entity)
+        file_entities.append(file_entity)
+
     #Add a file in the project level as well
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = synapseclient.File(f, parent=project_entity)
     file_entity = syn.store(file_entity)
+    file_entities.append(file_entity)
 
     ### Test recursive get
     output = run('synapse', '--skip-checks',
@@ -571,6 +577,39 @@ def test_command_get_recursive_and_query():
         assert filecmp.cmp(downloaded, uploaded)
     schedule_for_cleanup(new_paths[0])
 
+def test_command_get_query():
+    """Tests the 'synapse get -q' function.
+
+    """
+
+    # Create a Project
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    # Create a Folder in Project
+    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+                                                   parent=project_entity))
+
+    # Create and upload two files in Folder
+    uploaded_paths = []
+    file_entities = []
+
+    for i in range(2):
+        f  = utils.make_bogus_data_file()
+        uploaded_paths.append(f)
+        schedule_for_cleanup(f)
+        file_entity = synapseclient.File(f, parent=folder_entity)
+        file_entity = syn.store(file_entity)
+        file_entities.append(file_entity)
+
+    #Add a file in the project level as well
+    f  = utils.make_bogus_data_file()
+    uploaded_paths.append(f)
+    schedule_for_cleanup(f)
+    file_entity = synapseclient.File(f, parent=project_entity)
+    file_entity = syn.store(file_entity)
+    file_entities.append(file_entity)
+
     ### Test query get
     ### Note: We're not querying on annotations because tests can fail if there
     ###       are lots of jobs queued as happens when staging is syncing
@@ -584,6 +623,36 @@ def test_command_get_recursive_and_query():
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
+
+    ### Test query get using a Table with an entity column
+    ### This should be replaced when Table File Views are implemented in the client
+    cols = []
+    cols.append(synapseclient.Column(name='id', columnType='ENTITYID'))
+
+    schema1 = syn.store(synapseclient.Schema(name='Foo Table', columns=cols, parent=project_entity))
+    schedule_for_cleanup(schema1.id)
+
+    data1 =[[x.id] for x in file_entities]
+
+    print(data1)
+
+    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+                                   rows=[synapseclient.Row(r) for r in data1]))
+
+    ### Test Table/View query get
+    output = run('synapse', '--skip-checks', 'get', '-q',
+                 "select id from %s" % schema1.id)
+    #Verify that we downloaded files:
+    new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
+    new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
+    schedule_for_cleanup(folder_entity.name)
+    for downloaded, uploaded in zip(new_paths, uploaded_paths):
+        print(uploaded, downloaded)
+        assert os.path.exists(downloaded)
+        assert filecmp.cmp(downloaded, uploaded)
+        schedule_for_cleanup(downloaded)
+
+    schedule_for_cleanup(new_paths[0])
 
 def test_command_copy():
     """Tests the 'synapse cp' function"""
@@ -719,6 +788,47 @@ def test_command_line_using_paths():
     shutil.copy(filename2, path)
     output = run('synapse', '--skip-checks', 'associate', path, '-r')
     output = run('synapse', '--skip-checks', 'show', filename)
+
+def test_table_query():
+    """Test command line ability to do table query.
+
+    """
+
+    cols = []
+    cols.append(synapseclient.Column(name='name', columnType='STRING', maximumSize=1000))
+    cols.append(synapseclient.Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
+    cols.append(synapseclient.Column(name='x', columnType='DOUBLE'))
+    cols.append(synapseclient.Column(name='age', columnType='INTEGER'))
+    cols.append(synapseclient.Column(name='cartoon', columnType='BOOLEAN'))
+
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    schema1 = syn.store(synapseclient.Schema(name='Foo Table', columns=cols, parent=project_entity))
+    schedule_for_cleanup(schema1.id)
+
+    data1 =[['Chris',  'bar', 11.23, 45, False],
+            ['Jen',    'bat', 14.56, 40, False],
+            ['Jane',   'bat', 17.89,  6, False],
+            ['Henry',  'bar', 10.12,  1, False]]
+
+    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+                                   rows=[synapseclient.Row(r) for r in data1]))
+
+    # Test query
+    output = run('synapse', '--skip-checks', 'query',
+                 'select * from %s' % schema1.id)
+
+    output_rows = list(csv.reader(StringIO(output), delimiter="\t".encode('ascii')))
+
+    # Check the length of the output
+    assert len(output_rows) == 5
+
+    # Check that headers are correct.
+    # Should be column names in schema plus the ROW_ID and ROW_VERSION
+    my_headers_set = output_rows[0]
+    expected_headers_set = ["ROW_ID", "ROW_VERSION"] + map(lambda x: x.name, cols)
+    assert my_headers_set == expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set)
 
 def test_login():
     try:
