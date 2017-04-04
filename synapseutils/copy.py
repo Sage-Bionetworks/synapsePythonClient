@@ -497,7 +497,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             newWikiPage = syn.store(newWikiPage)
         else:
             if destinationSubPageId is not None and newWikiPage is not None:
-                newWikiPage.fileHandles = new_file_handles
+                newWikiPage.attachmentFileHandleIds = new_file_handles
                 newWikiPage.markdown = wiki.markdown
                 newWikiPage.title = wiki.get('title','')
                 #Need to add logic to update titles here
