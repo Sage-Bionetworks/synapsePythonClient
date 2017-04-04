@@ -212,10 +212,10 @@ def associate(args, syn):
             print('%s.%i\t%s' %(ent.id, ent.versionNumber, fp))
 
 def copy(args,syn):
-    mappings = synapseutils.copy(syn, args.id, args.destinationId, 
+    mappings = synapseutils.copy(syn, args.id, args.destinationId,
                          skipCopyWikiPage=args.skipCopyWiki,
                          skipCopyAnnotations=args.skipCopyAnnotations,
-                         excludeTypes=args.excludeTypes, 
+                         excludeTypes=args.excludeTypes,
                          version=args.version, updateExisting=args.updateExisting,
                          setProvenance=args.setProvenance)
     print(mappings)
@@ -434,12 +434,12 @@ def test_encoding(args, syn):
 def build_parser():
     """Builds the argument parser and returns the result."""
 
-    USED_HELP=('Synapse ID, a url, or a local file path (of a file previously' 
+    USED_HELP=('Synapse ID, a url, or a local file path (of a file previously'
                'uploaded to Synapse) from which the specified entity is derived')
-    EXECUTED_HELP=('Synapse ID, a url, or a local file path (of a file previously' 
+    EXECUTED_HELP=('Synapse ID, a url, or a local file path (of a file previously'
                    'uploaded to Synapse) that was executed to generate the specified entity')
 
-    
+
     parser = argparse.ArgumentParser(description='Interfaces with the Synapse repository.')
     parser.add_argument('--version',  action='version',
             version='Synapse Client %s' % synapseclient.__version__)
@@ -447,6 +447,9 @@ def build_parser():
             help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword',
             help='Password used to connect to Synapse')
+    parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
+                        help='Path to configuration file used to connect to Synapse [default: %(default)s]')
+
     parser.add_argument('--debug', dest='debug',  action='store_true')
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
             help='suppress checking for version upgrade messages and endpoint redirection')
@@ -483,7 +486,7 @@ def build_parser():
     parent_id_group.add_argument('--type', type=str, default='File',
             help='Type of object, such as "File", "Folder", or '
                  '"Project", to create in Synapse. Defaults to "File"')
-    
+
     parser_store.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
     parser_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
@@ -548,10 +551,10 @@ def build_parser():
             help='Copies specific versions of synapse content such as files, folders and projects by recursively copying all sub-content')
     parser_cp.add_argument('id', metavar='syn123', type=str,
             help='Id of entity in Synapse to be copied.')
-    parser_cp.add_argument('--destinationId', metavar='syn123', required=True, 
+    parser_cp.add_argument('--destinationId', metavar='syn123', required=True,
             help='Synapse ID of project or folder where file will be copied to.')
     parser_cp.add_argument('--version','-v', metavar='1', type=int, default=None,
-            help=('Synapse version number of file, and link to retrieve.' 
+            help=('Synapse version number of file, and link to retrieve.'
                 'This parameter can only be used when copying files, or links'
                 'Defaults to most recent version.'))
     parser_cp.add_argument('--setProvenance', metavar='traceback', type=str, default='traceback',
@@ -772,7 +775,7 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
-    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
+    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks, configPath=args.configPath)
     if not ('func' in args and args.func == login):
         # if we're not executing the "login" operation, automatically authenticate before running operation
         login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
