@@ -2525,6 +2525,7 @@ class Synapse:
         submission_id = id_of(id)
         uri = Submission.getURI(submission_id)
         submission = Submission(**self.restGET(uri))
+        
         # Pre-fetch the Entity tied to the Submission, if there is one
         if 'entityId' in submission and submission['entityId'] is not None:
             related = self._getWithEntityBundle(

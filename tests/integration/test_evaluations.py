@@ -127,12 +127,14 @@ def test_evaluations():
 
             ## test submission by evaluation ID
             submission = testSyn.submit(ev.id, entity, submitterAlias="My Nickname")
+
             # Mess up the cached file so that syn._getWithEntityBundle must download again
             os.utime(filename, (0, 0))
 
             # Grab the Submission as the original user
             fetched = syn.getSubmission(submission['id'])
             assert os.path.exists(fetched['filePath'])
+            
             # make sure the fetched file is the same as the original (PLFM-2666)
             assert filecmp.cmp(filename, fetched['filePath'])
 
