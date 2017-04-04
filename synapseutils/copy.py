@@ -124,7 +124,7 @@ def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations
     destinationSubPageId = kwargs.get('destinationSubPageId',None)
 
     mapping = _copyRecursive(syn, entity, destinationId, **kwargs)
-    if copyWikiPage:
+    if not skipCopyWikiPage:
         for oldEnt in mapping:
             newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId = entitySubPageId,
                                 destinationSubPageId = destinationSubPageId, updateLinks = updateLinks, 
