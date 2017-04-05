@@ -554,8 +554,8 @@ def build_parser():
     parser_cp.add_argument('--destinationId', metavar='syn123', required=True,
             help='Synapse ID of project or folder where file will be copied to.')
     parser_cp.add_argument('--version','-v', metavar='1', type=int, default=None,
-            help=('Synapse version number of file, and link to retrieve.'
-                'This parameter can only be used when copying files, or links'
+            help=('Synapse version number of file or link to retrieve. '
+                'This parameter can only be used when copying files or links. '
                 'Defaults to most recent version.'))
     parser_cp.add_argument('--setProvenance', metavar='traceback', type=str, default='traceback',
             help=('Has three values to set the provenance of the copied entity-'
