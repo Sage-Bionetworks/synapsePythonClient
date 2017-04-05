@@ -535,9 +535,9 @@ def test_command_line_store_and_submit():
 
 def test_command_get_recursive():
     """Tests the 'synapse get -r' and 'synapse get -q' functions"""
-    # Create a Project
+
     project_entity = project
-    
+
     # Create a Folder in Project
     folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
                                                    parent=project_entity))
@@ -581,9 +581,7 @@ def test_command_get_query():
 
     """
 
-    # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
+    project_entity = project
 
     # Create a Folder in Project
     folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
