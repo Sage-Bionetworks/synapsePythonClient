@@ -538,14 +538,14 @@ def test_command_get_recursive():
 
     project_entity = project
 
-    # Create a Folder in Project
+    # Create Folders in Project
     folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
                                                    parent=project_entity))
 
     folder_entity2 = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
                                                     parent=folder_entity))
 
-    # Create and upload two files in Folder
+    # Create and upload two files in sub-Folder
     uploaded_paths = []
     file_entities = []
 
@@ -557,7 +557,7 @@ def test_command_get_recursive():
         file_entity = syn.store(file_entity)
         file_entities.append(file_entity)
 
-    #Add a file in the project level as well
+    #Add a file in the Folder as well
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
