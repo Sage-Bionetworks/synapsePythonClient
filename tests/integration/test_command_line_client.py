@@ -771,10 +771,9 @@ def test_table_query():
     cols.append(synapseclient.Column(name='age', columnType='INTEGER'))
     cols.append(synapseclient.Column(name='cartoon', columnType='BOOLEAN'))
 
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
+    project_entity = project
 
-    schema1 = syn.store(synapseclient.Schema(name='Foo Table', columns=cols, parent=project_entity))
+    schema1 = syn.store(synapseclient.Schema(name=str(uuid.uuid4()), columns=cols, parent=project_entity))
     schedule_for_cleanup(schema1.id)
 
     data1 =[['Chris',  'bar', 11.23, 45, False],
@@ -789,7 +788,9 @@ def test_table_query():
     output = run('synapse', '--skip-checks', 'query',
                  'select * from %s' % schema1.id)
 
-    output_rows = list(csv.reader(StringIO(output), delimiter="\t".encode('ascii')))
+    # If trying to use 'delimiter="\t"', throws 'TypeError: "delimiter" must be string, not unicode'
+    # See http://stackoverflow.com/questions/5625412/python-csv-module-error
+    output_rows = list(csv.reader(StringIO(output), delimiter=b"\t"))
 
     # Check the length of the output
     assert len(output_rows) == 5
