@@ -98,7 +98,7 @@ def query(args, syn):
 
     if re.search('from syn\d', queryString.lower()):
         results = syn.tableQuery(queryString)
-        reader = csv.reader(file(results.filepath))
+        reader = csv.reader(open(results.filepath))
         for row in reader:
             sys.stdout.write("%s\n" % ("\t".join(row)))
     else:
