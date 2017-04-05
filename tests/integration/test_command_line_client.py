@@ -542,6 +542,9 @@ def test_command_get_recursive():
     folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
                                                    parent=project_entity))
 
+    folder_entity2 = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+                                                    parent=folder_entity))
+
     # Create and upload two files in Folder
     uploaded_paths = []
     file_entities = []
@@ -550,7 +553,7 @@ def test_command_get_recursive():
         f  = utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
-        file_entity = synapseclient.File(f, parent=folder_entity)
+        file_entity = synapseclient.File(f, parent=folder_entity2)
         file_entity = syn.store(file_entity)
         file_entities.append(file_entity)
 
@@ -558,16 +561,16 @@ def test_command_get_recursive():
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
-    file_entity = synapseclient.File(f, parent=project_entity)
+    file_entity = synapseclient.File(f, parent=folder_entity)
     file_entity = syn.store(file_entity)
     file_entities.append(file_entity)
 
     ### Test recursive get
     output = run('synapse', '--skip-checks',
                  'get', '-r',
-                 project_entity.id)
+                 folder_entity.id)
     #Verify that we downloaded files:
-    new_paths = [os.path.join('.', folder_entity.name, os.path.basename(f)) for f in uploaded_paths[:-1]]
+    new_paths = [os.path.join('.', folder_entity2.name, os.path.basename(f)) for f in uploaded_paths[:-1]]
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
