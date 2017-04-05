@@ -798,7 +798,7 @@ def test_table_query():
     # Check that headers are correct.
     # Should be column names in schema plus the ROW_ID and ROW_VERSION
     my_headers_set = output_rows[0]
-    expected_headers_set = ["ROW_ID", "ROW_VERSION"] + map(lambda x: x.name, cols)
+    expected_headers_set = ["ROW_ID", "ROW_VERSION"] + list(map(lambda x: x.name, cols))
     assert my_headers_set == expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set)
 
 def test_login():
