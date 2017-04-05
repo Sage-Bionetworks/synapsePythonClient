@@ -583,8 +583,8 @@ def test_command_get_recursive_and_query():
     ###       are lots of jobs queued as happens when staging is syncing
     output = run('synapse', '--skip-checks',
                  'get', '-q', "select id from file where parentId=='%s'" %
-                 folder_entity.id)
-    #Verify that we downloaded files:
+                 folder_entity2.id)
+    #Verify that we downloaded files from folder_entity2
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
         print(uploaded, downloaded)
