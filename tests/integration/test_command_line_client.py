@@ -533,7 +533,7 @@ def test_command_line_store_and_submit():
                  project_id)
 
 
-def test_command_get_recursive():
+def test_command_get_recursive_and_query():
     """Tests the 'synapse get -r' and 'synapse get -q' functions"""
 
     project_entity = project
@@ -577,38 +577,6 @@ def test_command_get_recursive():
         print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
-    schedule_for_cleanup(new_paths[0])
-
-def test_command_get_query():
-    """Tests the 'synapse get -q' function.
-
-    """
-
-    project_entity = project
-
-    # Create a Folder in Project
-    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
-
-    # Create and upload two files in Folder
-    uploaded_paths = []
-    file_entities = []
-
-    for i in range(2):
-        f  = utils.make_bogus_data_file()
-        uploaded_paths.append(f)
-        schedule_for_cleanup(f)
-        file_entity = synapseclient.File(f, parent=folder_entity)
-        file_entity = syn.store(file_entity)
-        file_entities.append(file_entity)
-
-    #Add a file in the project level as well
-    f  = utils.make_bogus_data_file()
-    uploaded_paths.append(f)
-    schedule_for_cleanup(f)
-    file_entity = synapseclient.File(f, parent=project_entity)
-    file_entity = syn.store(file_entity)
-    file_entities.append(file_entity)
 
     ### Test query get
     ### Note: We're not querying on annotations because tests can fail if there
@@ -623,6 +591,8 @@ def test_command_get_query():
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
+
+    schedule_for_cleanup(new_paths[0])
 
     ### Test query get using a Table with an entity column
     ### This should be replaced when Table File Views are implemented in the client
