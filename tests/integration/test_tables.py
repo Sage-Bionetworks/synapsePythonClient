@@ -44,78 +44,72 @@ def setup(module):
     print("Crank up timeout on async calls")
     module.syn.table_query_timeout = 423
 
-def test_view_and_update_csv():
-    try:
-        import pandas as pd
-    except ImportError as e1:
-        sys.stderr.write(
-            'Pandas is not installed, skipping testing entity-view update via user-defined manifest CSV.\n\n')
+def test_create_and_update_file_view():
 
-    ## Create and get a de-novo folder
+    ## Create a folder
     folder = Folder(str(uuid.uuid4()), parent=project, description='creating a file-view')
     folder = syn.store(folder)
 
-    ## Create dummy files with annotations in our de-novo folder
+    ## Create dummy file with annotations in our folder
     path = utils.make_bogus_data_file()
+    file_annotations = dict(fileFormat='jpg', dataType='image', artist='Banksy',
+                            medium='print', title='Girl With Ballon')
     schedule_for_cleanup(path)
-    a_file = File(path, parent=folder,
-                  fileFormat='jpg', dataType='image',
-                  artist='Banksy', medium='print',
-                  title='Girl With Ballon')
+    a_file = File(path, parent=folder, annotations=file_annotations)
     a_file = syn.store(a_file)
 
-    minimal_schema_columnIds = ['2510', '23543', '23544', '23545', '31783', '26823', '31784', '23550',
-                                '30514', '31785', '31782', '31786']
+    # Add new columns for the annotations on this file and get their IDs
+    my_added_cols = [syn.store(synapseclient.Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
+    my_added_cols_ids = [c['id'] for c in my_added_cols]
+
+    # Required IDs for Synapse properties
+    # Should be defined somewhere in synapseclient.table
+    minimal_view_schema_column_ids = ['2510', '23543', '23544', '23545', '31783', '26823', '31784', '23550',
+                                      '30514', '31785', '31782', '31786']
 
     scopeIds = [folder['id'].lstrip('syn')]
 
+    column_ids = minimal_view_schema_column_ids + my_added_cols_ids
     ## Create an empty entity-view with defined scope as folder
-    body = {'columnIds': [],
+    body = {'columnIds': column_ids,
             'concreteType': 'org.sagebionetworks.repo.model.table.EntityView',
             'entityType': 'org.sagebionetworks.repo.model.table.EntityView',
-            'name': 'empty file view',
+            'name': str(uuid.uuid4()),
             'parentId': project.id,
             'scopeIds': scopeIds,
             'type': 'file'}
 
     entity_view = syn.restPOST(uri='/entity', body=json.dumps(body))
-    entity_info = syn.getEntity(entity_view)
+    entity_view = syn.get(entity_view)
 
-    ## None de-novo test
-    view_id = "syn8529621"
-    query = "select * from %s" % view_id
-
-    ## the format of this data will be used to create a de-novo entity-view (when creation of entity-view is implemented)
-    df = pd.DataFrame({
-            'id': ("syn8528274", "syn8528280", "syn8528283", "syn8528288"),
-            'fileFormat': ("jpg", "jpg", "jpg", "jpg"),
-            'dataType': ("image", "image", "image", "image"),
-            'artist': ("Banksy", "Banksy", "Banksy", "Banksy"),
-            'medium': ("Print", "Print", "Print", "Print"),
-            'title': ("Gangsta Rat", "Girl With Ballon", "Pulp Fiction", "Radar Rat"),
-            })
+    assert set(scopeIds) == set(entity_view.scopeIds)
+    assert set(column_ids) == set(entity_view.columnIds)
 
     ## get the current view-schema
-    view = syn.tableQuery(query)
-    view_df = view.asDataFrame()
+    view = syn.tableQuery("select * from %s" % entity_view.id)
+    view_dict = list(csv.DictReader(open(view.filepath, 'r')))
 
-    ## check if the user-defined schema is a subset of view-schema
-    assert df.columns.isin(view_df.columns).all()
+    # check that all of the annotations were retrieved from the view
+    assert set(file_annotations.keys()).issubset(set(view_dict[0].keys()))
 
-    ## update the view-schema by user-defined data-frame manifest
-    view = syn.store(synapseclient.Table(view_id, df))
+    # Check that the values are the same as what was set
+    for k, v in file_annotations.iteritems():
+        assert view_dict[0][k] == v
 
-    ## get the updated view-schema
-    updated_view = syn.tableQuery(query)
-    updated_df = updated_view.asDataFrame()
+    # Make a change to the view and store
+    view_dict[0]['fileFormat'] = 'PNG'
+    tmp_file = tempfile.NamedTemporaryFile(suffix=".csv")
+    dw = csv.DictWriter(tmp_file, fieldnames=view_dict[0].keys())
+    dw.writeheader()
+    dw.writerows(view_dict)
+    tmp_file.flush()
 
-    ## check if syn.store() updated the view-schema
-    assert 'Banksy' in list(df.ix[:, 'artist'])
-    assert 'jpg' in list(df.ix[:, 'fileFormat'])
-    assert 'Pulp Fiction' in list(df.ix[:, 'title'])
+    new_view = syn.store(synapseclient.Table(entity_view.id, tmp_file.name))
+    new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
 
-    ## revert view-schema changes for next test
-    view = syn.store(synapseclient.Table(view_id, view_df))
+    with open(new_view_results.filepath, 'r') as f:
+        new_view_dict = list(csv.DictReader(f))
+        assert new_view_dict[0]['fileFormat'] == 'PNG'
 
 def test_rowset_tables():
 
