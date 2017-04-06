@@ -51,52 +51,37 @@ def test_view_and_update_csv():
         sys.stderr.write(
             'Pandas is not installed, skipping testing entity-view update via user-defined manifest CSV.\n\n')
 
-    ## Update the project
-    project_name = str(uuid.uuid4())
-    project = Project(name=project_name)
-    project = syn.store(project)
-    schedule_for_cleanup(project)
-    project = syn.getEntity(project)
-    assert project.name == project_name
-
     ## Create and get a de-novo folder
-    folder = Folder('De-Novo Folder', parent=project, description='creating a file-view')
-    folder = syn.createEntity(folder)
-    folder = syn.getEntity(folder)
-    assert folder.name == 'De-Novo Folder'
-    assert folder.parentId == project.id
-    assert folder.description == 'creating a file-view'
+    folder = Folder(str(uuid.uuid4()), parent=project, description='creating a file-view')
+    folder = syn.store(folder)
 
     ## Create dummy files with annotations in our de-novo folder
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
-    a_file = File(path, parent=folder, description=u'',
-                  contentType='text/flapdoodle',
-                  fileFormat='jpg',
-                  dataType='image',
-                  artist='Banksy',
-                  medium='print',
+    a_file = File(path, parent=folder,
+                  fileFormat='jpg', dataType='image',
+                  artist='Banksy', medium='print',
                   title='Girl With Ballon')
     a_file = syn.store(a_file)
-    file_info = syn.getEntity(a_file)
-    assert a_file.path == path
 
-    # minimal_schema_columnIds = [u'2510', u'23543', u'23544', u'23545', u'31783', u'26823', u'31784', u'23550',
-    #                            u'30514', u'31785', u'31782', u'31786']
+    minimal_schema_columnIds = ['2510', '23543', '23544', '23545', '31783', '26823', '31784', '23550',
+                                '30514', '31785', '31782', '31786']
 
-    ## Create an empty entity-view with defined scope as folder 
-    body = {u'columnIds': [],
-            u'concreteType': u'org.sagebionetworks.repo.model.table.EntityView',
-            u'entityType': u'org.sagebionetworks.repo.model.table.EntityView',
-            u'name': u'empty file view',
-            u'parentId': project.id,
-            u'scopeIds': [folder['id'][3:]],
-            u'type': u'file'}
+    scopeIds = [folder['id'].lstrip('syn')]
+
+    ## Create an empty entity-view with defined scope as folder
+    body = {'columnIds': [],
+            'concreteType': 'org.sagebionetworks.repo.model.table.EntityView',
+            'entityType': 'org.sagebionetworks.repo.model.table.EntityView',
+            'name': 'empty file view',
+            'parentId': project.id,
+            'scopeIds': scopeIds,
+            'type': 'file'}
 
     entity_view = syn.restPOST(uri='/entity', body=json.dumps(body))
     entity_info = syn.getEntity(entity_view)
-    
-    ## None de-novo test 
+
+    ## None de-novo test
     view_id = "syn8529621"
     query = "select * from %s" % view_id
 
@@ -568,4 +553,3 @@ def dontruntest_big_csvs():
 
     for row in results:
         print(row)
-
