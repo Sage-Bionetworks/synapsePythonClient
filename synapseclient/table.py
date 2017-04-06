@@ -540,11 +540,6 @@ class Schema(Entity, Versionable):
 
 class ViewSchema(Schema):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
-    _viewType = 'file'
-
-    def _addScope(self):
-        raise NotImplementedError
-
 
 ## add Schema to the map of synapse entity types to their Python representations
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
