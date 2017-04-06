@@ -778,7 +778,7 @@ class TableAbstractBaseClass(object):
     Abstract base class for Tables based on different data containers.
     """
     def __init__(self, schema, headers=None, etag=None):
-        if isinstance(schema, (Schema, ViewSchema)):
+        if isinstance(schema, Schema):
             self.schema = schema
             self.tableId = schema.id if schema and 'id' in schema else None
             self.headers = headers if headers else [SelectColumn(id=id) for id in schema.columnIds]
@@ -1050,7 +1050,7 @@ class CsvFileTable(TableAbstractBaseClass):
             headers = [SelectColumn.from_column(col) for col in cols]
 
         ## if the schema has no columns, use the inferred columns
-        if isinstance(schema, (Schema, ViewSchema)) and not schema.has_columns():
+        if isinstance(schema, Schema) and not schema.has_columns():
             schema.addColumns(cols)
 
         ## convert row names in the format [row_id]-[version] back to columns
@@ -1177,7 +1177,7 @@ class CsvFileTable(TableAbstractBaseClass):
         self.setColumnHeaders(headers)
 
     def _synapse_store(self, syn):
-        if isinstance(self.schema, (Schema, ViewSchema)) and self.schema.get('id', None) is None:
+        if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
             ## store schema
             self.schema = syn.store(self.schema)
             self.tableId = self.schema.id
