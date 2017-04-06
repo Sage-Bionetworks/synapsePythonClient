@@ -7,7 +7,7 @@ Implements the client side of `Synapse multipart upload`_, which provides
 a robust means of uploading large files (into the 10s of GB). End users
 should not need to call any of these functions directly.
 
-.. _Synapse multipart upload: http://rest.synapse.org/index.html#org.sagebionetworks.file.controller.UploadController
+.. _Synapse multipart upload: http://docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController
 
 """
 from __future__ import absolute_import
@@ -97,7 +97,7 @@ def _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType,
     """
     :returns: A `MultipartUploadStatus`_
 
-    .. _MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
+    .. _MultipartUploadStatus: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
     """
     upload_request = {
         'contentMD5Hex': md5,
@@ -123,7 +123,7 @@ def _get_presigned_urls(syn, uploadId, parts_to_upload):
 
 
     :returns: A BatchPresignedUploadUrlResponse_.
-    .. BatchPresignedUploadUrlResponse: http://rest.synapse.org/POST/file/multipart/uploadId/presigned/url/batch.html
+    .. BatchPresignedUploadUrlResponse: http://docs.synapse.org/rest/POST/file/multipart/uploadId/presigned/url/batch.html
     """
     if len(parts_to_upload)==0:
         return 
@@ -142,7 +142,7 @@ def _add_part(syn, uploadId, partNumber, partMD5Hex):
     :returns: An AddPartResponse_ with fields for an errorMessage and addPartState containing
               either 'ADD_SUCCESS' or 'ADD_FAILED'.
 
-    .. AddPartResponse: http://rest.synapse.org/org/sagebionetworks/repo/model/file/AddPartResponse.html
+    .. AddPartResponse: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/AddPartResponse.html
     """
     uri = '/file/multipart/{uploadId}/add/{partNumber}?partMD5Hex={partMD5Hex}'.format(**locals())
     return DictObject(**syn.restPUT(uri, endpoint=syn.fileHandleEndpoint))
@@ -152,7 +152,7 @@ def _complete_multipart_upload(syn, uploadId):
     """
     :returns: A MultipartUploadStatus_.
 
-    .. MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
+    .. MultipartUploadStatus: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
     """
     uri = '/file/multipart/{uploadId}/complete'.format(uploadId=uploadId)
     return DictObject(**syn.restPUT(uri, endpoint=syn.fileHandleEndpoint))
@@ -300,7 +300,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
     Keyword arguments are passed down to :py:func:`_start_multipart_upload`.
 
-    .. MultipartUploadStatus: http://rest.synapse.org/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
+    .. MultipartUploadStatus: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
     .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
     partSize = calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)

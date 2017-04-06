@@ -10,7 +10,7 @@ Installation
 ============
 
 The command line client is installed along with `installation of the Synapse
-Python client <http://python-docs.synapse.org/index.html#installation>`_.
+Python client <http://docs.synapse.org/python/index.html#installation>`_.
 
 Help
 ====
@@ -468,6 +468,9 @@ def build_parser():
             help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword',
             help='Password used to connect to Synapse')
+    parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
+                        help='Path to configuration file used to connect to Synapse [default: %(default)s]')
+
     parser.add_argument('--debug', dest='debug',  action='store_true')
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
             help='suppress checking for version upgrade messages and endpoint redirection')
@@ -793,7 +796,7 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
-    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
+    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks, configPath=args.configPath)
     if not ('func' in args and args.func == login):
         # if we're not executing the "login" operation, automatically authenticate before running operation
         login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)

@@ -46,6 +46,8 @@ def setup_module(module):
     print(os.path.basename(__file__))
     print('~' * 60)
     module.syn = integration.syn
+    module.project = integration.project
+
     module.parser = cmdline.build_parser()
 
 
@@ -851,3 +853,33 @@ def test_login():
 
     except ConfigParser.Error:
         print("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
+
+def test_configPath():
+    """Test using a user-specified configPath for Synapse configuration file.
+
+    """
+
+    tmp_config_file = tempfile.NamedTemporaryFile(suffix='.synapseConfig')
+    shutil.copyfile(synapseclient.client.CONFIG_FILE, tmp_config_file.name)
+
+    # Create a File
+    filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    output = run('synapse',
+                 '--skip-checks',
+                 '--configPath',
+                 tmp_config_file.name,
+                 'add',
+                 '-name',
+                 'BogusFileEntityTwo',
+                 '-description',
+                 'Bogus data to test file upload',
+                 '-parentid',
+                 project.id,
+                 filename)
+    file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
+
+    # Verify that we stored the file in Synapse
+    f1 = syn.get(file_entity_id)
+    fh = syn._getFileHandle(f1.dataFileHandleId)
+    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'

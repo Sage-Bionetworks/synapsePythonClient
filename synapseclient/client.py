@@ -25,7 +25,7 @@ Synapse
 More information
 ~~~~~~~~~~~~~~~~
 
-See also the `Synapse API documentation <http://rest.synapse.org>`_.
+See also the `Synapse API documentation <http://docs.synapse.org/rest/>`_.
 
 """
 
@@ -1915,7 +1915,7 @@ class Synapse:
 
         :returns: a FileHandle_
 
-        .. FileHandle: http://rest.synapse.org/org/sagebionetworks/repo/model/file/FileHandle.html
+        .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
         """
 
         if filename is None:
@@ -2238,8 +2238,10 @@ class Synapse:
         :param evaluation: Evaluation board to submit to
         :param entity:     The Entity containing the Submission
         :param name:       A name for this submission
-        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered for the challenge
-        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
+        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered
+                           for the challenge
+        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place 
+                           of the submitter's name
         :param teamName: (deprecated) A synonym for submitterAlias
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
@@ -2261,12 +2263,6 @@ class Synapse:
         ## default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
-
-        # Check for access rights
-        unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
-        if unmetRights['totalNumberOfResults'] > 0:
-            accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
-            raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
 
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
@@ -2290,24 +2286,8 @@ class Synapse:
 
         ## if a team is found, build contributors list
         if team:
-            ## see http://rest.synapse.org/GET/evaluation/evalId/team/id/submissionEligibility.html
+            ## see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=evaluation_id, id=team.id))
-
-            # {'eligibilityStateHash': -100952509,
-            #  'evaluationId': '3317421',
-            #  'membersEligibility': [
-            #   {'hasConflictingSubmission': False,
-            #    'isEligible': True,
-            #    'isQuotaFilled': False,
-            #    'isRegistered': True,
-            #    'principalId': 377358},
-            #   ...],
-            #  'teamEligibility': {
-            #   'isEligible': True,
-            #   'isQuotaFilled': False,
-            #   'isRegistered': True},
-            #  'teamId': '3325434'}
-            ## Note that isRegistered may be missing
 
             ## Check team eligibility and raise an exception if not eligible
             if not eligibility['teamEligibility'].get('isEligible', True):
@@ -2625,7 +2605,7 @@ class Synapse:
         """
 
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
-        return [DictObject(**header) for header in self.restGET(uri)['results']]
+        return [DictObject(**header) for header in self._GET_paginated(uri)]
 
 
     def _storeWiki(self, wiki):
@@ -2684,7 +2664,7 @@ class Synapse:
 
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request), endpoint=endpoint)
 
-        # http://rest.synapse.org/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
+        # http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
         lastMessage, lastProgress, lastTotal, progressed = '', 0, 1, False
@@ -2773,7 +2753,7 @@ class Synapse:
         """
         Query a Synapse Table.
 
-        :param query: query string in a `SQL-like syntax <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_::
+        :param query: query string in a `SQL-like syntax <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_::
 
             SELECT * from syn12345
 
@@ -2827,7 +2807,7 @@ class Synapse:
 
     def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
         """
-        Query a table and return the first page of results as a `QueryResultBundle <http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
+        Query a table and return the first page of results as a `QueryResultBundle <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
         If the result contains a *nextPageToken*, following pages a retrieved
         by calling :py:meth:`~._queryTableNext`.
 
@@ -2839,7 +2819,7 @@ class Synapse:
                             Max Rows Per Page (maxRowsPerPage) = 0x8
         """
 
-        # See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+        # See: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
         query_bundle_request = {
             "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
             "query": {
@@ -2868,13 +2848,13 @@ class Synapse:
 
     def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
         """
-        Send an `UploadToTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
+        Send an `UploadToTableRequest <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
 
         :param filepath: Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
         :param schema: A table entity or its Synapse ID.
         :param updateEtag: Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
 
-        :returns: `UploadToTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
+        :returns: `UploadToTableResult <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
         fileHandleId = multipart_upload(self, filepath, contentType="text/csv")
@@ -2907,9 +2887,9 @@ class Synapse:
         """
         Query a Synapse Table and download a CSV file containing the results.
 
-        Sends a `DownloadFromTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
+        Sends a `DownloadFromTableRequest <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
 
-        :return: a tuple containing a `DownloadFromTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
+        :return: a tuple containing a `DownloadFromTableResult <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
 
         The DownloadFromTableResult object contains these fields:
          * headers: ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
@@ -3029,7 +3009,7 @@ class Synapse:
             'headers':[{'id':column_id}],
             'rows':[{'rowId':rowId,'versionNumber':versionNumber}]
         }
-        # result is a http://rest.synapse.org/org/sagebionetworks/repo/model/table/TableFileHandleResults.html
+        # result is a http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableFileHandleResults.html
         result = self.restPOST("/entity/%s/table/filehandles" % table_id, body=json.dumps(row_reference_set))
         if len(result['rows'])==0 or len(result['rows'][0]['list']) != 1:
             raise SynapseError('Couldn\'t get file handle for tableId={id}, column={columnId}, row={rowId}, version={versionNumber}'.format(
@@ -3114,7 +3094,7 @@ class Synapse:
             raise ValueError("Columns not found: " + ", ".join('"'+col+'"' for col in cols_not_found))
         col_indices = [i for i,h in enumerate(table.headers) if h.name in columns]
 
-        ## see: http://rest.synapse.org/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
+        ## see: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
         file_handle_associations = []
         file_handle_to_path_map = OrderedDict()
         for row in table:
@@ -3147,7 +3127,7 @@ class Synapse:
             ##------------------------------------------------------------
 
             ## returns a BulkFileDownloadResponse:
-            ##   http://rest.synapse.org/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
+            ##   http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
             request = dict(
                 concreteType="org.sagebionetworks.repo.model.file.BulkFileDownloadRequest",
                 requestedFiles=file_handle_associations_batch)

@@ -214,7 +214,7 @@ Queries
 
 The query language is quite similar to SQL select statements, except that joins
 are not supported. The documentation for the Synapse API has lots of
-`query examples <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
+`query examples <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
 
 ~~~~~~
 Schema
@@ -419,7 +419,7 @@ def cast_values(values, headers):
     """
     Convert a row of table query results from strings to the correct column type.
 
-    See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/ColumnType.html
+    See: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     """
     if len(values) != len(headers):
         raise ValueError('Each field in the row must have a matching column header. %d fields, %d headers' % (len(values), len(headers)))
@@ -618,7 +618,7 @@ class Column(DictObject):
 
 class RowSet(DictObject):
     """
-    A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://rest.synapse.org/org/sagebionetworks/repo/model/table/RowSet.html>`_.
+    A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
@@ -659,7 +659,7 @@ class RowSet(DictObject):
         """
         Creates and POSTs an AppendableRowSetRequest_
 
-        .. AppendableRowSetRequest: http://rest.synapse.org/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
+        .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
         arsr = dict(
             concreteType='org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
@@ -685,7 +685,7 @@ class RowSet(DictObject):
 
 class Row(DictObject):
     """
-    A `row <http://rest.synapse.org/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
+    A `row <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
 
     :param values:         A list of values
     :param rowId:          The immutable ID issued to a new row
@@ -702,7 +702,7 @@ class Row(DictObject):
 
 class RowSelection(DictObject):
     """
-    A set of rows to be `deleted <http://rest.synapse.org/POST/entity/id/table/deleteRows.html>`_.
+    A set of rows to be `deleted <http://docs.synapse.org/rest/POST/entity/id/table/deleteRows.html>`_.
 
     :param rowIds: list of row ids
     :param etag: etag of latest change set
