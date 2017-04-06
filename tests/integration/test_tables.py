@@ -44,6 +44,93 @@ def setup(module):
     print("Crank up timeout on async calls")
     module.syn.table_query_timeout = 423
 
+def test_view_and_update_csv():
+    try:
+        import pandas as pd
+    except ImportError as e1:
+        sys.stderr.write(
+            'Pandas is not installed, skipping testing entity-view update via user-defined manifest CSV.\n\n')
+
+    ## Update the project
+    project_name = str(uuid.uuid4())
+    project = Project(name=project_name)
+    project = syn.store(project)
+    schedule_for_cleanup(project)
+    project = syn.getEntity(project)
+    assert project.name == project_name
+
+    ## Create and get a de-novo folder
+    folder = Folder('De-Novo Folder', parent=project, description='creating a file-view')
+    folder = syn.createEntity(folder)
+    folder = syn.getEntity(folder)
+    assert folder.name == 'De-Novo Folder'
+    assert folder.parentId == project.id
+    assert folder.description == 'creating a file-view'
+
+    ## Create dummy files with annotations in our de-novo folder
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    a_file = File(path, parent=folder, description=u'',
+                  contentType='text/flapdoodle',
+                  fileFormat='jpg',
+                  dataType='image',
+                  artist='Banksy',
+                  medium='print',
+                  title='Girl With Ballon')
+    a_file = syn.store(a_file)
+    file_info = syn.getEntity(a_file)
+    assert a_file.path == path
+
+    # minimal_schema_columnIds = [u'2510', u'23543', u'23544', u'23545', u'31783', u'26823', u'31784', u'23550',
+    #                            u'30514', u'31785', u'31782', u'31786']
+
+    ## Create an empty entity-view with defined scope as folder 
+    body = {u'columnIds': [],
+            u'concreteType': u'org.sagebionetworks.repo.model.table.EntityView',
+            u'entityType': u'org.sagebionetworks.repo.model.table.EntityView',
+            u'name': u'empty file view',
+            u'parentId': project.id,
+            u'scopeIds': [folder['id'][3:]],
+            u'type': u'file'}
+
+    entity_view = syn.restPOST(uri='/entity', body=json.dumps(body))
+    entity_info = syn.getEntity(entity_view)
+    
+    ## None de-novo test 
+    view_id = "syn8529621"
+    query = "select * from %s" % view_id
+
+    ## the format of this data will be used to create a de-novo entity-view (when creation of entity-view is implemented)
+    df = pd.DataFrame({
+            'id': ("syn8528274", "syn8528280", "syn8528283", "syn8528288"),
+            'fileFormat': ("jpg", "jpg", "jpg", "jpg"),
+            'dataType': ("image", "image", "image", "image"),
+            'artist': ("Banksy", "Banksy", "Banksy", "Banksy"),
+            'medium': ("Print", "Print", "Print", "Print"),
+            'title': ("Gangsta Rat", "Girl With Ballon", "Pulp Fiction", "Radar Rat"),
+            })
+
+    ## get the current view-schema
+    view = syn.tableQuery(query)
+    view_df = view.asDataFrame()
+
+    ## check if the user-defined schema is a subset of view-schema
+    assert df.columns.isin(view_df.columns).all()
+
+    ## update the view-schema by user-defined data-frame manifest
+    view = syn.store(synapseclient.Table(view_id, df))
+
+    ## get the updated view-schema
+    updated_view = syn.tableQuery(query)
+    updated_df = updated_view.asDataFrame()
+
+    ## check if syn.store() updated the view-schema
+    assert 'Banksy' in list(df.ix[:, 'artist'])
+    assert 'jpg' in list(df.ix[:, 'fileFormat'])
+    assert 'Pulp Fiction' in list(df.ix[:, 'title'])
+
+    ## revert view-schema changes for next test
+    view = syn.store(synapseclient.Table(view_id, view_df))
 
 def test_rowset_tables():
 
