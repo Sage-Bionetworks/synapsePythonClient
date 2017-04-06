@@ -57,6 +57,7 @@ def test_create_and_update_file_view():
     schedule_for_cleanup(path)
     a_file = File(path, parent=folder, annotations=file_annotations)
     a_file = syn.store(a_file)
+    schedule_for_cleanup(a_file)
 
     # Add new columns for the annotations on this file and get their IDs
     my_added_cols = [syn.store(synapseclient.Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
@@ -81,35 +82,49 @@ def test_create_and_update_file_view():
 
     entity_view = syn.restPOST(uri='/entity', body=json.dumps(body))
     entity_view = syn.get(entity_view)
+    schedule_for_cleanup(entity_view)
 
     assert set(scopeIds) == set(entity_view.scopeIds)
     assert set(column_ids) == set(entity_view.columnIds)
 
     ## get the current view-schema
     view = syn.tableQuery("select * from %s" % entity_view.id)
-    view_dict = list(csv.DictReader(open(view.filepath, 'r')))
+    schedule_for_cleanup(view.filepath)
+
+    view_dict = list(csv.DictReader(io.open(view.filepath, encoding="utf-8", newline='')))
 
     # check that all of the annotations were retrieved from the view
     assert set(file_annotations.keys()).issubset(set(view_dict[0].keys()))
 
+    updated_a_file = syn.get(a_file.id, downloadFile=False)
+
     # Check that the values are the same as what was set
-    for k, v in file_annotations.iteritems():
-        assert view_dict[0][k] == v
+    # Both in the view and on the entity itself
+    for k, v in file_annotations.items():
+        assert view_dict[0][k] == v, "%s != %s" % (view_dict[0][k], v)
+        assert updated_a_file.annotations[k][0] == v, "%s != %s" % (updated_a_file.annotations[k][0], v)
 
     # Make a change to the view and store
     view_dict[0]['fileFormat'] = 'PNG'
-    tmp_file = tempfile.NamedTemporaryFile(suffix=".csv")
-    dw = csv.DictWriter(tmp_file, fieldnames=view_dict[0].keys())
-    dw.writeheader()
-    dw.writerows(view_dict)
-    tmp_file.flush()
 
-    new_view = syn.store(synapseclient.Table(entity_view.id, tmp_file.name))
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as temp:
+        schedule_for_cleanup(temp.name)
+        temp_filename = temp.name
+
+    with io.open(temp_filename, mode='w', encoding="utf-8", newline='') as temp_file:
+        dw = csv.DictWriter(temp_file, fieldnames=view_dict[0].keys(),
+                            quoting=csv.QUOTE_NONNUMERIC,
+                            lineterminator=str(os.linesep))
+        dw.writeheader()
+        dw.writerows(view_dict)
+        temp_file.flush()
+
+    new_view = syn.store(synapseclient.Table(entity_view.id, temp_filename))
     new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
+    schedule_for_cleanup(new_view_results.filepath)
 
-    with open(new_view_results.filepath, 'r') as f:
-        new_view_dict = list(csv.DictReader(f))
-        assert new_view_dict[0]['fileFormat'] == 'PNG'
+    new_view_dict = list(csv.DictReader(io.open(new_view_results.filepath, encoding="utf-8", newline='')))
+    assert new_view_dict[0]['fileFormat'] == 'PNG', "%s != PNG" % (new_view_dict[0]['fileFormat'], )
 
 def test_rowset_tables():
 
