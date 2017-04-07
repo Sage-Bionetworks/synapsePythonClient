@@ -181,15 +181,22 @@ class Cache():
                     for cached_file_path, cached_time in six.iteritems(dict(cache_map)):
                         if path == os.path.dirname(cached_file_path):
                             if os.path.exists(cached_file_path):
-                                return cached_file_path if compare_timestamps(_get_modified_time(cached_file_path), cached_time) else None
+                                if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
+                                    print("return ca_file_path", cached_file_path)
+                                    return cached_file_path
+                                else: 
+                                    print("return None compare failed")
+                                    return None
                             else:
-                                all_matching_cached_paths_no_longer_exist = True
+                                # all_matching_cached_paths_no_longer_exist = True
                                 #remove values from cache that no longer exist
                                 del cache_map[cached_file_path]
                                 self._write_cache_map(cache_dir, cache_map)
                     
                     #Treat this as if no timestamp matched
                     if all_matching_cached_paths_no_longer_exist:
+                        print("return None no cachedPaths exist")
+
                         return None
                 ## if we're given a full file path, look up a matching file in the cache
                 else:
@@ -201,8 +208,9 @@ class Cache():
             ## None if there are no unmodified files
             for cached_file_path, cached_time in sorted(cache_map.items(), key=operator.itemgetter(1), reverse=True):
                 if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
+                    print("return first unmodified", cached_file_path)
                     return cached_file_path
-
+            print("Return None no unmodified")
             return None
 
 
