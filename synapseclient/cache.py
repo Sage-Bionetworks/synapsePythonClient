@@ -174,41 +174,45 @@ class Cache():
                 ## If we're given a path to a directory, look for a cached file in that directory
                 if os.path.isdir(path):
 
-                    # This is used for the case if we find a matching directory in the cache
-                    # BUT it no longer exists on disk for some reason
-                    all_matching_cached_paths_no_longer_exist = False
-
+                    matching_unmodified_directory = None
+                    removed_entry_from_cache = False
+                    print("cache_map has %d items" % len(cache_map))
                     for cached_file_path, cached_time in six.iteritems(dict(cache_map)):
+                        print("checking path:", cached_file_path )
                         if path == os.path.dirname(cached_file_path):
+                            
                             if os.path.exists(cached_file_path):
                                 if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
-                                    print("return ca_file_path", cached_file_path)
-                                    return cached_file_path
+                                    print("matching_unmodified_directory =  ca_file_path =", cached_file_path)
+                                    matching_unmodified_directory = cached_file_path
+                                    break
                                 else: 
-                                    print("return None compare failed")
-                                    return None
+                                    print("compare failed check next")
                             else:
-                                # all_matching_cached_paths_no_longer_exist = True
                                 #remove values from cache that no longer exist
+                                print("removing value from cache cuz not exist")
                                 del cache_map[cached_file_path]
-                                self._write_cache_map(cache_dir, cache_map)
-                    
-                    #Treat this as if no timestamp matched
-                    if all_matching_cached_paths_no_longer_exist:
-                        print("return None no cachedPaths exist")
-
-                        return None
+                                removed_entry_from_cache = True
+                                
+                    if removed_entry_from_cache:
+                        print("writing cache_map to disk")
+                        self._write_cache_map(cache_dir, cache_map)
+                    if matching_unmodified_directory is not None:
+                        print("returning now")
+                        return matching_unmodified_directory
+                    print("=====COULD NOT FIND MATCHING DIRECTORY IN CACHE")
                 ## if we're given a full file path, look up a matching file in the cache
                 else:
                     cached_time = cache_map.get(path, None)
                     if cached_time:
+                        print("##return full file path")
                         return path if compare_timestamps(_get_modified_time(path), cached_time) else None
 
             ## return most recently cached and unmodified file OR
             ## None if there are no unmodified files
             for cached_file_path, cached_time in sorted(cache_map.items(), key=operator.itemgetter(1), reverse=True):
                 if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
-                    print("return first unmodified", cached_file_path)
+                    print("return first unmodified in cache", cached_file_path)
                     return cached_file_path
             print("Return None no unmodified")
             return None

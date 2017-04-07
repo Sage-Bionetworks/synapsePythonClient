@@ -838,14 +838,11 @@ class Synapse:
                             entity.files = []
                             entity.cacheDir = None
                         else:
-                            ## TODO apply ifcollision here
-                            #TODO COPYPASTAED PLS FIX
                             if ifcollision == "overwrite.local":
                                 pass
                             elif ifcollision == "keep.local":
-                                print("PROBABLY USLESS")#TODO: this does nothing. 
-                                #should this case even occur? we have no cached verison of the file (only in this "elif" iff cachedpath is none)
-                                #and we want to keep local even though we are supposed to download????
+                                print("keep.local so not copying from cached location")
+                                #What to do if not exist at download location?
                                 downloadFile = False
                             elif ifcollision == "keep.both":
                                 downloadPath = utils.unique_filename(downloadPath)
