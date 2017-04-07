@@ -13,7 +13,6 @@ import re
 import sys
 import uuid
 import json
-import csv
 from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
@@ -35,9 +34,10 @@ from integration import schedule_for_cleanup
 
 if six.PY2:
     from StringIO import StringIO
+    from backports import csv
 else:
     from io import StringIO
-
+    import csv
 
 
 def setup_module(module):
@@ -787,17 +787,8 @@ def test_table_query():
     # Test query
     output = run('synapse', '--skip-checks', 'query',
                  'select * from %s' % schema1.id)
-
-    # If trying to use 'delimiter="\t"', in python 2 throws 'TypeError: "delimiter" must be string, not unicode'
-    # because of 'from __future__ import unicode_literals'
-    # See http://bugs.python.org/issue18829 and
-    # http://stackoverflow.com/questions/5625412/python-csv-module-error
-    delimiter = "\t"
-
-    if six.PY2:
-        delimiter = delimiter.encode('ascii')
     
-    reader = csv.reader(StringIO(output), delimiter=delimiter)
+    reader = csv.reader(StringIO(output), delimiter="\t")
     output_rows = list(reader)
 
     # Check the length of the output
