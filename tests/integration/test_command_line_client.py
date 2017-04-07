@@ -556,6 +556,8 @@ def test_command_get_recursive_and_query():
         file_entity = synapseclient.File(f, parent=folder_entity2)
         file_entity = syn.store(file_entity)
         file_entities.append(file_entity)
+        schedule_for_cleanup(f)
+
 
     #Add a file in the Folder as well
     f  = utils.make_bogus_data_file()
@@ -577,6 +579,8 @@ def test_command_get_recursive_and_query():
         print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
+        schedule_for_cleanup(downloaded)
+
 
     ### Test query get
     ### Note: We're not querying on annotations because tests can fail if there
@@ -787,7 +791,7 @@ def test_table_query():
     # Test query
     output = run('synapse', '--skip-checks', 'query',
                  'select * from %s' % schema1.id)
-    
+
     reader = csv.reader(StringIO(output), delimiter="\t")
     output_rows = list(reader)
 
