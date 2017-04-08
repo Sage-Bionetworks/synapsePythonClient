@@ -847,7 +847,6 @@ class Synapse:
                                                  'for "ifcollision"' % ifcollision)
                             if downloadFile:
                                 shutil.copy(cached_file_path, downloadPath)
-                            else:
                             entity.path = downloadPath
                             entity.files = [os.path.basename(downloadPath)]
                             entity.cacheDir = downloadLocation
