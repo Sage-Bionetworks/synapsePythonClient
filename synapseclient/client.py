@@ -874,10 +874,8 @@ class Synapse:
                     if ifcollision == "overwrite.local":
                         pass
                     elif ifcollision == "keep.local":
-                        print("DOES THIS DO ANYTHING")#TODO: this does nothing. 
-                        #should this case even occur? we have no cached verison of the file (only in this "elif" iff cachedpath is none)
-                        #and we want to keep local even though we are supposed to download????
-                        downloadFile = False
+                        #return early. Don't want to overwrite the local file.
+                        return entity
                     elif ifcollision == "keep.both":
                         downloadPath = utils.unique_filename(downloadPath)
                     else:
