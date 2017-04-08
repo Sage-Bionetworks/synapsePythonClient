@@ -751,7 +751,7 @@ class Synapse:
         version = kwargs.get('version', None)
         downloadFile = kwargs.get('downloadFile', True)
         downloadLocation = kwargs.get('downloadLocation', None)
-        ifcollision = kwargs.get('ifcollision', 'keep.both'); print("****ifcollision=", ifcollision )
+        ifcollision = kwargs.get('ifcollision', 'keep.both')
         submission = kwargs.get('submission', None)
         followLink = kwargs.get('followLink',False)
         #If Link, get target ID entity bundle
@@ -816,7 +816,6 @@ class Synapse:
             #   download it
             #   add it to the cache
             if cached_file_path is not None:
-                print("doin cachedfielpath")
                 fileName = os.path.basename(cached_file_path)
 
                 if not downloadLocation:
@@ -828,7 +827,6 @@ class Synapse:
                 else:
                     downloadPath = utils.normalize_path(os.path.join(downloadLocation, fileName))
                     if downloadPath != cached_file_path:
-                        print("downloadPath != cached_file_path",downloadPath,"!=",cached_file_path)
                         if not downloadFile:
                             ## This is a strange case where downloadLocation is
                             ## set but downloadFile=False. Copying files from a
@@ -841,8 +839,6 @@ class Synapse:
                             if ifcollision == "overwrite.local":
                                 pass
                             elif ifcollision == "keep.local":
-                                print("keep.local so not copying from cached location")
-                                #What to do if not exist at download location?
                                 downloadFile = False
                             elif ifcollision == "keep.both":
                                 downloadPath = utils.unique_filename(downloadPath)
@@ -850,21 +846,17 @@ class Synapse:
                                 raise ValueError('Invalid parameter: "%s" is not a valid value '
                                                  'for "ifcollision"' % ifcollision)
                             if downloadFile:
-                                print("copied from cache to downloadPath")
                                 shutil.copy(cached_file_path, downloadPath)
                             else:
-                                print("did not copy from cache to downloadPath")
                             entity.path = downloadPath
                             entity.files = [os.path.basename(downloadPath)]
                             entity.cacheDir = downloadLocation
                     else:
-                        print("downloadPath == cached_file_path")
                         entity.path = downloadPath
                         entity.files = [os.path.basename(downloadPath)]
                         entity.cacheDir = downloadLocation
 
             elif downloadFile:
-                print("doin downloadfile")
                 # By default, download to the local cache
                 if downloadLocation is None:
                     downloadLocation = self.cache.get_cache_dir(entityBundle['entity']['dataFileHandleId'])
