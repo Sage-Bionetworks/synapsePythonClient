@@ -139,8 +139,9 @@ class Cache():
 
             cached_time = cache_map.get(path, None)
             if cached_time:
-                return True if compare_timestamps(_get_modified_time(path), cached_time) else False
-
+                return compare_timestamps(_get_modified_time(path), cached_time)
+        
+        return False
 
     def get(self, file_handle_id, path=None):
         """
