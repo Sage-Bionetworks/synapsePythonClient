@@ -174,25 +174,28 @@ class Cache():
             if path is not None:
                 ## If we're given a path to a directory, look for a cached file in that directory
                 if os.path.isdir(path):
-
                     matching_unmodified_directory = None
-                    removed_entry_from_cache = False
+                    removed_entry_from_cache = False # determines if cache_map needs to be rewritten to disk
+
+                    # iterate a copy of cache_map to allow modifying original cache_map
                     for cached_file_path, cached_time in six.iteritems(dict(cache_map)):
                         if path == os.path.dirname(cached_file_path):
-                            
                             if os.path.exists(cached_file_path):
                                 if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
                                     matching_unmodified_directory = cached_file_path
                                     break
                             else:
-                                #remove values from cache that no longer exist
+                                # remove values from cache that no longer exist
                                 del cache_map[cached_file_path]
                                 removed_entry_from_cache = True
                                 
                     if removed_entry_from_cache:
+                        # write cache_map with non-existant entries removed
                         self._write_cache_map(cache_dir, cache_map)
+
                     if matching_unmodified_directory is not None:
                         return matching_unmodified_directory
+
                 ## if we're given a full file path, look up a matching file in the cache
                 else:
                     cached_time = cache_map.get(path, None)

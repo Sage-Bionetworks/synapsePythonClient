@@ -836,15 +836,16 @@ class Synapse:
                             entity.files = []
                             entity.cacheDir = None
                         else:
-                            if ifcollision == "overwrite.local":
-                                pass
-                            elif ifcollision == "keep.local":
-                                downloadFile = False
-                            elif ifcollision == "keep.both":
-                                downloadPath = utils.unique_filename(downloadPath)
-                            else:
-                                raise ValueError('Invalid parameter: "%s" is not a valid value '
-                                                 'for "ifcollision"' % ifcollision)
+                            if os.path.exists(downloadPath):
+                                if ifcollision == "overwrite.local":
+                                    pass
+                                elif ifcollision == "keep.local":
+                                    downloadFile = False
+                                elif ifcollision == "keep.both":
+                                    downloadPath = utils.unique_filename(downloadPath)
+                                else:
+                                    raise ValueError('Invalid parameter: "%s" is not a valid value '
+                                                     'for "ifcollision"' % ifcollision)
                             if downloadFile:
                                 shutil.copy(cached_file_path, downloadPath)
                             entity.path = downloadPath
@@ -867,7 +868,10 @@ class Synapse:
                     if ifcollision == "overwrite.local":
                         pass
                     elif ifcollision == "keep.local":
-                        #return early. Don't want to overwrite the local file.
+                        #Don't want to overwrite the local file.
+                        # TODO: is this actually expected behavior? the test integration_test_Entity.py:test_get_with_downloadLocation_and_ifcollision() line: 306
+                        # expects the entity to have metatadat like entity.path pointing to downloadPath
+                        # although in that test it will never reach this part of the code because the file is cached
                         return entity
                     elif ifcollision == "keep.both":
                         downloadPath = utils.unique_filename(downloadPath)
