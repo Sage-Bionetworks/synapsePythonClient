@@ -78,13 +78,17 @@ class Cache():
     Represent a cache in which files are accessed by file handle ID.
     """
 
+    def __setattr__(self, key, value):
+        #expand out home shortcut ('~') and enviornment variables when setting cache_root_dir
+        if key == "cache_root_dir":
+            value = os.path.expandvars(os.path.expanduser(value))
+        self.__dict__[key] = value
+
+
     def __init__(self, cache_root_dir=CACHE_ROOT_DIR, fanout=1000):
 
         ## set root dir of cache in which meta data will be stored and files
         ## will be stored here by default, but other locations can be specified
-        cache_root_dir = os.path.expanduser(cache_root_dir)
-        if not os.path.exists(cache_root_dir):
-            os.makedirs(cache_root_dir)
         self.cache_root_dir = cache_root_dir
         self.fanout = fanout
         self.cache_map_file_name = ".cacheMap"

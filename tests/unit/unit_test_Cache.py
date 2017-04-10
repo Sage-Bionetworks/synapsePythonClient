@@ -296,3 +296,22 @@ def test_cache_rules():
     for d in my_cache._cache_dirs():
         print(d, synapseclient.cache._get_modified_time(d))
 
+
+def test_set_cache_root_dir():
+    #set up an environment variable for the path
+    enviornment_variable_name = "_SYNAPSE_PYTHON_CLIENT_TEST_ENV"
+    enviornment_variable_value = "asdf/qwerty"
+    os.environ[enviornment_variable_name] = enviornment_variable_value
+
+    path_suffix = "GrayFaceNoSpace"
+
+    expanded_path = os.path.expandvars(os.path.expanduser("~/" + enviornment_variable_value + "/" + path_suffix))
+    non_expanded_path = os.path.join("~", '$' + enviornment_variable_name, path_suffix)
+
+    #test that the constructor correctly expands the path
+    my_cache = cache.Cache(cache_root_dir=non_expanded_path)
+    assert_equal(expanded_path, my_cache.cache_root_dir)
+
+    #test that manually assigning cache_root_dir expands the path
+    my_cache.cache_root_dir = non_expanded_path + "2"
+    assert_equal(expanded_path + "2", my_cache.cache_root_dir)
