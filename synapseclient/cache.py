@@ -79,9 +79,12 @@ class Cache():
     """
 
     def __setattr__(self, key, value):
-        #expand out home shortcut ('~') and enviornment variables when setting cache_root_dir
+        # expand out home shortcut ('~') and environment variables when setting cache_root_dir
         if key == "cache_root_dir":
             value = os.path.expandvars(os.path.expanduser(value))
+            #create the cache_root_dir if it does not already exist
+            if not os.path.exists(value):
+                os.makedirs(value)
         self.__dict__[key] = value
 
 
