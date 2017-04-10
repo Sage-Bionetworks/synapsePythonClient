@@ -140,8 +140,8 @@ class Cache():
             cached_time = cache_map.get(path, None)
             if cached_time:
                 return compare_timestamps(_get_modified_time(path), cached_time)
-        
         return False
+
 
     def get(self, file_handle_id, path=None):
         """
@@ -180,8 +180,8 @@ class Cache():
                     # iterate a copy of cache_map to allow modifying original cache_map
                     for cached_file_path, cached_time in six.iteritems(dict(cache_map)):
                         if path == os.path.dirname(cached_file_path):
-                            if os.path.exists(cached_file_path):
-                                if compare_timestamps(_get_modified_time(cached_file_path), cached_time):
+                            if (os.path.exists(cached_file_path)
+                                and compare_timestamps(_get_modified_time(cached_file_path), cached_time)):
                                     matching_unmodified_directory = cached_file_path
                                     break
                             else:
