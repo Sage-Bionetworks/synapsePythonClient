@@ -825,7 +825,23 @@ class Synapse:
                 else:
                     downloadPath = utils.normalize_path(os.path.join(downloadLocation, fileName))
                     if downloadPath != cached_file_path:
-                        if not downloadFile:
+                        if os.path.exists(downloadPath):
+                            if ifcollision == "overwrite.local":
+                                pass
+                            elif ifcollision == "keep.local":
+                                # Don't want to overwrite the local file.
+                                downloadFile = False
+                            elif ifcollision == "keep.both":
+                                downloadPath = utils.unique_filename(downloadPath)
+                            else:
+                                raise ValueError('Invalid parameter: "%s" is not a valid value '
+                                                 'for "ifcollision"' % ifcollision)
+                        if downloadFile:
+                            shutil.copy(cached_file_path, downloadPath)
+                            entity.path = downloadPath
+                            entity.files = [os.path.basename(downloadPath)]
+                            entity.cacheDir = downloadLocation
+                        else:
                             ## This is a strange case where downloadLocation is
                             ## set but downloadFile=False. Copying files from a
                             ## cached location seems like the wrong thing to do
@@ -833,22 +849,6 @@ class Synapse:
                             entity.path = None
                             entity.files = []
                             entity.cacheDir = None
-                        else:
-                            if os.path.exists(downloadPath):
-                                if ifcollision == "overwrite.local":
-                                    pass
-                                elif ifcollision == "keep.local":
-                                    downloadFile = False
-                                elif ifcollision == "keep.both":
-                                    downloadPath = utils.unique_filename(downloadPath)
-                                else:
-                                    raise ValueError('Invalid parameter: "%s" is not a valid value '
-                                                     'for "ifcollision"' % ifcollision)
-                            if downloadFile:
-                                shutil.copy(cached_file_path, downloadPath)
-                            entity.path = downloadPath
-                            entity.files = [os.path.basename(downloadPath)]
-                            entity.cacheDir = downloadLocation
                     else:
                         entity.path = downloadPath
                         entity.files = [os.path.basename(downloadPath)]
@@ -866,10 +866,10 @@ class Synapse:
                     if ifcollision == "overwrite.local":
                         pass
                     elif ifcollision == "keep.local":
-                        #Don't want to overwrite the local file.
-                        # TODO: is this actually expected behavior? the test integration_test_Entity.py:test_get_with_downloadLocation_and_ifcollision() line: 306
-                        # expects the entity to have metatadat like entity.path pointing to downloadPath
-                        # although in that test it will never reach this part of the code because the file is cached
+                        # Don't want to overwrite the local file.
+                        entity.path = None
+                        entity.files = []
+                        entity.cacheDir = None
                         return entity
                     elif ifcollision == "keep.both":
                         downloadPath = utils.unique_filename(downloadPath)
