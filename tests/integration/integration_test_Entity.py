@@ -7,7 +7,7 @@ from builtins import str
 
 import uuid, filecmp, os, sys, requests, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equal, assert_is_none
 from nose.plugins.attrib import attr
 from mock import patch
 try:
@@ -314,19 +314,23 @@ def test_get_with_downloadLocation_and_ifcollision():
     
     # Download again, should not change the modification time
     otherBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath), ifcollision="keep.local")
-    assert overwriteModTime == os.path.getmtime(otherBogus.path)
-    
+    assert_equal(overwriteModTime, os.path.getmtime(overwriteBogus.path))
+    # "keep.local" should have made the path invalid since it is keeping a potentially modified version
+    assert_is_none(otherBogus.path)
+    assert_is_none(otherBogus.cacheDir)
+    assert_equal(0, len(otherBogus.files))
+
     # Invalidate the timestamps again
-    os.utime(otherBogus.path, (0, 0))
-    badtimestamps = os.path.getmtime(otherBogus.path)
+    os.utime(overwriteBogus.path, (0, 0))
+    badtimestamps = os.path.getmtime(overwriteBogus.path)
     
     # Download once more, but rename
     renamedBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath), ifcollision="keep.both")
-    assert otherBogus.path != renamedBogus.path
-    assert filecmp.cmp(otherBogus.path, renamedBogus.path)
+    assert overwriteBogus.path != renamedBogus.path
+    assert filecmp.cmp(overwriteBogus.path, renamedBogus.path)
     
     # Clean up
-    os.remove(otherBogus.path)
+    os.remove(overwriteBogus.path)
     os.remove(renamedBogus.path)
 
 
