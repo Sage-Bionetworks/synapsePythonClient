@@ -814,7 +814,6 @@ class Synapse:
             #   download it
             #   add it to the cache
             if cached_file_path is not None:
-
                 fileName = os.path.basename(cached_file_path)
 
                 if not downloadLocation:
@@ -826,7 +825,23 @@ class Synapse:
                 else:
                     downloadPath = utils.normalize_path(os.path.join(downloadLocation, fileName))
                     if downloadPath != cached_file_path:
-                        if not downloadFile:
+                        if os.path.exists(downloadPath):
+                            if ifcollision == "overwrite.local":
+                                pass
+                            elif ifcollision == "keep.local":
+                                # Don't want to overwrite the local file.
+                                downloadFile = False
+                            elif ifcollision == "keep.both":
+                                downloadPath = utils.unique_filename(downloadPath)
+                            else:
+                                raise ValueError('Invalid parameter: "%s" is not a valid value '
+                                                 'for "ifcollision"' % ifcollision)
+                        if downloadFile:
+                            shutil.copy(cached_file_path, downloadPath)
+                            entity.path = downloadPath
+                            entity.files = [os.path.basename(downloadPath)]
+                            entity.cacheDir = downloadLocation
+                        else:
                             ## This is a strange case where downloadLocation is
                             ## set but downloadFile=False. Copying files from a
                             ## cached location seems like the wrong thing to do
@@ -834,20 +849,12 @@ class Synapse:
                             entity.path = None
                             entity.files = []
                             entity.cacheDir = None
-                        else:
-                            ## TODO apply ifcollision here
-                            shutil.copy(cached_file_path, downloadPath)
-
-                            entity.path = downloadPath
-                            entity.files = [os.path.basename(downloadPath)]
-                            entity.cacheDir = downloadLocation
                     else:
                         entity.path = downloadPath
                         entity.files = [os.path.basename(downloadPath)]
                         entity.cacheDir = downloadLocation
 
             elif downloadFile:
-
                 # By default, download to the local cache
                 if downloadLocation is None:
                     downloadLocation = self.cache.get_cache_dir(entityBundle['entity']['dataFileHandleId'])
@@ -859,7 +866,11 @@ class Synapse:
                     if ifcollision == "overwrite.local":
                         pass
                     elif ifcollision == "keep.local":
-                        downloadFile = False
+                        # Don't want to overwrite the local file.
+                        entity.path = None
+                        entity.files = []
+                        entity.cacheDir = None
+                        return entity
                     elif ifcollision == "keep.both":
                         downloadPath = utils.unique_filename(downloadPath)
                     else:
