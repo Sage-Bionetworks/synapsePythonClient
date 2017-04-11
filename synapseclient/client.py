@@ -187,10 +187,8 @@ def _extract_zip_file_to_cache(zip_file, zip_entry_name, cache_dir):
 
     :return: full path to the extracted file
     """
-    print("zipEntryPath = ", zip_entry_name)
     file_base_name = os.path.basename(zip_entry_name) # base name of the file
     filepath = os.path.join(cache_dir, file_base_name) # file path to the cached file to write
-    print("filePath =", filepath)
 
     # Create all upper directories if necessary. (copied from python's zipfile.py:_extract_member() )
     upperdirs = os.path.dirname(filepath)
