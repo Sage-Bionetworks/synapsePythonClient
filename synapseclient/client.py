@@ -178,6 +178,30 @@ def _test_import_sftp():
              "\n\n\n"))
         raise
 
+def _extract_zip_file_to_cache(zip_file, zip_entry_name, cache_dir):
+    """
+    Extracts a specified file in a zip to the cache directory
+    :param zip_file: an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
+    :param zip_entry_name: the name of the file to be extracted from the zip e.g. folderInsideZip/fileName.txt
+    :param cache_dir: the location of the cache_dir to which the file will be extracted
+
+    :return: full path to the extracted file
+    """
+    print("zipEntryPath = ", zip_entry_name)
+    file_base_name = os.path.basename(zip_entry_name) # base name of the file
+    filepath = os.path.join(cache_dir, file_base_name) # file path to the cached file to write
+    print("filePath =", filepath)
+
+    # Create all upper directories if necessary. (copied from python's zipfile.py:_extract_member() )
+    upperdirs = os.path.dirname(filepath)
+    if upperdirs and not os.path.exists(upperdirs):
+        os.makedirs(upperdirs)
+
+    # write the file from the zip into the cache
+    with open(filepath, 'wb') as cache_file:
+        cache_file.write(zip_file.read(zip_entry_name))
+
+    return filepath
 
 class Synapse:
     """
@@ -3157,14 +3181,13 @@ class Synapse:
                 ##------------------------------------------------------------
                 ## unzip into cache
                 ##------------------------------------------------------------
-
                 with zipfile.ZipFile(zipfilepath) as zf:
                     ## the directory structure within the zip follows that of the cache:
                     ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
                     for summary in response['fileSummary']:
                         if summary['status'] == 'SUCCESS':
                             cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = zf.extract(summary['zipEntryName'], cache_dir)
+                            filepath = _extract_zip_file_to_cache(zf, summary['zipEntryName'], cache_dir)
                             self.cache.add(summary['fileHandleId'], filepath)
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
