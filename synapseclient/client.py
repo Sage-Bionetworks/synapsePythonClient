@@ -190,10 +190,9 @@ def _extract_zip_file_to_cache(zip_file, zip_entry_name, cache_dir):
     file_base_name = os.path.basename(zip_entry_name) # base name of the file
     filepath = os.path.join(cache_dir, file_base_name) # file path to the cached file to write
 
-    # Create all upper directories if necessary. (copied from python's zipfile.py:_extract_member() )
-    upperdirs = os.path.dirname(filepath)
-    if upperdirs and not os.path.exists(upperdirs):
-        os.makedirs(upperdirs)
+    # Create the cache directory if it does not exist
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
 
     # write the file from the zip into the cache
     with open(filepath, 'wb') as cache_file:
