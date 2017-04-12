@@ -3178,6 +3178,7 @@ class Synapse:
                 ##------------------------------------------------------------
                 ## unzip into cache
                 ##------------------------------------------------------------
+                
                 with zipfile.ZipFile(zipfilepath) as zf:
                     ## the directory structure within the zip follows that of the cache:
                     ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
