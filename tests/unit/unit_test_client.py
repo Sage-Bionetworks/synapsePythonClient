@@ -211,7 +211,7 @@ def test_extract_zip_file_to_cache(mocked_path_exists, mocked_makedir, mocked_zi
     expected_filepath = os.path.join(cache_dir, file_base_name)
 
     #call the method and make sure correct values are being used
-    with patch('synapseclient.client.open', mock_open()) as mocked_open:
+    with patch('synapseclient.client.open', mock_open(), create=True) as mocked_open:
         actual_filepath = synapseclient.client._extract_zip_file_to_cache(mocked_zipfile, file_dir + file_base_name, cache_dir)
 
         #make sure it returns the correct cache path
