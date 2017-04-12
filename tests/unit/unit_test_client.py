@@ -1,13 +1,12 @@
 import os, json, tempfile, filecmp
 from nose.tools import assert_raises, assert_equal, assert_in
 from mock import MagicMock, patch, mock_open
-import zipfile
 import unit
 import synapseclient
 from synapseclient import File
 from synapseclient.exceptions import *
 from synapseclient import Evaluation
-from synapseclient import client
+
 
 def setup(module):
     print('\n')
@@ -213,7 +212,7 @@ def test_extract_zip_file_to_cache(mocked_path_exists, mocked_makedir, mocked_zi
 
     #call the method and make sure correct values are being used
     with patch('synapseclient.client.open', mock_open()) as mocked_open:
-        actual_filepath = client._extract_zip_file_to_cache(mocked_zipfile, file_dir + file_base_name, cache_dir)
+        actual_filepath = synapseclient.client._extract_zip_file_to_cache(mocked_zipfile, file_dir + file_base_name, cache_dir)
 
         #make sure it returns the correct cache path
         assert_equal(expected_filepath, actual_filepath)
