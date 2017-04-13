@@ -1,8 +1,7 @@
 import os, json, tempfile, filecmp
 from nose.tools import assert_raises, assert_equal, assert_in
-from mock import MagicMock, patch, mock_open
+from mock import MagicMock, patch
 import unit
-import synapseclient
 from synapseclient import File
 from synapseclient.exceptions import *
 from synapseclient import Evaluation
@@ -201,26 +200,3 @@ def test_send_message():
             assert msg["recipients"] == [1421212], msg
             assert msg["subject"] == "Xanadu", msg
 
-@patch('zipfile.ZipFile')
-@patch('os.makedirs')
-@patch('os.path.exists', return_value = False)
-def test_extract_zip_file_to_cache(mocked_path_exists, mocked_makedir, mocked_zipfile):
-    file_base_name = 'test.txt'
-    file_dir = 'some/folders/'
-    cache_dir = syn.cache.get_cache_dir(1234567890)
-    expected_filepath = os.path.join(cache_dir, file_base_name)
-
-    #call the method and make sure correct values are being used
-    with patch('synapseclient.client.open', mock_open(), create=True) as mocked_open:
-        actual_filepath = synapseclient.client._extract_zip_file_to_cache(mocked_zipfile, file_dir + file_base_name, cache_dir)
-
-        #make sure it returns the correct cache path
-        assert_equal(expected_filepath, actual_filepath)
-
-        #make sure it created the cache folders
-        mocked_makedir.assert_called_once_with(cache_dir)
-
-        #make sure zip was read and file was witten
-        mocked_open.assert_called_once_with(expected_filepath, 'wb')
-        mocked_zipfile.read.assert_called_once_with(file_dir + file_base_name)
-        mocked_open().write.assert_called_once_with(mocked_zipfile.read())
