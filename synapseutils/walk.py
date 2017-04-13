@@ -1,6 +1,26 @@
 import synapseclient
 from synapseclient.entity import is_container
 import os
+import json
+
+def getChildren(syn, parentId):
+    pass
+    #return((_getChildren))
+
+def _getChildren(syn, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC", nextPageToken=None):
+    #parentId = "syn5522959"
+    entityChildrenRequest = {'parentId':parentId,
+                             'includeTypes':includeTypes,
+                             'sortBy':sortBy,
+                             'sortDirection':sortDirection,
+                             'nextPageToken':nextPageToken}
+
+    page = syn.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
+    yield page['page']
+    if page.get('nextPageToken') is not None:
+        for x in _getChildren(syn, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC", nextPageToken=page.get('nextPageToken')):
+            yield x
+
 
 def walk(syn, synId):
     """
