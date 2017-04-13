@@ -2,7 +2,6 @@ import os, json, tempfile, filecmp
 from nose.tools import assert_raises, assert_equal, assert_in
 from mock import MagicMock, patch
 import unit
-import synapseclient
 from synapseclient import File
 from synapseclient.exceptions import *
 from synapseclient import Evaluation
@@ -200,4 +199,3 @@ def test_send_message():
             assert msg["fileHandleId"] == "7365905", msg
             assert msg["recipients"] == [1421212], msg
             assert msg["subject"] == "Xanadu", msg
-
