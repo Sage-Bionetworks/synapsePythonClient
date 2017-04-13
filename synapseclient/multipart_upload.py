@@ -93,7 +93,7 @@ def get_data_chunk(data, n, chunksize=8*MB):
     return data[ (n-1)*chunksize : n*chunksize ]
 
 
-def _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, preview=True, storageLocationId=None, forceRestart=False):
+def _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, preview=True, storageLocationId=None, forceRestart=False): #TODO: pass in stroageLocation for code tha calls it
     """
     :returns: A `MultipartUploadStatus`_
 
@@ -170,7 +170,7 @@ def _put_chunk(url, chunk, verbose=False):
     exceptions._raise_for_status(response, verbose=verbose)
 
 
-def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs):
+def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs): #TODO:Make storateLocationId explicit and document it
     """
     Upload a file to a Synapse upload destination in chunks.
 

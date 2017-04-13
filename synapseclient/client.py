@@ -1916,7 +1916,7 @@ class Synapse:
         return destination
 
 
-    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None):
+    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None): #TODO: add storage location param
         """
         Create and return a fileHandle, by either uploading a local file or
         linking to an external URL.
@@ -1991,7 +1991,7 @@ class Synapse:
         return self.restGET('/entity/%s/uploadDestination'% id_of(entity),
                      endpoint=self.fileHandleEndpoint)
 
-
+    #TODO: move off deprecated API
     def __getStorageLocation(self, entity):
         storageLocations = self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
                      endpoint=self.fileHandleEndpoint)['list']
@@ -2036,11 +2036,11 @@ class Synapse:
                 local_state['md5'] = utils.md5_for_file(url.path).hexdigest()
             return entity['path'], local_state
         location =  self.__getStorageLocation(entity)
-        if location['uploadType'] == 'S3':
+        if location['uploadType'] == 'S3': #TODO: use concreteTyoe instead
             if entity.get('synapseStore', True):
                 sys.stdout.write('\n' + '#'*50+'\n Uploading file to Synapse storage \n'+'#'*50+'\n')
             return entity['path'], local_state
-        elif location['uploadType'] == 'SFTP' :
+        elif location['uploadType'] == 'SFTP' : #TODO: only suported if concreteType is ExternalUploadDestination
             entity['synapseStore'] = False
             if entity.get('synapseStore', True):
                 sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
