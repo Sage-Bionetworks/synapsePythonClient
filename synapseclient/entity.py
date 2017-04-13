@@ -49,13 +49,6 @@ done with the synapseutils.copy.changeFileMetaData function.
 >>> print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
 >>> e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
 
-Setting *fileNameOverride* will **not** change the name of a copy of the
-file that's already downloaded into your local cache. Either rename the
-local copy manually or remove it from the cache and re-download.:
-
->>> syn.cache.remove(e.dataFileHandleId)
->>> e = syn.get(e)
->>> print(os.path.basename(e.path))  ## prints "my_newname_file.txt"
 
 ~~~~
 Link
