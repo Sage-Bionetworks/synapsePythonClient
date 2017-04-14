@@ -64,10 +64,8 @@ def test_create_and_update_file_view():
     my_added_cols_ids = [c['id'] for c in my_added_cols]
 
     # Required IDs for Synapse properties
-    # Should be defined somewhere in synapseclient.table
-    minimal_view_schema_column_ids = ['2510', '23543', '23544', '23545', '31783', '26823', '31784', '23550',
-                                      '30514', '31785', '31782', '31786']
-
+    minimal_view_schema_column_ids = [x['id'] for x in syn.restGET("/column/tableview/defaults/file")['list']]
+    
     scopeIds = [folder['id'].lstrip('syn')]
 
     column_ids = minimal_view_schema_column_ids + my_added_cols_ids
