@@ -43,7 +43,7 @@ def setup(module):
 def test_login():
     try:
         # Test that we fail gracefully with wrong user
-        assert_raises(SynapseAuthenticationError, syn.login, 'asdf', 'notarealpassword')
+        assert_raises(SynapseAuthenticationError, syn.login, str(uuid.uuid1()), 'notarealpassword')
 
         config = configparser.ConfigParser()
         config.read(client.CONFIG_FILE)

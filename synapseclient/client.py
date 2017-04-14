@@ -781,7 +781,6 @@ class Synapse:
                     entity.md5 = handle.get('contentMd5', '')
                     entity.fileSize = handle.get('contentSize', None)
                     entity.contentType = handle.get('contentType', None)
-                    fileName = properties['fileNameOverride'] if 'fileNameOverride' in properties else handle['fileName']
                     if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
                         entity['externalURL'] = handle['externalURL']
                         #Determine if storage location for this entity matches the url of the
@@ -816,7 +815,6 @@ class Synapse:
             #   download it
             #   add it to the cache
             if cached_file_path is not None:
-
                 fileName = os.path.basename(cached_file_path)
 
                 if not downloadLocation:
@@ -828,7 +826,23 @@ class Synapse:
                 else:
                     downloadPath = utils.normalize_path(os.path.join(downloadLocation, fileName))
                     if downloadPath != cached_file_path:
-                        if not downloadFile:
+                        if os.path.exists(downloadPath):
+                            if ifcollision == "overwrite.local":
+                                pass
+                            elif ifcollision == "keep.local":
+                                # Don't want to overwrite the local file.
+                                downloadFile = False
+                            elif ifcollision == "keep.both":
+                                downloadPath = utils.unique_filename(downloadPath)
+                            else:
+                                raise ValueError('Invalid parameter: "%s" is not a valid value '
+                                                 'for "ifcollision"' % ifcollision)
+                        if downloadFile:
+                            shutil.copy(cached_file_path, downloadPath)
+                            entity.path = downloadPath
+                            entity.files = [os.path.basename(downloadPath)]
+                            entity.cacheDir = downloadLocation
+                        else:
                             ## This is a strange case where downloadLocation is
                             ## set but downloadFile=False. Copying files from a
                             ## cached location seems like the wrong thing to do
@@ -836,20 +850,12 @@ class Synapse:
                             entity.path = None
                             entity.files = []
                             entity.cacheDir = None
-                        else:
-                            ## TODO apply ifcollision here
-                            shutil.copy(cached_file_path, downloadPath)
-
-                            entity.path = downloadPath
-                            entity.files = [os.path.basename(downloadPath)]
-                            entity.cacheDir = downloadLocation
                     else:
                         entity.path = downloadPath
                         entity.files = [os.path.basename(downloadPath)]
                         entity.cacheDir = downloadLocation
 
             elif downloadFile:
-
                 # By default, download to the local cache
                 if downloadLocation is None:
                     downloadLocation = self.cache.get_cache_dir(entityBundle['entity']['dataFileHandleId'])
@@ -861,7 +867,11 @@ class Synapse:
                     if ifcollision == "overwrite.local":
                         pass
                     elif ifcollision == "keep.local":
-                        downloadFile = False
+                        # Don't want to overwrite the local file.
+                        entity.path = None
+                        entity.files = []
+                        entity.cacheDir = None
+                        return entity
                     elif ifcollision == "keep.both":
                         downloadPath = utils.unique_filename(downloadPath)
                     else:
@@ -2264,8 +2274,10 @@ class Synapse:
         :param evaluation: Evaluation board to submit to
         :param entity:     The Entity containing the Submission
         :param name:       A name for this submission
-        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered for the challenge
-        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
+        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered
+                           for the challenge
+        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place 
+                           of the submitter's name
         :param teamName: (deprecated) A synonym for submitterAlias
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
@@ -2287,12 +2299,6 @@ class Synapse:
         ## default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
-
-        # Check for access rights
-        unmetRights = self.restGET('/evaluation/%s/accessRequirementUnfulfilled' % evaluation_id)
-        if unmetRights['totalNumberOfResults'] > 0:
-            accessTerms = ["%s - %s" % (rights['accessType'], rights['termsOfUse']) for rights in unmetRights['results']]
-            raise SynapseAuthenticationError('You have unmet access requirements: \n%s' % '\n'.join(accessTerms))
 
         ## TODO: accept entities or entity IDs
         if not 'versionNumber' in entity:
@@ -2318,22 +2324,6 @@ class Synapse:
         if team:
             ## see http://rest.synapse.org/GET/evaluation/evalId/team/id/submissionEligibility.html
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=evaluation_id, id=team.id))
-
-            # {'eligibilityStateHash': -100952509,
-            #  'evaluationId': '3317421',
-            #  'membersEligibility': [
-            #   {'hasConflictingSubmission': False,
-            #    'isEligible': True,
-            #    'isQuotaFilled': False,
-            #    'isRegistered': True,
-            #    'principalId': 377358},
-            #   ...],
-            #  'teamEligibility': {
-            #   'isEligible': True,
-            #   'isQuotaFilled': False,
-            #   'isRegistered': True},
-            #  'teamId': '3325434'}
-            ## Note that isRegistered may be missing
 
             ## Check team eligibility and raise an exception if not eligible
             if not eligibility['teamEligibility'].get('isEligible', True):
@@ -2657,7 +2647,7 @@ class Synapse:
         """
 
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
-        return [DictObject(**header) for header in self.restGET(uri)['results']]
+        return [DictObject(**header) for header in self._GET_paginated(uri)]
 
 
     def _storeWiki(self, wiki):

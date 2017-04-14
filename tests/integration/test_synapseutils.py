@@ -224,8 +224,8 @@ def test_copy():
 
     assert_raises(ValueError,synapseutils.copy,syn,folder_entity.id,destinationId=second_project.id)
     # TEST: Throw error if excludeTypes isn't in file, link and table or isn't a list
-    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,excludeTypes=["foo"])
-    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,excludeTypes="file")
+    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,destinationId=second_project.id,excludeTypes=["foo"])
+    assert_raises(ValueError,synapseutils.copy,syn,second_folder.id,destinationId=second_project.id,excludeTypes="file")
     # TEST: excludeType = ["file"], only the folder is created
     second = synapseutils.copy(syn,second_folder.id,destinationId=second_project.id,excludeTypes=["file","table","link"])
 
@@ -321,9 +321,9 @@ def test_copyWiki():
     second_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(second_project.id)
 
-    fileMapping = synapseutils.copy(syn, project_entity, second_project.id, copyWikiPage=False)
+    fileMapping = synapseutils.copy(syn, project_entity, second_project.id, skipCopyWikiPage=True)
     
-    print("Test: copyWikiPage = False")
+    print("Test: skipCopyWikiPage = True")
     assert_raises(SynapseHTTPError,syn.getWiki,second_project.id)
 
     first_headers = syn.getWikiHeaders(project_entity)
@@ -357,7 +357,7 @@ def test_copyWiki():
         #check that attachment file names are the same
         assert orig_attach == new_attach
 
-    print("Test: copyWikiPage = True (Default) (Should copy all wikis including wikis on files)")
+    print("Test: skipCopyWikiPage = False (Default) (Should copy all wikis including wikis on files)")
     third_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(third_project.id)
 
