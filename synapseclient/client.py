@@ -75,7 +75,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error
+from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error, _extract_zip_file_to_directory, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
@@ -814,7 +814,6 @@ class Synapse:
             #   download it
             #   add it to the cache
             if cached_file_path is not None:
-
                 fileName = os.path.basename(cached_file_path)
 
                 if not downloadLocation:
@@ -826,7 +825,23 @@ class Synapse:
                 else:
                     downloadPath = utils.normalize_path(os.path.join(downloadLocation, fileName))
                     if downloadPath != cached_file_path:
-                        if not downloadFile:
+                        if os.path.exists(downloadPath):
+                            if ifcollision == "overwrite.local":
+                                pass
+                            elif ifcollision == "keep.local":
+                                # Don't want to overwrite the local file.
+                                downloadFile = False
+                            elif ifcollision == "keep.both":
+                                downloadPath = utils.unique_filename(downloadPath)
+                            else:
+                                raise ValueError('Invalid parameter: "%s" is not a valid value '
+                                                 'for "ifcollision"' % ifcollision)
+                        if downloadFile:
+                            shutil.copy(cached_file_path, downloadPath)
+                            entity.path = downloadPath
+                            entity.files = [os.path.basename(downloadPath)]
+                            entity.cacheDir = downloadLocation
+                        else:
                             ## This is a strange case where downloadLocation is
                             ## set but downloadFile=False. Copying files from a
                             ## cached location seems like the wrong thing to do
@@ -834,20 +849,12 @@ class Synapse:
                             entity.path = None
                             entity.files = []
                             entity.cacheDir = None
-                        else:
-                            ## TODO apply ifcollision here
-                            shutil.copy(cached_file_path, downloadPath)
-
-                            entity.path = downloadPath
-                            entity.files = [os.path.basename(downloadPath)]
-                            entity.cacheDir = downloadLocation
                     else:
                         entity.path = downloadPath
                         entity.files = [os.path.basename(downloadPath)]
                         entity.cacheDir = downloadLocation
 
             elif downloadFile:
-
                 # By default, download to the local cache
                 if downloadLocation is None:
                     downloadLocation = self.cache.get_cache_dir(entityBundle['entity']['dataFileHandleId'])
@@ -859,7 +866,11 @@ class Synapse:
                     if ifcollision == "overwrite.local":
                         pass
                     elif ifcollision == "keep.local":
-                        downloadFile = False
+                        # Don't want to overwrite the local file.
+                        entity.path = None
+                        entity.files = []
+                        entity.cacheDir = None
+                        return entity
                     elif ifcollision == "keep.both":
                         downloadPath = utils.unique_filename(downloadPath)
                     else:
@@ -3069,17 +3080,6 @@ class Synapse:
         #Rowset tableQuery result not allowed
         if isinstance(table, TableQueryResult):
             raise ValueError("downloadTableColumn doesn't work with rowsets. Please use default tableQuery settings.")
-        def _is_integer(x):
-            try:
-                return float.is_integer(x)
-            except TypeError:
-                try:
-                    int(x)
-                    return True
-                except (ValueError, TypeError):
-                    ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
-                    return False
-
         if isinstance(columns, six.string_types):
             columns = [columns]
         if not isinstance(columns, collections.Iterable):
@@ -3157,7 +3157,7 @@ class Synapse:
                     for summary in response['fileSummary']:
                         if summary['status'] == 'SUCCESS':
                             cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = zf.extract(summary['zipEntryName'], cache_dir)
+                            filepath = _extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
                             self.cache.add(summary['fileHandleId'], filepath)
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
