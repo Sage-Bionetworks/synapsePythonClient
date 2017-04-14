@@ -25,7 +25,7 @@ Synapse
 More information
 ~~~~~~~~~~~~~~~~
 
-See also the `Synapse API documentation <http://rest.synapse.org>`_.
+See also the `Synapse API documentation <http://docs.synapse.org/rest/>`_.
 
 """
 
@@ -75,7 +75,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error
+from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error, _extract_zip_file_to_directory, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
@@ -814,7 +814,6 @@ class Synapse:
             #   download it
             #   add it to the cache
             if cached_file_path is not None:
-
                 fileName = os.path.basename(cached_file_path)
 
                 if not downloadLocation:
@@ -826,7 +825,23 @@ class Synapse:
                 else:
                     downloadPath = utils.normalize_path(os.path.join(downloadLocation, fileName))
                     if downloadPath != cached_file_path:
-                        if not downloadFile:
+                        if os.path.exists(downloadPath):
+                            if ifcollision == "overwrite.local":
+                                pass
+                            elif ifcollision == "keep.local":
+                                # Don't want to overwrite the local file.
+                                downloadFile = False
+                            elif ifcollision == "keep.both":
+                                downloadPath = utils.unique_filename(downloadPath)
+                            else:
+                                raise ValueError('Invalid parameter: "%s" is not a valid value '
+                                                 'for "ifcollision"' % ifcollision)
+                        if downloadFile:
+                            shutil.copy(cached_file_path, downloadPath)
+                            entity.path = downloadPath
+                            entity.files = [os.path.basename(downloadPath)]
+                            entity.cacheDir = downloadLocation
+                        else:
                             ## This is a strange case where downloadLocation is
                             ## set but downloadFile=False. Copying files from a
                             ## cached location seems like the wrong thing to do
@@ -834,20 +849,12 @@ class Synapse:
                             entity.path = None
                             entity.files = []
                             entity.cacheDir = None
-                        else:
-                            ## TODO apply ifcollision here
-                            shutil.copy(cached_file_path, downloadPath)
-
-                            entity.path = downloadPath
-                            entity.files = [os.path.basename(downloadPath)]
-                            entity.cacheDir = downloadLocation
                     else:
                         entity.path = downloadPath
                         entity.files = [os.path.basename(downloadPath)]
                         entity.cacheDir = downloadLocation
 
             elif downloadFile:
-
                 # By default, download to the local cache
                 if downloadLocation is None:
                     downloadLocation = self.cache.get_cache_dir(entityBundle['entity']['dataFileHandleId'])
@@ -859,7 +866,11 @@ class Synapse:
                     if ifcollision == "overwrite.local":
                         pass
                     elif ifcollision == "keep.local":
-                        downloadFile = False
+                        # Don't want to overwrite the local file.
+                        entity.path = None
+                        entity.files = []
+                        entity.cacheDir = None
+                        return entity
                     elif ifcollision == "keep.both":
                         downloadPath = utils.unique_filename(downloadPath)
                     else:
@@ -1915,7 +1926,7 @@ class Synapse:
 
         :returns: a FileHandle_
 
-        .. FileHandle: http://rest.synapse.org/org/sagebionetworks/repo/model/file/FileHandle.html
+        .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
         """
 
         if filename is None:
@@ -2286,7 +2297,7 @@ class Synapse:
 
         ## if a team is found, build contributors list
         if team:
-            ## see http://rest.synapse.org/GET/evaluation/evalId/team/id/submissionEligibility.html
+            ## see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=evaluation_id, id=team.id))
 
             ## Check team eligibility and raise an exception if not eligible
@@ -2664,7 +2675,7 @@ class Synapse:
 
         async_job_id = self.restPOST(uri+'/start', body=json.dumps(request), endpoint=endpoint)
 
-        # http://rest.synapse.org/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
+        # http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
         start_time = time.time()
         lastMessage, lastProgress, lastTotal, progressed = '', 0, 1, False
@@ -2753,7 +2764,7 @@ class Synapse:
         """
         Query a Synapse Table.
 
-        :param query: query string in a `SQL-like syntax <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_::
+        :param query: query string in a `SQL-like syntax <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_::
 
             SELECT * from syn12345
 
@@ -2807,7 +2818,7 @@ class Synapse:
 
     def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
         """
-        Query a table and return the first page of results as a `QueryResultBundle <http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
+        Query a table and return the first page of results as a `QueryResultBundle <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
         If the result contains a *nextPageToken*, following pages a retrieved
         by calling :py:meth:`~._queryTableNext`.
 
@@ -2819,7 +2830,7 @@ class Synapse:
                             Max Rows Per Page (maxRowsPerPage) = 0x8
         """
 
-        # See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
+        # See: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryBundleRequest.html
         query_bundle_request = {
             "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
             "query": {
@@ -2848,13 +2859,13 @@ class Synapse:
 
     def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
         """
-        Send an `UploadToTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
+        Send an `UploadToTableRequest <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
 
         :param filepath: Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
         :param schema: A table entity or its Synapse ID.
         :param updateEtag: Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
 
-        :returns: `UploadToTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
+        :returns: `UploadToTableResult <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
         fileHandleId = multipart_upload(self, filepath, contentType="text/csv")
@@ -2883,9 +2894,9 @@ class Synapse:
         """
         Query a Synapse Table and download a CSV file containing the results.
 
-        Sends a `DownloadFromTableRequest <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
+        Sends a `DownloadFromTableRequest <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
 
-        :return: a tuple containing a `DownloadFromTableResult <http://rest.synapse.org/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
+        :return: a tuple containing a `DownloadFromTableResult <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
 
         The DownloadFromTableResult object contains these fields:
          * headers: ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
@@ -3005,7 +3016,7 @@ class Synapse:
             'headers':[{'id':column_id}],
             'rows':[{'rowId':rowId,'versionNumber':versionNumber}]
         }
-        # result is a http://rest.synapse.org/org/sagebionetworks/repo/model/table/TableFileHandleResults.html
+        # result is a http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableFileHandleResults.html
         result = self.restPOST("/entity/%s/table/filehandles" % table_id, body=json.dumps(row_reference_set))
         if len(result['rows'])==0 or len(result['rows'][0]['list']) != 1:
             raise SynapseError('Couldn\'t get file handle for tableId={id}, column={columnId}, row={rowId}, version={versionNumber}'.format(
@@ -3065,17 +3076,6 @@ class Synapse:
         #Rowset tableQuery result not allowed
         if isinstance(table, TableQueryResult):
             raise ValueError("downloadTableColumn doesn't work with rowsets. Please use default tableQuery settings.")
-        def _is_integer(x):
-            try:
-                return float.is_integer(x)
-            except TypeError:
-                try:
-                    int(x)
-                    return True
-                except (ValueError, TypeError):
-                    ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
-                    return False
-
         if isinstance(columns, six.string_types):
             columns = [columns]
         if not isinstance(columns, collections.Iterable):
@@ -3090,7 +3090,7 @@ class Synapse:
             raise ValueError("Columns not found: " + ", ".join('"'+col+'"' for col in cols_not_found))
         col_indices = [i for i,h in enumerate(table.headers) if h.name in columns]
 
-        ## see: http://rest.synapse.org/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
+        ## see: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
         file_handle_associations = []
         file_handle_to_path_map = OrderedDict()
         for row in table:
@@ -3123,7 +3123,7 @@ class Synapse:
             ##------------------------------------------------------------
 
             ## returns a BulkFileDownloadResponse:
-            ##   http://rest.synapse.org/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
+            ##   http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
             request = dict(
                 concreteType="org.sagebionetworks.repo.model.file.BulkFileDownloadRequest",
                 requestedFiles=file_handle_associations_batch)
@@ -3153,7 +3153,7 @@ class Synapse:
                     for summary in response['fileSummary']:
                         if summary['status'] == 'SUCCESS':
                             cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = zf.extract(summary['zipEntryName'], cache_dir)
+                            filepath = _extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
                             self.cache.add(summary['fileHandleId'], filepath)
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
