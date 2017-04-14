@@ -131,7 +131,7 @@ def _getIdsFromQuery(queryString, syn):
         check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
         assert check_for_id_col, ValueError("Query does not include the id column.")
 
-        ids = [x['id'] for x in csv.DictReader(file(tbl.filepath))]
+        ids = [x['id'] for x in csv.DictReader(open(tbl.filepath))]
     else:
         for item in syn.chunkedQuery(queryString):
             key = [k for k in  item.keys() if k.split('.', 1)[1]=='id'][0]
