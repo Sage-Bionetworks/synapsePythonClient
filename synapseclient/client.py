@@ -1999,29 +1999,6 @@ class Synapse:
         return self.restGET('/entity/%s/uploadDestination'% entity['parentId'],
                      endpoint=self.fileHandleEndpoint)
 
-    #TODO: move off deprecated API
-    def __getStorageLocation(self, entity):
-        storageLocations = self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
-                     endpoint=self.fileHandleEndpoint)['list']
-        return storageLocations[0]
-
-        # if uploadHost is None:
-        #     return storageLocations[0]
-        # locations = [l.get('url', 'S3') for l in storageLocations]
-        # uploadHost = entity.get('uploadHost', None)
-
-        # for location in storageLocations:
-        #     #location can either be of  uploadType S3 or SFTP where the latter has a URL
-        #     if location['uploadType'] == 'S3' and uploadHost == 'S3':
-        #         return location
-        #     elif (location['uploadType'] == 'SFTP' and uploadHost != 'S3' and
-        #           utils.is_same_base_url(uploadHost, location['url'])):
-        #         return location
-        # raise SynapseError('You are uploading to a project that supports multiple storage '
-        #                    'locations but have specified the location of %s which is not '
-        #                    'supported by this project.  Please choose one of:\n %s'
-        #                    %(uploadHost, '\n\t'.join(locations)))
-
 
     def __uploadExternallyStoringProjects(self, entity, local_state):
         """Determines the upload location of the file based on project settings and if it is
