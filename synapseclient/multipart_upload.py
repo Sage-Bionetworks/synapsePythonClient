@@ -170,7 +170,7 @@ def _put_chunk(url, chunk, verbose=False):
     exceptions._raise_for_status(response, verbose=verbose)
 
 
-def multipart_upload(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs): #TODO add storeage location for callers
+def multipart_upload(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
     """
     Upload a file to a Synapse upload destination in chunks.
 
@@ -333,7 +333,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             mp.map(chunk_upload, url_generator)
 
             #Check if there are still parts
-            status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
+            status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, storageLocationId=storageLocationId, **kwargs)
             oldCompletedParts, completedParts = completedParts, count_completed_parts(status.partsState)
             progress = (completedParts>oldCompletedParts)
             retries = retries+1 if not progress else retries
