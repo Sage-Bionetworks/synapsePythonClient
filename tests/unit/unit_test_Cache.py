@@ -305,7 +305,7 @@ def test_set_cache_root_dir():
 
     path_suffix = "GrayFaceNoSpace"
 
-    expanded_path = os.path.expandvars(os.path.expanduser("~/" + enviornment_variable_value + "/" + path_suffix))
+    expanded_path = os.path.expandvars(os.path.expanduser(os.path.join("~", enviornment_variable_value , path_suffix)))
     non_expanded_path = os.path.join("~", '$' + enviornment_variable_name, path_suffix)
 
     #test that the constructor correctly expands the path
