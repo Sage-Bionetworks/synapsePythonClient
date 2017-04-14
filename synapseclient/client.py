@@ -127,9 +127,9 @@ STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
                          "back_off"          : 2}
 
 #Concrete types for UploadDestinations
-_SYNAPSE_S3_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.S3UploadDestination'
-_EXTERNAL_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.ExternalUploadDestination'
-_EXTERNAL_S3_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.ExternalS3UploadDestination'
+_SYNAPSE_S3_UPLOAD_DESTINATION_TYPE = 'org.sagebionetworks.repo.model.file.S3UploadDestination'
+_EXTERNAL_UPLOAD_DESTINATION_TYPE = 'org.sagebionetworks.repo.model.file.ExternalUploadDestination'
+_EXTERNAL_S3_UPLOAD_DESTINATION_TYPE = 'org.sagebionetworks.repo.model.file.ExternalS3UploadDestination'
 
 
 # Add additional mimetypes
@@ -2023,11 +2023,11 @@ class Synapse:
         location =  self._getDefaultUploadDestination(entity)
 
         upload_destination_type = location['concreteType']
-        if upload_destination_type == _SYNAPSE_S3_UPLOAD_DESTINATION:
+        if upload_destination_type == _SYNAPSE_S3_UPLOAD_DESTINATION_TYPE:
             if entity.get('synapseStore', True):
                 sys.stdout.write('\n' + '#'*50+'\n Uploading file to Synapse storage \n'+'#'*50+'\n')
             return entity['path'], local_state, location['storageLocationId']
-        elif upload_destination_type == _EXTERNAL_UPLOAD_DESTINATION:
+        elif upload_destination_type == _EXTERNAL_UPLOAD_DESTINATION_TYPE:
             if location['uploadType'] == 'SFTP' :
                 entity['synapseStore'] = False
                 if entity.get('synapseStore', True):
@@ -2046,7 +2046,7 @@ class Synapse:
                 return uploadLocation, local_state, location['storageLocationId']
             else:
                 raise NotImplementedError('Can only handle SFTP upload locations.')
-        elif upload_destination_type == _EXTERNAL_S3_UPLOAD_DESTINATION:
+        elif upload_destination_type == _EXTERNAL_S3_UPLOAD_DESTINATION_TYPE:
             sys.stdout.write('\n' + '#' * 50 + '\n Uploading file to user\'s S3 storage \n' + '#' * 50 + '\n')
             return entity['path'] , local_state, location['storageLocationId']
             #TODO: is this right??????????????????????????
