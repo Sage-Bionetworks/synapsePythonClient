@@ -792,15 +792,14 @@ def test_table_query():
     output = run('synapse', '--skip-checks', 'query',
                  'select * from %s' % schema1.id)
 
-    reader = csv.reader(StringIO(output), delimiter="\t")
-    output_rows = list(reader)
+    output_rows = output.rstrip("\n").split("\n")
 
     # Check the length of the output
-    assert len(output_rows) == 5
+    assert len(output_rows) == 5, "got %s rows" % (len(output_rows),)
 
     # Check that headers are correct.
     # Should be column names in schema plus the ROW_ID and ROW_VERSION
-    my_headers_set = output_rows[0]
+    my_headers_set = output_rows[0].split("\t")
     expected_headers_set = ["ROW_ID", "ROW_VERSION"] + list(map(lambda x: x.name, cols))
     assert my_headers_set == expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set)
 
