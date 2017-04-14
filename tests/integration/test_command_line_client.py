@@ -13,7 +13,6 @@ import re
 import sys
 import uuid
 import json
-import csv
 from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
@@ -35,9 +34,10 @@ from integration import schedule_for_cleanup
 
 if six.PY2:
     from StringIO import StringIO
+    from backports import csv
 else:
     from io import StringIO
-
+    import csv
 
 
 def setup_module(module):
@@ -533,17 +533,19 @@ def test_command_line_store_and_submit():
                  project_id)
 
 
-def test_command_get_recursive():
+def test_command_get_recursive_and_query():
     """Tests the 'synapse get -r' and 'synapse get -q' functions"""
-    # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
 
-    # Create a Folder in Project
+    project_entity = project
+
+    # Create Folders in Project
     folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
                                                    parent=project_entity))
 
-    # Create and upload two files in Folder
+    folder_entity2 = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+                                                    parent=folder_entity))
+
+    # Create and upload two files in sub-Folder
     uploaded_paths = []
     file_entities = []
 
@@ -551,78 +553,50 @@ def test_command_get_recursive():
         f  = utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
-        file_entity = synapseclient.File(f, parent=folder_entity)
+        file_entity = synapseclient.File(f, parent=folder_entity2)
         file_entity = syn.store(file_entity)
         file_entities.append(file_entity)
+        schedule_for_cleanup(f)
 
-    #Add a file in the project level as well
+
+    #Add a file in the Folder as well
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
-    file_entity = synapseclient.File(f, parent=project_entity)
+    file_entity = synapseclient.File(f, parent=folder_entity)
     file_entity = syn.store(file_entity)
     file_entities.append(file_entity)
 
     ### Test recursive get
     output = run('synapse', '--skip-checks',
                  'get', '-r',
-                 project_entity.id)
+                 folder_entity.id)
     #Verify that we downloaded files:
-    new_paths = [os.path.join('.', folder_entity.name, os.path.basename(f)) for f in uploaded_paths[:-1]]
+    new_paths = [os.path.join('.', folder_entity2.name, os.path.basename(f)) for f in uploaded_paths[:-1]]
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
         print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
-    schedule_for_cleanup(new_paths[0])
+        schedule_for_cleanup(downloaded)
 
-def test_command_get_query():
-    """Tests the 'synapse get -q' function.
-
-    """
-
-    # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
-
-    # Create a Folder in Project
-    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
-                                                   parent=project_entity))
-
-    # Create and upload two files in Folder
-    uploaded_paths = []
-    file_entities = []
-
-    for i in range(2):
-        f  = utils.make_bogus_data_file()
-        uploaded_paths.append(f)
-        schedule_for_cleanup(f)
-        file_entity = synapseclient.File(f, parent=folder_entity)
-        file_entity = syn.store(file_entity)
-        file_entities.append(file_entity)
-
-    #Add a file in the project level as well
-    f  = utils.make_bogus_data_file()
-    uploaded_paths.append(f)
-    schedule_for_cleanup(f)
-    file_entity = synapseclient.File(f, parent=project_entity)
-    file_entity = syn.store(file_entity)
-    file_entities.append(file_entity)
 
     ### Test query get
     ### Note: We're not querying on annotations because tests can fail if there
     ###       are lots of jobs queued as happens when staging is syncing
     output = run('synapse', '--skip-checks',
                  'get', '-q', "select id from file where parentId=='%s'" %
-                 folder_entity.id)
-    #Verify that we downloaded files:
+                 folder_entity2.id)
+    #Verify that we downloaded files from folder_entity2
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
         print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
+
+    schedule_for_cleanup(new_paths[0])
 
     ### Test query get using a Table with an entity column
     ### This should be replaced when Table File Views are implemented in the client
@@ -801,10 +775,9 @@ def test_table_query():
     cols.append(synapseclient.Column(name='age', columnType='INTEGER'))
     cols.append(synapseclient.Column(name='cartoon', columnType='BOOLEAN'))
 
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
+    project_entity = project
 
-    schema1 = syn.store(synapseclient.Schema(name='Foo Table', columns=cols, parent=project_entity))
+    schema1 = syn.store(synapseclient.Schema(name=str(uuid.uuid4()), columns=cols, parent=project_entity))
     schedule_for_cleanup(schema1.id)
 
     data1 =[['Chris',  'bar', 11.23, 45, False],
@@ -819,15 +792,15 @@ def test_table_query():
     output = run('synapse', '--skip-checks', 'query',
                  'select * from %s' % schema1.id)
 
-    output_rows = list(csv.reader(StringIO(output), delimiter="\t".encode('ascii')))
+    output_rows = output.rstrip("\n").split("\n")
 
     # Check the length of the output
-    assert len(output_rows) == 5
+    assert len(output_rows) == 5, "got %s rows" % (len(output_rows),)
 
     # Check that headers are correct.
     # Should be column names in schema plus the ROW_ID and ROW_VERSION
-    my_headers_set = output_rows[0]
-    expected_headers_set = ["ROW_ID", "ROW_VERSION"] + map(lambda x: x.name, cols)
+    my_headers_set = output_rows[0].split("\t")
+    expected_headers_set = ["ROW_ID", "ROW_VERSION"] + list(map(lambda x: x.name, cols))
     assert my_headers_set == expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set)
 
 def test_login():
