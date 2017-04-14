@@ -2007,8 +2007,9 @@ class Synapse:
 
         :param entity: An entity with path.
 
-        :returns: A URL or local file path to add to Synapse along with an update local_state
-                  containing externalURL and content-type
+        :returns: A URL or local file path to add to Synapse,
+                  an update local_state containing externalURL and content-type,
+                  and a storage location id indicating to where the entity should be uploaded ("None" defaults to Synapse)
         """
         #If it is already an external URL just return
         if local_state.get('externalURL', None):
@@ -2046,10 +2047,10 @@ class Synapse:
                 return uploadLocation, local_state, location['storageLocationId']
             else:
                 raise NotImplementedError('Can only handle SFTP upload locations.')
-        elif upload_destination_type == _EXTERNAL_S3_UPLOAD_DESTINATION_TYPE:
-            sys.stdout.write('\n' + '#' * 50 + '\n Uploading file to user\'s S3 storage \n' + '#' * 50 + '\n')
+        elif upload_destination_type == _EXTERNAL_S3_UPLOAD_DESTINATION_TYPE: #TODO: basically same thing as Synapse s3 excepet for print statement
+            if entity.get('synapseStore', True):
+                sys.stdout.write('\n' + '#' * 50 + '\n Uploading file to user\'s S3 storage \n' + '#' * 50 + '\n')
             return entity['path'] , local_state, location['storageLocationId']
-            #TODO: is this right??????????????????????????
         else:
             raise NotImplementedError("The UploadDestination type: " + upload_destination_type + " is not supported")
 

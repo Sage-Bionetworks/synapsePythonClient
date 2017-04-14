@@ -199,3 +199,17 @@ def test_send_message():
             assert msg["fileHandleId"] == "7365905", msg
             assert msg["recipients"] == [1421212], msg
             assert msg["subject"] == "Xanadu", msg
+
+
+def test__uploadExternallyStoringProjects_external_user():
+    # verify storageLocation is returned
+
+
+
+
+def test_store_user_external_s3():
+    # set up mocks for s3
+
+    # call method under test
+
+    # verify storageLocationId is passed a parameter
