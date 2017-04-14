@@ -75,7 +75,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error
+from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error, _extract_zip_file_to_directory, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
@@ -3076,17 +3076,6 @@ class Synapse:
         #Rowset tableQuery result not allowed
         if isinstance(table, TableQueryResult):
             raise ValueError("downloadTableColumn doesn't work with rowsets. Please use default tableQuery settings.")
-        def _is_integer(x):
-            try:
-                return float.is_integer(x)
-            except TypeError:
-                try:
-                    int(x)
-                    return True
-                except (ValueError, TypeError):
-                    ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
-                    return False
-
         if isinstance(columns, six.string_types):
             columns = [columns]
         if not isinstance(columns, collections.Iterable):
@@ -3164,7 +3153,7 @@ class Synapse:
                     for summary in response['fileSummary']:
                         if summary['status'] == 'SUCCESS':
                             cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = zf.extract(summary['zipEntryName'], cache_dir)
+                            filepath = _extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
                             self.cache.add(summary['fileHandleId'], filepath)
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
