@@ -2021,12 +2021,14 @@ class Synapse:
             if os.path.isfile(url.path) and url.scheme=='file':
                 local_state['md5'] = utils.md5_for_file(url.path).hexdigest()
             return entity['path'], local_state, None
-        location =  self._getDefaultUploadDestination(entity)
 
+        location =  self._getDefaultUploadDestination(entity)
         upload_destination_type = location['concreteType']
-        if upload_destination_type == _SYNAPSE_S3_UPLOAD_DESTINATION_TYPE:
+        if upload_destination_type == _SYNAPSE_S3_UPLOAD_DESTINATION_TYPE or \
+           upload_destination_type == _EXTERNAL_S3_UPLOAD_DESTINATION_TYPE:
             if entity.get('synapseStore', True):
-                sys.stdout.write('\n' + '#'*50+'\n Uploading file to Synapse storage \n'+'#'*50+'\n')
+                storageString = 'Synapse' if upload_destination_type == _SYNAPSE_S3_UPLOAD_DESTINATION_TYPE else 'your external S3'
+                sys.stdout.write('\n' + '#'*50+'\n Uploading file to ' + storageString + ' storage \n'+'#'*50+'\n')
             return entity['path'], local_state, location['storageLocationId']
         elif upload_destination_type == _EXTERNAL_UPLOAD_DESTINATION_TYPE:
             if location['uploadType'] == 'SFTP' :
@@ -2047,10 +2049,6 @@ class Synapse:
                 return uploadLocation, local_state, location['storageLocationId']
             else:
                 raise NotImplementedError('Can only handle SFTP upload locations.')
-        elif upload_destination_type == _EXTERNAL_S3_UPLOAD_DESTINATION_TYPE: #TODO: basically same thing as Synapse s3 excepet for print statement
-            if entity.get('synapseStore', True):
-                sys.stdout.write('\n' + '#' * 50 + '\n Uploading file to user\'s S3 storage \n' + '#' * 50 + '\n')
-            return entity['path'] , local_state, location['storageLocationId']
         else:
             raise NotImplementedError("The UploadDestination type: " + upload_destination_type + " is not supported")
 

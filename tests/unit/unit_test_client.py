@@ -217,3 +217,4 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     assert_equal(expected_path, path)
     assert_equal(expected_local_state, local_state)
     assert_equal(expected_storage_location_id, storage_location_id)
+
