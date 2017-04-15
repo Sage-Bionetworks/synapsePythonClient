@@ -3,24 +3,19 @@ from synapseclient.entity import is_container
 import os
 import json
 
-def getChildren(syn, parentId):
-    pass
-    #return((_getChildren))
-
 def _getChildren(syn, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC", nextPageToken=None):
-    #parentId = "syn5522959"
     entityChildrenRequest = {'parentId':parentId,
                              'includeTypes':includeTypes,
                              'sortBy':sortBy,
                              'sortDirection':sortDirection,
                              'nextPageToken':nextPageToken}
 
-    page = syn.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
-    yield page['page']
-    if page.get('nextPageToken') is not None:
-        for x in _getChildren(syn, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC", nextPageToken=page.get('nextPageToken')):
+    resultPage = syn.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
+    for result in resultPage['page']:
+        yield result
+    if resultPage.get('nextPageToken') is not None:
+        for x in _getChildren(syn, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC", nextPageToken=resultPage.get('nextPageToken')):
             yield x
-
 
 def walk(syn, synId):
     """
@@ -55,12 +50,12 @@ def _helpWalk(syn,synId,newpath=None):
         dirpath = (newpath,synId)
     dirs = []
     nondirs = []
-    results = syn.chunkedQuery('select id, name, nodeType from entity where parentId == "%s"'%synId)
+    results = _getChildren(syn, synId)
     for i in results:
-        if is_container(i):
-            dirs.append((i['entity.name'],i['entity.id']))
+        if i['type'] in (synapseclient.Project._synapse_entity_type, synapseclient.Folder._synapse_entity_type):
+            dirs.append((i['name'],i['id']))
         else:
-            nondirs.append((i['entity.name'],i['entity.id']))
+            nondirs.append((i['name'],i['id']))
     yield dirpath, dirs, nondirs
     for name in dirs:
         newpath = os.path.join(dirpath[0],name[0])
