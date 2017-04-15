@@ -2,10 +2,8 @@ import os, json, tempfile, filecmp
 from nose.tools import assert_raises, assert_equal, assert_in
 from mock import MagicMock, patch
 import unit
-from synapseclient import File
 from synapseclient.exceptions import *
-from synapseclient import Evaluation
-
+from synapseclient import Evaluation, File, client, Synapse
 
 def setup(module):
     print('\n')
@@ -200,16 +198,22 @@ def test_send_message():
             assert msg["recipients"] == [1421212], msg
             assert msg["subject"] == "Xanadu", msg
 
+@patch("synapseclient.Synapse._getDefaultUploadDestination")
+def test__uploadExternallyStoringProjects_external_user(mock_upload_destination):
+    # setup
+    expected_storage_location_id = "1234567"
+    expected_local_state = {}
+    expected_path = "~/fake/path/file.txt"
+    mock_upload_destination.return_value = {'storageLocationId' : expected_storage_location_id,
+                                            'concreteType' : client._EXTERNAL_S3_UPLOAD_DESTINATION_TYPE}
 
-def test__uploadExternallyStoringProjects_external_user():
-    # verify storageLocation is returned
+    test_file = File(expected_path, parent="syn12345")
 
+    # method under test
+    path, local_state,  storage_location_id = syn._Synapse__uploadExternallyStoringProjects(test_file, local_state={}) #dotn care about localstate for this test
 
-
-
-def test_store_user_external_s3():
-    # set up mocks for s3
-
-    # call method under test
-
-    # verify storageLocationId is passed a parameter
+    #test
+    mock_upload_destination.assert_called_once_with(test_file)
+    assert_equal(expected_path, path)
+    assert_equal(expected_local_state, local_state)
+    assert_equal(expected_storage_location_id, storage_location_id)
