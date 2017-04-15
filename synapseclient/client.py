@@ -2881,6 +2881,7 @@ class Synapse:
             "linesToSkip": linesToSkip,
             "tableId": id_of(schema),
             "uploadFileHandleId": fileHandleId
+        }
 
         if updateEtag:
             request["updateEtag"] = updateEtag
