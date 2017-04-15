@@ -2,6 +2,7 @@ import synapseclient
 from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity, exceptions
 import time
 from synapseclient.exceptions import *
+import walk
 import tempfile
 import re
 import json
@@ -176,10 +177,9 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         if not isinstance(syn.get(destinationId),Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
         copiedId = destinationId
-        #http://docs.synapse.org/rest/POST/entity/children.html
-        entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
+        entities = walk._getChildren(syn, entity)
         for i in entities:
-            mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
+            mapping = _copyRecursive(syn, i['id'], destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
     elif isinstance(ent, Folder):
         copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
     elif isinstance(ent, File) and "file" not in excludeTypes:
@@ -223,9 +223,9 @@ def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=Fa
     if not skipCopyAnnotations:
         newFolder.annotations = oldFolder.annotations
     newFolder = syn.store(newFolder)
-    entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
+    entities = walk._getChildren(syn, entity)
     for ent in entities:
-        copied = _copyRecursive(syn, ent['entity.id'],newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
+        copied = _copyRecursive(syn, ent['id'],newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
     return(newFolder.id)
 
 def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback", skipCopyAnnotations=False):
