@@ -13,7 +13,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals
+from nose.tools import assert_raises, assert_equals, assert_not_equal
 from nose.plugins.attrib import attr
 from mock import MagicMock, patch
 
@@ -388,4 +388,71 @@ def test_teams():
     syn.delete(team)
 
     assert team == found_teams[0]
+
+def _set_up_external_s3_project():
+    """
+    creates a project and links it to an external s3 storage
+    :return: synapse id of the created  project, and storageLocationId of the project
+    """
+    EXTERNAL_S3_BUCKET = 'python-client-integration-test.sagebase.org'
+    project_ext_s3 = syn.store(Project(name=str(uuid.uuid4())))
+
+    destination = {'uploadType': 'S3',
+                   'concreteType': 'org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting',
+                   'bucket': EXTERNAL_S3_BUCKET}
+    destination = syn.restPOST('/storageLocation', body=json.dumps(destination))
+
+    project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+                           'settingsType': 'upload',
+                           'locations': [destination['storageLocationId']],
+                           'projectId' : project_ext_s3.id}
+
+    project_destination = syn.restPOST('/projectSettings', body=json.dumps(project_destination))
+    schedule_for_cleanup(project_ext_s3)
+    return project_ext_s3.id, destination['storageLocationId']
+
+def test_external_s3_upload():
+    #setup
+    project_id, storage_location_id = _set_up_external_s3_project()
+
+    # create a temporary file for upload
+    fd, temp_file_path = tempfile.mkstemp(suffix=".txt")
+    with os.fdopen(fd, 'w') as f:
+        f.write(utils.normalize_lines("""
+            Did you ever hear the tragedy of Darth Plagueis The Wise? I thought not.
+            It's not a story the Jedi would tell you. It's a Sith legend.
+            Darth Plagueis was a Dark Lord of the Sith, so powerful and so wise he could use the Force to influence the midichlorians to create life...
+            He had such a knowledge of the dark side that he could even keep the ones he cared about from dying.
+            The dark side of the Force is a pathway to many abilities some consider to be unnatural.
+            He became so powerful... the only thing he was afraid of was losing his power, which eventually, of course, he did.
+            Unfortunately, he taught his apprentice everything he knew, then his apprentice killed him in his sleep.
+            Ironic. He could save others from death, but not himself.
+            """))
+    expected_md5 = utils.md5_for_file(temp_file_path).hexdigest()
+    schedule_for_cleanup(temp_file_path)
+
+    #upload the file
+    uploaded_syn_file = syn.store(File(path=temp_file_path, parent=project_id))
+
+    #get file_handle of the uploaded file
+    file_handle = syn.restGET('/entity/%s/filehandles' % uploaded_syn_file.id)['list'][0]
+
+    #Verify correct file handle type
+    assert_equals(file_handle['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
+
+    # Verify storage location id to make sure it's using external S3
+    assert_equals(storage_location_id, file_handle['storageLocationId'])
+
+    #Verify md5 of upload
+    assert_equals(expected_md5, file_handle['contentMd5'])
+
+    # clear the cache and download the file
+    syn.cache.purge(time.time())
+    downloaded_syn_file = syn.get(uploaded_syn_file.id)
+
+    #verify the correct file was downloaded
+    assert_equals(os.path.basename(downloaded_syn_file['path']), os.path.basename(temp_file_path))
+    assert_not_equal(os.path.normpath(temp_file_path), os.path.normpath(downloaded_syn_file['path']))
+    assert filecmp.cmp(temp_file_path, downloaded_syn_file['path'])
+
 
