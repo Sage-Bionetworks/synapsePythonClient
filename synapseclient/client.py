@@ -2032,13 +2032,13 @@ class Synapse:
             return entity['path'], local_state, location['storageLocationId']
         elif upload_destination_type == _EXTERNAL_UPLOAD_DESTINATION_TYPE:
             if location['uploadType'] == 'SFTP' :
-
                 if entity.get('synapseStore', True):
                     sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
                                                                           location.get('banner', ''),
                                                                           urlparse(location['url']).netloc,
                                                                           '#'*50))
                 entity['synapseStore'] = False
+                
                 #Fill out local_state with fileSize, externalURL etc...
                 uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
                 local_state['externalURL'] = uploadLocation
