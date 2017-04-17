@@ -216,7 +216,7 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, storageLoca
     return status["resultFileHandleId"]
 
 
-def multipart_upload_string(syn, text, filename=None, contentType=None, storageLocationId=None, **kwargs): #TODO add storeage location for callers
+def multipart_upload_string(syn, text, filename=None, contentType=None, storageLocationId=None, **kwargs):
     """
     Upload a string using the multipart file upload.
 
