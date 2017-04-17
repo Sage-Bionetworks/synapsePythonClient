@@ -82,7 +82,7 @@ from .activity import Activity
 from .entity import Entity, File, Project, Folder, Link, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Table, Column, RowSet, Row, TableQueryResult, CsvFileTable
+from .table import Schema, ViewSchema, Table, Column, RowSet, Row, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
@@ -2870,7 +2870,7 @@ class Synapse:
 
         fileHandleId = multipart_upload(self, filepath, contentType="text/csv")
 
-        request = {
+        uploadRequest = {
             "concreteType":"org.sagebionetworks.repo.model.table.UploadToTableRequest",
             "csvTableDescriptor": {
                 "isFirstLineHeader": header,
@@ -2883,10 +2883,14 @@ class Synapse:
             "uploadFileHandleId": fileHandleId
         }
 
+        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
+           'entityId': id_of(schema),
+           'changes': [uploadRequest]}
+
         if updateEtag:
             request["updateEtag"] = updateEtag
 
-        uri = "/entity/{id}/table/upload/csv/async".format(id=id_of(schema))
+        uri = "/entity/{id}/table/transaction/async".format(id=id_of(schema))
         return self._waitForAsync(uri=uri, request=request)
 
 
