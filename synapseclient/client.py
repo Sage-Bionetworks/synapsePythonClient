@@ -70,6 +70,7 @@ import getpass
 from collections import OrderedDict
 
 import synapseclient
+from . import concrete_types
 from . import utils
 from . import cache
 from . import exceptions
@@ -125,12 +126,6 @@ STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
                          "wait"              : 1,
                          "max_wait"          : 30,
                          "back_off"          : 2}
-
-#Concrete types for UploadDestinations
-_SYNAPSE_S3_UPLOAD_DESTINATION_TYPE = 'org.sagebionetworks.repo.model.file.S3UploadDestination'
-_EXTERNAL_UPLOAD_DESTINATION_TYPE = 'org.sagebionetworks.repo.model.file.ExternalUploadDestination'
-_EXTERNAL_S3_UPLOAD_DESTINATION_TYPE = 'org.sagebionetworks.repo.model.file.ExternalS3UploadDestination'
-
 
 # Add additional mimetypes
 mimetypes.add_type('text/x-r', '.R', strict=False)
@@ -2007,7 +2002,8 @@ class Synapse:
 
         :param entity: An entity with path.
 
-        :returns: A URL or local file path to add to Synapse,
+        :returns: a tuple consisting of:
+                  A URL or local file path to add to Synapse,
                   an update local_state containing externalURL and content-type,
                   and a storage location id indicating to where the entity should be uploaded ("None" defaults to Synapse)
         """
@@ -2024,13 +2020,13 @@ class Synapse:
 
         location =  self._getDefaultUploadDestination(entity)
         upload_destination_type = location['concreteType']
-        if upload_destination_type == _SYNAPSE_S3_UPLOAD_DESTINATION_TYPE or \
-           upload_destination_type == _EXTERNAL_S3_UPLOAD_DESTINATION_TYPE:
+        if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION or \
+           upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
             if entity.get('synapseStore', True):
-                storageString = 'Synapse' if upload_destination_type == _SYNAPSE_S3_UPLOAD_DESTINATION_TYPE else 'your external S3'
+                storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
                 sys.stdout.write('\n' + '#'*50+'\n Uploading file to ' + storageString + ' storage \n'+'#'*50+'\n')
             return entity['path'], local_state, location['storageLocationId']
-        elif upload_destination_type == _EXTERNAL_UPLOAD_DESTINATION_TYPE:
+        elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
             if location['uploadType'] == 'SFTP' :
                 if entity.get('synapseStore', True):
                     sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
@@ -2051,7 +2047,7 @@ class Synapse:
             else:
                 raise NotImplementedError('Can only handle SFTP upload locations.')
         else:
-            raise NotImplementedError("The UploadDestination type: " + upload_destination_type + " is not supported")
+            raise NotImplementedError("The UploadDestination type: " + upload_destination_type.split(".")[-1] + " is not supported")
 
     #@utils.memoize  #To memoize we need to be able to back out faulty credentials
     def __getUserCredentials(self, baseURL, username=None, password=None):
@@ -2856,8 +2852,6 @@ class Synapse:
         :param filepath: Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
         :param schema: A table entity or its Synapse ID.
         :param updateEtag: Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
-        :param storageLocationId: a id indicating where the file should be stored. retrieved from Synapse's UploadDestination
-
 
         :returns: `UploadToTableResult <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """

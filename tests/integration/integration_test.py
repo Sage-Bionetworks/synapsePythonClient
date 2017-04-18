@@ -15,6 +15,7 @@ except ImportError:
 from datetime import datetime
 from nose.tools import assert_raises, assert_equals, assert_not_equal
 from nose.plugins.attrib import attr
+from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch
 
 import synapseclient
@@ -411,23 +412,17 @@ def _set_up_external_s3_project():
     schedule_for_cleanup(project_ext_s3)
     return project_ext_s3.id, destination['storageLocationId']
 
+
 def test_external_s3_upload():
+    #skip if not on the synapse-test user
+    if syn.username != 'synapse-test':
+        raise SkipTest("This test is configured to work on synapse's TravisCI. If you wish to run this locally, please create an external S3 bucket that your Synapse username can access (http://docs.synapse.org/articles/custom_storage_location.html) and modify the EXTERNAL_S3_BUCKET variable")
+
     #setup
     project_id, storage_location_id = _set_up_external_s3_project()
 
     # create a temporary file for upload
-    fd, temp_file_path = tempfile.mkstemp(suffix=".txt")
-    with os.fdopen(fd, 'w') as f:
-        f.write(utils.normalize_lines("""
-            Did you ever hear the tragedy of Darth Plagueis The Wise? I thought not.
-            It's not a story the Jedi would tell you. It's a Sith legend.
-            Darth Plagueis was a Dark Lord of the Sith, so powerful and so wise he could use the Force to influence the midichlorians to create life...
-            He had such a knowledge of the dark side that he could even keep the ones he cared about from dying.
-            The dark side of the Force is a pathway to many abilities some consider to be unnatural.
-            He became so powerful... the only thing he was afraid of was losing his power, which eventually, of course, he did.
-            Unfortunately, he taught his apprentice everything he knew, then his apprentice killed him in his sleep.
-            Ironic. He could save others from death, but not himself.
-            """))
+    temp_file_path = utils.make_bogus_data_file()
     expected_md5 = utils.md5_for_file(temp_file_path).hexdigest()
     schedule_for_cleanup(temp_file_path)
 
