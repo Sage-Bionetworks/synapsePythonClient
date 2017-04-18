@@ -1,10 +1,14 @@
-import os, json, tempfile, filecmp
-from nose.tools import assert_raises, assert_equal, assert_in
-from mock import MagicMock, patch
+import json
+import os
+import tempfile
+
 import unit
-from synapseutils import concrete_types
-from synapseclient.exceptions import *
+from mock import patch
+from nose.tools import assert_equal, assert_in
+
+from constants import concrete_types
 from synapseclient import Evaluation, File
+from synapseclient.exceptions import *
 
 
 def setup(module):

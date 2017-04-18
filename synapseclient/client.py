@@ -33,8 +33,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
+
 from builtins import input
+from builtins import str
 
 try:
     import configparser
@@ -42,10 +43,9 @@ except ImportError:
     import ConfigParser as configparser
 
 import collections
-import math, os, sys, stat, re, json, time
+import os, sys, re, json, time
 import base64, hashlib, hmac
 import six
-import uuid
 
 try:
     from urllib.parse import urlparse
@@ -60,7 +60,7 @@ except ImportError:
     from urllib import unquote
     from urllib import urlretrieve
 
-import requests, webbrowser
+import webbrowser
 import shutil
 import zipfile
 import mimetypes
@@ -70,20 +70,18 @@ import getpass
 from collections import OrderedDict
 
 import synapseclient
-from synapseutils import concrete_types
-from . import utils
+from constants import concrete_types
 from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error, _extract_zip_file_to_directory, _is_integer
+from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error, _extract_zip_file_to_directory, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
-from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
-from .entity import Entity, File, Project, Folder, Link, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
+from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Table, Column, RowSet, Row, TableQueryResult, CsvFileTable
+from .table import Schema, Column, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
