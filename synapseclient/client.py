@@ -1844,11 +1844,11 @@ class Synapse:
                 ## find it and restart the download from where it left off
                 temp_destination = utils.temp_download_filename(destination, fileHandleId)
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
-                                if os.path.exists(temp_destination) else {}
+                                if os.path.exists(temp_destination) else {} #TODO: note to self: maybe the range retry is being set only once
                 response = _with_retry(
                     lambda: requests.get(url, headers=self._generateSignedHeaders(url, range_header),
-                                         stream=True, allow_redirects=False),
-                    verbose=self.debug, **STANDARD_RETRY_PARAMS)
+                                                                                    stream=True, allow_redirects=False),
+                                        verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
                     exceptions._raise_for_status(response, verbose=self.debug)
                 except SynapseHTTPError as err:
