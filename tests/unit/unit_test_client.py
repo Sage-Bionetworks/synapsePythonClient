@@ -2,8 +2,10 @@ import os, json, tempfile, filecmp
 from nose.tools import assert_raises, assert_equal, assert_in
 from mock import MagicMock, patch
 import unit
+from synapseutils import concrete_types
 from synapseclient.exceptions import *
-from synapseclient import Evaluation, File, client, Synapse
+from synapseclient import Evaluation, File
+
 
 def setup(module):
     print('\n')
@@ -205,7 +207,7 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     expected_local_state = {}
     expected_path = "~/fake/path/file.txt"
     mock_upload_destination.return_value = {'storageLocationId' : expected_storage_location_id,
-                                            'concreteType' : client._EXTERNAL_S3_UPLOAD_DESTINATION_TYPE}
+                                            'concreteType' : concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
 
     test_file = File(expected_path, parent="syn12345")
 
