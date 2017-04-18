@@ -3,19 +3,20 @@ from synapseclient.entity import is_container
 import os
 import json
 
-def _getChildren(syn, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC", nextPageToken=None):
+def _getChildren(syn, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC"):
     entityChildrenRequest = {'parentId':parentId,
                              'includeTypes':includeTypes,
                              'sortBy':sortBy,
                              'sortDirection':sortDirection,
-                             'nextPageToken':nextPageToken}
-
+                             'nextPageToken':None}
+    allChildren = []
     resultPage = syn.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
-    for result in resultPage['page']:
-        yield result
-    if resultPage.get('nextPageToken') is not None:
-        for x in _getChildren(syn, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC", nextPageToken=resultPage.get('nextPageToken')):
-            yield x
+    allChildren = resultPage['page']
+    while resultPage.get('nextPageToken') is not None:
+        entityChildrenRequest['nextPageToken'] = resultPage['nextPageToken']
+        resultPage = syn.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
+        allChildren.extend(resultPage['page'])
+    return(allChildren)
 
 def walk(syn, synId):
     """
@@ -52,7 +53,7 @@ def _helpWalk(syn,synId,newpath=None):
     nondirs = []
     results = _getChildren(syn, synId)
     for i in results:
-        if i['type'] in (synapseclient.Project._synapse_entity_type, synapseclient.Folder._synapse_entity_type):
+        if is_container(i):
             dirs.append((i['name'],i['id']))
         else:
             nondirs.append((i['name'],i['id']))

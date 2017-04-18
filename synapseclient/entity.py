@@ -640,6 +640,8 @@ def is_container(entity):
     """Test if an entity is a container (ie, a Project or a Folder)"""
     if 'concreteType' in entity:
         concreteType = entity['concreteType']
+    elif 'type' in entity:
+        concreteType = entity['type']
     elif isinstance(entity, collections.Mapping):
         prefix = utils.extract_prefix(entity.keys())
         if prefix+'concreteType' in entity:
