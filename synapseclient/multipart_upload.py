@@ -40,6 +40,7 @@ import synapseclient.exceptions as exceptions
 from .utils import printTransferProgress, md5_for_file, MB, GB
 from .dict_object import DictObject
 from .exceptions import SynapseError
+from .exceptions import SynapseHTTPError
 from .utils import threadsafe_generator
 
 MAX_NUMBER_OF_PARTS = 10000
@@ -257,9 +258,6 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
                   fileSize, partSize, t0):
     partNumber=part["partNumber"]
     url=part["uploadPresignedUrl"]
-    parsed = urlparse(url)
-    expires = float(parse_qs(parsed.query)['Expires'][0])
-    if expires<time.time(): return
     try:
         chunk = get_chunk_function(partNumber, partSize)
         _put_chunk(url, chunk, syn.debug)
@@ -275,6 +273,10 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
             with completed.get_lock():
                 completed.value += len(chunk)
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0)
+    except SynapseHTTPError as http_error:
+        if http_error.response.status_code == 403 and "expired" in http_error.reponse.message:
+            sys.stderr.write("The presigned upload URL has expired. Restarting upload...\n")
+            raise
     except Exception as ex1:
         #If we are not in verbose debug mode we will swallow the error and retry.
         if syn.debug:
