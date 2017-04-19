@@ -538,9 +538,12 @@ class Schema(Entity, Versionable):
                 self.properties.columnIds.append(column.id)
             self.__dict__['columns_to_store'] = None
 
+class ViewSchema(Schema):
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
 
 ## add Schema to the map of synapse entity types to their Python representations
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
+synapseclient.entity._entity_type_to_class[ViewSchema._synapse_entity_type] = ViewSchema
 
 
 ## allowed column types
@@ -1179,7 +1182,7 @@ class CsvFileTable(TableAbstractBaseClass):
             self.schema = syn.store(self.schema)
             self.tableId = self.schema.id
 
-        upload_to_table_result = syn._uploadCsv(
+        result = syn._uploadCsv(
             self.filepath,
             self.schema if self.schema else self.tableId,
             updateEtag=self.etag,
@@ -1190,6 +1193,10 @@ class CsvFileTable(TableAbstractBaseClass):
             header=self.header,
             linesToSkip=self.linesToSkip)
 
+        upload_to_table_result = result['results'][0]
+
+        assert upload_to_table_result['concreteType'] in ('org.sagebionetworks.repo.model.table.EntityUpdateResults',
+                                                          'org.sagebionetworks.repo.model.table.UploadToTableResult'), "Not an UploadToTableResult or EntityUpdateResults."
         if 'etag' in upload_to_table_result:
             self.etag = upload_to_table_result['etag']
         return self
