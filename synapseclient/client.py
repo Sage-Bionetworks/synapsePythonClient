@@ -1887,21 +1887,28 @@ class Synapse:
                         sig = hashlib.md5()
 
                     try:
+                        print("writing to temp file: ", temp_destination)
                         with open(temp_destination, mode) as fd:
                             t0 = time.time()
                             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
+                                #print("writing chunk #", nChunks, "of size: ", len(chunk))
+                                if not chunk:
+                                    print('"download is kill." no.')
+                                    break
+
                                 fd.write(chunk)
                                 sig.update(chunk)
                                 transferred += len(chunk)
                                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
                                                             os.path.basename(destination), dt = time.time()-t0)
+                        print("done writing")
                     except Exception as ex:  #We will add a progress parameter then push it back to retry.
                         ex.progress  = transferred-previouslyTransferred
                         raise
 
                     #verify that the file was completely downloaded
-                    if transferred < toBeTransferred:
-                        print("oops, for some reason the client thought it was done transferred=", transferred, " actual size: ", os.path.getsize(temp_destination))
+                    if toBeTransferred > 0 and transferred < toBeTransferred:
+                        print("Retrying download: the connection ended early. transferred=", transferred, " actual size=", os.path.getsize(temp_destination))
                         continue
 
                     actual_md5 = sig.hexdigest()
@@ -1917,7 +1924,7 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            os.remove(temp_destination)
+            os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
