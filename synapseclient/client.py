@@ -1900,12 +1900,11 @@ class Synapse:
                                 transferred += len(chunk)
                                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
                                                             os.path.basename(destination), dt = time.time()-t0)
-                        print("done writing")
                     except Exception as ex:  #We will add a progress parameter then push it back to retry.
                         ex.progress  = transferred-previouslyTransferred
                         raise
 
-                    #verify that the file was completely downloaded
+                    #verify that the file was completely downloaded and continue downloading if it stopped early for some reason
                     if toBeTransferred > 0 and transferred < toBeTransferred:
                         print("Retrying download: the connection ended early. transferred=", transferred, " actual size=", os.path.getsize(temp_destination))
                         continue
