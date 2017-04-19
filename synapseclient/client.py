@@ -1887,7 +1887,6 @@ class Synapse:
                         sig = hashlib.md5()
 
                     try:
-                        print("writing to temp file: ", temp_destination)
                         with open(temp_destination, mode) as fd:
                             t0 = time.time()
                             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
@@ -1924,7 +1923,8 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            os.remove(destination)
+            if os.path.exists(destination):
+                os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
