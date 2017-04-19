@@ -1793,7 +1793,7 @@ class Synapse:
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
-                log_error('\nRetrying download on %s after progressing %i bytes\n'%
+                log_error('\nRetrying download on error: [%s] after progressing %i bytes\n'%
                           (exc_info[0](exc_info[1]), ex.progress), self.debug)
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
@@ -1844,7 +1844,7 @@ class Synapse:
                 ## find it and restart the download from where it left off
                 temp_destination = utils.temp_download_filename(destination, fileHandleId)
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
-                                if os.path.exists(temp_destination) else {} #TODO: note to self: maybe the range retry is being set only once
+                                if os.path.exists(temp_destination) else {}
                 response = _with_retry(
                     lambda: requests.get(url, headers=self._generateSignedHeaders(url, range_header),
                                                                                     stream=True, allow_redirects=False),
@@ -1898,6 +1898,12 @@ class Synapse:
                     except Exception as ex:  #We will add a progress parameter then push it back to retry.
                         ex.progress  = transferred-previouslyTransferred
                         raise
+
+                    #verify that the file was completely downloaded
+                    if transferred < toBeTransferred:
+                        print("oops, for some reason the client thought it was done transferred=", transferred, " actual size: ", os.path.getsize(temp_destination))
+                        continue
+
                     actual_md5 = sig.hexdigest()
                     ## rename to final destination
                     shutil.move(temp_destination, destination)
@@ -1911,6 +1917,7 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
+            os.remove(temp_destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
