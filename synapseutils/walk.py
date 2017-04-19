@@ -18,7 +18,7 @@ def _getChildren(syn, parentId, includeTypes=["folder","file","table","link","en
         allChildren.extend(resultPage['page'])
     return(allChildren)
 
-def walk(syn, synId):
+def walk(syn, synId, includeTypes=None):
     """
     Traverse through the hierarchy of files and folders stored under the synId. Has the same behavior
     as os.walk()
@@ -26,6 +26,9 @@ def walk(syn, synId):
     :param syn:            A synapse object: syn = synapseclient.login()- Must be logged into synapse
 
     :param synId:          A synapse ID of a folder or project
+
+    :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
+                           http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
 
     Example::
 
@@ -37,10 +40,15 @@ def walk(syn, synId):
             print(filename) #All the files in the directory path
 
     """
-    return(_helpWalk(syn,synId))
+    entityTypes = syn.restGET("/REST/resources/schema/?resourceId=org.sagebionetworks.repo.model.EntityType")['enum']
+    if includeTypes is None:
+        includeTypes = entityTypes
+    elif not all([entityType in entityTypes for entityType in includeTypes]):
+        raise ValueError("Entity type must be part of this list: %s" % ", ".join(entityTypes))
+    return(_helpWalk(syn,synId,includeTypes))
 
 #Helper function to hide the newpath parameter
-def _helpWalk(syn,synId,newpath=None):
+def _helpWalk(syn,synId,includeTypes,newpath=None):
     starting = syn.get(synId,downloadFile=False)
     #If the first file is not a container, return immediately
     if newpath is None and not is_container(starting):
@@ -51,7 +59,7 @@ def _helpWalk(syn,synId,newpath=None):
         dirpath = (newpath,synId)
     dirs = []
     nondirs = []
-    results = _getChildren(syn, synId)
+    results = _getChildren(syn, synId, includeTypes=includeTypes)
     for i in results:
         if is_container(i):
             dirs.append((i['name'],i['id']))
@@ -60,7 +68,7 @@ def _helpWalk(syn,synId,newpath=None):
     yield dirpath, dirs, nondirs
     for name in dirs:
         newpath = os.path.join(dirpath[0],name[0])
-        for x in _helpWalk(syn, name[1], newpath):
+        for x in _helpWalk(syn, name[1], includeTypes, newpath=newpath):
             yield x
 
 
