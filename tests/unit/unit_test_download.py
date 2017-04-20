@@ -59,6 +59,14 @@ class IterateContents(object):
         self.i = end
         return self.contents[start:end].encode('utf-8')
 
+    def peek_next_length(self):
+        prev_i = self.i
+        try:
+            length = len(self.__next__())
+            self.i = prev_i
+            return length
+        except:
+            return 0
 
 def create_mock_response(url, response_type, **kwargs):
     response = MagicMock()
@@ -83,11 +91,18 @@ def create_mock_response(url, response_type, **kwargs):
             'content-type':'application/octet-stream',
             'content-length':len(response.text)
         }
-        response.iter_content = lambda buffer_size: \
-            IterateContents(kwargs['contents'],
-                            kwargs['buffer_size'],
-                            kwargs.get('partial_start', 0),
-                            kwargs.get('partial_end', None))
+
+        def _create_iterator(buffer_size):
+            response._content_iterator = IterateContents(kwargs['contents'],
+                        kwargs['buffer_size'],
+                        kwargs.get('partial_start', 0),
+                        kwargs.get('partial_end', None))
+            return response._content_iterator
+
+        response.iter_content = _create_iterator
+        def _tell():
+            return response._content_iterator.peek_next_length()
+        response.raw.tell = _tell
     else:
         response.status_code = 200
         response.text = kwargs['text']

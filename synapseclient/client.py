@@ -1796,8 +1796,10 @@ class Synapse:
                 log_error('\nRetrying download on error: [%s] after progressing %i bytes\n'%
                           (exc_info[0](exc_info[1]), ex.progress), self.debug)
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
+                    print("Progress made:", ex.progress)
                     retries -= 1
         ## Re-raise exception
+        print(exc_info[1])
         raise exc_info[0](exc_info[1])
 
 
@@ -1898,11 +1900,9 @@ class Synapse:
                                 # automatically decodes the chunks if the response body is encoded
                                 # so the len(chunk) could be different from the total number of bytes we've read read from the response body
                                 # response.raw.tell() is the total number of response body bytes transffered over the wire so far
-                                transferred = response.raw.tell()
+                                transferred = response.raw.tell() + previouslyTransferred
                                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
                                                             os.path.basename(destination), dt = time.time()-t0)
-
-
                     except Exception as ex:  # We will add a progress parameter then push it back to retry.
                         ex.progress  = transferred-previouslyTransferred
                         raise
