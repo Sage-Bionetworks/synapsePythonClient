@@ -1890,23 +1890,26 @@ class Synapse:
                         with open(temp_destination, mode) as fd:
                             t0 = time.time()
                             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
-                                #print("writing chunk #", nChunks, "of size: ", len(chunk))
-                                if not chunk:
-                                    print('"download is kill." no.')
-                                    break
-
                                 fd.write(chunk)
                                 sig.update(chunk)
-                                transferred += len(chunk)
+
+                                # the 'content-length' header gives the total number of bytes that will be transfered to us
+                                # len(chunk) cannot be used to track progress because iter_content
+                                # automatically decodes the chunks if the response body is encoded
+                                # so the len(chunk) could be different from the total number of bytes we've read read from the response body
+                                # response.raw.tell() is the total number of response body bytes transffered over the wire so far
+                                transferred = response.raw.tell()
                                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
                                                             os.path.basename(destination), dt = time.time()-t0)
+
+
                     except Exception as ex:  #We will add a progress parameter then push it back to retry.
                         ex.progress  = transferred-previouslyTransferred
                         raise
 
-                    #verify that the file was completely downloaded and continue downloading if it stopped early for some reason
+                    #verify that the file was completely downloaded and retry if it is not complete
                     if toBeTransferred > 0 and transferred < toBeTransferred:
-                        print("Retrying download: the connection ended early. transferred=", transferred, " actual size=", os.path.getsize(temp_destination))
+                        sys.stderr.write("Retrying download: the connection ended early. Expeceted=", toBeTransferred, " actual size=", transferred)
                         continue
 
                     actual_md5 = sig.hexdigest()
