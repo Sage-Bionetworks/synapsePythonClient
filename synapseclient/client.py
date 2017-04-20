@@ -1796,10 +1796,8 @@ class Synapse:
                 log_error('\nRetrying download on error: [%s] after progressing %i bytes\n'%
                           (exc_info[0](exc_info[1]), ex.progress), self.debug)
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
-                    print("Progress made:", ex.progress)
                     retries -= 1
         ## Re-raise exception
-        print(exc_info[1])
         raise exc_info[0](exc_info[1])
 
 
