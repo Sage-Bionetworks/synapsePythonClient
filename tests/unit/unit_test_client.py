@@ -200,10 +200,3 @@ def test_send_message():
             assert msg["recipients"] == [1421212], msg
             assert msg["subject"] == "Xanadu", msg
 
-# def test_download_end_early_retry:
-#     with patch() as:
-#         url = "http://www.ayy.lmao/filerino.txt"
-#         destination = "/fake/path/Kappa/123"
-#
-#         #function under test
-#         _download()

@@ -1847,7 +1847,7 @@ class Synapse:
                                 if os.path.exists(temp_destination) else {}
                 response = _with_retry(
                     lambda: requests.get(url, headers=self._generateSignedHeaders(url, range_header),
-                                                                                    stream=True, allow_redirects=False),
+                                                                                  stream=True, allow_redirects=False),
                                         verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
                     exceptions._raise_for_status(response, verbose=self.debug)
@@ -1907,7 +1907,7 @@ class Synapse:
 
                     # verify that the file was completely downloaded and retry if it is not complete
                     if toBeTransferred > 0 and transferred < toBeTransferred:
-                        sys.stderr.write("Retrying download because the connection ended early.")
+                        sys.stderr.write("\nRetrying download because the connection ended early.\n")
                         continue
 
                     actual_md5 = sig.hexdigest()

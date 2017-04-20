@@ -6,7 +6,7 @@ import requests
 import synapseclient
 import tempfile, os, hashlib
 import unit
-from mock import MagicMock, patch
+from mock import MagicMock, patch, mock_open
 from nose.tools import assert_raises
 from synapseclient.utils import MB, GB
 from synapseclient.exceptions import SynapseHTTPError
@@ -106,7 +106,6 @@ def create_mock_response(url, response_type, **kwargs):
             'content-type':'application/json',
             'content-length':len(response.text)
         }
-
     return response
 
 def mock_generateSignedHeaders(self, url, headers=None):
@@ -235,4 +234,39 @@ def test_mock_download():
         assert_raises(SynapseHTTPError, syn._downloadFileHandle, url, destination=temp_dir,
                       fileHandle = {'id':12345, 'contentMd5':contents_md5})
 
+def test_download_end_early_retry():
+    url = "http://www.ayy.lmao/filerino.txt"
+    contents = "\n".join(str(i) for i in range(1000))
+    destination = "/fake/path/ayy/lmao/"
 
+    partial_content_break = len(contents) // 7 * 3
+    mock_requests_get = MockRequestGetFunction([
+        create_mock_response(url, "stream", contents=contents[:partial_content_break], buffer_size=1024, partial_end=len(contents),
+                             status_code=200),
+        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=partial_content_break,
+                             status_code=206)
+    ])
+
+    # make the first response's 'content-type' header say it will transfer the full content even though it
+    # is only partially doing so
+    mock_requests_get.responses[0].headers['content-length'] = len(contents)
+    mock_requests_get.responses[1].headers['content-length'] = len(contents[partial_content_break:])
+
+    with patch.object(requests, 'get', side_effect=mock_requests_get), \
+         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+         patch('__builtin__.open', mock_open(), create=True) as mocked_open, \
+         patch('os.path.getsize', return_value=partial_content_break) as mocked_getsize, \
+         patch('shutil.move') as mocked_move:
+
+        #function under test
+        syn._download(url, destination)
+
+        
+
+
+
+def test_download_md5_mismatch():
+    """
+    test to ensure file gets removed on md5 mismatch
+    """
+    pass
