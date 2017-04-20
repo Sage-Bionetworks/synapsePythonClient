@@ -1903,13 +1903,13 @@ class Synapse:
                                                             os.path.basename(destination), dt = time.time()-t0)
 
 
-                    except Exception as ex:  #We will add a progress parameter then push it back to retry.
+                    except Exception as ex:  # We will add a progress parameter then push it back to retry.
                         ex.progress  = transferred-previouslyTransferred
                         raise
 
-                    #verify that the file was completely downloaded and retry if it is not complete
+                    # verify that the file was completely downloaded and retry if it is not complete
                     if toBeTransferred > 0 and transferred < toBeTransferred:
-                        sys.stderr.write("Retrying download: the connection ended early. Expeceted=", toBeTransferred, " actual size=", transferred)
+                        sys.stderr.write("Retrying download because the connection ended early.")
                         continue
 
                     actual_md5 = sig.hexdigest()
