@@ -125,7 +125,6 @@ def test_create_and_update_file_view():
     assert new_view_dict[0]['fileFormat'] == 'PNG', "%s != PNG" % (new_view_dict[0]['fileFormat'], )
 
 def test_rowset_tables():
-
     # print("Project ID:", project.id)
     # del integration._to_cleanup[:]
 
@@ -136,7 +135,6 @@ def test_rowset_tables():
     cols.append(Column(name='age', columnType='INTEGER'))
     cols.append(Column(name='cartoon', columnType='BOOLEAN'))
     cols.append(Column(name='description', columnType='LARGETEXT'))
-
 
     schema1 = syn.store(Schema(name='Foo Table', columns=cols, parent=project))
 
@@ -151,27 +149,27 @@ def test_rowset_tables():
         assert retrieved_col.name == col.name
         assert retrieved_col.columnType == col.columnType
 
-    data1 =[['Chris',  'bar', 11.23, 45, False, 'a'],
-            ['Jen',    'bat', 14.56, 40, False, 'b'],
-            ['Jane',   'bat', 17.89,  6, False, 'c'*1002],
-            ['Henry',  'bar', 10.12,  1, False, 'd']]
+    data1 = [['Chris', 'bar', 11.23, 45, False, 'a'],
+             ['Jen', 'bat', 14.56, 40, False, 'b'],
+             ['Jane', 'bat', 17.89, 6, False, 'c' * 1002],
+             ['Henry', 'bar', 10.12, 1, False, 'd']]
     row_reference_set1 = syn.store(
         RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data1]))
 
     assert len(row_reference_set1['rows']) == 4
 
     ## add more new rows
-    data2 =[['Fred',   'bat', 21.45, 20, True, 'e'],
-            ['Daphne', 'foo', 27.89, 20, True, 'f'],
-            ['Shaggy', 'foo', 23.45, 20, True, 'g'],
-            ['Velma',  'bar', 25.67, 20, True, 'h']]
+    data2 = [['Fred', 'bat', 21.45, 20, True, 'e'],
+             ['Daphne', 'foo', 27.89, 20, True, 'f'],
+             ['Shaggy', 'foo', 23.45, 20, True, 'g'],
+             ['Velma', 'bar', 25.67, 20, True, 'h']]
     syn.store(
         RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data2]))
 
     results = syn.tableQuery("select * from %s order by name" % schema1.id, resultsAs="rowset")
 
-    assert results.count==8
-    assert results.tableId==schema1.id
+    assert results.count == 8
+    assert results.tableId == schema1.id
 
     ## test that the values made the round trip
     expected = sorted(data1 + data2)
@@ -179,7 +177,7 @@ def test_rowset_tables():
         assert expected_values == row['values'], 'got %s but expected %s' % (row['values'], expected_values)
 
     ## To modify rows, we have to select then first.
-    result2 = syn.tableQuery('select * from %s where age>18 and age<30'%schema1.id, resultsAs="rowset")
+    result2 = syn.tableQuery('select * from %s where age>18 and age<30' % schema1.id, resultsAs="rowset")
 
     ## make a change
     rs = result2.asRowSet()
@@ -190,7 +188,7 @@ def test_rowset_tables():
     row_reference_set = syn.store(rs)
 
     ## check if the change sticks
-    result3 = syn.tableQuery('select name, x, age from %s'%schema1.id, resultsAs="rowset")
+    result3 = syn.tableQuery('select name, x, age from %s' % schema1.id, resultsAs="rowset")
     for row in result3:
         if int(row['values'][2]) == 20:
             assert row['values'][1] == 88.888
@@ -199,13 +197,13 @@ def test_rowset_tables():
     bday_column = syn.store(Column(name='birthday', columnType='DATE'))
 
     column = syn.getColumn(bday_column.id)
-    assert column.name=="birthday"
-    assert column.columnType=="DATE"
+    assert column.name == "birthday"
+    assert column.columnType == "DATE"
 
     schema1.addColumn(bday_column)
     schema1 = syn.store(schema1)
 
-    results = syn.tableQuery('select * from %s where cartoon=false order by age'%schema1.id, resultsAs="rowset")
+    results = syn.tableQuery('select * from %s where cartoon=false order by age' % schema1.id, resultsAs="rowset")
     rs = results.asRowSet()
 
     ## put data in new column
@@ -215,35 +213,40 @@ def test_rowset_tables():
     row_reference_set = syn.store(rs)
 
     ## query by date and check that we get back two kids
-    date_2008_jan_1 = utils.to_unix_epoch_time(datetime(2008,1,1))
-    results = syn.tableQuery('select name from %s where birthday > %d order by birthday' % (schema1.id, date_2008_jan_1), resultsAs="rowset")
+    date_2008_jan_1 = utils.to_unix_epoch_time(datetime(2008, 1, 1))
+    results = syn.tableQuery(
+        'select name from %s where birthday > %d order by birthday' % (schema1.id, date_2008_jan_1), resultsAs="rowset")
     assert ["Jane", "Henry"] == [row['values'][0] for row in results]
 
     try:
         import pandas as pd
         df = results.asDataFrame()
-        assert all(df.ix[:,"name"] == ["Jane", "Henry"])
+        assert all(df.ix[:, "name"] == ["Jane", "Henry"])
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
-    results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id, resultsAs="rowset")
+    results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id,
+                             resultsAs="rowset")
     for bday, row in zip(bdays, results):
-        assert row['values'][0] == datetime.strptime(bday, "%Y-%m-%d"), "got %s but expected %s" % (row['values'][0], bday)
+        assert row['values'][0] == datetime.strptime(bday, "%Y-%m-%d"), "got %s but expected %s" % (
+            row['values'][0], bday)
 
     try:
         import pandas as pd
-        results = syn.tableQuery("select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id, resultsAs="rowset")
+        results = syn.tableQuery(
+            "select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id,
+            resultsAs="rowset")
         df = results.asDataFrame()
         print(df)
-        assert df.shape == (3,4)
-        assert all(df.iloc[:,0] == ["bar", "bat", "foo"])
-        assert all(df.iloc[:,1] == [88.888, 88.888, 88.888])
-        assert all(df.iloc[:,2] == [3, 3, 2])
+        assert df.shape == (3, 4)
+        assert all(df.iloc[:, 0] == ["bar", "bat", "foo"])
+        assert all(df.iloc[:, 1] == [88.888, 88.888, 88.888])
+        assert all(df.iloc[:, 2] == [3, 3, 2])
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
     ## test delete rows by deleting cartoon characters
-    syn.delete(syn.tableQuery('select name from %s where cartoon = true'%schema1.id, resultsAs="rowset"))
+    syn.delete(syn.tableQuery('select name from %s where cartoon = true' % schema1.id, resultsAs="rowset"))
 
     results = syn.tableQuery('select name from %s order by birthday' % schema1.id, resultsAs="rowset")
     assert ["Chris", "Jen", "Jane", "Henry"] == [row['values'][0] for row in results]
@@ -261,9 +264,121 @@ def test_rowset_tables():
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
 
 
+def test_view_and_update_csv():
+    try:
+        import pandas as pd
+    except ImportError as e1:
+        sys.stderr.write(
+            'Pandas is not installed, skipping testing entity-view update via user-defined manifest CSV.\n\n')
+
+    ## Update the project
+    project_name = str(uuid.uuid4())
+    project = Project(name=project_name)
+    project = syn.store(project)
+    schedule_for_cleanup(project)
+    project = syn.getEntity(project)
+    # print(project.id)
+    assert project.name == project_name
+
+    ## Create and get a de-novo folder
+    folder = Folder('De-Novo Folder', parent=project, description='creating a file-view')
+    folder = syn.createEntity(folder)
+    folder = syn.getEntity(folder)
+    assert folder.name == 'De-Novo Folder'
+    assert folder.parentId == project.id
+    # print(folder)
+    assert folder.description == 'creating a file-view'
+
+    ## Create dummy files with annotations in our de-novo folder
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    a_file = File(path, parent=folder, description=u'',
+                  contentType='text/flapdoodle',
+                  fileFormat='jpg',
+                  dataType='image',
+                  artist='Banksy',
+                  medium='print',
+                  title='Girl With Ballon')
+    a_file = syn.store(a_file)
+    file_info = syn.getEntity(a_file)
+    # print(a_file)
+    # print(file_info)
+    assert a_file.path == path
+
+    ## How-to get scopeIds, not required yet: The list of container IDs (projects or folders) that define the scope of this view
+    '''body = {u'concreteType': u'org.sagebionetworks.repo.model.table.ViewScope', u'scope': [file_info.id]}
+    entity_scope = syn.restPOST(uri='/column/view/scope', body=json.dumps(body))
+    print(entity_scope)'''
+
+    # minimal_schema_columnIds = [u'2510', u'23543', u'23544', u'23545', u'31783', u'26823', u'31784', u'23550',
+    #                            u'30514', u'31785', u'31782', u'31786']
+
+    ## Create an empty entity-view with defined scope as folder 
+    body = {u'columnIds': [],
+            u'concreteType': u'org.sagebionetworks.repo.model.table.EntityView',
+            u'entityType': u'org.sagebionetworks.repo.model.table.EntityView',
+            u'name': u'empty file view',
+            u'parentId': project.id,
+            u'scopeIds': [folder['id'][3:]],
+            u'type': u'file'}
+
+    entity_view = syn.restPOST(uri='/entity', body=json.dumps(body))
+    # print(entity_view)
+    entity_info = syn.getEntity(entity_view)
+    # print(entity_info)
+
+    ## add folder to entity-view (stuck)
+    # view_1 = syn.store(synapseclient.Table(entity_info['id'], path))
+
+    ## do we need to define the view-schema columns? 
+    cols = [
+        Column(name='fileFormat', columnType='STRING', maximumSize=20),
+        Column(name='dataType', columnType='STRING', maximumSize=20),
+        Column(name='artist', columnType='STRING', maximumSize=20),
+        Column(name='medium', columnType='STRING', maximumSize=20),
+        Column(name='title', columnType='STRING', maximumSize=20)]
+
+    schema = Schema(name='my view schema', columns=cols, parent=entity_info.id)
+    # print(schema) # columnIds are not defined
+
+    ## None de-novo test 
+    '''view_id = "syn8529621"
+    query = "select * from %s" % view_id
+
+    ## the format of this data will be used to create a de-novo entity-view (when creation of entity-view is implemented)
+    df = pd.DataFrame({
+            'id': ("syn8528274", "syn8528280", "syn8528283", "syn8528288"),
+            'fileFormat': ("jpg", "jpg", "jpg", "jpg"),
+            'dataType': ("image", "image", "image", "image"),
+            'artist': ("Banksy", "Banksy", "Banksy", "Banksy"),
+            'medium': ("Print", "Print", "Print", "Print"),
+            'title': ("Gangsta Rat", "Girl With Ballon", "Pulp Fiction", "Radar Rat"),
+            })
+
+    ## get the current view-schema
+    view = syn.tableQuery(query)
+    view_df = view.asDataFrame()
+
+    ## check if the user-defined schema is a subset of view-schema
+    assert df.columns.isin(view_df.columns).all()
+
+    ## update the view-schema by user-defined data-frame manifest
+    view = syn.store(synapseclient.Table(view_id, df))
+
+    ## get the updated view-schema
+    updated_view = syn.tableQuery(query)
+    updated_df = updated_view.asDataFrame()
+
+    ## check if syn.store() updated the view-schema
+    assert 'Banksy' in list(df.ix[:, 'artist'])
+    assert 'jpg' in list(df.ix[:, 'fileFormat'])
+    assert 'Pulp Fiction' in list(df.ix[:, 'title'])
+
+    ## revert view-schema changes for next test
+    view = syn.store(synapseclient.Table(view_id, view_df))'''
+
 
 def test_tables_csv():
-
     ## Define schema
     cols = []
     cols.append(Column(name='Name', columnType='STRING'))
@@ -273,14 +388,14 @@ def test_tables_csv():
 
     schema = Schema(name='Jazz Guys', columns=cols, parent=project)
 
-    data = [["John Coltrane",  1926, 8.65, False],
-            ["Miles Davis",    1926, 9.87, False],
-            ["Bill Evans",     1929, 7.65, False],
-            ["Paul Chambers",  1935, 5.14, False],
-            ["Jimmy Cobb",     1929, 5.78, True],
-            ["Scott LaFaro",   1936, 4.21, False],
-            ["Sonny Rollins",  1930, 8.99, True],
-            ["Kenny Burrel",   1931, 4.37, True]]
+    data = [["John Coltrane", 1926, 8.65, False],
+            ["Miles Davis", 1926, 9.87, False],
+            ["Bill Evans", 1929, 7.65, False],
+            ["Paul Chambers", 1935, 5.14, False],
+            ["Jimmy Cobb", 1929, 5.78, True],
+            ["Scott LaFaro", 1936, 4.21, False],
+            ["Sonny Rollins", 1930, 8.99, True],
+            ["Kenny Burrel", 1931, 4.37, True]]
 
     ## the following creates a CSV file and uploads it to create a new table
     table = syn.store(Table(schema, data))
@@ -298,17 +413,19 @@ def test_tables_csv():
 
         df = results.asDataFrame()
         assert all(df.columns.values == ['Name', 'Born', 'Hipness', 'Living'])
-        assert list(df.iloc[1,[0,1,3]]) == ['Miles Davis', 1926, False]
-        assert df.iloc[1,2] - 9.87 < 0.0001
+        assert list(df.iloc[1, [0, 1, 3]]) == ['Miles Davis', 1926, False]
+        assert df.iloc[1, 2] - 9.87 < 0.0001
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for CSV tables.\n\n')
 
     ## Aggregate query
     expected = {
-         True: [True, 1929, 3, 6.38],
+        True: [True, 1929, 3, 6.38],
         False: [False, 1926, 5, 7.104]}
 
-    results = syn.tableQuery('select Living, min(Born), count(Living), avg(Hipness) from %s group by Living' % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
+    results = syn.tableQuery(
+        'select Living, min(Born), count(Living), avg(Hipness) from %s group by Living' % table.schema.id,
+        resultsAs="csv", includeRowIdAndRowVersion=False)
     for row in results:
         living = row[0]
         assert expected[living][1] == row[1]
@@ -321,10 +438,11 @@ def test_tables_csv():
         import pandas as pd
 
         df = results.asDataFrame()
-        assert all(expected[df.iloc[0,0]][0:3] == df.iloc[0,0:3])
-        assert abs(expected[df.iloc[1,0]][3] - df.iloc[1,3]) < 0.0001
+        assert all(expected[df.iloc[0, 0]][0:3] == df.iloc[0, 0:3])
+        assert abs(expected[df.iloc[1, 0]][3] - df.iloc[1, 3]) < 0.0001
     except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for aggregate queries as CSV tables.\n\n')
+        sys.stderr.write(
+            'Pandas is apparently not installed, skipping test of .asDataFrame for aggregate queries as CSV tables.\n\n')
 
     ## Append rows
     more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
@@ -335,7 +453,7 @@ def test_tables_csv():
 
     ## test that CSV file now has more jazz guys
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
-    for expected_row, row in zip(data+more_jazz_guys, results):
+    for expected_row, row in zip(data + more_jazz_guys, results):
         for field, expected_field in zip(row[2:], expected_row):
             if type(field) is float and math.isnan(field):
                 assert type(expected_field) is float and math.isnan(expected_field)
@@ -353,11 +471,12 @@ def test_tables_csv():
 
     ## aggregate queries won't return row id and version, so we need to
     ## handle this correctly
-    results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id, resultsAs="csv")
+    results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id,
+                             resultsAs="csv")
     assert results.includeRowIdAndRowVersion == False
-    for i,row in enumerate(results):
-        assert row[0] == [1917,1926,1929,1930,1931,1935,1936,1938][i]
-        assert row[1] == [1,2,2,2,2,1,1,1][i]
+    for i, row in enumerate(results):
+        assert row[0] == [1917, 1926, 1929, 1930, 1931, 1935, 1936, 1938][i]
+        assert row[1] == [1, 2, 2, 2, 2, 1, 1, 1][i]
 
     try:
         import pandas as pd
@@ -401,10 +520,10 @@ def test_tables_pandas():
 
         ## create a pandas DataFrame
         df = pd.DataFrame({
-            'A' : ("foo", "bar", "baz", "qux", "asdf"),
-            'B' : tuple(math.pi*i for i in range(5)),
-            'C' : (101, 202, 303, 404, 505),
-            'D' : (False, True, False, True, False)})
+            'A': ("foo", "bar", "baz", "qux", "asdf"),
+            'B': tuple(math.pi * i for i in range(5)),
+            'C': (101, 202, 303, 404, 505),
+            'D': (False, True, False, True, False)})
 
         cols = as_table_columns(df)
         cols[0].maximumSize = 20
@@ -414,11 +533,11 @@ def test_tables_pandas():
         table = syn.store(Table(schema, df))
 
         ## retrieve the table and verify
-        results = syn.tableQuery('select * from %s'%table.schema.id)
+        results = syn.tableQuery('select * from %s' % table.schema.id)
         df2 = results.asDataFrame()
 
         ## simulate rowId-version rownames for comparison
-        df.index = ['%s_0'%i for i in range(5)]
+        df.index = ['%s_0' % i for i in range(5)]
         assert all(df2 == df)
 
     except ImportError as e1:
@@ -436,10 +555,10 @@ def test_download_table_files():
     schema = syn.store(Schema(name='Jazz Albums', columns=cols, parent=project))
     schedule_for_cleanup(schema)
 
-    data = [["John Coltrane",  "Blue Train",   1957, "BLP 1577", "coltraneBlueTrain.jpg"],
-            ["Sonny Rollins",  "Vol. 2",       1957, "BLP 1558", "rollinsBN1558.jpg"],
-            ["Sonny Rollins",  "Newk's Time",  1958, "BLP 4001", "rollinsBN4001.jpg"],
-            ["Kenny Burrel",   "Kenny Burrel", 1956, "BLP 1543", "burrellWarholBN1543.jpg"]]
+    data = [["John Coltrane", "Blue Train", 1957, "BLP 1577", "coltraneBlueTrain.jpg"],
+            ["Sonny Rollins", "Vol. 2", 1957, "BLP 1558", "rollinsBN1558.jpg"],
+            ["Sonny Rollins", "Newk's Time", 1958, "BLP 4001", "rollinsBN4001.jpg"],
+            ["Kenny Burrel", "Kenny Burrel", 1956, "BLP 1543", "burrellWarholBN1543.jpg"]]
 
     ## upload files and store file handle ids
     original_files = []
@@ -453,7 +572,7 @@ def test_download_table_files():
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
 
     ## retrieve the files for each row and verify that they are identical to the originals
-    results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, resultsAs="rowset")
+    results = syn.tableQuery('select artist, album, year, catalog, cover from %s' % schema.id, resultsAs="rowset")
     for i, row in enumerate(results):
         print("%s_%s" % (row.rowId, row.versionNumber), row.values)
         path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
@@ -465,7 +584,9 @@ def test_download_table_files():
     with patch("synapseclient.Synapse._downloadFileHandle") as _downloadFile_mock:
         _downloadFile_mock.side_effect = original_downloadFile_method
 
-        results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
+        results = syn.tableQuery(
+            "select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'" % schema.id,
+            resultsAs="rowset")
         for i, row in enumerate(results):
             print("%s_%s" % (row.rowId, row.versionNumber), row.values)
             file_path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
@@ -503,8 +624,9 @@ def dontruntest_big_tables():
     for i in range(1000):
         rows = []
         for j in range(rows_per_append):
-            foo = cols[1].enumValues[random.randint(0,2)]
-            rows.append(Row(('Robot ' + str(i*rows_per_append + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
+            foo = cols[1].enumValues[random.randint(0, 2)]
+            rows.append(Row(('Robot ' + str(i * rows_per_append + j), foo, random.random() * 200.0,
+                             random.randint(0, 100), random.random() >= 0.5)))
         print("added %d rows" % rows_per_append)
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
@@ -546,8 +668,9 @@ def dontruntest_big_csvs():
 
         for i in range(10):
             for j in range(100):
-                foo = cols[1].enumValues[random.randint(0,2)]
-                writer.writerow(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5))
+                foo = cols[1].enumValues[random.randint(0, 2)]
+                writer.writerow(('Robot ' + str(i * 100 + j), foo, random.random() * 200.0, random.randint(0, 100),
+                                 random.random() >= 0.5))
             print("wrote 100 rows to disk")
 
     ## upload CSV
