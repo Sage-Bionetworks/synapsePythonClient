@@ -25,13 +25,13 @@ def test_logout(*mocks):
     delete_mock        = mocks.pop()
     read_session_mock  = mocks.pop()
     write_session_mock = mocks.pop()
-
+    
     # -- Logging out while not logged in shouldn't do anything --
     logged_in_mock.return_value = False
     syn.username = None
     syn.logout()
     syn.logout()
-
+    
     assert not delete_mock.called
     assert not write_session_mock.called
 
@@ -146,7 +146,7 @@ def test_submit(*mocks):
     mocks = [item for item in mocks]
     POST_mock       = mocks.pop()
     getEvaluation_mock = mocks.pop()
-
+    
     # -- Unmet access rights --
     getEvaluation_mock.return_value = Evaluation(**{u'contentSource': u'syn1001',
                                                     u'createdOn': u'2013-11-06T06:04:26.789Z',
@@ -157,7 +157,7 @@ def test_submit(*mocks):
                                                     u'status': u'OPEN',
                                                     u'submissionReceiptMessage': u'mmmm yummy!'})
 
-
+    
     # -- Normal submission --
     # insert a shim that returns the dictionary it was passed after adding a bogus id
     def shim(*args):
@@ -166,7 +166,7 @@ def test_submit(*mocks):
         submission['id'] = 1234
         return submission
     POST_mock.side_effect = shim
-
+    
     submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', submitterAlias='Team X')
 
     assert submission.id == 1234
@@ -199,4 +199,3 @@ def test_send_message():
             assert msg["fileHandleId"] == "7365905", msg
             assert msg["recipients"] == [1421212], msg
             assert msg["subject"] == "Xanadu", msg
-
