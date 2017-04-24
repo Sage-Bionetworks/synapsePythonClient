@@ -6,8 +6,8 @@ import requests
 import synapseclient
 import tempfile, os, hashlib
 import unit
-from mock import MagicMock, patch, mock_open
-from nose.tools import assert_raises
+from mock import MagicMock, patch, mock_open, call
+from nose.tools import assert_raises, assert_equals
 from synapseclient.utils import MB, GB
 from synapseclient.exceptions import SynapseHTTPError
 
@@ -237,7 +237,8 @@ def test_mock_download():
 def test_download_end_early_retry():
     url = "http://www.ayy.lmao/filerino.txt"
     contents = "\n".join(str(i) for i in range(1000))
-    destination = "/fake/path/ayy/lmao/"
+    destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+    temp_destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt.temp"))
 
     partial_content_break = len(contents) // 7 * 3
     mock_requests_get = MockRequestGetFunction([
@@ -254,15 +255,32 @@ def test_download_end_early_retry():
 
     with patch.object(requests, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch('__builtin__.open', mock_open(), create=True) as mocked_open, \
+         patch('synapseclient.utils.temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
+         patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
+         patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
          patch('os.path.getsize', return_value=partial_content_break) as mocked_getsize, \
+         patch('synapseclient.utils.md5_for_file'), \
          patch('shutil.move') as mocked_move:
 
         #function under test
         syn._download(url, destination)
 
-        
+        #assert temp_download_filename() called 2 times with same parameters
+        assert_equals([call(destination, None)] * 2 , mocked_temp_dest.call_args_list)
 
+        #assert exists called 2 times
+        assert_equals([call(temp_destination)] * 2 , mocked_exists.call_args_list)
+
+
+        #assert open() called 2 times with different parameters
+        assert_equals([call(temp_destination, 'wb'), call(temp_destination, 'ab')], mocked_open.call_args_list)
+
+        # assert getsize() called 2 times
+        # once because exists()=True and another time because response status code = 206
+        assert_equals([call(temp_destination)] * 2 , mocked_exists.call_args_list)
+
+        #assert shutil.move() called 1 time
+        mocked_move.assert_called_once_with(temp_destination, destination)
 
 
 def test_download_md5_mismatch():
