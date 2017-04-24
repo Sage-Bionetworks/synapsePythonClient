@@ -105,6 +105,7 @@ def create_mock_response(url, response_type, **kwargs):
             'content-type':'application/json',
             'content-length':len(response.text)
         }
+
     return response
 
 def mock_generateSignedHeaders(self, url, headers=None):
@@ -328,3 +329,4 @@ def test_download_md5_mismatch():
 
         #assert file was removed
         mocked_remove.assert_called_once_with(destination)
+
