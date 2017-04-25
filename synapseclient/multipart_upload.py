@@ -280,7 +280,7 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
                 completed.value += len(chunk)
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0)
     except Exception as ex1:
-        if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403 and "expired" in ex1.reponse.message:
+        if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403 and "expired" in ex1.response.message:
             sys.stderr.write("The presigned upload URL has expired. Restarting upload...\n")
             with expired.get_lock():
                 expired.value = True
