@@ -331,7 +331,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
-                                                      fileSize=fileSize, partSize=partSize, t0=time.time(), expired=Value(c_bool, True))
+                                                      fileSize=fileSize, partSize=partSize, t0=time.time(), expired=Value(c_bool, False))
 
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)
