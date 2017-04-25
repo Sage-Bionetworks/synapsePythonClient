@@ -79,7 +79,8 @@ import json
 import warnings
 from .exceptions import *
 import getpass
-
+import csv
+import re
 
 def query(args, syn):
     try:
@@ -92,29 +93,49 @@ def query(args, syn):
         ## in any other case."
         pass
     ## TODO: Should use loop over multiple returned values if return is too long
-    results = syn.chunkedQuery(' '.join(args.queryString))
-    headings = collections.OrderedDict()
-    temp = [] # Since query returns a generator, the results must be stored locally
-    for res in results:
-        temp.append(res)
-        for head in res:
-            headings[head] = True
-    if len(headings) == 0: # No results found
-        return
-    sys.stdout.write('%s\n' %'\t'.join(headings))
-    for res in temp:
-        out = []
-        for key in headings:
-            out.append(str(res.get(key, "")))
-        sys.stdout.write('%s\n' % "\t".join(out))
 
+    queryString = ' '.join(args.queryString)
+
+    if re.search('from syn\d', queryString.lower()):
+        results = syn.tableQuery(queryString)
+        reader = csv.reader(open(results.filepath))
+        for row in reader:
+            sys.stdout.write("%s\n" % ("\t".join(row)))
+    else:
+        results = syn.chunkedQuery(' '.join(args.queryString))
+        headings = collections.OrderedDict()
+        temp = [] # Since query returns a generator, the results must be stored locally
+        for res in results:
+            temp.append(res)
+            for head in res:
+                headings[head] = True
+        if len(headings) == 0: # No results found
+            return
+        sys.stdout.write('%s\n' %'\t'.join(headings))
+        for res in temp:
+            out = []
+            for key in headings:
+                out.append(str(res.get(key, "")))
+            sys.stdout.write('%s\n' % "\t".join(out))
 
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
+
+    queryType = 'synapse'
+
     ids = []
-    for item in  syn.chunkedQuery(queryString):
-        key = [k for k in  item.keys() if k.split('.', 1)[1]=='id'][0]
-        ids.append(item[key])
+
+    if re.search('from syn\d', queryString.lower()):
+        tbl = syn.tableQuery(queryString)
+
+        check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
+        assert check_for_id_col, ValueError("Query does not include the id column.")
+
+        ids = [x['id'] for x in csv.DictReader(open(tbl.filepath))]
+    else:
+        for item in syn.chunkedQuery(queryString):
+            key = [k for k in  item.keys() if k.split('.', 1)[1]=='id'][0]
+            ids.append(item[key])
     return ids
 
 
