@@ -2871,25 +2871,28 @@ class Synapse:
         fileHandleId = multipart_upload(self, filepath, contentType="text/csv")
 
         uploadRequest = {
-            'tableId': id_of(schema), 
-            'linesToSkip': linesToSkip, 
-            'concreteType': 'org.sagebionetworks.repo.model.table.UploadToTableRequest', 
-            'uploadFileHandleId': fileHandleId, 
-            'csvTableDescriptor': {
-                'escapeCharacter': escapeCharacter, 
-                'isFirstLineHeader': header, 
-                'separator': separator, 
-                'lineEnd': lineEnd, 
-                'quoteCharacter': quoteCharacter}
+            "concreteType":"org.sagebionetworks.repo.model.table.UploadToTableRequest",
+            "csvTableDescriptor": {
+                "isFirstLineHeader": header,
+                "quoteCharacter": quoteCharacter,
+                "escapeCharacter": escapeCharacter,
+                "lineEnd": lineEnd,
+                "separator": separator},
+            "linesToSkip": linesToSkip,
+            "tableId": id_of(schema),
+            "uploadFileHandleId": fileHandleId
         }
 
-        # But now we need to wrap that in a TableUpdateTransactionRequest, which is more flexible (and supports other updates)
         request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
-                   'entityId': id_of(schema),
-                   'changes': [uploadRequest]}
+           'entityId': id_of(schema),
+           'changes': [uploadRequest]}
 
-        uri = '/entity/{tableId}/table/transaction/async/'.format(tableId=id_of(schema))
+        if updateEtag:
+            request["updateEtag"] = updateEtag
+
+        uri = "/entity/{id}/table/transaction/async".format(id=id_of(schema))
         return self._waitForAsync(uri=uri, request=request)
+
 
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
