@@ -563,6 +563,7 @@ _entity_type_to_class = {}
 for cls in itersubclasses(Entity):
     _entity_type_to_class[cls._synapse_entity_type] = cls
 
+_entity_types = ["project","folder","file","table","link","entityview","dockerrepo"]
 
 def split_entity_namespaces(entity):
     """

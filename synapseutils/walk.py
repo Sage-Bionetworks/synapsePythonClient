@@ -7,8 +7,7 @@ def _getChildren(syn, parentId, includeTypes=["folder","file","table","link","en
     entityChildrenRequest = {'parentId':parentId,
                              'includeTypes':includeTypes,
                              'sortBy':sortBy,
-                             'sortDirection':sortDirection,
-                             'nextPageToken':None}
+                             'sortDirection':sortDirection}
     allChildren = []
     resultPage = syn.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
     allChildren = resultPage['page']
@@ -40,10 +39,9 @@ def walk(syn, synId, includeTypes=None):
             print(filename) #All the files in the directory path
 
     """
-    entityTypes = syn.restGET("/REST/resources/schema/?resourceId=org.sagebionetworks.repo.model.EntityType")['enum']
     if includeTypes is None:
-        includeTypes = entityTypes
-    elif not all([entityType in entityTypes for entityType in includeTypes]):
+        includeTypes = synapseclient.entity._entity_types
+    elif not all([entityType in synapseclient.entity._entity_types for entityType in includeTypes]):
         raise ValueError("Entity type must be part of this list: %s" % ", ".join(entityTypes))
     return(_helpWalk(syn,synId,includeTypes))
 
