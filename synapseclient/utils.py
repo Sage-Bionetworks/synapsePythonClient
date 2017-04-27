@@ -646,7 +646,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     barLength = 20 # Modify this to change the length of the progress bar
     status = ''
     rate = ''
-    if dt is not None:
+    if dt is not None and dt != 0:
         rate = (transferred - previouslyTransferred)/float(dt)
         rate = '(%s/s)' % humanizeBytes(rate) if isBytes else rate
     if toBeTransferred<0:
