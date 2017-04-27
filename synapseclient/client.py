@@ -33,8 +33,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
+
 from builtins import input
+from builtins import str
 
 try:
     import configparser
@@ -42,10 +43,9 @@ except ImportError:
     import ConfigParser as configparser
 
 import collections
-import math, os, sys, stat, re, json, time
+import os, sys, re, json, time
 import base64, hashlib, hmac
 import six
-import uuid
 
 try:
     from urllib.parse import urlparse
@@ -60,7 +60,7 @@ except ImportError:
     from urllib import unquote
     from urllib import urlretrieve
 
-import requests, webbrowser
+import webbrowser
 import shutil
 import zipfile
 import mimetypes
@@ -70,19 +70,18 @@ import getpass
 from collections import OrderedDict
 
 import synapseclient
-from . import utils
+from synapseclient import concrete_types
 from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, KB, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error, _extract_zip_file_to_directory, _is_integer
+from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error, _extract_zip_file_to_directory, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
-from .annotations import to_submission_status_annotations, from_submission_status_annotations
 from .activity import Activity
-from .entity import Entity, File, Project, Folder, Link, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
+from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, ViewSchema, Table, Column, RowSet, Row, TableQueryResult, CsvFileTable
+from .table import Schema, Column, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
@@ -786,7 +785,7 @@ class Synapse:
                         #project to determine if I should synapseStore it in the future.
                         #This can fail with a 404 for submissions who's original entity is deleted
                         try:
-                            storageLocation = self.__getStorageLocation(entity)
+                            storageLocation = self._getDefaultUploadDestination(entity)
                             entity['synapseStore'] = utils.is_same_base_url(storageLocation.get('url', 'S3'), entity['externalURL'])
                         except SynapseHTTPError:
                             warnings.warn("Can't get storage location for entity %s" % entity['id'])
@@ -1008,12 +1007,14 @@ class Synapse:
                 needs_upload = True
 
             if needs_upload:
-                fileLocation, local_state = self.__uploadExternallyStoringProjects(entity, local_state)
+                fileLocation, local_state , storageLocationId= self.__uploadExternallyStoringProjects(entity, local_state)
                 fileHandle = self._uploadToFileHandleService(fileLocation,
                                                              synapseStore=entity.get('synapseStore', True),
                                                              mimetype=local_state.get('contentType', None),
                                                              md5=local_state.get('md5', None),
-                                                             fileSize=local_state.get('fileSize', None))
+                                                             fileSize=local_state.get('fileSize', None),
+                                                             storageLocationId=storageLocationId
+                                                             )
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['md5'] = fileHandle.get('contentMd5', None)
                 local_state['fileSize'] = fileHandle.get('contentSize', None)
@@ -1916,7 +1917,7 @@ class Synapse:
         return destination
 
 
-    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None):
+    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None, storageLocationId = None):
         """
         Create and return a fileHandle, by either uploading a local file or
         linking to an external URL.
@@ -1939,7 +1940,7 @@ class Synapse:
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
             if synapseStore:
-                file_handle_id = multipart_upload(self, filename, contentType=mimetype)
+                file_handle_id = multipart_upload(self, filename, contentType=mimetype, storageLocationId=storageLocationId)
                 return self._getFileHandle(file_handle_id)
             else:
                 return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
@@ -1988,31 +1989,8 @@ class Synapse:
     ############################################################
 
     def _getDefaultUploadDestination(self, entity):
-        return self.restGET('/entity/%s/uploadDestination'% id_of(entity),
+        return self.restGET('/entity/%s/uploadDestination'% entity['parentId'],
                      endpoint=self.fileHandleEndpoint)
-
-
-    def __getStorageLocation(self, entity):
-        storageLocations = self.restGET('/entity/%s/uploadDestinations'% entity['parentId'],
-                     endpoint=self.fileHandleEndpoint)['list']
-        return storageLocations[0]
-
-        # if uploadHost is None:
-        #     return storageLocations[0]
-        # locations = [l.get('url', 'S3') for l in storageLocations]
-        # uploadHost = entity.get('uploadHost', None)
-
-        # for location in storageLocations:
-        #     #location can either be of  uploadType S3 or SFTP where the latter has a URL
-        #     if location['uploadType'] == 'S3' and uploadHost == 'S3':
-        #         return location
-        #     elif (location['uploadType'] == 'SFTP' and uploadHost != 'S3' and
-        #           utils.is_same_base_url(uploadHost, location['url'])):
-        #         return location
-        # raise SynapseError('You are uploading to a project that supports multiple storage '
-        #                    'locations but have specified the location of %s which is not '
-        #                    'supported by this project.  Please choose one of:\n %s'
-        #                    %(uploadHost, '\n\t'.join(locations)))
 
 
     def __uploadExternallyStoringProjects(self, entity, local_state):
@@ -2022,44 +2000,52 @@ class Synapse:
 
         :param entity: An entity with path.
 
-        :returns: A URL or local file path to add to Synapse along with an update local_state
-                  containing externalURL and content-type
+        :returns: a tuple consisting of:
+                  A URL or local file path to add to Synapse,
+                  an update local_state containing externalURL and content-type,
+                  and a storage location id indicating to where the entity should be uploaded ("None" defaults to Synapse)
         """
-        #If it is already an exteranal URL just return
+        #If it is already an external URL just return
         if local_state.get('externalURL', None):
-            return local_state['externalURL'], local_state
+            return local_state['externalURL'], local_state, None
         elif utils.is_url(entity['path']):
             local_state['externalURL'] = entity['path']
             #If the url is a local path compute the md5
             url = urlparse(entity['path'])
             if os.path.isfile(url.path) and url.scheme=='file':
                 local_state['md5'] = utils.md5_for_file(url.path).hexdigest()
-            return entity['path'], local_state
-        location =  self.__getStorageLocation(entity)
-        if location['uploadType'] == 'S3':
-            if entity.get('synapseStore', True):
-                sys.stdout.write('\n' + '#'*50+'\n Uploading file to Synapse storage \n'+'#'*50+'\n')
-            return entity['path'], local_state
-        elif location['uploadType'] == 'SFTP' :
-            entity['synapseStore'] = False
-            if entity.get('synapseStore', True):
-                sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
-                                                                      location.get('banner', ''),
-                                                                      urlparse(location['url']).netloc,
-                                                                      '#'*50))
-                pass
-            #Fill out local_state with fileSize, externalURL etc...
-            uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
-            local_state['externalURL'] = uploadLocation
-            local_state['fileSize'] = os.stat(entity['path']).st_size
-            local_state['md5'] = utils.md5_for_file(entity['path']).hexdigest()
-            if local_state.get('contentType') is None:
-                mimetype, enc = mimetypes.guess_type(entity['path'], strict=False)
-                local_state['contentType'] = mimetype
-            return uploadLocation, local_state
-        else:
-            raise NotImplementedError('Can only handle S3 and SFTP upload locations.')
+            return entity['path'], local_state, None
 
+        location =  self._getDefaultUploadDestination(entity)
+        upload_destination_type = location['concreteType']
+        if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION or \
+           upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
+            if entity.get('synapseStore', True):
+                storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
+                sys.stdout.write('\n' + '#'*50+'\n Uploading file to ' + storageString + ' storage \n'+'#'*50+'\n')
+            return entity['path'], local_state, location['storageLocationId']
+        elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
+            if location['uploadType'] == 'SFTP' :
+                if entity.get('synapseStore', True):
+                    sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
+                                                                          location.get('banner', ''),
+                                                                          urlparse(location['url']).netloc,
+                                                                          '#'*50))
+                entity['synapseStore'] = False
+                
+                #Fill out local_state with fileSize, externalURL etc...
+                uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
+                local_state['externalURL'] = uploadLocation
+                local_state['fileSize'] = os.stat(entity['path']).st_size
+                local_state['md5'] = utils.md5_for_file(entity['path']).hexdigest()
+                if local_state.get('contentType') is None:
+                    mimetype, enc = mimetypes.guess_type(entity['path'], strict=False)
+                    local_state['contentType'] = mimetype
+                return uploadLocation, local_state, location['storageLocationId']
+            else:
+                raise NotImplementedError('Can only handle SFTP upload locations.')
+        else:
+            raise NotImplementedError("The UploadDestination type: " + upload_destination_type.split(".")[-1] + " is not supported")
 
     #@utils.memoize  #To memoize we need to be able to back out faulty credentials
     def __getUserCredentials(self, baseURL, username=None, password=None):

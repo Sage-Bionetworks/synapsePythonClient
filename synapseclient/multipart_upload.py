@@ -170,7 +170,7 @@ def _put_chunk(url, chunk, verbose=False):
     exceptions._raise_for_status(response, verbose=verbose)
 
 
-def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs):
+def multipart_upload(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
     """
     Upload a file to a Synapse upload destination in chunks.
 
@@ -179,6 +179,7 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs):
     :param filename: upload as a different filename
     :param contentType: `contentType`_
     :param partSize: number of bytes per part. Minimum 5MB.
+    :param storageLocationId: a id indicating where the file should be stored. retrieved from Synapse's UploadDestination
 
     :return: a File Handle ID
 
@@ -209,12 +210,13 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, **kwargs):
                                get_chunk_function=get_chunk_function,
                                md5=md5,
                                fileSize=fileSize,
+                               storageLocationId=storageLocationId,
                                **kwargs)
 
     return status["resultFileHandleId"]
 
 
-def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs):
+def multipart_upload_string(syn, text, filename=None, contentType=None, storageLocationId=None, **kwargs):
     """
     Upload a string using the multipart file upload.
 
@@ -223,6 +225,8 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs
     :param filename: a string containing the base filename
     :param contentType: `contentType`_
     :param partSize: number of bytes per part. Minimum 5MB.
+    :param storageLocationId: a id indicating where the text should be stored. retrieved from Synapse's UploadDestination
+
 
     :return: a File Handle ID
 
@@ -248,6 +252,7 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, **kwargs
                                get_chunk_function=get_chunk_function,
                                md5=md5,
                                fileSize=fileSize,
+                               storageLocationId = storageLocationId,
                                **kwargs)
 
     return status["resultFileHandleId"]
@@ -283,7 +288,7 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
 
 
 def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
-                      partSize=None, **kwargs):
+                      partSize=None, storageLocationId = None,**kwargs):
     """
     Multipart Upload.
 
@@ -295,6 +300,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     :param md5: the part's MD5 as hex.
     :param fileSize: total number of bytes
     :param partSize: number of bytes per part. Minimum 5MB.
+    :param storageLocationId: a id indicating where the file should be stored. retrieved from Synapse's UploadDestination
 
     :return: a MultipartUploadStatus_ object
 
@@ -304,7 +310,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
     partSize = calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)
-    status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
+    status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, storageLocationId=storageLocationId,**kwargs)
 
     ## only force restart once
     kwargs['forceRestart'] = False
@@ -327,7 +333,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             mp.map(chunk_upload, url_generator)
 
             #Check if there are still parts
-            status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, **kwargs)
+            status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, storageLocationId=storageLocationId, **kwargs)
             oldCompletedParts, completedParts = completedParts, count_completed_parts(status.partsState)
             progress = (completedParts>oldCompletedParts)
             retries = retries+1 if not progress else retries

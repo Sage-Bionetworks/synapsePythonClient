@@ -13,8 +13,9 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals
+from nose.tools import assert_raises, assert_equals, assert_not_equal
 from nose.plugins.attrib import attr
+from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch
 
 import synapseclient
@@ -388,4 +389,65 @@ def test_teams():
     syn.delete(team)
 
     assert team == found_teams[0]
+
+def _set_up_external_s3_project():
+    """
+    creates a project and links it to an external s3 storage
+    :return: synapse id of the created  project, and storageLocationId of the project
+    """
+    EXTERNAL_S3_BUCKET = 'python-client-integration-test.sagebase.org'
+    project_ext_s3 = syn.store(Project(name=str(uuid.uuid4())))
+
+    destination = {'uploadType': 'S3',
+                   'concreteType': 'org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting',
+                   'bucket': EXTERNAL_S3_BUCKET}
+    destination = syn.restPOST('/storageLocation', body=json.dumps(destination))
+
+    project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+                           'settingsType': 'upload',
+                           'locations': [destination['storageLocationId']],
+                           'projectId' : project_ext_s3.id}
+
+    project_destination = syn.restPOST('/projectSettings', body=json.dumps(project_destination))
+    schedule_for_cleanup(project_ext_s3)
+    return project_ext_s3.id, destination['storageLocationId']
+
+
+def test_external_s3_upload():
+    #skip if not on the synapse-test user
+    if syn.username != 'synapse-test':
+        raise SkipTest("This test is configured to work on synapse's TravisCI. If you wish to run this locally, please create an external S3 bucket that your Synapse username can access (http://docs.synapse.org/articles/custom_storage_location.html) and modify the EXTERNAL_S3_BUCKET variable")
+
+    #setup
+    project_id, storage_location_id = _set_up_external_s3_project()
+
+    # create a temporary file for upload
+    temp_file_path = utils.make_bogus_data_file()
+    expected_md5 = utils.md5_for_file(temp_file_path).hexdigest()
+    schedule_for_cleanup(temp_file_path)
+
+    #upload the file
+    uploaded_syn_file = syn.store(File(path=temp_file_path, parent=project_id))
+
+    #get file_handle of the uploaded file
+    file_handle = syn.restGET('/entity/%s/filehandles' % uploaded_syn_file.id)['list'][0]
+
+    #Verify correct file handle type
+    assert_equals(file_handle['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
+
+    # Verify storage location id to make sure it's using external S3
+    assert_equals(storage_location_id, file_handle['storageLocationId'])
+
+    #Verify md5 of upload
+    assert_equals(expected_md5, file_handle['contentMd5'])
+
+    # clear the cache and download the file
+    syn.cache.purge(time.time())
+    downloaded_syn_file = syn.get(uploaded_syn_file.id)
+
+    #verify the correct file was downloaded
+    assert_equals(os.path.basename(downloaded_syn_file['path']), os.path.basename(temp_file_path))
+    assert_not_equal(os.path.normpath(temp_file_path), os.path.normpath(downloaded_syn_file['path']))
+    assert filecmp.cmp(temp_file_path, downloaded_syn_file['path'])
+
 
