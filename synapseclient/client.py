@@ -1794,7 +1794,7 @@ class Synapse:
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
-                log_error('\nRetrying download on %s after progressing %i bytes\n'%
+                log_error('\nRetrying download on error: [%s] after progressing %i bytes\n'%
                           (exc_info[0](exc_info[1]), ex.progress), self.debug)
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
@@ -1848,8 +1848,8 @@ class Synapse:
                                 if os.path.exists(temp_destination) else {}
                 response = _with_retry(
                     lambda: requests.get(url, headers=self._generateSignedHeaders(url, range_header),
-                                         stream=True, allow_redirects=False),
-                    verbose=self.debug, **STANDARD_RETRY_PARAMS)
+                                                                                  stream=True, allow_redirects=False),
+                                        verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
                     exceptions._raise_for_status(response, verbose=self.debug)
                 except SynapseHTTPError as err:
@@ -1893,12 +1893,24 @@ class Synapse:
                             for nChunks, chunk in enumerate(response.iter_content(FILE_BUFFER_SIZE)):
                                 fd.write(chunk)
                                 sig.update(chunk)
-                                transferred += len(chunk)
+
+                                # the 'content-length' header gives the total number of bytes that will be transfered to us
+                                # len(chunk) cannot be used to track progress because iter_content
+                                # automatically decodes the chunks if the response body is encoded
+                                # so the len(chunk) could be different from the total number of bytes we've read read from the response body
+                                # response.raw.tell() is the total number of response body bytes transffered over the wire so far
+                                transferred = response.raw.tell() + previouslyTransferred
                                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
                                                             os.path.basename(destination), dt = time.time()-t0)
-                    except Exception as ex:  #We will add a progress parameter then push it back to retry.
+                    except Exception as ex:  # We will add a progress parameter then push it back to retry.
                         ex.progress  = transferred-previouslyTransferred
                         raise
+
+                    # verify that the file was completely downloaded and retry if it is not complete
+                    if toBeTransferred > 0 and transferred < toBeTransferred:
+                        sys.stderr.write("\nRetrying download because the connection ended early.\n")
+                        continue
+
                     actual_md5 = sig.hexdigest()
                     ## rename to final destination
                     shutil.move(temp_destination, destination)
@@ -1912,6 +1924,8 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
+            if os.path.exists(destination):
+                os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
