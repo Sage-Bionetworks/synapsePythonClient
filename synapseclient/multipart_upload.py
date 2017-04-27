@@ -261,7 +261,6 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, storageL
 
 def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
                   fileSize, partSize, t0, expired, bytes_already_uploaded = 0):
-
     partNumber=part["partNumber"]
     url=part["uploadPresignedUrl"]
 
@@ -340,8 +339,8 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
-                                                      fileSize=fileSize, partSize=partSize, t0=time_upload_started, expired=Value(c_bool, False), bytes_already_uploaded=previously_completed_bytes)
-
+                                                      fileSize=fileSize, partSize=partSize, t0=time_upload_started,
+                                                      expired=Value(c_bool, False), bytes_already_uploaded=previously_completed_bytes)
 
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)
