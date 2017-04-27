@@ -70,7 +70,7 @@ import getpass
 from collections import OrderedDict
 
 import synapseclient
-from constants import concrete_types
+from synapseclient import concrete_types
 from . import cache
 from . import exceptions
 from .exceptions import *
