@@ -25,7 +25,7 @@ import requests
 import sys
 import time
 import warnings
-from functools import partial
+from ctypes import c_bool
 from multiprocessing import Value
 from multiprocessing.dummy import Pool
 
@@ -37,9 +37,10 @@ except ImportError:
     from urlparse import parse_qs
 
 import synapseclient.exceptions as exceptions
-from .utils import printTransferProgress, md5_for_file, MB, GB
+from .utils import printTransferProgress, md5_for_file, MB
 from .dict_object import DictObject
 from .exceptions import SynapseError
+from .exceptions import SynapseHTTPError
 from .utils import threadsafe_generator
 
 MAX_NUMBER_OF_PARTS = 10000
@@ -259,12 +260,15 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, storageL
 
 
 def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
-                  fileSize, partSize, t0):
+                  fileSize, partSize, t0, expired):
     partNumber=part["partNumber"]
     url=part["uploadPresignedUrl"]
-    parsed = urlparse(url)
-    expires = float(parse_qs(parsed.query)['Expires'][0])
-    if expires<time.time(): return
+
+    #if the upload url for another worker has expired, assume that this one also expired and return early
+    with expired.get_lock():
+        if expired.value:
+            return
+
     try:
         chunk = get_chunk_function(partNumber, partSize)
         _put_chunk(url, chunk, syn.debug)
@@ -281,8 +285,13 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
                 completed.value += len(chunk)
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0)
     except Exception as ex1:
+        if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403:
+            sys.stderr.write("The presigned upload URL has expired. Restarting upload...\n")
+            with expired.get_lock():
+                expired.value = True
+            return
         #If we are not in verbose debug mode we will swallow the error and retry.
-        if syn.debug:
+        elif syn.debug:
             sys.stderr.write(str(ex1))
             sys.stderr.write("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
 
@@ -323,11 +332,12 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
         while retries<MAX_RETRIES:
             ## keep track of the number of bytes uploaded so far
             completed = Value('d', min(completedParts * partSize, fileSize))
+
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
             chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
-                                                      fileSize=fileSize, partSize=partSize, t0=time.time())
+                                                      fileSize=fileSize, partSize=partSize, t0=time.time(), expired=Value(c_bool, False))
 
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)
