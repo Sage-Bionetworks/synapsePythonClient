@@ -326,6 +326,8 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     kwargs['forceRestart'] = False
 
     completedParts = count_completed_parts(status.partsState)
+    previously_completed_bytes =  min(completedParts * partSize, fileSize) # bytes that were previously uploaded before the current upload began. this variable is set only once
+    time_upload_started = time.time()
     progress=True
     retries=0
     mp = Pool(8)
@@ -338,7 +340,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
-                                                      fileSize=fileSize, partSize=partSize, t0=time.time(), expired=Value(c_bool, False), bytes_already_uploaded=completed.value)
+                                                      fileSize=fileSize, partSize=partSize, t0=time_upload_started, expired=Value(c_bool, False), bytes_already_uploaded=previously_completed_bytes)
 
 
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
