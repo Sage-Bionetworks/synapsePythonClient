@@ -464,7 +464,9 @@ class Synapse:
         if os.path.isfile(sessionFile):
             try:
                 file = open(sessionFile, 'r')
-                return json.load(file)
+                result = json.load(file)
+                if isinstance(result, dict):
+                    return result
             except: pass
         return {}
 

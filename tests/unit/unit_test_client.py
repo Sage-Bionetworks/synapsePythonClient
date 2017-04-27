@@ -1,6 +1,6 @@
-import json
-import os
-import tempfile
+import os, json, tempfile, filecmp
+from nose.tools import assert_raises, assert_equal, assert_in
+from mock import MagicMock, patch, mock_open
 
 import unit
 from mock import patch
@@ -203,6 +203,37 @@ def test_send_message():
             assert msg["recipients"] == [1421212], msg
             assert msg["subject"] == "Xanadu", msg
 
+
+def test_readSessionCache_bad_file_data():
+    with patch("os.path.isfile", return_value=True), \
+         patch("os.path.join"):
+
+        bad_cache_file_data = [
+                            '[]\n', # empty array
+                            '["dis"]\n', # array w/ element
+                            '{"is"}\n', # set with element ( '{}' defaults to empty map so no case for that)
+                            '[{}]\n', # array with empty set inside.
+                            '[{"snek"}]\n', # array with nonempty set inside
+                            'hissss\n' # string
+                            ]
+        expectedDict = {} # empty map
+        # read each bad input and makes sure an empty map is returned instead
+        for bad_data in bad_cache_file_data:
+            with patch("synapseclient.client.open", mock_open(read_data=bad_data), create=True):
+                assert_equal(expectedDict, syn._readSessionCache())
+
+
+def test_readSessionCache_good_file_data():
+    with patch("os.path.isfile", return_value=True), \
+         patch("os.path.join"):
+
+        expectedDict = {'AzureDiamond': 'hunter2',
+                        'ayy': 'lmao'}
+        good_data = json.dumps(expectedDict)
+        with patch("synapseclient.client.open", mock_open(read_data=good_data), create=True):
+            assert_equal(expectedDict, syn._readSessionCache())
+
+ 
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
 def test__uploadExternallyStoringProjects_external_user(mock_upload_destination):
     # setup
@@ -222,4 +253,5 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     assert_equal(expected_path, path)
     assert_equal(expected_local_state, local_state)
     assert_equal(expected_storage_location_id, storage_location_id)
+
 
