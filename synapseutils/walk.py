@@ -8,14 +8,13 @@ def _getChildren(syn, parentId, includeTypes=["folder","file","table","link","en
                              'includeTypes':includeTypes,
                              'sortBy':sortBy,
                              'sortDirection':sortDirection}
-    allChildren = []
-    resultPage = syn.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
-    allChildren = resultPage['page']
+    resultPage = {"nextPageToken":"first"}
     while resultPage.get('nextPageToken') is not None:
-        entityChildrenRequest['nextPageToken'] = resultPage['nextPageToken']
         resultPage = syn.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
-        allChildren.extend(resultPage['page'])
-    return(allChildren)
+        for child in resultPage['page']:
+            yield child
+        if resultPage.get('nextPageToken') is not None:
+            entityChildrenRequest['nextPageToken'] = resultPage['nextPageToken']
 
 def walk(syn, synId, includeTypes=None):
     """
