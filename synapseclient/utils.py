@@ -629,7 +629,7 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
-def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True, dt=None):
+def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True, dt=None, previouslyTransferred = 0):
     """Prints a progress bar
 
     :param transferred: a number of items/bytes completed
@@ -638,6 +638,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     :param prefix: String printed after progress bar
     :param isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
     :param dt: The time in seconds that has passed since transfer started is used to calculate rate.
+    :param previouslyTransferred: the number of bytes that were already transferred before this transfer began( e.g. someone ctrl+c'd out of an upload and restarted it later)
 
     """
     if not sys.stdout.isatty():
@@ -646,7 +647,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     status = ''
     rate = ''
     if dt is not None and dt != 0:
-        rate = transferred/float(dt)
+        rate = (transferred - previouslyTransferred)/float(dt)
         rate = '(%s/s)' % humanizeBytes(rate) if isBytes else rate
     if toBeTransferred<0:
         defaultToBeTransferred = (barLength*1*MB)

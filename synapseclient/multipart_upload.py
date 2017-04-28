@@ -260,7 +260,7 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, storageL
 
 
 def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
-                  fileSize, partSize, t0, expired):
+                  fileSize, partSize, t0, expired, bytes_already_uploaded = 0):
     partNumber=part["partNumber"]
     url=part["uploadPresignedUrl"]
 
@@ -283,7 +283,7 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
         if add_part_response["addPartState"] == "ADD_SUCCESS":
             with completed.get_lock():
                 completed.value += len(chunk)
-            printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0)
+            printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0, previouslyTransferred=bytes_already_uploaded)
     except Exception as ex1:
         if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403:
             sys.stderr.write("The presigned upload URL has expired. Restarting upload...\n")
@@ -325,6 +325,8 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     kwargs['forceRestart'] = False
 
     completedParts = count_completed_parts(status.partsState)
+    previously_completed_bytes =  min(completedParts * partSize, fileSize) # bytes that were previously uploaded before the current upload began. this variable is set only once
+    time_upload_started = time.time()
     progress=True
     retries=0
     mp = Pool(8)
@@ -337,7 +339,8 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
-                                                      fileSize=fileSize, partSize=partSize, t0=time.time(), expired=Value(c_bool, False))
+                                                      fileSize=fileSize, partSize=partSize, t0=time_upload_started,
+                                                      expired=Value(c_bool, False), bytes_already_uploaded=previously_completed_bytes)
 
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)
