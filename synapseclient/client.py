@@ -377,21 +377,23 @@ class Synapse:
                     raise
 
                 if config.has_option('authentication', 'username'):
-                    self.username = config.has_option('authentication', 'username')
+                    self.username = config.get('authentication', 'username')
                     if self.username in cachedSessions:
                         self.apiKey = base64.b64decode(cachedSessions[self.username])
 
                 # Just use the configuration file
                 if self.apiKey is None:
-                    if config.has_option('authentication', 'username') and config.has_option('authentication', 'apikey'):
-                        self.username = config.get('authentication', 'username')
-                        self.apiKey = base64.b64decode(config.get('authentication', 'apikey'))
+                    if config.has_option('authentication', 'username'):
+                        config_username = config.get('authentication', 'username')
+                        if email is None or email == config_username:
+                            self.username = config_username
+                            if config.has_option('authentication', 'apikey'):
+                                self.apiKey = base64.b64decode(config.get('authentication', 'apikey'))
 
-                    elif config.has_option('authentication', 'username') and config.has_option('authentication', 'password'):
-                        self.username = config.get('authentication', 'username')
-                        password = config.get('authentication', 'password')
-                        token = self._getSessionToken(email=self.username, password=password)
-                        self.apiKey = self._getAPIKey(token)
+                            elif config.has_option('authentication', 'password'):
+                                password = config.get('authentication', 'password')
+                                token = self._getSessionToken(email=self.username, password=password)
+                                self.apiKey = self._getAPIKey(token)
 
                     elif config.has_option('authentication', 'sessiontoken'):
                         sessionToken = config.get('authentication', 'sessiontoken')
