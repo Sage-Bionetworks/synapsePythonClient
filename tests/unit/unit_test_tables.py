@@ -12,9 +12,17 @@ import sys
 import tempfile
 from builtins import zip
 from mock import MagicMock
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals, assert_not_equals, raises
+from nose import SkipTest
+
+try:
+    import pandas as pd
+    pandas_found = False
+except ImportError:
+    pandas_found = True
 
 import synapseclient
+from synapseclient.exceptions import SynapseError
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn
 
 
@@ -436,3 +444,53 @@ def test_waitForAsync():
         "errorDetails": "Totally fubared error details"})
 
     assert_raises(synapseclient.exceptions.SynapseTimeoutError, syn._waitForAsync, uri="foo/bar", request={"foo": "bar"})
+
+def _insert_dataframe_column_if_not_exist__setup():
+    df = pd.DataFrame()
+    column_name = "panda"
+    data = ["pandas", "are", "alive", ":)"]
+    return df, column_name, data
+
+
+def test_insert_dataframe_column_if_not_exist__nonexistent_column():
+    if pandas_found:
+        raise SkipTest("pandas could not be found. please let the pandas into your library.")
+
+    df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
+
+    #method under test
+    CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
+
+    #make sure the data was inserted
+    assert_equals(data, df[column_name].tolist())
+
+
+def test_insert_dataframe_column_if_not_exist__existing_column_matching():
+    if pandas_found:
+        raise SkipTest("pandas could not be found. please let the pandas into your library.")
+
+    df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
+
+    #add the same data to the DataFrame prior to calling our method
+    df.insert(0,column_name, data)
+
+    #method under test
+    CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
+
+    #make sure the data has not changed
+    assert_equals(data, df[column_name].tolist())
+
+@raises(SynapseError)
+def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
+    if pandas_found:
+        raise SkipTest("pandas could not be found. please let the pandas into your library.")
+    df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
+
+    #add different data to the DataFrame prior to calling our method
+    df.insert(0,column_name, ['mercy', 'main', 'btw'])
+
+    #make sure the data is different
+    assert_not_equals(data, df[column_name].tolist())
+
+    #method under test should raise exception
+    CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
