@@ -336,45 +336,35 @@ class Synapse:
         # Make sure to invalidate the existing session
         self.logout()
 
-        self.username, self.apiKey = self._attempt_login(email, password, apiKey, sessionToken)
+        self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
 
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
         if self.apiKey is None and not forced:
             cachedSessions = self._readSessionCache()
 
+            #use most recently used username if none provided
             if email is None and "<mostRecent>" in cachedSessions:
                 email = cachedSessions["<mostRecent>"]
 
-            if email is not None and email in cachedSessions:
-                self.username = email
-                self.apiKey = base64.b64decode(cachedSessions[email])
+            #attempt to retrieve apiKey from cache
+            self.username, self.apiKey = self._get_login_credentials(username=email, apikey=cachedSessions.get(email, None))
 
             # Resort to reading the configuration file
             if self.apiKey is None:
                 # Resort to checking the config file
-                config = configparser.ConfigParser()
-                try:
-                    config.read(self.configPath)
-                except configparser.Error:
-                    sys.stderr.write('Error parsing Synapse config file: %s' % self.configPath)
-                    raise
-
+                config = self.getConfigFile(self.configPath)
                 config_auth_dict = dict(config.items('authentication'))
 
-                #if no username provided grab username from config file and check cache first for API key
-                if email is None and 'username' in config_auth_dict:
-                    config_username = config_auth_dict['username']
-                    if config_username in cachedSessions:
-                        self.username = config_username
-                        self.apiKey = base64.b64decode(cachedSessions[self.username])
+                #if no username provided, grab username from config file and check cache first for API key
+                if email is None:
+                    self.username, self.apiKey = self._get_login_credentials(username=config_auth_dict.get('username',None), apikey=cachedSessions.get(email, None))
 
-                # Just use the configuration file
+                # Login using configuration file and check against given username if provided
                 if self.apiKey is None:
-                    config_username, config_apiKey = self._attempt_login(**config_auth_dict)
+                    config_username, config_apiKey = self._get_login_credentials(**config_auth_dict)
                     if email == None or email == config_username:
-                        self.username = config_username
-                        self.apiKey = config_apiKey
+                        self.username, self.apiKey = config_username, config_apiKey
 
         # Final check on login success
         if self.apiKey is None:
@@ -394,22 +384,21 @@ class Synapse:
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
             print("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
 
-    def _attempt_login(self, username, password, apikey, sessionToken):
-        returned_username = None
-        returned_apiKey = None
+
+    def _get_login_credentials(self, username=None, password=None, apikey=None, sessionToken=None):
         # login using email and password
         if username is not None and password is not None:
             sessionToken = self._getSessionToken(email=username, password=password)
-            returned_username = username
-            returned_apiKey = self._getAPIKey(sessionToken)
+            return username, self._getAPIKey(sessionToken)
 
         # login using email and apiKey
         elif username is not None and apikey is not None:
-            returned_username = username
-            returned_apiKey = base64.b64decode(apikey)
+            return username, base64.b64decode(apikey)
 
         # login using sessionToken
         elif sessionToken is not None:
+            returned_username = None
+            returned_apiKey = None
             try:
                 sessionToken = self._getSessionToken(sessionToken=sessionToken)
                 returned_username = self.getUserProfile(sessionToken=sessionToken)['userName']
@@ -417,7 +406,10 @@ class Synapse:
             except SynapseAuthenticationError:
                 # Session token is invalid
                 pass
-        return (returned_username, returned_apiKey)
+            return returned_username, returned_apiKey
+
+        else:
+            return None, None
 
 
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
