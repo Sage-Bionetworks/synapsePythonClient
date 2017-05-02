@@ -336,7 +336,10 @@ class Synapse:
         # Make sure to invalidate the existing session
         self.logout()
 
-        self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
+        try:
+            self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
+        except SynapseAuthenticationError:
+            pass
 
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
@@ -385,7 +388,9 @@ class Synapse:
             print("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
 
 
-    def _get_login_credentials(self, username=None, password=None, apikey=None, sessionToken=None):
+    def _get_login_credentials(self, username=None, password=None, apikey=None, sessiontoken=None):
+        #NOTE: variable names are set to match the names of keys in the authentication section in the .synapseConfig files
+
         # login using email and password
         if username is not None and password is not None:
             sessionToken = self._getSessionToken(email=username, password=password)
@@ -396,16 +401,10 @@ class Synapse:
             return username, base64.b64decode(apikey)
 
         # login using sessionToken
-        elif sessionToken is not None:
-            returned_username = None
-            returned_apiKey = None
-            try:
-                sessionToken = self._getSessionToken(sessionToken=sessionToken)
-                returned_username = self.getUserProfile(sessionToken=sessionToken)['userName']
-                returned_apiKey = self._getAPIKey(sessionToken)
-            except SynapseAuthenticationError:
-                # Session token is invalid
-                pass
+        elif sessiontoken is not None:
+            sessionToken = self._getSessionToken(sessionToken=sessiontoken)
+            returned_username = self.getUserProfile(sessionToken=sessiontoken)['userName']
+            returned_apiKey = self._getAPIKey(sessionToken)
             return returned_username, returned_apiKey
 
         else:

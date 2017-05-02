@@ -64,31 +64,29 @@ def test_login():
             configparser_package_name = 'ConfigParser'
         else:
             configparser_package_name = 'configparser'
-        with patch("%s.ConfigParser.has_option" % configparser_package_name) as config_has_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
+        with patch("%s.ConfigParser.items" % configparser_package_name) as config_items_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
 
-            config_has_mock.return_value = False
+            config_items_mock.return_value = []
             read_session_mock.return_value = {}
             
             # Login with given bad session token, 
             # It should REST PUT the token and fail
             # Then keep going and, due to mocking, fail to read any credentials
             assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
-            assert config_has_mock.called
+            assert config_items_mock.called
             
             # Login with no credentials 
             assert_raises(SynapseAuthenticationError, syn.login)
             
-            config_has_mock.reset_mock()
-            config_has_mock.side_effect = lambda section, option: section == "authentication" and option == "sessiontoken"
-            with patch("%s.ConfigParser.get" % configparser_package_name) as config_get_mock:
+            config_items_mock.reset_mock()
 
-                # Login with a session token from the config file
-                config_get_mock.return_value = sessionToken
-                syn.login(silent=True)
-                
-                # Login with a bad session token from the config file
-                config_get_mock.return_value = "derp-dee-derp"
-                assert_raises(SynapseAuthenticationError, syn.login)
+            # Login with a session token from the config file
+            config_items_mock.return_value = [('sessiontoken', sessionToken)]
+            syn.login(silent=True)
+
+            # Login with a bad session token from the config file
+            config_items_mock.return_value = [('sessiontoken', "derp-dee-derp")]
+            assert_raises(SynapseAuthenticationError, syn.login)
         
         # Login with session token
         syn.login(sessionToken=sessionToken, rememberMe=True, silent=True)
@@ -99,8 +97,10 @@ def test_login():
             read_session_mock.return_value = dict_mock
             dict_mock.__contains__.side_effect = lambda x: x == '<mostRecent>'
             dict_mock.__getitem__.return_value = syn.username
+            dict_mock.get.return_value = base64.b64encode(syn.apiKey) #for syanpseCache.get(syn.username, None)
             syn.login(silent=True)
             dict_mock.__getitem__.assert_called_once_with('<mostRecent>')
+            dict_mock.get.assert_called_once_with(syn.username, None)
         
         # Login with ID only
         syn.login(username, silent=True)
