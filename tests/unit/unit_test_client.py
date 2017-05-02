@@ -1,10 +1,8 @@
-import os, json, tempfile, filecmp
-from nose.tools import assert_raises, assert_equal, assert_in
-from mock import MagicMock, patch, mock_open
+import os, json, tempfile, base64, sys
+from mock import patch, mock_open
 
 import unit
-from mock import patch
-from nose.tools import assert_equal, assert_in
+from nose.tools import assert_equal, assert_in, raises
 
 from synapseclient import Evaluation, File, concrete_types
 from synapseclient.exceptions import *
@@ -254,4 +252,17 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     assert_equal(expected_local_state, local_state)
     assert_equal(expected_storage_location_id, storage_location_id)
 
+@raises(SynapseAuthenticationError)
+def test_login__only_username_config_file_username_mismatch():
+    if (sys.version < '3'):
+        configparser_package_name = 'ConfigParser'
+    else:
+        configparser_package_name = 'configparser'
+    with patch("%s.ConfigParser.items" % configparser_package_name) as config_items_mock,\
+         patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
+            read_session_mock.return_value = {}  #empty session cache
+            config_items_mock.return_value = [{'username', 'shrek'}, ('apikey', base64.b64encode('thisIsMySwamp'))]
+            mismatch_username = "someBodyOnceToldMeTheWorldWasGonnaRollMe"
 
+            #should throw exception
+            syn.login(mismatch_username)

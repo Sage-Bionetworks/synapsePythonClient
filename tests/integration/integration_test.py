@@ -5,8 +5,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import tempfile, os, sys, filecmp, shutil, requests, json, time
-import uuid, random, base64
+import tempfile, os, sys, filecmp, shutil, json, time
+import uuid, base64
 try:
     import configparser
 except ImportError:
@@ -14,19 +14,15 @@ except ImportError:
 
 from datetime import datetime
 from nose.tools import assert_raises, assert_equals, assert_not_equal
-from nose.plugins.attrib import attr
 from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch, call
 
 import synapseclient
 import synapseclient.client as client
-import synapseclient.utils as utils
 from synapseclient.exceptions import *
-from synapseclient.evaluation import Evaluation
 from synapseclient.activity import Activity
 from synapseclient.version_check import version_check
 from synapseclient.entity import Project, File, Folder
-from synapseclient.wiki import Wiki
 from synapseclient.team import Team
 
 import integration

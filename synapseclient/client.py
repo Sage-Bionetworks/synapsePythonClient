@@ -363,6 +363,8 @@ class Synapse:
 
                 # Login using configuration file and check against given username if provided
                 if self.apiKey is None:
+                    #NOTE: in the case where sessionkey is the only option defined in the config file,
+                    #we don't know the username until we _get_login_credentials()
                     config_username, config_apiKey = self._get_login_credentials(**config_auth_dict)
                     if email == None or email == config_username:
                         self.username, self.apiKey = config_username, config_apiKey
@@ -387,6 +389,9 @@ class Synapse:
 
 
     def _get_login_credentials(self, username=None, password=None, apikey=None, sessiontoken=None):
+        """
+        :return: username and the api key used for client authenticaiton
+        """
         #NOTE: variable names are set to match the names of keys in the authentication section in the .synapseConfig files
 
         # login using email and password
