@@ -67,6 +67,7 @@ import mimetypes
 import tempfile
 import warnings
 import getpass
+import json
 from collections import OrderedDict
 
 import synapseclient
@@ -1377,6 +1378,33 @@ class Synapse:
     ############################################################
     ##                        Querying                        ##
     ############################################################
+
+    def getChildren(self, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC"):
+        """
+        :param syn:            A synapse object: syn = synapseclient.login()- Must be logged into synapse
+
+        :param parentId:       A parentId of a Synapse container
+
+        :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
+                               http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
+
+        :param sortBy:         How results should be sorted.  Can be NAME, or CREATED_ON
+
+        :param sortDirection:  The direction of the result sort.  Can be ASC, or DESC
+
+        :returns:              An iterator that shows all the children of the container.
+        """
+        entityChildrenRequest = {'parentId':parentId,
+                                 'includeTypes':includeTypes,
+                                 'sortBy':sortBy,
+                                 'sortDirection':sortDirection}
+        resultPage = {"nextPageToken":"first"}
+        while resultPage.get('nextPageToken') is not None:
+            resultPage = self.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
+            for child in resultPage['page']:
+                yield child
+            if resultPage.get('nextPageToken') is not None:
+                entityChildrenRequest['nextPageToken'] = resultPage['nextPageToken']
 
     def query(self, queryStr):
         """
