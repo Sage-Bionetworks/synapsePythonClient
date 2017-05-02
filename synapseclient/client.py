@@ -346,22 +346,20 @@ class Synapse:
         if self.apiKey is None and not forced:
             cachedSessions = self._readSessionCache()
 
-            #use most recently used username if none provided
-            if email is None and "<mostRecent>" in cachedSessions:
-                email = cachedSessions["<mostRecent>"]
-
+            #use most recently used username from cache if none provided as an argument
+            cache_username = email if email is not None else cachedSessions.get("<mostRecent>", None)
             #attempt to retrieve apiKey from cache
-            self.username, self.apiKey = self._get_login_credentials(username=email, apikey=cachedSessions.get(email, None))
+            self.username, self.apiKey = self._get_login_credentials(username=cache_username, apikey=cachedSessions.get(cache_username, None))
 
-            # Resort to reading the configuration file
+            # If still no authentication, resort to reading the configuration file
             if self.apiKey is None:
-                # Resort to checking the config file
                 config = self.getConfigFile(self.configPath)
                 config_auth_dict = dict(config.items('authentication'))
 
                 #if no username provided, grab username from config file and check cache first for API key
                 if email is None:
-                    self.username, self.apiKey = self._get_login_credentials(username=config_auth_dict.get('username',None), apikey=cachedSessions.get(email, None))
+                    config_username=config_auth_dict.get('username',None)
+                    self.username, self.apiKey = self._get_login_credentials(username=config_username, apikey=cachedSessions.get(config_username, None))
 
                 # Login using configuration file and check against given username if provided
                 if self.apiKey is None:

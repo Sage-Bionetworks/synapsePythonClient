@@ -16,7 +16,7 @@ from datetime import datetime
 from nose.tools import assert_raises, assert_equals, assert_not_equal
 from nose.plugins.attrib import attr
 from nose.plugins.skip import SkipTest
-from mock import MagicMock, patch
+from mock import MagicMock, patch, call
 
 import synapseclient
 import synapseclient.client as client
@@ -95,12 +95,12 @@ def test_login():
         with patch('synapseclient.Synapse._readSessionCache') as read_session_mock:
             dict_mock = MagicMock()
             read_session_mock.return_value = dict_mock
-            dict_mock.__contains__.side_effect = lambda x: x == '<mostRecent>'
-            dict_mock.__getitem__.return_value = syn.username
-            dict_mock.get.return_value = base64.b64encode(syn.apiKey) #for syanpseCache.get(syn.username, None)
+
+            #first call is for <mostRecent> next call is the api key of the username in <mostRecent>
+            dict_mock.get.side_effect = [syn.username, base64.b64encode(syn.apiKey)]
+
             syn.login(silent=True)
-            dict_mock.__getitem__.assert_called_once_with('<mostRecent>')
-            dict_mock.get.assert_called_once_with(syn.username, None)
+            dict_mock.assert_has_calls([call.get('<mostRecent>', None),call.get(syn.username, None)])
         
         # Login with ID only
         syn.login(username, silent=True)
