@@ -2,7 +2,6 @@ import synapseclient
 from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity, exceptions
 import time
 from synapseclient.exceptions import *
-import walk
 import tempfile
 import re
 import json
@@ -177,7 +176,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         if not isinstance(syn.get(destinationId),Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
         copiedId = destinationId
-        entities = walk._getChildren(syn, entity)
+        entities = syn.getChildren(entity)
         for i in entities:
             mapping = _copyRecursive(syn, i['id'], destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
     elif isinstance(ent, Folder):
@@ -223,7 +222,7 @@ def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=Fa
     if not skipCopyAnnotations:
         newFolder.annotations = oldFolder.annotations
     newFolder = syn.store(newFolder)
-    entities = walk._getChildren(syn, entity)
+    entities = syn.getChildren(entity)
     for ent in entities:
         copied = _copyRecursive(syn, ent['id'],newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
     return(newFolder.id)
