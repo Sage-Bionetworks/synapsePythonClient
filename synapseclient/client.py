@@ -748,12 +748,18 @@ class Synapse:
         """
 
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
-        version = kwargs.get('version', None)
-        downloadFile = kwargs.get('downloadFile', True)
-        downloadLocation = kwargs.get('downloadLocation', None)
-        ifcollision = kwargs.get('ifcollision', 'keep.both')
-        submission = kwargs.get('submission', None)
-        followLink = kwargs.get('followLink',False)
+        version = kwargs.pop('version', None)
+        downloadFile = kwargs.pop('downloadFile', True)
+        downloadLocation = kwargs.pop('downloadLocation', None)
+        ifcollision = kwargs.pop('ifcollision', 'keep.both')
+        submission = kwargs.pop('submission', None)
+        followLink = kwargs.pop('followLink',False)
+        path = kwargs.pop('path', None)
+
+        #make sure user didn't accidentlaly pass a kwarg that we don't handle
+        if kwargs: #if there are remaining items in the kwargs
+            raise TypeError('Unexpected **kwargs: %r' % kwargs)
+
         #If Link, get target ID entity bundle
         if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link' and followLink:
             targetId = entityBundle['entity']['linksTo']['targetId']
@@ -765,8 +771,8 @@ class Synapse:
 
         # Make a fresh copy of the Entity
         local_state = entity.local_state() if entity and isinstance(entity, Entity) else {}
-        if 'path' in kwargs:
-            local_state['path'] = kwargs['path']
+        if path is not None:
+            local_state['path'] = path
         properties = entityBundle['entity']
         annotations = from_synapse_annotations(entityBundle['annotations'])
         entity = Entity.create(properties, annotations, local_state)
@@ -778,12 +784,10 @@ class Synapse:
             # Note: fileHandles will be an empty list if there are unmet access requirements
             for handle in entityBundle['fileHandles']:
                 if handle['id'] == entityBundle['entity']['dataFileHandleId']:
-                    entity.md5 = handle.get('contentMd5', '')
-                    entity.fileSize = handle.get('contentSize', None)
-                    entity.contentType = handle.get('contentType', None)
+                    entity._update_file_handle(handle)
                     if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
-                        entity['externalURL'] = handle['externalURL']
-                        #Determine if storage location for this entity matches the url of the
+                        # entity['externalURL'] = handle['externalURL']
+                        #Determine if storage loca`tion for this entity matches the url of the
                         #project to determine if I should synapseStore it in the future.
                         #This can fail with a 404 for submissions who's original entity is deleted
                         try:
@@ -800,13 +804,6 @@ class Synapse:
                 if os.path.isfile(downloadLocation):
                     raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
 
-            # Determine if the file should be downloaded
-            # downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
-            # if downloadFile:
-            #     downloadFile = cache.local_file_has_changed(entityBundle, True, downloadPath)
-            # # Determine where the file should be downloaded to
-            # if downloadFile:
-            #     _, localPath, _ = cache.determine_local_file_location(entityBundle)
             cached_file_path = self.cache.get(entityBundle['entity']['dataFileHandleId'], downloadLocation)
 
             # if we found a cached copy, return it
@@ -838,6 +835,9 @@ class Synapse:
                                 raise ValueError('Invalid parameter: "%s" is not a valid value '
                                                  'for "ifcollision"' % ifcollision)
                         if downloadFile:
+                            #create the foider if it does not exist already
+                            if not os.path.exists(downloadLocation):
+                                os.makedirs(downloadLocation)
                             shutil.copy(cached_file_path, downloadPath)
                             entity.path = downloadPath
                             entity.files = [os.path.basename(downloadPath)]

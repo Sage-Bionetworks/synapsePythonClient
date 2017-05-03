@@ -533,8 +533,14 @@ class File(Entity, Versionable):
     """
 
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
-    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize', 'contentType']
+    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
+
+    _file_handle_attr_name = '_file_handle'
+    _file_handle_keys = ["createdOn", "id", "concreteType", "contentSize", "createdBy", "etag", "fileName", "contentType", "contentMd5", "storageLocationId"]
+    #Used for backwards compatability. The keys found below used to located in the entity's local_state (i.e. __dict__).
+    _file_handle_aliases = {'md5': 'contentMd5', 'externalURL':'externalURL', 'fileSize':'contentSize', 'contentType': 'contentType'}
+
 
     ## TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
     def __init__(self, path=None, parent=None, synapseStore=True, properties=None,
@@ -552,10 +558,53 @@ class File(Entity, Versionable):
             self.__dict__['cacheDir'] = None
             self.__dict__['files'] = []
         self.__dict__['synapseStore'] = synapseStore
+        self._update_file_handle()
         super(File, self).__init__(concreteType=File._synapse_entity_type, properties=properties,
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
         # if not synapseStore:
         #     self.__setitem__('concreteType', 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
+
+
+    # TODO: _file_handle should not exist without datafileHandleId
+    def _update_file_handle(self, file_handle_update_dict = None):
+        """
+        Sets the file handle
+        
+        Should not need to be called by users
+        """
+
+        #replace the file handle dict
+        fh_dict = DictObject()
+        self.__dict__[self.__class__._file_handle_attr_name] = fh_dict
+
+        # copy over the parameter dict
+        if file_handle_update_dict is not None:
+            fh_dict.update(file_handle_update_dict)
+
+        #initialize all nonexistent keys to have value of None
+        for key in self.__class__._file_handle_keys:
+            if key not in fh_dict:
+                fh_dict[key] = None
+
+    #TODO:modify printing of file entity to match original file entity print(currently shows _filehandle.contentMd5 instead of .md5)
+
+    def __setitem__(self, key, value):
+        if key in self.__class__._file_handle_aliases:
+            self._file_handle[self.__class__._file_handle_aliases[key]] = value
+        else:
+            super(File, self).__setitem__(key,value)
+
+    def __getitem__(self, item):
+        if item in self.__class__._file_handle_aliases:
+            return self._file_handle[self.__class__._file_handle_aliases[item]]
+        else:
+            return super(File, self).__getitem__(item)
+
+    def __getattr__(self, item):
+        if item in self.__class__._file_handle_aliases:
+            return self._file_handle[self.__class__._file_handle_aliases[item]]
+        else:
+            return super(File, self).__getattr__(item)
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
