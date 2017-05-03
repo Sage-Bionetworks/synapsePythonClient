@@ -4,7 +4,7 @@ from builtins import str
 
 
 import unit
-from nose.tools import assert_equal, assert_in, raises
+from nose.tools import assert_equal, assert_in, assert_raises
 
 from synapseclient import Evaluation, File, concrete_types
 from synapseclient.exceptions import *
@@ -254,7 +254,6 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     assert_equal(expected_local_state, local_state)
     assert_equal(expected_storage_location_id, storage_location_id)
 
-@raises(SynapseAuthenticationError)
 def test_login__only_username_config_file_username_mismatch():
     if (sys.version < '3'):
         configparser_package_name = 'ConfigParser'
@@ -267,4 +266,8 @@ def test_login__only_username_config_file_username_mismatch():
             mismatch_username = "someBodyOnceToldMeTheWorldWasGonnaRollMe"
 
             #should throw exception
-            syn.login(mismatch_username)
+            assert_raises(SynapseAuthenticationError, syn.login, mismatch_username)
+
+            read_session_mock.assert_called_once()
+            config_items_mock.assert_called_once_with('authentication')
+
