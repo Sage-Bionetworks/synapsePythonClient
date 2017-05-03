@@ -263,7 +263,7 @@ def test_login__only_username_config_file_username_mismatch():
     with patch("%s.ConfigParser.items" % configparser_package_name) as config_items_mock,\
          patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
             read_session_mock.return_value = {}  #empty session cache
-            config_items_mock.return_value = [{'username', 'shrek'}, ('apikey', base64.b64encode(b'thisIsMySwamp'))]
+            config_items_mock.return_value = [('username', 'shrek'), ('apikey', base64.b64encode(b'thisIsMySwamp'))]
             mismatch_username = "someBodyOnceToldMeTheWorldWasGonnaRollMe"
 
             #should throw exception
