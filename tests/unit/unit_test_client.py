@@ -132,9 +132,12 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     # 4. ----------------------------------------------------------------------
     ## test preservation of local state
     url = 'http://foo.com/secretstuff.txt'
+    #need to create a bundle with externalURL
+    externalURLBundle = dict(bundle)
+    externalURLBundle['fileHandles'][0]['externalURL'] = url
     e = File(name='anonymous', parentId="syn12345", synapseStore=False, externalURL=url)
     e.local_state({'zap':'pow'})
-    e = syn._getWithEntityBundle(entityBundle=bundle, entity=e)
+    e = syn._getWithEntityBundle(entityBundle=externalURLBundle, entity=e)
     assert e.local_state()['zap'] == 'pow'
     assert e.synapseStore == False
     assert e.externalURL == url
