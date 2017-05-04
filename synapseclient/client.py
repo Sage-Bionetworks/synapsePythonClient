@@ -826,15 +826,15 @@ class Synapse:
         downloadPath = self._resolve_download_collision_path(os.path.join(downloadLocation, fileName), default_collision if (ifcollision is None) else ifcollision)
         if downloadPath is None:
             return
-        downloadPath = utils.normalize_path(downloadPath)
+        downloadPath = downloadPath
 
         #check to see if the file has already been downloaded
-        cached_file_path = utils.normalize_path(self.cache.get(entity._file_handle.id, downloadLocation))
+        cached_file_path = self.cache.get(entity._file_handle.id, downloadLocation)
 
 
         #TODO: edge case secificed keep.local but using default downloadLocation
         if cached_file_path is not None: #copy from cache
-            if downloadPath != cached_file_path:
+            if utils.normalize_path(downloadPath) != utils.normalize_path(cached_file_path):
                 # create the foider if it does not exist already
                 if not os.path.exists(downloadLocation):
                     os.makedirs(downloadLocation)
