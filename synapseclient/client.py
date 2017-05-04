@@ -812,6 +812,10 @@ class Synapse:
 
     def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
         fileName = entity['name']
+
+        #check to see if the file already exists
+        cached_file_path = self.cache.get(entity._file_handle.id, downloadLocation)
+
         # Make sure the download location is a fully resolved directory
         if downloadLocation is not None:
             downloadLocation = os.path.expandvars(os.path.expanduser(downloadLocation))
@@ -819,7 +823,11 @@ class Synapse:
                 raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
             default_collision = 'keep.both' # dont overwrite for user defined locations
         else:
-            downloadLocation = self.cache.get_cache_dir(entity._file_handle.id)
+            #if already cached use that as the download location. otherwise default to .synapseCache
+            if cached_file_path is not None:
+                downloadLocation, fileName = os.path.split(cached_file_path)
+            else:
+                downloadLocation = self.cache.get_cache_dir(entity._file_handle.id)
             default_collision = 'overwrite.local' #will use synapse cache so we can overwrite
 
         #TODO: is a function necesssary if only called once?
@@ -827,10 +835,6 @@ class Synapse:
         if downloadPath is None:
             return
         downloadPath = downloadPath
-
-        #check to see if the file has already been downloaded
-        cached_file_path = self.cache.get(entity._file_handle.id, downloadLocation)
-
 
         #TODO: edge case secificed keep.local but using default downloadLocation
         if cached_file_path is not None: #copy from cache
