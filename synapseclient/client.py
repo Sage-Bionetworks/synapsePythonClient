@@ -819,15 +819,17 @@ class Synapse:
                 raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
             default_collision = 'keep.both' # dont overwrite for user defined locations
         else:
-            self.cache.get_cache_dir(entity._file_handle.id)
+            downloadLocation = self.cache.get_cache_dir(entity._file_handle.id)
             default_collision = 'overwrite.local' #will use synapse cache so we can overwrite
 
         #TODO: is a function necesssary if only called once?
-        downloadPath = _resolve_download_collision_path(os.path.join(downloadLocation, fileName, default_collision if (ifcollision is None) else ifcollision))
-
+        downloadPath = self._resolve_download_collision_path(os.path.join(downloadLocation, fileName), default_collision if (ifcollision is None) else ifcollision)
+        if downloadPath is None:
+            return
+        downloadPath = utils.normalize_path(downloadPath)
 
         #check to see if the file has already been downloaded
-        cached_file_path = self.cache.get(entity._file_handle.id, downloadLocation)
+        cached_file_path = utils.normalize_path(self.cache.get(entity._file_handle.id, downloadLocation))
 
 
         #TODO: edge case secificed keep.local but using default downloadLocation
@@ -860,7 +862,7 @@ class Synapse:
         # resolve collison
         if os.path.exists(downloadPath):
             if ifcollision == "overwrite.local":
-                return downloadPath
+                pass
             elif ifcollision == "keep.local":
                 # Don't want to overwrite the local file.
                 return None
@@ -869,6 +871,8 @@ class Synapse:
             else:
                 raise ValueError('Invalid parameter: "%s" is not a valid value '
                                  'for "ifcollision"' % ifcollision)
+        return downloadPath
+
 
     def store(self, obj, **kwargs):
         """
