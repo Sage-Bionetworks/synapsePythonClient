@@ -780,8 +780,6 @@ class Synapse:
             self._update_file_entity_metadata(entity, entityBundle['fileHandles'])
             if downloadFile:
                 self._download_file_entity(downloadLocation, entity, ifcollision, submission)
-            #TODO: just pass as kwargs for the variables that are not used in this function
-            #TODO: store() should also update filehandle
 
         return entity
 
@@ -828,8 +826,6 @@ class Synapse:
             downloadLocation = os.path.dirname(cached_file_path) if (cached_file_path is not None) else self.cache.get_cache_dir(entity.dataFileHandleId)
             default_collision = 'overwrite.local' #will use synapse cache so we can overwrite
 
-
-        #TODO: is a function necesssary if only called once?
         downloadPath = self._resolve_download_collision_path(os.path.join(downloadLocation, fileName), default_collision if (ifcollision is None) else ifcollision)
         if downloadPath is None:
             return
@@ -841,13 +837,16 @@ class Synapse:
                 if not os.path.exists(downloadLocation):
                     os.makedirs(downloadLocation)
                 shutil.copy(cached_file_path, downloadPath)
-            entity.cacheDir = downloadLocation #TODO: can I move this out too?
+            entity.cacheDir = os.path.basename(downloadPath) #TODO: can I move this out too?
 
-        else: #download the file from internet
+        else: #download the file from URL (could be a local file)
             objectType = 'FileEntity' if submission is None else 'SubmissionAttachment'
             objectId = entity['id'] if submission is None else submission
             fileResult = self._getFileHandleDownload(entity.dataFileHandleId,
                                                      objectId, objectType)
+
+            # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
+            # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
             downloadPath = self._downloadFileHandle(fileResult['preSignedURL'],
                                                       downloadPath, fileResult['fileHandle'])
 
@@ -2015,7 +2014,7 @@ class Synapse:
 
         #TODO: remove this if statement when the deprecated uploadFile() has been removed
         if '_file_handle' not in local_state: #this should only occur if a deprecated function such as uploadFile() is used
-            local_state['_file_handle'] = DictObject() #TODO: maybe use a dictobject having all of filehandle's keys with values set to None
+            local_state['_file_handle'] = {}
 
         local_state_file_handle = local_state['_file_handle']
 

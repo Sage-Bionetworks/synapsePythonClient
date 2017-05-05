@@ -565,7 +565,6 @@ class File(Entity, Versionable):
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 
-    # TODO: _file_handle should not exist without datafileHandleId
     def _update_file_handle(self, file_handle_update_dict = None):
         """
         Sets the file handle
