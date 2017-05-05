@@ -812,7 +812,7 @@ class Synapse:
         entity.cacheDir = None
 
         #check to see if the file already exists
-        cached_file_path = self.cache.get(entity._file_handle.id, downloadLocation)
+        cached_file_path = self.cache.get(entity.dataFileHandleId, downloadLocation)
 
         #fileName
         fileName = os.path.basename(cached_file_path) if (cached_file_path is not None) else entity.name
@@ -825,7 +825,7 @@ class Synapse:
             default_collision = 'keep.both' # dont overwrite for user defined locations
         else:
             #if already cached use that as the download location. otherwise default to .synapseCache
-            downloadLocation = os.path.dirname(cached_file_path) if (cached_file_path is not None) else self.cache.get_cache_dir(entity._file_handle.id)
+            downloadLocation = os.path.dirname(cached_file_path) if (cached_file_path is not None) else self.cache.get_cache_dir(entity.dataFileHandleId)
             default_collision = 'overwrite.local' #will use synapse cache so we can overwrite
 
 
@@ -846,12 +846,12 @@ class Synapse:
         else: #download the file from internet
             objectType = 'FileEntity' if submission is None else 'SubmissionAttachment'
             objectId = entity['id'] if submission is None else submission
-            fileResult = self._getFileHandleDownload(entity._file_handle.id,
+            fileResult = self._getFileHandleDownload(entity.dataFileHandleId,
                                                      objectId, objectType)
             downloadPath = self._downloadFileHandle(fileResult['preSignedURL'],
                                                       downloadPath, fileResult['fileHandle'])
 
-            self.cache.add(entity._file_handle.id, downloadPath)
+            self.cache.add(entity.dataFileHandleId, downloadPath)
 
             if 'path' in entity and (entity['path'] is None or not os.path.exists(entity['path'])):
                 entity['synapseStore'] = False
