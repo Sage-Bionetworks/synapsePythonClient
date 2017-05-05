@@ -674,7 +674,7 @@ class Synapse:
 
         #If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, six.string_types) and os.path.isfile(entity):
-            bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
+            bundle = self.__getFromFile(entity, kwargs.pop('limitSearch', None))
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
 
@@ -804,17 +804,18 @@ class Synapse:
                     except SynapseHTTPError:
                         warnings.warn("Can't get storage location for entity %s" % entity['id'])
 
+
+    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
         # set the initial local state
         entity.path = None
         entity.files = []
         entity.cacheDir = None
 
-
-    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
-        fileName = entity['name']
-
         #check to see if the file already exists
         cached_file_path = self.cache.get(entity._file_handle.id, downloadLocation)
+
+        #fileName
+        fileName = os.path.basename(cached_file_path) if (cached_file_path is not None) else entity.name
 
         # Make sure the download location is a fully resolved directory
         if downloadLocation is not None:
@@ -824,17 +825,14 @@ class Synapse:
             default_collision = 'keep.both' # dont overwrite for user defined locations
         else:
             #if already cached use that as the download location. otherwise default to .synapseCache
-            if cached_file_path is not None:
-                downloadLocation, fileName = os.path.split(cached_file_path)
-            else:
-                downloadLocation = self.cache.get_cache_dir(entity._file_handle.id)
+            downloadLocation = os.path.dirname(cached_file_path) if (cached_file_path is not None) else self.cache.get_cache_dir(entity._file_handle.id)
             default_collision = 'overwrite.local' #will use synapse cache so we can overwrite
+
 
         #TODO: is a function necesssary if only called once?
         downloadPath = self._resolve_download_collision_path(os.path.join(downloadLocation, fileName), default_collision if (ifcollision is None) else ifcollision)
         if downloadPath is None:
             return
-        downloadPath = downloadPath
 
         #TODO: edge case secificed keep.local but using default downloadLocation
         if cached_file_path is not None: #copy from cache
@@ -996,17 +994,16 @@ class Synapse:
 
             if needs_upload:
                 fileLocation, local_state , storageLocationId= self.__uploadExternallyStoringProjects(entity, local_state)
+                local_state_file_handle = local_state['_file_handle']
                 fileHandle = self._uploadToFileHandleService(fileLocation,
                                                              synapseStore=entity.get('synapseStore', True),
-                                                             mimetype=local_state.get('contentType', None),
-                                                             md5=local_state.get('md5', None),
-                                                             fileSize=local_state.get('fileSize', None),
+                                                             mimetype=local_state_file_handle.get('contentType', None),
+                                                             md5=local_state_file_handle.get('contentMd5', None),
+                                                             fileSize=local_state_file_handle.get('contentSize', None),
                                                              storageLocationId=storageLocationId
                                                              )
                 properties['dataFileHandleId'] = fileHandle['id']
-                local_state['md5'] = fileHandle.get('contentMd5', None)
-                local_state['fileSize'] = fileHandle.get('contentSize', None)
-                local_state['contentType'] = fileHandle.get('contentType', None)
+                local_state['_file_handle'] = DictObject(fileHandle)
 
                 ## Add file to cache, unless it's an external URL
                 if fileHandle['concreteType'] != "org.sagebionetworks.repo.model.file.ExternalFileHandle":
@@ -2008,14 +2005,21 @@ class Synapse:
                   and a storage location id indicating to where the entity should be uploaded ("None" defaults to Synapse)
         """
         #If it is already an external URL just return
-        if local_state.get('externalURL', None):
-            return local_state['externalURL'], local_state, None
+
+        #TODO: remove this if statement when the deprecated uploadFile() has been removed
+        if '_file_handle' not in local_state: #this should only occur if a deprecated function such as uploadFile() is used
+            local_state['_file_handle'] = DictObject() #TODO: maybe use a dictobject having all of filehandle's keys with values set to None
+
+        local_state_file_handle = local_state['_file_handle']
+
+        if local_state_file_handle.get('externalURL', None):
+            return local_state_file_handle['externalURL'], local_state, None
         elif utils.is_url(entity['path']):
-            local_state['externalURL'] = entity['path']
+            local_state_file_handle['externalURL'] = entity['path']
             #If the url is a local path compute the md5
             url = urlparse(entity['path'])
             if os.path.isfile(url.path) and url.scheme=='file':
-                local_state['md5'] = utils.md5_for_file(url.path).hexdigest()
+                local_state_file_handle['contentMd5'] = utils.md5_for_file(url.path).hexdigest()
             return entity['path'], local_state, None
 
         location =  self._getDefaultUploadDestination(entity)
@@ -2037,12 +2041,12 @@ class Synapse:
                 
                 #Fill out local_state with fileSize, externalURL etc...
                 uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
-                local_state['externalURL'] = uploadLocation
-                local_state['fileSize'] = os.stat(entity['path']).st_size
-                local_state['md5'] = utils.md5_for_file(entity['path']).hexdigest()
-                if local_state.get('contentType') is None:
+                local_state_file_handle['externalURL'] = uploadLocation
+                local_state_file_handle['contentSize'] = os.stat(entity['path']).st_size
+                local_state_file_handle['contentMd5'] = utils.md5_for_file(entity['path']).hexdigest()
+                if local_state_file_handle.get('contentType', None) is None:
                     mimetype, enc = mimetypes.guess_type(entity['path'], strict=False)
-                    local_state['contentType'] = mimetype
+                    local_state_file_handle['contentType'] = mimetype
                 return uploadLocation, local_state, location['storageLocationId']
             else:
                 raise NotImplementedError('Can only handle SFTP upload locations.')

@@ -158,7 +158,7 @@ def test_Entity():
     ## test getting the file from the cache with downloadLocation parameter (SYNPY-330)
     a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
     assert a_file_cached.path is not None
-    assert os.path.basename(a_file_cached.path) == os.path.basename(a_file.path), a_file_cached.path
+    assert_equal(os.path.basename(a_file_cached.path), os.path.basename(a_file.path))
 
     print("\n\nList of files in project:\n")
     syn._list(project, recursive=True)
@@ -393,7 +393,7 @@ def test_ExternalFileHandle():
     singapore.externalURL = singapore_2_url
     singapore = syn.store(singapore)
     s2 = syn.get(singapore, downloadFile=False)
-    assert s2.externalURL == singapore_2_url
+    assert_equal(s2.externalURL, singapore_2_url)
 
 
 
@@ -403,7 +403,7 @@ def test_synapseStore_flag():
     schedule_for_cleanup(path)
     bogus = File(path, name='Totally bogus data', parent=project, synapseStore=False)
     bogus = syn.store(bogus)
-    
+
     # Verify the thing can be downloaded as a URL
     bogus = syn.get(bogus, downloadFile=False)
     assert bogus.name == 'Totally bogus data'
