@@ -557,11 +557,12 @@ class File(Entity, Versionable):
             self.__dict__['cacheDir'] = None
             self.__dict__['files'] = []
         self.__dict__['synapseStore'] = synapseStore
-        self._update_file_handle()
+
+        # pop the _file_handle from local properties because it is handled differently from other local_state
+        self._update_file_handle(local_state.pop('_file_handle', None) if (local_state is not None) else None)
+
         super(File, self).__init__(concreteType=File._synapse_entity_type, properties=properties,
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
-        # if not synapseStore:
-        #     self.__setitem__('concreteType', 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
 
     # TODO: _file_handle should not exist without datafileHandleId
@@ -573,12 +574,8 @@ class File(Entity, Versionable):
         """
 
         #replace the file handle dict
-        fh_dict = DictObject()
+        fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
         self.__dict__[self.__class__._file_handle_attr_name] = fh_dict
-
-        # copy over the parameter dict
-        if file_handle_update_dict is not None:
-            fh_dict.update(file_handle_update_dict)
 
         #initialize all nonexistent keys to have value of None
         for key in self.__class__._file_handle_keys:
@@ -588,7 +585,9 @@ class File(Entity, Versionable):
     #TODO:modify printing of file entity to match original file entity print(currently shows _filehandle.contentMd5 instead of .md5)
 
     def __setitem__(self, key, value):
-        if key in self.__class__._file_handle_aliases:
+        if (key == self._file_handle_attr_name):
+            self._update_file_handle(value)
+        elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
             super(File, self).__setitem__(key,value)

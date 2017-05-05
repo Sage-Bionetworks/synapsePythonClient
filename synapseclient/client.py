@@ -861,6 +861,8 @@ class Synapse:
 
 
     def _resolve_download_collision_path(self, downloadPath, ifcollision):
+
+        #TODO: maybe dont return none if keep.local and cache path is same as downloadPath?
         # resolve collison
         if os.path.exists(downloadPath):
             if ifcollision == "overwrite.local":
@@ -1003,7 +1005,7 @@ class Synapse:
                                                              storageLocationId=storageLocationId
                                                              )
                 properties['dataFileHandleId'] = fileHandle['id']
-                local_state['_file_handle'] = DictObject(fileHandle)
+                local_state['_file_handle'] = fileHandle
 
                 ## Add file to cache, unless it's an external URL
                 if fileHandle['concreteType'] != "org.sagebionetworks.repo.model.file.ExternalFileHandle":
@@ -1017,7 +1019,7 @@ class Synapse:
             #update the file_handle metadata if the FileEntity's FileHandle id has changed
             #TODO: add test
             if '_file_handle' in local_state and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
-                local_state['_file_handle'] = DictObject(self._getFileHandle(properties['dataFileHandleId']))
+                local_state['_file_handle'] = self._getFileHandle(properties['dataFileHandleId'])
 
         # Create or update Entity in Synapse
         if 'id' in properties:
