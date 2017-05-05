@@ -1014,6 +1014,11 @@ class Synapse:
                 # But becomes an update() due to conflict
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
 
+            #update the file_handle metadata if the FileEntity's FileHandle id has changed
+            #TODO: add test
+            if '_file_handle' in local_state and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
+                local_state['_file_handle'] = DictObject(self._getFileHandle(properties['dataFileHandleId']))
+
         # Create or update Entity in Synapse
         if 'id' in properties:
             properties = self._updateEntity(properties, forceVersion, versionLabel)
