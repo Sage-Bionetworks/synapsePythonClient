@@ -809,30 +809,36 @@ class Synapse:
         entity.files = []
         entity.cacheDir = None
 
-        #check to see if the file already exists
+        # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
+        # this location could be either in .synapseCache
+        # or a user specified location to which the user previously downloaded the file
         cached_file_path = self.cache.get(entity.dataFileHandleId, downloadLocation)
 
-        #fileName
-        fileName = os.path.basename(cached_file_path) if (cached_file_path is not None) else entity.name
+        #location in .synapseCache where the file would be corresponding to its FileHandleId
+        synapseCache_location = self.cache.get_cache_dir(entity.dataFileHandleId)
 
-        # Make sure the download location is a fully resolved directory
+        file_name = entity.name
+
+        #Decide the best download location for the file
         if downloadLocation is not None:
+            # Make sure the specified download location is a fully resolved directory
             downloadLocation = os.path.expandvars(os.path.expanduser(downloadLocation))
             if os.path.isfile(downloadLocation):
                 raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
-            default_collision = 'keep.both' # dont overwrite for user defined locations
+        elif cached_file_path is not None:
+            #file already cached so use that as the download location
+            downloadLocation, file_name = os.path.split(cached_file_path)
         else:
-            #if already cached use that as the download location. otherwise default to .synapseCache
-            downloadLocation = os.path.dirname(cached_file_path) if (cached_file_path is not None) else self.cache.get_cache_dir(entity.dataFileHandleId)
-            default_collision = 'overwrite.local' #will use synapse cache so we can overwrite
+            #file not cached and no user-specified location so default to .synapseCache
+            downloadLocation = synapseCache_location
 
-        downloadPath = self._resolve_download_collision_path(os.path.join(downloadLocation, fileName), default_collision if (ifcollision is None) else ifcollision)
+        downloadPath = self._resolve_download_path(os.path.join(downloadLocation, file_name), ifcollision, synapseCache_location)
         if downloadPath is None:
             return
+        downloadPath = utils.normalize_path(downloadPath)
 
-        #TODO: edge case secificed keep.local but using default downloadLocation
         if cached_file_path is not None: #copy from cache
-            if utils.normalize_path(downloadPath) != utils.normalize_path(cached_file_path):
+            if downloadPath != cached_file_path:
                 # create the foider if it does not exist already
                 if not os.path.exists(downloadLocation):
                     os.makedirs(downloadLocation)
@@ -859,9 +865,17 @@ class Synapse:
         entity.files = [os.path.basename(downloadPath)]
 
 
-    def _resolve_download_collision_path(self, downloadPath, ifcollision):
+    def _resolve_download_path(self, downloadPath, ifcollision, synapseCache_location):
 
-        #TODO: maybe dont return none if keep.local and cache path is same as downloadPath?
+        #always overwrite if we are downloading to .synapseCache
+        if utils.normalize_path(downloadLocation) == synapseCache_location:
+            if ifcollision is not None:
+                sys.stderr.write('\n' + '!'*50+'\n WARNING: ifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
+            ifcollision= 'overwrite.local'
+
+        #if not specified, keep.local
+        ifcollision = ifcollision or 'keep.local'
+
         # resolve collison
         if os.path.exists(downloadPath):
             if ifcollision == "overwrite.local":
