@@ -832,7 +832,7 @@ class Synapse:
             #file not cached and no user-specified location so default to .synapseCache
             downloadLocation = synapseCache_location
 
-        downloadPath = self._resolve_download_path(os.path.join(downloadLocation, file_name), ifcollision, synapseCache_location)
+        downloadPath = self._resolve_download_path(downloadLocation, file_name, ifcollision, synapseCache_location)
         if downloadPath is None:
             return
         downloadPath = utils.normalize_path(downloadPath)
@@ -865,7 +865,7 @@ class Synapse:
         entity.files = [os.path.basename(downloadPath)]
 
 
-    def _resolve_download_path(self, downloadPath, ifcollision, synapseCache_location):
+    def _resolve_download_path(self, downloadLocation, file_name, ifcollision, synapseCache_location):
 
         #always overwrite if we are downloading to .synapseCache
         if utils.normalize_path(downloadLocation) == synapseCache_location:
@@ -875,6 +875,8 @@ class Synapse:
 
         #if not specified, keep.local
         ifcollision = ifcollision or 'keep.local'
+
+        downloadPath = os.join(downloadLocation, file_name)
 
         # resolve collison
         if os.path.exists(downloadPath):
