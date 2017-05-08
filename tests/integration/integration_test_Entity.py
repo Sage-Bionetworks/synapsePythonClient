@@ -514,7 +514,7 @@ def test_download_local_file_URL_path():
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
 
-    filehandle = syn._uploadToFileHandleService('file:///'+path, synapseStore=False,
+    filehandle = syn._uploadToFileHandleService(path, synapseStore=False,
                                    mimetype=None, fileSize=None)
 
     localFileEntity = syn.store(synapseclient.File(dataFileHandleId=filehandle['id'], parent=project))
