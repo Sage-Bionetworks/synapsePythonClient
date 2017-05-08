@@ -817,7 +817,7 @@ class Synapse:
         #location in .synapseCache where the file would be corresponding to its FileHandleId
         synapseCache_location = self.cache.get_cache_dir(entity.dataFileHandleId)
 
-        file_name = entity.name
+        file_name = entity.name if cached_file_path is None else os.path.basename(cached_file_path)
 
         #Decide the best download location for the file
         if downloadLocation is not None:
@@ -827,15 +827,14 @@ class Synapse:
                 raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
         elif cached_file_path is not None:
             #file already cached so use that as the download location
-            downloadLocation, file_name = os.path.split(cached_file_path)
+            downloadLocation = os.path.dirname(cached_file_path)
         else:
             #file not cached and no user-specified location so default to .synapseCache
             downloadLocation = synapseCache_location
 
-        downloadPath = self._resolve_download_path(downloadLocation, file_name, ifcollision, synapseCache_location)
+        downloadPath = self._resolve_download_path(downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path)
         if downloadPath is None:
             return
-        downloadPath = utils.normalize_path(downloadPath)
 
         if cached_file_path is not None: #copy from cache
             if downloadPath != cached_file_path:
@@ -865,19 +864,16 @@ class Synapse:
         entity.files = [os.path.basename(downloadPath)]
 
 
-    def _resolve_download_path(self, downloadLocation, file_name, ifcollision, synapseCache_location):
-
+    def _resolve_download_path(self, downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path):
         #always overwrite if we are downloading to .synapseCache
         if utils.normalize_path(downloadLocation) == synapseCache_location:
             if ifcollision is not None:
                 sys.stderr.write('\n' + '!'*50+'\n WARNING: ifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
             ifcollision= 'overwrite.local'
+        #if ifcollision not specified, keep.local
+        ifcollision = ifcollision or 'keep.both'
 
-        #if not specified, keep.local
-        ifcollision = ifcollision or 'keep.local'
-
-        downloadPath = os.path.join(downloadLocation, file_name)
-
+        downloadPath = utils.normalize_path(os.path.join(downloadLocation, file_name))
         # resolve collison
         if os.path.exists(downloadPath):
             if ifcollision == "overwrite.local":
@@ -886,7 +882,8 @@ class Synapse:
                 # Don't want to overwrite the local file.
                 return None
             elif ifcollision == "keep.both":
-                return utils.unique_filename(downloadPath)
+                if downloadPath != cached_file_path:
+                    return utils.unique_filename(downloadPath)
             else:
                 raise ValueError('Invalid parameter: "%s" is not a valid value '
                                  'for "ifcollision"' % ifcollision)

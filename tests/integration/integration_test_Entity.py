@@ -508,3 +508,17 @@ def test_download_file_URL_false():
     assert reupload.path == fileThatDoesntExist, "Entity should still be pointing at a URL"
     assert originalVersion == reupload.versionNumber
 
+
+#SYNPY-366
+def test_download_local_file_URL_path():
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    filehandle = syn._uploadToFileHandleService('file:///'+path, synapseStore=False,
+                                   mimetype=None, fileSize=None)
+
+    localFileEntity = syn.store(synapseclient.File(dataFileHandleId=filehandle['id']), parent=project)
+    syn.cache.purge(time.time())
+
+    e = syn.get(localFileEntity.id)
+    assert_equal(path, e.path)
