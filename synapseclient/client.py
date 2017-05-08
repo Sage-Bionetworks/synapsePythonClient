@@ -1029,9 +1029,18 @@ class Synapse:
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
 
             #update the file_handle metadata if the FileEntity's FileHandle id has changed
-            #TODO: add test
             if '_file_handle' in local_state and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
                 local_state['_file_handle'] = self._getFileHandle(properties['dataFileHandleId'])
+                #check if we alredy have the filehandleid cached somewhere
+                cached_path = self.cache.get(properties['dataFileHandleId'])
+                if cached_path is None:
+                    local_state['path'] = None
+                    local_state['cacheDir'] = None
+                    local_state['files'] = []
+                else:
+                    local_state['path'] = cached_path
+                    local_state['cacheDir'] = os.path.dirname(cached_path)
+                    local_state['files'] = [os.path.basename(cached_path)]
 
         # Create or update Entity in Synapse
         if 'id' in properties:

@@ -5,10 +5,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, requests, tempfile, time, urllib, json
+import uuid, filecmp, os, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none
-from nose.plugins.attrib import attr
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal
 from mock import patch
 try:
     import configparser
@@ -16,9 +15,7 @@ except ImportError:
     import ConfigParser as configparser
 
 import synapseclient
-import synapseclient.client as client
-import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Project, Folder, File, Link, Column, Schema, RowSet, Row
+from synapseclient import Activity, Project, Folder, File, Link
 from synapseclient.exceptions import *
 
 import integration
@@ -517,8 +514,36 @@ def test_download_local_file_URL_path():
     filehandle = syn._uploadToFileHandleService(path, synapseStore=False,
                                    mimetype=None, fileSize=None)
 
-    localFileEntity = syn.store(synapseclient.File(dataFileHandleId=filehandle['id'], parent=project))
+    localFileEntity = syn.store(File(dataFileHandleId=filehandle['id'], parent=project))
     syn.cache.purge(time.time())
 
     e = syn.get(localFileEntity.id)
     assert_equal(path, e.path)
+
+
+#SYNPY-424
+def test_store_file_handle_update_metadata():
+    original_file_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(original_file_path)
+
+    #upload the project
+    entity = syn.store(File(original_file_path, parent=project))
+    old_file_handle = entity._file_handle
+
+    #create file handle to replace the old one
+    replacement_file_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(replacement_file_path)
+    new_file_handle = syn._uploadToFileHandleService(replacement_file_path, synapseStore=True)
+
+    entity.dataFileHandleId = new_file_handle['id']
+    new_entity = syn.store(entity)
+
+    #make sure _file_handle info was changed (_file_handle values are all changed at once so just verifying id change is sufficient)
+    assert_equal(new_file_handle['id'], new_entity._file_handle['id'])
+    assert_not_equal(old_file_handle['id'], new_entity._file_handle['id'])
+
+    #check that local_state was invalidated
+    assert_equal(None, new_entity.path)
+    assert_equal(None, new_entity.cacheDir)
+    assert_equal([], new_entity.files)
+
