@@ -517,7 +517,7 @@ def test_download_local_file_URL_path():
     filehandle = syn._uploadToFileHandleService('file:///'+path, synapseStore=False,
                                    mimetype=None, fileSize=None)
 
-    localFileEntity = syn.store(synapseclient.File(dataFileHandleId=filehandle['id']), parent=project)
+    localFileEntity = syn.store(synapseclient.File(dataFileHandleId=filehandle['id'], parent=project))
     syn.cache.purge(time.time())
 
     e = syn.get(localFileEntity.id)
