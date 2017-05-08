@@ -876,7 +876,7 @@ class Synapse:
         #if not specified, keep.local
         ifcollision = ifcollision or 'keep.local'
 
-        downloadPath = os.join(downloadLocation, file_name)
+        downloadPath = os.path.join(downloadLocation, file_name)
 
         # resolve collison
         if os.path.exists(downloadPath):
