@@ -787,10 +787,16 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
         syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
-        if user is None:
+        while not user:
             user = input("Synapse username: ")
 
-        passwd = getpass.getpass("Password for " + user + ": ")
+        passwd_prompt = "Password for " + user + ": "
+        if six.PY2 and os.name == 'nt': #if using windows convert form unicode literal into str
+            passwd_prompt = passwd_prompt.encode()
+
+        passwd = None
+        while not passwd:
+            passwd = getpass.getpass(passwd_prompt)
         syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 
 def main():
