@@ -792,7 +792,7 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
 
         passwd_prompt = "Password for " + user + ": "
         if six.PY2 and os.name == 'nt': #if using windows convert form unicode literal into str
-            passwd_prompt = passwd_prompt.encode()
+            passwd_prompt = passwd_prompt.encode('utf-8')
 
         passwd = None
         while not passwd:
