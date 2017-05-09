@@ -515,7 +515,6 @@ def test_download_local_file_URL_path():
                                    mimetype=None, fileSize=None)
 
     localFileEntity = syn.store(File(dataFileHandleId=filehandle['id'], parent=project))
-    syn.cache.purge(Datetime.now())
     e = syn.get(localFileEntity.id)
     assert_equal(path, e.path)
 

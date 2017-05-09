@@ -158,9 +158,15 @@ def test_access_restrictions():
               'name': 'so_what.mp3',
               'parentId': 'syn1000001',
               'versionLabel': '1',
-              'versionNumber': 1},
+              'versionNumber': 1,
+              'dataFileHandleId': '42'},
+
             'entityType': 'org.sagebionetworks.repo.model.FileEntity',
-            'fileHandles': [],
+            'fileHandles': [
+                {
+                    'id': '42'
+                }
+            ],
             'unmetAccessRequirements': [{
               'accessType': 'DOWNLOAD',
               'concreteType': 'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
