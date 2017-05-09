@@ -353,13 +353,9 @@ class Entity(collections.MutableMapping):
     def __getattr__(self, key):
         # Note: that __getattr__ is only called after an attempt to
         # look the key up in the object's dictionary has failed.
-        if key in self.__dict__:
-            return self.__dict__[key]
-        elif key in self.properties:
-            return self.properties[key]
-        elif key in self.annotations:
-            return self.annotations[key]
-        else:
+        try:
+            return self.__getitem__(key)
+        except KeyError:
             ## Note that hasattr in Python2 is more permissive than Python3
             ## about what exceptions it catches. In Python3, hasattr catches
             ## only AttributeError
@@ -580,7 +576,6 @@ class File(Entity, Versionable):
             if key not in fh_dict:
                 fh_dict[key] = None
 
-    #TODO:modify printing of file entity to match original file entity print(currently shows _filehandle.contentMd5 instead of .md5)
 
     def __setitem__(self, key, value):
         if (key == '_file_handle'):
@@ -590,17 +585,12 @@ class File(Entity, Versionable):
         else:
             super(File, self).__setitem__(key,value)
 
+
     def __getitem__(self, item):
         if item in self.__class__._file_handle_aliases:
             return self._file_handle[self.__class__._file_handle_aliases[item]]
         else:
             return super(File, self).__getitem__(item)
-
-    def __getattr__(self, item):
-        if item in self.__class__._file_handle_aliases:
-            return self._file_handle[self.__class__._file_handle_aliases[item]]
-        else:
-            return super(File, self).__getattr__(item)
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
