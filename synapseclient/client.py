@@ -777,30 +777,14 @@ class Synapse:
 
         #Handle download of fileEntities
         if isinstance(entity, File):
-            self._update_file_entity_metadata(entity, entityBundle['fileHandles'])
+            #update the entity with FileHandle metadata
+            file_handle = next(handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId)
+            entity._update_file_handle(file_handle)
+
             if downloadFile:
                 self._download_file_entity(downloadLocation, entity, ifcollision, submission)
 
         return entity
-
-
-    def _update_file_entity_metadata(self, entity, entityFileHandles):
-        # Fill in information about the file, even if we don't download it
-        # Note: fileHandles will be an empty list if there are unmet access requirements
-        for handle in entityFileHandles:
-            if handle['id'] == entity.dataFileHandleId:
-                entity._update_file_handle(handle)
-                if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
-                    # entity['externalURL'] = handle['externalURL']
-                    # Determine if storage loca`tion for this entity matches the url of the
-                    # project to determine if I should synapseStore it in the future.
-                    # This can fail with a 404 for submissions who's original entity is deleted
-                    try:
-                        storageLocation = self._getDefaultUploadDestination(entity)
-                        entity['synapseStore'] = utils.is_same_base_url(storageLocation.get('url', 'S3'),
-                                                                        entity['externalURL'])
-                    except SynapseHTTPError:
-                        warnings.warn("Can't get storage location for entity %s" % entity['id'])
 
 
     def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
@@ -842,7 +826,6 @@ class Synapse:
                 if not os.path.exists(downloadLocation):
                     os.makedirs(downloadLocation)
                 shutil.copy(cached_file_path, downloadPath)
-            entity.cacheDir = os.path.basename(downloadPath) #TODO: can I move this out too?
 
         else: #download the file from URL (could be a local file)
             objectType = 'FileEntity' if submission is None else 'SubmissionAttachment'
@@ -862,7 +845,7 @@ class Synapse:
 
         entity.path = downloadPath
         entity.files = [os.path.basename(downloadPath)]
-
+        entity.cacheDir = os.path.basename(downloadPath)
 
     def _resolve_download_path(self, downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path):
         #always overwrite if we are downloading to .synapseCache

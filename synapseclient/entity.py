@@ -531,14 +531,13 @@ class File(Entity, Versionable):
         data = File('/path/to/file/data.xyz', parent=folder)
         data = syn.store(data)
     """
-    _file_handle_attr_name = '_file_handle'
     #Note: externalURL technically should not be in the keys since it's only a field/member variable of ExternalFileHandle, but for backwards compatibility it's included
     _file_handle_keys = ["createdOn", "id", "concreteType", "contentSize", "createdBy", "etag", "fileName", "contentType", "contentMd5", "storageLocationId", 'externalURL']
     #Used for backwards compatability. The keys found below used to located in the entity's local_state (i.e. __dict__).
     _file_handle_aliases = {'md5': 'contentMd5', 'externalURL':'externalURL', 'fileSize':'contentSize', 'contentType': 'contentType'}
 
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
-    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', _file_handle_attr_name]
+    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', '_file_handle']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
     ## TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
@@ -574,7 +573,7 @@ class File(Entity, Versionable):
 
         #replace the file handle dict
         fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
-        self.__dict__[self.__class__._file_handle_attr_name] = fh_dict
+        self.__dict__['_file_handle'] = fh_dict
 
         #initialize all nonexistent keys to have value of None
         for key in self.__class__._file_handle_keys:
@@ -584,7 +583,7 @@ class File(Entity, Versionable):
     #TODO:modify printing of file entity to match original file entity print(currently shows _filehandle.contentMd5 instead of .md5)
 
     def __setitem__(self, key, value):
-        if (key == self._file_handle_attr_name):
+        if (key == '_file_handle'):
             self._update_file_handle(value)
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value

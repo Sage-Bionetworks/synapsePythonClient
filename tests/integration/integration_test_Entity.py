@@ -7,7 +7,7 @@ from builtins import str
 
 import uuid, filecmp, os, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_greater
 from mock import patch
 try:
     import configparser
@@ -515,8 +515,7 @@ def test_download_local_file_URL_path():
                                    mimetype=None, fileSize=None)
 
     localFileEntity = syn.store(File(dataFileHandleId=filehandle['id'], parent=project))
-    syn.cache.purge(time.time())
-
+    syn.cache.purge(Datetime.now())
     e = syn.get(localFileEntity.id)
     assert_equal(path, e.path)
 
