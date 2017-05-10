@@ -790,13 +790,10 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
         while not user:
             user = input("Synapse username: ")
 
-        passwd_prompt = "Password for " + user + ": "
-        if six.PY2 and os.name == 'nt': #if using windows convert form unicode literal into str
-            passwd_prompt = passwd_prompt.encode('utf-8')
-
         passwd = None
         while not passwd:
-            passwd = getpass.getpass(passwd_prompt)
+            #must encode password prompt because getpass() has OS-dependent implementation and complains about unicode on Windows python 2.7
+            passwd = getpass.getpass(("Password for " + user + ": ").encode('utf-8'))
         syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 
 def main():
