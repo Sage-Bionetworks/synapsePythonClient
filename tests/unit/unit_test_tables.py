@@ -24,6 +24,7 @@ except ImportError:
 import synapseclient
 from synapseclient.exceptions import SynapseError
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn
+from mock import patch
 
 
 def setup(module):
@@ -494,3 +495,31 @@ def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
 
     #method under test should raise exception
     CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
+
+
+def test_build_table_download_file_handle_list__repeated_file_handles():
+    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+
+    #patch the cache so we don't look there in case FileHandle ids actually exist there
+    patch.object(syn.cache, "get", return_value = None)
+
+    cols = [
+        Column(name='Name', columnType='STRING', maximumSize=50),
+        Column(name='filehandle', columnType='FILEHANDLEID')]
+
+    schema = Schema(name='FileHandleTest', columns=cols, parent='syn420')
+
+    #using some large filehandle numbers so i don
+    data = [["ayy lmao", 5318008],
+            ["large numberino", 0x5f3759df],
+            ["repeated file handle", 5318008],
+            ["repeated file handle also", 0x5f3759df]]
+
+    ## need columns to do cast_values w/o storing
+    table = Table(schema, data, headers=[SelectColumn.from_column(col) for col in cols])
+
+    file_handle_associations, file_handle_to_path_map = syn._build_table_download_file_handle_list(table, ['filehandle'])
+
+    #verify only 2 file_handles are added (repeats were ignored)
+    assert_equals(2, len(file_handle_associations))
+    assert_equals(0, len(file_handle_to_path_map)) #might as well check anyways
