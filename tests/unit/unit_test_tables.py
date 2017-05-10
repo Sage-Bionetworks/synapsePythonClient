@@ -524,4 +524,3 @@ def test_build_table_download_file_handle_list__repeated_file_handles():
     assert_equals(2, len(file_handle_associations))
     assert_equals(0, len(file_handle_to_path_map)) #might as well check anyways
 
-    
