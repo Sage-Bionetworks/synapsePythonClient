@@ -5,8 +5,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import tempfile, os, sys, filecmp, shutil, requests, json, time
-import uuid, random, base64
+import tempfile, os, sys, filecmp, shutil, json, time
+import uuid, base64
 try:
     import configparser
 except ImportError:
@@ -14,19 +14,15 @@ except ImportError:
 
 from datetime import datetime
 from nose.tools import assert_raises, assert_equals, assert_not_equal
-from nose.plugins.attrib import attr
 from nose.plugins.skip import SkipTest
-from mock import MagicMock, patch
+from mock import MagicMock, patch, call
 
 import synapseclient
 import synapseclient.client as client
-import synapseclient.utils as utils
 from synapseclient.exceptions import *
-from synapseclient.evaluation import Evaluation
 from synapseclient.activity import Activity
 from synapseclient.version_check import version_check
 from synapseclient.entity import Project, File, Folder
-from synapseclient.wiki import Wiki
 from synapseclient.team import Team
 
 import integration
@@ -64,31 +60,29 @@ def test_login():
             configparser_package_name = 'ConfigParser'
         else:
             configparser_package_name = 'configparser'
-        with patch("%s.ConfigParser.has_option" % configparser_package_name) as config_has_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
+        with patch("%s.ConfigParser.items" % configparser_package_name) as config_items_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
 
-            config_has_mock.return_value = False
+            config_items_mock.return_value = []
             read_session_mock.return_value = {}
             
             # Login with given bad session token, 
             # It should REST PUT the token and fail
             # Then keep going and, due to mocking, fail to read any credentials
             assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
-            assert config_has_mock.called
+            assert config_items_mock.called
             
             # Login with no credentials 
             assert_raises(SynapseAuthenticationError, syn.login)
             
-            config_has_mock.reset_mock()
-            config_has_mock.side_effect = lambda section, option: section == "authentication" and option == "sessiontoken"
-            with patch("%s.ConfigParser.get" % configparser_package_name) as config_get_mock:
+            config_items_mock.reset_mock()
 
-                # Login with a session token from the config file
-                config_get_mock.return_value = sessionToken
-                syn.login(silent=True)
-                
-                # Login with a bad session token from the config file
-                config_get_mock.return_value = "derp-dee-derp"
-                assert_raises(SynapseAuthenticationError, syn.login)
+            # Login with a session token from the config file
+            config_items_mock.return_value = [('sessiontoken', sessionToken)]
+            syn.login(silent=True)
+
+            # Login with a bad session token from the config file
+            config_items_mock.return_value = [('sessiontoken', "derp-dee-derp")]
+            assert_raises(SynapseAuthenticationError, syn.login)
         
         # Login with session token
         syn.login(sessionToken=sessionToken, rememberMe=True, silent=True)
@@ -97,10 +91,12 @@ def test_login():
         with patch('synapseclient.Synapse._readSessionCache') as read_session_mock:
             dict_mock = MagicMock()
             read_session_mock.return_value = dict_mock
-            dict_mock.__contains__.side_effect = lambda x: x == '<mostRecent>'
-            dict_mock.__getitem__.return_value = syn.username
+
+            #first call is for <mostRecent> next call is the api key of the username in <mostRecent>
+            dict_mock.get.side_effect = [syn.username, base64.b64encode(syn.apiKey)]
+
             syn.login(silent=True)
-            dict_mock.__getitem__.assert_called_once_with('<mostRecent>')
+            dict_mock.assert_has_calls([call.get('<mostRecent>', None),call.get(syn.username, None)])
         
         # Login with ID only
         syn.login(username, silent=True)
