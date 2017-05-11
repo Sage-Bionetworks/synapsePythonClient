@@ -1914,7 +1914,7 @@ class Synapse:
                     break
             else:
                 sys.stderr.write('Unable to download URLs of type %s' % scheme)
-                return returnDict(None)
+                return None
 
         else: ## didn't break out of loop
             raise SynapseHTTPError('Too many redirects')
