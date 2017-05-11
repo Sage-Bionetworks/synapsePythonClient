@@ -31,13 +31,9 @@ def test_Wiki__with_markdown_file():
         mocked_open().read.assert_called_once_with()
         assert_equals(markdown_data,wiki.markdown)
 
-
+@raises(ValueError)
 def test_Wiki__markdown_and_markdownFile_both_defined():
-    with assert_raises(ValueError) as raised_error:
-        #method under test
         Wiki(owner="doesn't matter", markdown="asdf", markdownFile="~/fakeFile.txt")
-
-    assert_equals("Please use only one argument: markdown or markdownFile", raised_error.exception.message)
 
 def test_Wiki__markdown_is_None_markdownFile_defined():
     markdown_path = "/somewhere/over/the/rainbow.txt"
