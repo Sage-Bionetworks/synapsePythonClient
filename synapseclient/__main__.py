@@ -201,10 +201,8 @@ def store(args, syn):
     entity = syn.store(entity, used=used, executed=executed)
 
     #store the description
-    if args.description:
-        syn.store(Wiki(markdown=args.description,owner=entity))
-    elif args.descriptionFile:
-        syn.store(Wiki(markdownFile=args.descriptionFile, owner=entity))
+    if args.description or args.descriptionFile:
+        syn.store(Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
 
     print('Created/Updated entity: %s\t%s' %(entity['id'], entity['name']))
 
@@ -306,10 +304,8 @@ def create(args, syn):
     entity=syn.createEntity(entity)
 
     #store the description
-    if args.description:
-        syn.store(Wiki(markdown=args.description,owner=entity))
-    elif args.descriptionFile:
-        syn.store(Wiki(markdownFile=args.descriptionFile, owner=entity))
+    if args.description or args.descriptionFile:
+        syn.store(Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
 
     print('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
 
