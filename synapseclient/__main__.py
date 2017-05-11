@@ -175,8 +175,11 @@ def store(args, syn):
     if args.file and args.FILE:
         raise ValueError('only specify one file')
 
-    if args.description and args.descriptionFile:
-        raise ValueError('only specify one of either description or descriptionFile')
+    if args.descriptionFile:
+        if not os.path.isfile(args.descriptionFile):
+            raise ValueError('The specified descriptionFile path is not a file or does not exist')
+        if args.description: #if both are
+            raise ValueError('only specify one of either description or descriptionFile')
 
     args.file = args.FILE if args.FILE is not None else args.file
     args.type = 'FileEntity' if args.type == 'File' else args.type
@@ -294,8 +297,11 @@ def delete(args, syn):
 
 
 def create(args, syn):
-    if args.description and args.descriptionFile:
-        raise ValueError('only specify one of either description or descriptionFile')
+    if args.descriptionFile:
+        if not os.path.isfile(args.descriptionFile):
+            raise ValueError('The specified descriptionFile path is not a file or does not exist')
+        if args.description: #if both are
+            raise ValueError('only specify one of either description or descriptionFile')
 
     entity={'name': args.name,
             'parentId': args.parentid,
