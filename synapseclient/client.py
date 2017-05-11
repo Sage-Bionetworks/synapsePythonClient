@@ -2021,7 +2021,7 @@ class Synapse:
         if '_file_handle' not in local_state:
             local_state['_file_handle'] = {}
 
-        local_state_file_handle = local_state.get('_file_handle', dict())
+        local_state_file_handle = local_state.get('_file_handle')
 
         if local_state_file_handle.get('externalURL', None):
             return local_state_file_handle['externalURL'], local_state, None
