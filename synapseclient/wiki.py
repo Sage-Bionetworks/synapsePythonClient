@@ -120,10 +120,11 @@ class Wiki(DictObject):
         if 'attachmentFileHandleIds' not in kwargs:
             kwargs['attachmentFileHandleIds'] = []
 
-        if 'markdown' in kwargs and 'markdownFile' in kwargs:
+        if kwargs['markdown'] and kwargs['markdownFile']:
             raise ValueError("Please use only one argument: markdown or markdownFile")
 
-        if 'markdownFile' in kwargs:
+        if kwargs['markdownFile']:
+            #pop the 'markdownFile' kwargs because we don't actually need it in the dictionary to upload to synapse
             markdown_path = os.path.expandvars(os.path.expanduser(kwargs.pop('markdownFile')))
             with open(markdown_path, 'r') as markdownFile:
                 kwargs['markdown'] = markdownFile.read()

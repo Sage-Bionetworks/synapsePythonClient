@@ -565,6 +565,8 @@ def build_parser():
             help='Name of data object in Synapse')
     parser_add.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
+    parser_add.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
+                               help='Path to file containing description of project/folder')
     parser_add.add_argument('-type', type=str, default='File', help=argparse.SUPPRESS)
     parser_add.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
             help=USED_HELP)
