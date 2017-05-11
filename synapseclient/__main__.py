@@ -68,16 +68,14 @@ import six
 import argparse
 import os
 import collections
-import shutil
 import sys
 import synapseclient
 import synapseutils
 from . import Activity
-from . import utils
 import signal
 import json
-import warnings
 from .exceptions import *
+from .wiki import Wiki
 import getpass
 import csv
 import re
@@ -176,6 +174,10 @@ def store(args, syn):
     #If both args.FILE and args.file specified raise error
     if args.file and args.FILE:
         raise ValueError('only specify one file')
+
+    if args.description and args.descriptionFile:
+        raise ValueError('only specify one of either description or descriptionFile')
+
     args.file = args.FILE if args.FILE is not None else args.file
     args.type = 'FileEntity' if args.type == 'File' else args.type
 
@@ -197,6 +199,13 @@ def store(args, syn):
     used = _convertProvenanceList(args.used, args.limitSearch, syn)
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
     entity = syn.store(entity, used=used, executed=executed)
+
+    #store the description
+    if args.description:
+        syn.store(Wiki(markdown=args.description,owner=entity))
+    elif args.descriptionFile:
+        syn.store(Wiki(markdownFile=args.descriptionFile, owner=entity))
+
     print('Created/Updated entity: %s\t%s' %(entity['id'], entity['name']))
 
     # After creating/updating, if there are annotations to add then
@@ -287,11 +296,21 @@ def delete(args, syn):
 
 
 def create(args, syn):
+    if args.description and args.descriptionFile:
+        raise ValueError('only specify one of either description or descriptionFile')
+
     entity={'name': args.name,
             'parentId': args.parentid,
             'description':args.description,
             'concreteType': 'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
+
+    #store the description
+    if args.description:
+        syn.store(Wiki(markdown=args.description,owner=entity))
+    elif args.descriptionFile:
+        syn.store(Wiki(markdownFile=args.descriptionFile, owner=entity))
+
     print('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
 
 
@@ -512,6 +531,8 @@ def build_parser():
             help='Name of data object in Synapse')
     parser_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
+    parser_store.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
+                               help='Path to file containing description of project/folder')
     parser_store.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
             help=USED_HELP)
     parser_store.add_argument('--executed', '-executed', metavar='target', type=str, nargs='*',
@@ -735,6 +756,8 @@ def build_parser():
             help='Name of folder/project.')
     parser_create.add_argument('-description', '--description', metavar='DESCRIPTION', type=str,
             help='Description of project/folder')
+    parser_create.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
+                               help='Path to file containing description of project/folder')
     parser_create.add_argument('type', type=str,
             help='Type of object to create in synapse one of {Project, Folder}')
     parser_create.set_defaults(func=create)

@@ -1,5 +1,5 @@
-from nose.tools import assert_raises
-
+from nose.tools import assert_raises, assert_equals
+from mock import patch, mock_open
 from synapseclient.wiki import Wiki
 
 def test_Wiki():
@@ -14,3 +14,11 @@ def test_Wiki():
     
 if __name__ == '__main__':
     test_Wiki()
+
+def test_Wiki__with_markdown_file():
+    pass
+
+def test_Wiki__markdown_and_makrdownFile_both_defined():
+    with assert_raises(ValueError) as raised_error:
+        Wiki(owner="doesn't matter", markdown="asdf", markdownFile="~/fakeFile.txt")
+    assert_equals("Please use only one argument: markdown or markdownFile", raised_error.exception.message)
