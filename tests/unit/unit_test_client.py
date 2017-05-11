@@ -241,8 +241,7 @@ def test_readSessionCache_good_file_data():
 def test__uploadExternallyStoringProjects_external_user(mock_upload_destination):
     # setup
     expected_storage_location_id = "1234567"
-    #TODO: remove the "'_file_handle': {}" part once the deprecated Synapse.uploadFile() has been removed
-    expected_local_state = {'_file_handle': {}}
+    expected_local_state = {'_file_handle':{}}
     expected_path = "~/fake/path/file.txt"
     mock_upload_destination.return_value = {'storageLocationId' : expected_storage_location_id,
                                             'concreteType' : concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
@@ -250,7 +249,7 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     test_file = File(expected_path, parent="syn12345")
 
     # method under test
-    path, local_state,  storage_location_id = syn._Synapse__uploadExternallyStoringProjects(test_file, local_state={}) #dotn care about localstate for this test
+    path, local_state,  storage_location_id = syn._Synapse__uploadExternallyStoringProjects(test_file, local_state={'_file_handle':{}}) #dotn care about localstate for this test
 
     #test
     mock_upload_destination.assert_called_once_with(test_file)

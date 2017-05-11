@@ -1291,13 +1291,14 @@ class Synapse:
 
         Use :py:func:`synapseclient.Synapse.store`
         """
+        properties, annotations, local_state = split_entity_namespaces(entity)
 
         if filename is not None:
-            entity['path'] = filename
-        if 'name' not in entity or entity['name'] is None:
-            entity['name'] = utils.guess_file_name(filename)
+            local_state['path'] = filename
+        if 'name' not in properties or properties['name'] is None:
+            properties['name'] = utils.guess_file_name(filename)
 
-        return self.store(entity, used=used, executed=executed)
+        return self.store(File(properties=properties, annotations=annotations, local_state=local_state), used=used, executed=executed)
 
 
     def downloadEntity(self, entity, version=None):
@@ -2016,10 +2017,6 @@ class Synapse:
                   and a storage location id indicating to where the entity should be uploaded ("None" defaults to Synapse)
         """
         #If it is already an external URL just return
-
-        #TODO: remove this if statement when the deprecated uploadFile() has been removed
-        if '_file_handle' not in local_state: #this should only occur if a deprecated function such as uploadFile() is used
-            local_state['_file_handle'] = {}
 
         local_state_file_handle = local_state['_file_handle']
 
