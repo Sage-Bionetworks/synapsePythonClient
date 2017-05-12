@@ -56,3 +56,4 @@ def test_Wiki__markdown_defined_markdownFile_is_None():
 def test_Wiki__markdownFile_path_not_exist():
     # method under test
     Wiki(owner="doesn't matter", markdownFile="/this/is/not/the/file/you/are/looking.for")
+

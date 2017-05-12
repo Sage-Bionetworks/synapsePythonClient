@@ -175,11 +175,7 @@ def store(args, syn):
     if args.file and args.FILE:
         raise ValueError('only specify one file')
 
-    if args.descriptionFile:
-        if not os.path.isfile(args.descriptionFile):
-            raise ValueError('The specified descriptionFile path is not a file or does not exist')
-        if args.description: #if both are
-            raise ValueError('only specify one of either description or descriptionFile')
+    _description_args_check(args)
 
     args.file = args.FILE if args.FILE is not None else args.file
     args.type = 'FileEntity' if args.type == 'File' else args.type
@@ -189,12 +185,9 @@ def store(args, syn):
     else:
         entity = {'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type,
                   'name': utils.guess_file_name(args.file) if args.file and not args.name else None,
-                  'parentId' : None,
-                  'description' : None,
-                  'path': args.file}
+                  'parentId' : None}
     #Overide setting for parameters included in args
     entity['name'] =  args.name if args.name is not None else entity['name']
-    entity['description'] = args.description if args.description is not None else entity.get('description', None)
     entity['parentId'] = args.parentid if args.parentid is not None else entity['parentId']
     entity['path'] = args.file if args.file is not None else None
     entity['synapseStore'] = not utils.is_url(args.file)
@@ -203,9 +196,7 @@ def store(args, syn):
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
     entity = syn.store(entity, used=used, executed=executed)
 
-    #store the description
-    if args.description or args.descriptionFile:
-        syn.store(Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
+    _create_wiki_description_if_necessary(args, entity, syn)
 
     print('Created/Updated entity: %s\t%s' %(entity['id'], entity['name']))
 
@@ -215,6 +206,26 @@ def store(args, syn):
         # Need to override the args id parameter
         setattr(args, 'id', entity['id'])
         setAnnotations(args, syn)
+
+
+def _create_wiki_description_if_necessary(args, entity, syn):
+    """
+    store the description in a Wiki
+    """
+    if args.description or args.descriptionFile:
+        syn.store(Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
+
+
+def _description_args_check(args):
+    """
+    checks that descriptionFile(if specified) is a valid file path
+    checks that descriptionFile and description are not both specified
+    """
+    if args.descriptionFile:
+        if not os.path.isfile(args.descriptionFile):
+            raise ValueError('The specified descriptionFile path is not a file or does not exist')
+        if args.description:  # if both are specified
+            raise ValueError('only specify one of either description or descriptionFile')
 
 
 def move(args, syn):
@@ -297,21 +308,14 @@ def delete(args, syn):
 
 
 def create(args, syn):
-    if args.descriptionFile:
-        if not os.path.isfile(args.descriptionFile):
-            raise ValueError('The specified descriptionFile path is not a file or does not exist')
-        if args.description: #if both are
-            raise ValueError('only specify one of either description or descriptionFile')
+    _description_args_check(args)
 
     entity={'name': args.name,
             'parentId': args.parentid,
-            'description':args.description,
             'concreteType': 'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
 
-    #store the description
-    if args.description or args.descriptionFile:
-        syn.store(Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
+    _create_wiki_description_if_necessary(args, entity, syn)
 
     print('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
 
@@ -534,7 +538,7 @@ def build_parser():
     parser_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
     parser_store.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
-                               help='Path to file containing description of project/folder')
+                               help='Path to a markdown file containing description of project/folder')
     parser_store.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
             help=USED_HELP)
     parser_store.add_argument('--executed', '-executed', metavar='target', type=str, nargs='*',
@@ -568,7 +572,7 @@ def build_parser():
     parser_add.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
     parser_add.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
-                               help='Path to file containing description of project/folder')
+                               help='Path to a markdown file containing description of project/folder')
     parser_add.add_argument('-type', type=str, default='File', help=argparse.SUPPRESS)
     parser_add.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
             help=USED_HELP)
@@ -761,7 +765,7 @@ def build_parser():
     parser_create.add_argument('-description', '--description', metavar='DESCRIPTION', type=str,
             help='Description of project/folder')
     parser_create.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
-                               help='Path to file containing description of project/folder')
+                               help='Path to a markdown file containing description of project/folder')
     parser_create.add_argument('type', type=str,
             help='Type of object to create in synapse one of {Project, Folder}')
     parser_create.set_defaults(func=create)

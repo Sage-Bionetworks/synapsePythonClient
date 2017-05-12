@@ -102,8 +102,8 @@ class Wiki(DictObject):
 
     :param title:       Title of the Wiki
     :param owner:       Parent Entity that the Wiki will belong to
-    :param markdown:    Content of the Wiki (cannot be defined if markdownFile is defiled)
-    :param markdownFile: Path to file which contains the Content of Wiki(cannot be defined if markdown is defiled)
+    :param markdown:    Content of the Wiki (cannot be defined if markdownFile is defined)
+    :param markdownFile: Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
     :param attachments: List of paths to files to attach
     :param fileHandles: List of file handle IDs representing files to be attached
     :param parentWikiId: (optional) For subpages, specify parent wiki page
