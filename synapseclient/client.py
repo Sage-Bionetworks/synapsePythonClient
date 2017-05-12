@@ -801,7 +801,7 @@ class Synapse:
         #location in .synapseCache where the file would be corresponding to its FileHandleId
         synapseCache_location = self.cache.get_cache_dir(entity.dataFileHandleId)
 
-        file_name = entity.name if cached_file_path is None else os.path.basename(cached_file_path)
+        file_name = entity._file_handle.fileName if cached_file_path is None else os.path.basename(cached_file_path)
 
         #Decide the best download location for the file
         if downloadLocation is not None:
@@ -835,13 +835,13 @@ class Synapse:
 
             # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
             # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
+            # _downloadFileHandle may also return None to indicate that the download failed
             downloadPath = self._downloadFileHandle(fileResult['preSignedURL'],
                                                       downloadPath, fileResult['fileHandle'])
 
-            self.cache.add(entity.dataFileHandleId, downloadPath)
-
-            if 'path' in entity and (entity['path'] is None or not os.path.exists(entity['path'])):
+            if downloadPath is None or not os.path.exists(downloadPath):
                 entity['synapseStore'] = False
+                return
 
         entity.path = downloadPath
         entity.files = [os.path.basename(downloadPath)]
@@ -1001,10 +1001,6 @@ class Synapse:
                                                              )
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
-
-                ## Add file to cache, unless it's an external URL
-                if fileHandle['concreteType'] != "org.sagebionetworks.repo.model.file.ExternalFileHandle":
-                    self.cache.add(fileHandle['id'], path=entity['path'])
 
             elif 'dataFileHandleId' not in properties:
                 # Handle the case where the Entity lacks an ID
@@ -1787,7 +1783,9 @@ class Synapse:
                 raise
         while retries > 0:
             try:
-                return self._download(url, destination, fileHandle['id'], fileHandle.get('contentMd5'))
+                 downloaded_path = self._download(url, destination, fileHandle['id'], fileHandle.get('contentMd5'))
+                 self.cache.add(fileHandle['id'], downloaded_path)
+                 return downloaded_path
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
@@ -1952,6 +1950,7 @@ class Synapse:
         else:
             if synapseStore:
                 file_handle_id = multipart_upload(self, filename, contentType=mimetype, storageLocationId=storageLocationId)
+                self.cache.add(file_handle_id,filename)
                 return self._getFileHandle(file_handle_id)
             else:
                 return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
@@ -2594,7 +2593,6 @@ class Synapse:
                 os.makedirs(cache_dir)
             fileResult = self._getFileHandleDownload(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown')
             path = self._downloadFileHandle(fileResult['preSignedURL'], cache_dir, fileResult['fileHandle'])
-            self.cache.add(wiki.markdownFileHandleId, path)
         try:
             import gzip
             with gzip.open(path) as f:
@@ -2639,7 +2637,6 @@ class Synapse:
         if 'attachments' in wiki:
             for attachment in wiki['attachments']:
                 fileHandle = self._uploadToFileHandleService(attachment)
-                self.cache.add(fileHandle['id'], path=attachment)
                 wiki['attachmentFileHandleIds'].append(fileHandle['id'])
             del wiki['attachments']
 
@@ -2939,7 +2936,6 @@ class Synapse:
                                                     objectId=_extract_synapse_id_from_query(query),
                                                     objectType='TableEntity')
             path = self._downloadFileHandle(fileResult['preSignedURL'], cache_dir, fileResult['fileHandle'])
-            self.cache.add(file_handle_id, path)
         return (download_from_table_result, path)
 
 
@@ -3048,7 +3044,6 @@ class Synapse:
                                                     objectId=table_id,
                                                     objectType='TableEntity')
             path = self._downloadFileHandle(fileResult['preSignedURL'], downloadLocation, fileResult['fileHandle'])
-            self.cache.add(file_handle_id, path)
             return path
 
 

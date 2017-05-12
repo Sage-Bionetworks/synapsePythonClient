@@ -79,6 +79,7 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
         with open(path, 'a'):
             os.utime(path, None)
         dest_dir, filename = os.path.split(path)
+        syn.cache.add(fileHandle['id'], path)
         return path
 
     def _getFileHandleDownload(fileHandleId,  objectId, objectType='FileHandle'):
@@ -99,11 +100,11 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
                                  ifcollision="overwrite.local")
     print(e)
 
-    assert e.name == bundle["entity"]["name"]
-    assert e.parentId == bundle["entity"]["parentId"]
-    assert os.path.dirname(e.path) == temp_dir1
-    assert bundle["fileHandles"][0]["fileName"] == os.path.basename(e.path)
-    assert e.path == os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])
+    assert_equal(e.name , bundle["entity"]["name"])
+    assert_equal(e.parentId , bundle["entity"]["parentId"])
+    assert_equal(os.path.abspath(os.path.dirname(e.path)), temp_dir1)
+    assert_equal(bundle["fileHandles"][0]["fileName"] , os.path.basename(e.path))
+    assert_equal(os.path.abspath(e.path), os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"]))
 
     # 2. ----------------------------------------------------------------------
     # get without specifying downloadLocation
@@ -111,8 +112,8 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
 
     print(e)
 
-    assert e.name == bundle["entity"]["name"]
-    assert e.parentId == bundle["entity"]["parentId"]
+    assert_equal(e.name , bundle["entity"]["name"])
+    assert_equal(e.parentId , bundle["entity"]["parentId"])
     assert bundle["fileHandles"][0]["fileName"] in e.files
 
     # 3. ----------------------------------------------------------------------
@@ -138,9 +139,9 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     e = File(name='anonymous', parentId="syn12345", synapseStore=False, externalURL=url)
     e.local_state({'zap':'pow'})
     e = syn._getWithEntityBundle(entityBundle=externalURLBundle, entity=e)
-    assert e.local_state()['zap'] == 'pow'
-    assert e.synapseStore == False
-    assert e.externalURL == url
+    assert_equal(e.local_state()['zap'] , 'pow')
+    assert_equal(e.synapseStore , False)
+    assert_equal(e.externalURL , url)
 
     ## TODO: add more test cases for flag combination of this method
     ## TODO: separate into another test?
@@ -167,7 +168,7 @@ def test_submit(*mocks):
     # -- Normal submission --
     # insert a shim that returns the dictionary it was passed after adding a bogus id
     def shim(*args):
-        assert args[0] == '/evaluation/submission?etag=Fake eTag'
+        assert_equal(args[0] , '/evaluation/submission?etag=Fake eTag')
         submission = json.loads(args[1])
         submission['id'] = 1234
         return submission
@@ -175,10 +176,10 @@ def test_submit(*mocks):
     
     submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', submitterAlias='Team X')
 
-    assert submission.id == 1234
-    assert submission.evaluationId == '9090'
-    assert submission.name == 'George'
-    assert submission.submitterAlias == 'Team X'
+    assert_equal(submission.id , 1234)
+    assert_equal(submission.evaluationId , '9090')
+    assert_equal(submission.name , 'George')
+    assert_equal(submission.submitterAlias , 'Team X')
 
     print(submission)
 
@@ -202,9 +203,9 @@ def test_send_message():
                                 "Through caverns measureless to man\n"
                                 "Down to a sunless sea.\n"))
             msg = json.loads(post_mock.call_args_list[0][1]['body'])
-            assert msg["fileHandleId"] == "7365905", msg
-            assert msg["recipients"] == [1421212], msg
-            assert msg["subject"] == "Xanadu", msg
+            assert_equal(msg["fileHandleId"] , "7365905", msg)
+            assert_equal(msg["recipients"] , [1421212], msg)
+            assert_equal(msg["subject"] , "Xanadu", msg)
 
 
 def test_readSessionCache_bad_file_data():
