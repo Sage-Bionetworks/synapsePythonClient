@@ -540,8 +540,8 @@ def test_store_file_handle_update_metadata():
     assert_equal(new_file_handle['id'], new_entity._file_handle['id'])
     assert_not_equal(old_file_handle['id'], new_entity._file_handle['id'])
 
-    #check that local_state was invalidated
-    assert_equal(None, new_entity.path)
-    assert_equal(None, new_entity.cacheDir)
-    assert_equal([], new_entity.files)
+    #check that local_state was updated
+    assert_equal(replacement_file_path, new_entity.path)
+    assert_equal(os.path.dirname(replacement_file_path), new_entity.cacheDir)
+    assert_equal([os.path.basename(replacement_file_path)], new_entity.files)
 
