@@ -3080,32 +3080,7 @@ class Synapse:
         if not isinstance(columns, collections.Iterable):
             raise TypeError('Columns parameter requires a list of column names')
 
-        ##------------------------------------------------------------
-        ## build list of file handles to download
-        ##------------------------------------------------------------
-
-        cols_not_found = [c for c in columns if c not in [h.name for h in table.headers]]
-        if len(cols_not_found) > 0:
-            raise ValueError("Columns not found: " + ", ".join('"'+col+'"' for col in cols_not_found))
-        col_indices = [i for i,h in enumerate(table.headers) if h.name in columns]
-
-        ## see: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
-        file_handle_associations = []
-        file_handle_to_path_map = OrderedDict()
-        for row in table:
-            for col_index in col_indices:
-                file_handle_id = row[col_index]
-                if _is_integer(file_handle_id):
-                    path_to_cached_file = self.cache.get(file_handle_id)
-                    if path_to_cached_file:
-                        file_handle_to_path_map[file_handle_id] = path_to_cached_file
-                    else:
-                        file_handle_associations.append(dict(
-                            associateObjectType="TableEntity",
-                            fileHandleId=file_handle_id,
-                            associateObjectId=table.tableId))
-                else:
-                    warnings.warn("Weird file handle: %s" % file_handle_id)
+        file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(table, columns)
 
         print("Downloading %d files, %d cached locally" % (len(file_handle_associations), len(file_handle_to_path_map)))
 
@@ -3171,6 +3146,36 @@ class Synapse:
         ## TODO if there are files we still haven't downloaded
 
         return file_handle_to_path_map
+
+
+    def _build_table_download_file_handle_list(self, table, columns):
+        ##------------------------------------------------------------
+        ## build list of file handles to download
+        ##------------------------------------------------------------
+        cols_not_found = [c for c in columns if c not in [h.name for h in table.headers]]
+        if len(cols_not_found) > 0:
+            raise ValueError("Columns not found: " + ", ".join('"' + col + '"' for col in cols_not_found))
+        col_indices = [i for i, h in enumerate(table.headers) if h.name in columns]
+        ## see: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
+        file_handle_associations = []
+        file_handle_to_path_map = OrderedDict()
+        seen_file_handle_ids = set()  # ensure not sending duplicate requests for the same FileHandle IDs
+        for row in table:
+            for col_index in col_indices:
+                file_handle_id = row[col_index]
+                if _is_integer(file_handle_id):
+                    path_to_cached_file = self.cache.get(file_handle_id)
+                    if path_to_cached_file:
+                        file_handle_to_path_map[file_handle_id] = path_to_cached_file
+                    elif file_handle_id not in seen_file_handle_ids:
+                        file_handle_associations.append(dict(
+                            associateObjectType="TableEntity",
+                            fileHandleId=file_handle_id,
+                            associateObjectId=table.tableId))
+                    seen_file_handle_ids.add(file_handle_id)
+                else:
+                    warnings.warn("Weird file handle: %s" % file_handle_id)
+        return file_handle_associations, file_handle_to_path_map
 
 
     ############################################################
