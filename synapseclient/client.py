@@ -667,9 +667,7 @@ class Synapse:
 
         #If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, six.string_types) and os.path.isfile(entity):
-            bundle = self.__getFromFile(entity, kwargs.get('limitSearch', None))
-            # bundle['path'] = entity
-            # kwargs['downloadFile']=False
+            bundle = self.__getFromFile(entity, kwargs.pop('limitSearch', None))
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
 
@@ -741,12 +739,18 @@ class Synapse:
         """
 
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
-        version = kwargs.get('version', None)
-        downloadFile = kwargs.get('downloadFile', True)
-        downloadLocation = kwargs.get('downloadLocation', None)
-        ifcollision = kwargs.get('ifcollision', 'keep.both')
-        submission = kwargs.get('submission', None)
-        followLink = kwargs.get('followLink',False)
+        version = kwargs.pop('version', None)
+        downloadFile = kwargs.pop('downloadFile', True)
+        downloadLocation = kwargs.pop('downloadLocation', None)
+        ifcollision = kwargs.pop('ifcollision', None)
+        submission = kwargs.pop('submission', None)
+        followLink = kwargs.pop('followLink',False)
+        path = kwargs.pop('path', None)
+
+        #make sure user didn't accidentlaly pass a kwarg that we don't handle
+        if kwargs: #if there are remaining items in the kwargs
+            raise TypeError('Unexpected **kwargs: %r' % kwargs)
+
         #If Link, get target ID entity bundle
         if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link' and followLink:
             targetId = entityBundle['entity']['linksTo']['targetId']
@@ -758,131 +762,108 @@ class Synapse:
 
         # Make a fresh copy of the Entity
         local_state = entity.local_state() if entity and isinstance(entity, Entity) else {}
-        if 'path' in kwargs:
-            local_state['path'] = kwargs['path']
+        if path is not None:
+            local_state['path'] = path
         properties = entityBundle['entity']
         annotations = from_synapse_annotations(entityBundle['annotations'])
         entity = Entity.create(properties, annotations, local_state)
 
+        #Handle download of fileEntities
         if isinstance(entity, File):
-            fileName = entity['name']
+            #update the entity with FileHandle metadata
+            file_handle = next(handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId)
+            entity._update_file_handle(file_handle)
 
-            # Fill in information about the file, even if we don't download it
-            # Note: fileHandles will be an empty list if there are unmet access requirements
-            for handle in entityBundle['fileHandles']:
-                if handle['id'] == entityBundle['entity']['dataFileHandleId']:
-                    entity.md5 = handle.get('contentMd5', '')
-                    entity.fileSize = handle.get('contentSize', None)
-                    entity.contentType = handle.get('contentType', None)
-                    if handle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle':
-                        entity['externalURL'] = handle['externalURL']
-                        #Determine if storage location for this entity matches the url of the
-                        #project to determine if I should synapseStore it in the future.
-                        #This can fail with a 404 for submissions who's original entity is deleted
-                        try:
-                            storageLocation = self._getDefaultUploadDestination(entity)
-                            entity['synapseStore'] = utils.is_same_base_url(storageLocation.get('url', 'S3'), entity['externalURL'])
-                        except SynapseHTTPError:
-                            warnings.warn("Can't get storage location for entity %s" % entity['id'])
-                        if not downloadFile:
-                            return entity
-
-            # Make sure the download location is a fully resolved directory
-            if downloadLocation is not None:
-                downloadLocation = os.path.expanduser(downloadLocation)
-                if os.path.isfile(downloadLocation):
-                    raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
-
-            # Determine if the file should be downloaded
-            # downloadPath = None if downloadLocation is None else os.path.join(downloadLocation, fileName)
-            # if downloadFile:
-            #     downloadFile = cache.local_file_has_changed(entityBundle, True, downloadPath)
-            # # Determine where the file should be downloaded to
-            # if downloadFile:
-            #     _, localPath, _ = cache.determine_local_file_location(entityBundle)
-            cached_file_path = self.cache.get(entityBundle['entity']['dataFileHandleId'], downloadLocation)
-
-            # if we found a cached copy, return it
-
-            # if downloadFile
-            #   download it
-            #   add it to the cache
-            if cached_file_path is not None:
-                fileName = os.path.basename(cached_file_path)
-
-                if not downloadLocation:
-                    downloadLocation = os.path.dirname(cached_file_path)
-                    entity.path = utils.normalize_path(os.path.join(downloadLocation, fileName))
-                    entity.files = [fileName]
-                    entity.cacheDir = downloadLocation
-
-                else:
-                    downloadPath = utils.normalize_path(os.path.join(downloadLocation, fileName))
-                    if downloadPath != cached_file_path:
-                        if os.path.exists(downloadPath):
-                            if ifcollision == "overwrite.local":
-                                pass
-                            elif ifcollision == "keep.local":
-                                # Don't want to overwrite the local file.
-                                downloadFile = False
-                            elif ifcollision == "keep.both":
-                                downloadPath = utils.unique_filename(downloadPath)
-                            else:
-                                raise ValueError('Invalid parameter: "%s" is not a valid value '
-                                                 'for "ifcollision"' % ifcollision)
-                        if downloadFile:
-                            shutil.copy(cached_file_path, downloadPath)
-                            entity.path = downloadPath
-                            entity.files = [os.path.basename(downloadPath)]
-                            entity.cacheDir = downloadLocation
-                        else:
-                            ## This is a strange case where downloadLocation is
-                            ## set but downloadFile=False. Copying files from a
-                            ## cached location seems like the wrong thing to do
-                            ## in this case.
-                            entity.path = None
-                            entity.files = []
-                            entity.cacheDir = None
-                    else:
-                        entity.path = downloadPath
-                        entity.files = [os.path.basename(downloadPath)]
-                        entity.cacheDir = downloadLocation
-
-            elif downloadFile:
-                # By default, download to the local cache
-                if downloadLocation is None:
-                    downloadLocation = self.cache.get_cache_dir(entityBundle['entity']['dataFileHandleId'])
-
-                downloadPath = os.path.join(downloadLocation, fileName)
-
-                # If the file already exists but has been modified since caching
-                if os.path.exists(downloadPath):
-                    if ifcollision == "overwrite.local":
-                        pass
-                    elif ifcollision == "keep.local":
-                        # Don't want to overwrite the local file.
-                        entity.path = None
-                        entity.files = []
-                        entity.cacheDir = None
-                        return entity
-                    elif ifcollision == "keep.both":
-                        downloadPath = utils.unique_filename(downloadPath)
-                    else:
-                        raise ValueError('Invalid parameter: "%s" is not a valid value '
-                                         'for "ifcollision"' % ifcollision)
-                objectType =  'FileEntity' if submission is None else 'SubmissionAttachment'
-                objectId = entity['id'] if submission is None else submission
-                fileResult = self._getFileHandleDownload(entityBundle['entity']['dataFileHandleId'],
-                                                         objectId, objectType)
-                entity['path'] = self._downloadFileHandle(fileResult['preSignedURL'],
-                                                          downloadPath, fileResult['fileHandle'])
-
-                self.cache.add(entityBundle['entity']['dataFileHandleId'], downloadPath)
-
-                if 'path' in entity and (entity['path'] is None or not os.path.exists(entity['path'])):
-                    entity['synapseStore'] = False
+            if downloadFile:
+                self._download_file_entity(downloadLocation, entity, ifcollision, submission)
 
         return entity
+
+
+    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
+        # set the initial local state
+        entity.path = None
+        entity.files = []
+        entity.cacheDir = None
+
+        # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
+        # this location could be either in .synapseCache
+        # or a user specified location to which the user previously downloaded the file
+        cached_file_path = self.cache.get(entity.dataFileHandleId, downloadLocation)
+
+        #location in .synapseCache where the file would be corresponding to its FileHandleId
+        synapseCache_location = self.cache.get_cache_dir(entity.dataFileHandleId)
+
+        file_name = entity._file_handle.fileName if cached_file_path is None else os.path.basename(cached_file_path)
+
+        #Decide the best download location for the file
+        if downloadLocation is not None:
+            # Make sure the specified download location is a fully resolved directory
+            downloadLocation = os.path.expandvars(os.path.expanduser(downloadLocation))
+            if os.path.isfile(downloadLocation):
+                raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
+        elif cached_file_path is not None:
+            #file already cached so use that as the download location
+            downloadLocation = os.path.dirname(cached_file_path)
+        else:
+            #file not cached and no user-specified location so default to .synapseCache
+            downloadLocation = synapseCache_location
+
+        downloadPath = self._resolve_download_path(downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path)
+        if downloadPath is None:
+            return
+
+        if cached_file_path is not None: #copy from cache
+            if downloadPath != cached_file_path:
+                # create the foider if it does not exist already
+                if not os.path.exists(downloadLocation):
+                    os.makedirs(downloadLocation)
+                shutil.copy(cached_file_path, downloadPath)
+
+        else: #download the file from URL (could be a local file)
+            objectType = 'FileEntity' if submission is None else 'SubmissionAttachment'
+            objectId = entity['id'] if submission is None else submission
+            fileResult = self._getFileHandleDownload(entity.dataFileHandleId,
+                                                     objectId, objectType)
+
+            # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
+            # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
+            # _downloadFileHandle may also return None to indicate that the download failed
+            downloadPath = self._downloadFileHandle(fileResult['preSignedURL'],
+                                                      downloadPath, fileResult['fileHandle'])
+
+            if downloadPath is None or not os.path.exists(downloadPath):
+                entity['synapseStore'] = False
+                return
+
+        entity.path = downloadPath
+        entity.files = [os.path.basename(downloadPath)]
+        entity.cacheDir = os.path.basename(downloadPath)
+
+    def _resolve_download_path(self, downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path):
+        #always overwrite if we are downloading to .synapseCache
+        if utils.normalize_path(downloadLocation) == synapseCache_location:
+            if ifcollision is not None:
+                sys.stderr.write('\n' + '!'*50+'\n WARNING: ifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
+            ifcollision= 'overwrite.local'
+        #if ifcollision not specified, keep.local
+        ifcollision = ifcollision or 'keep.both'
+
+        downloadPath = utils.normalize_path(os.path.join(downloadLocation, file_name))
+        # resolve collison
+        if os.path.exists(downloadPath):
+            if ifcollision == "overwrite.local":
+                pass
+            elif ifcollision == "keep.local":
+                # Don't want to overwrite the local file.
+                return None
+            elif ifcollision == "keep.both":
+                if downloadPath != cached_file_path:
+                    return utils.unique_filename(downloadPath)
+            else:
+                raise ValueError('Invalid parameter: "%s" is not a valid value '
+                                 'for "ifcollision"' % ifcollision)
+        return downloadPath
 
 
     def store(self, obj, **kwargs):
@@ -1003,26 +984,35 @@ class Synapse:
 
             if needs_upload:
                 fileLocation, local_state , storageLocationId= self.__uploadExternallyStoringProjects(entity, local_state)
+                local_state_file_handle = local_state['_file_handle']
                 fileHandle = self._uploadToFileHandleService(fileLocation,
                                                              synapseStore=entity.get('synapseStore', True),
-                                                             mimetype=local_state.get('contentType', None),
-                                                             md5=local_state.get('md5', None),
-                                                             fileSize=local_state.get('fileSize', None),
+                                                             mimetype=local_state_file_handle.get('contentType', None),
+                                                             md5=local_state_file_handle.get('contentMd5', None),
+                                                             fileSize=local_state_file_handle.get('contentSize', None),
                                                              storageLocationId=storageLocationId
                                                              )
                 properties['dataFileHandleId'] = fileHandle['id']
-                local_state['md5'] = fileHandle.get('contentMd5', None)
-                local_state['fileSize'] = fileHandle.get('contentSize', None)
-                local_state['contentType'] = fileHandle.get('contentType', None)
-
-                ## Add file to cache, unless it's an external URL
-                if fileHandle['concreteType'] != "org.sagebionetworks.repo.model.file.ExternalFileHandle":
-                    self.cache.add(fileHandle['id'], path=entity['path'])
+                local_state['_file_handle'] = fileHandle
 
             elif 'dataFileHandleId' not in properties:
                 # Handle the case where the Entity lacks an ID
                 # But becomes an update() due to conflict
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
+
+            #update the file_handle metadata if the FileEntity's FileHandle id has changed
+            if '_file_handle' in local_state and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
+                local_state['_file_handle'] = self._getFileHandle(properties['dataFileHandleId'])
+                #check if we alredy have the filehandleid cached somewhere
+                cached_path = self.cache.get(properties['dataFileHandleId'])
+                if cached_path is None:
+                    local_state['path'] = None
+                    local_state['cacheDir'] = None
+                    local_state['files'] = []
+                else:
+                    local_state['path'] = cached_path
+                    local_state['cacheDir'] = os.path.dirname(cached_path)
+                    local_state['files'] = [os.path.basename(cached_path)]
 
         # Create or update Entity in Synapse
         if 'id' in properties:
@@ -1290,13 +1280,14 @@ class Synapse:
 
         Use :py:func:`synapseclient.Synapse.store`
         """
+        properties, annotations, local_state = split_entity_namespaces(entity)
 
         if filename is not None:
-            entity['path'] = filename
-        if 'name' not in entity or entity['name'] is None:
-            entity['name'] = utils.guess_file_name(filename)
+            local_state['path'] = filename
+        if 'name' not in properties or properties['name'] is None:
+            properties['name'] = utils.guess_file_name(filename)
 
-        return self.store(entity, used=used, executed=executed)
+        return self.store(File(properties=properties, annotations=annotations, local_state=local_state), used=used, executed=executed)
 
 
     def downloadEntity(self, entity, version=None):
@@ -1785,7 +1776,9 @@ class Synapse:
                 raise
         while retries > 0:
             try:
-                return self._download(url, destination, fileHandle['id'], fileHandle.get('contentMd5'))
+                 downloaded_path = self._download(url, destination, fileHandle['id'], fileHandle.get('contentMd5'))
+                 self.cache.add(fileHandle['id'], downloaded_path)
+                 return downloaded_path
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
@@ -1912,7 +1905,7 @@ class Synapse:
                     break
             else:
                 sys.stderr.write('Unable to download URLs of type %s' % scheme)
-                return returnDict(None)
+                return None
 
         else: ## didn't break out of loop
             raise SynapseHTTPError('Too many redirects')
@@ -1950,6 +1943,7 @@ class Synapse:
         else:
             if synapseStore:
                 file_handle_id = multipart_upload(self, filename, contentType=mimetype, storageLocationId=storageLocationId)
+                self.cache.add(file_handle_id,filename)
                 return self._getFileHandle(file_handle_id)
             else:
                 return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
@@ -2015,14 +2009,20 @@ class Synapse:
                   and a storage location id indicating to where the entity should be uploaded ("None" defaults to Synapse)
         """
         #If it is already an external URL just return
-        if local_state.get('externalURL', None):
-            return local_state['externalURL'], local_state, None
+
+        if '_file_handle' not in local_state:
+            local_state['_file_handle'] = {}
+
+        local_state_file_handle = local_state['_file_handle']
+
+        if local_state_file_handle.get('externalURL', None):
+            return local_state_file_handle['externalURL'], local_state, None
         elif utils.is_url(entity['path']):
-            local_state['externalURL'] = entity['path']
+            local_state_file_handle['externalURL'] = entity['path']
             #If the url is a local path compute the md5
             url = urlparse(entity['path'])
             if os.path.isfile(url.path) and url.scheme=='file':
-                local_state['md5'] = utils.md5_for_file(url.path).hexdigest()
+                local_state_file_handle['contentMd5'] = utils.md5_for_file(url.path).hexdigest()
             return entity['path'], local_state, None
 
         location =  self._getDefaultUploadDestination(entity)
@@ -2044,12 +2044,12 @@ class Synapse:
                 
                 #Fill out local_state with fileSize, externalURL etc...
                 uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
-                local_state['externalURL'] = uploadLocation
-                local_state['fileSize'] = os.stat(entity['path']).st_size
-                local_state['md5'] = utils.md5_for_file(entity['path']).hexdigest()
-                if local_state.get('contentType') is None:
+                local_state_file_handle['externalURL'] = uploadLocation
+                local_state_file_handle['contentSize'] = os.stat(entity['path']).st_size
+                local_state_file_handle['contentMd5'] = utils.md5_for_file(entity['path']).hexdigest()
+                if local_state_file_handle.get('contentType', None) is None:
                     mimetype, enc = mimetypes.guess_type(entity['path'], strict=False)
-                    local_state['contentType'] = mimetype
+                    local_state_file_handle['contentType'] = mimetype
                 return uploadLocation, local_state, location['storageLocationId']
             else:
                 raise NotImplementedError('Can only handle SFTP upload locations.')
@@ -2586,7 +2586,6 @@ class Synapse:
                 os.makedirs(cache_dir)
             fileResult = self._getFileHandleDownload(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown')
             path = self._downloadFileHandle(fileResult['preSignedURL'], cache_dir, fileResult['fileHandle'])
-            self.cache.add(wiki.markdownFileHandleId, path)
         try:
             import gzip
             with gzip.open(path) as f:
@@ -2631,7 +2630,6 @@ class Synapse:
         if 'attachments' in wiki:
             for attachment in wiki['attachments']:
                 fileHandle = self._uploadToFileHandleService(attachment)
-                self.cache.add(fileHandle['id'], path=attachment)
                 wiki['attachmentFileHandleIds'].append(fileHandle['id'])
             del wiki['attachments']
 
@@ -2931,7 +2929,6 @@ class Synapse:
                                                     objectId=_extract_synapse_id_from_query(query),
                                                     objectType='TableEntity')
             path = self._downloadFileHandle(fileResult['preSignedURL'], cache_dir, fileResult['fileHandle'])
-            self.cache.add(file_handle_id, path)
         return (download_from_table_result, path)
 
 
@@ -3040,7 +3037,6 @@ class Synapse:
                                                     objectId=table_id,
                                                     objectType='TableEntity')
             path = self._downloadFileHandle(fileResult['preSignedURL'], downloadLocation, fileResult['fileHandle'])
-            self.cache.add(file_handle_id, path)
             return path
 
 
