@@ -27,14 +27,15 @@ def test_query():
     
     # Remove all the Entities that are in the project
     qry = syn.query("select id from entity where entity.parentId=='%s'" % project['id'])
-    num_entities = qry['totalNumberOfResults']
+    for res in qry['results']:
+        syn.delete(res['entity.id'])
     
     # Add entities and verify that I can find them with a query
-    for i in range(1,3):
+    for i in range(2):
         syn.store(Folder(parent=project['id']))
         time.sleep(5)
         qry = syn.query("select id, name from entity where entity.parentId=='%s'" % project['id'])
-        assert qry['totalNumberOfResults'] == num_entities + i
+        assert qry['totalNumberOfResults'] == i + 1
 
         
 def test_chunked_query():
