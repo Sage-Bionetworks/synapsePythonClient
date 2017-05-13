@@ -857,14 +857,7 @@ def test_configPath():
     fh = syn._getFileHandle(f1.dataFileHandleId)
     assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
 
-def test_create__with_description():
-    pass
-
-def test_create__with_description():
-    pass
-
-def test_create__with_description_and_descriptionFile():
-    pass
-
 def test_store__with_description():
+    pass
+def test_create__with_description():
     pass
