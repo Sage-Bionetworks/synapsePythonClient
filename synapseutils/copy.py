@@ -349,8 +349,7 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
         existingEntity = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
         if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. Link could not be copied'%ent.name)
-
-    newLink = Link(ent.linksTo['targetId'],parent=destinationId,targetVersion=ent.linksTo['targetVersionNumber'])
+    newLink = Link(ent.linksTo['targetId'],parent=destinationId,targetVersion=ent.linksTo.get('targetVersionNumber'))
     try:
         newLink = syn.store(newLink)
         return(newLink.id)

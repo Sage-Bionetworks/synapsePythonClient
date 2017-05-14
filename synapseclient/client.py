@@ -1036,7 +1036,8 @@ class Synapse:
             if properties['concreteType']=="org.sagebionetworks.repo.model.Link":
                 target_properties = self._getEntity(properties['linksTo']['targetId'], version=properties['linksTo']['targetVersionNumber'])
                 properties['linksToClassName'] = target_properties['concreteType']
-                properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
+                if target_properties.get('versionNumber') is not None:
+                    properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
                 properties['name'] = target_properties['name']
             try:
                 properties = self._createEntity(properties)
