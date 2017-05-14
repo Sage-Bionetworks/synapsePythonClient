@@ -5,10 +5,9 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, requests, tempfile, time, urllib, json
+import uuid, filecmp, os, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none
-from nose.plugins.attrib import attr
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_greater
 from mock import patch
 try:
     import configparser
@@ -16,9 +15,7 @@ except ImportError:
     import ConfigParser as configparser
 
 import synapseclient
-import synapseclient.client as client
-import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Project, Folder, File, Link, Column, Schema, RowSet, Row
+from synapseclient import Activity, Project, Folder, File, Link
 from synapseclient.exceptions import *
 
 import integration
@@ -158,7 +155,7 @@ def test_Entity():
     ## test getting the file from the cache with downloadLocation parameter (SYNPY-330)
     a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
     assert a_file_cached.path is not None
-    assert os.path.basename(a_file_cached.path) == os.path.basename(a_file.path), a_file_cached.path
+    assert_equal(os.path.basename(a_file_cached.path), os.path.basename(a_file.path))
 
     print("\n\nList of files in project:\n")
     syn._list(project, recursive=True)
@@ -393,7 +390,7 @@ def test_ExternalFileHandle():
     singapore.externalURL = singapore_2_url
     singapore = syn.store(singapore)
     s2 = syn.get(singapore, downloadFile=False)
-    assert s2.externalURL == singapore_2_url
+    assert_equal(s2.externalURL, singapore_2_url)
 
 
 
@@ -403,7 +400,7 @@ def test_synapseStore_flag():
     schedule_for_cleanup(path)
     bogus = File(path, name='Totally bogus data', parent=project, synapseStore=False)
     bogus = syn.store(bogus)
-    
+
     # Verify the thing can be downloaded as a URL
     bogus = syn.get(bogus, downloadFile=False)
     assert bogus.name == 'Totally bogus data'
@@ -507,4 +504,44 @@ def test_download_file_URL_false():
     reupload = syn.store(reupload, forceVersion=False)
     assert reupload.path == fileThatDoesntExist, "Entity should still be pointing at a URL"
     assert originalVersion == reupload.versionNumber
+
+
+#SYNPY-366
+def test_download_local_file_URL_path():
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    filehandle = syn._uploadToFileHandleService(path, synapseStore=False,
+                                   mimetype=None, fileSize=None)
+
+    localFileEntity = syn.store(File(dataFileHandleId=filehandle['id'], parent=project))
+    e = syn.get(localFileEntity.id)
+    assert_equal(path, e.path)
+
+
+#SYNPY-424
+def test_store_file_handle_update_metadata():
+    original_file_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(original_file_path)
+
+    #upload the project
+    entity = syn.store(File(original_file_path, parent=project))
+    old_file_handle = entity._file_handle
+
+    #create file handle to replace the old one
+    replacement_file_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(replacement_file_path)
+    new_file_handle = syn._uploadToFileHandleService(replacement_file_path, synapseStore=True)
+
+    entity.dataFileHandleId = new_file_handle['id']
+    new_entity = syn.store(entity)
+
+    #make sure _file_handle info was changed (_file_handle values are all changed at once so just verifying id change is sufficient)
+    assert_equal(new_file_handle['id'], new_entity._file_handle['id'])
+    assert_not_equal(old_file_handle['id'], new_entity._file_handle['id'])
+
+    #check that local_state was updated
+    assert_equal(replacement_file_path, new_entity.path)
+    assert_equal(os.path.dirname(replacement_file_path), new_entity.cacheDir)
+    assert_equal([os.path.basename(replacement_file_path)], new_entity.files)
 

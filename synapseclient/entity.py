@@ -353,13 +353,9 @@ class Entity(collections.MutableMapping):
     def __getattr__(self, key):
         # Note: that __getattr__ is only called after an attempt to
         # look the key up in the object's dictionary has failed.
-        if key in self.__dict__:
-            return self.__dict__[key]
-        elif key in self.properties:
-            return self.properties[key]
-        elif key in self.annotations:
-            return self.annotations[key]
-        else:
+        try:
+            return self.__getitem__(key)
+        except KeyError:
             ## Note that hasattr in Python2 is more permissive than Python3
             ## about what exceptions it catches. In Python3, hasattr catches
             ## only AttributeError
@@ -531,9 +527,13 @@ class File(Entity, Versionable):
         data = File('/path/to/file/data.xyz', parent=folder)
         data = syn.store(data)
     """
+    #Note: externalURL technically should not be in the keys since it's only a field/member variable of ExternalFileHandle, but for backwards compatibility it's included
+    _file_handle_keys = ["createdOn", "id", "concreteType", "contentSize", "createdBy", "etag", "fileName", "contentType", "contentMd5", "storageLocationId", 'externalURL']
+    #Used for backwards compatability. The keys found below used to located in the entity's local_state (i.e. __dict__).
+    _file_handle_aliases = {'md5': 'contentMd5', 'externalURL':'externalURL', 'fileSize':'contentSize', 'contentType': 'contentType'}
 
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
-    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', 'externalURL', 'md5', 'fileSize', 'contentType']
+    _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', '_file_handle']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.FileEntity'
 
     ## TODO: File(path="/path/to/file", synapseStore=True, parentId="syn101")
@@ -552,10 +552,45 @@ class File(Entity, Versionable):
             self.__dict__['cacheDir'] = None
             self.__dict__['files'] = []
         self.__dict__['synapseStore'] = synapseStore
+
+        # pop the _file_handle from local properties because it is handled differently from other local_state
+        self._update_file_handle(local_state.pop('_file_handle', None) if (local_state is not None) else None)
+
         super(File, self).__init__(concreteType=File._synapse_entity_type, properties=properties,
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
-        # if not synapseStore:
-        #     self.__setitem__('concreteType', 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
+
+
+    def _update_file_handle(self, file_handle_update_dict = None):
+        """
+        Sets the file handle
+        
+        Should not need to be called by users
+        """
+
+        #replace the file handle dict
+        fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
+        self.__dict__['_file_handle'] = fh_dict
+
+        #initialize all nonexistent keys to have value of None
+        for key in self.__class__._file_handle_keys:
+            if key not in fh_dict:
+                fh_dict[key] = None
+
+
+    def __setitem__(self, key, value):
+        if (key == '_file_handle'):
+            self._update_file_handle(value)
+        elif key in self.__class__._file_handle_aliases:
+            self._file_handle[self.__class__._file_handle_aliases[key]] = value
+        else:
+            super(File, self).__setitem__(key,value)
+
+
+    def __getitem__(self, item):
+        if item in self.__class__._file_handle_aliases:
+            return self._file_handle[self.__class__._file_handle_aliases[item]]
+        else:
+            return super(File, self).__getitem__(item)
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.

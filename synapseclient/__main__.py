@@ -787,10 +787,13 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
         syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
-        if user is None:
+        while not user:
             user = input("Synapse username: ")
 
-        passwd = getpass.getpass("Password for " + user + ": ")
+        passwd = None
+        while not passwd:
+            #must encode password prompt because getpass() has OS-dependent implementation and complains about unicode on Windows python 2.7
+            passwd = getpass.getpass(("Password for " + user + ": ").encode('utf-8'))
         syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 
 def main():

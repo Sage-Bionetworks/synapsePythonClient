@@ -299,7 +299,7 @@ class Cache():
         files stored outside the cache.
         """
         if isinstance(before_date, datetime.datetime):
-            before_date = utils.to_unix_epoch_time_secs(epoch_time)
+            before_date = utils.to_unix_epoch_time_secs(before_date)
         count = 0
         for cache_dir in self._cache_dirs():
             ## _get_modified_time returns None if the cache map file doesn't

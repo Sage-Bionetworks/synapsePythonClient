@@ -12,10 +12,19 @@ import sys
 import tempfile
 from builtins import zip
 from mock import MagicMock
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals, assert_not_equals, raises
+from nose import SkipTest
+
+try:
+    import pandas as pd
+    pandas_found = False
+except ImportError:
+    pandas_found = True
 
 import synapseclient
+from synapseclient.exceptions import SynapseError
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn
+from mock import patch
 
 
 def setup(module):
@@ -436,3 +445,82 @@ def test_waitForAsync():
         "errorDetails": "Totally fubared error details"})
 
     assert_raises(synapseclient.exceptions.SynapseTimeoutError, syn._waitForAsync, uri="foo/bar", request={"foo": "bar"})
+
+def _insert_dataframe_column_if_not_exist__setup():
+    df = pd.DataFrame()
+    column_name = "panda"
+    data = ["pandas", "are", "alive", ":)"]
+    return df, column_name, data
+
+
+def test_insert_dataframe_column_if_not_exist__nonexistent_column():
+    if pandas_found:
+        raise SkipTest("pandas could not be found. please let the pandas into your library.")
+
+    df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
+
+    #method under test
+    CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
+
+    #make sure the data was inserted
+    assert_equals(data, df[column_name].tolist())
+
+
+def test_insert_dataframe_column_if_not_exist__existing_column_matching():
+    if pandas_found:
+        raise SkipTest("pandas could not be found. please let the pandas into your library.")
+
+    df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
+
+    #add the same data to the DataFrame prior to calling our method
+    df.insert(0,column_name, data)
+
+    #method under test
+    CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
+
+    #make sure the data has not changed
+    assert_equals(data, df[column_name].tolist())
+
+@raises(SynapseError)
+def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
+    if pandas_found:
+        raise SkipTest("pandas could not be found. please let the pandas into your library.")
+    df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
+
+    #add different data to the DataFrame prior to calling our method
+    df.insert(0,column_name, ['mercy', 'main', 'btw'])
+
+    #make sure the data is different
+    assert_not_equals(data, df[column_name].tolist())
+
+    #method under test should raise exception
+    CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
+
+
+def test_build_table_download_file_handle_list__repeated_file_handles():
+    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+
+    #patch the cache so we don't look there in case FileHandle ids actually exist there
+    patch.object(syn.cache, "get", return_value = None)
+
+    cols = [
+        Column(name='Name', columnType='STRING', maximumSize=50),
+        Column(name='filehandle', columnType='FILEHANDLEID')]
+
+    schema = Schema(name='FileHandleTest', columns=cols, parent='syn420')
+
+    #using some large filehandle numbers so i don
+    data = [["ayy lmao", 5318008],
+            ["large numberino", 0x5f3759df],
+            ["repeated file handle", 5318008],
+            ["repeated file handle also", 0x5f3759df]]
+
+    ## need columns to do cast_values w/o storing
+    table = Table(schema, data, headers=[SelectColumn.from_column(col) for col in cols])
+
+    file_handle_associations, file_handle_to_path_map = syn._build_table_download_file_handle_list(table, ['filehandle'])
+
+    #verify only 2 file_handles are added (repeats were ignored)
+    assert_equals(2, len(file_handle_associations))
+    assert_equals(0, len(file_handle_to_path_map)) #might as well check anyways
+
