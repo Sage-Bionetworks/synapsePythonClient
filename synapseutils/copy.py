@@ -176,7 +176,6 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         if not isinstance(syn.get(destinationId),Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
         copiedId = destinationId
-        #http://docs.synapse.org/rest/POST/entity/children.html
         entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
         for i in entities:
             mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)

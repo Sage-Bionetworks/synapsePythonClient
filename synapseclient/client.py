@@ -2895,7 +2895,6 @@ class Synapse:
         return self._waitForAsync(uri=uri, request=request)
 
 
-
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
         """
         Query a Synapse Table and download a CSV file containing the results.
