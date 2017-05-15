@@ -175,7 +175,7 @@ def store(args, syn):
     if args.file and args.FILE:
         raise ValueError('only specify one file')
 
-    _description_args_check(args)
+    _descriptionFile_arg_check(args)
 
     args.file = args.FILE if args.FILE is not None else args.file
     args.type = 'FileEntity' if args.type == 'File' else args.type
@@ -216,17 +216,13 @@ def _create_wiki_description_if_necessary(args, entity, syn):
         syn.store(Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
 
 
-def _description_args_check(args):
+def _descriptionFile_arg_check(args):
     """
     checks that descriptionFile(if specified) is a valid file path
-    checks that descriptionFile and description are not both specified
     """
     if args.descriptionFile:
         if not os.path.isfile(args.descriptionFile):
             raise ValueError('The specified descriptionFile path is not a file or does not exist')
-        if args.description:  # if both are specified
-            raise ValueError('only specify one of either description or descriptionFile')
-
 
 def move(args, syn):
     """Moves an entity specified by args.id to args.parentId"""
@@ -308,7 +304,7 @@ def delete(args, syn):
 
 
 def create(args, syn):
-    _description_args_check(args)
+    _descriptionFile_arg_check(args)
 
     entity={'name': args.name,
             'parentId': args.parentid,
@@ -535,9 +531,10 @@ def build_parser():
 
     parser_store.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
-    parser_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
+    description_group_store = parser_store.add_mutually_exclusive_group()
+    description_group_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
-    parser_store.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
+    description_group_store.add_argument('--descriptionFile', '-descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
                                help='Path to a markdown file containing description of project/folder')
     parser_store.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
             help=USED_HELP)
@@ -569,9 +566,10 @@ def build_parser():
 
     parser_add.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
-    parser_add.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
+    description_group_add = parser_add.add_mutually_exclusive_group()
+    description_group_add.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
-    parser_add.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
+    description_group_add.add_argument('--descriptionFile', '-descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
                                help='Path to a markdown file containing description of project/folder')
     parser_add.add_argument('-type', type=str, default='File', help=argparse.SUPPRESS)
     parser_add.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
@@ -762,9 +760,10 @@ def build_parser():
             help='Synapse ID of project or folder where to place folder [not used with project]')
     parser_create.add_argument('-name', '--name', metavar='NAME', type=str, required=True,
             help='Name of folder/project.')
-    parser_create.add_argument('-description', '--description', metavar='DESCRIPTION', type=str,
+    description_group_create = parser_create.add_mutually_exclusive_group()
+    description_group_create.add_argument('-description', '--description', metavar='DESCRIPTION', type=str,
             help='Description of project/folder')
-    parser_create.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
+    description_group_create.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
                                help='Path to a markdown file containing description of project/folder')
     parser_create.add_argument('type', type=str,
             help='Type of object to create in synapse one of {Project, Folder}')
