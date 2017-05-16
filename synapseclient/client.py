@@ -1088,7 +1088,7 @@ class Synapse:
         If not, then one is added
         """
 
-        existingRestrictions = self.restGET('/entity/%s/accessRequirement' % id_of(entity))
+        existingRestrictions = self.restGET('/entity/%s/accessRequirement?offset=0&limit=1' % id_of(entity))
         if existingRestrictions['totalNumberOfResults'] <= 0:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
