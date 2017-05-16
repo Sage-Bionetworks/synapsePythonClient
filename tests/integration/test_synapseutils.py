@@ -181,6 +181,8 @@ def test_copy():
     schedule_for_cleanup(link_entity.id)
     schedule_for_cleanup(copied_link[link_entity.id])
 
+    time.sleep(3)
+
     assert_raises(ValueError,synapseutils.copy,syn,link_entity.id,destinationId=second_folder.id)
 
 
