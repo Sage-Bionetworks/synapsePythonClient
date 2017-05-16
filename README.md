@@ -57,7 +57,7 @@ Clone the [source code repository](https://github.com/Sage-Bionetworks/synapsePy
 
 #### Install develop branch
 
-Installing the [develop](https://github.com/Sage-Bionetworks/synapsePythonClient/tree/develop) branch can be useful for testing or for access to the latest features, with the acceptance of an increased risk of experiencing bugs. Using [virtualenv](http://www.virtualenv.org/) to create an isolated test environment is a good idea.
+Installing the [develop](https://github.com/Sage-Bionetworks/synapsePythonClient/tree/develop) branch can be useful for testing or for access to the latest features, with the acceptance of an increased risk of experiencing bugs. Using [virtualenv](https://virtualenv.pypa.io/) to create an isolated test environment is a good idea.
 
     git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
     cd synapsePythonClient

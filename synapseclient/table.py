@@ -214,7 +214,7 @@ Queries
 
 The query language is quite similar to SQL select statements, except that joins
 are not supported. The documentation for the Synapse API has lots of
-`query examples <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
+`query examples <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
 
 ~~~~~~
 Schema
@@ -419,7 +419,7 @@ def cast_values(values, headers):
     """
     Convert a row of table query results from strings to the correct column type.
 
-    See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/ColumnType.html
+    See: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     """
     if len(values) != len(headers):
         raise ValueError('Each field in the row must have a matching column header. %d fields, %d headers' % (len(values), len(headers)))
@@ -538,9 +538,12 @@ class Schema(Entity, Versionable):
                 self.properties.columnIds.append(column.id)
             self.__dict__['columns_to_store'] = None
 
+class ViewSchema(Schema):
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
 
 ## add Schema to the map of synapse entity types to their Python representations
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
+synapseclient.entity._entity_type_to_class[ViewSchema._synapse_entity_type] = ViewSchema
 
 
 ## allowed column types
@@ -610,7 +613,7 @@ class Column(DictObject):
 
 class RowSet(DictObject):
     """
-    A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://rest.synapse.org/org/sagebionetworks/repo/model/table/RowSet.html>`_.
+    A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
@@ -651,7 +654,7 @@ class RowSet(DictObject):
         """
         Creates and POSTs an AppendableRowSetRequest_
 
-        .. AppendableRowSetRequest: http://rest.synapse.org/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
+        .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
         arsr = dict(
             concreteType='org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
@@ -677,7 +680,7 @@ class RowSet(DictObject):
 
 class Row(DictObject):
     """
-    A `row <http://rest.synapse.org/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
+    A `row <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
 
     :param values:         A list of values
     :param rowId:          The immutable ID issued to a new row
@@ -694,7 +697,7 @@ class Row(DictObject):
 
 class RowSelection(DictObject):
     """
-    A set of rows to be `deleted <http://rest.synapse.org/POST/entity/id/table/deleteRows.html>`_.
+    A set of rows to be `deleted <http://docs.synapse.org/rest/POST/entity/id/table/deleteRows.html>`_.
 
     :param rowIds: list of row ids
     :param etag: etag of latest change set
@@ -1050,7 +1053,7 @@ class CsvFileTable(TableAbstractBaseClass):
         if isinstance(schema, Schema) and not schema.has_columns():
             schema.addColumns(cols)
 
-        ## convert row names in the format [row_id]-[version] back to columns
+        ## convert row names in the format [row_id]_[version] back to columns
         row_id_version_pattern = re.compile(r'(\d+)_(\d+)')
 
         row_id = []
@@ -1061,10 +1064,12 @@ class CsvFileTable(TableAbstractBaseClass):
             row_version.append(m.group(2) if m else None)
 
         ## include row ID and version, if we're asked to OR if it's encoded in rownames
-        if includeRowIdAndRowVersion==True or (includeRowIdAndRowVersion is None and any(row_id)):
+        if includeRowIdAndRowVersion or (includeRowIdAndRowVersion is None and any(row_id)):
             df2 = df.copy()
-            df2.insert(0, 'ROW_ID', row_id)
-            df2.insert(1, 'ROW_VERSION', row_version)
+
+            cls._insert_dataframe_column_if_not_exist(df2, 0, 'ROW_ID', row_id)
+            cls._insert_dataframe_column_if_not_exist(df2, 1, 'ROW_VERSION', row_version)
+
             df = df2
             includeRowIdAndRowVersion = True
 
@@ -1103,6 +1108,19 @@ class CsvFileTable(TableAbstractBaseClass):
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion,
             headers=headers)
+
+    @staticmethod
+    def _insert_dataframe_column_if_not_exist(dataframe, insert_index, col_name, insert_column_data):
+        # if the column already exists verify the column data is same as what we parsed
+        if col_name in dataframe.columns:
+            if dataframe[col_name].tolist() != insert_column_data:
+                raise SynapseError(("A column named '{0}' "
+                                   "already exists and does not match the '{0}' "
+                                   "values present in the DataFrame's row names. "
+                                   "Please refain from using or modifying '{0}' as a column for your data "
+                                   "because it is necessary for version tracking in Synapse's tables").format(col_name) )
+        else:
+            dataframe.insert(insert_index, col_name, insert_column_data)
 
     @classmethod
     def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
@@ -1179,7 +1197,7 @@ class CsvFileTable(TableAbstractBaseClass):
             self.schema = syn.store(self.schema)
             self.tableId = self.schema.id
 
-        upload_to_table_result = syn._uploadCsv(
+        result = syn._uploadCsv(
             self.filepath,
             self.schema if self.schema else self.tableId,
             updateEtag=self.etag,
@@ -1190,6 +1208,10 @@ class CsvFileTable(TableAbstractBaseClass):
             header=self.header,
             linesToSkip=self.linesToSkip)
 
+        upload_to_table_result = result['results'][0]
+
+        assert upload_to_table_result['concreteType'] in ('org.sagebionetworks.repo.model.table.EntityUpdateResults',
+                                                          'org.sagebionetworks.repo.model.table.UploadToTableResult'), "Not an UploadToTableResult or EntityUpdateResults."
         if 'etag' in upload_to_table_result:
             self.etag = upload_to_table_result['etag']
         return self
@@ -1302,4 +1324,3 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def __len__(self):
         return sum(1 for row in self)
-

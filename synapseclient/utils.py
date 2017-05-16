@@ -629,7 +629,7 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
-def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True, dt=None):
+def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True, dt=None, previouslyTransferred = 0):
     """Prints a progress bar
 
     :param transferred: a number of items/bytes completed
@@ -638,6 +638,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     :param prefix: String printed after progress bar
     :param isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
     :param dt: The time in seconds that has passed since transfer started is used to calculate rate.
+    :param previouslyTransferred: the number of bytes that were already transferred before this transfer began( e.g. someone ctrl+c'd out of an upload and restarted it later)
 
     """
     if not sys.stdout.isatty():
@@ -645,8 +646,8 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     barLength = 20 # Modify this to change the length of the progress bar
     status = ''
     rate = ''
-    if dt is not None:
-        rate = transferred/float(dt)
+    if dt is not None and dt != 0:
+        rate = (transferred - previouslyTransferred)/float(dt)
         rate = '(%s/s)' % humanizeBytes(rate) if isBytes else rate
     if toBeTransferred<0:
         defaultToBeTransferred = (barLength*1*MB)
@@ -792,3 +793,38 @@ def temp_download_filename(destination, file_handle_id):
 def log_error(message, verbose=True):
     if verbose:
         sys.stderr.write(message+'\n')
+
+
+def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
+    """
+    Extracts a specified file in a zip to the specified directory
+    :param zip_file: an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
+    :param zip_entry_name: the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
+    :param target_dir: the directory to which the file will be extracted
+
+    :return: full path to the extracted file
+    """
+    file_base_name = os.path.basename(zip_entry_name) # base name of the file
+    filepath = os.path.join(target_dir, file_base_name) # file path to the cached file to write
+
+    # Create the cache directory if it does not exist
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+
+    # write the file from the zip into the cache
+    with open(filepath, 'wb') as cache_file:
+        cache_file.write(zip_file.read(zip_entry_name))
+
+    return filepath
+
+
+def _is_integer(x):
+    try:
+        return float.is_integer(x)
+    except TypeError:
+        try:
+            int(x)
+            return True
+        except (ValueError, TypeError):
+            ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
+            return False

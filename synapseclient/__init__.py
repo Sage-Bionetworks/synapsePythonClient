@@ -21,8 +21,8 @@ and the `web <https://www.synapse.org/>`_. The Python client can also be used fr
 `command line <CommandLineClient.html>`_.
 
 If you're just getting started with Synapse,
-have a look at the Getting Started guides for `Synapse <https://www.synapse.org/#!Wiki:syn1669771/ENTITY/54546>`_
-and `the Python client <https://www.synapse.org/#!Synapse:syn1768504>`_.
+have a look at the Getting Started guides for `Synapse <http://docs.synapse.org/articles/getting_started.html>`_
+and `the Python client <http://docs.synapse.org/python/>`_.
 
 Good example projects are:
 
@@ -264,7 +264,7 @@ Accessing the API directly
 
 These methods enable access to the Synapse REST(ish) API taking care of details
 like endpoints and authentication. See the
-`REST API documentation <http://rest.synapse.org/>`_.
+`REST API documentation <http://docs.synapse.org/rest/>`_.
 
 See:
 
@@ -281,7 +281,7 @@ There is a companion module called synapseutils that provide higher
 level functionality such as recursive copying of content, syncing with
 Synapse and additional query functionality.
 
-See: 
+See:
 - :py:mod:`synapseutils`
 
 
@@ -289,9 +289,9 @@ More information
 ================
 
 For more information see the
-`Synapse User Guide <https://www.synapse.org/#!Synapse:syn1669771>`_. These
+`Synapse User Guide <http://docs.synapse.org/articles/>`_. These
 API docs are browsable online at
-`python-docs.synapse.org <http://python-docs.synapse.org/>`_.
+`python-docs.synapse.org <http://docs.synapse.org/python/>`_.
 
 Getting updates
 ===============
@@ -312,7 +312,7 @@ from .client import ROOT_ENTITY
 from .activity import Activity
 from .entity import Entity, Project, Folder, File, Link
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Column, RowSet, Row, as_table_columns, Table
+from .table import Schema, ViewSchema, Column, RowSet, Row, as_table_columns, Table
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
@@ -325,6 +325,5 @@ __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapse
 
 import requests
 USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
-import logging 
+import logging
 logging.getLogger("requests").setLevel(logging.WARNING)
-

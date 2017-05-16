@@ -10,7 +10,7 @@ Installation
 ============
 
 The command line client is installed along with `installation of the Synapse
-Python client <http://python-docs.synapse.org/index.html#installation>`_.
+Python client <http://docs.synapse.org/python/index.html#installation>`_.
 
 Help
 ====
@@ -79,7 +79,8 @@ import json
 import warnings
 from .exceptions import *
 import getpass
-
+import csv
+import re
 
 def query(args, syn):
     try:
@@ -92,29 +93,49 @@ def query(args, syn):
         ## in any other case."
         pass
     ## TODO: Should use loop over multiple returned values if return is too long
-    results = syn.chunkedQuery(' '.join(args.queryString))
-    headings = collections.OrderedDict()
-    temp = [] # Since query returns a generator, the results must be stored locally
-    for res in results:
-        temp.append(res)
-        for head in res:
-            headings[head] = True
-    if len(headings) == 0: # No results found
-        return
-    sys.stdout.write('%s\n' %'\t'.join(headings))
-    for res in temp:
-        out = []
-        for key in headings:
-            out.append(str(res.get(key, "")))
-        sys.stdout.write('%s\n' % "\t".join(out))
 
+    queryString = ' '.join(args.queryString)
+
+    if re.search('from syn\d', queryString.lower()):
+        results = syn.tableQuery(queryString)
+        reader = csv.reader(open(results.filepath))
+        for row in reader:
+            sys.stdout.write("%s\n" % ("\t".join(row)))
+    else:
+        results = syn.chunkedQuery(' '.join(args.queryString))
+        headings = collections.OrderedDict()
+        temp = [] # Since query returns a generator, the results must be stored locally
+        for res in results:
+            temp.append(res)
+            for head in res:
+                headings[head] = True
+        if len(headings) == 0: # No results found
+            return
+        sys.stdout.write('%s\n' %'\t'.join(headings))
+        for res in temp:
+            out = []
+            for key in headings:
+                out.append(str(res.get(key, "")))
+            sys.stdout.write('%s\n' % "\t".join(out))
 
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
+
+    queryType = 'synapse'
+
     ids = []
-    for item in  syn.chunkedQuery(queryString):
-        key = [k for k in  item.keys() if k.split('.', 1)[1]=='id'][0]
-        ids.append(item[key])
+
+    if re.search('from syn\d', queryString.lower()):
+        tbl = syn.tableQuery(queryString)
+
+        check_for_id_col = filter(lambda x: x.get('id'), tbl.headers)
+        assert check_for_id_col, ValueError("Query does not include the id column.")
+
+        ids = [x['id'] for x in csv.DictReader(open(tbl.filepath))]
+    else:
+        for item in syn.chunkedQuery(queryString):
+            key = [k for k in  item.keys() if k.split('.', 1)[1]=='id'][0]
+            ids.append(item[key])
     return ids
 
 
@@ -212,10 +233,10 @@ def associate(args, syn):
             print('%s.%i\t%s' %(ent.id, ent.versionNumber, fp))
 
 def copy(args,syn):
-    mappings = synapseutils.copy(syn, args.id, args.destinationId, 
+    mappings = synapseutils.copy(syn, args.id, args.destinationId,
                          skipCopyWikiPage=args.skipCopyWiki,
                          skipCopyAnnotations=args.skipCopyAnnotations,
-                         excludeTypes=args.excludeTypes, 
+                         excludeTypes=args.excludeTypes,
                          version=args.version, updateExisting=args.updateExisting,
                          setProvenance=args.setProvenance)
     print(mappings)
@@ -434,12 +455,12 @@ def test_encoding(args, syn):
 def build_parser():
     """Builds the argument parser and returns the result."""
 
-    USED_HELP=('Synapse ID, a url, or a local file path (of a file previously' 
+    USED_HELP=('Synapse ID, a url, or a local file path (of a file previously'
                'uploaded to Synapse) from which the specified entity is derived')
-    EXECUTED_HELP=('Synapse ID, a url, or a local file path (of a file previously' 
+    EXECUTED_HELP=('Synapse ID, a url, or a local file path (of a file previously'
                    'uploaded to Synapse) that was executed to generate the specified entity')
 
-    
+
     parser = argparse.ArgumentParser(description='Interfaces with the Synapse repository.')
     parser.add_argument('--version',  action='version',
             version='Synapse Client %s' % synapseclient.__version__)
@@ -447,6 +468,9 @@ def build_parser():
             help='Username used to connect to Synapse')
     parser.add_argument('-p', '--password', dest='synapsePassword',
             help='Password used to connect to Synapse')
+    parser.add_argument('-c', '--configPath', dest='configPath', default=synapseclient.client.CONFIG_FILE,
+                        help='Path to configuration file used to connect to Synapse [default: %(default)s]')
+
     parser.add_argument('--debug', dest='debug',  action='store_true')
     parser.add_argument('-s', '--skip-checks', dest='skip_checks', action='store_true',
             help='suppress checking for version upgrade messages and endpoint redirection')
@@ -483,7 +507,7 @@ def build_parser():
     parent_id_group.add_argument('--type', type=str, default='File',
             help='Type of object, such as "File", "Folder", or '
                  '"Project", to create in Synapse. Defaults to "File"')
-    
+
     parser_store.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
     parser_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
@@ -548,11 +572,11 @@ def build_parser():
             help='Copies specific versions of synapse content such as files, folders and projects by recursively copying all sub-content')
     parser_cp.add_argument('id', metavar='syn123', type=str,
             help='Id of entity in Synapse to be copied.')
-    parser_cp.add_argument('--destinationId', metavar='syn123', required=True, 
+    parser_cp.add_argument('--destinationId', metavar='syn123', required=True,
             help='Synapse ID of project or folder where file will be copied to.')
     parser_cp.add_argument('--version','-v', metavar='1', type=int, default=None,
-            help=('Synapse version number of file, and link to retrieve.' 
-                'This parameter can only be used when copying files, or links'
+            help=('Synapse version number of File or Link to retrieve. '
+                'This parameter cannot be used when copying Projects or Folders. '
                 'Defaults to most recent version.'))
     parser_cp.add_argument('--setProvenance', metavar='traceback', type=str, default='traceback',
             help=('Has three values to set the provenance of the copied entity-'
@@ -763,16 +787,19 @@ def login_with_prompt(syn, user, password, rememberMe=False, silent=False, force
         syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
     except SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
-        if user is None:
+        while not user:
             user = input("Synapse username: ")
 
-        passwd = getpass.getpass("Password for " + user + ": ")
+        passwd = None
+        while not passwd:
+            #must encode password prompt because getpass() has OS-dependent implementation and complains about unicode on Windows python 2.7
+            passwd = getpass.getpass(("Password for " + user + ": ").encode('utf-8'))
         syn.login(user, passwd, rememberMe=rememberMe, forced=forced)
 
 def main():
     args = build_parser().parse_args()
     synapseclient.USER_AGENT['User-Agent'] = "synapsecommandlineclient " + synapseclient.USER_AGENT['User-Agent']
-    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks)
+    syn = synapseclient.Synapse(debug=args.debug, skip_checks=args.skip_checks, configPath=args.configPath)
     if not ('func' in args and args.func == login):
         # if we're not executing the "login" operation, automatically authenticate before running operation
         login_with_prompt(syn, args.synapseUser, args.synapsePassword, silent=True)
