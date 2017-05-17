@@ -275,3 +275,33 @@ def test_login__only_username_config_file_username_mismatch():
             read_session_mock.assert_called_once()
             config_items_mock.assert_called_once_with('authentication')
 
+def test_check_entity_restrictions__no_unmet_restriction():
+    with patch('synapseclient.Synapse.restGET', return_value={'hasUnmetAccessRequirement': False}) as mocked_restGET,\
+         patch("warnings.warn") as mocked_warn:
+
+        syn._check_entity_restrictions("syn123", True)
+
+        mocked_restGET.assert_called_once()
+        mocked_warn.assert_not_called()
+
+
+def test_check_entity_restrictions__unmet_restriction_downloadFile_is_True():
+    with patch('synapseclient.Synapse.restGET', return_value={'hasUnmetAccessRequirement': True}) as mocked_restGET,\
+         patch("warnings.warn") as mocked_warn:
+
+        assert_raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, "syn123", True)
+
+        mocked_restGET.assert_called_once()
+        mocked_warn.assert_not_called()
+
+
+def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False():
+    with patch('synapseclient.Synapse.restGET', return_value={'hasUnmetAccessRequirement': True}) as mocked_restGET,\
+         patch("warnings.warn") as mocked_warn:
+
+        syn._check_entity_restrictions("syn123", False)
+
+        mocked_restGET.assert_called_once()
+        mocked_warn.assert_called_once()
+
+

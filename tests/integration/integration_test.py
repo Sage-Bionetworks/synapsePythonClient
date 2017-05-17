@@ -13,7 +13,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal
+from nose.tools import assert_raises, assert_equals, assert_not_equal, raises
 from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch, call
 
@@ -36,6 +36,22 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
+
+    # Some of these tests require a second user
+    config = configparser.ConfigParser()
+    config.read(synapseclient.client.CONFIG_FILE)
+    module.other_user = {}
+    try:
+        other_user['username'] = config.get('test-authentication', 'username')
+        other_user['password'] = config.get('test-authentication', 'password')
+        other_user['principalId'] = config.get('test-authentication', 'principalId')
+    except configparser.Error:
+        print("[test-authentication] section missing from the configuration file")
+
+    if 'principalId' not in other_user:
+        # Fall back on the synapse-test user
+        other_user['principalId'] = 1560252
+        other_user['username'] = 'synapse-test'
 
 def test_login():
     try:
@@ -446,4 +462,11 @@ def test_external_s3_upload():
     assert_not_equal(os.path.normpath(temp_file_path), os.path.normpath(downloaded_syn_file['path']))
     assert filecmp.cmp(temp_file_path, downloaded_syn_file['path'])
 
+
+@raises(SynapseUnmetAccessRestrictions)
+def test_check_entity_restrictions():
+    entity = syn.store(Folder('Test Folder', parent=project, description='A place to put my junk', foo=1000), isRestricted=True)
+
+    other_syn = synapseclient.login(other_user['username'], other_user['password'])
+    other_syn._check_entity_restrictions(entity.id, True)
 

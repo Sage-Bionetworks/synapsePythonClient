@@ -678,16 +678,23 @@ class Synapse:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
 
+        self._check_entity_restrictions(bundle['entity']['id'], kwargs.get('downloadFile', True))
+
+        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
+
+
+    def _check_entity_restrictions(self, entity_id, downloadFile):
+        restriction_info = self.restGET("/entity/%s/restrictionInformation" % entity_id)
+
         # Check and warn for unmet access requirements
-        if len(bundle['unmetAccessRequirements']) > 0:
+        if restriction_info['hasUnmetAccessRequirement']:
             warning_message = ("\nWARNING: This entity has access restrictions. Please visit the "
                               "web page for this entity (syn.onweb(\"%s\")). Click the downward "
                               "pointing arrow next to the file's name to review and fulfill its "
-                              "download requirement(s).\n" % id_of(entity))
-            if kwargs.get('downloadFile', True):
+                              "download requirement(s).\n" % entity_id)
+            if downloadFile:
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
-        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
 
 
     def __getFromFile(self, filepath, limitSearch=None):
@@ -771,7 +778,7 @@ class Synapse:
         #Handle download of fileEntities
         if isinstance(entity, File):
             #update the entity with FileHandle metadata
-            file_handle = next(handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId)
+            file_handle = next((handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId), None)
             entity._update_file_handle(file_handle)
 
             if downloadFile:
@@ -1093,7 +1100,7 @@ class Synapse:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
 
-    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x400 | 0x2 | 0x1):
+    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x2 | 0x1):
         """
         Gets some information about the Entity.
 
