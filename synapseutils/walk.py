@@ -12,9 +12,6 @@ def walk(syn, synId):
 
     :param synId:          A synapse ID of a folder or project
 
-    :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
-                           http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
-
     Example::
 
         walkedPath = walk(syn, "syn1234")
