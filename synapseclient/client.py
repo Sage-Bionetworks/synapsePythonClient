@@ -2531,15 +2531,19 @@ class Synapse:
         submission_id = id_of(id)
         uri = Submission.getURI(submission_id)
         submission = Submission(**self.restGET(uri))
-
+        entityBundle = json.loads(submission['entityBundleJSON'])
+        #Take account into URL submissions
+        toDownload = True if entityBundle['fileHandles'][0].get('externalURL') is None else False
         # Pre-fetch the Entity tied to the Submission, if there is one
         if 'entityId' in submission and submission['entityId'] is not None:
             related = self._getWithEntityBundle(
-                                entityBundle=json.loads(submission['entityBundleJSON']),
+                                entityBundle=entityBundle,
                                 entity=submission['entityId'],
-                                submission=submission_id, **kwargs)
+                                submission=submission_id, downloadFile=toDownload, **kwargs)
             submission.entity = related
             submission.filePath = related.get('path', None)
+            if not toDownload:
+                submission.externalURL = related.externalURL
 
         return submission
 
