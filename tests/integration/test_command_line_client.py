@@ -13,6 +13,7 @@ import re
 import sys
 import uuid
 import json
+import time
 from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
@@ -566,6 +567,9 @@ def test_command_get_recursive_and_query():
     file_entity = synapseclient.File(f, parent=folder_entity)
     file_entity = syn.store(file_entity)
     file_entities.append(file_entity)
+
+    #function under test uses queries which are eventually consistent but not immediately after creating the entities
+    time.sleep(3)
 
     ### Test recursive get
     output = run('synapse', '--skip-checks',
