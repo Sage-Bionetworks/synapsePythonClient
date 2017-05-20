@@ -89,7 +89,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 import six
 
-import sys
+import os
 import json
 
 from synapseclient.exceptions import *
@@ -102,7 +102,8 @@ class Wiki(DictObject):
 
     :param title:       Title of the Wiki
     :param owner:       Parent Entity that the Wiki will belong to
-    :param markdown:    Content of the Wiki
+    :param markdown:    Content of the Wiki (cannot be defined if markdownFile is defined)
+    :param markdownFile: Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
     :param attachments: List of paths to files to attach
     :param fileHandles: List of file handle IDs representing files to be attached
     :param parentWikiId: (optional) For subpages, specify parent wiki page
@@ -118,6 +119,19 @@ class Wiki(DictObject):
         # Initialize the file handle list to be an empty list
         if 'attachmentFileHandleIds' not in kwargs:
             kwargs['attachmentFileHandleIds'] = []
+
+        markdown = kwargs.get('markdown')
+        markdownFile = kwargs.get('markdownFile')
+
+        if markdown and markdownFile:
+            raise ValueError("Please use only one argument: markdown or markdownFile")
+
+        if markdownFile:
+            #pop the 'markdownFile' kwargs because we don't actually need it in the dictionary to upload to synapse
+            markdown_path = os.path.expandvars(os.path.expanduser(kwargs.pop('markdownFile')))
+            with open(markdown_path, 'r') as opened_markdown_file:
+                kwargs['markdown'] = opened_markdown_file.read()
+
 
         # Move the 'fileHandles' into the proper (wordier) bucket
         if 'fileHandles' in kwargs:
