@@ -15,7 +15,7 @@ import os
 import sys
 import uuid
 
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals
 
 import synapseclient
 import synapseclient.utils as utils
@@ -115,21 +115,21 @@ def test_get_entity_owned_by_another_user():
         current_user_id = int(syn.getUserProfile()['ownerId'])
 
         # Update the acl to give the current user read permissions
-        syn_other.setPermissions(a_file, current_user_id, accessType=['READ'], modify_benefactor=True)
+        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'DOWNLOAD'], modify_benefactor=True)
 
         # Test whether the benefactor's ACL was modified
-        assert syn_other.getPermissions(project, current_user_id) == ['READ']
+        assert_equals(set(syn_other.getPermissions(project, current_user_id)),  set(['READ', 'DOWNLOAD']))
 
         # Add a new permission to a user with existing permissions
         # make this change on the entity itself, not its benefactor
-        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'UPDATE'], modify_benefactor=False, warn_if_inherits=False)
+        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'UPDATE', 'DOWNLOAD'], modify_benefactor=False, warn_if_inherits=False)
         permissions = syn_other.getPermissions(a_file, current_user_id)
         assert 'READ' in permissions
         assert 'UPDATE' in permissions
-        assert len(permissions) == 2
+        assert len(permissions) == 3
 
-        syn_other.setPermissions(a_file, current_user_id, accessType=['READ'])
-        assert syn_other.getPermissions(a_file, current_user_id) == ['READ']
+        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'DOWNLOAD'])
+        assert_equals(set(syn_other.getPermissions(a_file, current_user_id)), set(['DOWNLOAD', 'READ']))
 
         other_users_file = syn.get(a_file.id)
         a_file = syn_other.get(a_file.id)
