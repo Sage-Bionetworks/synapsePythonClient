@@ -193,3 +193,4 @@ def test_setPermissions__default_permissions():
     permissions = syn.getPermissions(temp_proj, other_user['username'])
 
     assert_equals(['READ', 'DOWNLOAD'], permissions)
+
