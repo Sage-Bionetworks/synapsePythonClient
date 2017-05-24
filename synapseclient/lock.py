@@ -14,7 +14,7 @@ import time
 from datetime import timedelta
 from synapseclient.exceptions import *
 
-LOCK_DEFAULT_MAX_AGE = timedelta(seconds= 10)
+LOCK_DEFAULT_MAX_AGE = timedelta(seconds=10)
 DEFAULT_BLOCKING_TIMEOUT = timedelta(seconds=70)
 CACHE_UNLOCK_WAIT_TIME = 0.5
 
