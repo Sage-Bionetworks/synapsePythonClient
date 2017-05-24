@@ -38,7 +38,8 @@ setup(name='synapseclient',
         'requests>=1.2',
         'six',
         'future',
-        'backports.csv'
+        'backports.csv',
+		'boto'
     ],
     extras_require = {
         'pandas':  ["pandas"],
