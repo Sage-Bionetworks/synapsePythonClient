@@ -185,3 +185,12 @@ def test_access_restrictions():
         assert_raises(synapseclient.exceptions.SynapseUnmetAccessRestrictions, syn.get, 'syn1000002', downloadFile=True)
 
 
+def test_setPermissions__default_permissions():
+    temp_proj = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(temp_proj)
+
+    syn.setPermissions(temp_proj, other_user['username'])
+    permissions = syn.getPermissions(temp_proj, other_user['username'])
+
+    assert_equals(['READ', 'DOWNLOAD'], permissions)
+
