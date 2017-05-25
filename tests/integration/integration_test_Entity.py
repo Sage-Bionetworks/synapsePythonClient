@@ -551,3 +551,21 @@ def test_store_file_handle_update_metadata():
     assert_equal(os.path.dirname(replacement_file_path), new_entity.cacheDir)
     assert_equal([os.path.basename(replacement_file_path)], new_entity.files)
 
+
+def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
+    other_syn = synapseclient.login(other_user['username'], other_user['password'])
+
+    #make a temp data file
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    #upload to synapse and set permissions to READ only
+    entity = syn.store(File(path, parent=project))
+    syn.setPermissions(entity, other_user['username'], accessType=['READ'])
+
+    #try to download and check that nothing wad downloaded and a warning message was printed
+    with patch("sys.stderr") as mocked_stderr:
+        entity_no_download = other_syn.get(entity['id'])
+        mocked_stderr.write.assert_called_once()
+        assert_is_none(entity_no_download.path)
+
