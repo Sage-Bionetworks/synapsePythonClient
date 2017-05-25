@@ -684,7 +684,9 @@ class Synapse:
 
 
     def _check_entity_restrictions(self, entity_id, downloadFile):
-        restriction_info = self.restGET("/entity/%s/restrictionInformation" % entity_id)
+        restriction_info_request = {"restrictableObjectType":"ENTITY","objectId":entity_id}
+
+        restriction_info = self.restPOST("/restrictionInformation", body=json.dumps(restriction_info_request))
 
         # Check and warn for unmet access requirements
         if restriction_info['hasUnmetAccessRequirement']:
@@ -781,7 +783,7 @@ class Synapse:
             file_handle = next((handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId), None)
             entity._update_file_handle(file_handle)
 
-            if downloadFile:
+            if file_handle is not None and downloadFile:
                 self._download_file_entity(downloadLocation, entity, ifcollision, submission)
 
         return entity
