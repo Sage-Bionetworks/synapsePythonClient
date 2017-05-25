@@ -15,12 +15,12 @@ except ImportError:
     import ConfigParser as configparser
 
 import synapseclient
-from synapseclient import Activity, Project, Folder, File, Link
+from synapseclient import Activity, Project, Folder, File, Link, DockerRepository
 from synapseclient.exceptions import *
 
 import integration
 from integration import schedule_for_cleanup
-
+from nose.tools import assert_false, assert_equals
 
 def setup(module):
     print('\n')
@@ -551,3 +551,8 @@ def test_store_file_handle_update_metadata():
     assert_equal(os.path.dirname(replacement_file_path), new_entity.cacheDir)
     assert_equal([os.path.basename(replacement_file_path)], new_entity.files)
 
+def test_store_DockerRepository():
+    repo_name = "some/repository/path"
+    docker_repo = syn.store(DockerRepository(repo_name,parent=project))
+    assert_false(docker_repo.isManaged)
+    assert_equals(repo_name, docker_repo.repositoryName)

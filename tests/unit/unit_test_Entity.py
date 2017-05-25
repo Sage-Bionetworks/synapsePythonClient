@@ -5,9 +5,9 @@ from builtins import str, ascii
 
 import collections
 import os, sys
-from synapseclient.entity import Entity, Project, Folder, File, split_entity_namespaces, is_container
+from synapseclient.entity import Entity, Project, Folder, File, DockerRepository, split_entity_namespaces, is_container
 from synapseclient.exceptions import *
-from nose.tools import assert_raises
+from nose.tools import assert_raises, raises
 
 
 def setup():
@@ -278,3 +278,6 @@ def test_is_container():
     assert is_container(Project("My Project", parentId="syn12345"))
     assert not is_container(File("asdf.png", parentId="syn12345"))
 
+@raises(SynapseMalformedEntityError)
+def test_DockerRepository__no_repositoryName():
+    DockerRepository(parentId="syn123")

@@ -432,7 +432,7 @@ def cast_values(values, headers):
         ## convert field to column type
         if field is None or field=='':
             result.append(None)
-        elif columnType in ['STRING', 'ENTITYID', 'FILEHANDLEID', 'LARGETEXT']:
+        elif columnType in {'STRING', 'ENTITYID', 'FILEHANDLEID', 'LARGETEXT', 'USERID'}:
             result.append(field)
         elif columnType=='DOUBLE':
             result.append(float(field))
