@@ -312,7 +312,7 @@ from .client import ROOT_ENTITY
 from .activity import Activity
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, ViewSchema, Column, RowSet, Row, as_table_columns, Table
+from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 

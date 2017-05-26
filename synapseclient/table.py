@@ -492,7 +492,7 @@ class Schema(Entity, Versionable):
                     kwargs.setdefault('columns_to_store',[]).append(column)
                 else:
                     raise ValueError("Not a column? %s" % str(column))
-        super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties,
+        super(Schema, self).__init__(concreteType=self.__class__._synapse_entity_type, properties=properties,
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
     def addColumn(self, column):
@@ -538,12 +538,32 @@ class Schema(Entity, Versionable):
                 self.properties.columnIds.append(column.id)
             self.__dict__['columns_to_store'] = None
 
-class ViewSchema(Schema):
+class EntityViewSchema(Entity):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
+    _property_keys = Entity._property_keys + ['type', 'scopeIds']
+    #TODO: Documentation
+
+    def __init__(self, name=None, columns=None, parent=None, scopeIds = None, type='file', include_default_columns = True,properties=None, annotations=None, local_state=None, **kwargs):
+        self.properties.setdefault('columnIds', [])
+        if name: kwargs['name'] = name
+        kwargs['type'] = type
+        if scopeIds is None:
+            kwargs['scopeIds'] = []
+        #TODO: include_default_columns
+        if columns:
+            for column in columns:
+                if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
+                    kwargs.setdefault('columnIds', []).append(utils.id_of(column))
+                elif isinstance(column, Column):
+                    kwargs.setdefault('columns_to_store', []).append(column)
+                else:
+                    raise ValueError("Not a column? %s" % str(column))
+        super(EntityViewSchema, self).__init__(concreteType=self.__class__._synapse_entity_type, properties=properties,
+                                               annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
 ## add Schema to the map of synapse entity types to their Python representations
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
-synapseclient.entity._entity_type_to_class[ViewSchema._synapse_entity_type] = ViewSchema
+synapseclient.entity._entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 
 ## allowed column types
