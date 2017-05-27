@@ -283,6 +283,7 @@ import sys
 import tempfile
 from collections import OrderedDict
 from builtins import zip
+from abc import ABCMeta, abstractmethod, abstractproperty
 
 import synapseclient
 import synapseclient.utils as utils
@@ -458,8 +459,79 @@ def cast_row_set(rowset):
         rowset['rows'][i]['values'] = cast_row(row, rowset['headers'])
     return rowset
 
+@six.add_metaclass(ABCMeta)
+class SchemaBase(Entity, Versionable):
+    '''
+    This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both
+    You can not create an object of this type
+    '''
 
-class Schema(Entity, Versionable):
+    _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
+    _local_keys = Entity._local_keys + ['columns_to_store']
+
+    @abstractproperty  #forces subclasses to define _synapse_entity_type
+    def _synapse_entity_type(self):
+        pass
+
+    @abstractmethod
+    def __init__(self, name, columns, properties, annotations, local_state, parent, **kwargs):
+        self.properties.setdefault('columnIds',[])
+        if name:
+            kwargs['name'] = name
+        super(SchemaBase, self).__init__(properties=properties,
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        if columns:
+            self.addColumns(columns)
+
+
+    def addColumn(self, column):
+        """
+        :param column: a column object or its ID
+        """
+        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
+            self.properties.columnIds.append(utils.id_of(column))
+        elif isinstance(column, Column):
+            if not self.__dict__.get('columns_to_store', None):
+                self.__dict__['columns_to_store'] = []
+            self.__dict__['columns_to_store'].append(column)
+        else:
+            raise ValueError("Not a column? %s" % str(column))
+
+
+    def addColumns(self, columns):
+        """
+        :param columns: a list of column objects or their ID
+        """
+        for column in columns:
+            self.addColumn(column)
+
+
+    def removeColumn(self, column):
+        """
+        :param column: a column object or its ID
+        """
+        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
+            self.properties.columnIds.remove(utils.id_of(column))
+        elif isinstance(column, Column) and self.columns_to_store:
+            self.columns_to_store.remove(column)
+        else:
+            ValueError("Can't remove column %s" + str(column))
+
+
+    def has_columns(self):
+        """Does this schema have columns specified?"""
+        return bool(self.properties.get('columnIds',None) or self.__dict__.get('columns_to_store',None))
+
+
+    def _before_synapse_store(self, syn):
+        ## store any columns before storing table
+        if self.columns_to_store:
+            for column in self.columns_to_store:
+                column = syn.store(column)
+                self.properties.columnIds.append(column.id)
+            self.__dict__['columns_to_store'] = None
+
+class Schema(SchemaBase):
     """
     A Schema is a :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
 
@@ -477,89 +549,80 @@ class Schema(Entity, Versionable):
 
         schema = syn.store(Schema(name='MyTable', columns=cols, parent=project))
     """
-    _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
-    _local_keys = Entity._local_keys + ['columns_to_store']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.TableEntity'
 
     def __init__(self, name=None, columns=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
-        self.properties.setdefault('columnIds',[])
-        if name: kwargs['name'] = name
-        if columns:
-            for column in columns:
-                if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-                    kwargs.setdefault('columnIds',[]).append(utils.id_of(column))
-                elif isinstance(column, Column):
-                    kwargs.setdefault('columns_to_store',[]).append(column)
-                else:
-                    raise ValueError("Not a column? %s" % str(column))
-        super(Schema, self).__init__(concreteType=self.__class__._synapse_entity_type, properties=properties,
+        super(Schema, self).__init__(name=name, columns=columns, properties=properties,
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
-    def addColumn(self, column):
-        """
-        :param column: a column object or its ID
-        """
-        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.append(utils.id_of(column))
-        elif isinstance(column, Column):
-            if not self.__dict__.get('columns_to_store', None):
-                self.__dict__['columns_to_store'] = []
-            self.__dict__['columns_to_store'].append(column)
-        else:
-            raise ValueError("Not a column? %s" % str(column))
 
-    def addColumns(self, columns):
-        """
-        :param columns: a list of column objects or their ID
-        """
-        for column in columns:
-            self.addColumn(column)
 
-    def removeColumn(self, column):
-        """
-        :param column: a column object or its ID
-        """
-        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.remove(utils.id_of(column))
-        elif isinstance(column, Column) and self.columns_to_store:
-            self.columns_to_store.remove(column)
-        else:
-            ValueError("Can't remove column %s" + str(column))
+class EntityViewSchema(SchemaBase):
+    """
+    A EntityViewSchema is a :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
 
-    def has_columns(self):
-        """Does this schema have columns specified?"""
-        return bool(self.properties.get('columnIds',None) or self.__dict__.get('columns_to_store',None))
+    :param name: give the Entity View Table object a name
+    :param columns: a list of :py:class:`Column` objects or their IDs
+    :param parent: the project (file a bug if you'd like folders supported) in Synapse to which this table belongs
+    :param scopes: a list of Projects/Folders or their ids
+    :param view_type: either 'file' or 'project'. Defaults to 'file'
+    :param add_default_columns: whether to add the default view columns based on the EntityView type. Defaults to True
+    ::
 
-    def _before_synapse_store(self, syn):
-        ## store any columns before storing table
-        if self.columns_to_store:
-            for column in self.columns_to_store:
-                column = syn.store(column)
-                self.properties.columnIds.append(column.id)
-            self.__dict__['columns_to_store'] = None
+        cols = [Column(name='Isotope', columnType='STRING'),
+                Column(name='Atomic Mass', columnType='INTEGER'),
+                Column(name='Halflife', columnType='DOUBLE'),
+                Column(name='Discovered', columnType='DATE')]
+        project_or_folder = syn.get("syn123")
+        
+        schema = syn.store(EntityViewSchema(name='MyTable', columns=cols, parent=project, scopes=[project_or_folder], view_type='file'))
+    """
 
-class EntityViewSchema(Entity):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
-    _property_keys = Entity._property_keys + ['type', 'scopeIds']
+    _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
+    _local_keys = SchemaBase._local_keys + ['add_default_columns']
     #TODO: Documentation
 
-    def __init__(self, name=None, columns=None, parent=None, scopeIds = None, type='file', include_default_columns = True,properties=None, annotations=None, local_state=None, **kwargs):
-        self.properties.setdefault('columnIds', [])
-        if name: kwargs['name'] = name
-        kwargs['type'] = type
-        if scopeIds is None:
-            kwargs['scopeIds'] = []
-        #TODO: include_default_columns
-        if columns:
-            for column in columns:
-                if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-                    kwargs.setdefault('columnIds', []).append(utils.id_of(column))
-                elif isinstance(column, Column):
-                    kwargs.setdefault('columns_to_store', []).append(column)
-                else:
-                    raise ValueError("Not a column? %s" % str(column))
-        super(EntityViewSchema, self).__init__(concreteType=self.__class__._synapse_entity_type, properties=properties,
+    def __init__(self, name=None, columns=None, parent=None, scopes = None, view_type=None, add_default_columns = True, properties=None, annotations=None, local_state=None, **kwargs):
+        if view_type:
+            kwargs['type'] = view_type
+
+        super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
                                                annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+
+        #This is a hacky solution to make sure we don't try to add default columns to schemas that we retrieve from synapse
+        self.add_default_columns = add_default_columns and not (properties or annotations or local_state)
+
+        #set default values after constructor so we don't
+        if self.get('type') is None:
+            self.type = 'file'
+        if self.get('scopeIds') is None:
+            self.scopeIds = []
+
+        if scopes:
+            self.add_scopes(scopes)
+
+    def add_scope(self, entity):
+        """
+        :param entity: a Project or Folder object or its ID
+        """
+        self.scopeIds.append(utils.id_of(entity))
+
+    def add_scopes(self, entities):
+        """
+        :param entities: an iterable collection of Entities
+        """
+        for e in entities:
+            self.add_scope(e)
+
+    def _before_synapse_store(self, syn):
+        super(EntityViewSchema, self)._before_synapse_store(syn)
+        #get the default EntityView columns from Synapse and add them to the columns list
+        if self.add_default_columns:
+            self.addColumns(syn._get_default_entity_view_columns(self.type))
+            self.add_default_columns = False
+
+
 
 ## add Schema to the map of synapse entity types to their Python representations
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema

@@ -12,7 +12,7 @@ import sys
 import tempfile
 from builtins import zip
 from mock import MagicMock
-from nose.tools import assert_raises, assert_equals, assert_not_equals, raises
+from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false
 from nose import SkipTest
 
 try:
@@ -22,8 +22,9 @@ except ImportError:
     pandas_found = True
 
 import synapseclient
+from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
-from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn
+from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema
 from mock import patch
 
 
@@ -524,3 +525,35 @@ def test_build_table_download_file_handle_list__repeated_file_handles():
     assert_equals(2, len(file_handle_associations))
     assert_equals(0, len(file_handle_to_path_map)) #might as well check anyways
 
+def test_EntityViewSchema__default_params():
+    entity_view = EntityViewSchema(parent="idk")
+    assert_equals('file', entity_view.type)
+    assert_equals([], entity_view.scopeIds)
+    assert_equals(True, entity_view.add_default_columns)
+
+
+def test_entityViewSchema__specified_type():
+    view_type = 'project'
+    entity_view = EntityViewSchema(parent="idk", view_type=view_type)
+    assert_equals(type, entity_view.type)
+
+def test_entityViewSchema__sepcified_scopeId():
+    scopeId = ["123"]
+    entity_view = EntityViewSchema(parent="idk", scopeId=scopeId)
+    assert_equals(scopeId, entity_view.scopeId)
+
+def test_entityViewSchema__sepcified_add_default_columns():
+    entity_view = EntityViewSchema(parent="idk", add_default_columns=False)
+    assert_false(entity_view.add_default_columns)
+
+def test_entityViewSchema__add_default_columns_when_from_Synapse():
+    properties = {u'concreteType': u'org.sagebionetworks.repo.model.table.EntityView'}
+    entity_view = EntityViewSchema(parent="idk", add_default_columns=True, properties=properties)
+    assert_false(entity_view.add_default_columns)
+
+def test_entityViewSchema__add_scope():
+    entity_view = EntityViewSchema(parent="idk")
+    entity_view.add_scope(Entity(parent="also idk", id=123))
+    entity_view.add_scope(456)
+    entity_view.add_scope("789")
+    assert_equals([str(x) for x in ["123","456","789"]], entity_view.scopeIds)
