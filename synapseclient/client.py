@@ -3238,6 +3238,8 @@ class Synapse:
         :returns: the Entity ID or None if not found
         """
 
+        #TODO: switch from query to restPOST('entity/child') once it supports looking up projects by name from the ROOT_ENTITY (currently get error code 403: no READ permisison)
+
         if parent is None:
             parent = ROOT_ENTITY
         qr = self.query('select id from entity where name=="%s" and parentId=="%s"' % (name, id_of(parent)))

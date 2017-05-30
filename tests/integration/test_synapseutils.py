@@ -7,7 +7,7 @@ from builtins import str
 
 import uuid, filecmp, os, sys, requests, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_less
 from nose.plugins.attrib import attr
 from mock import patch
 try:
@@ -23,7 +23,7 @@ from synapseclient.exceptions import *
 import synapseutils
 import re
 import integration
-from integration import schedule_for_cleanup
+from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 def setup(module):
     print('\n')
@@ -169,7 +169,11 @@ def test_copy():
     link_entity = syn.store(link_entity)
 
     #function under test uses queries which are eventually consistent but not immediately after creating the entities
-    time.sleep(3)
+    start_time = time.time()
+    while syn.query("select id from entity where id=='%s'" % link_entity.id).get('totalNumberOfResults') <= 0:
+        print("ayy")
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
 
     copied_link = synapseutils.copy(syn,link_entity.id, destinationId=second_folder.id)
     old = syn.get(link_entity.id,followLink=False)
@@ -436,7 +440,13 @@ def test_walk():
                    [(third_file.name,third_file.id)]))
 
     #walk() uses query() which returns results that will be eventually consistent with synapse but not immediately after creating the entities
-    time.sleep(3)
+    start_time = time.time()
+    while syn.query("select id from entity where id=='%s'" % third_file.id).get('totalNumberOfResults') <= 0:
+        print("ayy")
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
+
+
     temp = synapseutils.walk(syn, project_entity.id)
     temp = list(temp)
     #Must sort the tuples returned, because order matters for the assert
@@ -484,7 +494,11 @@ def test_syncFromSynapse():
     file_entity = syn.store(File(f, parent=project_entity))
 
     #syncFromSynapse() uses chunkedQuery() which will return results that are eventually consistent but not always right after the entity is created.
-    time.sleep(3)
+    start_time = time.time()
+    while syn.query("select id from entity where id=='%s'" % file_entity.id).get('totalNumberOfResults') <= 0:
+        print("ayy")
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
 
     ### Test recursive get
     output = synapseutils.syncFromSynapse(syn, project_entity)
