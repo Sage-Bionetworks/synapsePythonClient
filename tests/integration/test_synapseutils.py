@@ -242,6 +242,11 @@ def test_copy():
     assert copied_folder.name == second_folder.name
     assert len(second) == 1
     # TEST: Make sure error is thrown if foldername already exists
+    start_time = time.time()
+    while syn.query("select id from entity where id=='%s'" % copied_folder.id).get('totalNumberOfResults') <= 0:
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
+
     assert_raises(ValueError,synapseutils.copy,syn,second_folder.id, destinationId=second_project.id)
 
     # ------------------------------------
@@ -442,7 +447,6 @@ def test_walk():
     #walk() uses query() which returns results that will be eventually consistent with synapse but not immediately after creating the entities
     start_time = time.time()
     while syn.query("select id from entity where id=='%s'" % third_file.id).get('totalNumberOfResults') <= 0:
-        print("ayy")
         assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
         time.sleep(2)
 
