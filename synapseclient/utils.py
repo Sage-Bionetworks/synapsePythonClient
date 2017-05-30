@@ -179,12 +179,13 @@ def id_of(obj):
         return str(obj)
     if isinstance(obj, Number):
         return str(obj)
-    result = str(_get_from_members_items_or_properties(obj, 'id'))
+    result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
-        result = str(_get_from_members_items_or_properties(obj, 'ownerId'))
+        result = _get_from_members_items_or_properties(obj, 'ownerId')
+
     if result is None:
         raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
-    return result
+    return str(result)
 
 def is_in_path(id, path):
     """Determines whether id is in the path as returned from /entity/{id}/path
