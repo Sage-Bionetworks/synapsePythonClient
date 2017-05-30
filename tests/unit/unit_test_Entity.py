@@ -278,6 +278,8 @@ def test_is_container():
     assert is_container(Project("My Project", parentId="syn12345"))
     assert not is_container(File("asdf.png", parentId="syn12345"))
 
+
 @raises(SynapseMalformedEntityError)
 def test_DockerRepository__no_repositoryName():
     DockerRepository(parentId="syn123")
+

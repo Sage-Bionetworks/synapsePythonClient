@@ -7,7 +7,7 @@ from builtins import str
 
 import uuid, filecmp, os, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_greater
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance
 from mock import patch
 try:
     import configparser
@@ -551,8 +551,11 @@ def test_store_file_handle_update_metadata():
     assert_equal(os.path.dirname(replacement_file_path), new_entity.cacheDir)
     assert_equal([os.path.basename(replacement_file_path)], new_entity.files)
 
+
 def test_store_DockerRepository():
     repo_name = "some/repository/path"
     docker_repo = syn.store(DockerRepository(repo_name,parent=project))
+    assert_is_instance(docker_repo, DockerRepository)
     assert_false(docker_repo.isManaged)
     assert_equals(repo_name, docker_repo.repositoryName)
+

@@ -611,7 +611,7 @@ class DockerRepository(Entity):
     def __init__(self, repositoryName=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
         if repositoryName:
             kwargs['repositoryName'] = repositoryName
-        super(DockerRepository, self).__init__(concreteType=DockerRepository._synapse_entity_type, properties=properties,
+        super(DockerRepository, self).__init__(properties=properties,
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
         if 'repositoryName' not in self:
             raise SynapseMalformedEntityError("DockerRepository must have a repositoryName.")

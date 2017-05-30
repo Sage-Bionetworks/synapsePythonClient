@@ -559,29 +559,26 @@ class Schema(SchemaBase):
 
 class EntityViewSchema(SchemaBase):
     """
-    A EntityViewSchema is a :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
+    A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects (depending on user choice) within a given set of scopes
 
     :param name: give the Entity View Table object a name
-    :param columns: a list of :py:class:`Column` objects or their IDs
-    :param parent: the project (file a bug if you'd like folders supported) in Synapse to which this table belongs
+    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional
+    :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
-    :param view_type: either 'file' or 'project'. Defaults to 'file'
-    :param add_default_columns: whether to add the default view columns based on the EntityView type. Defaults to True
+    :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
+    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True. The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
     ::
 
-        cols = [Column(name='Isotope', columnType='STRING'),
-                Column(name='Atomic Mass', columnType='INTEGER'),
-                Column(name='Halflife', columnType='DOUBLE'),
-                Column(name='Discovered', columnType='DATE')]
+        cols = [Column(name='columnName', columnType='STRING'),
+                Column(name='anotherColumnName', columnType='INTEGER')]
         project_or_folder = syn.get("syn123")
         
-        schema = syn.store(EntityViewSchema(name='MyTable', columns=cols, parent=project, scopes=[project_or_folder], view_type='file'))
+        schema = syn.store(EntityViewSchema(name='MyTable', columns=cols, parent=project, scopes=[project_or_folder_id, other_project_or_folder_id], view_type='file'))
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
     _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
     _local_keys = SchemaBase._local_keys + ['add_default_columns']
-    #TODO: Documentation
 
     def __init__(self, name=None, columns=None, parent=None, scopes = None, view_type=None, add_default_columns = True, properties=None, annotations=None, local_state=None, **kwargs):
         if view_type:
