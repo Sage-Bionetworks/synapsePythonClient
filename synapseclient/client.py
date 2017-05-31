@@ -3246,8 +3246,7 @@ class Synapse:
         except SynapseHTTPError as e:
             if e.response.status_code == 404: # a 404 error is raised if the entity does not exist
                 return None
-            else:
-                raise
+            raise
 
 
 
