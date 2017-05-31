@@ -571,3 +571,4 @@ def test_copyFileHandles__copying_cached_file_handles():
             assert_is_none(new_path)
         else: # at odd indicies, the file path should have been copied
             assert_equals(original_path, new_path)
+
