@@ -1368,8 +1368,8 @@ class Synapse:
 
     def getChildren(self, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC"):
         """
-        :param syn:            A synapse object: syn = synapseclient.login()- Must be logged into synapse
-
+        Retrieves all of the entities stored within a parent such as folder or project.
+        
         :param parentId:       A parentId of a Synapse container
 
         :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
@@ -1380,6 +1380,10 @@ class Synapse:
         :param sortDirection:  The direction of the result sort.  Can be ASC, or DESC
 
         :returns:              An iterator that shows all the children of the container.
+        
+        Also see:
+
+        - :py:func:`synapseutils.walk`
         """
         entityChildrenRequest = {'parentId':parentId,
                                  'includeTypes':includeTypes,
@@ -1397,7 +1401,8 @@ class Synapse:
         """
         Query for Synapse entities.
         **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
-        See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        
+        the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
         :returns: A JSON object containing an array of query results
 
