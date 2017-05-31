@@ -56,7 +56,7 @@ def test_copy():
     # Create a Project
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
-    acl = syn.setPermissions(project_entity, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE'])
+    acl = syn.setPermissions(project_entity, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE', 'DOWNLOAD'])
     # Create two Folders in Project
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
     second_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
@@ -168,6 +168,9 @@ def test_copy():
     link_entity = Link(second_file_entity.id,parent=folder_entity.id)
     link_entity = syn.store(link_entity)
 
+    #function under test uses queries which are eventually consistent but not immediately after creating the entities
+    time.sleep(3)
+
     copied_link = synapseutils.copy(syn,link_entity.id, destinationId=second_folder.id)
     old = syn.get(link_entity.id,followLink=False)
     new = syn.get(copied_link[link_entity.id],followLink=False)
@@ -177,6 +180,8 @@ def test_copy():
     schedule_for_cleanup(second_file_entity.id)
     schedule_for_cleanup(link_entity.id)
     schedule_for_cleanup(copied_link[link_entity.id])
+
+    time.sleep(3)
 
     assert_raises(ValueError,synapseutils.copy,syn,link_entity.id,destinationId=second_folder.id)
 
@@ -430,7 +435,8 @@ def test_walk():
                    [],
                    [(third_file.name,third_file.id)]))
 
-
+    #walk() uses query() which returns results that will be eventually consistent with synapse but not immediately after creating the entities
+    time.sleep(3)
     temp = synapseutils.walk(syn, project_entity.id)
     temp = list(temp)
     #Must sort the tuples returned, because order matters for the assert
@@ -476,6 +482,9 @@ def test_syncFromSynapse():
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = syn.store(File(f, parent=project_entity))
+
+    #syncFromSynapse() uses chunkedQuery() which will return results that are eventually consistent but not always right after the entity is created.
+    time.sleep(3)
 
     ### Test recursive get
     output = synapseutils.syncFromSynapse(syn, project_entity)

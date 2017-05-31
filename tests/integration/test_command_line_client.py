@@ -5,7 +5,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 import six
-from nose.plugins.skip import SkipTest
 
 import filecmp
 import os
@@ -13,11 +12,12 @@ import re
 import sys
 import uuid
 import json
+import time
 from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
 import shutil
-from mock import MagicMock, patch
+from mock import patch
 try:
     import ConfigParser
 except:
@@ -38,7 +38,6 @@ else:
     from io import StringIO
 
 
-
 def setup_module(module):
     print('\n')
     print('~' * 60)
@@ -48,6 +47,11 @@ def setup_module(module):
     module.project = integration.project
 
     module.parser = cmdline.build_parser()
+
+    #used for --description and --descriptionFile tests
+    module.upload_filename = _create_temp_file_with_cleanup()
+    module.description_text = "'some description text'"
+    module.desc_filename = _create_temp_file_with_cleanup(module.description_text)
 
 
 def run(*command, **kwargs):
@@ -534,56 +538,101 @@ def test_command_line_store_and_submit():
 
 def test_command_get_recursive_and_query():
     """Tests the 'synapse get -r' and 'synapse get -q' functions"""
-    # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
 
-    # Create a Folder in Project
+    project_entity = project
+
+    # Create Folders in Project
     folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
                                                    parent=project_entity))
 
-    # Create and upload two files in Folder
+    folder_entity2 = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+                                                    parent=folder_entity))
+
+    # Create and upload two files in sub-Folder
     uploaded_paths = []
+    file_entities = []
+
     for i in range(2):
         f  = utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
-        file_entity = synapseclient.File(f, parent=folder_entity)
+        file_entity = synapseclient.File(f, parent=folder_entity2)
         file_entity = syn.store(file_entity)
-    #Add a file in the project level as well
+        file_entities.append(file_entity)
+        schedule_for_cleanup(f)
+
+
+    #Add a file in the Folder as well
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
-    file_entity = synapseclient.File(f, parent=project_entity)
+    file_entity = synapseclient.File(f, parent=folder_entity)
     file_entity = syn.store(file_entity)
+    file_entities.append(file_entity)
+
+    #function under test uses queries which are eventually consistent but not immediately after creating the entities
+    time.sleep(3)
 
     ### Test recursive get
     output = run('synapse', '--skip-checks',
                  'get', '-r',
-                 project_entity.id)
+                 folder_entity.id)
     #Verify that we downloaded files:
-    new_paths = [os.path.join('.', folder_entity.name, os.path.basename(f)) for f in uploaded_paths[:-1]]
+    new_paths = [os.path.join('.', folder_entity2.name, os.path.basename(f)) for f in uploaded_paths[:-1]]
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
         print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
-    schedule_for_cleanup(new_paths[0])
+        schedule_for_cleanup(downloaded)
+
 
     ### Test query get
     ### Note: We're not querying on annotations because tests can fail if there
     ###       are lots of jobs queued as happens when staging is syncing
     output = run('synapse', '--skip-checks',
                  'get', '-q', "select id from file where parentId=='%s'" %
-                 folder_entity.id)
-    #Verify that we downloaded files:
+                 folder_entity2.id)
+    #Verify that we downloaded files from folder_entity2
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
         print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
+
+    schedule_for_cleanup(new_paths[0])
+
+    ### Test query get using a Table with an entity column
+    ### This should be replaced when Table File Views are implemented in the client
+    cols = []
+    cols.append(synapseclient.Column(name='id', columnType='ENTITYID'))
+
+    schema1 = syn.store(synapseclient.Schema(name='Foo Table', columns=cols, parent=project_entity))
+    schedule_for_cleanup(schema1.id)
+
+    data1 =[[x.id] for x in file_entities]
+
+    print(data1)
+
+    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+                                   rows=[synapseclient.Row(r) for r in data1]))
+
+    ### Test Table/View query get
+    output = run('synapse', '--skip-checks', 'get', '-q',
+                 "select id from %s" % schema1.id)
+    #Verify that we downloaded files:
+    new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
+    new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
+    schedule_for_cleanup(folder_entity.name)
+    for downloaded, uploaded in zip(new_paths, uploaded_paths):
+        print(uploaded, downloaded)
+        assert os.path.exists(downloaded)
+        assert filecmp.cmp(downloaded, uploaded)
+        schedule_for_cleanup(downloaded)
+
+    schedule_for_cleanup(new_paths[0])
 
 def test_command_copy():
     """Tests the 'synapse cp' function"""
@@ -720,6 +769,46 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'associate', path, '-r')
     output = run('synapse', '--skip-checks', 'show', filename)
 
+def test_table_query():
+    """Test command line ability to do table query.
+
+    """
+
+    cols = []
+    cols.append(synapseclient.Column(name='name', columnType='STRING', maximumSize=1000))
+    cols.append(synapseclient.Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
+    cols.append(synapseclient.Column(name='x', columnType='DOUBLE'))
+    cols.append(synapseclient.Column(name='age', columnType='INTEGER'))
+    cols.append(synapseclient.Column(name='cartoon', columnType='BOOLEAN'))
+
+    project_entity = project
+
+    schema1 = syn.store(synapseclient.Schema(name=str(uuid.uuid4()), columns=cols, parent=project_entity))
+    schedule_for_cleanup(schema1.id)
+
+    data1 =[['Chris',  'bar', 11.23, 45, False],
+            ['Jen',    'bat', 14.56, 40, False],
+            ['Jane',   'bat', 17.89,  6, False],
+            ['Henry',  'bar', 10.12,  1, False]]
+
+    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+                                   rows=[synapseclient.Row(r) for r in data1]))
+
+    # Test query
+    output = run('synapse', '--skip-checks', 'query',
+                 'select * from %s' % schema1.id)
+
+    output_rows = output.rstrip("\n").split("\n")
+
+    # Check the length of the output
+    assert len(output_rows) == 5, "got %s rows" % (len(output_rows),)
+
+    # Check that headers are correct.
+    # Should be column names in schema plus the ROW_ID and ROW_VERSION
+    my_headers_set = output_rows[0].split("\t")
+    expected_headers_set = ["ROW_ID", "ROW_VERSION"] + list(map(lambda x: x.name, cols))
+    assert my_headers_set == expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set)
+
 def test_login():
     try:
         config = ConfigParser.ConfigParser()
@@ -773,3 +862,104 @@ def test_configPath():
     f1 = syn.get(file_entity_id)
     fh = syn._getFileHandle(f1.dataFileHandleId)
     assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
+
+
+def _description_wiki_check(run_output, expected_description):
+    entity_id = parse(r'Created.* entity:\s+(syn\d+)\s+', run_output)
+    wiki = syn.getWiki(entity_id)
+    assert_equals(expected_description, wiki.markdown)
+
+
+def _create_temp_file_with_cleanup(specific_file_text = None):
+    if specific_file_text:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as file:
+            file.write(specific_file_text)
+            filename = file.name
+    else:
+        filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    return filename
+
+
+def test_create__with_description():
+    output = run('synapse',
+                 'create',
+                 'Folder',
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 description_text
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_store__with_description():
+    output = run('synapse',
+                 'store',
+                 upload_filename,
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 description_text
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_add__with_description():
+    output = run('synapse',
+                 'add',
+                 upload_filename,
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 description_text
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_create__with_descriptionFile():
+    output = run('synapse',
+                 'create',
+                 'Folder',
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_store__with_descriptionFile():
+    output = run('synapse',
+                 'store',
+                 upload_filename,
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_add__with_descriptionFile():
+    output = run('synapse',
+                 'add',
+                 upload_filename,
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)

@@ -44,6 +44,85 @@ def setup(module):
     print("Crank up timeout on async calls")
     module.syn.table_query_timeout = 423
 
+def test_create_and_update_file_view():
+
+    ## Create a folder
+    folder = Folder(str(uuid.uuid4()), parent=project, description='creating a file-view')
+    folder = syn.store(folder)
+
+    ## Create dummy file with annotations in our folder
+    path = utils.make_bogus_data_file()
+    file_annotations = dict(fileFormat='jpg', dataType='image', artist='Banksy',
+                            medium='print', title='Girl With Ballon')
+    schedule_for_cleanup(path)
+    a_file = File(path, parent=folder, annotations=file_annotations)
+    a_file = syn.store(a_file)
+    schedule_for_cleanup(a_file)
+
+    # Add new columns for the annotations on this file and get their IDs
+    my_added_cols = [syn.store(synapseclient.Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
+    my_added_cols_ids = [c['id'] for c in my_added_cols]
+
+    # Required IDs for Synapse properties
+    minimal_view_schema_column_ids = [x['id'] for x in syn.restGET("/column/tableview/defaults/file")['list']]
+    
+    scopeIds = [folder['id'].lstrip('syn')]
+
+    column_ids = minimal_view_schema_column_ids + my_added_cols_ids
+    ## Create an empty entity-view with defined scope as folder
+    body = {'columnIds': column_ids,
+            'concreteType': 'org.sagebionetworks.repo.model.table.EntityView',
+            'entityType': 'org.sagebionetworks.repo.model.table.EntityView',
+            'name': str(uuid.uuid4()),
+            'parentId': project.id,
+            'scopeIds': scopeIds,
+            'type': 'file'}
+
+    entity_view = syn.restPOST(uri='/entity', body=json.dumps(body))
+    entity_view = syn.get(entity_view)
+    schedule_for_cleanup(entity_view)
+
+    assert set(scopeIds) == set(entity_view.scopeIds)
+    assert set(column_ids) == set(entity_view.columnIds)
+
+    ## get the current view-schema
+    view = syn.tableQuery("select * from %s" % entity_view.id)
+    schedule_for_cleanup(view.filepath)
+
+    view_dict = list(csv.DictReader(io.open(view.filepath, encoding="utf-8", newline='')))
+
+    # check that all of the annotations were retrieved from the view
+    assert set(file_annotations.keys()).issubset(set(view_dict[0].keys()))
+
+    updated_a_file = syn.get(a_file.id, downloadFile=False)
+
+    # Check that the values are the same as what was set
+    # Both in the view and on the entity itself
+    for k, v in file_annotations.items():
+        assert view_dict[0][k] == v, "%s != %s" % (view_dict[0][k], v)
+        assert updated_a_file.annotations[k][0] == v, "%s != %s" % (updated_a_file.annotations[k][0], v)
+
+    # Make a change to the view and store
+    view_dict[0]['fileFormat'] = 'PNG'
+
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as temp:
+        schedule_for_cleanup(temp.name)
+        temp_filename = temp.name
+
+    with io.open(temp_filename, mode='w', encoding="utf-8", newline='') as temp_file:
+        dw = csv.DictWriter(temp_file, fieldnames=view_dict[0].keys(),
+                            quoting=csv.QUOTE_NONNUMERIC,
+                            lineterminator=str(os.linesep))
+        dw.writeheader()
+        dw.writerows(view_dict)
+        temp_file.flush()
+
+    new_view = syn.store(synapseclient.Table(entity_view.id, temp_filename))
+    new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
+    schedule_for_cleanup(new_view_results.filepath)
+
+    new_view_dict = list(csv.DictReader(io.open(new_view_results.filepath, encoding="utf-8", newline='')))
+    assert new_view_dict[0]['fileFormat'] == 'PNG', "%s != PNG" % (new_view_dict[0]['fileFormat'], )
 
 def test_rowset_tables():
 
@@ -481,4 +560,3 @@ def dontruntest_big_csvs():
 
     for row in results:
         print(row)
-

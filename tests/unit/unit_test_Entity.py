@@ -172,7 +172,7 @@ def test_entity_constructors():
     assert a_file.foo == 'biz'
     assert a_file.parentId == 'syn1002'
     assert a_file.contentType == 'application/cattywampus'
-    assert 'contentType' in a_file.__dict__
+    assert 'contentType' in a_file._file_handle
 
 
 def test_property_keys():

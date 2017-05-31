@@ -5,7 +5,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
-
+import time
 import synapseclient
 from synapseclient.entity import Project, Folder, File
 
@@ -24,7 +24,7 @@ def setup(module):
 
 def test_query():
     ## TODO: replace this test with the one below when query() is replaced
-    
+    time.sleep(3)
     # Remove all the Entities that are in the project
     qry = syn.query("select id from entity where entity.parentId=='%s'" % project['id'])
     for res in qry['results']:
@@ -33,6 +33,7 @@ def test_query():
     # Add entities and verify that I can find them with a query
     for i in range(2):
         syn.store(Folder(parent=project['id']))
+        time.sleep(3)
         qry = syn.query("select id, name from entity where entity.parentId=='%s'" % project['id'])
         assert qry['totalNumberOfResults'] == i + 1
 
@@ -41,7 +42,7 @@ def test_chunked_query():
     oldLimit = synapseclient.client.QUERY_LIMIT
     try:
         synapseclient.client.QUERY_LIMIT = 3
-        
+        time.sleep(3)
         # Remove all the Entities that are in the project
         iter = syn.chunkedQuery("select id from entity where entity.parentId=='%s'" % project['id'])
         for res in iter:
@@ -50,7 +51,9 @@ def test_chunked_query():
         # Dump a bunch of Entities into the project
         for i in range(synapseclient.client.QUERY_LIMIT * 5):
             syn.store(Folder(parent=project['id']))
-                
+
+        time.sleep(3)
+
         # Give a bunch of limits/offsets to be ignored (except for the first ones)
         queryString = "select * from entity where entity.parentId=='%s' offset  1 limit 9999999999999    offset 2345   limit 6789 offset 3456    limit 5689" % project['id']
         iter = syn.chunkedQuery(queryString)
@@ -69,7 +72,7 @@ def test_chunked_query_giant_row():
 
     normal = syn.store(Folder('normal', description='A file with a normal length description', parentId=project['id']))
     absurd = syn.store(Folder('absurd', description=absurdly_long_desription, parentId=project['id']))
-
+    time.sleep(5)
     resultgen = syn.chunkedQuery('select * from entity where parentId=="%s"' % project['id'])
     ids = [result['entity.id'] for result in resultgen]
 
