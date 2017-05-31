@@ -1029,7 +1029,7 @@ class Synapse:
             except SynapseHTTPError as ex:
                 if createOrUpdate and ex.response.status_code == 409:
                     # Get the existing Entity's ID via the name and parent
-                    existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', ROOT_ENTITY))
+                    existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
                     if existing_entity_id is None: raise
 
                     # get existing properties and annotations
@@ -1126,7 +1126,7 @@ class Synapse:
         #     If the user forgets to catch the return value of a syn.store(e)
         #     this allows them to recover by doing: e = syn.get(e)
         if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
-            entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId',ROOT_ENTITY))
+            entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId', None))
 
         # Avoid an exception from finding an ID from a NoneType
         try: id_of(entity)
@@ -3238,15 +3238,16 @@ class Synapse:
         :returns: the Entity ID or None if not found
         """
 
-        #TODO: switch from query to restPOST('entity/child') once it supports looking up projects by name from the ROOT_ENTITY (currently get error code 403: no READ permisison)
-
-        if parent is None:
-            parent = ROOT_ENTITY
-        qr = self.query('select id from entity where name=="%s" and parentId=="%s"' % (name, id_of(parent)))
-        if qr.get('totalNumberOfResults', 0) == 1:
-            return qr['results'][0]['entity.id']
-        else:
-            return None
+        # when we want to search for a project by name. set parentId as None instead of ROOT_ENTITY
+        entity_lookup_request = {"parentId": id_of(parent) if parent else None,
+                                 "entityName": name}
+        try:
+            return self.restPOST("/entity/child", body=json.dumps(entity_lookup_request)).get("id")
+        except SynapseHTTPError as e:
+            if e.response.status_code == 404: # a 404 error is raised if the entity does not exist
+                return None
+            else:
+                raise
 
 
 

@@ -437,15 +437,6 @@ def test_create_or_update_project():
     proj_for_cleanup = syn.store(project)
     schedule_for_cleanup(proj_for_cleanup)
 
-    #TODO: this is here because store() calls _findEntityIdByNameAndParent() in the case that we store() an entity without
-    #TODO: an id, like we do below. _findEntityIdByNameAndParent() uses query() which is eventually consistent but not immediate
-    #TODO: (i.e. we can't immediately query for an Entity ID using projet name and parentId right after creating it)
-    #wait for query result to be consistent
-    start_time = time.time()
-    while syn._findEntityIdByNameAndParent(name) is None:
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        time.sleep(2)
-
     project = Project(name, b=3, c=4)
     project = syn.store(project)
 
