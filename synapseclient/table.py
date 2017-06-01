@@ -1247,6 +1247,15 @@ class CsvFileTable(TableAbstractBaseClass):
         try:
             #Handle bug in pandas 0.19 requiring quotechar to be str not unicode or newstr
             quoteChar = bytes_to_native_str(bytes(self.quoteCharacter)) if six.PY2 else self.quoteCharacter
+
+            #determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
+            date_columns = []
+            datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms') #DATEs are stored in csv as unix timestamp in milliseconds
+            for select_column in self.headers:
+                if select_column.columnType == "DATE":
+                    date_columns.append(select_column.name)
+
+
             ## assign line terminator only if for single character
             ## line terminators (e.g. not '\r\n') 'cause pandas doesn't
             ## longer line terminators. See:
@@ -1258,7 +1267,9 @@ class CsvFileTable(TableAbstractBaseClass):
                     quotechar=quoteChar,
                     escapechar=self.escapeCharacter,
                     header = 0 if self.header else None,
-                    skiprows=self.linesToSkip)
+                    skiprows=self.linesToSkip,
+                    parse_dates=date_columns,
+                    date_parser=datetime_millisecond_parser)
         except pd.parser.CParserError as ex1:
             df = pd.DataFrame()
 

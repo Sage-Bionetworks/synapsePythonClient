@@ -421,7 +421,7 @@ def test_tables_pandas():
         table = syn.store(Table(schema, df))
 
         ## retrieve the table and verify
-        results = syn.tableQuery('select * from %s'%table.schema.id, resultsAs='rowset')
+        results = syn.tableQuery('select * from %s'%table.schema.id, resultsAs='csv')
         df2 = results.asDataFrame()
 
         ## simulate rowId-version rownames for comparison
