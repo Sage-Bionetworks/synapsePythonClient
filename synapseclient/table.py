@@ -354,7 +354,6 @@ def as_table_columns(df):
                 cols.append(Column(name=col, columnType=columnType, maximumSize=size, defaultValue=''))
         else:
             cols.append(Column(name=col, columnType=columnType))
-        #TODO maybe extra case handling for datetime64?
     return cols
 
 
