@@ -588,7 +588,7 @@ class EntityViewSchema(SchemaBase):
                                                annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
         #This is a hacky solution to make sure we don't try to add default columns to schemas that we retrieve from synapse
-        self.add_default_columns = add_default_columns and not (properties or annotations or local_state)
+        self.add_default_columns = add_default_columns and not (properties or local_state) #allowing annotations because user might want to update annotations all at once
 
         #set default values after constructor so we don't
         if self.get('type') is None:
