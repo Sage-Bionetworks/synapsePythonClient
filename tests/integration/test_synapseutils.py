@@ -171,7 +171,6 @@ def test_copy():
     #function under test uses queries which are eventually consistent but not immediately after creating the entities
     start_time = time.time()
     while syn.query("select id from entity where id=='%s'" % link_entity.id).get('totalNumberOfResults') <= 0:
-        print("ayy")
         assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
         time.sleep(2)
 
