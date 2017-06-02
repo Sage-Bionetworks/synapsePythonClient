@@ -233,7 +233,7 @@ class Synapse:
         self.table_query_sleep = 2
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
-        self.table_query_timeout = 300
+        self.table_query_timeout = 600 # in seconds
 
 
 
