@@ -7,8 +7,9 @@ from builtins import str
 
 import uuid, filecmp, os, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_greater
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_greater, assert_less
 from mock import patch
+
 try:
     import configparser
 except ImportError:
@@ -19,7 +20,7 @@ from synapseclient import Activity, Project, Folder, File, Link
 from synapseclient.exceptions import *
 
 import integration
-from integration import schedule_for_cleanup
+from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
@@ -436,11 +437,6 @@ def test_create_or_update_project():
     proj_for_cleanup = syn.store(project)
     schedule_for_cleanup(proj_for_cleanup)
 
-    #TODO: this is here because store() calls _findEntityIdByNameAndParent() in the case that we store() an entity without
-    #TODO: an id, like we do below. _findEntityIdByNameAndParent() uses query() which is eventually consistent but not immediate
-    #TODO: (i.e. we can't immediately query for an Entity ID using projet name and parentId right after creating it)
-    time.sleep(3)
-
     project = Project(name, b=3, c=4)
     project = syn.store(project)
 
@@ -550,4 +546,22 @@ def test_store_file_handle_update_metadata():
     assert_equal(replacement_file_path, new_entity.path)
     assert_equal(os.path.dirname(replacement_file_path), new_entity.cacheDir)
     assert_equal([os.path.basename(replacement_file_path)], new_entity.files)
+
+
+def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
+    other_syn = synapseclient.login(other_user['username'], other_user['password'])
+
+    #make a temp data file
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    #upload to synapse and set permissions to READ only
+    entity = syn.store(File(path, parent=project))
+    syn.setPermissions(entity, other_user['username'], accessType=['READ'])
+
+    #try to download and check that nothing wad downloaded and a warning message was printed
+    with patch("sys.stderr") as mocked_stderr:
+        entity_no_download = other_syn.get(entity['id'])
+        mocked_stderr.write.assert_called_once()
+        assert_is_none(entity_no_download.path)
 
