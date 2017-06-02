@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 from builtins import str
 
 import uuid, filecmp, os, sys, time
-from nose.tools import assert_raises, assert_equals, assert_is_none
+from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
 
 try:
     import configparser
