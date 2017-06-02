@@ -771,11 +771,15 @@ class Synapse:
         #Handle download of fileEntities
         if isinstance(entity, File):
             #update the entity with FileHandle metadata
-            file_handle = next(handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId)
+            file_handle = next((handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId), None)
             entity._update_file_handle(file_handle)
 
             if downloadFile:
-                self._download_file_entity(downloadLocation, entity, ifcollision, submission)
+                if file_handle:
+                    self._download_file_entity(downloadLocation, entity, ifcollision, submission)
+                else:  # no filehandle means that we do not have DOWNLOAD permission
+                    warning_message = "WARNING: you do not have DOWNLOAD permissions for this file. The file has NOT been downloaded"
+                    sys.stderr.write('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
 
         return entity
 
