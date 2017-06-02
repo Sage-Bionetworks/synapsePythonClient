@@ -1240,7 +1240,13 @@ class CsvFileTable(TableAbstractBaseClass):
             etag=self.etag,
             tableId=self.tableId)))
 
-    def asDataFrame(self, rowIdAndVersionInIndex=True):
+    def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime = False):
+        """
+        
+        :param rowIdAndVersionInIndex: 
+        :param convert_to_datetime: If set to True, will convert all Synapse DATE columns from UNIX timestamp integers into UTC datetime objects
+        :return: 
+        """
         test_import_pandas()
         import pandas as pd
 
@@ -1250,10 +1256,11 @@ class CsvFileTable(TableAbstractBaseClass):
 
             #determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
             date_columns = []
-            datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms') #DATEs are stored in csv as unix timestamp in milliseconds
-            for select_column in self.headers:
-                if select_column.columnType == "DATE":
-                    date_columns.append(select_column.name)
+            datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms', utc=True) #DATEs are stored in csv as unix timestamp in milliseconds
+            if convert_to_datetime:
+                for select_column in self.headers:
+                    if select_column.columnType == "DATE":
+                        date_columns.append(select_column.name)
 
 
             ## assign line terminator only if for single character

@@ -422,7 +422,7 @@ def test_tables_pandas():
 
         ## retrieve the table and verify
         results = syn.tableQuery('select * from %s'%table.schema.id, resultsAs='csv')
-        df2 = results.asDataFrame()
+        df2 = results.asDataFrame(convert_to_datetime=True)
 
         ## simulate rowId-version rownames for comparison
         df.index = ['%s_0'%i for i in range(5)]
