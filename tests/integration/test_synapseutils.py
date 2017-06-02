@@ -5,20 +5,16 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, requests, tempfile, time
-from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_less
-from nose.plugins.attrib import attr
-from mock import patch
+import uuid, filecmp, os, sys, time
+from nose.tools import assert_raises, assert_equals, assert_is_none
+
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
 
 import synapseclient
-import synapseclient.client as client
-import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
+from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
 from synapseclient.exceptions import *
 import synapseutils
 import re
@@ -555,3 +551,40 @@ def test_copyFileHandleAndchangeFileMetadata():
     fileResult = syn._getFileHandleDownload(new_entity.dataFileHandleId, new_entity.id)
     assert fileResult['fileHandle']['fileName'] == "newName.txt", "Set new file name to be newName.txt"
     assert new_entity.contentType == "application/x-tar", "Set new content type to be application/x-tar"
+
+
+def test_copyFileHandles__copying_cached_file_handles():
+    num_files = 3
+    file_entities = []
+
+    #upload temp files to synapse
+    for i in range(num_files):
+        file_path = utils.make_bogus_data_file();
+        schedule_for_cleanup(file_path)
+        file_entities.append(syn.store(File(file_path,name=str(uuid.uuid1()), parent=project)))
+
+    #a bunch of setup for arguments to the function under test
+    file_handles = [file_entity['_file_handle'] for file_entity in file_entities ]
+    file_entity_ids = [file_entity['id'] for file_entity in file_entities]
+    content_types = [file_handle['contentType'] for file_handle in file_handles]
+    filenames = [file_handle['fileName'] for file_handle in file_handles]
+
+    #remove every other FileHandle from the cache (at even indicies)
+    for i in range(num_files):
+        if i % 2 == 0:
+            syn.cache.remove(file_handles[i]["id"])
+
+    #get the new list of file_handles
+    copiedFileHandles = synapseutils.copyFileHandles(syn, file_handles , ["FileEntity"] * num_files, file_entity_ids,content_types , filenames)
+    new_file_handle_ids = [copy_result['newFileHandle']['id'] for copy_result in copiedFileHandles['copyResults']]
+
+    #verify that the cached paths are the same
+    for i in range(num_files):
+        original_path = syn.cache.get(file_handles[i]['id'])
+        new_path = syn.cache.get(new_file_handle_ids[i])
+        if i % 2 == 0: # since even indicies are not cached, both should be none
+            assert_is_none(original_path)
+            assert_is_none(new_path)
+        else: # at odd indicies, the file path should have been copied
+            assert_equals(original_path, new_path)
+
