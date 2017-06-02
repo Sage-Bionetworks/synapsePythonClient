@@ -22,6 +22,8 @@ import synapseclient
 import synapseclient.utils as utils
 
 
+QUERY_TIMEOUT_SEC = 20
+
 def setup_module(module):
     print("Python version:", sys.version)
 

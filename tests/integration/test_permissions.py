@@ -192,5 +192,5 @@ def test_setPermissions__default_permissions():
     syn.setPermissions(temp_proj, other_user['username'])
     permissions = syn.getPermissions(temp_proj, other_user['username'])
 
-    assert_equals(['READ', 'DOWNLOAD'], permissions)
+    assert_equals(set(['READ', 'DOWNLOAD']), set(permissions))
 
