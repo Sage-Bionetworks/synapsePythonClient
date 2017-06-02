@@ -5,7 +5,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 import six
-from nose.plugins.skip import SkipTest
 
 import filecmp
 import os
@@ -13,11 +12,12 @@ import re
 import sys
 import uuid
 import json
+import time
 from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals
 import tempfile
 import shutil
-from mock import MagicMock, patch
+from mock import patch
 try:
     import ConfigParser
 except:
@@ -34,10 +34,8 @@ from integration import schedule_for_cleanup
 
 if six.PY2:
     from StringIO import StringIO
-    from backports import csv
 else:
     from io import StringIO
-    import csv
 
 
 def setup_module(module):
@@ -49,6 +47,11 @@ def setup_module(module):
     module.project = integration.project
 
     module.parser = cmdline.build_parser()
+
+    #used for --description and --descriptionFile tests
+    module.upload_filename = _create_temp_file_with_cleanup()
+    module.description_text = "'some description text'"
+    module.desc_filename = _create_temp_file_with_cleanup(module.description_text)
 
 
 def run(*command, **kwargs):
@@ -567,6 +570,9 @@ def test_command_get_recursive_and_query():
     file_entity = syn.store(file_entity)
     file_entities.append(file_entity)
 
+    #function under test uses queries which are eventually consistent but not immediately after creating the entities
+    time.sleep(3)
+
     ### Test recursive get
     output = run('synapse', '--skip-checks',
                  'get', '-r',
@@ -856,3 +862,104 @@ def test_configPath():
     f1 = syn.get(file_entity_id)
     fh = syn._getFileHandle(f1.dataFileHandleId)
     assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
+
+
+def _description_wiki_check(run_output, expected_description):
+    entity_id = parse(r'Created.* entity:\s+(syn\d+)\s+', run_output)
+    wiki = syn.getWiki(entity_id)
+    assert_equals(expected_description, wiki.markdown)
+
+
+def _create_temp_file_with_cleanup(specific_file_text = None):
+    if specific_file_text:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as file:
+            file.write(specific_file_text)
+            filename = file.name
+    else:
+        filename = utils.make_bogus_data_file()
+    schedule_for_cleanup(filename)
+    return filename
+
+
+def test_create__with_description():
+    output = run('synapse',
+                 'create',
+                 'Folder',
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 description_text
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_store__with_description():
+    output = run('synapse',
+                 'store',
+                 upload_filename,
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 description_text
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_add__with_description():
+    output = run('synapse',
+                 'add',
+                 upload_filename,
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 description_text
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_create__with_descriptionFile():
+    output = run('synapse',
+                 'create',
+                 'Folder',
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_store__with_descriptionFile():
+    output = run('synapse',
+                 'store',
+                 upload_filename,
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+
+
+def test_add__with_descriptionFile():
+    output = run('synapse',
+                 'add',
+                 upload_filename,
+                 '-name',
+                 str(uuid.uuid4()),
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)

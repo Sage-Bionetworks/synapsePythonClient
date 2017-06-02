@@ -844,7 +844,7 @@ class Synapse:
 
         entity.path = downloadPath
         entity.files = [os.path.basename(downloadPath)]
-        entity.cacheDir = os.path.basename(downloadPath)
+        entity.cacheDir = os.path.dirname(downloadPath)
 
     def _resolve_download_path(self, downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path):
         #always overwrite if we are downloading to .synapseCache
@@ -1596,7 +1596,7 @@ class Synapse:
         return []
 
 
-    def setPermissions(self, entity, principalId=None, accessType=['READ'], modify_benefactor=False, warn_if_inherits=True, overwrite=True):
+    def setPermissions(self, entity, principalId=None, accessType=['READ', 'DOWNLOAD'], modify_benefactor=False, warn_if_inherits=True, overwrite=True):
         """
         Sets permission that a user or group has on an Entity.
         An Entity may have its own ACL or inherit its ACL from a benefactor.

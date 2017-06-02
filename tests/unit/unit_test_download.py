@@ -330,3 +330,14 @@ def test_download_md5_mismatch():
         #assert file was removed
         mocked_remove.assert_called_once_with(destination)
 
+
+def test_download_file_entity__correct_local_state():
+    mock_cache_path = synapseclient.utils.normalize_path("/i/will/show/you/the/path/yi.txt")
+    file_entity = synapseclient.File(parentId="syn123")
+    file_entity.dataFileHandleId = 123
+    with patch.object(syn.cache, 'get',return_value=mock_cache_path) as mocked_cache_get:
+        syn._download_file_entity(downloadLocation=None, entity=file_entity, ifcollision="overwrite.local", submission=None)
+        assert_equals(mock_cache_path, file_entity.path)
+        assert_equals(os.path.dirname(mock_cache_path), file_entity.cacheDir)
+        assert_equals(1, len(file_entity.files))
+        assert_equals(os.path.basename(mock_cache_path), file_entity.files[0])
