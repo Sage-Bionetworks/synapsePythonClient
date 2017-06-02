@@ -14,7 +14,7 @@ import uuid
 import json
 import time
 from nose.plugins.attrib import attr
-from nose.tools import assert_raises, assert_equals
+from nose.tools import assert_raises, assert_equals, assert_less
 import tempfile
 import shutil
 from mock import patch
@@ -30,7 +30,7 @@ import synapseclient.__main__ as cmdline
 from synapseclient.evaluation import Evaluation
 
 import integration
-from integration import schedule_for_cleanup
+from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 if six.PY2:
     from StringIO import StringIO
@@ -573,7 +573,10 @@ def test_command_get_recursive_and_query():
     file_entities.append(file_entity)
 
     #function under test uses queries which are eventually consistent but not immediately after creating the entities
-    time.sleep(3)
+    start_time = time.time()
+    while syn.query("select id from entity where id=='%s'" % file_entity.id).get('totalNumberOfResults') <= 0:
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
 
     ### Test recursive get
     output = run('synapse', '--skip-checks',
