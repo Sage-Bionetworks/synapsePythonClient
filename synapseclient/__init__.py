@@ -291,7 +291,7 @@ More information
 For more information see the
 `Synapse User Guide <http://docs.synapse.org/articles/>`_. These
 API docs are browsable online at
-`python-docs.synapse.org <http://docs.synapse.org/python/>`_.
+`http://docs.synapse.org/python/ <http://docs.synapse.org/python/>`_.
 
 Getting updates
 ===============

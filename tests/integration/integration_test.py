@@ -447,3 +447,7 @@ def test_external_s3_upload():
     assert filecmp.cmp(temp_file_path, downloaded_syn_file['path'])
 
 
+def test_findEntityIdByNameAndParent():
+    project_name = str(uuid.uuid1())
+    project_id = syn.store(Project(name=project_name))['id']
+    assert_equals(project_id, syn._findEntityIdByNameAndParent(project_name))
