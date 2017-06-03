@@ -937,7 +937,7 @@ class Synapse:
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
             if isinstance(obj, Wiki):
-                return self._storeWiki(obj)
+                return self._storeWiki(obj, createOrUpdate)
 
             if 'id' in obj: # If ID is present, update
                 obj.update(self.restPUT(obj.putURI(), obj.json()))
@@ -2617,7 +2617,7 @@ class Synapse:
         return [DictObject(**header) for header in self._GET_paginated(uri)]
 
 
-    def _storeWiki(self, wiki):
+    def _storeWiki(self, wiki, createOrUpdate): # type: (Wiki, bool) -> Wiki
         """
         Stores or updates the given Wiki.
 
@@ -2625,7 +2625,7 @@ class Synapse:
 
         :returns: An updated Wiki object
         """
-
+        #TODO: should this method return a new Wiki object instead? it seems that the current behavior of updating the exsting wiki object goes against the spec of store() which calls this method
         # Make sure the file handle field is a list
         if 'attachmentFileHandleIds' not in wiki:
             wiki['attachmentFileHandleIds'] = []
@@ -2647,12 +2647,17 @@ class Synapse:
                 wiki.update(self.restPOST(wiki.postURI(), wiki.json()))
             except SynapseHTTPError as err:
                 # If already present we get an unhelpful SQL error
-                # TODO: implement createOrUpdate for Wikis, see SYNR-631
-                if err.response.status_code == 400 and "DuplicateKeyException" in err.message:
-                    raise SynapseHTTPError("Can't re-create a wiki that already exists. "
-                                           "CreateOrUpdate not yet supported for wikis.",
-                                           response=err.response)
-                raise
+                if createOrUpdate and ((err.response.status_code == 400 and "DuplicateKeyException" in err.message)
+                                       or err.response.status_code == 409):
+                    existing_wiki = self.getWiki(wiki.ownerId)
+
+                    #overwrite everything except for the etag
+                    wiki['etag'] = existing_wiki['etag']
+                    existing_wiki.update(wiki)
+
+                    wiki.update(self.restPUT(existing_wiki.putURI(), existing_wiki.json()))
+                else:
+                    raise
         return wiki
 
 

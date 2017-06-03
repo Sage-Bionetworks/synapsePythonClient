@@ -213,15 +213,7 @@ def _create_wiki_description_if_necessary(args, entity, syn):
     store the description in a Wiki
     """
     if args.description or args.descriptionFile:
-        try:
-            wiki = syn.getWiki(entity)
-            wiki.update_markdown(args.description, args.descriptionFile)
-        except SynapseHTTPError as e:
-            if e.response.status_code == 404:
-                wiki = Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity)
-            else:
-                raise
-        syn.store(wiki)
+        syn.store(Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
 
 
 def _descriptionFile_arg_check(args):
