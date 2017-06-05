@@ -2625,7 +2625,6 @@ class Synapse:
 
         :returns: An updated Wiki object
         """
-        #TODO: should this method return a new Wiki object instead? it seems that the current behavior of updating the exsting wiki object goes against the spec of store() which calls this method
         # Make sure the file handle field is a list
         if 'attachmentFileHandleIds' not in wiki:
             wiki['attachmentFileHandleIds'] = []
@@ -2639,26 +2638,27 @@ class Synapse:
 
         # Perform an update if the Wiki has an ID
         if 'id' in wiki:
-            wiki.update(self.restPUT(wiki.putURI(), wiki.json()))
+            updated_wiki = Wiki(**self.restPUT(wiki.putURI(), wiki.json()))
 
         # Perform a create if the Wiki has no ID
         else:
             try:
-                wiki.update(self.restPOST(wiki.postURI(), wiki.json()))
+                updated_wiki = Wiki(**self.restPOST(wiki.postURI(), wiki.json()))
             except SynapseHTTPError as err:
                 # If already present we get an unhelpful SQL error
                 if createOrUpdate and ((err.response.status_code == 400 and "DuplicateKeyException" in err.message)
                                        or err.response.status_code == 409):
                     existing_wiki = self.getWiki(wiki.ownerId)
 
-                    #overwrite everything except for the etag
-                    wiki['etag'] = existing_wiki['etag']
+                    #overwrite everything except for the etag (this will keep unmodified fields in the existing wiki)
+                    etag = existing_wiki['etag']
                     existing_wiki.update(wiki)
+                    existing_wiki.etag = etag
 
-                    wiki.update(self.restPUT(existing_wiki.putURI(), existing_wiki.json()))
+                    updated_wiki = Wiki(**self.restPUT(existing_wiki.putURI(), existing_wiki.json()))
                 else:
                     raise
-        return wiki
+        return updated_wiki
 
 
     def getWikiAttachments(self, wiki):
