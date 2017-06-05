@@ -101,7 +101,6 @@ def test_Entity():
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
 
-    assert_raises(ValueError,File,a_file.path,parent=folder,dataFileHandleId=56456)
     b_file = File(name="blah",parent=folder,dataFileHandleId=a_file.dataFileHandleId)
     b_file = syn.store(b_file)
 
