@@ -976,9 +976,18 @@ class Synapse:
                 fileHandle = find_data_file_handle(bundle)
                 if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
                     needs_new_file_handle = (fileHandle['externalURL'] != entity['externalURL']) #TODO: make path the value being compared to wont work because if no change to a downloaded external file handle, the path will jsut be download location
+
+                    unmodified_cached_path = self.cache.get(fileHandle['id'])
+                    if utils.is_url(entity['path']):
+                        url = urlparse(entity['externalURL'])
+                        if entity['synapseStore'] and urlparse(entity['externalURL']).scheme == 'sftp':
+                            needs_new_file_handle = needs_new_file_handle or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
+                        else:
+                            #TODO: normlaize path and compare with cache also check synapsestore?
+                            pass
+
                     # if is sftp, also check cache for need to upload new version #TODO refactor with else statemetn below
-                    if urlparse(entity['externalURL']).scheme == 'sftp':
-                        needs_new_file_handle = needs_new_file_handle or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
+
                     #TODO: what if we changed synapseStore from True to False only? meaning we now want an external file handle that just stores the local path
                     #TODO: need to know if synapseStore changed. This can happen either via an argument to store() or in the property of the object. if changed needs_new_file_handle is ALWAYS True
                         #TODO: when externalURL changes, also change path?
@@ -1946,6 +1955,7 @@ class Synapse:
         if filename is None:
             raise ValueError('No filename given')
         elif utils.is_url(filename):
+            #TODO: check for synapsestore and warn if True and not a SFTP
             return self._addURLtoExternalFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
