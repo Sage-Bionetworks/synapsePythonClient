@@ -4,10 +4,11 @@ from builtins import str
 
 
 import unit
-from nose.tools import assert_equal, assert_in, assert_raises
+from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none
 
-from synapseclient import Evaluation, File, concrete_types
+from synapseclient import Evaluation, File, concrete_types, Folder
 from synapseclient.exceptions import *
+from synapseclient.dict_object import DictObject
 
 
 def setup(module):
@@ -275,3 +276,35 @@ def test_login__only_username_config_file_username_mismatch():
             read_session_mock.assert_called_once()
             config_items_mock.assert_called_once_with('authentication')
 
+def test_findEntityIdByNameAndParent__None_parent():
+    entity_name = "Kappa 123"
+    expected_uri = "/entity/child"
+    expected_body = json.dumps({"parentId": None, "entityName": entity_name})
+    expected_id = "syn1234"
+    return_val = {'id' : expected_id}
+    with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
+        entity_id = syn._findEntityIdByNameAndParent(entity_name)
+        mocked_POST.assert_called_once_with(expected_uri,body=expected_body )
+        assert_equal(expected_id, entity_id)
+
+def test_findEntityIdByNameAndParent__with_parent():
+    entity_name = "Kappa 123"
+    parentId = "syn42"
+    parent_entity = Folder(name="wwwwwwwwwwwwwwwwwwwwww@@@@@@@@@@@@@@@@", id=parentId, parent="fakeParent")
+    expected_uri = "/entity/child"
+    expected_body = json.dumps({"parentId": parentId, "entityName": entity_name})
+    expected_id = "syn1234"
+    return_val = {'id' : expected_id}
+    with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
+        entity_id = syn._findEntityIdByNameAndParent(entity_name, parent_entity)
+        mocked_POST.assert_called_once_with(expected_uri,body=expected_body )
+        assert_equal(expected_id, entity_id)
+
+
+def test_findEntityIdByNameAndParent__404_error_no_result():
+    entity_name = "Kappa 123"
+    expected_uri = "/entity/child"
+    expected_body = json.dumps({"parentId": None, "entityName": entity_name})
+    fake_response = DictObject({"status_code": 404})
+    with patch.object(syn, "restPOST", side_effect=SynapseHTTPError(response=fake_response)) as mocked_POST:
+        assert_is_none(syn._findEntityIdByNameAndParent(entity_name))

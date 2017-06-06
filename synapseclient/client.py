@@ -173,7 +173,7 @@ def _test_import_sftp():
              "For Windows systems without a C/C++ compiler, install the appropriate "
              "binary distribution of pycrypto from:\n"
              "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n"
-             "For more information, see: http://python-docs.synapse.org/sftp.html"
+             "For more information, see: http://docs.synapse.org/python/sftp.html"
              "\n\n\n"))
         raise
 
@@ -233,7 +233,7 @@ class Synapse:
         self.table_query_sleep = 2
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
-        self.table_query_timeout = 300
+        self.table_query_timeout = 600 # in seconds
 
 
 
@@ -777,11 +777,15 @@ class Synapse:
         #Handle download of fileEntities
         if isinstance(entity, File):
             #update the entity with FileHandle metadata
-            file_handle = next(handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId)
+            file_handle = next((handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId), None)
             entity._update_file_handle(file_handle)
 
             if downloadFile:
-                self._download_file_entity(downloadLocation, entity, ifcollision, submission)
+                if file_handle:
+                    self._download_file_entity(downloadLocation, entity, ifcollision, submission)
+                else:  # no filehandle means that we do not have DOWNLOAD permission
+                    warning_message = "WARNING: you do not have DOWNLOAD permissions for this file. The file has NOT been downloaded"
+                    sys.stderr.write('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
 
         return entity
 
@@ -1035,7 +1039,7 @@ class Synapse:
             except SynapseHTTPError as ex:
                 if createOrUpdate and ex.response.status_code == 409:
                     # Get the existing Entity's ID via the name and parent
-                    existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', ROOT_ENTITY))
+                    existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
                     if existing_entity_id is None: raise
 
                     # get existing properties and annotations
@@ -1132,7 +1136,7 @@ class Synapse:
         #     If the user forgets to catch the return value of a syn.store(e)
         #     this allows them to recover by doing: e = syn.get(e)
         if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
-            entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId',ROOT_ENTITY))
+            entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId', None))
 
         # Avoid an exception from finding an ID from a NoneType
         try: id_of(entity)
@@ -3244,13 +3248,15 @@ class Synapse:
         :returns: the Entity ID or None if not found
         """
 
-        if parent is None:
-            parent = ROOT_ENTITY
-        qr = self.query('select id from entity where name=="%s" and parentId=="%s"' % (name, id_of(parent)))
-        if qr.get('totalNumberOfResults', 0) == 1:
-            return qr['results'][0]['entity.id']
-        else:
-            return None
+        # when we want to search for a project by name. set parentId as None instead of ROOT_ENTITY
+        entity_lookup_request = {"parentId": id_of(parent) if parent else None,
+                                 "entityName": name}
+        try:
+            return self.restPOST("/entity/child", body=json.dumps(entity_lookup_request)).get("id")
+        except SynapseHTTPError as e:
+            if e.response.status_code == 404: # a 404 error is raised if the entity does not exist
+                return None
+            raise
 
 
 
