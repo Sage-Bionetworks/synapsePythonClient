@@ -829,10 +829,8 @@ def _is_integer(x):
 
 def calling_module(current_frame):
     """
-    Returns the name of the module calling the function in which this calling_module() is invoked. This will will trace up until
-    
     :param current_frame: use inspect.currentframe().
-    :return: 
+    :return: the name of the module calling the function, foo(), in which this calling_module() is invoked. Ignores callers that belong in the same module as foo()
     """
 
     current_frame_filename = current_frame.f_code.co_filename #filename in which foo() resides
