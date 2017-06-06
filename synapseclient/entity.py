@@ -157,7 +157,7 @@ import synapseclient.utils as utils
 from synapseclient.utils import id_of, itersubclasses
 from synapseclient.exceptions import *
 import os
-
+import inspect
 
 class Versionable(object):
     """An entity for which Synapse will store a version history."""
@@ -583,6 +583,9 @@ class File(Entity, Versionable):
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
+            #hacky solution because we historically allowed modifying 'path' to indicate wanting to change to a new ExternalFileHandle
+            if (key == 'path') and (utils.calling_module(inspect.currentframe()) != 'client'): #don't change exernalURL if it's just the synapseclient setting fields
+                self['externalURL'] = value
             super(File, self).__setitem__(key,value)
 
 
