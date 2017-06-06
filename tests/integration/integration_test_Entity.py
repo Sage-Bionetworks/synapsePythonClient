@@ -565,3 +565,42 @@ def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
         mocked_stderr.write.assert_called_once()
         assert_is_none(entity_no_download.path)
 
+
+def test_store__changing_externalURL_by_changing_path():
+    url ='https://www.synapse.org/Portal/clear.cache.gif'
+    ext = syn.store(synapseclient.File(url, name="test",parent=project, synapseStore=False))
+
+    #perform a syn.get so the filename changes
+    ext = syn.get(ext)
+
+    #create a temp file
+    temp_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(temp_path)
+
+    ext.path = temp_path
+    ext = syn.store(ext)
+
+    #do a get to make sure filehandle has been updated correctly
+    ext = syn.get(ext.id, downloadFile=True)
+
+    assert_not_equal(ext.externalURL, url)
+    assert_equal("file:///"+temp_path, ext.externalURL)
+    assert_equal(False, ext.synapseStore)
+
+def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
+    #create a temp file
+    temp_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(temp_path)
+
+    ext = syn.store(synapseclient.File(temp_path,parent=project, synapseStore=True))
+    ext = syn.get(ext)
+    assert_equal("org.sagebionetworks.repo.model.file.S3FileHandle", ext._file_handle.concreteType)
+
+    ext.path = temp_path
+    ext = syn.store(ext)
+
+    #do a get to make sure filehandle has been updated correctly
+    ext = syn.get(ext.id, downloadFile=False)
+    assert_equal("org.sagebionetworks.repo.model.file.ExternalFileHandle", ext._file_handle.concreteType)
+    assert_equal("file:///"+temp_path, ext.externalURL)
+    assert_equal(False, ext.synapseStore)

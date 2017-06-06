@@ -841,7 +841,6 @@ def calling_module(current_frame):
     caller_frame = current_frame.f_back
     caller_filename = caller_frame.f_code.co_filename
 
-
     # find the first frame that does not have the same filename. this ensures that we don't consider functions within the same module as foo() that use foo() as a helper function
     while(caller_filename == current_frame_filename):
         caller_frame = caller_frame.f_back

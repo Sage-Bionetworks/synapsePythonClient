@@ -8,7 +8,7 @@ from __future__ import unicode_literals
 
 from datetime import datetime as Datetime
 from nose.tools import assert_raises, assert_equal
-import os, re, sys
+import os, re, sys, inspect
 
 import synapseclient.utils as utils
 from synapseclient.activity import Activity
@@ -425,3 +425,13 @@ def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocke
             mocked_open().write.assert_called_once_with(mocked_zipfile.read())
     finally:
         rmtree(target_dir, ignore_errors=True)
+
+def _calling_module_test_helper():
+    return utils.calling_module(inspect.currentframe())
+
+def test_calling_module():
+    # 'case' is the name of the module with which nosetests runs these tests
+    # 'unit_test' is the name of the module in which this test resides
+    # we made a helper so that the call order is: case.some_function_for_running_tests() -> unit_test.test_calling_module() -> unit_test._calling_module_test_helper()
+    # since both _calling_module_test_helper and test_calling_module are a part of the unit_test module, we can test that callers of the same module do indeed are skipped
+    assert_equal("case", _calling_module_test_helper())

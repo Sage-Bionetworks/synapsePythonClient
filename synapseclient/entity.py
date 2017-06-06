@@ -571,6 +571,9 @@ class File(Entity, Versionable):
         fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
         self.__dict__['_file_handle'] = fh_dict
 
+        if file_handle_update_dict is not None and 'ExternalFileHandle' in file_handle_update_dict.get('concreteType', ''):
+            self['synapseStore'] = False
+
         #initialize all nonexistent keys to have value of None
         for key in self.__class__._file_handle_keys:
             if key not in fh_dict:
@@ -584,8 +587,9 @@ class File(Entity, Versionable):
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
             #hacky solution because we historically allowed modifying 'path' to indicate wanting to change to a new ExternalFileHandle
-            if (key == 'path') and (utils.calling_module(inspect.currentframe()) != 'client'): #don't change exernalURL if it's just the synapseclient setting fields
+            if key == 'path' and utils.calling_module(inspect.currentframe()) != 'client': #don't change exernalURL if it's just the synapseclient setting metadata after a function call such as syn.get()
                 self['externalURL'] = value
+                self['synapseStore'] = False
             super(File, self).__setitem__(key,value)
 
 

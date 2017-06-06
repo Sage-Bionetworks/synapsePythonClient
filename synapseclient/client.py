@@ -980,7 +980,8 @@ class Synapse:
                     ## Check if we need to upload a new version of an existing
                     ## file. If the file referred to by entity['path'] has been
                     ## modified, we want to upload the new version.
-                    needs_upload = not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
+                    ## If synapeStore is false then we must upload a ExternalFileHandle
+                    needs_upload = not entity['synapseStore'] or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
             elif entity.get('dataFileHandleId',None) is not None:
                 needs_upload = False
             else:
@@ -2044,8 +2045,7 @@ class Synapse:
                                                                           location.get('banner', ''),
                                                                           urlparse(location['url']).netloc,
                                                                           '#'*50))
-                entity['synapseStore'] = False
-                
+
                 #Fill out local_state with fileSize, externalURL etc...
                 uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
                 local_state_file_handle['externalURL'] = uploadLocation
