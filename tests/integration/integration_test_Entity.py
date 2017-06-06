@@ -565,3 +565,17 @@ def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
         mocked_stderr.write.assert_called_once()
         assert_is_none(entity_no_download.path)
 
+
+def test_store__changing_externalURL_by_changing_path():
+    url ='http://www.synapse.org/'
+    ext = syn.store(synapseclient.File(url, parent=project, synapseStore=False))
+    temp_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(temp_path)
+    ext.path = temp_path
+    ext = syn.store(ext)
+    #do a get to make sure its been updated correctly
+    ext = syn.get(ext.id, downloadFile=True)
+    print(ext)
+    assert_not_equal(ext.externalURL, url)
+    assert_equal("file:///"+temp_path, ext.externalURL)
+
