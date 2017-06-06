@@ -827,7 +827,7 @@ def _is_integer(x):
             ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
             return False
 
-def calling_module(current_frame):
+def caller_module_name(current_frame):
     """
     :param current_frame: use inspect.currentframe().
     :return: the name of the module calling the function, foo(), in which this calling_module() is invoked. Ignores callers that belong in the same module as foo()

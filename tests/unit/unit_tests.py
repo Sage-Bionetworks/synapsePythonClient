@@ -427,7 +427,7 @@ def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocke
         rmtree(target_dir, ignore_errors=True)
 
 def _calling_module_test_helper():
-    return utils.calling_module(inspect.currentframe())
+    return utils.caller_module_name(inspect.currentframe())
 
 def test_calling_module():
     # 'case' is the name of the module with which nosetests runs these tests
