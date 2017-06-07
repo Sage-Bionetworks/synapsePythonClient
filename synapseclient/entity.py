@@ -571,7 +571,6 @@ class File(Entity, Versionable):
         fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
         self.__dict__['_file_handle'] = fh_dict
 
-        print("==========================================",file_handle_update_dict)
         if file_handle_update_dict is not None and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
             self['synapseStore'] = False
 
@@ -587,10 +586,13 @@ class File(Entity, Versionable):
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
+            #hacky solution to allowing immediate switching into a ExternalFileHandle pointing to the current path
+            if key == 'synapseStore' and value == False and self['synapseStore'] == True and utils.caller_module_name(inspect.currentframe()) != 'client': #yes, there is boolean zen but I feel like it is easier to read/understand this way
+                self['externalURL'] = self['path']
+
             #hacky solution because we historically allowed modifying 'path' to indicate wanting to change to a new ExternalFileHandle
-            if key == 'path' and utils.caller_module_name(inspect.currentframe()) != 'client': #don't change exernalURL if it's just the synapseclient setting metadata after a function call such as syn.get()
+            if key == 'path' and not self['synapseStore'] and utils.caller_module_name(inspect.currentframe()) != 'client': #don't change exernalURL if it's just the synapseclient setting metadata after a function call such as syn.get()
                 self['externalURL'] = value
-                self['synapseStore'] = False
             super(File, self).__setitem__(key,value)
 
 

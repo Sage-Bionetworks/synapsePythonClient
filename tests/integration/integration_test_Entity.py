@@ -579,6 +579,7 @@ def test_store__changing_externalURL_by_changing_path():
     temp_path = utils.make_bogus_data_file()
     schedule_for_cleanup(temp_path)
 
+    ext.synapseStore = False
     ext.path = temp_path
     ext = syn.store(ext)
 
@@ -589,6 +590,7 @@ def test_store__changing_externalURL_by_changing_path():
     assert_equal(utils.normalize_path(temp_path), utils.normalize_path(urlparse(ext.externalURL).path))
     assert_equal(False, ext.synapseStore)
 
+
 def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
     #create a temp file
     temp_path = utils.make_bogus_data_file()
@@ -598,6 +600,7 @@ def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
     ext = syn.get(ext)
     assert_equal("org.sagebionetworks.repo.model.file.S3FileHandle", ext._file_handle.concreteType)
 
+    ext.synapseStore = False
     ext.path = temp_path
     ext = syn.store(ext)
 
@@ -606,3 +609,4 @@ def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
     assert_equal("org.sagebionetworks.repo.model.file.ExternalFileHandle", ext._file_handle.concreteType)
     assert_equal(utils.normalize_path(temp_path), utils.normalize_path(urlparse(ext.externalURL).path))
     assert_equal(False, ext.synapseStore)
+
