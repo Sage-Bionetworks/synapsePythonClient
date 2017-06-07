@@ -354,7 +354,11 @@ class Synapse:
             # If still no authentication, resort to reading the configuration file
             if self.apiKey is None:
                 config = self.getConfigFile(self.configPath)
-                config_auth_dict = dict(config.items('authentication'))
+                try:
+                    config_auth_dict = dict(config.items('authentication'))
+                except configparser.NoSectionError:
+                    #authentication section not present
+                    config_auth_dict = {}
 
                 #if no username provided, grab username from config file and check cache first for API key
                 if email is None:
