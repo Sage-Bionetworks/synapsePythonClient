@@ -673,7 +673,7 @@ class Synapse:
 
         #If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, six.string_types) and os.path.isfile(entity):
-            bundle = self.__getFromFile(entity, kwargs.pop('limitSearch', None))
+            bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
 
@@ -696,7 +696,7 @@ class Synapse:
         return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
 
 
-    def __getFromFile(self, filepath, limitSearch=None):
+    def _getFromFile(self, filepath, limitSearch=None):
         """
         Gets a Synapse entityBundle based on the md5 of a local file
         See :py:func:`synapseclient.Synapse.get`.
