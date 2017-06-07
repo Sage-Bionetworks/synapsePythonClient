@@ -5,7 +5,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, time
+import uuid, filecmp, os, sys, time, tempfile
+
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
 
 try:
@@ -507,9 +508,9 @@ def test_syncFromSynapse():
         assert f.path in uploaded_paths
 
 def _makeManifest(content):
-    with open(filepath, 'wb') if filepath else tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
         f.write(content)
-        filepath = normalize_path(f.name)
+        filepath = utils.normalize_path(f.name)
         
     schedule_for_cleanup(filepath)        
     return filepath
@@ -529,16 +530,25 @@ def test_syncToSynapse():
     schedule_for_cleanup(f1)
     schedule_for_cleanup(f2)
     schedule_for_cleanup(f3)
+
+    header = 'path	parent	used	executed	activityName	foo\n'
+    row1 =   '%s	%s	%s	"%s;https://www.example.com"	provName	bar\n'  %(f1, project_entity.id, f2, f3)
+    row2 =   '%s	%s	"syn12"	"syn123;https://www.example.com"	provName	bar\n' %(f2, folder_entity.id)
+    row3 =   '%s	%s	"syn12"		prov2	baz\n' %(f3, folder_entity.id)
+    row4 =   '%s	%s	%s	%s	act	2\n'  %(f3, project_entity.id, f1, f3)  #Circular reference
     
     #Test manifest with missing columns
     manifest =  _makeManifest('"path"\t"foo"\n#"result_data.txt"\t"syn123"')
-    assert_raises(ValueError, synapseutils.syncToSynapse(manifest))
+    assert_raises(ValueError, synapseutils.syncToSynapse, syn, manifest)
+
+    #Test that there are no circular references in file and that Provenance is correct
+    manifest = _makeManifest(header+row1+row2+row4) 
+    assert_raises(RuntimeError, synapseutils.syncToSynapse, syn, manifest)
 
     #Test that all files exist in manifest
-
-    #Test that all provenance references are valid
-
-    #Test that there are not circulare references in file
+    manifest = _makeManifest(header+row1+row2+'/bara/basdfasdf/8hiuu.txt	syn123\n') 
+    synapseutils.syncToSynapse(syn, manifest)
+    
 
     #Test upload of accurate manifest
 
