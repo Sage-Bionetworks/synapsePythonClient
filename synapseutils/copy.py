@@ -1,8 +1,7 @@
 import synapseclient
-from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity, exceptions
-import time
-from synapseclient.exceptions import *
-import tempfile
+from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity
+from synapseclient.cache import Cache
+from synapseclient.exceptions import SynapseHTTPError
 import re
 import json
 ############################################################
@@ -37,7 +36,18 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
                                                                       "fileHandleId":filehandleId,
                                                                       "associateObjectId":associateObjectId}})
     copiedFileHandles = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
-    return(copiedFileHandles)
+    _copy_cached_file_handles(syn.cache, copiedFileHandles)
+    return copiedFileHandles
+
+
+def _copy_cached_file_handles(cache, copiedFileHandles):
+    # type: (Cache , dict) -> None
+    for copy_result in copiedFileHandles['copyResults']:
+        if copy_result.get('failureCode') is None:  # sucessfully copied
+            original_cache_path = cache.get(copy_result['originalFileHandleId'])
+            if original_cache_path:
+                cache.add(copy_result['newFileHandle']['id'], original_cache_path)
+
 
 def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     """
