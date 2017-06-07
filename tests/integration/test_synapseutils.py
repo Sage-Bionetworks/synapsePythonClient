@@ -506,6 +506,46 @@ def test_syncFromSynapse():
         print(f.path)
         assert f.path in uploaded_paths
 
+def _makeManifest(content):
+    with open(filepath, 'wb') if filepath else tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+        f.write(content)
+        filepath = normalize_path(f.name)
+        
+    schedule_for_cleanup(filepath)        
+    return filepath
+
+        
+def test_syncToSynapse():
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    # Create a Folder in Project
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+
+    #Create testfiles for upload
+    f1 = utils.make_bogus_data_file(n=10)
+    f2 = utils.make_bogus_data_file(n=10)
+    f3 = utils.make_bogus_data_file(n=10)
+    schedule_for_cleanup(f1)
+    schedule_for_cleanup(f2)
+    schedule_for_cleanup(f3)
+    
+    #Test manifest with missing columns
+    manifest =  _makeManifest('"path"\t"foo"\n#"result_data.txt"\t"syn123"')
+    assert_raises(ValueError, synapseutils.syncToSynapse(manifest))
+
+    #Test that all files exist in manifest
+
+    #Test that all provenance references are valid
+
+    #Test that there are not circulare references in file
+
+    #Test upload of accurate manifest
+
+
+    
+
+        
 def test_copyFileHandleAndchangeFileMetadata():
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
