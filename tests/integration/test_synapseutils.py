@@ -511,7 +511,6 @@ def _makeManifest(content):
     with tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
         f.write(content)
         filepath = utils.normalize_path(f.name)
-        
     schedule_for_cleanup(filepath)        
     return filepath
 
@@ -547,12 +546,16 @@ def test_syncToSynapse():
 
     #Test that all files exist in manifest
     manifest = _makeManifest(header+row1+row2+'/bara/basdfasdf/8hiuu.txt	syn123\n') 
-    synapseutils.syncToSynapse(syn, manifest)
+    assert_raises(IOError, synapseutils.syncToSynapse, syn, manifest)
     
-
     #Test upload of accurate manifest
-
-
+    manifest = _makeManifest(header+row1+row2+row3) 
+    synapseutils.syncToSynapse(syn, manifest)
+    syn.onweb(project_entity)
+    time.sleep(10000)
+    #Validate what was uploaded is in right location
+    #Validate that annotations were set
+    #Validate that provenance is correct
     
 
         

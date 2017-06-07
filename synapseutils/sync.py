@@ -1,18 +1,19 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import errno
 from synapseclient.entity import is_container
 from synapseclient.utils import id_of, topolgical_sort
 from synapseclient import File, table
 from synapseclient.exceptions import *
 import os
+import six
 
-# from __future__ import absolute_import
-# from __future__ import division
-# from __future__ import print_function
-# from __future__ import unicode_literals
 
 # import io
 # import sys
-# import six
 # import os
 # import synapseclient
 # from backports import csv
@@ -174,11 +175,9 @@ def syncToSynapse(syn, manifest_file, notify_me_interval = 1, dry_run=False):
     /path/file2.txt      syn12433    "baz"     2.71      ""                                  "https://github.org/foo/baz"
     =====                =======     =======   =======   =======                             =======
     """
-
     table.test_import_pandas()
     import pandas as pd
-    
-    
+        
     #Read manifest file into pandas dataframe
     df = pd.read_csv(manifest_file, sep='\t')
     df = df.fillna('')
@@ -188,78 +187,78 @@ def syncToSynapse(syn, manifest_file, notify_me_interval = 1, dry_run=False):
         if field not in df.columns:
             raise ValueError("Manifest must contain a column of %s" %field)
 
+    #Verify that all paths are available
+    for f in df.path:
+        if not os.path.isfile(f):
+            print('One of the files you are trying to upload does not exist.')
+            raise IOError('The file %s is not available' %f)
+
     #sort and correct provenance
     df = _sortAndFixProvenance(syn, df)
-    print(uploadOrder)
-    # #Verify that all paths are available
 
-    #Upload data
+    #Verify that all parents exist
+    #TODO
 
-
-def _checkProvenace(item):
-    "Determines if provenance item is valid
-    if os.path.isfile(item):   
-        if item not in paths: #If it is a file and it is not being uploaded
-            try:
-                bundle = syn._getFromFile(item)
-            except SynapseFileNotFoundError:
-                SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
-                                        "Specifically %s is not being uploaded and is not in Synapse." % (path, item)))
-        elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
-            raise SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
-                                          "Specifically %s, is neither a valid URL or synapseId."))
+    #Write output on what is getting pushed and estimated times - send out message.
     
+    #Upload data
+    for i, row in df.iterrows():
+        #Todo extract known constructor variables
+        kwargs = {key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row }
+        print(kwargs)
+        entity = File(row['path'], parent=row['parent'], **kwargs)
+        #TODO extract the annotations based on not being in defined fields
+        annotations = {}
+        # entity.annotations = {key: value for key, value in metadata.items() if key not in REQUIRED_FIELDS}
+
+        
+        #TODO update provenance list again to replace all file references that were uploaded
+        row['used'] = [syn.get(target) if
+                       (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
+                       target in row['used']]
+        row['executed'] = [syn.get(target) if
+                       (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
+                       target in row['executed']]
+        
+        kwargs = {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row}
+        print(kwargs)
+        entity = syn.store(entity, **kwargs)
+
+# #Upload the content and set metadata
+
+
 def _sortAndFixProvenance(syn, df):
     df = df.set_index('path')
     uploadOrder = {}
 
-    #paths = df['path']
-    #usedCol = df.get('used', ['']*len(df))
-    #executedCol = df.get('executed', ['']*len(df))
+    def _checkProvenace(item, path):
+        """Determines if provenance item is valid"""
+        print('Provenance check for', item, path)
+        if item is None:
+            return item
+        if os.path.isfile(item):   
+            if item not in df.index: #If it is a file and it is not being uploaded
+                try:
+                    bundle = syn._getFromFile(item)
+                    return bundle
+                except SynapseFileNotFoundError:
+                    SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
+                                            "Specifically %s is not being uploaded and is not in Synapse." % (path, item)))
+        elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
+            raise SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
+                                          "Specifically %s, is neither a valid URL or synapseId.") %(path, item))
+        return item
     
     for path, row in df.iterrows():
-        used = row.get('used', '').split(';')
-        executed = row.get('executed', '').split(';')
-
-        uploadOrder[path] = sum([used.split(';'), executed.split(';')], []) #Combine all used/executed into list
-        #Verify that provenance are URLs, synIds or local paths already in paths
-        for item in uploadOrder[path]:
-            if os.path.isfile(item):   
-                if item not in paths: #If it is a file and it is not being uploaded
-                    try:
-                        bundle = syn._getFromFile(item)
-                    except SynapseFileNotFoundError:
-                        SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
-                                                "Specifically %s is not being uploaded and is not in Synapse." % (path, item)))
-            elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
-                raise SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
-                                              "Specifically %s, is neither a valid URL or synapseId."))
+        print(path)
+        used = row['used'].split(';')  if ('used' in row) and (row['used'].strip()!='') else []   #Get None or split if string
+        executed = row['executed'].split(';') if ('executed' in row) and (row['executed'].strip()!='') else [] #Get None or split if string
+        row['used'] =  [_checkProvenace(item, path) for item in used]
+        row['executed'] = [_checkProvenace(item, path) for item in executed]
+        
+        uploadOrder[path] = row['used'] + row['executed']
     uploadOrder = utils.topolgical_sort(uploadOrder)
     df = df.reindex([l[0] for l in uploadOrder])
     return df.reset_index()
     
 
-#    REQUIRED_FIELDS = ['path', 'parent']
-#FILE_CONSTRUCTOR_FIELDS  = ['name', 'forceVersion', 'synapseStore', 'contentType']
-#STORE_FUNCTION_FIELDS =  ['used', 'executed', 'activityName', 'activityDescription']
-
-
-
-# #Upload the content and set metadata
-# for filepath, dependency in uploadOrder:
-#     f = File(filepath, parent=row['parentId'])
-#     metadata = rows[filepath]
-
-#     f.annotations = {key: value for key, value in metadata.items() if key not in REQUIRED_FIELDS}
-#     usedList = [os.path.expanduser(i) for i in metadata['used'].split(';') if i!='']
-#     usedList = [syn.get(target) if
-#                 (os.path.isfile(target)
-#                  if isinstance(target, six.string_types) else False) else target for
-#                 target in usedList]
-
-#     executedList = [os.path.expanduser(i) for i in metadata['executed'].split(';') if i!='']
-#     executedList = [syn.get(target) if
-#                 (os.path.isfile(target) if
-#                  isinstance(target, six.string_types) else False) else target for
-#                 target in executedList]
-#     f = syn.store(f, used = usedList, executed = executedList)
