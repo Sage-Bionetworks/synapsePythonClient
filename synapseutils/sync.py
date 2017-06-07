@@ -10,19 +10,12 @@ from synapseclient import File, table
 from synapseclient.exceptions import *
 import os
 import six
-
-
-# import io
-# import sys
-# import os
-# import synapseclient
-# from backports import csv
-
+import sys
 
 REQUIRED_FIELDS = ['path', 'parent']
 FILE_CONSTRUCTOR_FIELDS  = ['name', 'forceVersion', 'synapseStore', 'contentType']
 STORE_FUNCTION_FIELDS =  ['used', 'executed', 'activityName', 'activityDescription']
-
+MAX_RETRIES = 10
 
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles = None, followLink=False):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file metadata.
@@ -66,7 +59,6 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
             print(f.path)
 
     """
-    #TODO: Generate manifest file 
     if allFiles is None: allFiles = list()
     id = id_of(entity)
     results = syn.chunkedQuery("select id, name, nodeType from entity where entity.parentId=='%s'" %id)
@@ -86,21 +78,22 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
         else:
             ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
             allFiles.append(ent)
+    #TODO: Generate manifest file     
     return allFiles
 
 
 
 
-def syncToSynapse(syn, manifest_file, notify_me_interval = 1, dry_run=False):
+def syncToSynapse(syn, manifest_file, dry_run=False):
     """Synchronizes files specified in the manifest file to Synapse
 
     :param syn:    A synapse object as obtained with syn = synapseclient.login()
 
     :param manifest_file: A tsv file with file locations and metadata
                           to be pushed to Synapse.  See below for details
-
-    :notify_me_interval: The interval (in hours) that this fucntion will notify by email of progess
     
+    :param dry_run: Performs validation without uploading if set to True (default is False)
+
     Given a file describing all of the uploads uploads the content to
     Synapse and optionally notifies you via Synapse messagging (email)
     at specific intervals, on errors and on completion.
@@ -177,42 +170,79 @@ def syncToSynapse(syn, manifest_file, notify_me_interval = 1, dry_run=False):
     """
     table.test_import_pandas()
     import pandas as pd
-        
+
+    
+    sys.stdout.write('Validation and upload of: %s\n' %manifest_file)    
     #Read manifest file into pandas dataframe
     df = pd.read_csv(manifest_file, sep='\t')
     df = df.fillna('')
 
-    #Validate manifest for missing columns
+    sys.stdout.write('Validating columns of manifest...')
     for field in REQUIRED_FIELDS:
         if field not in df.columns:
             raise ValueError("Manifest must contain a column of %s" %field)
+    sys.stdout.write('OK\n')
 
-    #Verify that all paths are available
+    sys.stdout.write('Validating that all paths exist...')
+    sizes = []
     for f in df.path:
         if not os.path.isfile(f):
-            print('One of the files you are trying to upload does not exist.')
+            print('\nOne of the files you are trying to upload does not exist.')
             raise IOError('The file %s is not available' %f)
+        sizes.append(os.stat(f).st_size)
+    sys.stdout.write('OK\n')
 
-    #sort and correct provenance
-    df = _sortAndFixProvenance(syn, df)
-
-    #Verify that all parents exist
-    #TODO
-
-    #Write output on what is getting pushed and estimated times - send out message.
     
-    #Upload data
+    sys.stdout.write('Validating provenance...')
+    df = _sortAndFixProvenance(syn, df)
+    sys.stdout.write('OK\n')
+
+    sys.stdout.write('Validating that parents exist and are containers...')
+    parents = set(df.parent)
+    for synId in parents:
+        try:
+            container = syn.get(synId, downloadFile=False)
+        except SynapseHTTPError as e:
+            sys.stdout.write('\n%s in the parent column is not a valid Synapse Id\n' %synId)
+            raise(e)
+        if not is_container(container):
+            sys.stdout.write('\n%s in the parent column is is not a Folder or Project\n' %synId)
+            raise SynapseHTTPError
+    sys.stdout.write('OK\n')
+        
+    #Write output on what is getting pushed and estimated times - send out message.
+    sys.stdout.write('='*50+'\n')
+    sys.stdout.write('We are about to upload %i files with a total size of %s. ' %(len(df), utils.humanizeBytes(sum(sizes))))
+    sys.stdout.write('='*50+'\n')
+
+    sys.stdout.write('Starting upload...\n')
+    if dry_run:
+        return
+
+    retries = 0
+    while retries<MAX_RETRIES:
+        try:
+            done = _manifest_upload(syn, df)
+        except e:
+            syn.sendMessage([syn.getUserProfile()['ownerId']],
+                            messageSubject = 'Upload of %s' %manifest_file, 
+                            messageBody = 'Encountered a temporary Failure during upload.  Will retry %i more times. \n\n Error message was:%s' %(MAX_RETRIES-retries, e))
+            retries +=1
+        if done:
+            syn.sendMessage([syn.getUserProfile()['ownerId']],
+                            messageSubject = 'Upload of %s' %manifest_file, 
+                            messageBody = 'Uploads have completed!')
+            break
+            
+            
+def _manifest_upload(syn, df):
     for i, row in df.iterrows():
         #Todo extract known constructor variables
         kwargs = {key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row }
-        print(kwargs)
         entity = File(row['path'], parent=row['parent'], **kwargs)
-        #TODO extract the annotations based on not being in defined fields
-        annotations = {}
-        # entity.annotations = {key: value for key, value in metadata.items() if key not in REQUIRED_FIELDS}
-
+        entity.annotations = dict(row.drop(FILE_CONSTRUCTOR_FIELDS+STORE_FUNCTION_FIELDS+REQUIRED_FIELDS, errors = 'ignore'))
         
-        #TODO update provenance list again to replace all file references that were uploaded
+        #Update provenance list again to replace all file references that were uploaded
         row['used'] = [syn.get(target) if
                        (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
                        target in row['used']]
@@ -221,11 +251,8 @@ def syncToSynapse(syn, manifest_file, notify_me_interval = 1, dry_run=False):
                        target in row['executed']]
         
         kwargs = {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row}
-        print(kwargs)
         entity = syn.store(entity, **kwargs)
-
-# #Upload the content and set metadata
-
+    return True
 
 def _sortAndFixProvenance(syn, df):
     df = df.set_index('path')
@@ -233,7 +260,6 @@ def _sortAndFixProvenance(syn, df):
 
     def _checkProvenace(item, path):
         """Determines if provenance item is valid"""
-        print('Provenance check for', item, path)
         if item is None:
             return item
         if os.path.isfile(item):   
@@ -250,7 +276,6 @@ def _sortAndFixProvenance(syn, df):
         return item
     
     for path, row in df.iterrows():
-        print(path)
         used = row['used'].split(';')  if ('used' in row) and (row['used'].strip()!='') else []   #Get None or split if string
         executed = row['executed'].split(';') if ('executed' in row) and (row['executed'].strip()!='') else [] #Get None or split if string
         row['used'] =  [_checkProvenace(item, path) for item in used]

@@ -535,6 +535,7 @@ def test_syncToSynapse():
     row2 =   '%s	%s	"syn12"	"syn123;https://www.example.com"	provName	bar\n' %(f2, folder_entity.id)
     row3 =   '%s	%s	"syn12"		prov2	baz\n' %(f3, folder_entity.id)
     row4 =   '%s	%s	%s	%s	act	2\n'  %(f3, project_entity.id, f1, f3)  #Circular reference
+    row5 =   '%s	syn12				\n'  %(f3)  #Wrong parent
     
     #Test manifest with missing columns
     manifest =  _makeManifest('"path"\t"foo"\n#"result_data.txt"\t"syn123"')
@@ -544,6 +545,10 @@ def test_syncToSynapse():
     manifest = _makeManifest(header+row1+row2+row4) 
     assert_raises(RuntimeError, synapseutils.syncToSynapse, syn, manifest)
 
+    #Test non existent parent
+    manifest = _makeManifest(header+row1+row5)
+    assert_raises(SynapseHTTPError, synapseutils.syncToSynapse, syn, manifest)
+
     #Test that all files exist in manifest
     manifest = _makeManifest(header+row1+row2+'/bara/basdfasdf/8hiuu.txt	syn123\n') 
     assert_raises(IOError, synapseutils.syncToSynapse, syn, manifest)
@@ -551,8 +556,7 @@ def test_syncToSynapse():
     #Test upload of accurate manifest
     manifest = _makeManifest(header+row1+row2+row3) 
     synapseutils.syncToSynapse(syn, manifest)
-    syn.onweb(project_entity)
-    time.sleep(10000)
+
     #Validate what was uploaded is in right location
     #Validate that annotations were set
     #Validate that provenance is correct
