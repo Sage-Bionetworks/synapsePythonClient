@@ -103,9 +103,9 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
 
     assert_equal(e.name , bundle["entity"]["name"])
     assert_equal(e.parentId , bundle["entity"]["parentId"])
-    assert_equal(os.path.abspath(os.path.dirname(e.path)), temp_dir1)
+    assert_equal(utils.normalize_path(os.path.abspath(os.path.dirname(e.path))), utils.normalize_path(temp_dir1))
     assert_equal(bundle["fileHandles"][0]["fileName"] , os.path.basename(e.path))
-    assert_equal(os.path.abspath(e.path), os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"]))
+    assert_equal(utils.normalize_path(os.path.abspath(e.path)), utils.normalize_path(os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])))
 
     # 2. ----------------------------------------------------------------------
     # get without specifying downloadLocation

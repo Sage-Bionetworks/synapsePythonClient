@@ -12,7 +12,9 @@ from mock import patch
 
 try:
     import configparser
+    from urllib.parse import urlparse
 except ImportError:
+    from urlparse import urlparse
     import ConfigParser as configparser
 
 import synapseclient
@@ -584,7 +586,7 @@ def test_store__changing_externalURL_by_changing_path():
     ext = syn.get(ext.id, downloadFile=True)
 
     assert_not_equal(ext.externalURL, url)
-    assert_equal("file:///"+temp_path, ext.externalURL)
+    assert_equal(utils.normalize_path(temp_path), utils.normalize_path(urlparse(ext.externalURL).path))
     assert_equal(False, ext.synapseStore)
 
 def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
@@ -602,5 +604,5 @@ def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
     #do a get to make sure filehandle has been updated correctly
     ext = syn.get(ext.id, downloadFile=False)
     assert_equal("org.sagebionetworks.repo.model.file.ExternalFileHandle", ext._file_handle.concreteType)
-    assert_equal("file:///"+temp_path, ext.externalURL)
+    assert_equal(utils.normalize_path(temp_path), utils.normalize_path(urlparse(ext.externalURL).path))
     assert_equal(False, ext.synapseStore)

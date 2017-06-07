@@ -571,7 +571,8 @@ class File(Entity, Versionable):
         fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
         self.__dict__['_file_handle'] = fh_dict
 
-        if file_handle_update_dict is not None and 'ExternalFileHandle' in file_handle_update_dict.get('concreteType', ''):
+        print("==========================================",file_handle_update_dict)
+        if file_handle_update_dict is not None and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
             self['synapseStore'] = False
 
         #initialize all nonexistent keys to have value of None
