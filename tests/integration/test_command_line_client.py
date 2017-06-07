@@ -52,6 +52,8 @@ def setup_module(module):
     module.upload_filename = _create_temp_file_with_cleanup()
     module.description_text = "'some description text'"
     module.desc_filename = _create_temp_file_with_cleanup(module.description_text)
+    module.update_description_text = "'SOMEBODY ONCE TOLD ME THE WORLD WAS GONNA ROLL ME I AINT THE SHARPEST TOOL IN THE SHED'"
+
 
 
 def run(*command, **kwargs):
@@ -966,3 +968,79 @@ def test_add__with_descriptionFile():
                  desc_filename
                  )
     _description_wiki_check(output, description_text)
+
+
+def test_create__update_description():
+    name = str(uuid.uuid4())
+    output = run('synapse',
+                 'create',
+                 'Folder',
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+    output = run('synapse',
+                 'create',
+                 'Folder',
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 update_description_text
+                 )
+    _description_wiki_check(output, update_description_text)
+
+def test_store__update_description():
+    name = str(uuid.uuid4())
+    output = run('synapse',
+                 'store',
+                 upload_filename,
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+    output = run('synapse',
+                 'store',
+                 upload_filename,
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 update_description_text
+                 )
+    _description_wiki_check(output, update_description_text)
+
+def test_add__update_description():
+    name = str(uuid.uuid4())
+    output = run('synapse',
+                 'add',
+                 upload_filename,
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+    output = run('synapse',
+                 'add',
+                 upload_filename,
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 update_description_text
+                 )
+    _description_wiki_check(output, update_description_text)
