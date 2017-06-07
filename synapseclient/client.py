@@ -975,7 +975,8 @@ class Synapse:
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
                 if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
-                    needs_upload = (fileHandle['externalURL'] != entity['externalURL'])
+                    #switching away from ExternalFileHandle or the url was updated
+                    needs_upload = entity['synapseStore'] or (fileHandle['externalURL'] != entity['externalURL'])
                 else:
                     ## Check if we need to upload a new version of an existing
                     ## file. If the file referred to by entity['path'] has been
@@ -2020,31 +2021,30 @@ class Synapse:
 
         local_state_file_handle = local_state['_file_handle']
 
-        if local_state_file_handle.get('externalURL', None):
-            return local_state_file_handle['externalURL'], local_state, None
-        elif utils.is_url(entity['path']):
-            local_state_file_handle['externalURL'] = entity['path']
-            #If the url is a local path compute the md5
-            url = urlparse(entity['path'])
-            if os.path.isfile(url.path) and url.scheme=='file':
-                local_state_file_handle['contentMd5'] = utils.md5_for_file(url.path).hexdigest()
-            return entity['path'], local_state, None
+        if not local_state['synapseStore']:
+            if local_state_file_handle.get('externalURL', None):
+                return local_state_file_handle['externalURL'], local_state, None
+            elif utils.is_url(entity['path']):
+                local_state_file_handle['externalURL'] = entity['path']
+                #If the url is a local path compute the md5
+                url = urlparse(entity['path'])
+                if os.path.isfile(url.path) and url.scheme=='file':
+                    local_state_file_handle['contentMd5'] = utils.md5_for_file(url.path).hexdigest()
+                return entity['path'], local_state, None
 
         location =  self._getDefaultUploadDestination(entity)
         upload_destination_type = location['concreteType']
         if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION or \
            upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
-            if entity.get('synapseStore', True):
-                storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
-                sys.stdout.write('\n' + '#'*50+'\n Uploading file to ' + storageString + ' storage \n'+'#'*50+'\n')
+            storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
+            sys.stdout.write('\n' + '#'*50+'\n Uploading file to ' + storageString + ' storage \n'+'#'*50+'\n')
             return entity['path'], local_state, location['storageLocationId']
         elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
             if location['uploadType'] == 'SFTP' :
-                if entity.get('synapseStore', True):
-                    sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
-                                                                          location.get('banner', ''),
-                                                                          urlparse(location['url']).netloc,
-                                                                          '#'*50))
+                sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
+                                                                      location.get('banner', ''),
+                                                                      urlparse(location['url']).netloc,
+                                                                      '#'*50))
 
                 #Fill out local_state with fileSize, externalURL etc...
                 uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
