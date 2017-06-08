@@ -429,7 +429,7 @@ def test_tables_pandas():
         df.index = ['%s_0'%i for i in range(5)]
 
         #for python3 we need to convert from numpy.bytes_ to str or the equivalence comparision fails
-        if six.PY3: df['string_']=df['string_'].transform(lambda x : str(x))
+        if six.PY3: df['string_']=df['string_'].transform(str)
 
         # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column; second .all() gives a bool that is ANDed value of that Series
         assert (df2 == df).all().all()
