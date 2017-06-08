@@ -73,13 +73,13 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
         print("removing cacheMap file: ", cacheMap)
         os.remove(cacheMap)
 
-    def _downloadFileHandle(url, path, fileHandle, retries=5):
+    def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5):
         print("mock downloading file to:", path)
         ## touch file at path
         with open(path, 'a'):
             os.utime(path, None)
         dest_dir, filename = os.path.split(path)
-        syn.cache.add(fileHandle['id'], path)
+        syn.cache.add(fileHandle, path)
         return path
 
     def _getFileHandleDownload(fileHandleId,  objectId, objectType='FileHandle'):

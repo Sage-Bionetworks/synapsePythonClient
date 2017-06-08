@@ -1760,15 +1760,15 @@ class Synapse:
         """
         Download a file from the given URL to the local file system.
         
-        :param url:         source of download
+        :param fileHandleId: id of the FileHandle to download
+        :param objectId:     id of the Synapse object that uses the FileHandle e.g. "syn123"
+        :param objectType:   type of the Synapse object that uses the FileHandle e.g. "FileEntity"
         :param destination: destination on local file system
-        :param fileHandle:  a fileHandle dictionary for the file to download
         :param retries:     (default=5) Number of download retries attempted before
                             throwing an exception.
 
         :returns: path to downloaded file
         """
-        #TODO:z fix documentation for this
         try:
             os.makedirs(os.path.dirname(destination))
         except OSError as exception:
@@ -1915,8 +1915,7 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            scheme = urlparse(url).scheme
-            if  scheme != 'file' and os.path.exists(destination):
+            if  urlparse(url).scheme != 'file' and os.path.exists(destination):
                 os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
