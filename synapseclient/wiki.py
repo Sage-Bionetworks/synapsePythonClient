@@ -120,18 +120,8 @@ class Wiki(DictObject):
         if 'attachmentFileHandleIds' not in kwargs:
             kwargs['attachmentFileHandleIds'] = []
 
-        markdown = kwargs.get('markdown')
-        markdownFile = kwargs.get('markdownFile')
-
-        if markdown and markdownFile:
-            raise ValueError("Please use only one argument: markdown or markdownFile")
-
-        if markdownFile:
-            #pop the 'markdownFile' kwargs because we don't actually need it in the dictionary to upload to synapse
-            markdown_path = os.path.expandvars(os.path.expanduser(kwargs.pop('markdownFile')))
-            with open(markdown_path, 'r') as opened_markdown_file:
-                kwargs['markdown'] = opened_markdown_file.read()
-
+        #update the markdown
+        self.update_markdown(kwargs.pop('markdown', None), kwargs.pop('markdownFile', None))
 
         # Move the 'fileHandles' into the proper (wordier) bucket
         if 'fileHandles' in kwargs:
@@ -167,6 +157,26 @@ class Wiki(DictObject):
         """For internal use."""
 
         return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
+
+
+    def update_markdown(self, markdown = None, markdown_file = None):
+        """
+        Updates the wiki's markdown. Specify only one of markdown and markdown_file
+        :param markdown: text that will become the markdown
+        :param markdown_file: path to a file. Its contents will be the markdown
+        """
+        if markdown and markdown_file:
+            raise ValueError("Please use only one argument: markdown or markdownFile")
+
+        if markdown_file:
+            #pop the 'markdownFile' kwargs because we don't actually need it in the dictionary to upload to synapse
+            markdown_path = os.path.expandvars(os.path.expanduser(markdown_file))
+            if not os.path.isfile(markdown_path):
+                raise ValueError(markdown_file + "is not a valid file")
+            with open(markdown_path, 'r') as opened_markdown_file:
+                markdown = opened_markdown_file.read()
+
+        self['markdown'] = markdown
 
 
 class WikiAttachment(DictObject):

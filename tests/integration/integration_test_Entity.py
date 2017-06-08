@@ -8,6 +8,7 @@ from builtins import str
 import uuid, filecmp, os, tempfile, time
 from datetime import datetime as Datetime
 from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_greater, assert_less
+from nose import SkipTest
 from mock import patch
 
 try:
@@ -102,7 +103,6 @@ def test_Entity():
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
 
-    assert_raises(ValueError,File,a_file.path,parent=folder,dataFileHandleId=56456)
     b_file = File(name="blah",parent=folder,dataFileHandleId=a_file.dataFileHandleId)
     b_file = syn.store(b_file)
 
@@ -558,6 +558,8 @@ def test_store_DockerRepository():
 
 
 def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
+    if not (other_user.get('username') and other_user.get('password')):
+        raise SkipTest("Test was skipped because an additional user is required for this test. Please add a username, password, and pricipalId under [test-authentication] in the .synapseConfig file if oyu wish to execute this test")
     other_syn = synapseclient.login(other_user['username'], other_user['password'])
 
     #make a temp data file

@@ -299,7 +299,8 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'b': 'INTEGER', 'B': 'INTEGER', 'h': 'INTEGER', 'H': 'INTEGER',
                      'i': 'INTEGER', 'I': 'INTEGER', 'l': 'INTEGER', 'L': 'INTEGER',
                      'm': 'INTEGER', 'q': 'INTEGER', 'Q': 'INTEGER',
-                     'S': 'STRING', 'U': 'STRING', 'O': 'STRING'}
+                     'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
+                     'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
 
 def test_import_pandas():
@@ -1319,13 +1320,29 @@ class CsvFileTable(TableAbstractBaseClass):
             etag=self.etag,
             tableId=self.tableId)))
 
-    def asDataFrame(self, rowIdAndVersionInIndex=True):
+    def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime = False):
+        """
+        
+        :param rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version
+        :param convert_to_datetime: If set to True, will convert all Synapse DATE columns from UNIX timestamp integers into UTC datetime objects
+        :return: 
+        """
         test_import_pandas()
         import pandas as pd
 
         try:
             #Handle bug in pandas 0.19 requiring quotechar to be str not unicode or newstr
             quoteChar = bytes_to_native_str(bytes(self.quoteCharacter)) if six.PY2 else self.quoteCharacter
+
+            #determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
+            date_columns = []
+            datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms', utc=True) #DATEs are stored in csv as unix timestamp in milliseconds
+            if convert_to_datetime:
+                for select_column in self.headers:
+                    if select_column.columnType == "DATE":
+                        date_columns.append(select_column.name)
+
+
             ## assign line terminator only if for single character
             ## line terminators (e.g. not '\r\n') 'cause pandas doesn't
             ## longer line terminators. See:
@@ -1337,7 +1354,9 @@ class CsvFileTable(TableAbstractBaseClass):
                     quotechar=quoteChar,
                     escapechar=self.escapeCharacter,
                     header = 0 if self.header else None,
-                    skiprows=self.linesToSkip)
+                    skiprows=self.linesToSkip,
+                    parse_dates=date_columns,
+                    date_parser=datetime_millisecond_parser)
         except pd.parser.CParserError as ex1:
             df = pd.DataFrame()
 
