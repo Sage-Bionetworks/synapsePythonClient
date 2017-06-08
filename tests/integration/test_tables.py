@@ -16,6 +16,7 @@ import sys
 import tempfile
 import time
 import uuid
+import six
 from builtins import zip
 from nose.tools import assert_raises
 from datetime import datetime
@@ -399,12 +400,19 @@ def test_tables_pandas():
         ## check if we have pandas
         import pandas as pd
 
+        #import numpy for datatypes
+        import numpy as np
+
         ## create a pandas DataFrame
         df = pd.DataFrame({
             'A' : ("foo", "bar", "baz", "qux", "asdf"),
-            'B' : tuple(math.pi*i for i in range(5)),
+            'B' : tuple(0.42*i for i in range(5)),
             'C' : (101, 202, 303, 404, 505),
-            'D' : (False, True, False, True, False)})
+            'D' : (False, True, False, True, False),
+            # additional data types supported since SYNPY-347
+            'int64' : tuple(np.int64(range(5))),
+            'datetime64': tuple(np.datetime64(d) for d in ['2005-02-01', '2005-02-02', '2005-02-03', '2005-02-04', '2005-02-05']),
+            'string_': tuple(np.string_(s) for s in ['urgot', 'has', 'dark', 'mysterious', 'past'])})
 
         cols = as_table_columns(df)
         cols[0].maximumSize = 20
@@ -414,12 +422,17 @@ def test_tables_pandas():
         table = syn.store(Table(schema, df))
 
         ## retrieve the table and verify
-        results = syn.tableQuery('select * from %s'%table.schema.id)
-        df2 = results.asDataFrame()
+        results = syn.tableQuery('select * from %s'%table.schema.id, resultsAs='csv')
+        df2 = results.asDataFrame(convert_to_datetime=True)
 
         ## simulate rowId-version rownames for comparison
         df.index = ['%s_0'%i for i in range(5)]
-        assert all(df2 == df)
+
+        #for python3 we need to convert from numpy.bytes_ to str or the equivalence comparision fails
+        if six.PY3: df['string_']=df['string_'].transform(str)
+
+        # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column; second .all() gives a bool that is ANDed value of that Series
+        assert (df2 == df).all().all()
 
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test_tables_pandas.\n\n')

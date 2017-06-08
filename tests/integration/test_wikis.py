@@ -91,11 +91,11 @@ def test_create_or_update_wiki():
     # create wiki once
     wiki = syn.store(Wiki(title='This is the title', owner=project, markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!"))
 
-    # for now, creating it again raises an exception, see SYNR-631
-    assert_raises(SynapseHTTPError,
-        syn.store, 
-        Wiki(title='This is a different title', owner=project, markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!"),
-        createOrUpdate=True)
+    # for now, creating it again it will be updated
+    new_title = 'This is a different title'
+    wiki = syn.store(Wiki(title=new_title, owner=project, markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!"), createOrUpdate=True)
+    assert_equal(new_title, syn.getWiki(wiki.ownerId)['title'])
+
 
 
 def test_wiki_version():
