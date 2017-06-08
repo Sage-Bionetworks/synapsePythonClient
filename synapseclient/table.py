@@ -1243,7 +1243,7 @@ class CsvFileTable(TableAbstractBaseClass):
     def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime = False):
         """
         
-        :param rowIdAndVersionInIndex: 
+        :param rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version
         :param convert_to_datetime: If set to True, will convert all Synapse DATE columns from UNIX timestamp integers into UTC datetime objects
         :return: 
         """
