@@ -1942,7 +1942,7 @@ class Synapse:
             raise ValueError('No filename given')
         elif utils.is_url(filename):
             if synapseStore and urlparse(filename).scheme != 'sftp':
-                raise NotImplementedError('Automatic downloading and storing of non-SFTP external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
+                raise NotImplementedError('Automatic storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
             return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
