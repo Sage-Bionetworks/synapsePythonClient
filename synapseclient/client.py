@@ -1392,14 +1392,15 @@ class Synapse:
         entityChildrenRequest = {'parentId':parentId,
                                  'includeTypes':includeTypes,
                                  'sortBy':sortBy,
-                                 'sortDirection':sortDirection}
-        resultPage = {"nextPageToken":"first"}
-        while resultPage.get('nextPageToken') is not None:
-            resultPage = self.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
-            for child in resultPage['page']:
+                                 'sortDirection':sortDirection,
+                                 'nextPageToken': None}
+        entityChildrenResponse = {"nextPageToken":"first"}
+        while entityChildrenResponse.get('nextPageToken') is not None:
+            entityChildrenResponse = self.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
+            for child in entityChildrenResponse['page']:
                 yield child
-            if resultPage.get('nextPageToken') is not None:
-                entityChildrenRequest['nextPageToken'] = resultPage['nextPageToken']
+            if entityChildrenResponse.get('nextPageToken') is not None:
+                entityChildrenRequest['nextPageToken'] = entityChildrenResponse['nextPageToken']
 
     def query(self, queryStr):
         """

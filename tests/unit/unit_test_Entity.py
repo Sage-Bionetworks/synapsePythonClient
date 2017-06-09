@@ -278,3 +278,19 @@ def test_is_container():
     assert is_container(Project("My Project", parentId="syn12345"))
     assert not is_container(File("asdf.png", parentId="syn12345"))
 
+def test_is_container__getChildren_results():
+    file_result = {'versionLabel': '1',
+                   'name': 'firstPageResult',
+                   'versionNumber': 1,
+                   'benefactorId': 987,
+                   'type': 'org.sagebionetworks.repo.model.FileEntity',
+                   'id': 'syn123'}
+    assert not is_container(file_result)
+    folder_result = {'versionLabel': '1',
+                    'name': 'secondPageResult',
+                    'versionNumber': 1,
+                    'benefactorId': 654,
+                    'type': 'org.sagebionetworks.repo.model.Folder',
+                    'id': 'syn456'}
+    assert is_container(folder_result)
+
