@@ -2657,12 +2657,12 @@ class Synapse:
 
         # Perform an update if the Wiki has an ID
         if 'id' in wiki:
-            updated_wiki = Wiki(**self.restPUT(wiki.putURI(), wiki.json()))
+            updated_wiki = Wiki( owner= wiki.ownerId, **self.restPUT(wiki.putURI(), wiki.json()))
 
         # Perform a create if the Wiki has no ID
         else:
             try:
-                updated_wiki = Wiki(**self.restPOST(wiki.postURI(), wiki.json()))
+                updated_wiki = Wiki(owner= wiki.ownerId, **self.restPOST(wiki.postURI(), wiki.json()))
             except SynapseHTTPError as err:
                 # If already present we get an unhelpful SQL error
                 if createOrUpdate and ((err.response.status_code == 400 and "DuplicateKeyException" in err.message)
@@ -2674,7 +2674,7 @@ class Synapse:
                     existing_wiki.update(wiki)
                     existing_wiki.etag = etag
 
-                    updated_wiki = Wiki(**self.restPUT(existing_wiki.putURI(), existing_wiki.json()))
+                    updated_wiki = Wiki(owner= wiki.ownerId, **self.restPUT(existing_wiki.putURI(), existing_wiki.json()))
                 else:
                     raise
         return updated_wiki
