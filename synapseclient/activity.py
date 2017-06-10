@@ -307,7 +307,6 @@ class Activity(dict):
 
         See :py:func:`synapseclient.Activity.used`.
         """
-
         self.used(url=url, name=name, wasExecuted=wasExecuted)
 
 
@@ -316,22 +315,35 @@ class Activity(dict):
         Add a code resource that was executed during the activity.
         See :py:func:`synapseclient.activity.Activity.used`
         """
-
         self.used(target=target, targetVersion=targetVersion, url=url, name=name, wasExecuted=True)
+
+
+    def _getStringList(self, wasExecuted=True):
+        usedList = []
+        for source in [source for source in self['used'] if source.get('wasExecuted', False)==wasExecuted]:
+            if source['concreteType'].endswith('UsedURL'):
+                usedList.append(source['name'])
+            else: #It is an entity for now
+                tmpstr = source['reference']['targetId']
+                if 'targetVersionNumber' in source['reference']:
+                    tmpstr += '.%i' % source['reference']['targetVersionNumber']
+                usedList.append(tmpstr)
+        return usedList
+
+
+    def _getExecutedStringList(self):
+        return self._getStringList(wasExecuted=True)
+
+
+    def _getUsedStringList(self):
+        return self._getStringList(wasExecuted=False)
+
 
     def __str__(self):
         #user = syn.getUserProfile(self['createdBy'])
         #str = '  Added by: %s %s (%s)' %(user['firstName'], user['lastName'], user['userName']))
         str = '%s\n  Executed:\n' % self.get('name', '')
-        for source in [source for source in self['used'] if source.get('wasExecuted', False)]:
-            if source['concreteType'].endswith('UsedURL'):
-                str +='    %s\n' %source['name']
-            else: #It is an entity for now
-                str +='    %s.%i\n' %(source['reference']['targetId'], source['reference']['targetVersionNumber'])
+        str += '\n'.join(self._getExecutedStringList())
         str += '  Used:\n'
-        for source in [source for source in self['used'] if not source.get('wasExecuted', False)]:
-            if source['concreteType'].endswith('UsedURL'):
-                str += '    %s\n' %source['name']
-            else: #It is an entity for now
-                str += '    %s.%i\n' %(source['reference']['targetId'], source['reference']['targetVersionNumber'])
+        str += '\n'.join(self._getUsedStringList())
         return str

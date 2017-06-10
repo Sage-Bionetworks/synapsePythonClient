@@ -1747,13 +1747,13 @@ class Synapse:
         return Activity(data=self.restPUT(uri, json.dumps(activity)))
 
     def _convertProvenanceList(self, usedList, limitSearch=None):
-    """Convert a list of synapse Ids, URLs and local files by replacing locaal files with Synapse Ids"""
-    if usedList is None:
-        return None
-    usedList = [self.get(target, limitSearch=limitSearch) if
-                (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
-                target in usedList]
-    return usedList
+        """Convert a list of synapse Ids, URLs and local files by replacing local files with Synapse Ids"""
+        if usedList is None:
+            return None
+        usedList = [self.get(target, limitSearch=limitSearch) if
+                    (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
+                    target in usedList]
+        return usedList
 
 
 
