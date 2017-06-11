@@ -887,9 +887,9 @@ class Synapse:
 
         :param obj:                 A Synapse Entity, Evaluation, or Wiki
         :param used:                The Entity, Synapse ID, or URL
-                                    used to create the object
-        :param executed:            The Entity, Synapse ID, or URL
-                                    representing code executed to create the object
+                                    used to create the object (can also be a list of these)
+        :param executed:            The Entity, Synapse ID, or URL representing code executed
+                                    to create the object (can also be a list of these)
         :param activity:            Activity object specifying the user's provenance
         :param activityName:        Activity name to be used in conjunction with *used* and *executed*.
         :param activityDescription: Activity description to be used in conjunction with *used* and *executed*.

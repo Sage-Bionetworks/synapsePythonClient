@@ -76,7 +76,7 @@ from __future__ import unicode_literals
 import six
 import collections
 
-from synapseclient.utils import is_url, id_of
+from synapseclient.utils import is_url, id_of, is_synapse_id
 from synapseclient.entity import is_synapse_entity
 from synapseclient.exceptions import *
 
@@ -262,14 +262,19 @@ class Activity(dict):
         elif is_url(target):
             badargs = _get_any_bad_args(['targetVersion'], locals())
             _raise_incorrect_used_usage(badargs, 'URL')
-
             resource = {'url':target, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
         # -- Synapse Entity ID (assuming the string is an ID)
         elif isinstance(target, six.string_types):
             badargs = _get_any_bad_args(['url', 'name'], locals())
-            _raise_incorrect_used_usage(badargs, 'Synapse entity')
-
+            _raise_incorrect_used_usage(badargs, 'Synapse entity')            
+            vals = target.split('.')   #Handle synapseIds of from syn234.4
+            if not is_synapse_id(vals[0]):
+                raise ValueError('%s is not a valid Synapse id' %target)
+            if len(vals)==2:
+                if targetVersion and int(targetVersion)!=int(vals[1]):
+                    raise ValueError('Two conflicting versions for %s were specified' %target)
+                targetVersion = int(vals[1])
             reference = {'targetId':target}
             if targetVersion:
                 reference['targetVersionNumber'] = int(targetVersion)
