@@ -46,7 +46,7 @@ def setup(module):
 
 
 def _makeManifest(content):
-    with tempfile.NamedTemporaryFile(mode='wb', suffix=".dat", delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix=".dat", delete=False) as f:
         f.write(content)
         filepath = utils.normalize_path(f.name)
     schedule_for_cleanup(filepath)        
