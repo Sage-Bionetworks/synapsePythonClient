@@ -217,7 +217,7 @@ def readManifestFile(syn, manifest_file):
     return df
 
 
-def syncToSynapse(syn, manifest_file, dry_run=False):
+def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True):
     """Synchronizes files specified in the manifest file to Synapse
 
     :param syn:    A synapse object as obtained with syn = synapseclient.login()
@@ -313,9 +313,11 @@ def syncToSynapse(syn, manifest_file, dry_run=False):
         return
 
     sys.stdout.write('Starting upload...\n')
-    upload = notifyMe(_manifest_upload, syn, 'Upload of %s' %manifest_file, retries=MAX_RETRIES)
-    upload(syn, df)
-
+    if sendMessages:
+        upload = notifyMe(_manifest_upload, syn, 'Upload of %s' %manifest_file, retries=MAX_RETRIES)
+        upload(syn, df)
+    else:
+        _manifest_upload(syn,df)
     
 def _manifest_upload(syn, df):
     for i, row in df.iterrows():
