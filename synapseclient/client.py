@@ -599,16 +599,11 @@ class Synapse:
         """
         if isinstance(entity, six.string_types) and os.path.isfile(entity):
             entity = self.get(entity, downloadFile=False)
-        else:
-            try:
-                entity = entity.tableId
-                webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
-            except AttributeError:
-                pass
+        synId = id_of(entity)
         if subpageId is None:
-            webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, id_of(entity)))
+            webbrowser.open("%s#!Synapse:%s" % (self.portalEndpoint, synId))
         else:
-            webbrowser.open("%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, id_of(entity), subpageId))
+            webbrowser.open("%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId))
 
 
 
