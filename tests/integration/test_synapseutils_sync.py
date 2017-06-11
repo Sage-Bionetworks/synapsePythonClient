@@ -23,8 +23,10 @@ def setup(module):
     print(os.path.basename(__file__))
     print('~' * 60)
     module.syn = integration.syn
-    module.project = integration.project
-    module.folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project))
+
+    module.project = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(module.project)
+    module.folder = syn.store(Folder(name=str(uuid.uuid4()), parent=module.project))
 
     
     #Create testfiles for upload
