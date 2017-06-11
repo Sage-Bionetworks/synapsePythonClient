@@ -354,7 +354,11 @@ class Synapse:
             # If still no authentication, resort to reading the configuration file
             if self.apiKey is None:
                 config = self.getConfigFile(self.configPath)
-                config_auth_dict = dict(config.items('authentication'))
+                try:
+                    config_auth_dict = dict(config.items('authentication'))
+                except configparser.NoSectionError:
+                    #authentication section not present
+                    config_auth_dict = {}
 
                 #if no username provided, grab username from config file and check cache first for API key
                 if email is None:
@@ -938,7 +942,7 @@ class Synapse:
         # Handle all non-Entity objects
         if not (isinstance(obj, Entity) or type(obj) == dict):
             if isinstance(obj, Wiki):
-                return self._storeWiki(obj)
+                return self._storeWiki(obj, createOrUpdate)
 
             if 'id' in obj: # If ID is present, update
                 obj.update(self.restPUT(obj.putURI(), obj.json()))
@@ -2618,7 +2622,7 @@ class Synapse:
         return [DictObject(**header) for header in self._GET_paginated(uri)]
 
 
-    def _storeWiki(self, wiki):
+    def _storeWiki(self, wiki, createOrUpdate): # type: (Wiki, bool) -> Wiki
         """
         Stores or updates the given Wiki.
 
@@ -2626,7 +2630,6 @@ class Synapse:
 
         :returns: An updated Wiki object
         """
-
         # Make sure the file handle field is a list
         if 'attachmentFileHandleIds' not in wiki:
             wiki['attachmentFileHandleIds'] = []
@@ -2640,21 +2643,27 @@ class Synapse:
 
         # Perform an update if the Wiki has an ID
         if 'id' in wiki:
-            wiki.update(self.restPUT(wiki.putURI(), wiki.json()))
+            updated_wiki = Wiki( owner= wiki.ownerId, **self.restPUT(wiki.putURI(), wiki.json()))
 
         # Perform a create if the Wiki has no ID
         else:
             try:
-                wiki.update(self.restPOST(wiki.postURI(), wiki.json()))
+                updated_wiki = Wiki(owner= wiki.ownerId, **self.restPOST(wiki.postURI(), wiki.json()))
             except SynapseHTTPError as err:
                 # If already present we get an unhelpful SQL error
-                # TODO: implement createOrUpdate for Wikis, see SYNR-631
-                if err.response.status_code == 400 and "DuplicateKeyException" in err.message:
-                    raise SynapseHTTPError("Can't re-create a wiki that already exists. "
-                                           "CreateOrUpdate not yet supported for wikis.",
-                                           response=err.response)
-                raise
-        return wiki
+                if createOrUpdate and ((err.response.status_code == 400 and "DuplicateKeyException" in err.message)
+                                       or err.response.status_code == 409):
+                    existing_wiki = self.getWiki(wiki.ownerId)
+
+                    #overwrite everything except for the etag (this will keep unmodified fields in the existing wiki)
+                    etag = existing_wiki['etag']
+                    existing_wiki.update(wiki)
+                    existing_wiki.etag = etag
+
+                    updated_wiki = Wiki(owner= wiki.ownerId, **self.restPUT(existing_wiki.putURI(), existing_wiki.json()))
+                else:
+                    raise
+        return updated_wiki
 
 
     def getWikiAttachments(self, wiki):

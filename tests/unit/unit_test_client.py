@@ -2,10 +2,11 @@ import os, json, tempfile, base64, sys
 from mock import patch, mock_open
 from builtins import str
 
-
+import uuid
 import unit
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none
 
+import synapseclient
 from synapseclient import Evaluation, File, concrete_types, Folder
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
@@ -275,6 +276,21 @@ def test_login__only_username_config_file_username_mismatch():
 
             read_session_mock.assert_called_once()
             config_items_mock.assert_called_once_with('authentication')
+
+
+def test_login__no_username_no_password_no_session_cache_no_config_file():
+    old_config_path = syn.configPath
+    old_session_filename = synapseclient.client.SESSION_FILENAME
+
+    #make client point to nonexistant session and config
+    syn.configPath = "~/" + str(uuid.uuid1())
+    synapseclient.client.SESSION_FILENAME = str(uuid.uuid1())
+
+    assert_raises(SynapseAuthenticationError, syn.login)
+
+    #revert changes
+    syn.configPath = old_config_path
+    synapseclient.client.SESSION_FILENAME = old_session_filename
 
 def test_findEntityIdByNameAndParent__None_parent():
     entity_name = "Kappa 123"
