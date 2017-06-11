@@ -298,7 +298,9 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'b': 'INTEGER', 'B': 'INTEGER', 'h': 'INTEGER', 'H': 'INTEGER',
                      'i': 'INTEGER', 'I': 'INTEGER', 'l': 'INTEGER', 'L': 'INTEGER',
                      'm': 'INTEGER', 'q': 'INTEGER', 'Q': 'INTEGER',
-                     'S': 'STRING', 'U': 'STRING', 'O': 'STRING', 'M':'DATE'}
+                     'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
+                     'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
+
 
 
 def test_import_pandas():
