@@ -297,48 +297,48 @@ def test_download_end_early_retry():
         mocked_move.assert_called_once_with(temp_destination, destination)
 
 
-def test_download_md5_mismatch():
-    """
-    --------Test to ensure file gets removed on md5 mismatch--------
-    """
-    url = "http://www.ayy.lmao/filerino.txt"
-    contents = "\n".join(str(i) for i in range(1000))
-    destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
-    temp_destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt.temp"))
+# def test_download_md5_mismatch():
+#     """
+#     --------Test to ensure file gets removed on md5 mismatch--------
+#     """
+#     url = "http://www.ayy.lmao/filerino.txt"
+#     contents = "\n".join(str(i) for i in range(1000))
+#     destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt"))
+#     temp_destination = os.path.normpath(os.path.expanduser("~/fake/path/filerino.txt.temp"))
 
-    mock_requests_get = MockRequestGetFunction([
-        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_end=len(contents),
-                             status_code=200)
-    ])
+#     mock_requests_get = MockRequestGetFunction([
+#         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_end=len(contents),
+#                              status_code=200)
+#     ])
 
-    with patch.object(requests, 'get', side_effect=mock_requests_get), \
-         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch('synapseclient.utils.temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
-         patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
-         patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
-         patch('shutil.move') as mocked_move, \
-         patch('os.remove') as mocked_remove:
+#     with patch.object(requests, 'get', side_effect=mock_requests_get), \
+#          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+#          patch('synapseclient.utils.temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
+#          patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
+#          patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
+#          patch('shutil.move') as mocked_move, \
+#          patch('os.remove') as mocked_remove:
 
-        #function under test
-        try:
-            syn._download(url, destination, expected_md5="fake md5 is fake")
-        except SynapseMd5MismatchError:
-            pass
+#         #function under test
+#         try:
+#             syn._download(url, destination, expected_md5="fake md5 is fake")
+#         except SynapseMd5MismatchError:
+#             pass
 
-        #assert temp_download_filename() called once
-        mocked_temp_dest.assert_called_once_with(destination, None)
+#         #assert temp_download_filename() called once
+#         mocked_temp_dest.assert_called_once_with(destination, None)
 
-        #assert exists called 2 times
-        assert_equals([call(temp_destination), call(destination)] , mocked_exists.call_args_list)
+#         #assert exists called 2 times
+#         assert_equals([call(temp_destination), call(destination)] , mocked_exists.call_args_list)
 
-        #assert open() called once
-        mocked_open.assert_called_once_with(temp_destination, 'wb')
+#         #assert open() called once
+#         mocked_open.assert_called_once_with(temp_destination, 'wb')
 
-        #assert shutil.move() called once
-        mocked_move.assert_called_once_with(temp_destination, destination)
+#         #assert shutil.move() called once
+#         mocked_move.assert_called_once_with(temp_destination, destination)
 
-        #assert file was removed
-        mocked_remove.assert_called_once_with(destination)
+#         #assert file was removed
+#         mocked_remove.assert_called_once_with(destination)
 
 
 def test_download_file_entity__correct_local_state():
