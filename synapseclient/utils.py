@@ -617,7 +617,7 @@ def _extract_synapse_id_from_query(query):
 
 #Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 def memoize(obj):
-    cache = obj.cache = {}
+    cache = obj._memoize_cache = {}
 
     @functools.wraps(obj)
     def memoizer(*args, **kwargs):
