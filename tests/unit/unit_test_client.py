@@ -349,11 +349,11 @@ def test_getChildren__nextPageToken():
         children_generator = syn.getChildren('syn'+str(parent_project_id_int))
 
         #assert check the results of the generator
-        result = children_generator.next()
+        result = next(children_generator)
         assert_equal(first_page, result)
-        result = children_generator.next()
+        result = next(children_generator)
         assert_equal(second_page, result)
-        assert_raises(StopIteration,children_generator.next)
+        assert_raises(StopIteration, next, children_generator)
 
         #check that the correct POST requests were sent
         #genrates JSOn for the expected request body
