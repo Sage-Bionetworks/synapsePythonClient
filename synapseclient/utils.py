@@ -13,7 +13,6 @@ from __future__ import unicode_literals
 from future.utils import implements_iterator
 from builtins import str
 import six
-
 try:
     from urllib.parse import urlparse
     from urllib.parse import urlencode
@@ -38,7 +37,7 @@ import os, sys
 import hashlib, re
 import cgi
 import errno
-import math
+import inspect
 import random
 import requests
 import collections
@@ -47,7 +46,6 @@ import platform
 import functools
 import threading
 import uuid
-import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
 from datetime import timedelta
@@ -828,3 +826,22 @@ def _is_integer(x):
         except (ValueError, TypeError):
             ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
             return False
+
+def caller_module_name(current_frame):
+    """
+    :param current_frame: use inspect.currentframe().
+    :return: the name of the module calling the function, foo(), in which this calling_module() is invoked. Ignores callers that belong in the same module as foo()
+    """
+
+    current_frame_filename = current_frame.f_code.co_filename #filename in which foo() resides
+
+    #go back a frame takes us to the frame calling foo()
+    caller_frame = current_frame.f_back
+    caller_filename = caller_frame.f_code.co_filename
+
+    # find the first frame that does not have the same filename. this ensures that we don't consider functions within the same module as foo() that use foo() as a helper function
+    while(caller_filename == current_frame_filename):
+        caller_frame = caller_frame.f_back
+        caller_filename = caller_frame.f_code.co_filename
+
+    return inspect.getmodulename(caller_filename)
