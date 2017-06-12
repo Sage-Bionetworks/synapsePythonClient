@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import errno
 from .monitor import notifyMe
 from synapseclient.entity import is_container
-from synapseclient.utils import id_of, topolgical_sort
+from synapseclient.utils import id_of, topolgical_sort, is_url
 from synapseclient import File, table
 from synapseclient.exceptions import *
 import os
@@ -193,6 +193,8 @@ def readManifestFile(syn, manifest_file):
     sys.stdout.write('Validating that all paths exist')
     for f in df.path:
         sys.stdout.write('.')
+        if is_url(f):
+            continue
         if not os.path.isfile(f):
             print('\nOne of the files you are trying to upload does not exist.')
             raise IOError('The file %s is not available' %f)
