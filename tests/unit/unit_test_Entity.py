@@ -7,7 +7,7 @@ import collections
 import os, sys
 from synapseclient.entity import Entity, Project, Folder, File, DockerRepository, split_entity_namespaces, is_container
 from synapseclient.exceptions import *
-from nose.tools import assert_raises, raises
+from nose.tools import assert_raises, assert_true, assert_false,  raises
 
 
 def setup():
@@ -282,4 +282,22 @@ def test_is_container():
 @raises(SynapseMalformedEntityError)
 def test_DockerRepository__no_repositoryName():
     DockerRepository(parentId="syn123")
+
+    
+def test_File_update_file_handle__External_sftp():
+    sftp_file_handle = { 'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
+                         'externalURL' : "sftp://some.website"}
+    f = File(parent="idk")
+    assert_true(f.synapseStore)
+    f._update_file_handle(sftp_file_handle)
+    assert_true(f.synapseStore)
+
+    
+def test_File_update_file_handle__External_non_sftp():
+        external_file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
+                            'externalURL': "https://some.website"}
+        f = File(parent="idk")
+        assert_true(f.synapseStore)
+        f._update_file_handle(external_file_handle)
+        assert_false(f.synapseStore)
 

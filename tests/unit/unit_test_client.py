@@ -75,13 +75,13 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
         print("removing cacheMap file: ", cacheMap)
         os.remove(cacheMap)
 
-    def _downloadFileHandle(url, path, fileHandle, retries=5):
+    def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5):
         print("mock downloading file to:", path)
         ## touch file at path
         with open(path, 'a'):
             os.utime(path, None)
         dest_dir, filename = os.path.split(path)
-        syn.cache.add(fileHandle['id'], path)
+        syn.cache.add(fileHandle, path)
         return path
 
     def _getFileHandleDownload(fileHandleId,  objectId, objectType='FileHandle'):
@@ -104,9 +104,9 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
 
     assert_equal(e.name , bundle["entity"]["name"])
     assert_equal(e.parentId , bundle["entity"]["parentId"])
-    assert_equal(os.path.abspath(os.path.dirname(e.path)), temp_dir1)
+    assert_equal(utils.normalize_path(os.path.abspath(os.path.dirname(e.path))), utils.normalize_path(temp_dir1))
     assert_equal(bundle["fileHandles"][0]["fileName"] , os.path.basename(e.path))
-    assert_equal(os.path.abspath(e.path), os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"]))
+    assert_equal(utils.normalize_path(os.path.abspath(e.path)), utils.normalize_path(os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])))
 
     # 2. ----------------------------------------------------------------------
     # get without specifying downloadLocation
@@ -244,7 +244,7 @@ def test_readSessionCache_good_file_data():
 def test__uploadExternallyStoringProjects_external_user(mock_upload_destination):
     # setup
     expected_storage_location_id = "1234567"
-    expected_local_state = {'_file_handle':{}}
+    expected_local_state = {'_file_handle':{}, 'synapseStore':True}
     expected_path = "~/fake/path/file.txt"
     mock_upload_destination.return_value = {'storageLocationId' : expected_storage_location_id,
                                             'concreteType' : concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
@@ -252,7 +252,7 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     test_file = File(expected_path, parent="syn12345")
 
     # method under test
-    path, local_state,  storage_location_id = syn._Synapse__uploadExternallyStoringProjects(test_file, local_state={'_file_handle':{}}) #dotn care about localstate for this test
+    path, local_state,  storage_location_id = syn._Synapse__uploadExternallyStoringProjects(test_file, local_state={'_file_handle':{}, 'synapseStore':True}) #dotn care about filehandle for this test
 
     #test
     mock_upload_destination.assert_called_once_with(test_file)

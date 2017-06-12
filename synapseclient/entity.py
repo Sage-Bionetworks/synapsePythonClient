@@ -157,7 +157,7 @@ import synapseclient.utils as utils
 from synapseclient.utils import id_of, itersubclasses
 from synapseclient.exceptions import *
 import os
-
+import inspect
 
 class Versionable(object):
     """An entity for which Synapse will store a version history."""
@@ -580,6 +580,10 @@ class File(Entity, Versionable):
         fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
         self.__dict__['_file_handle'] = fh_dict
 
+        if file_handle_update_dict is not None and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
+                and utils.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
+            self.__dict__['synapseStore'] = False
+
         #initialize all nonexistent keys to have value of None
         for key in self.__class__._file_handle_keys:
             if key not in fh_dict:
@@ -592,6 +596,14 @@ class File(Entity, Versionable):
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
+            expand_and_convert_to_URL = lambda path: utils.as_url(os.path.expandvars(os.path.expanduser(path)))
+            #hacky solution to allowing immediate switching into a ExternalFileHandle pointing to the current path
+            if key == 'synapseStore' and value == False and self['synapseStore'] == True and utils.caller_module_name(inspect.currentframe()) != 'client': #yes, there is boolean zen but I feel like it is easier to read/understand this way
+                self['externalURL'] = expand_and_convert_to_URL(self['path'])
+
+            #hacky solution because we historically allowed modifying 'path' to indicate wanting to change to a new ExternalFileHandle
+            if key == 'path' and not self['synapseStore'] and utils.caller_module_name(inspect.currentframe()) != 'client': #don't change exernalURL if it's just the synapseclient setting metadata after a function call such as syn.get()
+                self['externalURL'] = expand_and_convert_to_URL(value)
             super(File, self).__setitem__(key,value)
 
 

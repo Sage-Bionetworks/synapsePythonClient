@@ -30,18 +30,22 @@ def setup(module):
 
 
 def test_download_check_md5():
+    tempfile_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(tempfile_path)
     entity = File(parent=project['id'])
-    entity['path'] = utils.make_bogus_data_file()
-    schedule_for_cleanup(entity['path'])
+    entity['path'] = tempfile_path
     entity = syn.store(entity)
 
     print('expected MD5:', entity['md5'])
 
-    fileResult = syn._getFileHandleDownload(entity['dataFileHandleId'],entity['id'])
-    syn._downloadFileHandle(fileResult['preSignedURL'], tempfile.gettempdir(), fileResult['fileHandle'])
-    assert_raises(SynapseMd5MismatchError, syn._downloadFileHandle, fileResult['preSignedURL'],
-                  tempfile.gettempdir(), {'contentMd5': '100000000000000000000',
-                                          'id':entity['dataFileHandleId']})
+    syn._downloadFileHandle(entity['dataFileHandleId'], entity['id'], 'FileEntity', tempfile.gettempdir())
+
+    tempfile_path2 = utils.make_bogus_data_file()
+    schedule_for_cleanup(tempfile_path2)
+    entity_bad_md5 = syn.store(File(path = tempfile_path2, md5 = "12345", parent=project['id'], synapseStore=False))
+
+    assert_raises(SynapseMd5MismatchError, syn._downloadFileHandle, entity_bad_md5['dataFileHandleId'], entity_bad_md5['id'], 'FileEntity', tempfile.gettempdir())
+
 
 def test_resume_partial_download():
     original_file = utils.make_bogus_data_file(40000)

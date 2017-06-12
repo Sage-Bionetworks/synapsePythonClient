@@ -831,14 +831,13 @@ class Synapse:
         else: #download the file from URL (could be a local file)
             objectType = 'FileEntity' if submission is None else 'SubmissionAttachment'
             objectId = entity['id'] if submission is None else submission
-            fileResult = self._getFileHandleDownload(entity.dataFileHandleId,
-                                                     objectId, objectType)
+
 
             # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
             # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
             # _downloadFileHandle may also return None to indicate that the download failed
-            downloadPath = self._downloadFileHandle(fileResult['preSignedURL'],
-                                                      downloadPath, fileResult['fileHandle'])
+            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType,
+                                                      downloadPath)
 
             if downloadPath is None or not os.path.exists(downloadPath):
                 entity['synapseStore'] = False
@@ -979,12 +978,14 @@ class Synapse:
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
                 if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
-                    needs_upload = (fileHandle['externalURL'] != entity['externalURL'])
+                    #switching away from ExternalFileHandle or the url was updated
+                    needs_upload = entity['synapseStore'] or (fileHandle['externalURL'] != entity['externalURL'])
                 else:
                     ## Check if we need to upload a new version of an existing
                     ## file. If the file referred to by entity['path'] has been
                     ## modified, we want to upload the new version.
-                    needs_upload = not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
+                    ## If synapeStore is false then we must upload a ExternalFileHandle
+                    needs_upload = not entity['synapseStore'] or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
             elif entity.get('dataFileHandleId',None) is not None:
                 needs_upload = False
             else:
@@ -1765,13 +1766,14 @@ class Synapse:
         return results['requestedFiles'][0]
 
 
-    def _downloadFileHandle(self, url, destination, fileHandle, retries=5):
+    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
         Download a file from the given URL to the local file system.
-
-        :param url:         source of download
+        
+        :param fileHandleId: id of the FileHandle to download
+        :param objectId:     id of the Synapse object that uses the FileHandle e.g. "syn123"
+        :param objectType:   type of the Synapse object that uses the FileHandle e.g. "FileEntity"
         :param destination: destination on local file system
-        :param fileHandle:  a fileHandle dictionary for the file to download
         :param retries:     (default=5) Number of download retries attempted before
                             throwing an exception.
 
@@ -1784,9 +1786,12 @@ class Synapse:
                 raise
         while retries > 0:
             try:
-                 downloaded_path = self._download(url, destination, fileHandle['id'], fileHandle.get('contentMd5'))
-                 self.cache.add(fileHandle['id'], downloaded_path)
-                 return downloaded_path
+                fileResult = self._getFileHandleDownload(fileHandleId,
+                                                        objectId, objectType)
+                fileHandle = fileResult['fileHandle']
+                downloaded_path = self._download(fileResult['preSignedURL'], destination, fileHandle['id'], fileHandle.get('contentMd5'))
+                self.cache.add(fileHandle['id'], downloaded_path)
+                return downloaded_path
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
@@ -1920,8 +1925,8 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            if os.path.exists(destination):
-                os.remove(destination)
+            #if  urlparse(url).scheme != 'file' and os.path.exists(destination):
+            #    os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
@@ -1943,8 +1948,8 @@ class Synapse:
         if filename is None:
             raise ValueError('No filename given')
         elif utils.is_url(filename):
-            if synapseStore:
-                raise NotImplementedError('Automatic downloading and storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
+            if synapseStore and urlparse(filename).scheme != 'sftp':
+                raise NotImplementedError('Automatic storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
             return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
@@ -2023,33 +2028,31 @@ class Synapse:
 
         local_state_file_handle = local_state['_file_handle']
 
-        if local_state_file_handle.get('externalURL', None):
-            return local_state_file_handle['externalURL'], local_state, None
-        elif utils.is_url(entity['path']):
-            local_state_file_handle['externalURL'] = entity['path']
-            #If the url is a local path compute the md5
-            url = urlparse(entity['path'])
-            if os.path.isfile(url.path) and url.scheme=='file':
-                local_state_file_handle['contentMd5'] = utils.md5_for_file(url.path).hexdigest()
-            return entity['path'], local_state, None
+        if not local_state['synapseStore']:
+            if local_state_file_handle.get('externalURL', None):
+                return local_state_file_handle['externalURL'], local_state, None
+            elif utils.is_url(entity['path']):
+                local_state_file_handle['externalURL'] = entity['path']
+                #If the url is a local path compute the md5
+                url = urlparse(entity['path'])
+                if os.path.isfile(url.path) and url.scheme=='file':
+                    local_state_file_handle['contentMd5'] = utils.md5_for_file(url.path).hexdigest()
+                return entity['path'], local_state, None
 
         location =  self._getDefaultUploadDestination(entity)
         upload_destination_type = location['concreteType']
         if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION or \
            upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
-            if entity.get('synapseStore', True):
-                storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
-                sys.stdout.write('\n' + '#'*50+'\n Uploading file to ' + storageString + ' storage \n'+'#'*50+'\n')
+            storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
+            sys.stdout.write('\n' + '#'*50+'\n Uploading file to ' + storageString + ' storage \n'+'#'*50+'\n')
             return entity['path'], local_state, location['storageLocationId']
         elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
             if location['uploadType'] == 'SFTP' :
-                if entity.get('synapseStore', True):
-                    sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
-                                                                          location.get('banner', ''),
-                                                                          urlparse(location['url']).netloc,
-                                                                          '#'*50))
-                entity['synapseStore'] = False
-                
+                sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
+                                                                      location.get('banner', ''),
+                                                                      urlparse(location['url']).netloc,
+                                                                      '#'*50))
+
                 #Fill out local_state with fileSize, externalURL etc...
                 uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
                 local_state_file_handle['externalURL'] = uploadLocation
@@ -2592,8 +2595,7 @@ class Synapse:
             cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            fileResult = self._getFileHandleDownload(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown')
-            path = self._downloadFileHandle(fileResult['preSignedURL'], cache_dir, fileResult['fileHandle'])
+            path = self._downloadFileHandle(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown', cache_dir)
         try:
             import gzip
             with gzip.open(path) as f:
@@ -2642,12 +2644,12 @@ class Synapse:
 
         # Perform an update if the Wiki has an ID
         if 'id' in wiki:
-            updated_wiki = Wiki(**self.restPUT(wiki.putURI(), wiki.json()))
+            updated_wiki = Wiki( owner= wiki.ownerId, **self.restPUT(wiki.putURI(), wiki.json()))
 
         # Perform a create if the Wiki has no ID
         else:
             try:
-                updated_wiki = Wiki(**self.restPOST(wiki.postURI(), wiki.json()))
+                updated_wiki = Wiki(owner= wiki.ownerId, **self.restPOST(wiki.postURI(), wiki.json()))
             except SynapseHTTPError as err:
                 # If already present we get an unhelpful SQL error
                 if createOrUpdate and ((err.response.status_code == 400 and "DuplicateKeyException" in err.message)
@@ -2659,7 +2661,7 @@ class Synapse:
                     existing_wiki.update(wiki)
                     existing_wiki.etag = etag
 
-                    updated_wiki = Wiki(**self.restPUT(existing_wiki.putURI(), existing_wiki.json()))
+                    updated_wiki = Wiki(owner= wiki.ownerId, **self.restPUT(existing_wiki.putURI(), existing_wiki.json()))
                 else:
                     raise
         return updated_wiki
@@ -2938,10 +2940,8 @@ class Synapse:
             cache_dir = self.cache.get_cache_dir(file_handle_id)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            fileResult = self._getFileHandleDownload(file_handle_id,
-                                                    objectId=_extract_synapse_id_from_query(query),
-                                                    objectType='TableEntity')
-            path = self._downloadFileHandle(fileResult['preSignedURL'], cache_dir, fileResult['fileHandle'])
+            path = self._downloadFileHandle(file_handle_id,_extract_synapse_id_from_query(query),
+                                                    'TableEntity', cache_dir)
         return (download_from_table_result, path)
 
 
@@ -3046,10 +3046,7 @@ class Synapse:
         if cached_file_path is not None:
             return cached_file_path
         else:
-            fileResult = self._getFileHandleDownload(file_handle_id,
-                                                    objectId=table_id,
-                                                    objectType='TableEntity')
-            path = self._downloadFileHandle(fileResult['preSignedURL'], downloadLocation, fileResult['fileHandle'])
+            path = self._downloadFileHandle(file_handle_id, table_id, 'TableEntity', downloadLocation)
             return path
 
 
@@ -3118,9 +3115,8 @@ class Synapse:
 
             temp_dir = tempfile.mkdtemp()
             zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
-            fileResult = self._getFileHandleDownload(response['resultZipFileHandleId'], table.tableId , 'TableEntity')
             try:
-                zipfilepath = self._downloadFileHandle(fileResult['preSignedURL'], zipfilepath, fileResult['fileHandle'])
+                zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId , 'TableEntity', zipfilepath)
                 ## TODO handle case when no zip file is returned
                 ## TODO test case when we give it partial or all bad file handles
                 ## TODO test case with deleted fileHandleID
