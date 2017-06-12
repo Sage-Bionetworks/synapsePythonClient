@@ -269,11 +269,10 @@ def cat(args, syn):
         ## in any other case."
         pass
     entity = syn.get(args.id, version=args.version)
-    if 'files' in entity:
-        for filepath in entity['files']:
-            with open(os.path.join(entity['cacheDir'], filepath)) as inputfile:
-                for line in inputfile:
-                    sys.stdout.write(line)
+    if 'path' in entity:
+        with open(entity.path) as inputfile:
+            for line in inputfile:
+                sys.stdout.write(line)
 
 
 def ls(args, syn):
