@@ -1915,8 +1915,8 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            if  urlparse(url).scheme != 'file' and os.path.exists(destination):
-                os.remove(destination)
+            #if  urlparse(url).scheme != 'file' and os.path.exists(destination):
+            #    os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
