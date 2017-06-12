@@ -302,7 +302,6 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
 
-
 def test_import_pandas():
     try:
         import pandas as pd
