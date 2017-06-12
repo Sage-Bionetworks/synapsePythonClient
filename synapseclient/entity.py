@@ -623,6 +623,7 @@ _entity_type_to_class = {}
 for cls in itersubclasses(Entity):
     _entity_type_to_class[cls._synapse_entity_type] = cls
 
+_entity_types = ["project","folder","file","table","link","entityview","dockerrepo"]
 
 def split_entity_namespaces(entity):
     """
@@ -700,6 +701,8 @@ def is_container(entity):
     """Test if an entity is a container (ie, a Project or a Folder)"""
     if 'concreteType' in entity:
         concreteType = entity['concreteType']
+    elif 'type' in entity:
+        concreteType = entity['type']
     elif isinstance(entity, collections.Mapping):
         prefix = utils.extract_prefix(entity.keys())
         if prefix+'concreteType' in entity:

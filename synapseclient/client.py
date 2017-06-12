@@ -67,6 +67,7 @@ import mimetypes
 import tempfile
 import warnings
 import getpass
+import json
 from collections import OrderedDict
 
 import synapseclient
@@ -1375,11 +1376,44 @@ class Synapse:
     ##                        Querying                        ##
     ############################################################
 
+    def getChildren(self, parentId, includeTypes=["folder","file","table","link","entityview","dockerrepo"], sortBy="NAME", sortDirection="ASC"):
+        """
+        Retrieves all of the entities stored within a parent such as folder or project.
+        
+        :param parentId:       A parentId of a Synapse container
+
+        :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
+                               http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
+
+        :param sortBy:         How results should be sorted.  Can be NAME, or CREATED_ON
+
+        :param sortDirection:  The direction of the result sort.  Can be ASC, or DESC
+
+        :returns:              An iterator that shows all the children of the container.
+        
+        Also see:
+
+        - :py:func:`synapseutils.walk`
+        """
+        entityChildrenRequest = {'parentId':parentId,
+                                 'includeTypes':includeTypes,
+                                 'sortBy':sortBy,
+                                 'sortDirection':sortDirection,
+                                 'nextPageToken': None}
+        entityChildrenResponse = {"nextPageToken":"first"}
+        while entityChildrenResponse.get('nextPageToken') is not None:
+            entityChildrenResponse = self.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
+            for child in entityChildrenResponse['page']:
+                yield child
+            if entityChildrenResponse.get('nextPageToken') is not None:
+                entityChildrenRequest['nextPageToken'] = entityChildrenResponse['nextPageToken']
+
     def query(self, queryStr):
         """
         Query for Synapse entities.
         **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
-        See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        
+        the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
         :returns: A JSON object containing an array of query results
 
