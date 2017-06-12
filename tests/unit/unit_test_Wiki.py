@@ -23,7 +23,8 @@ def test_Wiki__with_markdown_file():
                     adkflajsl;kfjasd;lfkjsal;kfajslkfjasdlkfj
                     """
     markdown_path = "/somewhere/over/the/rainbow.txt"
-    with patch("synapseclient.wiki.open", mock_open(read_data=markdown_data), create=True) as mocked_open:
+    with patch("synapseclient.wiki.open", mock_open(read_data=markdown_data), create=True) as mocked_open,\
+         patch("os.path.isfile", return_value=True):
         #method under test
         wiki = Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
@@ -37,7 +38,8 @@ def test_Wiki__markdown_and_markdownFile_both_defined():
 
 def test_Wiki__markdown_is_None_markdownFile_defined():
     markdown_path = "/somewhere/over/the/rainbow.txt"
-    with patch("synapseclient.wiki.open", mock_open(), create=True) as mocked_open:
+    with patch("synapseclient.wiki.open", mock_open(), create=True) as mocked_open,\
+         patch("os.path.isfile", return_value=True):
         #method under test
         wiki = Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
@@ -52,7 +54,7 @@ def test_Wiki__markdown_defined_markdownFile_is_None():
 
     assert_equals(markdown, wiki.markdown)
 
-@raises(IOError)
+@raises(ValueError)
 def test_Wiki__markdownFile_path_not_exist():
     # method under test
     Wiki(owner="doesn't matter", markdownFile="/this/is/not/the/file/you/are/looking.for")
