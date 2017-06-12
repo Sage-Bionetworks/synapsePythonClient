@@ -831,14 +831,13 @@ class Synapse:
         else: #download the file from URL (could be a local file)
             objectType = 'FileEntity' if submission is None else 'SubmissionAttachment'
             objectId = entity['id'] if submission is None else submission
-            fileResult = self._getFileHandleDownload(entity.dataFileHandleId,
-                                                     objectId, objectType)
+
 
             # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
             # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
             # _downloadFileHandle may also return None to indicate that the download failed
-            downloadPath = self._downloadFileHandle(fileResult['preSignedURL'],
-                                                      downloadPath, fileResult['fileHandle'])
+            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType,
+                                                      downloadPath)
 
             if downloadPath is None or not os.path.exists(downloadPath):
                 entity['synapseStore'] = False
@@ -1765,13 +1764,14 @@ class Synapse:
         return results['requestedFiles'][0]
 
 
-    def _downloadFileHandle(self, url, destination, fileHandle, retries=5):
+    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
         Download a file from the given URL to the local file system.
-
-        :param url:         source of download
+        
+        :param fileHandleId: id of the FileHandle to download
+        :param objectId:     id of the Synapse object that uses the FileHandle e.g. "syn123"
+        :param objectType:   type of the Synapse object that uses the FileHandle e.g. "FileEntity"
         :param destination: destination on local file system
-        :param fileHandle:  a fileHandle dictionary for the file to download
         :param retries:     (default=5) Number of download retries attempted before
                             throwing an exception.
 
@@ -1784,9 +1784,12 @@ class Synapse:
                 raise
         while retries > 0:
             try:
-                 downloaded_path = self._download(url, destination, fileHandle['id'], fileHandle.get('contentMd5'))
-                 self.cache.add(fileHandle['id'], downloaded_path)
-                 return downloaded_path
+                fileResult = self._getFileHandleDownload(fileHandleId,
+                                                        objectId, objectType)
+                fileHandle = fileResult['fileHandle']
+                downloaded_path = self._download(fileResult['preSignedURL'], destination, fileHandle['id'], fileHandle.get('contentMd5'))
+                self.cache.add(fileHandle['id'], downloaded_path)
+                return downloaded_path
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
@@ -1920,8 +1923,8 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            if os.path.exists(destination):
-                os.remove(destination)
+            #if  urlparse(url).scheme != 'file' and os.path.exists(destination):
+            #    os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
@@ -2592,8 +2595,7 @@ class Synapse:
             cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            fileResult = self._getFileHandleDownload(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown')
-            path = self._downloadFileHandle(fileResult['preSignedURL'], cache_dir, fileResult['fileHandle'])
+            path = self._downloadFileHandle(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown', cache_dir)
         try:
             import gzip
             with gzip.open(path) as f:
@@ -2938,10 +2940,8 @@ class Synapse:
             cache_dir = self.cache.get_cache_dir(file_handle_id)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            fileResult = self._getFileHandleDownload(file_handle_id,
-                                                    objectId=_extract_synapse_id_from_query(query),
-                                                    objectType='TableEntity')
-            path = self._downloadFileHandle(fileResult['preSignedURL'], cache_dir, fileResult['fileHandle'])
+            path = self._downloadFileHandle(file_handle_id,_extract_synapse_id_from_query(query),
+                                                    'TableEntity', cache_dir)
         return (download_from_table_result, path)
 
 
@@ -3046,10 +3046,7 @@ class Synapse:
         if cached_file_path is not None:
             return cached_file_path
         else:
-            fileResult = self._getFileHandleDownload(file_handle_id,
-                                                    objectId=table_id,
-                                                    objectType='TableEntity')
-            path = self._downloadFileHandle(fileResult['preSignedURL'], downloadLocation, fileResult['fileHandle'])
+            path = self._downloadFileHandle(file_handle_id, table_id, 'TableEntity', downloadLocation)
             return path
 
 
@@ -3118,9 +3115,8 @@ class Synapse:
 
             temp_dir = tempfile.mkdtemp()
             zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
-            fileResult = self._getFileHandleDownload(response['resultZipFileHandleId'], table.tableId , 'TableEntity')
             try:
-                zipfilepath = self._downloadFileHandle(fileResult['preSignedURL'], zipfilepath, fileResult['fileHandle'])
+                zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId , 'TableEntity', zipfilepath)
                 ## TODO handle case when no zip file is returned
                 ## TODO test case when we give it partial or all bad file handles
                 ## TODO test case with deleted fileHandleID
