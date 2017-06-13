@@ -534,7 +534,7 @@ def test_EntityViewSchema__default_params():
 
 def test_entityViewSchema__specified_type():
     view_type = 'project'
-    entity_view = EntityViewSchema(parent="idk", view_type=view_type)
+    entity_view = EntityViewSchema(parent="idk", type=view_type)
     assert_equals(view_type, entity_view.type)
 
 def test_entityViewSchema__sepcified_scopeId():

@@ -581,9 +581,9 @@ class EntityViewSchema(SchemaBase):
     _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
     _local_keys = SchemaBase._local_keys + ['add_default_columns']
 
-    def __init__(self, name=None, columns=None, parent=None, scopes = None, view_type=None, add_default_columns = True, properties=None, annotations=None, local_state=None, **kwargs):
-        if view_type:
-            kwargs['type'] = view_type
+    def __init__(self, name=None, columns=None, parent=None, scopes = None, type=None, add_default_columns = True, properties=None, annotations=None, local_state=None, **kwargs):
+        if type:
+            kwargs['type'] = type
 
         super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
                                                annotations=annotations, local_state=local_state, parent=parent, **kwargs)
@@ -591,27 +591,25 @@ class EntityViewSchema(SchemaBase):
         #This is a hacky solution to make sure we don't try to add default columns to schemas that we retrieve from synapse
         self.add_default_columns = add_default_columns and not (properties or local_state) #allowing annotations because user might want to update annotations all at once
 
-        #set default values after constructor so we don't
-        if self.get('type') is None:
+        #set default values after constructor so we don't overwrite the values defined in properties
+        if self.type == None:
             self.type = 'file'
-        if self.get('scopeIds') is None:
+        if self.scopeIds == None:
             self.scopeIds = []
 
-        if scopes:
-            self.add_scopes(scopes)
+        #add the scopes last so that we can append the passed in scopes to those defined in properties
+        if scopes is not None:
+            self.add_scope(scopes)
 
-    def add_scope(self, entity):
+    def add_scope(self, entities):
         """
-        :param entity: a Project or Folder object or its ID
+        :param entities: a Project or Folder object or its ID, can also be a list of them
         """
-        self.scopeIds.append(utils.id_of(entity))
-
-    def add_scopes(self, entities):
-        """
-        :param entities: an iterable collection of Entities
-        """
-        for e in entities:
-            self.add_scope(e)
+        if isinstance(list, entities):
+            temp_list = [utils.id_of(entity) for entity in entities] #add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
+            self.scopeIds.extend(temp_list)
+        else:
+            self.scopeIds.append(utils.id_of(entities))
 
     def _before_synapse_store(self, syn):
         super(EntityViewSchema, self)._before_synapse_store(syn)

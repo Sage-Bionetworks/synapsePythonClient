@@ -65,7 +65,7 @@ def test_create_and_update_file_view():
     scopeIds = [folder['id'].lstrip('syn')]
 
     ## Create an empty entity-view with defined scope as folder
-    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=True, view_type='file', columns=my_added_cols, parent=project)
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=True, type='file', columns=my_added_cols, parent=project)
 
     entity_view = syn.store(entity_view)
     schedule_for_cleanup(entity_view)
