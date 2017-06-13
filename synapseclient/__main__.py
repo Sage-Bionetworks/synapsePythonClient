@@ -68,16 +68,14 @@ import six
 import argparse
 import os
 import collections
-import shutil
 import sys
 import synapseclient
 import synapseutils
 from . import Activity
-from . import utils
 import signal
 import json
-import warnings
 from .exceptions import *
+from .wiki import Wiki
 import getpass
 import csv
 import re
@@ -176,6 +174,9 @@ def store(args, syn):
     #If both args.FILE and args.file specified raise error
     if args.file and args.FILE:
         raise ValueError('only specify one file')
+
+    _descriptionFile_arg_check(args)
+
     args.file = args.FILE if args.FILE is not None else args.file
     args.type = 'FileEntity' if args.type == 'File' else args.type
 
@@ -184,12 +185,9 @@ def store(args, syn):
     else:
         entity = {'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type,
                   'name': utils.guess_file_name(args.file) if args.file and not args.name else None,
-                  'parentId' : None,
-                  'description' : None,
-                  'path': args.file}
+                  'parentId' : None}
     #Overide setting for parameters included in args
     entity['name'] =  args.name if args.name is not None else entity['name']
-    entity['description'] = args.description if args.description is not None else entity.get('description', None)
     entity['parentId'] = args.parentid if args.parentid is not None else entity['parentId']
     entity['path'] = args.file if args.file is not None else None
     entity['synapseStore'] = not utils.is_url(args.file)
@@ -197,6 +195,9 @@ def store(args, syn):
     used = _convertProvenanceList(args.used, args.limitSearch, syn)
     executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
     entity = syn.store(entity, used=used, executed=executed)
+
+    _create_wiki_description_if_necessary(args, entity, syn)
+
     print('Created/Updated entity: %s\t%s' %(entity['id'], entity['name']))
 
     # After creating/updating, if there are annotations to add then
@@ -206,6 +207,22 @@ def store(args, syn):
         setattr(args, 'id', entity['id'])
         setAnnotations(args, syn)
 
+
+def _create_wiki_description_if_necessary(args, entity, syn):
+    """
+    store the description in a Wiki
+    """
+    if args.description or args.descriptionFile:
+        syn.store(Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
+
+
+def _descriptionFile_arg_check(args):
+    """
+    checks that descriptionFile(if specified) is a valid file path
+    """
+    if args.descriptionFile:
+        if not os.path.isfile(args.descriptionFile):
+            raise ValueError('The specified descriptionFile path is not a file or does not exist')
 
 def move(args, syn):
     """Moves an entity specified by args.id to args.parentId"""
@@ -252,11 +269,10 @@ def cat(args, syn):
         ## in any other case."
         pass
     entity = syn.get(args.id, version=args.version)
-    if 'files' in entity:
-        for filepath in entity['files']:
-            with open(os.path.join(entity['cacheDir'], filepath)) as inputfile:
-                for line in inputfile:
-                    sys.stdout.write(line)
+    if 'path' in entity:
+        with open(entity.path) as inputfile:
+            for line in inputfile:
+                sys.stdout.write(line)
 
 
 def ls(args, syn):
@@ -287,11 +303,15 @@ def delete(args, syn):
 
 
 def create(args, syn):
+    _descriptionFile_arg_check(args)
+
     entity={'name': args.name,
             'parentId': args.parentid,
-            'description':args.description,
             'concreteType': 'org.sagebionetworks.repo.model.%s' %args.type}
     entity=syn.createEntity(entity)
+
+    _create_wiki_description_if_necessary(args, entity, syn)
+
     print('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
 
 
@@ -510,8 +530,11 @@ def build_parser():
 
     parser_store.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
-    parser_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
+    description_group_store = parser_store.add_mutually_exclusive_group()
+    description_group_store.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
+    description_group_store.add_argument('--descriptionFile', '-descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
+                               help='Path to a markdown file containing description of project/folder')
     parser_store.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
             help=USED_HELP)
     parser_store.add_argument('--executed', '-executed', metavar='target', type=str, nargs='*',
@@ -542,8 +565,11 @@ def build_parser():
 
     parser_add.add_argument('--name', '-name', metavar='NAME', type=str, required=False,
             help='Name of data object in Synapse')
-    parser_add.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
+    description_group_add = parser_add.add_mutually_exclusive_group()
+    description_group_add.add_argument('--description', '-description', metavar='DESCRIPTION', type=str,
             help='Description of data object in Synapse.')
+    description_group_add.add_argument('--descriptionFile', '-descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
+                               help='Path to a markdown file containing description of project/folder')
     parser_add.add_argument('-type', type=str, default='File', help=argparse.SUPPRESS)
     parser_add.add_argument('--used', '-used', metavar='target', type=str, nargs='*',
             help=USED_HELP)
@@ -733,8 +759,11 @@ def build_parser():
             help='Synapse ID of project or folder where to place folder [not used with project]')
     parser_create.add_argument('-name', '--name', metavar='NAME', type=str, required=True,
             help='Name of folder/project.')
-    parser_create.add_argument('-description', '--description', metavar='DESCRIPTION', type=str,
+    description_group_create = parser_create.add_mutually_exclusive_group()
+    description_group_create.add_argument('-description', '--description', metavar='DESCRIPTION', type=str,
             help='Description of project/folder')
+    description_group_create.add_argument('-descriptionFile', '--descriptionFile', metavar='DESCRIPTION_FILE_PATH', type=str,
+                               help='Path to a markdown file containing description of project/folder')
     parser_create.add_argument('type', type=str,
             help='Type of object to create in synapse one of {Project, Folder}')
     parser_create.set_defaults(func=create)

@@ -157,7 +157,7 @@ import synapseclient.utils as utils
 from synapseclient.utils import id_of, itersubclasses
 from synapseclient.exceptions import *
 import os
-
+import inspect
 
 class Versionable(object):
     """An entity for which Synapse will store a version history."""
@@ -398,29 +398,39 @@ class Entity(collections.MutableMapping):
 
         return key in self.properties or key in self.annotations
 
+
+    def _write_kvps(self, f, dictionary, key_filter=None, key_aliases=None):
+        for key in sorted(dictionary.keys()):
+            if (not key_filter) or key_filter(key):
+                f.write('  ')
+                f.write(str(key) if not key_aliases else key_aliases[key])
+                f.write('=')
+                f.write(str(dictionary[key]))
+                f.write('\n')
+
+
     def __str__(self):
         f = StringIO()
 
         f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'), self['id'] if 'id' in self else '-',))
 
-        def write_kvps(dictionary, key_filter=None):
-            for key in sorted(dictionary.keys()):
-                if (not key_filter) or key_filter(key):
-                    f.write('  ')
-                    f.write(str(key))
-                    f.write('=')
-                    f.write(str(dictionary[key]))
-                    f.write('\n')
-
-        write_kvps(self.__dict__, lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))
+        self._str_localstate(f)
 
         f.write('properties:\n')
-        write_kvps(self.properties)
+        self._write_kvps(f, self.properties)
 
         f.write('annotations:\n')
-        write_kvps(self.annotations)
+        self._write_kvps(f, self.annotations)
 
         return f.getvalue()
+
+    def _str_localstate(self, f): # type: (StringIO) -> None
+        """
+        helper method for writing the string representation of the local state to a StringIO object
+        :param f: a StringIO object to which the local state string will be written
+        """
+        self._write_kvps(f, self.__dict__,
+                         lambda key: not (key in ['properties', 'annotations'] or key.startswith('__')))
 
     def __repr__(self):
         """Returns an eval-able representation of the Entity."""
@@ -531,6 +541,7 @@ class File(Entity, Versionable):
     _file_handle_keys = ["createdOn", "id", "concreteType", "contentSize", "createdBy", "etag", "fileName", "contentType", "contentMd5", "storageLocationId", 'externalURL']
     #Used for backwards compatability. The keys found below used to located in the entity's local_state (i.e. __dict__).
     _file_handle_aliases = {'md5': 'contentMd5', 'externalURL':'externalURL', 'fileSize':'contentSize', 'contentType': 'contentType'}
+    _file_handle_aliases_inverse = {v:k for k,v in _file_handle_aliases.items()}
 
     _property_keys = Entity._property_keys + Versionable._property_keys + ['dataFileHandleId']
     _local_keys = Entity._local_keys + ['path', 'cacheDir', 'files', 'synapseStore', '_file_handle']
@@ -541,8 +552,6 @@ class File(Entity, Versionable):
                  annotations=None, local_state=None, **kwargs):
         if path and 'name' not in kwargs:
             kwargs['name'] = utils.guess_file_name(path)
-        if path and 'dataFileHandleId' in kwargs:
-            raise ValueError('Please only specify path or dataFileHandleId')
         self.__dict__['path'] = path
         if path:
             cacheDir, basename = os.path.split(path)
@@ -571,6 +580,10 @@ class File(Entity, Versionable):
         fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
         self.__dict__['_file_handle'] = fh_dict
 
+        if file_handle_update_dict is not None and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
+                and utils.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
+            self.__dict__['synapseStore'] = False
+
         #initialize all nonexistent keys to have value of None
         for key in self.__class__._file_handle_keys:
             if key not in fh_dict:
@@ -583,6 +596,14 @@ class File(Entity, Versionable):
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
+            expand_and_convert_to_URL = lambda path: utils.as_url(os.path.expandvars(os.path.expanduser(path)))
+            #hacky solution to allowing immediate switching into a ExternalFileHandle pointing to the current path
+            if key == 'synapseStore' and value == False and self['synapseStore'] == True and utils.caller_module_name(inspect.currentframe()) != 'client': #yes, there is boolean zen but I feel like it is easier to read/understand this way
+                self['externalURL'] = expand_and_convert_to_URL(self['path'])
+
+            #hacky solution because we historically allowed modifying 'path' to indicate wanting to change to a new ExternalFileHandle
+            if key == 'path' and not self['synapseStore'] and utils.caller_module_name(inspect.currentframe()) != 'client': #don't change exernalURL if it's just the synapseclient setting metadata after a function call such as syn.get()
+                self['externalURL'] = expand_and_convert_to_URL(value)
             super(File, self).__setitem__(key,value)
 
 
@@ -592,12 +613,17 @@ class File(Entity, Versionable):
         else:
             return super(File, self).__getitem__(item)
 
+    def _str_localstate(self, f):
+        self._write_kvps(f, self._file_handle, lambda key: key in ['externalURL', 'contentMd5', 'contentSize', 'contentType'], self._file_handle_aliases_inverse)
+        self._write_kvps(f, self.__dict__, lambda key: not (key in ['properties', 'annotations', '_file_handle'] or key.startswith('__')))
+
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
 _entity_type_to_class = {}
 for cls in itersubclasses(Entity):
     _entity_type_to_class[cls._synapse_entity_type] = cls
 
+_entity_types = ["project","folder","file","table","link","entityview","dockerrepo"]
 
 def split_entity_namespaces(entity):
     """
@@ -675,6 +701,8 @@ def is_container(entity):
     """Test if an entity is a container (ie, a Project or a Folder)"""
     if 'concreteType' in entity:
         concreteType = entity['concreteType']
+    elif 'type' in entity:
+        concreteType = entity['type']
     elif isinstance(entity, collections.Mapping):
         prefix = utils.extract_prefix(entity.keys())
         if prefix+'concreteType' in entity:
