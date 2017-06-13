@@ -592,9 +592,10 @@ class EntityViewSchema(SchemaBase):
         self.add_default_columns = add_default_columns and not (properties or local_state) #allowing annotations because user might want to update annotations all at once
 
         #set default values after constructor so we don't overwrite the values defined in properties
-        if self.type == None:
+        #using .get() because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
+        if self.get('type') == None:
             self.type = 'file'
-        if self.scopeIds == None:
+        if self.get('scopeIds') == None:
             self.scopeIds = []
 
         #add the scopes last so that we can append the passed in scopes to those defined in properties
@@ -605,7 +606,7 @@ class EntityViewSchema(SchemaBase):
         """
         :param entities: a Project or Folder object or its ID, can also be a list of them
         """
-        if isinstance(list, entities):
+        if isinstance(entities, list):
             temp_list = [utils.id_of(entity) for entity in entities] #add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
             self.scopeIds.extend(temp_list)
         else:
