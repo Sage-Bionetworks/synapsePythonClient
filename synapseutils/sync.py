@@ -2,6 +2,7 @@ import errno
 from synapseclient.entity import is_container
 from synapseclient.utils import id_of
 import os
+from sys import stderr
 
 
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles = None, followLink=False):
@@ -40,11 +41,13 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     """
     if allFiles is None: allFiles = list()
     id = id_of(entity)
-    results = syn.chunkedQuery("select id, name, nodeType from entity where entity.parentId=='%s'" %id)
+    results = syn.getChildren(id)
+    zero_results = True
     for result in results:
+        zero_results = False
         if is_container(result):
             if path is not None:  #If we are downloading outside cache create directory.
-                new_path = os.path.join(path, result['entity.name'])
+                new_path = os.path.join(path, result['name'])
                 try:
                     os.mkdir(new_path)
                 except OSError as err:
@@ -53,8 +56,13 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                 print('making dir', new_path)
             else:
                 new_path = None
-            syncFromSynapse(syn, result['entity.id'], new_path, ifcollision, allFiles)
+            syncFromSynapse(syn, result['id'], new_path, ifcollision, allFiles)
         else:
-            ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
+            ent = syn.get(result['id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
             allFiles.append(ent)
+    if zero_results:
+        #a http error would be raised if the synapse Id was not valid (404) or no permission (403) so at this point the entity should be get-able
+        stderr.write("The synapse id provided is not a container, attempting to get the entity anyways")
+        ent = syn.get(id, downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
+        allFiles.append(ent)
     return allFiles
