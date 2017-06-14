@@ -618,6 +618,30 @@ class File(Entity, Versionable):
         self._write_kvps(f, self.__dict__, lambda key: not (key in ['properties', 'annotations', '_file_handle'] or key.startswith('__')))
 
 
+class DockerRepository(Entity):
+    """
+    A Docker repository is a lightweight virtual machine image.
+    
+    NOTE: store()-ing a DockerRepository created in the Python client will always result in it being treated as a 
+    reference to an external Docker repository that is not managed by synapse. 
+    To upload a docker image that is managed by Synapse please use the official Docker client and read http://docs.synapse.org/articles/docker.html for instructions on uploading a Docker Image to Synapse
+    
+    :param repositoryName: the name of the Docker Repository. Usually in the format: [host[:port]/]path. If host is not set, it will default to that of DockerHub. port can only be specified if the host is also specified
+    
+    """
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.docker.DockerRepository'
+
+    _property_keys = Entity._property_keys + ['repositoryName']
+
+    def __init__(self, repositoryName=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
+        if repositoryName:
+            kwargs['repositoryName'] = repositoryName
+        super(DockerRepository, self).__init__(properties=properties,
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        if 'repositoryName' not in self:
+            raise SynapseMalformedEntityError("DockerRepository must have a repositoryName.")
+
+
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
 _entity_type_to_class = {}
 for cls in itersubclasses(Entity):
