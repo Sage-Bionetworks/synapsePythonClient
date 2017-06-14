@@ -567,14 +567,13 @@ class EntityViewSchema(SchemaBase):
     :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
     :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
-    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True. The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
+    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True. 
+    The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
     ::
 
-        cols = [Column(name='columnName', columnType='STRING'),
-                Column(name='anotherColumnName', columnType='INTEGER')]
-        project_or_folder = syn.get("syn123")
-        
-        schema = syn.store(EntityViewSchema(name='MyTable', columns=cols, parent=project, scopes=[project_or_folder_id, other_project_or_folder_id], view_type='file'))
+      
+        project_or_folder = syn.get("syn123")  
+        schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'], view_type='file'))
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
