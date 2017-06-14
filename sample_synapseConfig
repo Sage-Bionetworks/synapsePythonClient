@@ -1,0 +1,42 @@
+## Used for logging in to Synapse
+## you may also specify an apikey instead of password. If both password and apikey are specified, the apikey is ignored
+#[authentication]
+#username = <username>
+#password = <password>
+#apikey = <apikey>
+
+
+
+## If you have projects with file stored on SFTP servers, you can specify your credentials here
+## You can specify multiple sftp credentials
+#[sftp://some.sftp.url.com]
+#username= <sftpuser>
+#password= <sftppwd>
+#[sftp://a.different.sftp.url.com]
+#username= <sftpuser>
+#password= <sftppwd>
+
+## your downloaded files are cached to avoid repeat downloads of the same file. change 'location' to use a different folder on your computer as the cache location
+#[cache]
+#location = ~/.synapseCache
+
+
+###########################
+# Advanced Configurations #
+###########################
+
+## If this section is specified, then the synapseclient will print out debug information
+#[debug]
+
+## Some integration tests require a second Synapse user. This should only be necessary for developers
+#[test-authentication]
+#username = <username>
+#password = <password>
+#principalid = <password>
+
+## Configuring these will cause the Python client to use these as Synapse service endpoints instead of the default prod endpoints.
+#[endpoints]
+#repoEndpoint=<repoEndpoint>
+#authEndpoint=<authEndpoint>
+#fileHandleEndpoint=<fileHandleEndpoint>
+#portalEndpoint=<portalEndpoint>
