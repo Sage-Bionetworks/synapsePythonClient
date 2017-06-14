@@ -33,6 +33,7 @@ def notifyMe(func, syn, messageSubject='', retries=0):
             try:
                 output = func(*args, **kwargs)
             except Exception as e:
+                print(traceback.format_exc())
                 syn.sendMessage([destination], messageSubject, 
                                 messageBody = ('Encountered a temporary Failure during upload.  '
                                                'Will retry %i more times. \n\n Error message was:\n%s\n\n%s'

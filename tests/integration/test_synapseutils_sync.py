@@ -32,17 +32,17 @@ def setup(module):
     #Create testfiles for upload
     module.f1 = utils.make_bogus_data_file(n=10)
     module.f2 = utils.make_bogus_data_file(n=10)
-    module.f3 = utils.make_bogus_data_file(n=10)
-    schedule_for_cleanup(f1)
-    schedule_for_cleanup(f2)
-    schedule_for_cleanup(f3)
+    f3 = 'https://www.synapse.org'
 
-    module.header = 'path	parent	used	executed	activityName	foo\n'
-    module.row1 =   '%s	%s	%s	"%s;https://www.example.com"	provName	bar\n'  %(f1, project.id, f2, f3)
-    module.row2 =   '%s	%s	"syn12"	"syn123;https://www.example.com"	provName2	bar\n' %(f2, folder.id)
-    module.row3 =   '%s	%s	"syn12"		prov2	baz\n' %(f3, folder.id)
-    module.row4 =   '%s	%s	%s	%s	act	2\n'  %(f3, project.id, f1, f3)  #Circular reference
-    module.row5 =   '%s	syn12				\n'  %(f3)  #Wrong parent
+    schedule_for_cleanup(module.f1)
+    schedule_for_cleanup(module.f2)
+
+    module.header = 'path	parent	used	executed	activityName	synapseStore	foo\n'
+    module.row1 =   '%s	%s	%s	"%s;https://www.example.com"	provName		bar\n'  %(f1, project.id, f2, f3)
+    module.row2 =   '%s	%s	"syn12"	"syn123;https://www.example.com"	provName2		bar\n' %(f2, folder.id)
+    module.row3 =   '%s	%s	"syn12"		prov2	False	baz\n' %(f3, folder.id)
+    module.row4 =   '%s	%s	%s		act		2\n'  %(f3, project.id, f1)  #Circular reference
+    module.row5 =   '%s	syn12					\n'  %(f3)  #Wrong parent
 
 
 def _makeManifest(content):
@@ -51,6 +51,7 @@ def _makeManifest(content):
         filepath = utils.normalize_path(f.name)
     schedule_for_cleanup(filepath)        
     return filepath
+
 
 def test_readManifest():
     """Creates multiple manifests and verifies that they validate correctly"""
@@ -75,14 +76,13 @@ def test_syncToSynapse():
     import pandas as pd
 
     #Test upload of accurate manifest
-    manifest = _makeManifest(header+row1+row2+row3) 
-    synapseutils.syncToSynapse(syn, manifest, sendMessages=False)
+    manifest = _makeManifest(header+row1+row2+row3)
+    synapseutils.syncToSynapse(syn, manifest, sendMessages=False, retries=2)
 
     #Download using syncFromSynapse
     tmpdir = tempfile.mkdtemp()
     schedule_for_cleanup(tmpdir)
     entities = synapseutils.syncFromSynapse(syn, project, path=tmpdir)
-
     
     orig_df = pd.read_csv(manifest, sep='\t')
     orig_df.index = [os.path.basename(p) for p in orig_df.path]

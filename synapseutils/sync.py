@@ -131,12 +131,11 @@ def generateManifest(syn, allFiles, filename):
 def _sortAndFixProvenance(syn, df):
     df = df.set_index('path')
     uploadOrder = {}
-
     def _checkProvenace(item, path):
         """Determines if provenance item is valid"""
         if item is None:
             return item
-        if os.path.isfile(item):
+        if os.path.isfile(os.path.expandvars(os.path.expanduser(item))):
             if item not in df.index: #If it is a file and it is not being uploaded
                 try:
                     bundle = syn._getFromFile(item)
@@ -144,6 +143,8 @@ def _sortAndFixProvenance(syn, df):
                 except SynapseFileNotFoundError:
                     SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
                                             "Specifically %s is not being uploaded and is not in Synapse." % (path, item)))
+            #Add full path
+            item = os.path.expandvars(os.path.expanduser(item))
         elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
             raise SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
                                           "Specifically %s, is neither a valid URL or synapseId.") %(path, item))
@@ -152,10 +153,10 @@ def _sortAndFixProvenance(syn, df):
     for path, row in df.iterrows():
         used = row['used'].split(';')  if ('used' in row) and (row['used'].strip()!='') else []   #Get None or split if string
         executed = row['executed'].split(';') if ('executed' in row) and (row['executed'].strip()!='') else [] #Get None or split if string
-        row['used'] =  [_checkProvenace(item, path) for item in used]
-        row['executed'] = [_checkProvenace(item, path) for item in executed]
+        df.set_value(path, 'used', [_checkProvenace(item, path) for item in used])
+        df.set_value(path, 'executed',[_checkProvenace(item, path) for item in executed])
+        uploadOrder[path] = df.loc[path, 'used'] + df.loc[path, 'executed']
 
-        uploadOrder[path] = row['used'] + row['executed']
     uploadOrder = utils.topolgical_sort(uploadOrder)
     df = df.reindex([l[0] for l in uploadOrder])
     return df.reset_index()
@@ -180,6 +181,9 @@ def readManifestFile(syn, manifest_file):
     sys.stdout.write('Validation and upload of: %s\n' %manifest_file)
     #Read manifest file into pandas dataframe
     df = pd.read_csv(manifest_file, sep='\t')
+    if 'synapseStore' in df:
+        df.synapseStore[df['synapseStore'].isnull()]=True
+        df.synapseStore = df.synapseStore.astype(bool)
     df = df.fillna('')
 
     sys.stdout.write('Validating columns of manifest...')
@@ -195,9 +199,14 @@ def readManifestFile(syn, manifest_file):
         sys.stdout.write('.')
         if is_url(f):
             continue
-        if not os.path.isfile(f):
+        if not os.path.isfile(os.path.expandvars(os.path.expanduser(f))):
             print('\nOne of the files you are trying to upload does not exist.')
             raise IOError('The file %s is not available' %f)
+    sys.stdout.write('OK\n')
+
+    sys.stdout.write('Validating that all files are unique...')
+    if (len(df.path)!=len(set(df.path))):
+        raise ValueError("All rows in manifest must contain a unique file to upload")
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating provenance...')
@@ -219,7 +228,7 @@ def readManifestFile(syn, manifest_file):
     return df
 
 
-def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True):
+def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=MAX_RETRIES):
     """Synchronizes files specified in the manifest file to Synapse
 
     :param syn:    A synapse object as obtained with syn = synapseclient.login()
@@ -304,8 +313,7 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True):
     =====             =======     =======   =======   =======                     =======
     """
     df = readManifestFile(syn, manifest_file)
-
-    sizes = [os.stat(f).st_size for f in df.path]
+    sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
     #Write output on what is getting pushed and estimated times - send out message.
     sys.stdout.write('='*50+'\n')
     sys.stdout.write('We are about to upload %i files with a total size of %s.\n ' %(len(df), utils.humanizeBytes(sum(sizes))))
@@ -316,7 +324,7 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True):
 
     sys.stdout.write('Starting upload...\n')
     if sendMessages:
-        upload = notifyMe(_manifest_upload, syn, 'Upload of %s' %manifest_file, retries=MAX_RETRIES)
+        upload = notifyMe(_manifest_upload, syn, 'Upload of %s' %manifest_file, retries=retries)
         upload(syn, df)
     else:
         _manifest_upload(syn,df)
