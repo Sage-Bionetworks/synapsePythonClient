@@ -157,7 +157,7 @@ import synapseclient.utils as utils
 from synapseclient.utils import id_of, itersubclasses
 from synapseclient.exceptions import *
 import os
-
+import inspect
 
 class Versionable(object):
     """An entity for which Synapse will store a version history."""
@@ -580,6 +580,10 @@ class File(Entity, Versionable):
         fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
         self.__dict__['_file_handle'] = fh_dict
 
+        if file_handle_update_dict is not None and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
+                and utils.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
+            self.__dict__['synapseStore'] = False
+
         #initialize all nonexistent keys to have value of None
         for key in self.__class__._file_handle_keys:
             if key not in fh_dict:
@@ -592,6 +596,14 @@ class File(Entity, Versionable):
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
+            expand_and_convert_to_URL = lambda path: utils.as_url(os.path.expandvars(os.path.expanduser(path)))
+            #hacky solution to allowing immediate switching into a ExternalFileHandle pointing to the current path
+            if key == 'synapseStore' and value == False and self['synapseStore'] == True and utils.caller_module_name(inspect.currentframe()) != 'client': #yes, there is boolean zen but I feel like it is easier to read/understand this way
+                self['externalURL'] = expand_and_convert_to_URL(self['path'])
+
+            #hacky solution because we historically allowed modifying 'path' to indicate wanting to change to a new ExternalFileHandle
+            if key == 'path' and not self['synapseStore'] and utils.caller_module_name(inspect.currentframe()) != 'client': #don't change exernalURL if it's just the synapseclient setting metadata after a function call such as syn.get()
+                self['externalURL'] = expand_and_convert_to_URL(value)
             super(File, self).__setitem__(key,value)
 
 
@@ -606,11 +618,36 @@ class File(Entity, Versionable):
         self._write_kvps(f, self.__dict__, lambda key: not (key in ['properties', 'annotations', '_file_handle'] or key.startswith('__')))
 
 
+class DockerRepository(Entity):
+    """
+    A Docker repository is a lightweight virtual machine image.
+    
+    NOTE: store()-ing a DockerRepository created in the Python client will always result in it being treated as a 
+    reference to an external Docker repository that is not managed by synapse. 
+    To upload a docker image that is managed by Synapse please use the official Docker client and read http://docs.synapse.org/articles/docker.html for instructions on uploading a Docker Image to Synapse
+    
+    :param repositoryName: the name of the Docker Repository. Usually in the format: [host[:port]/]path. If host is not set, it will default to that of DockerHub. port can only be specified if the host is also specified
+    
+    """
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.docker.DockerRepository'
+
+    _property_keys = Entity._property_keys + ['repositoryName']
+
+    def __init__(self, repositoryName=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
+        if repositoryName:
+            kwargs['repositoryName'] = repositoryName
+        super(DockerRepository, self).__init__(properties=properties,
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        if 'repositoryName' not in self:
+            raise SynapseMalformedEntityError("DockerRepository must have a repositoryName.")
+
+
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
 _entity_type_to_class = {}
 for cls in itersubclasses(Entity):
     _entity_type_to_class[cls._synapse_entity_type] = cls
 
+_entity_types = ["project","folder","file","table","link","entityview","dockerrepo"]
 
 def split_entity_namespaces(entity):
     """
@@ -688,6 +725,8 @@ def is_container(entity):
     """Test if an entity is a container (ie, a Project or a Folder)"""
     if 'concreteType' in entity:
         concreteType = entity['concreteType']
+    elif 'type' in entity:
+        concreteType = entity['type']
     elif isinstance(entity, collections.Mapping):
         prefix = utils.extract_prefix(entity.keys())
         if prefix+'concreteType' in entity:

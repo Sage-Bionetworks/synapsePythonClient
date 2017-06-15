@@ -7,7 +7,7 @@ from builtins import str
 
 import uuid, filecmp, os, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_greater, assert_less
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_greater, assert_less
 from nose import SkipTest
 from mock import patch
 
@@ -17,10 +17,11 @@ except ImportError:
     import ConfigParser as configparser
 
 import synapseclient
-from synapseclient import Activity, Project, Folder, File, Link
+from synapseclient import Activity, Project, Folder, File, Link, DockerRepository
 from synapseclient.exceptions import *
 
 import integration
+from nose.tools import assert_false, assert_equals
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
@@ -548,6 +549,14 @@ def test_store_file_handle_update_metadata():
     assert_equal([os.path.basename(replacement_file_path)], new_entity.files)
 
 
+def test_store_DockerRepository():
+    repo_name = "some/repository/path"
+    docker_repo = syn.store(DockerRepository(repo_name,parent=project))
+    assert_is_instance(docker_repo, DockerRepository)
+    assert_false(docker_repo.isManaged)
+    assert_equals(repo_name, docker_repo.repositoryName)
+
+
 def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
     if not (other_user.get('username') and other_user.get('password')):
         raise SkipTest("Test was skipped because an additional user is required for this test. Please add a username, password, and pricipalId under [test-authentication] in the .synapseConfig file if oyu wish to execute this test")
@@ -566,4 +575,58 @@ def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
         entity_no_download = other_syn.get(entity['id'])
         mocked_stderr.write.assert_called_once()
         assert_is_none(entity_no_download.path)
+
+
+def test_store__changing_externalURL_by_changing_path():
+    url ='https://www.synapse.org/Portal/clear.cache.gif'
+    ext = syn.store(synapseclient.File(url, name="test",parent=project, synapseStore=False))
+
+    #perform a syn.get so the filename changes
+    ext = syn.get(ext)
+
+    #create a temp file
+    temp_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(temp_path)
+
+    ext.synapseStore = False
+    ext.path = temp_path
+    ext = syn.store(ext)
+
+    #do a get to make sure filehandle has been updated correctly
+    ext = syn.get(ext.id, downloadFile=True)
+
+    assert_not_equal(ext.externalURL, url)
+    assert_equal(utils.normalize_path(temp_path), utils.file_url_to_path(ext.externalURL))
+    assert_equal(temp_path, ext.path)
+    assert_equal(False, ext.synapseStore)
+
+
+def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
+    #create a temp file
+    temp_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(temp_path)
+
+    ext = syn.store(synapseclient.File(temp_path,parent=project, synapseStore=True))
+    ext = syn.get(ext)
+    assert_equal("org.sagebionetworks.repo.model.file.S3FileHandle", ext._file_handle.concreteType)
+
+    ext.synapseStore = False
+    ext = syn.store(ext)
+
+    #do a get to make sure filehandle has been updated correctly
+    ext = syn.get(ext.id, downloadFile=True)
+    assert_equal("org.sagebionetworks.repo.model.file.ExternalFileHandle", ext._file_handle.concreteType)
+    assert_equal(utils.as_url(temp_path), ext.externalURL)
+    assert_equal(False, ext.synapseStore)
+
+    #swap back to synapse storage
+    ext.synapseStore=True
+    ext = syn.store(ext)
+    #do a get to make sure filehandle has been updated correctly
+    ext = syn.get(ext.id, downloadFile=True)
+    assert_equal("org.sagebionetworks.repo.model.file.S3FileHandle", ext._file_handle.concreteType)
+    assert_equal(None, ext.externalURL)
+    assert_equal(True, ext.synapseStore)
+
+
 

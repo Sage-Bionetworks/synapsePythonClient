@@ -1,5 +1,5 @@
 import os, json, tempfile, base64, sys
-from mock import patch, mock_open
+from mock import patch, mock_open, call
 from builtins import str
 
 import uuid
@@ -75,13 +75,13 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
         print("removing cacheMap file: ", cacheMap)
         os.remove(cacheMap)
 
-    def _downloadFileHandle(url, path, fileHandle, retries=5):
+    def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5):
         print("mock downloading file to:", path)
         ## touch file at path
         with open(path, 'a'):
             os.utime(path, None)
         dest_dir, filename = os.path.split(path)
-        syn.cache.add(fileHandle['id'], path)
+        syn.cache.add(fileHandle, path)
         return path
 
     def _getFileHandleDownload(fileHandleId,  objectId, objectType='FileHandle'):
@@ -104,9 +104,9 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
 
     assert_equal(e.name , bundle["entity"]["name"])
     assert_equal(e.parentId , bundle["entity"]["parentId"])
-    assert_equal(os.path.abspath(os.path.dirname(e.path)), temp_dir1)
+    assert_equal(utils.normalize_path(os.path.abspath(os.path.dirname(e.path))), utils.normalize_path(temp_dir1))
     assert_equal(bundle["fileHandles"][0]["fileName"] , os.path.basename(e.path))
-    assert_equal(os.path.abspath(e.path), os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"]))
+    assert_equal(utils.normalize_path(os.path.abspath(e.path)), utils.normalize_path(os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])))
 
     # 2. ----------------------------------------------------------------------
     # get without specifying downloadLocation
@@ -244,7 +244,7 @@ def test_readSessionCache_good_file_data():
 def test__uploadExternallyStoringProjects_external_user(mock_upload_destination):
     # setup
     expected_storage_location_id = "1234567"
-    expected_local_state = {'_file_handle':{}}
+    expected_local_state = {'_file_handle':{}, 'synapseStore':True}
     expected_path = "~/fake/path/file.txt"
     mock_upload_destination.return_value = {'storageLocationId' : expected_storage_location_id,
                                             'concreteType' : concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
@@ -252,7 +252,7 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     test_file = File(expected_path, parent="syn12345")
 
     # method under test
-    path, local_state,  storage_location_id = syn._Synapse__uploadExternallyStoringProjects(test_file, local_state={'_file_handle':{}}) #dotn care about localstate for this test
+    path, local_state,  storage_location_id = syn._Synapse__uploadExternallyStoringProjects(test_file, local_state={'_file_handle':{}, 'synapseStore':True}) #dotn care about filehandle for this test
 
     #test
     mock_upload_destination.assert_called_once_with(test_file)
@@ -324,3 +324,41 @@ def test_findEntityIdByNameAndParent__404_error_no_result():
     fake_response = DictObject({"status_code": 404})
     with patch.object(syn, "restPOST", side_effect=SynapseHTTPError(response=fake_response)) as mocked_POST:
         assert_is_none(syn._findEntityIdByNameAndParent(entity_name))
+
+
+def test_getChildren__nextPageToken():
+    #setup
+    nextPageToken = "T O K E N"
+    parent_project_id_int = 42690
+    first_page = {'versionLabel': '1',
+                   'name': 'firstPageResult',
+                   'versionNumber': 1,
+                   'benefactorId': parent_project_id_int,
+                   'type': 'org.sagebionetworks.repo.model.FileEntity',
+                   'id': 'syn123'}
+    second_page = {'versionLabel': '1',
+                    'name': 'secondPageResult',
+                    'versionNumber': 1,
+                    'benefactorId': parent_project_id_int,
+                    'type': 'org.sagebionetworks.repo.model.Folder',
+                    'id': 'syn456'}
+    mock_responses = [ {'page': [first_page], 'nextPageToken': nextPageToken},
+                       {'page': [second_page], 'nextPageToken': None}]
+
+    with patch.object(syn, "restPOST", side_effect=mock_responses) as mocked_POST:
+        #method under test
+        children_generator = syn.getChildren('syn'+str(parent_project_id_int))
+
+        #assert check the results of the generator
+        result = next(children_generator)
+        assert_equal(first_page, result)
+        result = next(children_generator)
+        assert_equal(second_page, result)
+        assert_raises(StopIteration, next, children_generator)
+
+        #check that the correct POST requests were sent
+        #genrates JSOn for the expected request body
+        expected_request_JSON = lambda token: json.dumps({'parentId':'syn'+str(parent_project_id_int), 'includeTypes':["folder","file","table","link","entityview","dockerrepo"], 'sortBy':'NAME','sortDirection':'ASC', 'nextPageToken':token})
+        expected_POST_url = '/entity/children'
+        mocked_POST.assert_has_calls([call(expected_POST_url, body=expected_request_JSON(None)), call(expected_POST_url, body=expected_request_JSON(nextPageToken))])
+

@@ -18,17 +18,14 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_raises
+from nose.tools import assert_equals, assert_less
 from datetime import datetime
 from mock import patch
 
 import synapseclient
-import synapseclient.client as client
-import synapseclient.utils as utils
 from synapseclient.exceptions import *
-from synapseclient import Project, File, Folder, Schema
-from synapseclient.table import Column, RowSet, Row, cast_values, as_table_columns, Table
-import synapseclient.exceptions as exceptions
+from synapseclient import File, Folder, Schema, EntityViewSchema
+from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
 
 import integration
 from integration import schedule_for_cleanup
@@ -63,28 +60,19 @@ def test_create_and_update_file_view():
     # Add new columns for the annotations on this file and get their IDs
     my_added_cols = [syn.store(synapseclient.Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
     my_added_cols_ids = [c['id'] for c in my_added_cols]
-
-    # Required IDs for Synapse properties
-    minimal_view_schema_column_ids = [x['id'] for x in syn.restGET("/column/tableview/defaults/file")['list']]
-    
+    view_default_ids = [c['id'] for c in syn._get_default_entity_view_columns('file')]
+    col_ids = my_added_cols_ids + view_default_ids
     scopeIds = [folder['id'].lstrip('syn')]
 
-    column_ids = minimal_view_schema_column_ids + my_added_cols_ids
     ## Create an empty entity-view with defined scope as folder
-    body = {'columnIds': column_ids,
-            'concreteType': 'org.sagebionetworks.repo.model.table.EntityView',
-            'entityType': 'org.sagebionetworks.repo.model.table.EntityView',
-            'name': str(uuid.uuid4()),
-            'parentId': project.id,
-            'scopeIds': scopeIds,
-            'type': 'file'}
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=True, type='file', columns=my_added_cols, parent=project)
 
-    entity_view = syn.restPOST(uri='/entity', body=json.dumps(body))
-    entity_view = syn.get(entity_view)
+    entity_view = syn.store(entity_view)
     schedule_for_cleanup(entity_view)
 
-    assert set(scopeIds) == set(entity_view.scopeIds)
-    assert set(column_ids) == set(entity_view.columnIds)
+    assert_equals(set(scopeIds), set(entity_view.scopeIds))
+    assert_equals(set(col_ids), set(entity_view.columnIds))
+    assert_equals('file', entity_view.type)
 
     ## get the current view-schema
     view = syn.tableQuery("select * from %s" % entity_view.id)
@@ -100,8 +88,8 @@ def test_create_and_update_file_view():
     # Check that the values are the same as what was set
     # Both in the view and on the entity itself
     for k, v in file_annotations.items():
-        assert view_dict[0][k] == v, "%s != %s" % (view_dict[0][k], v)
-        assert updated_a_file.annotations[k][0] == v, "%s != %s" % (updated_a_file.annotations[k][0], v)
+        assert_equals(view_dict[0][k], v)
+        assert_equals(updated_a_file.annotations[k][0], v)
 
     # Make a change to the view and store
     view_dict[0]['fileFormat'] = 'PNG'
@@ -117,13 +105,27 @@ def test_create_and_update_file_view():
         dw.writeheader()
         dw.writerows(view_dict)
         temp_file.flush()
-
     new_view = syn.store(synapseclient.Table(entity_view.id, temp_filename))
+    new_view_dict = list(csv.DictReader(io.open(temp_filename, encoding="utf-8", newline='')))
+    assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
+
+    #query for the change
+    query_timeout_seconds = 30
+    start_time = time.time()
+
     new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
     schedule_for_cleanup(new_view_results.filepath)
-
     new_view_dict = list(csv.DictReader(io.open(new_view_results.filepath, encoding="utf-8", newline='')))
-    assert new_view_dict[0]['fileFormat'] == 'PNG', "%s != PNG" % (new_view_dict[0]['fileFormat'], )
+    #query until change is seen.
+    while new_view_dict[0]['fileFormat'] != 'PNG':
+        #check timeout
+        assert_less(time.time() - start_time, query_timeout_seconds)
+        #query again
+        new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
+        new_view_dict = list(csv.DictReader(io.open(new_view_results.filepath, encoding="utf-8", newline='')))
+    #paranoid check
+    assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
+
 
 def test_rowset_tables():
 
