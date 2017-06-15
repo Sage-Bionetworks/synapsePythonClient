@@ -858,7 +858,7 @@ def topolgical_sort(graph):
         # not, we need to bail out as the graph therefore can't be
         # sorted.
         acyclic = False
-        for node, edges in graph_unsorted.items():
+        for node, edges in list(graph_unsorted.items()):
             for edge in edges:
                 if edge in graph_unsorted:
                     break
