@@ -16,6 +16,7 @@ import os
 import sys
 import shutil 
 import six
+import tempfile
 
 from synapseclient import Entity, Project, Folder, File, Evaluation
 import synapseclient
@@ -43,6 +44,11 @@ def setup_module(module):
     project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project)
     module.project = project
+
+    #set the working directory to a temp directory
+    working_directory = tempfile.mkdtemp(prefix="someTestFolder")
+    schedule_for_cleanup(working_directory)
+    os.chdir(working_directory)
 
 
 def teardown_module(module):
