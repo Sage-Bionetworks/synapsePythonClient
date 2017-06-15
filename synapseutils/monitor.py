@@ -27,11 +27,13 @@ def notifyMe(func, syn, messageSubject='', retries=0):
     @functools.wraps(func)
     def with_retry_and_messaging(*args, **kwargs):
         attempt = 0
-        output = 'This is a temporary marker of not complete output'
         destination = syn.getUserProfile()['ownerId']
         while attempt<=retries:
             try:
                 output = func(*args, **kwargs)
+                syn.sendMessage([destination],  messageSubject,
+                                'Call to %s completed successfully!' %func.__name__)
+                return output
             except Exception as e:
                 print(traceback.format_exc())
                 syn.sendMessage([destination], messageSubject, 
@@ -39,11 +41,6 @@ def notifyMe(func, syn, messageSubject='', retries=0):
                                                'Will retry %i more times. \n\n Error message was:\n%s\n\n%s'
                                                %(retries-attempt, e, traceback.format_exc())))
                 attempt +=1
-            print(output)
-            if output != 'This is a temporary marker of not complete output':
-                syn.sendMessage([destination],  messageSubject,
-                                'Call to %s completed successfully!' %func.__name__)
-                return output
     return with_retry_and_messaging
 
 

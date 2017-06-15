@@ -54,7 +54,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     downloaded files)
 
     See also: 
-    - :py:func:`synapseutils.sync.syncFromSynapse`
+    - :py:func:`synapseutils.sync.syncToSynapse`
 
     Example::
     Download and print the paths of all downloaded files::
@@ -103,12 +103,8 @@ def generateManifest(syn, allFiles, filename):
     annotKeys = set()
     data = []
     for entity in allFiles:
-        row = {}
-        row['parent'] = entity['parentId']
-        row['path'] = entity.path
-        row['name'] = entity.name
-        row['synapseStore'] = entity.synapseStore
-        row['contentType'] = allFiles[0]['contentType']
+        row = {'parent': entity['parentId'], 'path': entity.path, 'name': entity.name,
+               'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
         row.update({key:val[0] for key, val in entity.annotations.items()})
         annotKeys.update(set(entity.annotations.keys()))
         try:
@@ -173,7 +169,7 @@ def readManifestFile(syn, manifest_file):
     :returns a pandas dataframe if the manifest is validated.
 
     See also for a description of the file format:
-    - :py:func:`synapseutils.sync.syncFromSynapse`
+    - :py:func:`synapseutils.sync.syncToSynapse`
     """
     table.test_import_pandas()
     import pandas as pd

@@ -611,7 +611,6 @@ class Synapse:
             webbrowser.open("%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId))
 
 
-
     def printEntity(self, entity, ensure_ascii=True):
         """Pretty prints an Entity."""
 

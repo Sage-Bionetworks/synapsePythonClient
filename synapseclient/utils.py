@@ -829,19 +829,19 @@ def _is_integer(x):
             return False
 
 
-def topolgical_sort(graph_unsorted):
+def topolgical_sort(graph):
     """Given a graph in the form of a dictionary returns a sorted list
 
     Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
     
-    :param graph_unsorted: a dictionary with values containing lists of keys referencing back into the dictionary
+    :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
 
     :returns: sorted list of items
     """
+    graph_unsorted = graph.copy()
     graph_sorted = []
     # Convert the unsorted graph into a hash table. This gives us
-    # constant-time lookup for checking if edges are unresolved, and
-    # for removing nodes from the unsorted graph.
+    # constant-time lookup for checking if edges are unresolved
 
     # Run until the unsorted graph is empty.
     while graph_unsorted:
@@ -868,7 +868,7 @@ def topolgical_sort(graph_unsorted):
                 graph_sorted.append((node, edges))
 
         if not acyclic:
-            # Uh oh, we've passed through all the unsorted nodes and
+            # We've passed through all the unsorted nodes and
             # weren't able to resolve any of them, which means there
             # are nodes with cyclic edges that will never be resolved,
             # so we bail out with an error.
