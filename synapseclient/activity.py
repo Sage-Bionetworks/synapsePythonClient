@@ -211,7 +211,6 @@ class Activity(dict):
                           {'reference':{'target':'syn100009', 'targetVersion':2}, 'wasExecuted':True},
                           'http://mydomain.com/my/awesome/data.RData'])
         """
-
         # -- A list of targets
         if isinstance(target, list):
             badargs = _get_any_bad_args(['targetVersion', 'url', 'name'], locals())
@@ -250,7 +249,6 @@ class Activity(dict):
             if targetVersion:
                 reference['targetVersionNumber'] = int(targetVersion)
             resource = {'reference':reference, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
-
         # -- URL parameter
         elif url:
             badargs = _get_any_bad_args(['target', 'targetVersion'], locals())
@@ -275,7 +273,7 @@ class Activity(dict):
                 if targetVersion and int(targetVersion)!=int(vals[1]):
                     raise ValueError('Two conflicting versions for %s were specified' %target)
                 targetVersion = int(vals[1])
-            reference = {'targetId':target}
+            reference = {'targetId':vals[0]}
             if targetVersion:
                 reference['targetVersionNumber'] = int(targetVersion)
             resource = {'reference':reference, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
