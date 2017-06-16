@@ -3218,6 +3218,9 @@ class Synapse:
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
+    @memoize
+    def _get_default_entity_view_columns(self, view_type):
+        return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
 
     ############################################################
     ##             CRUD for Entities (properties)             ##

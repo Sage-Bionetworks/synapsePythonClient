@@ -7,7 +7,7 @@ from builtins import str
 
 import uuid, filecmp, os, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_greater, assert_less
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_greater, assert_less
 from nose import SkipTest
 from mock import patch
 
@@ -17,10 +17,11 @@ except ImportError:
     import ConfigParser as configparser
 
 import synapseclient
-from synapseclient import Activity, Project, Folder, File, Link
+from synapseclient import Activity, Project, Folder, File, Link, DockerRepository
 from synapseclient.exceptions import *
 
 import integration
+from nose.tools import assert_false, assert_equals
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
@@ -546,6 +547,14 @@ def test_store_file_handle_update_metadata():
     assert_equal(replacement_file_path, new_entity.path)
     assert_equal(os.path.dirname(replacement_file_path), new_entity.cacheDir)
     assert_equal([os.path.basename(replacement_file_path)], new_entity.files)
+
+
+def test_store_DockerRepository():
+    repo_name = "some/repository/path"
+    docker_repo = syn.store(DockerRepository(repo_name,parent=project))
+    assert_is_instance(docker_repo, DockerRepository)
+    assert_false(docker_repo.isManaged)
+    assert_equals(repo_name, docker_repo.repositoryName)
 
 
 def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
