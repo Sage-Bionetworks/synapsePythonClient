@@ -139,6 +139,14 @@ def test_Entity():
     assert utils.equal_paths(link.path, path)
     assert link.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
 
+    newfolder = Folder('Testing Folder', parent=project)
+    newfolder = syn.store(newfolder)
+    link = Link(newfolder.id, parent = folder.id)
+    link = syn.store(link)
+    assert link['linksTo']['targetId'] == newfolder.id
+    assert link['linksToClassName'] == newfolder['concreteType']
+    assert link['linksTo'].get('targetVersionNumber') is None
+
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
