@@ -152,7 +152,7 @@ def extract_user_name(profile):
 def _get_from_members_items_or_properties(obj, key):
     try:
         if hasattr(obj, key):
-            return obj.id
+            return getattr(obj, key)
         if hasattr(obj, 'properties') and key in obj.properties:
             return obj.properties[key]
     except (KeyError, TypeError, AttributeError): pass
@@ -163,6 +163,7 @@ def _get_from_members_items_or_properties(obj, key):
             return obj['properties'][key]
     except (KeyError, TypeError): pass
     return None
+
 
 ## TODO: what does this do on an unsaved Synapse Entity object?
 def id_of(obj):
@@ -177,13 +178,15 @@ def id_of(obj):
         return str(obj)
     if isinstance(obj, Number):
         return str(obj)
-    result = _get_from_members_items_or_properties(obj, 'id')
-    if result is None:
-        result = _get_from_members_items_or_properties(obj, 'ownerId')
 
-    if result is None:
-        raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
-    return str(result)
+    id_attr_names = ['id', 'ownerId', 'tableId'] #possible attribute names for a synapse Id
+    for attribute_name in id_attr_names:
+        syn_id = _get_from_members_items_or_properties(obj, attribute_name)
+        if syn_id is not None:
+            return str(syn_id)
+
+    raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
+
 
 def is_in_path(id, path):
     """Determines whether id is in the path as returned from /entity/{id}/path
