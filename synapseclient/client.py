@@ -1033,7 +1033,8 @@ class Synapse:
             if properties['concreteType']=="org.sagebionetworks.repo.model.Link":
                 target_properties = self._getEntity(properties['linksTo']['targetId'], version=properties['linksTo']['targetVersionNumber'])
                 properties['linksToClassName'] = target_properties['concreteType']
-                properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
+                if target_properties.get('versionNumber') is not None:
+                    properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
                 properties['name'] = target_properties['name']
             try:
                 properties = self._createEntity(properties)
@@ -3217,6 +3218,9 @@ class Synapse:
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
+    @memoize
+    def _get_default_entity_view_columns(self, view_type):
+        return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
 
     ############################################################
     ##             CRUD for Entities (properties)             ##

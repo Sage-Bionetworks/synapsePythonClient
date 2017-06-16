@@ -180,9 +180,10 @@ def id_of(obj):
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
         result = _get_from_members_items_or_properties(obj, 'ownerId')
+
     if result is None:
         raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
-    return result
+    return str(result)
 
 def is_in_path(id, path):
     """Determines whether id is in the path as returned from /entity/{id}/path
@@ -616,7 +617,7 @@ def _extract_synapse_id_from_query(query):
 
 #Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 def memoize(obj):
-    cache = obj.cache = {}
+    cache = obj._memoize_cache = {}
 
     @functools.wraps(obj)
     def memoizer(*args, **kwargs):

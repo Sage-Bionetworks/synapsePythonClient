@@ -843,7 +843,7 @@ def test_configPath():
 
     """
 
-    tmp_config_file = tempfile.NamedTemporaryFile(suffix='.synapseConfig')
+    tmp_config_file = tempfile.NamedTemporaryFile(suffix='.synapseConfig', delete=False)
     shutil.copyfile(synapseclient.client.CONFIG_FILE, tmp_config_file.name)
 
     # Create a File
