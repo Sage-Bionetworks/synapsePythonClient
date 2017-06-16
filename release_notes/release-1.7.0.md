@@ -1,6 +1,6 @@
 Release Notes - Synapse Python Client - Version py-1.7
 
-**Release Date:** 16-November-2017  
+**Release Date:** 16-June-2017  
 **Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
 **Documentation:** [http://docs.synapse.org/python/](http://docs.synapse.org/python/)
 
