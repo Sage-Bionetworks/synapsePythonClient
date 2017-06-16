@@ -118,7 +118,7 @@ def generateManifest(syn, allFiles, filename):
         data.append(row)
     keys.extend(annotKeys)
 
-    with open(filename, 'wb') as fp:
+    with open(filename, 'w') as fp:
         csvWriter = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
         csvWriter.writeheader()
         for  row in data:
