@@ -192,8 +192,8 @@ def store(args, syn):
     entity['path'] = args.file if args.file is not None else None
     entity['synapseStore'] = not utils.is_url(args.file)
 
-    used = _convertProvenanceList(args.used, args.limitSearch, syn)
-    executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
+    used = syn._convertProvenanceList(args.used, args.limitSearch)
+    executed = syn._convertProvenanceList(args.executed, args.limitSearch)
     entity = syn.store(entity, used=used, executed=executed)
 
     _create_wiki_description_if_necessary(args, entity, syn)
@@ -319,25 +319,16 @@ def onweb(args, syn):
     syn.onweb(args.id)
 
 
-def _convertProvenanceList(usedList, limitSearch, syn):
-    if usedList is None:
-        return None
-    usedList = [syn.get(target, limitSearch=limitSearch) if
-                (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
-                target in usedList]
-    return usedList
-
-
 def setProvenance(args, syn):
     """Set provenance information on a synapse entity."""
 
     activity = Activity(name=args.name, description=args.description)
 
     if args.used:
-        for item in _convertProvenanceList(args.used, args.limitSearch, syn):
+        for item in syn._convertProvenanceList(args.used, args.limitSearch):
             activity.used(item)
     if args.executed:
-        for item in _convertProvenanceList(args.executed, args.limitSearch, syn):
+        for item in syn._convertProvenanceList(args.executed, args.limitSearch):
             activity.used(item, wasExecuted=True)
     activity = syn.setProvenance(args.id, activity)
 
@@ -443,8 +434,8 @@ def submit(args, syn):
             raise IOError('file path %s not valid \n' % args.file)
         # //ideally this should be factored out
         synFile = syn.store(synapseclient.File(path=args.file,parent=args.parentid),
-                            used=_convertProvenanceList(args.used, args.limitSearch, syn),
-                            executed=_convertProvenanceList(args.executed, args.limitSearch, syn))
+                            used=syn._convertProvenanceList(args.used, args.limitSearch),
+                            executed=syn._convertProvenanceList(args.executed, args.limitSearch))
         args.entity = synFile.id
 
     submission = syn.submit(args.evaluationID, args.entity, name=args.name, team=args.teamName)

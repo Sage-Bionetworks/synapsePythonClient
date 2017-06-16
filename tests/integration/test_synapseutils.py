@@ -5,7 +5,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, time
+import uuid, filecmp, os, sys, time, tempfile
+
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
 
 try:
@@ -464,47 +465,6 @@ def test_walk():
     temp = synapseutils.walk(syn, second_file.id)
     assert list(temp) == []
 
-
-def test_syncFromSynapse():
-    """This function tests recursive download as defined in syncFromSynapse
-    most of the functionality of this function are already tested in the 
-    tests/integration/test_command_line_client::test_command_get_recursive_and_query
-
-    which means that the only test if for path=None
-    """
-    # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
-
-    # Create a Folder in Project
-    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-
-    # Create and upload two files in Folder
-    uploaded_paths = []
-    for i in range(2):
-        f  = utils.make_bogus_data_file()
-        uploaded_paths.append(f)
-        schedule_for_cleanup(f)
-        file_entity = syn.store(File(f, parent=folder_entity))
-    #Add a file in the project level as well
-    f  = utils.make_bogus_data_file()
-    uploaded_paths.append(f)
-    schedule_for_cleanup(f)
-    file_entity = syn.store(File(f, parent=project_entity))
-
-    #syncFromSynapse() uses chunkedQuery() which will return results that are eventually consistent but not always right after the entity is created.
-    start_time = time.time()
-    while syn.query("select id from entity where id=='%s'" % file_entity.id).get('totalNumberOfResults') <= 0:
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        time.sleep(2)
-
-    ### Test recursive get
-    output = synapseutils.syncFromSynapse(syn, project_entity)
-
-    assert len(output) == len(uploaded_paths)
-    for f in output:
-        print(f.path)
-        assert f.path in uploaded_paths
 
 def test_copyFileHandleAndchangeFileMetadata():
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
