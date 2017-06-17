@@ -147,11 +147,16 @@ def _sortAndFixProvenance(syn, df):
         return item
 
     for path, row in df.iterrows():
-        used = row['used'].split(';')  if ('used' in row) and (row['used'].strip()!='') else []   #Get None or split if string
-        executed = row['executed'].split(';') if ('executed' in row) and (row['executed'].strip()!='') else [] #Get None or split if string
-        df.set_value(path, 'used', [_checkProvenace(item, path) for item in used])
-        df.set_value(path, 'executed',[_checkProvenace(item, path) for item in executed])
-        uploadOrder[path] = df.loc[path, 'used'] + df.loc[path, 'executed']
+        allRefs = []
+        if ('used' in row):
+            used = row['used'].split(';')  if (row['used'].strip()!='') else []   #Get None or split if string
+            df.set_value(path, 'used', [_checkProvenace(item, path) for item in used])
+            allRefs.extend(df.loc[path, 'used'])
+        if ('executed' in row):
+            executed = row['executed'].split(';') if (row['executed'].strip()!='') else [] #Get None or split if string
+            df.set_value(path, 'executed',[_checkProvenace(item, path) for item in executed])
+            allRefs.extend(df.loc[path, 'executed'])
+        uploadOrder[path] = allRefs
 
     uploadOrder = utils.topolgical_sort(uploadOrder)
     df = df.reindex([l[0] for l in uploadOrder])
@@ -337,8 +342,10 @@ def _manifest_upload(syn, df):
         entity.annotations = dict(row.drop(FILE_CONSTRUCTOR_FIELDS+STORE_FUNCTION_FIELDS+REQUIRED_FIELDS, errors = 'ignore'))
         
         #Update provenance list again to replace all file references that were uploaded
-        row['used'] = syn._convertProvenanceList(row['used'])
-        row['executed'] = syn._convertProvenanceList(row['executed'])
+        if 'used' in row:
+            row['used'] = syn._convertProvenanceList(row['used'])
+        if 'executed' in row:
+            row['executed'] = syn._convertProvenanceList(row['executed'])
         kwargs = {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row}
         entity = syn.store(entity, **kwargs)
     return True
