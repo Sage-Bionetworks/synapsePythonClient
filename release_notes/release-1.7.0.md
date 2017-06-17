@@ -4,7 +4,7 @@ Release Notes - Synapse Python Client - Version py-1.7
 **Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
 **Documentation:** [http://docs.synapse.org/python/](http://docs.synapse.org/python/)
 
-Release 1.7 is a large bugfix release with several new features. We have expanded the syanpaseutils packages to add the abilitity to add bulk file uploading to synapse (docs.synapse.org/python/synapseutils.html#module-synapseutils)
+Release 1.7 is a large bugfix release with several new features. We have expanded the [[syanpaseutils packages](docs.synapse.org/python/synapseutils.html#module-synapseutils)] to add the abilitity to add bulk file uploading to synapse.
 
 ## New Features
 File View tables can now be created from the python client using EntityViewSchema.
