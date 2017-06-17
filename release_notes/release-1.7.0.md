@@ -4,12 +4,24 @@ Release Notes - Synapse Python Client - Version py-1.7
 **Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
 **Documentation:** [http://docs.synapse.org/python/](http://docs.synapse.org/python/)
 
-Release 1.7 is a large bugfix release with several new features. We have expanded the [[syanpaseutils packages](docs.synapse.org/python/synapseutils.html#module-synapseutils)] to add the abilitity to add bulk file uploading to synapse.
+Release 1.7 is a large bugfix release with several new features. The main ones include:
+* We have expanded the [syanpaseutils packages](docs.synapse.org/python/synapseutils.html#module-synapseutils) to add the  abilitity to:
+    * Bulk upload files to synapse.
+    * Notify you via email on the progress of a function (useful for jobs like large file uploads that may take a long time to complete).
+* File View tables can now be created from the python client using EntityViewSchema.
+* The python client is now able to upload to user owned S3 Buckets. [Click here for instructions on linking your S3 bucket to synapse](http://docs.synapse.org/articles/custom_storage_location.html)
 
-## New Features
-File View tables can now be created from the python client using EntityViewSchema.
-The python client is now able to upload to user owned S3 Buckets. [[Click here for instructions on linking your S3 bucket to synapse](http://docs.synapse.org/articles/custom_storage_location.html)]
+We've also made vairous improvements to existing features:
+* The synapse LARGETEXT type is now supported in Tables
+* The `--description` argument when creating/updating entities from the command line client will now create a `Wiki` for that entity. You can also use `--descriptionFile` to write the contents of a markdownfile as the entity's `Wiki`
+* Joining `file_entity.cacheDir` and `file_entity.files` is being DEPRECATED in favor of `file_entity.path` for finding the location of a downloaded `File`
+* `pandas` `dataframe`s containing `datetime` values can now be properly converted into csv and uploaded to Synapse.
+We also added a optional `convert_to_datetime` parameter to `CsvFileTable.asDataFrame()` that will automatically convert Synapse DATE columns into `datetime` objects instead of leaving them as `long` unix timestamps
 
+
+Below are the full list of JIRA issues addressed by this release:
+
+### New Features
 
 *   [[SYNPY-53](https://sagebionetworks.jira.com/browse/SYNPY-53)] - support syn.get of external FTP links in py client
 *   [[SYNPY-179](https://sagebionetworks.jira.com/browse/SYNPY-179)] - Upload to user owned S3 bucket
@@ -22,7 +34,7 @@ The python client is now able to upload to user owned S3 Buckets. [[Click here f
 *   [[SYNPY-442](https://sagebionetworks.jira.com/browse/SYNPY-442)] - set config file path on command line
 
 
-## Improvement
+### Improvements
 
 *   [[SYNPY-407](https://sagebionetworks.jira.com/browse/SYNPY-407)] - support LARGETEXT in tables
 *   [[SYNPY-360](https://sagebionetworks.jira.com/browse/SYNPY-360)] - Duplicate file handles are removed from BulkFileDownloadRequest
@@ -40,7 +52,7 @@ The python client is now able to upload to user owned S3 Buckets. [[Click here f
 *   [[SYNPY-475](https://sagebionetworks.jira.com/browse/SYNPY-475)] - Store Tables timeout error
 
 
-## Bug Fixes
+### Bug Fixes
 
 *   [[SYNPY-190](https://sagebionetworks.jira.com/browse/SYNPY-190)] - syn.login('asdfasdfasdf') should fail
 *   [[SYNPY-344](https://sagebionetworks.jira.com/browse/SYNPY-344)] - weird cache directories
@@ -69,8 +81,7 @@ The python client is now able to upload to user owned S3 Buckets. [[Click here f
 *   [[SYNPY-142](https://sagebionetworks.jira.com/browse/SYNPY-142)] - PY: Error in login with rememberMe=True
 *   [[SYNPY-464](https://sagebionetworks.jira.com/browse/SYNPY-464)] - synapse get syn4988808 KeyError: u'preSignedURL'
 
-
-## Task
+### Miscellaneous Tasks
 
 *   [[SYNPY-422](https://sagebionetworks.jira.com/browse/SYNPY-422)] - reduce default page size for GET /evaluation/{evalId}/submission/bundle/all
 *   [[SYNPY-437](https://sagebionetworks.jira.com/browse/SYNPY-437)] - Remove tests for access restrictions on evaluations
