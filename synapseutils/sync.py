@@ -239,9 +239,10 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     at specific intervals, on errors and on completion.
 
 
-    =================
-    Manifest file format
-    =================
+
+    **Manifest file format**
+
+
 
     The format of the manifest file is a tab delimited file with one
     row per file to upload and columns describing the file.  The bare
@@ -257,56 +258,59 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     Synapse (or being stored in Synapse by the manifest).  Any
     additional columns will be added as annotations.
 
-    Required Fields:
-    =====  =======                =======
-    Field  Meaning                Example
-    =====  =======                =======
-    path   local file path or URL /path/to/local/file.txt
-    parent synapse id             syn1235
-    =====  =======                =======
+    **Required Fields:**
+
+    ======   ======================                  ============================
+    Field    Meaning                                 Example
+    ======   ======================                  ============================
+    path     local file path or URL                  /path/to/local/file.txt
+    parent   synapse id                              syn1235
+    ======   ======================                  ============================
                         
                         
-    Common Fields:      
-    =====        =======                   =======
-    Field        Meaning                   Example
-    =====        =======                   =======
-    name         name of file in Synapse   Example_file
-    forceVersion whether to update version False
-    =====        =======                   =======
+    **Common Fields:**
+    
+    ===============        ===========================                   ============
+    Field                  Meaning                                       Example
+    ===============        ===========================                   ============
+    name                   name of file in Synapse                       Example_file
+    forceVersion           whether to update version                     False
+    ===============        ===========================                   ============
                         
-    Provenance Fields:  
-    =====                =======                               =======
-    Field                Meaning                               Example
-    =====                =======                               =======
-    used                 List of items used to generate file   syn1235; /path/to_local/file.txt
-    executed             List of items exectued                https://github.org/; /path/to_local/code.py
-    activityName         Name of activity in provenance        "Ran normalization"
-    activityDescription  Text description on what was done     "Ran algorithm xyx with parameters..."
-    =====                =======                                     =======
-                        
+    **Provenance Fields:**  
+
+    ====================   =====================================  ==========================================
+    Field                  Meaning                                Example
+    ====================   =====================================  ==========================================
+    used                   List of items used to generate file    syn1235; /path/to_local/file.txt
+    executed               List of items exectued                 https://github.org/; /path/to_local/code.py
+    activityName           Name of activity in provenance         "Ran normalization"
+    activityDescription    Text description on what was done      "Ran algorithm xyx with parameters..."
+    ====================   =====================================  ==========================================                        
+
     Annotations:        
                         
     Any columns that are not in the reserved names described above will be intepreted as annotations of the file
                         
-    Other Optional fields:
-    =====                =======                                     =======
-    Field                Meaning                                     Example
-    =====                =======                                     =======
-    synapseStore         Boolean describing wheterh to upload files  True
-    contentType          content type of file to overload defaults   text/html
-    =====                =======                                     =======
+    **Other Optional fields:**
+
+    ===============          ==========================================  ============
+    Field                    Meaning                                     Example
+    ===============          ==========================================  ============
+    synapseStore             Boolean describing wheterh to upload files  True
+    contentType              content type of file to overload defaults   text/html
+    ===============          ==========================================  ============
 
 
-    ======================
-    Example Manifest file
-    ======================
+    **Example Manifest file**
 
-    =====             =======     =======   =======   =======                     =======
-    path              parent      annot1    annot2    used                        executed
-    =====             =======     =======   =======   =======                     =======
-    /path/file1.txt   syn1243     "bar"     3.1415    "syn124; /path/file2.txt"   "https://github.org/foo/bar"
-    /path/file2.txt   syn12433    "baz"     2.71      ""                          "https://github.org/foo/baz"
-    =====             =======     =======   =======   =======                     =======
+    ===============   ========    =======   =======   ===========================    ============================
+    path              parent      annot1    annot2    used                           executed
+    ===============   ========    =======   =======   ===========================    ============================
+    /path/file1.txt   syn1243     "bar"     3.1415    "syn124; /path/file2.txt"      "https://github.org/foo/bar"
+    /path/file2.txt   syn12433    "baz"     2.71      ""                             "https://github.org/foo/baz"
+    ===============   ========    =======   =======   ===========================    ============================
+
     """
     df = readManifestFile(syn, manifest_file)
     sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
