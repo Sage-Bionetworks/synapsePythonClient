@@ -4,6 +4,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
+from nose.tools import assert_raises
 
 import filecmp, os, tempfile, shutil
 
@@ -16,7 +17,7 @@ from synapseclient import Activity, Entity, Project, Folder, File
 
 import integration
 from integration import schedule_for_cleanup
-
+import json
 
 
 def setup(module):
@@ -29,22 +30,21 @@ def setup(module):
 
 
 def test_download_check_md5():
+    tempfile_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(tempfile_path)
     entity = File(parent=project['id'])
-    entity['path'] = utils.make_bogus_data_file()
-    schedule_for_cleanup(entity['path'])
+    entity['path'] = tempfile_path
     entity = syn.store(entity)
 
     print('expected MD5:', entity['md5'])
 
-    url = '%s/entity/%s/file' % (syn.repoEndpoint, entity.id)
-    syn._downloadFile(url, destination=tempfile.gettempdir(), expected_md5=entity['md5'])
+    syn._downloadFileHandle(entity['dataFileHandleId'], entity['id'], 'FileEntity', tempfile.gettempdir())
 
-    try:
-        syn._downloadFile(url, destination=tempfile.gettempdir(), expected_md5='10000000000000000000000000000001')
-    except SynapseMd5MismatchError as ex1:
-        print("Expected exception:", ex1)
-    else:
-        assert False, "Should have raised SynapseMd5MismatchError"
+    tempfile_path2 = utils.make_bogus_data_file()
+    schedule_for_cleanup(tempfile_path2)
+    entity_bad_md5 = syn.store(File(path = tempfile_path2, md5 = "12345", parent=project['id'], synapseStore=False))
+
+    assert_raises(SynapseMd5MismatchError, syn._downloadFileHandle, entity_bad_md5['dataFileHandleId'], entity_bad_md5['id'], 'FileEntity', tempfile.gettempdir())
 
 
 def test_resume_partial_download():
@@ -62,7 +62,7 @@ def test_resume_partial_download():
     temp_dir = tempfile.gettempdir()
 
     url = '%s/entity/%s/file' % (syn.repoEndpoint, entity.id)
-    path = syn._download(url, destination=temp_dir, file_handle_id=entity.dataFileHandleId, expected_md5=entity.md5)
+    path = syn._download(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
 
     ## simulate an imcomplete download by putting the
     ## complete file back into its temporary location
@@ -74,8 +74,30 @@ def test_resume_partial_download():
         f.truncate(3*os.path.getsize(original_file)//7)
 
     ## this should complete the partial download
-    path = syn._download(url, destination=temp_dir, file_handle_id=entity.dataFileHandleId, expected_md5=entity.md5)
+    path = syn._download(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
 
     assert filecmp.cmp(original_file, path), "File comparison failed"
 
 
+def test_ftp_download():
+    """Test downloading an Entity that points to a file on an FTP server. """
+    
+    # Another test with an external reference. This is because we only need to test FTP download; not upload. Also so we don't have to maintain an FTP server just for this purpose.
+    # Make an entity that points to an FTP server file.
+    entity = File(parent=project['id'], name = '1KB.zip')
+    fileHandle = {}
+    fileHandle['externalURL'] = 'ftp://speedtest.tele2.net/1KB.zip'
+    fileHandle["fileName"] = entity.name
+    fileHandle["contentType"] = "application/zip"
+    fileHandle["contentMd5"] = '0f343b0931126a20f133d67c2b018a3b'
+    fileHandle["contentSize"] = 1024
+    fileHandle["concreteType"] = "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+    fileHandle = syn.restPOST('/externalFileHandle', json.dumps(fileHandle), syn.fileHandleEndpoint)
+    entity.dataFileHandleId = fileHandle['id']
+    entity = syn.store(entity)
+
+    # Download the entity and check that MD5 matches expected
+    FTPfile = syn.get(entity.id, downloadLocation=os.getcwd(), downloadFile=True)
+    assert FTPfile.md5==utils.md5_for_file(FTPfile.path).hexdigest()
+    schedule_for_cleanup(entity)
+    os.remove(FTPfile.path)

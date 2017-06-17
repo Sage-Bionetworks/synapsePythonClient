@@ -76,7 +76,7 @@ from __future__ import unicode_literals
 import six
 import collections
 
-from synapseclient.utils import is_url, id_of
+from synapseclient.utils import is_url, id_of, is_synapse_id
 from synapseclient.entity import is_synapse_entity
 from synapseclient.exceptions import *
 
@@ -140,7 +140,7 @@ class Activity(dict):
     :param name:        name of the Activity
     :param description: a short text description of the Activity
     :param used:        Either a list of:
-                        - `reference objects <http://rest.synapse.org/org/sagebionetworks/repo/model/Reference.html>`_ (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``)
+                        - `reference objects <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Reference.html>`_ (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``)
                         - a list of Synapse Entities or Entity IDs
                         - a list of URL's
     :param executed:    A code resource that was executed to generate the Entity.
@@ -211,7 +211,6 @@ class Activity(dict):
                           {'reference':{'target':'syn100009', 'targetVersion':2}, 'wasExecuted':True},
                           'http://mydomain.com/my/awesome/data.RData'])
         """
-
         # -- A list of targets
         if isinstance(target, list):
             badargs = _get_any_bad_args(['targetVersion', 'url', 'name'], locals())
@@ -250,7 +249,6 @@ class Activity(dict):
             if targetVersion:
                 reference['targetVersionNumber'] = int(targetVersion)
             resource = {'reference':reference, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
-
         # -- URL parameter
         elif url:
             badargs = _get_any_bad_args(['target', 'targetVersion'], locals())
@@ -262,15 +260,20 @@ class Activity(dict):
         elif is_url(target):
             badargs = _get_any_bad_args(['targetVersion'], locals())
             _raise_incorrect_used_usage(badargs, 'URL')
-
             resource = {'url':target, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
         # -- Synapse Entity ID (assuming the string is an ID)
         elif isinstance(target, six.string_types):
             badargs = _get_any_bad_args(['url', 'name'], locals())
-            _raise_incorrect_used_usage(badargs, 'Synapse entity')
-
-            reference = {'targetId':target}
+            _raise_incorrect_used_usage(badargs, 'Synapse entity')            
+            vals = target.split('.')   #Handle synapseIds of from syn234.4
+            if not is_synapse_id(vals[0]):
+                raise ValueError('%s is not a valid Synapse id' %target)
+            if len(vals)==2:
+                if targetVersion and int(targetVersion)!=int(vals[1]):
+                    raise ValueError('Two conflicting versions for %s were specified' %target)
+                targetVersion = int(vals[1])
+            reference = {'targetId':vals[0]}
             if targetVersion:
                 reference['targetVersionNumber'] = int(targetVersion)
             resource = {'reference':reference, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
@@ -307,7 +310,6 @@ class Activity(dict):
 
         See :py:func:`synapseclient.Activity.used`.
         """
-
         self.used(url=url, name=name, wasExecuted=wasExecuted)
 
 
@@ -316,22 +318,35 @@ class Activity(dict):
         Add a code resource that was executed during the activity.
         See :py:func:`synapseclient.activity.Activity.used`
         """
-
         self.used(target=target, targetVersion=targetVersion, url=url, name=name, wasExecuted=True)
+
+
+    def _getStringList(self, wasExecuted=True):
+        usedList = []
+        for source in [source for source in self['used'] if source.get('wasExecuted', False)==wasExecuted]:
+            if source['concreteType'].endswith('UsedURL'):
+                usedList.append(source['name'])
+            else: #It is an entity for now
+                tmpstr = source['reference']['targetId']
+                if 'targetVersionNumber' in source['reference']:
+                    tmpstr += '.%i' % source['reference']['targetVersionNumber']
+                usedList.append(tmpstr)
+        return usedList
+
+
+    def _getExecutedStringList(self):
+        return self._getStringList(wasExecuted=True)
+
+
+    def _getUsedStringList(self):
+        return self._getStringList(wasExecuted=False)
+
 
     def __str__(self):
         #user = syn.getUserProfile(self['createdBy'])
         #str = '  Added by: %s %s (%s)' %(user['firstName'], user['lastName'], user['userName']))
         str = '%s\n  Executed:\n' % self.get('name', '')
-        for source in [source for source in self['used'] if source.get('wasExecuted', False)]:
-            if source['concreteType'].endswith('UsedURL'):
-                str +='    %s\n' %source['name']
-            else: #It is an entity for now
-                str +='    %s.%i\n' %(source['reference']['targetId'], source['reference']['targetVersionNumber'])
+        str += '\n'.join(self._getExecutedStringList())
         str += '  Used:\n'
-        for source in [source for source in self['used'] if not source.get('wasExecuted', False)]:
-            if source['concreteType'].endswith('UsedURL'):
-                str += '    %s\n' %source['name']
-            else: #It is an entity for now
-                str += '    %s.%i\n' %(source['reference']['targetId'], source['reference']['targetVersionNumber'])
+        str += '\n'.join(self._getUsedStringList())
         return str

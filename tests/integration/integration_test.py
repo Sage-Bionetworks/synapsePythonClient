@@ -5,27 +5,24 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import tempfile, os, sys, filecmp, shutil, requests, json, time
-import uuid, random, base64
+import tempfile, os, sys, filecmp, shutil, json, time
+import uuid, base64
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals
-from nose.plugins.attrib import attr
-from mock import MagicMock, patch
+from nose.tools import assert_raises, assert_equals, assert_not_equal
+from nose.plugins.skip import SkipTest
+from mock import MagicMock, patch, call
 
 import synapseclient
 import synapseclient.client as client
-import synapseclient.utils as utils
 from synapseclient.exceptions import *
-from synapseclient.evaluation import Evaluation
 from synapseclient.activity import Activity
 from synapseclient.version_check import version_check
 from synapseclient.entity import Project, File, Folder
-from synapseclient.wiki import Wiki
 from synapseclient.team import Team
 
 import integration
@@ -63,31 +60,29 @@ def test_login():
             configparser_package_name = 'ConfigParser'
         else:
             configparser_package_name = 'configparser'
-        with patch("%s.ConfigParser.has_option" % configparser_package_name) as config_has_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
+        with patch("%s.ConfigParser.items" % configparser_package_name) as config_items_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
 
-            config_has_mock.return_value = False
+            config_items_mock.return_value = []
             read_session_mock.return_value = {}
             
             # Login with given bad session token, 
             # It should REST PUT the token and fail
             # Then keep going and, due to mocking, fail to read any credentials
             assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
-            assert config_has_mock.called
+            assert config_items_mock.called
             
             # Login with no credentials 
             assert_raises(SynapseAuthenticationError, syn.login)
             
-            config_has_mock.reset_mock()
-            config_has_mock.side_effect = lambda section, option: section == "authentication" and option == "sessiontoken"
-            with patch("%s.ConfigParser.get" % configparser_package_name) as config_get_mock:
+            config_items_mock.reset_mock()
 
-                # Login with a session token from the config file
-                config_get_mock.return_value = sessionToken
-                syn.login(silent=True)
-                
-                # Login with a bad session token from the config file
-                config_get_mock.return_value = "derp-dee-derp"
-                assert_raises(SynapseAuthenticationError, syn.login)
+            # Login with a session token from the config file
+            config_items_mock.return_value = [('sessiontoken', sessionToken)]
+            syn.login(silent=True)
+
+            # Login with a bad session token from the config file
+            config_items_mock.return_value = [('sessiontoken', "derp-dee-derp")]
+            assert_raises(SynapseAuthenticationError, syn.login)
         
         # Login with session token
         syn.login(sessionToken=sessionToken, rememberMe=True, silent=True)
@@ -96,10 +91,12 @@ def test_login():
         with patch('synapseclient.Synapse._readSessionCache') as read_session_mock:
             dict_mock = MagicMock()
             read_session_mock.return_value = dict_mock
-            dict_mock.__contains__.side_effect = lambda x: x == '<mostRecent>'
-            dict_mock.__getitem__.return_value = syn.username
+
+            #first call is for <mostRecent> next call is the api key of the username in <mostRecent>
+            dict_mock.get.side_effect = [syn.username, base64.b64encode(syn.apiKey)]
+
             syn.login(silent=True)
-            dict_mock.__getitem__.assert_called_once_with('<mostRecent>')
+            dict_mock.assert_has_calls([call.get('<mostRecent>', None),call.get(syn.username, None)])
         
         # Login with ID only
         syn.login(username, silent=True)
@@ -389,3 +386,87 @@ def test_teams():
 
     assert team == found_teams[0]
 
+def _set_up_external_s3_project():
+    """
+    creates a project and links it to an external s3 storage
+    :return: synapse id of the created  project, and storageLocationId of the project
+    """
+    EXTERNAL_S3_BUCKET = 'python-client-integration-test.sagebase.org'
+    project_ext_s3 = syn.store(Project(name=str(uuid.uuid4())))
+
+    destination = {'uploadType': 'S3',
+                   'concreteType': 'org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting',
+                   'bucket': EXTERNAL_S3_BUCKET}
+    destination = syn.restPOST('/storageLocation', body=json.dumps(destination))
+
+    project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+                           'settingsType': 'upload',
+                           'locations': [destination['storageLocationId']],
+                           'projectId' : project_ext_s3.id}
+
+    project_destination = syn.restPOST('/projectSettings', body=json.dumps(project_destination))
+    schedule_for_cleanup(project_ext_s3)
+    return project_ext_s3.id, destination['storageLocationId']
+
+
+def test_external_s3_upload():
+    #skip if not on the synapse-test user
+    if syn.username != 'synapse-test':
+        raise SkipTest("This test is configured to work on synapse's TravisCI. If you wish to run this locally, please create an external S3 bucket that your Synapse username can access (http://docs.synapse.org/articles/custom_storage_location.html) and modify the EXTERNAL_S3_BUCKET variable")
+
+    #setup
+    project_id, storage_location_id = _set_up_external_s3_project()
+
+    # create a temporary file for upload
+    temp_file_path = utils.make_bogus_data_file()
+    expected_md5 = utils.md5_for_file(temp_file_path).hexdigest()
+    schedule_for_cleanup(temp_file_path)
+
+    #upload the file
+    uploaded_syn_file = syn.store(File(path=temp_file_path, parent=project_id))
+
+    #get file_handle of the uploaded file
+    file_handle = syn.restGET('/entity/%s/filehandles' % uploaded_syn_file.id)['list'][0]
+
+    #Verify correct file handle type
+    assert_equals(file_handle['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
+
+    # Verify storage location id to make sure it's using external S3
+    assert_equals(storage_location_id, file_handle['storageLocationId'])
+
+    #Verify md5 of upload
+    assert_equals(expected_md5, file_handle['contentMd5'])
+
+    # clear the cache and download the file
+    syn.cache.purge(time.time())
+    downloaded_syn_file = syn.get(uploaded_syn_file.id)
+
+    #verify the correct file was downloaded
+    assert_equals(os.path.basename(downloaded_syn_file['path']), os.path.basename(temp_file_path))
+    assert_not_equal(os.path.normpath(temp_file_path), os.path.normpath(downloaded_syn_file['path']))
+    assert filecmp.cmp(temp_file_path, downloaded_syn_file['path'])
+
+
+def test_findEntityIdByNameAndParent():
+    project_name = str(uuid.uuid1())
+    project_id = syn.store(Project(name=project_name))['id']
+    assert_equals(project_id, syn._findEntityIdByNameAndParent(project_name))
+
+
+def test_getChildren():
+    # setup a hierarchy for folders
+    # PROJECT
+    # |     \
+    # File   Folder
+    #           |
+    #         File
+    project_name = str(uuid.uuid1())
+    test_project = syn.store(Project(name=project_name))
+    folder = syn.store(Folder(name="firstFolder", parent=test_project))
+    nested_file = syn.store(File(path="~/doesntMatter.txt", name="file inside folders", parent=folder, synapseStore=False))
+    project_file = syn.store(File(path="~/doesntMatterAgain.txt", name="file inside project", parent=test_project, synapseStore=False))
+    schedule_for_cleanup(test_project)
+
+    expected_id_set = {project_file.id, folder.id}
+    children_id_set = { x['id'] for x in syn.getChildren(test_project.id)}
+    assert_equals(expected_id_set, children_id_set)

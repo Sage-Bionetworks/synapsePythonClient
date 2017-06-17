@@ -7,14 +7,18 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from datetime import datetime as Datetime
-from nose.tools import assert_raises
-import os, re, sys
+from nose.tools import assert_raises, assert_equal
+import os, re, sys, inspect
 
 import synapseclient.utils as utils
 from synapseclient.activity import Activity
 from synapseclient.utils import _find_used
 from synapseclient.exceptions import _raise_for_status, SynapseMalformedEntityError, SynapseHTTPError
 from synapseclient.dict_object import DictObject
+
+from mock import patch, mock_open
+import tempfile
+from shutil import rmtree
 
 
 def setup():
@@ -168,9 +172,9 @@ def test_is_in_path():
 def test_id_of():
     assert utils.id_of(1) == '1'
     assert utils.id_of('syn12345') == 'syn12345'
-    assert utils.id_of({'foo':1, 'id':123}) == 123
+    assert utils.id_of({'foo':1, 'id':123}) == '123'
     assert_raises(ValueError, utils.id_of, {'foo':1, 'idzz':123})
-    assert utils.id_of({'properties':{'id':123}}) == 123
+    assert utils.id_of({'properties':{'id':123}}) == '123'
     assert_raises(ValueError, utils.id_of, {'properties':{'qq':123}})
     assert_raises(ValueError, utils.id_of, object())
 
@@ -179,7 +183,7 @@ def test_id_of():
             self.properties = {'id':id}
 
     foo = Foo(123)
-    assert utils.id_of(foo) == 123
+    assert utils.id_of(foo) == '123'
 
 def test_guess_file_name():
     assert utils.guess_file_name('a/b') == 'b'
@@ -395,3 +399,39 @@ def test_temp_download_filename():
     assert re.match(regex, utils.temp_download_filename("/foo/bar/bat", None))
 
 
+@patch('zipfile.ZipFile')
+@patch('os.makedirs')
+@patch('os.path.exists', return_value = False)
+def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocked_zipfile):
+    file_base_name = 'test.txt'
+    file_dir = 'some/folders/'
+    target_dir = tempfile.mkdtemp() #TODO rename
+    expected_filepath = os.path.join(target_dir, file_base_name)
+
+    try:
+        #call the method and make sure correct values are being used
+        with patch('synapseclient.utils.open', mock_open(), create=True) as mocked_open:
+            actual_filepath = utils._extract_zip_file_to_directory(mocked_zipfile, file_dir + file_base_name, target_dir)
+
+            #make sure it returns the correct cache path
+            assert_equal(expected_filepath, actual_filepath)
+
+            #make sure it created the cache folders
+            mocked_makedir.assert_called_once_with(target_dir)
+
+            #make sure zip was read and file was witten
+            mocked_open.assert_called_once_with(expected_filepath, 'wb')
+            mocked_zipfile.read.assert_called_once_with(file_dir + file_base_name)
+            mocked_open().write.assert_called_once_with(mocked_zipfile.read())
+    finally:
+        rmtree(target_dir, ignore_errors=True)
+
+def _calling_module_test_helper():
+    return utils.caller_module_name(inspect.currentframe())
+
+def test_calling_module():
+    # 'case' is the name of the module with which nosetests runs these tests
+    # 'unit_test' is the name of the module in which this test resides
+    # we made a helper so that the call order is: case.some_function_for_running_tests() -> unit_test.test_calling_module() -> unit_test._calling_module_test_helper()
+    # since both _calling_module_test_helper and test_calling_module are a part of the unit_test module, we can test that callers of the same module do indeed are skipped
+    assert_equal("case", _calling_module_test_helper())

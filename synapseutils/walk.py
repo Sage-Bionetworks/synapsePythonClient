@@ -1,6 +1,7 @@
 import synapseclient
 from synapseclient.entity import is_container
 import os
+import json
 
 def walk(syn, synId):
     """
@@ -35,16 +36,16 @@ def _helpWalk(syn,synId,newpath=None):
         dirpath = (newpath,synId)
     dirs = []
     nondirs = []
-    results = syn.chunkedQuery('select id, name, nodeType from entity where parentId == "%s"'%synId)
+    results = syn.getChildren(synId)
     for i in results:
         if is_container(i):
-            dirs.append((i['entity.name'],i['entity.id']))
+            dirs.append((i['name'],i['id']))
         else:
-            nondirs.append((i['entity.name'],i['entity.id']))
+            nondirs.append((i['name'],i['id']))
     yield dirpath, dirs, nondirs
     for name in dirs:
         newpath = os.path.join(dirpath[0],name[0])
-        for x in _helpWalk(syn, name[1], newpath):
+        for x in _helpWalk(syn, name[1], newpath=newpath):
             yield x
 
 

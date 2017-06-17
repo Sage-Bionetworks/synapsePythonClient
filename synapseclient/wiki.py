@@ -89,7 +89,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 import six
 
-import sys
+import os
 import json
 
 from synapseclient.exceptions import *
@@ -102,7 +102,8 @@ class Wiki(DictObject):
 
     :param title:       Title of the Wiki
     :param owner:       Parent Entity that the Wiki will belong to
-    :param markdown:    Content of the Wiki
+    :param markdown:    Content of the Wiki (cannot be defined if markdownFile is defined)
+    :param markdownFile: Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
     :param attachments: List of paths to files to attach
     :param fileHandles: List of file handle IDs representing files to be attached
     :param parentWikiId: (optional) For subpages, specify parent wiki page
@@ -118,6 +119,9 @@ class Wiki(DictObject):
         # Initialize the file handle list to be an empty list
         if 'attachmentFileHandleIds' not in kwargs:
             kwargs['attachmentFileHandleIds'] = []
+
+        #update the markdown
+        self.update_markdown(kwargs.pop('markdown', None), kwargs.pop('markdownFile', None))
 
         # Move the 'fileHandles' into the proper (wordier) bucket
         if 'fileHandles' in kwargs:
@@ -153,6 +157,26 @@ class Wiki(DictObject):
         """For internal use."""
 
         return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
+
+
+    def update_markdown(self, markdown = None, markdown_file = None):
+        """
+        Updates the wiki's markdown. Specify only one of markdown and markdown_file
+        :param markdown: text that will become the markdown
+        :param markdown_file: path to a file. Its contents will be the markdown
+        """
+        if markdown and markdown_file:
+            raise ValueError("Please use only one argument: markdown or markdownFile")
+
+        if markdown_file:
+            #pop the 'markdownFile' kwargs because we don't actually need it in the dictionary to upload to synapse
+            markdown_path = os.path.expandvars(os.path.expanduser(markdown_file))
+            if not os.path.isfile(markdown_path):
+                raise ValueError(markdown_file + "is not a valid file")
+            with open(markdown_path, 'r') as opened_markdown_file:
+                markdown = opened_markdown_file.read()
+
+        self['markdown'] = markdown
 
 
 class WikiAttachment(DictObject):

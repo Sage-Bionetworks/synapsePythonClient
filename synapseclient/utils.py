@@ -13,7 +13,6 @@ from __future__ import unicode_literals
 from future.utils import implements_iterator
 from builtins import str
 import six
-
 try:
     from urllib.parse import urlparse
     from urllib.parse import urlencode
@@ -38,7 +37,7 @@ import os, sys
 import hashlib, re
 import cgi
 import errno
-import math
+import inspect
 import random
 import requests
 import collections
@@ -47,7 +46,6 @@ import platform
 import functools
 import threading
 import uuid
-import warnings
 from datetime import datetime as Datetime
 from datetime import date as Date
 from datetime import timedelta
@@ -182,9 +180,10 @@ def id_of(obj):
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
         result = _get_from_members_items_or_properties(obj, 'ownerId')
+
     if result is None:
         raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
-    return result
+    return str(result)
 
 def is_in_path(id, path):
     """Determines whether id is in the path as returned from /entity/{id}/path
@@ -618,7 +617,7 @@ def _extract_synapse_id_from_query(query):
 
 #Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 def memoize(obj):
-    cache = obj.cache = {}
+    cache = obj._memoize_cache = {}
 
     @functools.wraps(obj)
     def memoizer(*args, **kwargs):
@@ -629,7 +628,7 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
-def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True, dt=None):
+def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True, dt=None, previouslyTransferred = 0):
     """Prints a progress bar
 
     :param transferred: a number of items/bytes completed
@@ -638,6 +637,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     :param prefix: String printed after progress bar
     :param isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
     :param dt: The time in seconds that has passed since transfer started is used to calculate rate.
+    :param previouslyTransferred: the number of bytes that were already transferred before this transfer began( e.g. someone ctrl+c'd out of an upload and restarted it later)
 
     """
     if not sys.stdout.isatty():
@@ -645,8 +645,8 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
     barLength = 20 # Modify this to change the length of the progress bar
     status = ''
     rate = ''
-    if dt is not None:
-        rate = transferred/float(dt)
+    if dt is not None and dt != 0:
+        rate = (transferred - previouslyTransferred)/float(dt)
         rate = '(%s/s)' % humanizeBytes(rate) if isBytes else rate
     if toBeTransferred<0:
         defaultToBeTransferred = (barLength*1*MB)
@@ -792,3 +792,106 @@ def temp_download_filename(destination, file_handle_id):
 def log_error(message, verbose=True):
     if verbose:
         sys.stderr.write(message+'\n')
+
+
+def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
+    """
+    Extracts a specified file in a zip to the specified directory
+    :param zip_file: an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
+    :param zip_entry_name: the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
+    :param target_dir: the directory to which the file will be extracted
+
+    :return: full path to the extracted file
+    """
+    file_base_name = os.path.basename(zip_entry_name) # base name of the file
+    filepath = os.path.join(target_dir, file_base_name) # file path to the cached file to write
+
+    # Create the cache directory if it does not exist
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+
+    # write the file from the zip into the cache
+    with open(filepath, 'wb') as cache_file:
+        cache_file.write(zip_file.read(zip_entry_name))
+
+    return filepath
+
+
+def _is_integer(x):
+    try:
+        return float.is_integer(x)
+    except TypeError:
+        try:
+            int(x)
+            return True
+        except (ValueError, TypeError):
+            ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
+            return False
+
+
+def topolgical_sort(graph):
+    """Given a graph in the form of a dictionary returns a sorted list
+
+    Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
+    
+    :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
+
+    :returns: sorted list of items
+    """
+    graph_unsorted = graph.copy()
+    graph_sorted = []
+    # Convert the unsorted graph into a hash table. This gives us
+    # constant-time lookup for checking if edges are unresolved
+
+    # Run until the unsorted graph is empty.
+    while graph_unsorted:
+        # Go through each of the node/edges pairs in the unsorted
+        # graph. If a set of edges doesn't contain any nodes that
+        # haven't been resolved, that is, that are still in the
+        # unsorted graph, remove the pair from the unsorted graph,
+        # and append it to the sorted graph. Note here that by using
+        # using the items() method for iterating, a copy of the
+        # unsorted graph is used, allowing us to modify the unsorted
+        # graph as we move through it. We also keep a flag for
+        # checking that that graph is acyclic, which is true if any
+        # nodes are resolved during each pass through the graph. If
+        # not, we need to bail out as the graph therefore can't be
+        # sorted.
+        acyclic = False
+        for node, edges in list(graph_unsorted.items()):
+            for edge in edges:
+                if edge in graph_unsorted:
+                    break
+            else:
+                acyclic = True
+                del graph_unsorted[node]
+                graph_sorted.append((node, edges))
+
+        if not acyclic:
+            # We've passed through all the unsorted nodes and
+            # weren't able to resolve any of them, which means there
+            # are nodes with cyclic edges that will never be resolved,
+            # so we bail out with an error.
+            raise RuntimeError("A cyclic dependency occurred. Some files in provenance reference each other circularly.")
+    return graph_sorted
+
+
+def caller_module_name(current_frame):
+    """
+    :param current_frame: use inspect.currentframe().
+    :return: the name of the module calling the function, foo(), in which this calling_module() is invoked. Ignores callers that belong in the same module as foo()
+    """
+
+    current_frame_filename = current_frame.f_code.co_filename #filename in which foo() resides
+
+    #go back a frame takes us to the frame calling foo()
+    caller_frame = current_frame.f_back
+    caller_filename = caller_frame.f_code.co_filename
+
+    # find the first frame that does not have the same filename. this ensures that we don't consider functions within the same module as foo() that use foo() as a helper function
+    while(caller_filename == current_frame_filename):
+        caller_frame = caller_frame.f_back
+        caller_filename = caller_frame.f_code.co_filename
+
+    return inspect.getmodulename(caller_filename)
+

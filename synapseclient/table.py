@@ -10,8 +10,7 @@ A table has a :py:class:`Schema` and holds a set of rows conforming to
 that schema.
 
 A :py:class:`Schema` defines a series of :py:class:`Column` of the following
-types: STRING, DOUBLE, INTEGER, BOOLEAN, DATE, ENTITYID, FILEHANDLEID.
-
+types: STRING, DOUBLE, INTEGER, BOOLEAN, DATE, ENTITYID, FILEHANDLEID, LINK, LARGETEXT, USERID
 ~~~~~~~
 Example
 ~~~~~~~
@@ -215,7 +214,7 @@ Queries
 
 The query language is quite similar to SQL select statements, except that joins
 are not supported. The documentation for the Synapse API has lots of
-`query examples <http://rest.synapse.org/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
+`query examples <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_.
 
 ~~~~~~
 Schema
@@ -284,6 +283,7 @@ import sys
 import tempfile
 from collections import OrderedDict
 from builtins import zip
+from abc import ABCMeta, abstractmethod, abstractproperty
 
 import synapseclient
 import synapseclient.utils as utils
@@ -299,7 +299,8 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'b': 'INTEGER', 'B': 'INTEGER', 'h': 'INTEGER', 'H': 'INTEGER',
                      'i': 'INTEGER', 'I': 'INTEGER', 'l': 'INTEGER', 'L': 'INTEGER',
                      'm': 'INTEGER', 'q': 'INTEGER', 'Q': 'INTEGER',
-                     'S': 'STRING', 'U': 'STRING', 'O': 'STRING'}
+                     'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
+                     'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
 
 def test_import_pandas():
@@ -346,8 +347,12 @@ def as_table_columns(df):
     for col in df:
         columnType = DTYPE_2_TABLETYPE[df[col].dtype.char]
         if columnType == 'STRING':
-            size = min(1000, max(30, df[col].str.len().max()*1.5))  #Determine lenght of longest string
-            cols.append(Column(name=col, columnType=columnType, maximumSize=size, defaultValue=''))
+            maxStrLen = df[col].str.len().max()
+            if maxStrLen>1000:
+                cols.append(Column(name=col, columnType='LARGETEXT', defaultValue=''))
+            else:
+                size = min(1000, max(30, maxStrLen*1.5))  #Determine lenght of longest string
+                cols.append(Column(name=col, columnType=columnType, maximumSize=size, defaultValue=''))
         else:
             cols.append(Column(name=col, columnType=columnType))
     return cols
@@ -416,7 +421,7 @@ def cast_values(values, headers):
     """
     Convert a row of table query results from strings to the correct column type.
 
-    See: http://rest.synapse.org/org/sagebionetworks/repo/model/table/ColumnType.html
+    See: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     """
     if len(values) != len(headers):
         raise ValueError('Each field in the row must have a matching column header. %d fields, %d headers' % (len(values), len(headers)))
@@ -429,7 +434,7 @@ def cast_values(values, headers):
         ## convert field to column type
         if field is None or field=='':
             result.append(None)
-        elif columnType in ['STRING', 'ENTITYID', 'FILEHANDLEID']:
+        elif columnType in {'STRING', 'ENTITYID', 'FILEHANDLEID', 'LARGETEXT', 'USERID'}:
             result.append(field)
         elif columnType=='DOUBLE':
             result.append(float(field))
@@ -455,8 +460,79 @@ def cast_row_set(rowset):
         rowset['rows'][i]['values'] = cast_row(row, rowset['headers'])
     return rowset
 
+@six.add_metaclass(ABCMeta)
+class SchemaBase(Entity, Versionable):
+    '''
+    This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both
+    You can not create an object of this type
+    '''
 
-class Schema(Entity, Versionable):
+    _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
+    _local_keys = Entity._local_keys + ['columns_to_store']
+
+    @abstractproperty  #forces subclasses to define _synapse_entity_type
+    def _synapse_entity_type(self):
+        pass
+
+    @abstractmethod
+    def __init__(self, name, columns, properties, annotations, local_state, parent, **kwargs):
+        self.properties.setdefault('columnIds',[])
+        if name:
+            kwargs['name'] = name
+        super(SchemaBase, self).__init__(properties=properties,
+                                     annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+        if columns:
+            self.addColumns(columns)
+
+
+    def addColumn(self, column):
+        """
+        :param column: a column object or its ID
+        """
+        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
+            self.properties.columnIds.append(utils.id_of(column))
+        elif isinstance(column, Column):
+            if not self.__dict__.get('columns_to_store', None):
+                self.__dict__['columns_to_store'] = []
+            self.__dict__['columns_to_store'].append(column)
+        else:
+            raise ValueError("Not a column? %s" % str(column))
+
+
+    def addColumns(self, columns):
+        """
+        :param columns: a list of column objects or their ID
+        """
+        for column in columns:
+            self.addColumn(column)
+
+
+    def removeColumn(self, column):
+        """
+        :param column: a column object or its ID
+        """
+        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
+            self.properties.columnIds.remove(utils.id_of(column))
+        elif isinstance(column, Column) and self.columns_to_store:
+            self.columns_to_store.remove(column)
+        else:
+            ValueError("Can't remove column %s" + str(column))
+
+
+    def has_columns(self):
+        """Does this schema have columns specified?"""
+        return bool(self.properties.get('columnIds',None) or self.__dict__.get('columns_to_store',None))
+
+
+    def _before_synapse_store(self, syn):
+        ## store any columns before storing table
+        if self.columns_to_store:
+            for column in self.columns_to_store:
+                column = syn.store(column)
+                self.properties.columnIds.append(column.id)
+            self.__dict__['columns_to_store'] = None
+
+class Schema(SchemaBase):
     """
     A Schema is a :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
 
@@ -474,75 +550,84 @@ class Schema(Entity, Versionable):
 
         schema = syn.store(Schema(name='MyTable', columns=cols, parent=project))
     """
-    _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
-    _local_keys = Entity._local_keys + ['columns_to_store']
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.TableEntity'
 
     def __init__(self, name=None, columns=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
-        self.properties.setdefault('columnIds',[])
-        if name: kwargs['name'] = name
-        if columns:
-            for column in columns:
-                if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-                    kwargs.setdefault('columnIds',[]).append(utils.id_of(column))
-                elif isinstance(column, Column):
-                    kwargs.setdefault('columns_to_store',[]).append(column)
-                else:
-                    raise ValueError("Not a column? %s" % str(column))
-        super(Schema, self).__init__(concreteType=Schema._synapse_entity_type, properties=properties,
+        super(Schema, self).__init__(name=name, columns=columns, properties=properties,
                                      annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
-    def addColumn(self, column):
+
+
+class EntityViewSchema(SchemaBase):
+    """
+    A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects (depending on user choice) within a given set of scopes
+
+    :param name: give the Entity View Table object a name
+    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional
+    :param parent: the project in Synapse to which this table belongs
+    :param scopes: a list of Projects/Folders or their ids
+    :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
+    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True. 
+    The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
+    ::
+
+      
+        project_or_folder = syn.get("syn123")  
+        schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'], view_type='file'))
+    """
+
+    _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
+    _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
+    _local_keys = SchemaBase._local_keys + ['add_default_columns']
+
+    def __init__(self, name=None, columns=None, parent=None, scopes = None, type=None, add_default_columns = True, properties=None, annotations=None, local_state=None, **kwargs):
+        if type:
+            kwargs['type'] = type
+
+        super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
+                                               annotations=annotations, local_state=local_state, parent=parent, **kwargs)
+
+        #This is a hacky solution to make sure we don't try to add default columns to schemas that we retrieve from synapse
+        self.add_default_columns = add_default_columns and not (properties or local_state) #allowing annotations because user might want to update annotations all at once
+
+        #set default values after constructor so we don't overwrite the values defined in properties
+        #using .get() because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
+        if self.get('type') == None:
+            self.type = 'file'
+        if self.get('scopeIds') == None:
+            self.scopeIds = []
+
+        #add the scopes last so that we can append the passed in scopes to those defined in properties
+        if scopes is not None:
+            self.add_scope(scopes)
+
+    def add_scope(self, entities):
         """
-        :param column: a column object or its ID
+        :param entities: a Project or Folder object or its ID, can also be a list of them
         """
-        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.append(utils.id_of(column))
-        elif isinstance(column, Column):
-            if not self.__dict__.get('columns_to_store', None):
-                self.__dict__['columns_to_store'] = []
-            self.__dict__['columns_to_store'].append(column)
+        if isinstance(entities, list):
+            temp_list = [utils.id_of(entity) for entity in entities] #add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
+            self.scopeIds.extend(temp_list)
         else:
-            raise ValueError("Not a column? %s" % str(column))
-
-    def addColumns(self, columns):
-        """
-        :param columns: a list of column objects or their ID
-        """
-        for column in columns:
-            self.addColumn(column)
-
-    def removeColumn(self, column):
-        """
-        :param column: a column object or its ID
-        """
-        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.remove(utils.id_of(column))
-        elif isinstance(column, Column) and self.columns_to_store:
-            self.columns_to_store.remove(column)
-        else:
-            ValueError("Can't remove column %s" + str(column))
-
-    def has_columns(self):
-        """Does this schema have columns specified?"""
-        return bool(self.properties.get('columnIds',None) or self.__dict__.get('columns_to_store',None))
+            self.scopeIds.append(utils.id_of(entities))
 
     def _before_synapse_store(self, syn):
-        ## store any columns before storing table
-        if self.columns_to_store:
-            for column in self.columns_to_store:
-                column = syn.store(column)
-                self.properties.columnIds.append(column.id)
-            self.__dict__['columns_to_store'] = None
+        super(EntityViewSchema, self)._before_synapse_store(syn)
+        #get the default EntityView columns from Synapse and add them to the columns list
+        if self.add_default_columns:
+            self.addColumns(syn._get_default_entity_view_columns(self.type))
+            self.add_default_columns = False
+
 
 
 ## add Schema to the map of synapse entity types to their Python representations
 synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
+synapseclient.entity._entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 
 ## allowed column types
 ## see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
-ColumnTypes = ['STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK']
+ColumnTypes = ['STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK', 'LARGETEXT', 'USERID']
 
 
 class SelectColumn(DictObject):
@@ -607,7 +692,7 @@ class Column(DictObject):
 
 class RowSet(DictObject):
     """
-    A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://rest.synapse.org/org/sagebionetworks/repo/model/table/RowSet.html>`_.
+    A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
@@ -648,7 +733,7 @@ class RowSet(DictObject):
         """
         Creates and POSTs an AppendableRowSetRequest_
 
-        .. AppendableRowSetRequest: http://rest.synapse.org/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
+        .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
         arsr = dict(
             concreteType='org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
@@ -674,7 +759,7 @@ class RowSet(DictObject):
 
 class Row(DictObject):
     """
-    A `row <http://rest.synapse.org/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
+    A `row <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
 
     :param values:         A list of values
     :param rowId:          The immutable ID issued to a new row
@@ -691,7 +776,7 @@ class Row(DictObject):
 
 class RowSelection(DictObject):
     """
-    A set of rows to be `deleted <http://rest.synapse.org/POST/entity/id/table/deleteRows.html>`_.
+    A set of rows to be `deleted <http://docs.synapse.org/rest/POST/entity/id/table/deleteRows.html>`_.
 
     :param rowIds: list of row ids
     :param etag: etag of latest change set
@@ -999,7 +1084,7 @@ class CsvFileTable(TableAbstractBaseClass):
         Mostly for internal use.
         """
 
-        download_from_table_result, file_info = synapse._queryTableCsv(
+        download_from_table_result, path = synapse._queryTableCsv(
             query=query,
             quoteCharacter=quoteCharacter,
             escapeCharacter=escapeCharacter,
@@ -1010,7 +1095,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
         ## A dirty hack to find out if we got back row ID and Version
         ## in particular, we don't get these back from aggregate queries
-        with io.open(file_info['path'], 'r', encoding='utf-8') as f:
+        with io.open(path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f,
                 delimiter=separator,
                 escapechar=escapeCharacter,
@@ -1023,7 +1108,7 @@ class CsvFileTable(TableAbstractBaseClass):
             includeRowIdAndRowVersion = False
 
         self = cls(
-            filepath=file_info['path'],
+            filepath=path,
             schema=download_from_table_result.get('tableId', None),
             etag=download_from_table_result.get('etag', None),
             quoteCharacter=quoteCharacter,
@@ -1047,7 +1132,7 @@ class CsvFileTable(TableAbstractBaseClass):
         if isinstance(schema, Schema) and not schema.has_columns():
             schema.addColumns(cols)
 
-        ## convert row names in the format [row_id]-[version] back to columns
+        ## convert row names in the format [row_id]_[version] back to columns
         row_id_version_pattern = re.compile(r'(\d+)_(\d+)')
 
         row_id = []
@@ -1058,10 +1143,12 @@ class CsvFileTable(TableAbstractBaseClass):
             row_version.append(m.group(2) if m else None)
 
         ## include row ID and version, if we're asked to OR if it's encoded in rownames
-        if includeRowIdAndRowVersion==True or (includeRowIdAndRowVersion is None and any(row_id)):
+        if includeRowIdAndRowVersion or (includeRowIdAndRowVersion is None and any(row_id)):
             df2 = df.copy()
-            df2.insert(0, 'ROW_ID', row_id)
-            df2.insert(1, 'ROW_VERSION', row_version)
+
+            cls._insert_dataframe_column_if_not_exist(df2, 0, 'ROW_ID', row_id)
+            cls._insert_dataframe_column_if_not_exist(df2, 1, 'ROW_VERSION', row_version)
+
             df = df2
             includeRowIdAndRowVersion = True
 
@@ -1100,6 +1187,19 @@ class CsvFileTable(TableAbstractBaseClass):
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion,
             headers=headers)
+
+    @staticmethod
+    def _insert_dataframe_column_if_not_exist(dataframe, insert_index, col_name, insert_column_data):
+        # if the column already exists verify the column data is same as what we parsed
+        if col_name in dataframe.columns:
+            if dataframe[col_name].tolist() != insert_column_data:
+                raise SynapseError(("A column named '{0}' "
+                                   "already exists and does not match the '{0}' "
+                                   "values present in the DataFrame's row names. "
+                                   "Please refain from using or modifying '{0}' as a column for your data "
+                                   "because it is necessary for version tracking in Synapse's tables").format(col_name) )
+        else:
+            dataframe.insert(insert_index, col_name, insert_column_data)
 
     @classmethod
     def from_list_of_rows(cls, schema, values, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
@@ -1176,7 +1276,7 @@ class CsvFileTable(TableAbstractBaseClass):
             self.schema = syn.store(self.schema)
             self.tableId = self.schema.id
 
-        upload_to_table_result = syn._uploadCsv(
+        result = syn._uploadCsv(
             self.filepath,
             self.schema if self.schema else self.tableId,
             updateEtag=self.etag,
@@ -1187,6 +1287,10 @@ class CsvFileTable(TableAbstractBaseClass):
             header=self.header,
             linesToSkip=self.linesToSkip)
 
+        upload_to_table_result = result['results'][0]
+
+        assert upload_to_table_result['concreteType'] in ('org.sagebionetworks.repo.model.table.EntityUpdateResults',
+                                                          'org.sagebionetworks.repo.model.table.UploadToTableResult'), "Not an UploadToTableResult or EntityUpdateResults."
         if 'etag' in upload_to_table_result:
             self.etag = upload_to_table_result['etag']
         return self
@@ -1214,13 +1318,29 @@ class CsvFileTable(TableAbstractBaseClass):
             etag=self.etag,
             tableId=self.tableId)))
 
-    def asDataFrame(self, rowIdAndVersionInIndex=True):
+    def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime = False):
+        """
+        
+        :param rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version
+        :param convert_to_datetime: If set to True, will convert all Synapse DATE columns from UNIX timestamp integers into UTC datetime objects
+        :return: 
+        """
         test_import_pandas()
         import pandas as pd
 
         try:
             #Handle bug in pandas 0.19 requiring quotechar to be str not unicode or newstr
             quoteChar = bytes_to_native_str(bytes(self.quoteCharacter)) if six.PY2 else self.quoteCharacter
+
+            #determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
+            date_columns = []
+            datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms', utc=True) #DATEs are stored in csv as unix timestamp in milliseconds
+            if convert_to_datetime:
+                for select_column in self.headers:
+                    if select_column.columnType == "DATE":
+                        date_columns.append(select_column.name)
+
+
             ## assign line terminator only if for single character
             ## line terminators (e.g. not '\r\n') 'cause pandas doesn't
             ## longer line terminators. See:
@@ -1232,7 +1352,9 @@ class CsvFileTable(TableAbstractBaseClass):
                     quotechar=quoteChar,
                     escapechar=self.escapeCharacter,
                     header = 0 if self.header else None,
-                    skiprows=self.linesToSkip)
+                    skiprows=self.linesToSkip,
+                    parse_dates=date_columns,
+                    date_parser=datetime_millisecond_parser)
         except pd.parser.CParserError as ex1:
             df = pd.DataFrame()
 
@@ -1299,4 +1421,3 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def __len__(self):
         return sum(1 for row in self)
-

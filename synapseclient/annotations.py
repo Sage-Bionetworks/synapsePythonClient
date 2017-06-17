@@ -175,7 +175,7 @@ def to_submission_status_annotations(annotations, is_private=True):
 
     Synapse categorizes these annotations by: stringAnnos, doubleAnnos,
     longAnnos. If date or blob annotations are supported, they are not
-    `documented <http://rest.synapse.org/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
+    `documented <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
     """
     if is_submission_status_annotations(annotations):
         return annotations
@@ -219,8 +219,8 @@ def from_submission_status_annotations(annotations):
 def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'doubleAnnos', 'stringAnnos']):
     """
     Set privacy of individual annotations, where annotations are in the format used by Synapse
-    SubmissionStatus objects. See the `Annotations documentation <http://rest.synapse.org/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
-    and the docs regarding `querying annotations <http://rest.synapse.org/GET/evaluation/submission/query.html>`_.
+    SubmissionStatus objects. See the `Annotations documentation <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
+    and the docs regarding `querying annotations <http://docs.synapse.org/rest/GET/evaluation/submission/query.html>`_.
 
     :param annotations: Annotations that have already been converted to Synapse format using
                         :py:func:`to_submission_status_annotations`.
