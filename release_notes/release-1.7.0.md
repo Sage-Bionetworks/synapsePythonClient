@@ -6,20 +6,21 @@ Release Notes - Synapse Python Client - Version py-1.7
 
 Release 1.7 is a large bugfix release with several new features. The main ones include:
 * We have expanded the [syanpaseutils packages](docs.synapse.org/python/synapseutils.html#module-synapseutils) to add the  abilitity to:
-    * Bulk upload files to synapse.
+    * Bulk upload files to synapse (synapseutils.syncToSynapse).
     * Notify you via email on the progress of a function (useful for jobs like large file uploads that may take a long time to complete).
-* File View tables can now be created from the python client using EntityViewSchema.
+    * The syncFromSynapse function now creates a "manifest" which contains the metadata of downloaded files. (These can also be used to update metadata with the bulk upload function.
+* File View tables can now be created from the python client using EntityViewSchema see [http://docs.synapse.org/articles/fileviews.html](fileviews documentation).
 * The python client is now able to upload to user owned S3 Buckets. [Click here for instructions on linking your S3 bucket to synapse](http://docs.synapse.org/articles/custom_storage_location.html)
 
 We've also made vairous improvements to existing features:
-* The synapse LARGETEXT type is now supported in Tables
+* The LARGETEXT type is now supported in Tables allowing for strings up to 2Mb.
 * The `--description` argument when creating/updating entities from the command line client will now create a `Wiki` for that entity. You can also use `--descriptionFile` to write the contents of a markdownfile as the entity's `Wiki`
-* Joining `file_entity.cacheDir` and `file_entity.files` is being DEPRECATED in favor of `file_entity.path` for finding the location of a downloaded `File`
+* Two member variables of the File object, `file_entity.cacheDir` and `file_entity.files` is being DEPRECATED in favor of `file_entity.path` for finding the location of a downloaded `File`
 * `pandas` `dataframe`s containing `datetime` values can now be properly converted into csv and uploaded to Synapse.
 We also added a optional `convert_to_datetime` parameter to `CsvFileTable.asDataFrame()` that will automatically convert Synapse DATE columns into `datetime` objects instead of leaving them as `long` unix timestamps
 
 
-Below are the full list of JIRA issues addressed by this release:
+Below are the full list of bugs and issues addressed by this release:
 
 ### New Features
 
