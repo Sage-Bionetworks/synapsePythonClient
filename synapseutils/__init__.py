@@ -10,6 +10,8 @@ interacting with `Synapse <http://www.synapse.org>`_.  These funtionalities incl
 - :py:func:`copy.copyWiki`
 - :py:func:`walk.walk`
 - :py:func:`sync.syncFromSynapse`
+- :py:func:`sync.syncToSynapse`
+- :py:func:`monitor.notifyMe`
 """
 
 
