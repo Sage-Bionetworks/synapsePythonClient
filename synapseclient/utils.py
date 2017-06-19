@@ -828,6 +828,54 @@ def _is_integer(x):
             ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
             return False
 
+
+def topolgical_sort(graph):
+    """Given a graph in the form of a dictionary returns a sorted list
+
+    Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
+    
+    :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
+
+    :returns: sorted list of items
+    """
+    graph_unsorted = graph.copy()
+    graph_sorted = []
+    # Convert the unsorted graph into a hash table. This gives us
+    # constant-time lookup for checking if edges are unresolved
+
+    # Run until the unsorted graph is empty.
+    while graph_unsorted:
+        # Go through each of the node/edges pairs in the unsorted
+        # graph. If a set of edges doesn't contain any nodes that
+        # haven't been resolved, that is, that are still in the
+        # unsorted graph, remove the pair from the unsorted graph,
+        # and append it to the sorted graph. Note here that by using
+        # using the items() method for iterating, a copy of the
+        # unsorted graph is used, allowing us to modify the unsorted
+        # graph as we move through it. We also keep a flag for
+        # checking that that graph is acyclic, which is true if any
+        # nodes are resolved during each pass through the graph. If
+        # not, we need to bail out as the graph therefore can't be
+        # sorted.
+        acyclic = False
+        for node, edges in list(graph_unsorted.items()):
+            for edge in edges:
+                if edge in graph_unsorted:
+                    break
+            else:
+                acyclic = True
+                del graph_unsorted[node]
+                graph_sorted.append((node, edges))
+
+        if not acyclic:
+            # We've passed through all the unsorted nodes and
+            # weren't able to resolve any of them, which means there
+            # are nodes with cyclic edges that will never be resolved,
+            # so we bail out with an error.
+            raise RuntimeError("A cyclic dependency occurred. Some files in provenance reference each other circularly.")
+    return graph_sorted
+
+
 def caller_module_name(current_frame):
     """
     :param current_frame: use inspect.currentframe().
@@ -846,3 +894,4 @@ def caller_module_name(current_frame):
         caller_filename = caller_frame.f_code.co_filename
 
     return inspect.getmodulename(caller_filename)
+
