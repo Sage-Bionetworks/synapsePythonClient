@@ -45,18 +45,18 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     been downloaded.  If there are newer files in Synapse (or a local
     file has been edited outside of the cache) since the last download
     then local the file will be replaced by the new file unless
-    ifcollision is changed.
+    "ifcollision" is changed.
 
     If the files are being downloaded to a specific location outside
-    of the Synapse Cache We will also add a file
-    (SYNAPSE_METEDATA_MANIFEST.tsv) in the path that contains
+    of the Synapse cache a file
+    (SYNAPSE_METEDATA_MANIFEST.tsv) will also be added in the path that contains
     the metadata (annotations, storage location and provenance of all
-    downloaded files)
+    downloaded files).
 
     See also: 
     - :py:func:`synapseutils.sync.syncToSynapse`
 
-    Example::
+    Example:
     Download and print the paths of all downloaded files::
 
         entities = syncFromSynapse(syn, "syn1234")
@@ -171,7 +171,7 @@ def readManifestFile(syn, manifest_file):
     :param manifest_file: A tsv file with file locations and metadata
                           to be pushed to Synapse.  See below for details
 
-    :returns a pandas dataframe if the manifest is validated.
+    :returns S pandas dataframe if the manifest is validated.
 
     See also for a description of the file format:
     - :py:func:`synapseutils.sync.syncToSynapse`
@@ -247,23 +247,21 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
 
     **Manifest file format**
 
-
-
     The format of the manifest file is a tab delimited file with one
-    row per file to upload and columns describing the file.  The bare
-    minimum required columns is **path** and **parent** where path is
+    row per file to upload and columns describing the file. The
+    minimum required columns are **path** and **parent** where path is
     the local file path and parent is the synapse Id of the project or
-    folder where the file is uploaded to.  In addition to these
+    folder where the file is uploaded to. In addition to these
     columns you can specify any of the parameters to the File
     constructor (**name**, **synapseStore**, **contentType**) as well
     as parameters to the syn.store command (**used**, **executed**,
     **activityName**, **activityDescription**, **forceVersion**).
-    Used and executed can be semi-colon(;) separated lists of synapse
+    Used and executed can be semi-colon(;) separated lists of Synapse
     ids, urls and/or local filepaths of files already stored in
-    Synapse (or being stored in Synapse by the manifest).  Any
+    Synapse (or being stored in Synapse by the manifest). Any
     additional columns will be added as annotations.
 
-    **Required Fields:**
+    **Required fields:**
 
     ======   ======================                  ============================
     Field    Meaning                                 Example
@@ -273,7 +271,7 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     ======   ======================                  ============================
                         
                         
-    **Common Fields:**
+    **Common fields:**
     
     ===============        ===========================                   ============
     Field                  Meaning                                       Example
@@ -282,7 +280,7 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     forceVersion           whether to update version                     False
     ===============        ===========================                   ============
                         
-    **Provenance Fields:**  
+    **Provenance fields:**  
 
     ====================   =====================================  ==========================================
     Field                  Meaning                                Example
@@ -293,11 +291,11 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     activityDescription    Text description on what was done      "Ran algorithm xyx with parameters..."
     ====================   =====================================  ==========================================                        
 
-    Annotations:        
+    **Annotations:        **
                         
     Any columns that are not in the reserved names described above will be intepreted as annotations of the file
                         
-    **Other Optional fields:**
+    **Other optional fields:**
 
     ===============          ==========================================  ============
     Field                    Meaning                                     Example
@@ -307,7 +305,7 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     ===============          ==========================================  ============
 
 
-    **Example Manifest file**
+    **Example manifest file**
 
     ===============   ========    =======   =======   ===========================    ============================
     path              parent      annot1    annot2    used                           executed
