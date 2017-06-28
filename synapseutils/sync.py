@@ -18,7 +18,7 @@ REQUIRED_FIELDS = ['path', 'parent']
 FILE_CONSTRUCTOR_FIELDS  = ['name', 'synapseStore', 'contentType']
 STORE_FUNCTION_FIELDS =  ['used', 'executed', 'activityName', 'activityDescription', 'forceVersion']
 MAX_RETRIES = 4
-MANIFEST_FILENAME = 'SYNAPSE_METEDATA_MANIFEST.tsv'
+MANIFEST_FILENAME = 'SYNAPSE_METADATA_MANIFEST.tsv'
 
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles = None, followLink=False):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file metadata.
@@ -49,7 +49,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     If the files are being downloaded to a specific location outside
     of the Synapse Cache We will also add a file
-    (SYNAPSE_METEDATA_MANIFEST.tsv) in the path that contains
+    (SYNAPSE_METADATA_MANIFEST.tsv) in the path that contains
     the metadata (annotations, storage location and provenance of all
     downloaded files)
 
