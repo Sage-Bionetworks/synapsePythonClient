@@ -171,7 +171,7 @@ def readManifestFile(syn, manifest_file):
     :param manifest_file: A tsv file with file locations and metadata
                           to be pushed to Synapse.  See below for details
 
-    :returns S pandas dataframe if the manifest is validated.
+    :returns A pandas dataframe if the manifest is validated.
 
     See also for a description of the file format:
     - :py:func:`synapseutils.sync.syncToSynapse`
