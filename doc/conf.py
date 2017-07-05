@@ -48,7 +48,7 @@ copyright = u'2014, Sage Bionetworks'
 # built documents.
 #
 # The short X.Y version.
-version = '1.7.1'
+version = '1.7.2'
 # The full version, including alpha/beta/rc tags.
 release = '1.7.1'
 
