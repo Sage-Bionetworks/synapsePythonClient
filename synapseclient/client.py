@@ -1888,9 +1888,11 @@ class Synapse:
                           (exc_info[0](exc_info[1]), ex.progress), self.debug)
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
-        ## Re-raise exception
-        raise exc_info[0](exc_info[1])
-
+                if retries <= 0:
+                    ## Re-raise exception
+                    raise exc_info[0](exc_info[1])
+                
+        raise "should not reach this line"
 
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
         """
