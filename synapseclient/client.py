@@ -1892,7 +1892,7 @@ class Synapse:
                     ## Re-raise exception
                     raise exc_info[0](exc_info[1])
                 
-        raise "should not reach this line"
+        raise Exception("should not reach this line")
 
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
         """
