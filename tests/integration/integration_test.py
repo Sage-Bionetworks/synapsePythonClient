@@ -447,3 +447,26 @@ def test_external_s3_upload():
     assert filecmp.cmp(temp_file_path, downloaded_syn_file['path'])
 
 
+def test_findEntityIdByNameAndParent():
+    project_name = str(uuid.uuid1())
+    project_id = syn.store(Project(name=project_name))['id']
+    assert_equals(project_id, syn._findEntityIdByNameAndParent(project_name))
+
+
+def test_getChildren():
+    # setup a hierarchy for folders
+    # PROJECT
+    # |     \
+    # File   Folder
+    #           |
+    #         File
+    project_name = str(uuid.uuid1())
+    test_project = syn.store(Project(name=project_name))
+    folder = syn.store(Folder(name="firstFolder", parent=test_project))
+    nested_file = syn.store(File(path="~/doesntMatter.txt", name="file inside folders", parent=folder, synapseStore=False))
+    project_file = syn.store(File(path="~/doesntMatterAgain.txt", name="file inside project", parent=test_project, synapseStore=False))
+    schedule_for_cleanup(test_project)
+
+    expected_id_set = {project_file.id, folder.id}
+    children_id_set = { x['id'] for x in syn.getChildren(test_project.id)}
+    assert_equals(expected_id_set, children_id_set)

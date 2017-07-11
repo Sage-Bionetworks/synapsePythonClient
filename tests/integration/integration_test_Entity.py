@@ -7,19 +7,22 @@ from builtins import str
 
 import uuid, filecmp, os, tempfile, time
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_greater
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_greater, assert_less
+from nose import SkipTest
 from mock import patch
+
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
 
 import synapseclient
-from synapseclient import Activity, Project, Folder, File, Link
+from synapseclient import Activity, Project, Folder, File, Link, DockerRepository
 from synapseclient.exceptions import *
 
 import integration
-from integration import schedule_for_cleanup
+from nose.tools import assert_false, assert_equals
+from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
@@ -100,7 +103,6 @@ def test_Entity():
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(path, a_file.path)
 
-    assert_raises(ValueError,File,a_file.path,parent=folder,dataFileHandleId=56456)
     b_file = File(name="blah",parent=folder,dataFileHandleId=a_file.dataFileHandleId)
     b_file = syn.store(b_file)
 
@@ -136,6 +138,14 @@ def test_Entity():
     assert link.new_key[0] == 'A newly created value'
     assert utils.equal_paths(link.path, path)
     assert link.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
+
+    newfolder = Folder('Testing Folder', parent=project)
+    newfolder = syn.store(newfolder)
+    link = Link(newfolder.id, parent = folder.id)
+    link = syn.store(link)
+    assert link['linksTo']['targetId'] == newfolder.id
+    assert link['linksToClassName'] == newfolder['concreteType']
+    assert link['linksTo'].get('targetVersionNumber') is None
 
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
@@ -436,11 +446,6 @@ def test_create_or_update_project():
     proj_for_cleanup = syn.store(project)
     schedule_for_cleanup(proj_for_cleanup)
 
-    #TODO: this is here because store() calls _findEntityIdByNameAndParent() in the case that we store() an entity without
-    #TODO: an id, like we do below. _findEntityIdByNameAndParent() uses query() which is eventually consistent but not immediate
-    #TODO: (i.e. we can't immediately query for an Entity ID using projet name and parentId right after creating it)
-    time.sleep(3)
-
     project = Project(name, b=3, c=4)
     project = syn.store(project)
 
@@ -550,4 +555,86 @@ def test_store_file_handle_update_metadata():
     assert_equal(replacement_file_path, new_entity.path)
     assert_equal(os.path.dirname(replacement_file_path), new_entity.cacheDir)
     assert_equal([os.path.basename(replacement_file_path)], new_entity.files)
+
+
+def test_store_DockerRepository():
+    repo_name = "some/repository/path"
+    docker_repo = syn.store(DockerRepository(repo_name,parent=project))
+    assert_is_instance(docker_repo, DockerRepository)
+    assert_false(docker_repo.isManaged)
+    assert_equals(repo_name, docker_repo.repositoryName)
+
+
+def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
+    if not (other_user.get('username') and other_user.get('password')):
+        raise SkipTest("Test was skipped because an additional user is required for this test. Please add a username, password, and pricipalId under [test-authentication] in the .synapseConfig file if oyu wish to execute this test")
+    other_syn = synapseclient.login(other_user['username'], other_user['password'])
+
+    #make a temp data file
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+
+    #upload to synapse and set permissions to READ only
+    entity = syn.store(File(path, parent=project))
+    syn.setPermissions(entity, other_user['username'], accessType=['READ'])
+
+    #try to download and check that nothing wad downloaded and a warning message was printed
+    with patch("sys.stderr") as mocked_stderr:
+        entity_no_download = other_syn.get(entity['id'])
+        mocked_stderr.write.assert_called_once()
+        assert_is_none(entity_no_download.path)
+
+
+def test_store__changing_externalURL_by_changing_path():
+    url ='https://www.synapse.org/Portal/clear.cache.gif'
+    ext = syn.store(synapseclient.File(url, name="test",parent=project, synapseStore=False))
+
+    #perform a syn.get so the filename changes
+    ext = syn.get(ext)
+
+    #create a temp file
+    temp_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(temp_path)
+
+    ext.synapseStore = False
+    ext.path = temp_path
+    ext = syn.store(ext)
+
+    #do a get to make sure filehandle has been updated correctly
+    ext = syn.get(ext.id, downloadFile=True)
+
+    assert_not_equal(ext.externalURL, url)
+    assert_equal(utils.normalize_path(temp_path), utils.file_url_to_path(ext.externalURL))
+    assert_equal(temp_path, ext.path)
+    assert_equal(False, ext.synapseStore)
+
+
+def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
+    #create a temp file
+    temp_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(temp_path)
+
+    ext = syn.store(synapseclient.File(temp_path,parent=project, synapseStore=True))
+    ext = syn.get(ext)
+    assert_equal("org.sagebionetworks.repo.model.file.S3FileHandle", ext._file_handle.concreteType)
+
+    ext.synapseStore = False
+    ext = syn.store(ext)
+
+    #do a get to make sure filehandle has been updated correctly
+    ext = syn.get(ext.id, downloadFile=True)
+    assert_equal("org.sagebionetworks.repo.model.file.ExternalFileHandle", ext._file_handle.concreteType)
+    assert_equal(utils.as_url(temp_path), ext.externalURL)
+    assert_equal(False, ext.synapseStore)
+
+    #swap back to synapse storage
+    ext.synapseStore=True
+    ext = syn.store(ext)
+    #do a get to make sure filehandle has been updated correctly
+    ext = syn.get(ext.id, downloadFile=True)
+    assert_equal("org.sagebionetworks.repo.model.file.S3FileHandle", ext._file_handle.concreteType)
+    assert_equal(None, ext.externalURL)
+    assert_equal(True, ext.synapseStore)
+
+
 

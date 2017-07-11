@@ -1,8 +1,7 @@
 import synapseclient
-from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity, exceptions
-import time
-from synapseclient.exceptions import *
-import tempfile
+from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity
+from synapseclient.cache import Cache
+from synapseclient.exceptions import SynapseHTTPError
 import re
 import json
 ############################################################
@@ -37,7 +36,18 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
                                                                       "fileHandleId":filehandleId,
                                                                       "associateObjectId":associateObjectId}})
     copiedFileHandles = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
-    return(copiedFileHandles)
+    _copy_cached_file_handles(syn.cache, copiedFileHandles)
+    return copiedFileHandles
+
+
+def _copy_cached_file_handles(cache, copiedFileHandles):
+    # type: (Cache , dict) -> None
+    for copy_result in copiedFileHandles['copyResults']:
+        if copy_result.get('failureCode') is None:  # sucessfully copied
+            original_cache_path = cache.get(copy_result['originalFileHandleId'])
+            if original_cache_path:
+                cache.add(copy_result['newFileHandle']['id'], original_cache_path)
+
 
 def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     """
@@ -176,9 +186,9 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         if not isinstance(syn.get(destinationId),Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
         copiedId = destinationId
-        entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"' % ent.id)
+        entities = syn.getChildren(entity)
         for i in entities:
-            mapping = _copyRecursive(syn, i['entity.id'], destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
+            mapping = _copyRecursive(syn, i['id'], destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
     elif isinstance(ent, Folder):
         copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
     elif isinstance(ent, File) and "file" not in excludeTypes:
@@ -222,9 +232,9 @@ def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=Fa
     if not skipCopyAnnotations:
         newFolder.annotations = oldFolder.annotations
     newFolder = syn.store(newFolder)
-    entities = syn.chunkedQuery('select id, name from entity where parentId=="%s"'% entity)
+    entities = syn.getChildren(entity)
     for ent in entities:
-        copied = _copyRecursive(syn, ent['entity.id'],newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
+        copied = _copyRecursive(syn, ent['id'],newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
     return(newFolder.id)
 
 def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback", skipCopyAnnotations=False):
@@ -348,8 +358,7 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
         existingEntity = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
         if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. Link could not be copied'%ent.name)
-
-    newLink = Link(ent.linksTo['targetId'],parent=destinationId,targetVersion=ent.linksTo['targetVersionNumber'])
+    newLink = Link(ent.linksTo['targetId'],parent=destinationId,targetVersion=ent.linksTo.get('targetVersionNumber'))
     try:
         newLink = syn.store(newLink)
         return(newLink.id)

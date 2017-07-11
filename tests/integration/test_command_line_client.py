@@ -14,7 +14,7 @@ import uuid
 import json
 import time
 from nose.plugins.attrib import attr
-from nose.tools import assert_raises, assert_equals
+from nose.tools import assert_raises, assert_equals, assert_less
 import tempfile
 import shutil
 from mock import patch
@@ -30,7 +30,7 @@ import synapseclient.__main__ as cmdline
 from synapseclient.evaluation import Evaluation
 
 import integration
-from integration import schedule_for_cleanup
+from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 if six.PY2:
     from StringIO import StringIO
@@ -52,6 +52,8 @@ def setup_module(module):
     module.upload_filename = _create_temp_file_with_cleanup()
     module.description_text = "'some description text'"
     module.desc_filename = _create_temp_file_with_cleanup(module.description_text)
+    module.update_description_text = "'SOMEBODY ONCE TOLD ME THE WORLD WAS GONNA ROLL ME I AINT THE SHARPEST TOOL IN THE SHED'"
+
 
 
 def run(*command, **kwargs):
@@ -571,7 +573,10 @@ def test_command_get_recursive_and_query():
     file_entities.append(file_entity)
 
     #function under test uses queries which are eventually consistent but not immediately after creating the entities
-    time.sleep(3)
+    start_time = time.time()
+    while syn.query("select id from entity where id=='%s'" % file_entity.id).get('totalNumberOfResults') <= 0:
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
 
     ### Test recursive get
     output = run('synapse', '--skip-checks',
@@ -838,7 +843,7 @@ def test_configPath():
 
     """
 
-    tmp_config_file = tempfile.NamedTemporaryFile(suffix='.synapseConfig')
+    tmp_config_file = tempfile.NamedTemporaryFile(suffix='.synapseConfig', delete=False)
     shutil.copyfile(synapseclient.client.CONFIG_FILE, tmp_config_file.name)
 
     # Create a File
@@ -963,3 +968,79 @@ def test_add__with_descriptionFile():
                  desc_filename
                  )
     _description_wiki_check(output, description_text)
+
+
+def test_create__update_description():
+    name = str(uuid.uuid4())
+    output = run('synapse',
+                 'create',
+                 'Folder',
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+    output = run('synapse',
+                 'create',
+                 'Folder',
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 update_description_text
+                 )
+    _description_wiki_check(output, update_description_text)
+
+def test_store__update_description():
+    name = str(uuid.uuid4())
+    output = run('synapse',
+                 'store',
+                 upload_filename,
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+    output = run('synapse',
+                 'store',
+                 upload_filename,
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 update_description_text
+                 )
+    _description_wiki_check(output, update_description_text)
+
+def test_add__update_description():
+    name = str(uuid.uuid4())
+    output = run('synapse',
+                 'add',
+                 upload_filename,
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--descriptionFile',
+                 desc_filename
+                 )
+    _description_wiki_check(output, description_text)
+    output = run('synapse',
+                 'add',
+                 upload_filename,
+                 '-name',
+                 name,
+                 '-parentid',
+                 project.id,
+                 '--description',
+                 update_description_text
+                 )
+    _description_wiki_check(output, update_description_text)

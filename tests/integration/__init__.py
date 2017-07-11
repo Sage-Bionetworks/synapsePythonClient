@@ -16,11 +16,14 @@ import os
 import sys
 import shutil 
 import six
+import tempfile
 
 from synapseclient import Entity, Project, Folder, File, Evaluation
 import synapseclient
 import synapseclient.utils as utils
 
+
+QUERY_TIMEOUT_SEC = 20
 
 def setup_module(module):
     print("Python version:", sys.version)
@@ -42,8 +45,15 @@ def setup_module(module):
     schedule_for_cleanup(project)
     module.project = project
 
+    #set the working directory to a temp directory
+    module._old_working_directory = os.getcwd()
+    working_directory = tempfile.mkdtemp(prefix="someTestFolder")
+    schedule_for_cleanup(working_directory)
+    os.chdir(working_directory)
+
 
 def teardown_module(module):
+    os.chdir(module._old_working_directory)
     cleanup(module._to_cleanup)
 
 

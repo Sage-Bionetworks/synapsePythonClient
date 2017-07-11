@@ -10,6 +10,8 @@ interacting with `Synapse <http://www.synapse.org>`_.  These funtionalities incl
 - :py:func:`copy.copyWiki`
 - :py:func:`walk.walk`
 - :py:func:`sync.syncFromSynapse`
+- :py:func:`sync.syncToSynapse`
+- :py:func:`monitor.notifyMe`
 """
 
 
@@ -21,4 +23,5 @@ from __future__ import unicode_literals
 
 from .copy import copy, copyWiki, copyFileHandles, changeFileMetaData
 from .walk import walk
-from .sync import syncFromSynapse
+from .sync import syncFromSynapse, syncToSynapse
+from .monitor import notifyMe

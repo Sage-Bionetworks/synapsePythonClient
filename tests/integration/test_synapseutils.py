@@ -5,25 +5,22 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, requests, tempfile, time
-from datetime import datetime as Datetime
-from nose.tools import assert_raises
-from nose.plugins.attrib import attr
-from mock import patch
+import uuid, filecmp, os, sys, time, tempfile
+
+from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
+
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
 
 import synapseclient
-import synapseclient.client as client
-import synapseclient.utils as utils
-from synapseclient import Activity, Entity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
+from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
 from synapseclient.exceptions import *
 import synapseutils
 import re
 import integration
-from integration import schedule_for_cleanup
+from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 def setup(module):
     print('\n')
@@ -169,7 +166,10 @@ def test_copy():
     link_entity = syn.store(link_entity)
 
     #function under test uses queries which are eventually consistent but not immediately after creating the entities
-    time.sleep(3)
+    start_time = time.time()
+    while syn.query("select id from entity where id=='%s'" % link_entity.id).get('totalNumberOfResults') <= 0:
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
 
     copied_link = synapseutils.copy(syn,link_entity.id, destinationId=second_folder.id)
     old = syn.get(link_entity.id,followLink=False)
@@ -238,6 +238,11 @@ def test_copy():
     assert copied_folder.name == second_folder.name
     assert len(second) == 1
     # TEST: Make sure error is thrown if foldername already exists
+    start_time = time.time()
+    while syn.query("select id from entity where id=='%s'" % copied_folder.id).get('totalNumberOfResults') <= 0:
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
+
     assert_raises(ValueError,synapseutils.copy,syn,second_folder.id, destinationId=second_project.id)
 
     # ------------------------------------
@@ -436,7 +441,12 @@ def test_walk():
                    [(third_file.name,third_file.id)]))
 
     #walk() uses query() which returns results that will be eventually consistent with synapse but not immediately after creating the entities
-    time.sleep(3)
+    start_time = time.time()
+    while syn.query("select id from entity where id=='%s'" % third_file.id).get('totalNumberOfResults') <= 0:
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
+
+
     temp = synapseutils.walk(syn, project_entity.id)
     temp = list(temp)
     #Must sort the tuples returned, because order matters for the assert
@@ -455,44 +465,6 @@ def test_walk():
     temp = synapseutils.walk(syn, second_file.id)
     assert list(temp) == []
 
-
-def test_syncFromSynapse():
-    """This function tests recursive download as defined in syncFromSynapse
-    most of the functionality of this function are already tested in the 
-    tests/integration/test_command_line_client::test_command_get_recursive_and_query
-
-    which means that the only test if for path=None
-    """
-    # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
-
-    # Create a Folder in Project
-    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-
-    # Create and upload two files in Folder
-    uploaded_paths = []
-    for i in range(2):
-        f  = utils.make_bogus_data_file()
-        uploaded_paths.append(f)
-        schedule_for_cleanup(f)
-        file_entity = syn.store(File(f, parent=folder_entity))
-    #Add a file in the project level as well
-    f  = utils.make_bogus_data_file()
-    uploaded_paths.append(f)
-    schedule_for_cleanup(f)
-    file_entity = syn.store(File(f, parent=project_entity))
-
-    #syncFromSynapse() uses chunkedQuery() which will return results that are eventually consistent but not always right after the entity is created.
-    time.sleep(3)
-
-    ### Test recursive get
-    output = synapseutils.syncFromSynapse(syn, project_entity)
-
-    assert len(output) == len(uploaded_paths)
-    for f in output:
-        print(f.path)
-        assert f.path in uploaded_paths
 
 def test_copyFileHandleAndchangeFileMetadata():
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
@@ -539,3 +511,40 @@ def test_copyFileHandleAndchangeFileMetadata():
     fileResult = syn._getFileHandleDownload(new_entity.dataFileHandleId, new_entity.id)
     assert fileResult['fileHandle']['fileName'] == "newName.txt", "Set new file name to be newName.txt"
     assert new_entity.contentType == "application/x-tar", "Set new content type to be application/x-tar"
+
+
+def test_copyFileHandles__copying_cached_file_handles():
+    num_files = 3
+    file_entities = []
+
+    #upload temp files to synapse
+    for i in range(num_files):
+        file_path = utils.make_bogus_data_file();
+        schedule_for_cleanup(file_path)
+        file_entities.append(syn.store(File(file_path,name=str(uuid.uuid1()), parent=project)))
+
+    #a bunch of setup for arguments to the function under test
+    file_handles = [file_entity['_file_handle'] for file_entity in file_entities ]
+    file_entity_ids = [file_entity['id'] for file_entity in file_entities]
+    content_types = [file_handle['contentType'] for file_handle in file_handles]
+    filenames = [file_handle['fileName'] for file_handle in file_handles]
+
+    #remove every other FileHandle from the cache (at even indicies)
+    for i in range(num_files):
+        if i % 2 == 0:
+            syn.cache.remove(file_handles[i]["id"])
+
+    #get the new list of file_handles
+    copiedFileHandles = synapseutils.copyFileHandles(syn, file_handles , ["FileEntity"] * num_files, file_entity_ids,content_types , filenames)
+    new_file_handle_ids = [copy_result['newFileHandle']['id'] for copy_result in copiedFileHandles['copyResults']]
+
+    #verify that the cached paths are the same
+    for i in range(num_files):
+        original_path = syn.cache.get(file_handles[i]['id'])
+        new_path = syn.cache.get(new_file_handle_ids[i])
+        if i % 2 == 0: # since even indicies are not cached, both should be none
+            assert_is_none(original_path)
+            assert_is_none(new_path)
+        else: # at odd indicies, the file path should have been copied
+            assert_equals(original_path, new_path)
+
