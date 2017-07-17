@@ -87,7 +87,7 @@ from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
 from .multipart_upload import multipart_upload, multipart_upload_string
-
+from .remote_file_connection import ClientS3Connection
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -1833,7 +1833,11 @@ class Synapse:
                 fileResult = self._getFileHandleDownload(fileHandleId,
                                                         objectId, objectType)
                 fileHandle = fileResult['fileHandle']
-                downloaded_path = self._download(fileResult['preSignedURL'], destination, fileHandle['id'], fileHandle.get('contentMd5'))
+                #TODO: instead of _download that takes in only a url. we use a factory here that checks the file handle type and returns a download resolver object/ function that can be run to downlaod the file
+                if fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle":
+                    downloaded_path = Co
+                else:
+                    downloaded_path = self._download(fileResult['preSignedURL'], destination, fileHandle['id'], fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
             except Exception as ex:
