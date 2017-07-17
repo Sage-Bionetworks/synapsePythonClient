@@ -993,6 +993,9 @@ class Synapse:
                 needs_upload = True
 
             if needs_upload:
+
+                #TODO: return upload destination instaed of storage location id???
+                #TODO: 1. perform file upload (in case of Synapse S3 multi-part upload it returns a filehandleid), 2. create (external and client s3) /get(synapse s3) filehandle.
                 fileLocation, local_state , storageLocationId= self.__uploadExternallyStoringProjects(entity, local_state)
                 local_state_file_handle = local_state['_file_handle']
                 fileHandle = self._uploadToFileHandleService(fileLocation,
@@ -1835,7 +1838,8 @@ class Synapse:
                 fileHandle = fileResult['fileHandle']
                 #TODO: instead of _download that takes in only a url. we use a factory here that checks the file handle type and returns a download resolver object/ function that can be run to downlaod the file
                 if fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle":
-                    downloaded_path = Co
+                    #TODO: have an option to use a different s3 credential thant the default in the .aws folder. either set in .synapseConfig wiht keys or profile_name='name' that references the .aws profile
+                    downloaded_path = ClientS3Connection.downloadFile(fileHandle['bucket'], fileHandle['endpoint'], fileHandle['fileKey'], destination)
                 else:
                     downloaded_path = self._download(fileResult['preSignedURL'], destination, fileHandle['id'], fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
@@ -1870,6 +1874,7 @@ class Synapse:
         destination = os.path.abspath(destination)
         actual_md5 = None
 
+        #TODO: can http redirect from http to sftp/file??? this would change how the code is refactored
         redirect_count = 0
         while redirect_count < REDIRECT_LIMIT:
             redirect_count += 1
@@ -2112,6 +2117,17 @@ class Synapse:
                 return uploadLocation, local_state, location['storageLocationId']
             else:
                 raise NotImplementedError('Can only handle SFTP upload locations.')
+        elif upload_destination_type == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION:
+            file_key = location['keyPrefixUUID'] + os.path.basename()
+            ClientS3Connection.uploadFile(location['bucket'], location['endpointUrl'], file_key, entity['path'])
+            #TODO: this is duplicated from externalFileHandle
+            local_state_file_handle['contentSize'] = os.stat(entity['path']).st_size
+            local_state_file_handle['contentMd5'] = utils.md5_for_file(entity['path']).hexdigest()
+            if local_state_file_handle.get('contentType', None) is None:
+                mimetype, enc = mimetypes.guess_type(entity['path'], strict=False)
+                local_state_file_handle['contentType'] = mimetype
+            return entity['path'], local_state, location
+
         else:
             raise NotImplementedError("The UploadDestination type: " + upload_destination_type.split(".")[-1] + " is not supported")
 
