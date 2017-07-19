@@ -63,3 +63,4 @@ class ClientS3Connection(RemoteFileConnection):
                             aws_secret_access_key=secret_access_key)
         s3.Bucket(bucket).upload_file(upload_file_path, remote_file_key) #automatically determines whether to perform multi-part upload
         return upload_file_path
+

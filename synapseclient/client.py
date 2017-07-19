@@ -88,6 +88,7 @@ from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
 from .multipart_upload import multipart_upload, multipart_upload_string
 from .remote_file_connection import ClientS3Connection
+from .upload_functions import upload_file
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -994,17 +995,19 @@ class Synapse:
 
             if needs_upload:
 
-                #TODO: return upload destination instaed of storage location id???
-                #TODO: 1. perform file upload (in case of Synapse S3 multi-part upload it returns a filehandleid), 2. create (external and client s3) /get(synapse s3) filehandle.
-                fileLocation, local_state , storageLocationId= self.__uploadExternallyStoringProjects(entity, local_state)
-                local_state_file_handle = local_state['_file_handle']
-                fileHandle = self._uploadToFileHandleService(fileLocation,
-                                                             synapseStore=entity.get('synapseStore', True),
-                                                             mimetype=local_state_file_handle.get('contentType', None),
-                                                             md5=local_state_file_handle.get('contentMd5', None),
-                                                             fileSize=local_state_file_handle.get('contentSize', None),
-                                                             storageLocationId=storageLocationId
-                                                             )
+                # #TODO: return upload destination instaed of storage location id???
+                # #TODO: 1. perform file upload (in case of Synapse S3 multi-part upload it returns a filehandleid), 2. create (external and client s3) /get(synapse s3) filehandle.
+                # fileLocation, local_state , storageLocationId= self.__uploadExternallyStoringProjects(entity, local_state)
+                # local_state_file_handle = local_state['_file_handle']
+                # fileHandle = self._uploadToFileHandleService(fileLocation,
+                #                                              synapseStore=entity.get('synapseStore', True),
+                #                                              mimetype=local_state_file_handle.get('contentType', None),
+                #                                              md5=local_state_file_handle.get('contentMd5', None),
+                #                                              fileSize=local_state_file_handle.get('contentSize', None),
+                #                                              storageLocationId=storageLocationId
+                #                                              )
+
+                fileHandle = upload_file(self, entity['parentId'], local_state)
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 
@@ -1985,6 +1988,7 @@ class Synapse:
         return destination
 
 
+    #TODO: deprecated
     def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None, storageLocationId = None):
         """
         Create and return a fileHandle, by either uploading a local file or
@@ -2003,7 +2007,7 @@ class Synapse:
         elif utils.is_url(filename):
             if synapseStore and urlparse(filename).scheme != 'sftp':
                 raise NotImplementedError('Automatic storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
-            return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
+            return self._create_ExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
@@ -2012,10 +2016,10 @@ class Synapse:
                 self.cache.add(file_handle_id,filename)
                 return self._getFileHandle(file_handle_id)
             else:
-                return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
+                return self._create_ExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
-
-    def _addURLtoFileHandleService(self, externalURL, mimetype=None, md5=None, fileSize=None):
+    #TODO: rename
+    def _create_ExternalFileHandle(self, externalURL, mimetype=None, md5=None, fileSize=None):
         """Create a new FileHandle representing an external URL."""
 
         fileName = externalURL.split('/')[-1]
@@ -2029,8 +2033,10 @@ class Synapse:
             (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
         if mimetype is not None:
             fileHandle['contentType'] = mimetype
-        return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
+        return self._POST_ExternalFileHandleInterface(fileHandle)
 
+    def _POST_ExternalFileHandleInterface(self, file_handle_dict):
+        return self.restPOST('/externalFileHandle', json.dumps(file_handle_dict), self.fileHandleEndpoint)
 
     def _getFileHandle(self, fileHandle):
         """Retrieve a fileHandle from the fileHandle service (experimental)."""
@@ -2057,11 +2063,11 @@ class Synapse:
     ##                   SFTP                                 ##
     ############################################################
 
-    def _getDefaultUploadDestination(self, entity):
-        return self.restGET('/entity/%s/uploadDestination'% entity['parentId'],
+    def _getDefaultUploadDestination(self, entity_parent_id):
+        return self.restGET('/entity/%s/uploadDestination'% entity_parent_id,
                      endpoint=self.fileHandleEndpoint)
 
-
+    #TODO: deprecated
     def __uploadExternallyStoringProjects(self, entity, local_state):
         """Determines the upload location of the file based on project settings and if it is
         an external location performs upload and returns the new url and sets synapseStore=False.
