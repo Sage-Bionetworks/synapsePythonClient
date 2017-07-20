@@ -179,11 +179,14 @@ def test_id_of():
     assert_raises(ValueError, utils.id_of, object())
 
     class Foo:
-        def __init__(self, id):
-            self.properties = {'id':id}
+        def __init__(self, id_attr_name,id):
+            self.properties = {id_attr_name:id}
 
-    foo = Foo(123)
-    assert utils.id_of(foo) == '123'
+    id_attr_names = ['id', 'ownerId', 'tableId']
+
+    for attr_name in id_attr_names:
+        foo = Foo(attr_name, 123)
+        assert utils.id_of(foo) == '123'
 
 def test_guess_file_name():
     assert utils.guess_file_name('a/b') == 'b'
