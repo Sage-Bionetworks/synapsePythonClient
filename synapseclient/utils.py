@@ -641,7 +641,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
 
     """
     if not sys.stdout.isatty():
-        return 
+        pass#return
     barLength = 20 # Modify this to change the length of the progress bar
     status = ''
     rate = ''

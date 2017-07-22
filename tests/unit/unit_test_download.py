@@ -139,7 +139,7 @@ def test_mock_download():
     ## headers (to avoid having to be logged in to Synapse)
     with patch.object(requests, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
-        path = syn._download(url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5)
+        path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5)
 
 
     ## 2. Multiple redirects
@@ -154,7 +154,7 @@ def test_mock_download():
     ## headers (to avoid having to be logged in to Synapse)
     with patch.object(requests, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders):
-        path = syn._download(url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5)
+        path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=12345, expected_md5=contents_md5)
 
 
     ## 3. recover from partial download
@@ -277,7 +277,7 @@ def test_download_end_early_retry():
          patch('shutil.move') as mocked_move:
 
         #function under test
-        syn._download(url, destination)
+        syn._download_from_URL(url, destination)
 
         #assert temp_download_filename() called 2 times with same parameters
         assert_equals([call(destination, None)] * 2 , mocked_temp_dest.call_args_list)

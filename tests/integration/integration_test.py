@@ -222,7 +222,7 @@ def test_uploadFileEntity():
     entity = {'name'        : 'fooUploadFileEntity', \
               'description' : 'A test file entity', \
               'parentId'    : project['id']}
-    entity = syn.uploadFile(entity, fname)
+    entity = syn.upload_file(entity, fname)
 
     # Download and verify
     entity = syn.downloadEntity(entity)
@@ -240,7 +240,7 @@ def test_uploadFileEntity():
     schedule_for_cleanup(fname)
 
     # Update existing FileEntity
-    entity = syn.uploadFile(entity, fname)
+    entity = syn.upload_file(entity, fname)
 
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)
@@ -470,3 +470,24 @@ def test_getChildren():
     expected_id_set = {project_file.id, folder.id}
     children_id_set = { x['id'] for x in syn.getChildren(test_project.id)}
     assert_equals(expected_id_set, children_id_set)
+
+def test_ExternalObjectStore_roundtrip():
+    #TODO: remove after changes in prod
+    syn.setEndpoints(**synapseclient.client.STAGING_ENDPOINTS)
+
+    import uuid
+    proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
+
+    storage_location = syn._create_ExternalObjectStorageLocationSetting("https://s3.amazonaws.com","test-client-auth-s3")
+    syn._set_container_storage_location(proj, storage_location['storageLocationId'])
+
+    file_path = utils.make_bogus_data_file()
+
+    file_entity = File(file_path, name="TestName", parent=proj)
+    file_entity = syn.store(file_entity)
+
+    syn.cache.purge(time.time())
+    file_entity_downloaded = syn.get(file_entity['id'])
+
+    assert_not_equal(utils.normalize_path(file_path), utils.normalize_path(file_entity_downloaded['path']))
+    assert filecmp.cmp(file_path, file_entity_downloaded['path'])

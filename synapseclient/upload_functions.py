@@ -3,11 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from six import add_metaclass
-
-from abc import ABCMeta, abstractmethod
 import os
-import mimetypes
 from .utils import is_url, md5_for_file
 from . import concrete_types
 import sys
@@ -26,28 +22,36 @@ except ImportError:
     from urllib import unquote
     from urllib import urlretrieve
 
-
-# TODO: replace uploadExternallyStoringProjects make this a factory elsewhere
+#TODO: documentation
 def upload_file(syn, entity_parent_id, local_state):
+    """Uploads the file set in the local_state['path'] (if necessary) to a storage location based on project settings. 
+    Returns the FileHandle to represent the stored file.
+
+    :param entity_parent_id: parent id of the entity to which we upload.
+    :param local_state: local state of the entity
+
+    :returns: a dict of a file handle that represents the uploaded file 
+    """
     if '_file_handle' not in local_state:
         local_state['_file_handle'] = {}
 
     local_state_file_handle = local_state['_file_handle']
 
-    #TODO: what to do with localstate?? just use entity instead idk
-
     # if doing a external file handle with no actual upload
     if not local_state['synapseStore']:
         if local_state_file_handle.get('externalURL', None):
-            return create_external_file_handle(syn, local_state_file_handle['externalUrl'], local_state['contentType'], )
+            return create_external_file_handle(syn, local_state_file_handle['externalUrl'], local_state['contentType'])
         elif is_url(local_state['path']):
             local_state_file_handle['externalURL'] = local_state['path']
             # If the url is a local path compute the md5
             url = urlparse(local_state['path'])
             if os.path.isfile(url.path) and url.scheme == 'file':
                 local_state_file_handle['contentMd5'] = md5_for_file(url.path).hexdigest()
-            return create_external_file_handle()
+            return create_external_file_handle(syn, local_state['path'], local_state['contentType'])
 
+    expanded_upload_path = os.path.expandvars(os.path.expanduser(local_state['path']))
+
+    #determine the upload function based on the UploadDestination
     location = syn._getDefaultUploadDestination(entity_parent_id)
     upload_destination_type = location['concreteType']
     # synapse managed S3
@@ -56,7 +60,7 @@ def upload_file(syn, entity_parent_id, local_state):
         storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
         sys.stdout.write('\n' + '#' * 50 + '\n Uploading file to ' + storageString + ' storage \n' + '#' * 50 + '\n')
 
-        return upload_synapse_s3(syn, local_state['path'], location['storageLocationId'])
+        return upload_synapse_s3(syn, expanded_upload_path, location['storageLocationId'])
     #external file handle (sftp)
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
         if location['uploadType'] == 'SFTP':
@@ -64,42 +68,43 @@ def upload_file(syn, entity_parent_id, local_state):
                                                                    location.get('banner', ''),
                                                                    urlparse(location['url']).netloc,
                                                                    '#' * 50))
-            return upload_external_file_handle_sftp(syn, local_state['path'], location['url'])
+            return upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'])
         else:
             raise NotImplementedError('Can only handle SFTP upload locations.')
     #client authenticated S3
     elif upload_destination_type == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION:
-        return upload_client_auth_s3(syn, local_state['path'], location['bucket'], location['endpointUrl'], location['keyPrefixUUID'], location['storageLocationId'])
+        sys.stdout.write('\n%s\n%s\nUploading to endpoint: [%s] bucket: [%s]\n%s\n' % ('#' * 50,
+                                                               location.get('banner', ''),
+                                                               location.get('endpointUrl'),
+                                                               location.get('bucket'),
+                                                               '#' * 50))
+        return upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'], location['keyPrefixUUID'], location['storageLocationId'])
 
-def create_external_file_handle(syn, file_path_or_url, mimetype, md5, file_size):
-    #does nothing on purpose because there is nothing to upload
+
+def create_external_file_handle(syn, file_path_or_url, mimetype=None, md5=None, file_size=None):
+    #just creates the file handle because there is nothing to upload
     return syn._create_ExternalFileHandle(file_path_or_url, mimetype=mimetype, md5=md5, fileSize=file_size)
 
 
-def upload_external_file_handle_sftp(syn, file_path, sftp_url, md5, file_size):
+def upload_external_file_handle_sftp(syn, file_path, sftp_url):
     uploaded_url = syn._sftpUploadFile(file_path, unquote(sftp_url))
 
     return syn._create_ExternalFileHandle(uploaded_url, md5=md5_for_file(file_path).hexdigest(), fileSize=os.stat(file_path).st_size)
 
-def upload_synapse_s3(syn, file_path, storageLocationId, mimetype=None):
 
+def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
     file_handle_id = multipart_upload(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)
+
     syn.cache.add(file_handle_id, file_path)
     return syn._getFileHandle(file_handle_id)
 
+
 def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id):
     file_key = key_prefix + '/' + os.path.basename(file_path)
-    ClientS3Connection.uploadFile(bucket, endpoint_url, file_key, file_path)
+    profile = syn._get_client_authenticated_s3_profile(endpoint_url, bucket)
+    ClientS3Connection.upload_file(bucket, endpoint_url, file_key, file_path, profile_name=profile)
 
-    #TODO: move into helper function?
-    mimetype, enc = mimetypes.guess_type(file_path, strict=False)
-    file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle',
-                  'fileName': os.path.basename(file_path),
-                  'contentMd5': md5_for_file(file_path).hexdigest(),
-                  'contentSize': os.stat(file_path).st_size,
-                  'storageLocationId': storage_location_id,
-                  'contentType': mimetype}
+    file_handle = syn._create_ExternalObjectStoreFileHandle(file_key, file_path,storage_location_id)
 
-    file_handle = syn._POST_ExternalFileHandleInterface(file_handle)
     syn.cache.add(file_handle['id'], file_path)
     return file_handle

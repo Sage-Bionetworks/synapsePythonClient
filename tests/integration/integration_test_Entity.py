@@ -19,6 +19,7 @@ except ImportError:
 import synapseclient
 from synapseclient import Activity, Project, Folder, File, Link, DockerRepository
 from synapseclient.exceptions import *
+from synapseclient.upload_functions import create_external_file_handle, upload_synapse_s3
 
 import integration
 from nose.tools import assert_false, assert_equals
@@ -150,7 +151,7 @@ def test_Entity():
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
-    a_file = syn.uploadFile(a_file, new_path)
+    a_file = syn.upload_file(a_file, new_path)
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(new_path, a_file.path)
     assert a_file.versionNumber == 2
@@ -522,8 +523,8 @@ def test_download_local_file_URL_path():
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
 
-    filehandle = syn._uploadToFileHandleService(path, synapseStore=False,
-                                   mimetype=None, fileSize=None)
+    filehandle = create_external_file_handle(syn, path,
+                                   mimetype=None, file_size=None)
 
     localFileEntity = syn.store(File(dataFileHandleId=filehandle['id'], parent=project))
     e = syn.get(localFileEntity.id)
@@ -542,7 +543,7 @@ def test_store_file_handle_update_metadata():
     #create file handle to replace the old one
     replacement_file_path = utils.make_bogus_data_file()
     schedule_for_cleanup(replacement_file_path)
-    new_file_handle = syn._uploadToFileHandleService(replacement_file_path, synapseStore=True)
+    new_file_handle = upload_synapse_s3(syn, replacement_file_path)
 
     entity.dataFileHandleId = new_file_handle['id']
     new_entity = syn.store(entity)

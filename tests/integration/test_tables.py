@@ -26,6 +26,7 @@ import synapseclient
 from synapseclient.exceptions import *
 from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
+from synapseclient.upload_functions import upload_synapse_s3
 
 import integration
 from integration import schedule_for_cleanup
@@ -462,7 +463,7 @@ def test_download_table_files():
         path = utils.make_bogus_data_file()
         original_files.append(path)
         schedule_for_cleanup(path)
-        file_handle = syn._uploadToFileHandleService(path)
+        file_handle = upload_synapse_s3(syn, path)
         row[4] = file_handle['id']
 
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
