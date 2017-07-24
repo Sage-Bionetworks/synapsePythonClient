@@ -1,5 +1,5 @@
 import synapseclient
-from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity
+from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity, EntityViewSchema, DockerRepository
 from synapseclient.cache import Cache
 from synapseclient.exceptions import SynapseHTTPError
 import re
@@ -169,8 +169,8 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     #Check that passed in excludeTypes is file, table, and link
     if not isinstance(excludeTypes,list):
         raise ValueError("Excluded types must be a list") 
-    elif not all([i in ["file","link","table"] for i in excludeTypes]):
-        raise ValueError("Excluded types can only be a list of these values: file, table, and link") 
+    elif not all([i in ["file","link","table","entityView"] for i in excludeTypes]):
+        raise ValueError("Excluded types can only be a list of these values: file, table, entityView, and link") 
 
     ent = syn.get(entity,downloadFile=False)
     if ent.id == destinationId:
@@ -179,7 +179,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     if (isinstance(ent, Project) or isinstance(ent, Folder)) and version is not None:
         raise ValueError("Cannot specify version when copying a project of folder")
 
-    if not isinstance(ent, (Project, Folder, File, Link, Schema, Entity)):
+    if not isinstance(ent, (Project, Folder, File, Link, Schema, DockerRepository, EntityViewSchema)):
         raise ValueError("Not able to copy this type of file")
 
     if isinstance(ent, Project):
@@ -198,7 +198,10 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         copiedId = _copyLink(syn, ent.id, destinationId, updateExisting = updateExisting)
     elif isinstance(ent, Schema) and "table" not in excludeTypes:
         copiedId = _copyTable(syn, ent.id, destinationId, updateExisting = updateExisting)
-
+    elif isinstance(ent, EntityViewSchema) and "entityView" not in excludeTypes:
+        copiedId = _copyEntityView(syn, ent.id, destinationId, updateExisting = updateExisting)
+    elif isinstance(ent, DockerRepository):
+        print("Docker repositories on Synapse cannot be copied.  Please read http://docs.synapse.org/articles/docker.html for instructions on uploading a Docker Image to Synapse")
     if copiedId is not None:
         mapping[ent.id] = copiedId
         print("Copied %s to %s" % (ent.id,copiedId))
@@ -324,9 +327,10 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
     print("Getting table %s" % entity)
     myTableSchema = syn.get(entity)
     #CHECK: If Table name already exists, raise value error
-    existingEntity = syn._findEntityIdByNameAndParent(myTableSchema.name, parent=destinationId)
-    if existingEntity is not None:
-        raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
+    if not updateExisting:
+        existingEntity = syn._findEntityIdByNameAndParent(myTableSchema.name, parent=destinationId)
+        if existingEntity is not None:
+            raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
 
     d = syn.tableQuery('select * from %s' % myTableSchema.id, includeRowIdAndRowVersion=False)
 
@@ -368,6 +372,30 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
             return(None)
         else:
             raise e
+
+def _copyEntityView(syn, entity, destinationId, updateExisting=False):
+    """
+    Copies Entity Views 
+
+    :param entity:          A synapse ID of Entity View
+
+    :param destinationId:   Synapse ID of a project that the Entity View wants to be copied to
+
+    :param updateExisting:  Can choose to update files that have the same name 
+                            Default to False
+    """
+    print("Getting entity view %s" % entity)
+    myEntityViewSchema = syn.get(entity)
+    if not updateExisting:
+        #CHECK: If Table name already exists, raise value error
+        existingEntity = syn._findEntityIdByNameAndParent(myEntityViewSchema.name, parent=destinationId)
+        if existingEntity is not None:
+            raise ValueError('An entity named "%s" already exists in this location. EntityView could not be copied'%myEntityViewSchema.name)
+    colIds = myEntityViewSchema.columnIds
+    # create and store the EntityViewSchema object
+    newEntityViewSchema = EntityViewSchema(myEntityViewSchema.name, columns = colIds, parent = destinationId, scopes = myEntityViewSchema.scopeIds, add_default_columns=False)
+    newEntityView = syn.store(newEntityViewSchema)
+    return(newEntityView.id)
 
 def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=None):
     """
