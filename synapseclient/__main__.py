@@ -169,7 +169,7 @@ def get(args, syn):
 
 def sync(args, syn):
     synapseutils.sync.syncToSynapse(syn, manifest_file=args.manifest_file,
-                                    dry_run=args.dry_run, sendMessages=args.send_messages,
+                                    dry_run=args.dry_run, sendMessages=args.sendMessages,
                                     retries=args.retries)
 
 def store(args, syn):
@@ -517,7 +517,7 @@ def build_parser():
                                         help='Synchronize files described in a manifest to Synapse')
     parser_sync.add_argument('--dry_run', action='store_true', default=False,
                              help='Perform validation without uploading.')
-    parser_sync.add_argument('--send_messages', action='store_true', default=False,
+    parser_sync.add_argument('--sendMessages', action='store_true', default=False,
                              help='Send notifications via Synapse messaging (email) at specific intervals, on errors and on completion.')
     parser_sync.add_argument('--retries', metavar='INT', type=int, default=4)
     parser_sync.add_argument('manifest_file',  metavar='FILE', type=str,
