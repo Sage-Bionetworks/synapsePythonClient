@@ -15,7 +15,7 @@ except ImportError:
     import ConfigParser as configparser
 
 import synapseclient
-from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
+from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row, EntityViewSchema
 from synapseclient.exceptions import *
 import synapseutils
 import re
@@ -214,6 +214,23 @@ def test_copy():
     schedule_for_cleanup(schema.id)
     schedule_for_cleanup(table_map[schema.id])
 
+    # ------------------------------------
+    # TEST COPY ENTITY VIEW
+    # ------------------------------------
+    print("Test: Copy Entity View")
+    entity_view_schema = syn.store(EntityViewSchema(name='TestingEntityView', columns=cols, parent=project_entity.id, scopes=[project_entity.id]))
+    orig_entity_view = syn.tableQuery('select * from %s' % entity_view_schema.id)
+    orig_rows = orig_entity_view.asRowSet()['rows']
+    entity_view_schema_map = synapseutils.copy(syn, entity_view_schema.id, destinationId=second_project.id)
+    copied_table = syn.tableQuery('select * from %s' % entity_view_schema_map[entity_view_schema.id])
+    rows = copied_table.asRowSet()['rows']
+    # TEST: Check if all values are the same
+    for row,orig_row in zip(rows, orig_rows):
+        assert row['values'] == orig_row['values']
+
+    schedule_for_cleanup(entity_view_schema.id)
+    schedule_for_cleanup(entity_view_schema_map[entity_view_schema.id])
+    
     # ------------------------------------
     # TEST COPY FOLDER
     # ------------------------------------
