@@ -1044,3 +1044,21 @@ def test_add__update_description():
                  update_description_text
                  )
     _description_wiki_check(output, update_description_text)
+
+def test_command_sync():
+    """Test the sync fuction.
+
+    Since this function only passes argparse arguments for the sync subcommand
+    straight to `synapseutils.sync.syncToSynapse`, the only tests here are for
+    the command line arguments provided.
+
+    """
+
+    from synapseclient.__main__ import build_parser
+    parser = build_parser()
+    args = parser.parse_args(['-s', 'sync', '/tmp/foobarbaz.tsv'])
+
+    assert_equals(args.manifest_file, '/tmp/foobarbaz.tsv')
+    assert_equals(args.dry_run, False)
+    assert_equals(args.sendMessages, False)
+    assert_equals(args.retries, 4)
