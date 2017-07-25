@@ -168,9 +168,9 @@ def get(args, syn):
         print('Creating %s' % entity.path)
 
 def sync(args, syn):
-    synapseutils.sync.syncToSynapse(syn, manifestFile=args.manifestFile,
-                                    dryRun=args.dryRun, sendMessages=args.sendMessages,
-                                    retries=args.retries)
+    synapseutils.syncToSynapse(syn, manifestFile=args.manifestFile,
+                               dryRun=args.dryRun, sendMessages=args.sendMessages,
+                               retries=args.retries)
 
 def store(args, syn):
     #If we are storing a fileEntity we need to have id or parentId
