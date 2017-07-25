@@ -10,3 +10,4 @@ EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.
 
 #Concrete types for FileHandles
 EXTERNAL_OBJECT_STORE_FILE_HANDLE = "org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle"
+S3_FILE_HANDLE = "org.sagebionetworks.repo.model.file.S3FileHandle"

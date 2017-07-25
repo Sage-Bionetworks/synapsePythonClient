@@ -23,6 +23,7 @@ import synapseclient
 import synapseclient.utils as utils
 from synapseclient.utils import MB, GB
 from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient.remote_file_storage_wrappers import SFTPWrapper
 
 import integration
 from integration import schedule_for_cleanup
@@ -87,8 +88,11 @@ def test_synGet_sftpIntegration():
     serverURL='sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/'+str(uuid.uuid1())
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
     print('\n\tMade bogus file: ', filepath)
-    
-    url = syn._sftpUploadFile(filepath, url=serverURL)
+
+    username, password = syn._get_sftp_credentials(serverURL)
+
+
+    url = SFTPWrapper._sftpUploadFile(filepath, url=serverURL, username=username, password=password)
     file = syn.store(File(path=url, parent=project, synapseStore=False))
 
     print('\nDownloading file', os.getcwd(), filepath)
@@ -103,23 +107,25 @@ def test_utils_sftp_upload_and_download():
 
     tempdir = tempfile.mkdtemp()
 
+    username, password = syn._get_sftp_credentials(serverURL)
+
     try:
         print('\n\tMade bogus file: ', filepath)
-        url = syn._sftpUploadFile(filepath, url=serverURL)
+        url = SFTPWrapper._sftpUploadFile(filepath, url=serverURL, username=username, password=password)
         print('\tStored URL:', url)
         print('\tDownloading',)
         #Get with a specified localpath
-        junk = syn._sftpDownloadFile(url, tempdir)
+        junk = SFTPWrapper._sftpDownloadFile(url, tempdir, username=username, password=password)
         print('\tComparing:', junk, filepath)
         filecmp.cmp(filepath, junk)
         #Get without specifying path
         print('\tDownloading',)
-        junk2 = syn._sftpDownloadFile(url)
+        junk2 = SFTPWrapper._sftpDownloadFile(url, username=username, password=password)
         print('\tComparing:', junk2, filepath)
         filecmp.cmp(filepath, junk2)
         #Get with a specified localpath as file
         print('\tDownloading',)
-        junk3 = syn._sftpDownloadFile(url, os.path.join(tempdir, 'bar.dat'))
+        junk3 = SFTPWrapper._sftpDownloadFile(url, os.path.join(tempdir, 'bar.dat'), username=username, password=password)
         print('\tComparing:', junk3, filepath)
         filecmp.cmp(filepath, junk3)
     finally:

@@ -13,7 +13,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal
+from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none
 from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch, call
 
@@ -472,8 +472,6 @@ def test_getChildren():
     assert_equals(expected_id_set, children_id_set)
 
 def test_ExternalObjectStore_roundtrip():
-    #TODO: remove after changes in prod
-    syn.setEndpoints(**synapseclient.client.STAGING_ENDPOINTS)
 
     import uuid
     proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
@@ -487,6 +485,8 @@ def test_ExternalObjectStore_roundtrip():
     file_entity = syn.store(file_entity)
 
     syn.cache.purge(time.time())
+    assert_is_none(syn.cache.get(file_entity['dataFileHandleId']))
+
     file_entity_downloaded = syn.get(file_entity['id'])
 
     assert_not_equal(utils.normalize_path(file_path), utils.normalize_path(file_entity_downloaded['path']))

@@ -87,7 +87,7 @@ from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
 from .multipart_upload import multipart_upload, multipart_upload_string
-from .remote_file_connection import ClientS3Connection
+from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from .upload_functions import upload_file, upload_synapse_s3
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
@@ -155,29 +155,6 @@ def login(*args, **kwargs):
     syn = Synapse()
     syn.login(*args, **kwargs)
     return syn
-
-
-
-def _test_import_sftp():
-    """
-    Check if pysftp is installed and give instructions if not.
-    """
-    try:
-        import pysftp
-    except ImportError as e1:
-        sys.stderr.write(
-            ("\n\nLibraries required for SFTP are not installed!\n"
-             "The Synapse client uses pysftp in order to access SFTP storage "
-             "locations.  This library in turn depends on pycrypto.\n"
-             "To install these libraries on Unix variants including OS X, make "
-             "sure the python devel libraries are installed, then:\n"
-             "    (sudo) pip install pysftp\n\n"
-             "For Windows systems without a C/C++ compiler, install the appropriate "
-             "binary distribution of pycrypto from:\n"
-             "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n"
-             "For more information, see: http://docs.synapse.org/python/sftp.html"
-             "\n\n\n"))
-        raise
 
 
 class Synapse:
@@ -1849,7 +1826,7 @@ class Synapse:
                 fileHandle = fileResult['fileHandle']
                 if fileHandle['concreteType'] == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
                     profile = self._get_client_authenticated_s3_profile(fileHandle['endpointUrl'], fileHandle['bucket'])
-                    downloaded_path = ClientS3Connection.download_file(fileHandle['bucket'], fileHandle['endpointUrl'], fileHandle['fileKey'], destination, profile_name=profile)
+                    downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'], fileHandle['fileKey'], destination, profile_name=profile)
                 else:
                     downloaded_path = self._download_from_URL(fileResult['preSignedURL'], destination, fileHandle['id'], fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
@@ -1894,10 +1871,10 @@ class Synapse:
                     raise IOError("Local file (%s) does not exist." % url)
                 break
             elif scheme == 'sftp':
-                destination = self._sftpDownloadFile(url, destination)
+                username, password = self._get_sftp_credentials(url)
+                destination = SFTPWrapper._sftpDownloadFile(url, destination, username, password)
                 break
             elif scheme == 'ftp':
-                #username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
                 urlretrieve(url, destination)
                 break
             elif scheme == 'http' or scheme == 'https':
@@ -1988,7 +1965,6 @@ class Synapse:
         return destination
 
 
-
     def _create_ExternalFileHandle(self, externalURL, mimetype=None, md5=None, fileSize=None):
         """Create a new FileHandle representing an external URL."""
 
@@ -2051,8 +2027,7 @@ class Synapse:
                      endpoint=self.fileHandleEndpoint)
 
 
-    #@utils.memoize  #To memoize we need to be able to back out faulty credentials
-    def __getUserCredentials(self, baseURL, username=None, password=None):
+    def _get_sftp_credentials(self, sftp_url, username=None, password=None):
         """Get user credentials for a specified URL by either looking in the configFile
         or querying the user.
 
@@ -2063,6 +2038,14 @@ class Synapse:
         :returns: tuple of username, password
         """
         #Get authentication information from configFile
+
+        parsedURL = urlparse(sftp_url)
+        log_error('sftpDownload: %s\n' % (sftp_url), self.debug)
+        if parsedURL.scheme != 'sftp':
+            raise (NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
+                                       " form sftp://..."))
+        baseURL = parsedURL.scheme+'://'+parsedURL.hostname
+
         config = self.getConfigFile(self.configPath)
         if username is None and config.has_option(baseURL, 'username'):
             username = config.get(baseURL, 'username')
@@ -2080,76 +2063,6 @@ class Synapse:
             password = getpass.getpass('Password for %s:' %baseURL)
         return username, password
 
-
-    def _sftpUploadFile(self, filepath, url, username=None, password=None):
-        """
-        Performs upload of a local file to an sftp server.
-
-        :param filepath: The file to be uploaded
-
-        :param url: URL where file will be deposited. Should include path and protocol. e.g.
-                    sftp://sftp.example.com/path/to/file/store
-
-        :param username: username on sftp server
-
-        :param password: password for authentication on the sftp server
-
-        :returns: A URL where file is stored
-        """
-        _test_import_sftp()
-        import pysftp
-
-        parsedURL = urlparse(url)
-        if parsedURL.scheme!='sftp':
-            raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
-                                      " form sftp://..."))
-        username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
-        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.makedirs(parsedURL.path)
-            with sftp.cd(parsedURL.path):
-                sftp.put(filepath, preserve_mtime=True, callback=utils.printTransferProgress)
-
-        path = quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
-        parsedURL = parsedURL._replace(path=path)
-        return urlunparse(parsedURL)
-
-
-    def _sftpDownloadFile(self, url, localFilepath=None,  username=None, password=None):
-        """
-        Performs download of a file from an sftp server.
-
-        :param url: URL where file will be deposited.  Path will be chopped out.
-        :param localFilepath: location where to store file
-        :param username: username on server
-        :param password: password for authentication on  server
-
-        :returns: localFilePath
-
-        """
-        _test_import_sftp()
-        import pysftp
-
-        parsedURL = urlparse(url)
-        log_error('sftpDownload: %s\n'% (url), self.debug)
-        if parsedURL.scheme!='sftp':
-            raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
-                                      " form sftp://..."))
-        #Create the local file path if it doesn't exist
-        username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
-        path = unquote(parsedURL.path)
-        if localFilepath is None:
-            localFilepath = os.getcwd()
-        if os.path.isdir(localFilepath):
-            localFilepath = os.path.join(localFilepath, path.split('/')[-1])
-        #Check and create the directory
-        dir = os.path.dirname(localFilepath)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-
-        #Download file
-        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.get(path, localFilepath, preserve_mtime=True, callback=utils.printTransferProgress)
-        return localFilepath
 
     ############################################
     ## Project/Folder storage location settings

@@ -7,7 +7,7 @@ import os
 from .utils import is_url, md5_for_file
 from . import concrete_types
 import sys
-from .remote_file_connection import ClientS3Connection
+from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from .multipart_upload import  multipart_upload
 try:
     from urllib.parse import urlparse
@@ -47,7 +47,7 @@ def upload_file(syn, entity_parent_id, local_state):
             url = urlparse(local_state['path'])
             if os.path.isfile(url.path) and url.scheme == 'file':
                 local_state_file_handle['contentMd5'] = md5_for_file(url.path).hexdigest()
-            return create_external_file_handle(syn, local_state['path'], local_state['contentType'])
+            return create_external_file_handle(syn, local_state['path'], local_state.get('contentType'))
 
     expanded_upload_path = os.path.expandvars(os.path.expanduser(local_state['path']))
 
@@ -87,24 +87,26 @@ def create_external_file_handle(syn, file_path_or_url, mimetype=None, md5=None, 
 
 
 def upload_external_file_handle_sftp(syn, file_path, sftp_url):
-    uploaded_url = syn._sftpUploadFile(file_path, unquote(sftp_url))
+    username, password = syn._get_sftp_credentials(sftp_url, )
+    uploaded_url = SFTPWrapper._sftpUploadFile(file_path, unquote(sftp_url), username, password)
 
     return syn._create_ExternalFileHandle(uploaded_url, md5=md5_for_file(file_path).hexdigest(), fileSize=os.stat(file_path).st_size)
 
 
 def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
     file_handle_id = multipart_upload(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)
-
     syn.cache.add(file_handle_id, file_path)
+
     return syn._getFileHandle(file_handle_id)
 
 
 def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id):
-    file_key = key_prefix + '/' + os.path.basename(file_path)
     profile = syn._get_client_authenticated_s3_profile(endpoint_url, bucket)
-    ClientS3Connection.upload_file(bucket, endpoint_url, file_key, file_path, profile_name=profile)
+    file_key = key_prefix + '/' + os.path.basename(file_path)
+
+    S3ClientWrapper.upload_file(bucket, endpoint_url, file_key, file_path, profile_name=profile)
 
     file_handle = syn._create_ExternalObjectStoreFileHandle(file_key, file_path,storage_location_id)
-
     syn.cache.add(file_handle['id'], file_path)
+
     return file_handle

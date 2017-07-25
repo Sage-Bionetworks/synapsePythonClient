@@ -319,9 +319,6 @@ from .wiki import Wiki
 from .version_check import check_for_updates
 from .version_check import release_notes
 
-#TODO: remove
-from .remote_file_connection import ClientS3Connection
-
 import json
 import pkg_resources
 __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient').decode())['latestVersion']

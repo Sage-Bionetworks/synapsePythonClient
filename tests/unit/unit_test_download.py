@@ -9,7 +9,7 @@ import unit
 from mock import MagicMock, patch, mock_open, call
 from nose.tools import assert_raises, assert_equals
 from synapseclient.exceptions import SynapseHTTPError, SynapseMd5MismatchError
-
+import synapseclient.concrete_types as concrete_types
 
 
 def setup(module):
@@ -166,7 +166,7 @@ def test_mock_download():
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents)//7*5, status_code=206)
     ])
 
-    _getFileHandleDownload_return_value = {'preSignedURL':url, 'fileHandle':{'id':12345, 'contentMd5':contents_md5} }
+    _getFileHandleDownload_return_value = {'preSignedURL':url, 'fileHandle':{'id':12345, 'contentMd5':contents_md5, 'concreteType':concrete_types.S3_FILE_HANDLE}}
     ## patch requests.get and also the method that generates signed
     ## headers (to avoid having to be logged in to Synapse)
     with patch.object(requests, 'get', side_effect=mock_requests_get), \

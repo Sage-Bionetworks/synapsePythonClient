@@ -7,7 +7,7 @@ import os
 from .utils import is_url, md5_for_file
 from . import concrete_types
 import sys
-from .remote_file_connection import ClientS3Connection
+from .remote_file_storage_wrappers import S3ClientWrapper
 from .multipart_upload import  multipart_upload
 try:
     from urllib.parse import urlparse
