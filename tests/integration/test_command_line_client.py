@@ -1058,7 +1058,7 @@ def test_command_sync():
     parser = build_parser()
     args = parser.parse_args(['-s', 'sync', '/tmp/foobarbaz.tsv'])
 
-    assert_equals(args.manifest_file, '/tmp/foobarbaz.tsv')
-    assert_equals(args.dry_run, False)
+    assert_equals(args.manifestFile, '/tmp/foobarbaz.tsv')
+    assert_equals(args.dryRun, False)
     assert_equals(args.sendMessages, False)
     assert_equals(args.retries, 4)
