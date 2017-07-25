@@ -151,7 +151,7 @@ def test_Entity():
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
-    a_file = syn.upload_file(a_file, new_path)
+    a_file = syn.uploadFile(a_file, new_path)
     a_file = syn.downloadEntity(a_file)
     assert filecmp.cmp(new_path, a_file.path)
     assert a_file.versionNumber == 2

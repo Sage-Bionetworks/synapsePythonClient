@@ -222,7 +222,7 @@ def test_uploadFileEntity():
     entity = {'name'        : 'fooUploadFileEntity', \
               'description' : 'A test file entity', \
               'parentId'    : project['id']}
-    entity = syn.upload_file(entity, fname)
+    entity = syn.uploadFile(entity, fname)
 
     # Download and verify
     entity = syn.downloadEntity(entity)
@@ -240,7 +240,7 @@ def test_uploadFileEntity():
     schedule_for_cleanup(fname)
 
     # Update existing FileEntity
-    entity = syn.upload_file(entity, fname)
+    entity = syn.uploadFile(entity, fname)
 
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)

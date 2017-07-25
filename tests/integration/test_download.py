@@ -62,7 +62,7 @@ def test_resume_partial_download():
     temp_dir = tempfile.gettempdir()
 
     url = '%s/entity/%s/file' % (syn.repoEndpoint, entity.id)
-    path = syn._download(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
+    path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
 
     ## simulate an imcomplete download by putting the
     ## complete file back into its temporary location
@@ -74,7 +74,7 @@ def test_resume_partial_download():
         f.truncate(3*os.path.getsize(original_file)//7)
 
     ## this should complete the partial download
-    path = syn._download(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
+    path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
 
     assert filecmp.cmp(original_file, path), "File comparison failed"
 

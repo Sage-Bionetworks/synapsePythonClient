@@ -1981,8 +1981,9 @@ class Synapse:
             fileHandle['contentType'] = mimetype
         return self._POST_ExternalFileHandleInterface(fileHandle)
 
-    def _create_ExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id):
-        mimetype, enc = mimetypes.guess_type(file_path, strict=False)
+    def _create_ExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id, mimetype = None):
+        if mimetype is None:
+            mimetype, enc = mimetypes.guess_type(file_path, strict=False)
         file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle',
                        'fileKey': s3_file_key,
                        'fileName': os.path.basename(file_path),
