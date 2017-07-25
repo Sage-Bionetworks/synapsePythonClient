@@ -1057,7 +1057,7 @@ def test_command_sync():
     from synapseclient.__main__ import build_parser
     parser = build_parser()
     args = parser.parse_args(['-s', 'sync', '/tmp/foobarbaz.tsv'])
-
+    
     assert_equals(args.manifestFile, '/tmp/foobarbaz.tsv')
     assert_equals(args.dryRun, False)
     assert_equals(args.sendMessages, False)

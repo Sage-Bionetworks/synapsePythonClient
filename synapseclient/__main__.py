@@ -168,8 +168,8 @@ def get(args, syn):
         print('Creating %s' % entity.path)
 
 def sync(args, syn):
-    synapseutils.sync.syncToSynapse(syn, manifest_file=args.manifest_file,
-                                    dryRun=args.dryRun, send_messages=args.send_messages,
+    synapseutils.sync.syncToSynapse(syn, manifestFile=args.manifestFile,
+                                    dryRun=args.dryRun, sendMessages=args.sendMessages,
                                     retries=args.retries)
 
 def store(args, syn):
