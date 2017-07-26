@@ -78,7 +78,7 @@ def upload_file(syn, entity_parent_id, local_state):
                                                                    location.get('banner', ''),
                                                                    urlparse(location['url']).netloc,
                                                                    '#' * 50))
-            return upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'], mimetype=local_state_file_handle.get('contentType'), md5=local_state_file_handle.get('contentMd5'))
+            return upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'], mimetype=local_state_file_handle.get('contentType'))
         else:
             raise NotImplementedError('Can only handle SFTP upload locations.')
     #client authenticated S3
