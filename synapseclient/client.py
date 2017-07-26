@@ -1828,7 +1828,7 @@ class Synapse:
                     profile = self._get_client_authenticated_s3_profile(fileHandle['endpointUrl'], fileHandle['bucket'])
                     downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'], fileHandle['fileKey'], destination, profile_name=profile)
                 else:
-                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'], destination, fileHandle['id'], fileHandle.get('contentMd5'))
+                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'], destination, fileHandle['id'], expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
             except Exception as ex:

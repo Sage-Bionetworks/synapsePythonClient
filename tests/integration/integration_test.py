@@ -473,10 +473,15 @@ def test_getChildren():
 
 def test_ExternalObjectStore_roundtrip():
 
-    import uuid
+    endpoint = "https://s3.amazonaws.com"
+    bucket = "test-client-auth-s3"
+
+    # if not syn._get_client_authenticated_s3_profile(endpoint, bucket):
+    #     raise SkipTest("This test only works on travis because it requires AWS credentials to a specific S3 bucket")
+
     proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
 
-    storage_location = syn._create_ExternalObjectStorageLocationSetting("https://s3.amazonaws.com","test-client-auth-s3")
+    storage_location = syn._create_ExternalObjectStorageLocationSetting(endpoint,bucket)
     syn._set_container_storage_location(proj, storage_location['storageLocationId'])
 
     file_path = utils.make_bogus_data_file()

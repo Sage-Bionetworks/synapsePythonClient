@@ -42,9 +42,9 @@ def test_download_check_md5():
 
     tempfile_path2 = utils.make_bogus_data_file()
     schedule_for_cleanup(tempfile_path2)
-    entity_bad_md5 = syn.store(File(path = tempfile_path2, md5 = "12345", parent=project['id'], synapseStore=False))
+    entity_bad_md5 = syn.store(File(path = tempfile_path2, parent=project['id'], synapseStore=False))
 
-    assert_raises(SynapseMd5MismatchError, syn._downloadFileHandle, entity_bad_md5['dataFileHandleId'], entity_bad_md5['id'], 'FileEntity', tempfile.gettempdir())
+    assert_raises(SynapseMd5MismatchError, syn._download_from_URL, entity_bad_md5['externalURL'], tempfile.gettempdir(), entity_bad_md5['dataFileHandleId'], expected_md5="2345a")
 
 
 def test_resume_partial_download():

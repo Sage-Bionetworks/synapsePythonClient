@@ -78,7 +78,7 @@ def upload_file(syn, entity_parent_id, local_state):
                                                                    location.get('banner', ''),
                                                                    urlparse(location['url']).netloc,
                                                                    '#' * 50))
-            return upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'], mimetype=local_state_file_handle.get('contentType'))
+            return upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'], mimetype=local_state_file_handle.get('contentType'), md5=local_state_file_handle.get('contentMd5'))
         else:
             raise NotImplementedError('Can only handle SFTP upload locations.')
     #client authenticated S3
@@ -88,7 +88,7 @@ def upload_file(syn, entity_parent_id, local_state):
                                                                location.get('endpointUrl'),
                                                                location.get('bucket'),
                                                                '#' * 50))
-        return upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'], location['keyPrefixUUID'], location['storageLocationId'], local_state_file_handle.get("contentType"))
+        return upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'], location['keyPrefixUUID'], location['storageLocationId'], mimetype=local_state_file_handle.get("contentType"))
 
 
 def create_external_file_handle(syn, file_path_or_url, mimetype=None, md5=None, file_size=None):
@@ -100,7 +100,7 @@ def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
     username, password = syn._get_sftp_credentials(sftp_url, )
     uploaded_url = SFTPWrapper._sftpUploadFile(file_path, unquote(sftp_url), username, password)
 
-    return syn._create_ExternalFileHandle(uploaded_url, mimetype=mimetype,md5=md5_for_file(file_path).hexdigest(), fileSize=os.stat(file_path).st_size)
+    return syn._create_ExternalFileHandle(uploaded_url, mimetype=mimetype, md5=md5_for_file(file_path).hexdigest(), fileSize=os.stat(file_path).st_size)
 
 
 def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
@@ -110,7 +110,7 @@ def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
     return syn._getFileHandle(file_handle_id)
 
 
-def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id, mimetype):
+def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id, mimetype=None):
     profile = syn._get_client_authenticated_s3_profile(endpoint_url, bucket)
     file_key = key_prefix + '/' + os.path.basename(file_path)
 
