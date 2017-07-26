@@ -13,7 +13,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none
+from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_is_not_none
 from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch, call
 
@@ -471,8 +471,8 @@ def test_getChildren():
     children_id_set = { x['id'] for x in syn.getChildren(test_project.id)}
     assert_equals(expected_id_set, children_id_set)
 
-def test_ExternalObjectStore_roundtrip():
 
+def test_ExternalObjectStore_roundtrip():
     endpoint = "https://s3.amazonaws.com"
     bucket = "test-client-auth-s3"
 
@@ -480,6 +480,7 @@ def test_ExternalObjectStore_roundtrip():
         raise SkipTest("This test only works on travis because it requires AWS credentials to a specific S3 bucket")
 
     proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
+    schedule_for_cleanup(proj)
 
     storage_location = syn._create_ExternalObjectStorageLocationSetting(endpoint,bucket)
     syn._set_container_storage_location(proj, storage_location['storageLocationId'])
@@ -493,6 +494,10 @@ def test_ExternalObjectStore_roundtrip():
     assert_is_none(syn.cache.get(file_entity['dataFileHandleId']))
 
     file_entity_downloaded = syn.get(file_entity['id'])
+    file_handle = file_entity_downloaded['_file_handle']
 
+    assert_equals(utils.md5_for_file(file_path).hexdigest(), file_handle['contentMd5'])
+    assert_equals(os.stat(file_path).st_size, file_handle['contentSize'])
+    assert_equals('text/plain', file_handle['contentType'])
     assert_not_equal(utils.normalize_path(file_path), utils.normalize_path(file_entity_downloaded['path']))
     assert filecmp.cmp(file_path, file_entity_downloaded['path'])
