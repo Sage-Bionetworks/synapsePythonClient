@@ -476,8 +476,8 @@ def test_ExternalObjectStore_roundtrip():
     endpoint = "https://s3.amazonaws.com"
     bucket = "test-client-auth-s3"
 
-    # if not syn._get_client_authenticated_s3_profile(endpoint, bucket):
-    #     raise SkipTest("This test only works on travis because it requires AWS credentials to a specific S3 bucket")
+    if not syn._get_client_authenticated_s3_profile(endpoint, bucket):
+        raise SkipTest("This test only works on travis because it requires AWS credentials to a specific S3 bucket")
 
     proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
 
