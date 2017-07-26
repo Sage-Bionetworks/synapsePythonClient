@@ -977,22 +977,7 @@ class Synapse:
                 needs_upload = True
 
             if needs_upload:
-
-                # #TODO: return upload destination instaed of storage location id???
-                # #TODO: 1. perform file upload (in case of Synapse S3 multi-part upload it returns a filehandleid), 2. create (external and client s3) /get(synapse s3) filehandle.
-                # fileLocation, local_state , storageLocationId= self.__uploadExternallyStoringProjects(entity, local_state)
-                # local_state_file_handle = local_state['_file_handle']
-                # fileHandle = self._uploadToFileHandleService(fileLocation,
-                #                                              synapseStore=entity.get('synapseStore', True),
-                #                                              mimetype=local_state_file_handle.get('contentType', None),
-                #                                              md5=local_state_file_handle.get('contentMd5', None),
-                #                                              fileSize=local_state_file_handle.get('contentSize', None),
-                #                                              storageLocationId=storageLocationId
-                #                                              )
-
-                #this function modifies local_state
                 fileHandle = upload_file(self, entity['parentId'], local_state)
-
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 
