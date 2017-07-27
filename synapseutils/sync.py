@@ -256,7 +256,7 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     constructor (**name**, **synapseStore**, **contentType**) as well
     as parameters to the syn.store command (**used**, **executed**,
     **activityName**, **activityDescription**, **forceVersion**).
-    Used and executed can be semi-colon (;) separated lists of Synapse
+    Used and executed can be semi-colon (";") separated lists of Synapse
     ids, urls and/or local filepaths of files already stored in
     Synapse (or being stored in Synapse by the manifest). Any
     additional columns will be added as annotations.
