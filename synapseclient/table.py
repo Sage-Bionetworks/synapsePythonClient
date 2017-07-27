@@ -1270,6 +1270,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
         self.setColumnHeaders(headers)
 
+
     def _synapse_store(self, syn):
         if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
             ## store schema
@@ -1354,7 +1355,8 @@ class CsvFileTable(TableAbstractBaseClass):
                     header = 0 if self.header else None,
                     skiprows=self.linesToSkip,
                     parse_dates=date_columns,
-                    date_parser=datetime_millisecond_parser)
+                    date_parser=datetime_millisecond_parser,
+                    float_precision="round_trip")
         except pd.parser.CParserError as ex1:
             df = pd.DataFrame()
 
