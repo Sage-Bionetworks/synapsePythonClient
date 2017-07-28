@@ -541,7 +541,7 @@ def dontruntest_big_csvs():
     cols = []
     cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
     cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
-    cols.append(Column(name='x', columnType='DOUBLE'))
+    cols.append(Column(name='x', columnType='DOUBLE')
     cols.append(Column(name='n', columnType='INTEGER'))
     cols.append(Column(name='is_bogus', columnType='BOOLEAN'))
 
@@ -575,3 +575,15 @@ def dontruntest_big_csvs():
 
     for row in results:
         print(row)
+
+def test_synapse_integer_columns_with_missing_values_from_dataframe():
+    cols = [Column(name='x', columnType='INTEGER']
+    schema = syn.store(Schema(name='Big Table', columns=cols, parent=project))
+
+    ## write rows to CSV file
+    with tempfile.NamedTemporaryFile(delete=False) as temp:
+        schedule_for_cleanup(temp.name)
+        filename = temp.name
+
+        temp.write('x')
+        temp.
