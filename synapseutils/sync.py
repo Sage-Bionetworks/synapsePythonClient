@@ -300,7 +300,7 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     ===============          ==========================================  ============
     Field                    Meaning                                     Example
     ===============          ==========================================  ============
-    synapseStore             Boolean describing wheterh to upload files  True
+    synapseStore             Boolean describing whether to upload files  True
     contentType              content type of file to overload defaults   text/html
     ===============          ==========================================  ============
 
