@@ -9,6 +9,7 @@ from . import concrete_types
 import sys
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from .multipart_upload import  multipart_upload
+from .exceptions import SynapseMd5MismatchError
 try:
     from urllib.parse import urlparse
     from urllib.parse import urlunparse
@@ -22,7 +23,6 @@ except ImportError:
     from urllib import unquote
     from urllib import urlretrieve
 
-#TODO: documentation
 def upload_file(syn, entity_parent_id, local_state):
     """Uploads the file set in the local_state['path'] (if necessary) to a storage location based on project settings. 
     Returns a new FileHandle as a dict to represent the stored file. The local_state's '_file_handle' dict is not modified at all.
@@ -32,10 +32,8 @@ def upload_file(syn, entity_parent_id, local_state):
 
     :returns: a dict of a new FileHandle as a dict that represents the uploaded file 
     """
-    if '_file_handle' not in local_state:
-        local_state['_file_handle'] = {}
 
-    local_state_file_handle = local_state['_file_handle']
+    local_state_file_handle = local_state.get('_file_handle', {})
 
     # if doing a external file handle with no actual upload
     if not local_state['synapseStore']:
@@ -48,15 +46,22 @@ def upload_file(syn, entity_parent_id, local_state):
             else: # path is None
                 raise ValueError("Both 'externalUrl' and 'path' values are none. When synapseStore=False. Please set either one of the values ('externalURL' will be preferred over 'path' if both are set) to continue uploading a ExternalFileHandle")
 
-        md5 = None
-        file_size = None
+        md5 = local_state_file_handle.get('contentMd5')
+        file_size = local_state_file_handle.get('contentSize')
+        is_local_file = False
         if is_url(externalUrl):
             url = urlparse(externalUrl)
             if url.scheme == 'file' and os.path.isfile(url.path):
-                md5 = md5_for_file(url.path).hexdigest()
+                actual_md5 = md5_for_file(url.path).hexdigest()
+                if md5 is not None and md5 != actual_md5:
+                    raise SynapseMd5MismatchError("The specified md5 [%s] does not match the calculated md5 [%s] for local file [%s]", md5, actual_md5, url.path)
+                md5 = actual_md5
                 file_size = os.stat(url.path).st_size
+                is_local_file = True
+        else:
+            raise ValueError('externalUrl is not a valid url')
 
-        return create_external_file_handle(syn, externalUrl, mimetype=local_state_file_handle.get('contentType'), md5=md5, file_size=file_size)
+        return create_external_file_handle(syn, externalUrl, mimetype=local_state_file_handle.get('contentType'), md5=md5, file_size=file_size, is_local_file=is_local_file)
 
     #expand the path because past this point an upload is required and some upload functions require an absolute path
     expanded_upload_path = os.path.expandvars(os.path.expanduser(local_state['path']))
@@ -89,19 +94,28 @@ def upload_file(syn, entity_parent_id, local_state):
                                                                location.get('bucket'),
                                                                '#' * 50))
         return upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'], location['keyPrefixUUID'], location['storageLocationId'], mimetype=local_state_file_handle.get("contentType"))
+    else: #unknown storage location
+        sys.stdout.write('\n%s\n%s\nUNKNOWN STORAGE LOCATION. Defaulting upload to Synapse.\n%s\n' % ('!' * 50,
+                                                               location.get('banner', ''),
+                                                               '!' * 50))
+        return upload_synapse_s3(syn, expanded_upload_path, None, mimetype=local_state_file_handle.get('contentType'))
 
 
-def create_external_file_handle(syn, file_path_or_url, mimetype=None, md5=None, file_size=None):
+def create_external_file_handle(syn, file_path_or_url, mimetype=None, md5=None, file_size=None, is_local_file=False):
     #just creates the file handle because there is nothing to upload
-    return syn._create_ExternalFileHandle(file_path_or_url, mimetype=mimetype, md5=md5, fileSize=file_size)
+    file_handle =  syn._create_ExternalFileHandle(file_path_or_url, mimetype=mimetype, md5=md5, fileSize=file_size)
+    if is_local_file:
+        syn.cache.add(file_handle['id'], file_path_or_url)
+    return file_handle
 
 
 def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
-    username, password = syn._get_sftp_credentials(sftp_url, )
-    uploaded_url = SFTPWrapper._sftpUploadFile(file_path, unquote(sftp_url), username, password)
+    username, password = syn._getUserCredentials(sftp_url)
+    uploaded_url = SFTPWrapper.upload_file(file_path, unquote(sftp_url), username, password)
 
-    return syn._create_ExternalFileHandle(uploaded_url, mimetype=mimetype, md5=md5_for_file(file_path).hexdigest(), fileSize=os.stat(file_path).st_size)
-
+    file_handle = syn._create_ExternalFileHandle(uploaded_url, mimetype=mimetype, md5=md5_for_file(file_path).hexdigest(), fileSize=os.stat(file_path).st_size)
+    syn.cache.add(file_handle['id'], file_path)
+    return file_handle
 
 def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
     file_handle_id = multipart_upload(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)

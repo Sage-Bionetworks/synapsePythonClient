@@ -475,15 +475,16 @@ def test_getChildren():
 def test_ExternalObjectStore_roundtrip():
     endpoint = "https://s3.amazonaws.com"
     bucket = "test-client-auth-s3"
+    profile_name = syn._get_client_authenticated_s3_profile(endpoint, bucket)
 
-    if not syn._get_client_authenticated_s3_profile(endpoint, bucket):
+    if profile_name != 'client-auth-s3-test':
         raise SkipTest("This test only works on travis because it requires AWS credentials to a specific S3 bucket")
 
     proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
     schedule_for_cleanup(proj)
 
-    storage_location = syn._create_ExternalObjectStorageLocationSetting(endpoint,bucket)
-    syn._set_container_storage_location(proj, storage_location['storageLocationId'])
+    storage_location = syn.createStorageLocationSetting("ExternalObjectStorageLocationSetting",endpointUrl=endpoint, bucket=bucket)
+    syn.set_container_StorageLocationSetting(proj, storage_location['storageLocationId'])
 
     file_path = utils.make_bogus_data_file()
 
@@ -493,9 +494,22 @@ def test_ExternalObjectStore_roundtrip():
     syn.cache.purge(time.time())
     assert_is_none(syn.cache.get(file_entity['dataFileHandleId']))
 
+    #verify key is in s3
+    import boto3
+    boto_session = boto3.session.Session(profile_name=profile_name)
+    s3 = boto_session.resource('s3', endpoint_url=endpoint)
+    try:
+        s3.Object(file_entity._file_handle.bucket,file_entity._file_handle.fileKey).load()
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            raise Exception("The file was not uploaded to S3")
+
     file_entity_downloaded = syn.get(file_entity['id'])
     file_handle = file_entity_downloaded['_file_handle']
 
+    #verify file_handle metadata
+    assert_equals(endpoint, file_handle['endpointUrl'])
+    assert_equals(bucket, file_handle['bucket'])
     assert_equals(utils.md5_for_file(file_path).hexdigest(), file_handle['contentMd5'])
     assert_equals(os.stat(file_path).st_size, file_handle['contentSize'])
     assert_equals('text/plain', file_handle['contentType'])
