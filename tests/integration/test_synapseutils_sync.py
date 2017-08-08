@@ -7,10 +7,7 @@ from builtins import str
 
 import uuid, filecmp, os, sys, time, tempfile
 
-from mock import patch
-
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
-from nose import SkipTest
 
 import synapseclient
 from synapseclient import Project, Folder, File, Entity
