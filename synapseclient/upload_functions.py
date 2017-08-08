@@ -4,7 +4,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
-from .utils import is_url, md5_for_file, as_url
+from .utils import is_url, md5_for_file, as_url, file_url_to_path
 from . import concrete_types
 import sys
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
@@ -101,11 +101,11 @@ def upload_file(syn, entity_parent_id, local_state):
         return upload_synapse_s3(syn, expanded_upload_path, None, mimetype=local_state_file_handle.get('contentType'))
 
 
-def create_external_file_handle(syn, file_path_or_url, mimetype=None, md5=None, file_size=None, is_local_file=False):
+def create_external_file_handle(syn, url, mimetype=None, md5=None, file_size=None, is_local_file=False):
     #just creates the file handle because there is nothing to upload
-    file_handle =  syn._create_ExternalFileHandle(file_path_or_url, mimetype=mimetype, md5=md5, fileSize=file_size)
+    file_handle =  syn._create_ExternalFileHandle(url, mimetype=mimetype, md5=md5, fileSize=file_size)
     if is_local_file:
-        syn.cache.add(file_handle['id'], file_path_or_url)
+        syn.cache.add(file_handle['id'], file_url_to_path(url))
     return file_handle
 
 
