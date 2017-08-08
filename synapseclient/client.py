@@ -3022,12 +3022,12 @@ class Synapse:
                                  May be "overwrite.local", "keep.local", or "keep.both".
                                  Defaults to "keep.both".
 
-        :returns: a dictionary with 'path'.
+        :returns: file path (as a string) to the downloaded file.
 
         Example::
 
-            file_info = syn.downloadTableFile(table, rowId=1, versionNumber=1, column="cover_art", downloadLocation=".")
-            print(file_info['path'])
+            file_path = syn.downloadTableFile(table, rowId=1, versionNumber=1, column="cover_art", downloadLocation=".")
+            print(file_path)
 
         """
 
