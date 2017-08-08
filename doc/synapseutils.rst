@@ -18,3 +18,9 @@ sync
 .. automodule:: synapseutils.sync
    :members:
 
+****
+monitor
+****
+.. automodule:: synapseutils.monitor
+   :members:
+

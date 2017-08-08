@@ -5,7 +5,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-import uuid, filecmp, os, sys, time
+import uuid, filecmp, os, sys, time, tempfile
+
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
 
 try:
@@ -448,6 +449,7 @@ def test_walk():
     assert list(temp) == []
 
 
+#TODO: mrege
 def test_syncFromSynapse():
     """This function tests recursive download as defined in syncFromSynapse
     most of the functionality of this function are already tested in the 
@@ -490,6 +492,7 @@ def test_syncFromSynapse__given_file_id():
     all_files = synapseutils.syncFromSynapse(syn, file.id)
     assert_equals(1, len(all_files))
     assert_equals(file, all_files[0])
+#TODO: mrege
 
 def test_copyFileHandleAndchangeFileMetadata():
     project_entity = syn.store(Project(name=str(uuid.uuid4())))

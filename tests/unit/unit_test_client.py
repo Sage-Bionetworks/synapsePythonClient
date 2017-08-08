@@ -325,6 +325,7 @@ def test_findEntityIdByNameAndParent__404_error_no_result():
     with patch.object(syn, "restPOST", side_effect=SynapseHTTPError(response=fake_response)) as mocked_POST:
         assert_is_none(syn._findEntityIdByNameAndParent(entity_name))
 
+
 def test_getChildren__nextPageToken():
     #setup
     nextPageToken = "T O K E N"
@@ -360,3 +361,4 @@ def test_getChildren__nextPageToken():
         expected_request_JSON = lambda token: json.dumps({'parentId':'syn'+str(parent_project_id_int), 'includeTypes':["folder","file","table","link","entityview","dockerrepo"], 'sortBy':'NAME','sortDirection':'ASC', 'nextPageToken':token})
         expected_POST_url = '/entity/children'
         mocked_POST.assert_has_calls([call(expected_POST_url, body=expected_request_JSON(None)), call(expected_POST_url, body=expected_request_JSON(nextPageToken))])
+
