@@ -132,7 +132,7 @@ def _sortAndFixProvenance(syn, df):
         if item is None:
             return item
 
-        item_path_normalized = os.path.normpath(os.path.expandvars(os.path.expanduser(item)))
+        item_path_normalized = os.path.abspath(os.path.expandvars(os.path.expanduser(item)))
         if os.path.isfile(item_path_normalized):
             #Add full path
             item = item_path_normalized
@@ -165,6 +165,15 @@ def _sortAndFixProvenance(syn, df):
     df = df.reindex([l[0] for l in uploadOrder])
     return df.reset_index()
 
+def _check_path_and_normalize(f):
+    sys.stdout.write('.')
+    if is_url(f):
+        return f
+    path_normalized = os.path.abspath(os.path.expandvars(os.path.expanduser(f)))
+    if not os.path.isfile(path_normalized):
+        print('\nThe specified path "%s" is either not a file path or does not exist.', f)
+        raise IOError('The path %s is not a file or does not exist' %f)
+    return path_normalized
 
 def readManifestFile(syn, manifest_file):
     """Verifies a file manifest and returns a reordered dataframe ready for upload.
@@ -199,16 +208,7 @@ def readManifestFile(syn, manifest_file):
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that all paths exist')
-    def check_path_and_normalize(f):
-        sys.stdout.write('.')
-        if is_url(f):
-            return f
-        path_normalized = os.path.normpath(os.path.expandvars(os.path.expanduser(f)))
-        if not os.path.isfile(path_normalized):
-            print('\nThe specified path "%s" is either not a file path or does not exist.', f)
-            raise IOError('The path %s is not a file or does not exist' %f)
-        return path_normalized
-    df.path = df.path.apply(check_path_and_normalize)
+    df.path = df.path.apply(_check_path_and_normalize)
 
     sys.stdout.write('OK\n')
 
