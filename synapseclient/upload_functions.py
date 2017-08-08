@@ -4,7 +4,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
-from .utils import is_url, md5_for_file
+from .utils import is_url, md5_for_file, as_url
 from . import concrete_types
 import sys
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
@@ -42,7 +42,7 @@ def upload_file(syn, entity_parent_id, local_state):
 
         if externalUrl is None:
             if path is not None:
-                externalUrl = os.path.expandvars(os.path.expanduser(path))
+                externalUrl = as_url(os.path.expandvars(os.path.expanduser(path)))
             else: # path is None
                 raise ValueError("Both 'externalUrl' and 'path' values are none. When synapseStore=False. Please set either one of the values ('externalURL' will be preferred over 'path' if both are set) to continue uploading a ExternalFileHandle")
 
@@ -59,7 +59,7 @@ def upload_file(syn, entity_parent_id, local_state):
                 file_size = os.stat(url.path).st_size
                 is_local_file = True
         else:
-            raise ValueError('externalUrl is not a valid url')
+            raise ValueError('externalUrl [%s] is not a valid url', externalUrl)
 
         return create_external_file_handle(syn, externalUrl, mimetype=local_state_file_handle.get('contentType'), md5=md5, file_size=file_size, is_local_file=is_local_file)
 
