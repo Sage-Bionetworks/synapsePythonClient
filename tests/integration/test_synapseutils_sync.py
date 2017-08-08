@@ -74,26 +74,6 @@ def test_readManifest():
     manifest = _makeManifest(header+row1+row2+'/bara/basdfasdf/8hiuu.txt	syn123\n') 
     assert_raises(IOError, synapseutils.sync.readManifestFile, syn, manifest)
 
-def test_readManifest__sync_order_with_home_directory():
-    """SYNPY-508"""
-    try:
-        import pandas as pd
-        import pandas.util.testing as pdt
-    except:
-        raise SkipTest("pandas was not found. Skipping test.")
-
-    #row1's file depends on row2's file but is listed first
-    file_path1 = '~/file1.txt'
-    file_path2 = '~/file2.txt'
-    row1 = '%s\t%s\t%s\t""\tprovActivity1\tTrue\tsomeFooAnnotation1\n' % (file_path1, project.id, file_path2)
-    row2 = '%s\t%s\t""\t""\tprovActivity2\tTrue\tsomeFooAnnotation2\n' % (file_path2, project.id)
-    manifest = _makeManifest(header + row1 + row2)
-
-    #mock isfile() to always return true to avoid having to create files in the home directory
-    with patch.object(os.path, "isfile", side_effect=[True,True,True,False]): #side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
-        manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
-        expected_order = pd.Series([os.path.normpath(os.path.expanduser(file_path2)), os.path.normpath(os.path.expanduser(file_path1))])
-        pdt.assert_series_equal(expected_order, manifest_dataframe.path, check_names=False)
 
 def test_syncToSynapse():
     synapseclient.table.test_import_pandas()
