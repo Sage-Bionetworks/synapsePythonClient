@@ -10,6 +10,7 @@ from synapseclient.utils import id_of, topolgical_sort, is_url
 from synapseclient import File, table
 from synapseclient.exceptions import *
 import os
+from sys import stderr
 import six
 import sys
 from backports import csv
@@ -66,11 +67,13 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     """
     if allFiles is None: allFiles = list()
     id = id_of(entity)
-    results = syn.chunkedQuery("select id, name, nodeType from entity where entity.parentId=='%s'" %id)
+    results = syn.getChildren(id)
+    zero_results = True
     for result in results:
+        zero_results = False
         if is_container(result):
             if path is not None:  #If we are downloading outside cache create directory.
-                new_path = os.path.join(path, result['entity.name'])
+                new_path = os.path.join(path, result['name'])
                 try:
                     os.mkdir(new_path)
                 except OSError as err:
@@ -79,15 +82,21 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                 print('making dir', new_path)
             else:
                 new_path = None
-            syncFromSynapse(syn, result['entity.id'], new_path, ifcollision, allFiles)
+            syncFromSynapse(syn, result['id'], new_path, ifcollision, allFiles)
         else:
-            ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
+            ent = syn.get(result['id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
             allFiles.append(ent)
-            
+    if zero_results:
+        #a http error would be raised if the synapse Id was not valid (404) or no permission (403) so at this point the entity should be get-able
+        stderr.write("The synapse id provided is not a container, attempting to get the entity anyways")
+        ent = syn.get(id, downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
+        allFiles.append(ent)
+
     if path is not None:  #If path is None files are stored in cache.
         filename = os.path.join(path, MANIFEST_FILENAME)
         filename = os.path.expanduser(os.path.normcase(filename))
         generateManifest(syn, allFiles, filename)
+
     return allFiles
 
 
