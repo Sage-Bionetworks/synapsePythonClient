@@ -1,6 +1,6 @@
 Release Notes - Synapse Python Client - Version py-1.7
 
-**Release Date:** 16-June-2017  
+**Release Date:** 17-June-2017  
 **Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
 **Documentation:** [http://docs.synapse.org/python/](http://docs.synapse.org/python/)
 
@@ -9,7 +9,7 @@ Release 1.7 is a large bugfix release with several new features. The main ones i
     * Bulk upload files to synapse (synapseutils.syncToSynapse).
     * Notify you via email on the progress of a function (useful for jobs like large file uploads that may take a long time to complete).
     * The syncFromSynapse function now creates a "manifest" which contains the metadata of downloaded files. (These can also be used to update metadata with the bulk upload function.
-* File View tables can now be created from the python client using EntityViewSchema see [http://docs.synapse.org/articles/fileviews.html](fileviews documentation).
+* File View tables can now be created from the python client using EntityViewSchema. See [fileviews documentation](http://docs.synapse.org/articles/fileviews.html).
 * The python client is now able to upload to user owned S3 Buckets. [Click here for instructions on linking your S3 bucket to synapse](http://docs.synapse.org/articles/custom_storage_location.html)
 
 We've also made vairous improvements to existing features:
