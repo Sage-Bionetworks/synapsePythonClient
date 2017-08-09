@@ -31,12 +31,28 @@ import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
 import synapseclient.__main__ as cmdline
-from synapseclient.evaluation import Evaluation
 
-import integration
-from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+from synapseclient.evaluation import Evaluation
 
 if six.PY2:
     from StringIO import StringIO
 else:
     from io import StringIO
+
+
+def test_command_sync():
+    """Test the sync fuction.
+
+    Since this function only passes argparse arguments for the sync subcommand
+    straight to `synapseutils.sync.syncToSynapse`, the only tests here are for
+    the command line arguments provided.
+
+    """
+
+    parser = cmdline.build_parser()
+    args = parser.parse_args(['sync', '/tmp/foobarbaz.tsv'])
+
+    assert_equals(args.manifestFile, '/tmp/foobarbaz.tsv')
+    assert_equals(args.dryRun, False)
+    assert_equals(args.sendMessages, False)
+    assert_equals(args.retries, 4)
