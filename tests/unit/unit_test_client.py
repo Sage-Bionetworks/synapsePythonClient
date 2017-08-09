@@ -299,7 +299,7 @@ def test_findEntityIdByNameAndParent__None_parent():
     expected_id = "syn1234"
     return_val = {'id' : expected_id}
     with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
-        entity_id = syn._findEntityIdByNameAndParent(entity_name)
+        entity_id = syn.get_entity_id_from_name_and_parent(entity_name)
         mocked_POST.assert_called_once_with(expected_uri,body=expected_body )
         assert_equal(expected_id, entity_id)
 
@@ -312,7 +312,7 @@ def test_findEntityIdByNameAndParent__with_parent():
     expected_id = "syn1234"
     return_val = {'id' : expected_id}
     with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
-        entity_id = syn._findEntityIdByNameAndParent(entity_name, parent_entity)
+        entity_id = syn.get_entity_id_from_name_and_parent(entity_name, parent_entity)
         mocked_POST.assert_called_once_with(expected_uri,body=expected_body )
         assert_equal(expected_id, entity_id)
 
@@ -323,7 +323,7 @@ def test_findEntityIdByNameAndParent__404_error_no_result():
     expected_body = json.dumps({"parentId": None, "entityName": entity_name})
     fake_response = DictObject({"status_code": 404})
     with patch.object(syn, "restPOST", side_effect=SynapseHTTPError(response=fake_response)) as mocked_POST:
-        assert_is_none(syn._findEntityIdByNameAndParent(entity_name))
+        assert_is_none(syn.get_entity_id_from_name_and_parent(entity_name))
 
 
 def test_getChildren__nextPageToken():
