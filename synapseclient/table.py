@@ -1363,8 +1363,7 @@ class CsvFileTable(TableAbstractBaseClass):
                     header = 0 if self.header else None,
                     skiprows=self.linesToSkip,
                     parse_dates=date_columns,
-                    date_parser=datetime_millisecond_parser,
-                    float_precision="round_trip")
+                    date_parser=datetime_millisecond_parser)
         except pd.parser.CParserError as ex1:
             df = pd.DataFrame()
 

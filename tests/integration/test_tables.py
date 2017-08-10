@@ -18,7 +18,7 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less
+from nose.tools import assert_equals, assert_less, assert_not_equal
 from datetime import datetime
 from mock import patch
 
@@ -541,7 +541,7 @@ def dontruntest_big_csvs():
     cols = []
     cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
     cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
-    cols.append(Column(name='x', columnType='DOUBLE')
+    cols.append(Column(name='x', columnType='DOUBLE'))
     cols.append(Column(name='n', columnType='INTEGER'))
     cols.append(Column(name='is_bogus', columnType='BOOLEAN'))
 
@@ -577,13 +577,24 @@ def dontruntest_big_csvs():
         print(row)
 
 def test_synapse_integer_columns_with_missing_values_from_dataframe():
-    cols = [Column(name='x', columnType='INTEGER']
+    #SYNPY-267
+    cols = [Column(name='x', columnType='STRING'),Column(name='y', columnType='INTEGER'), Column(name='z', columnType='DOUBLE')]
     schema = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
     ## write rows to CSV file
-    with tempfile.NamedTemporaryFile(delete=False) as temp:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as temp:
         schedule_for_cleanup(temp.name)
+        #2nd row is missing a value in its integer column
+        temp.write('x,y,z\na,1,0.9\nb,,0.8\nc,3,0.7\n')
+        temp.flush()
         filename = temp.name
 
-        temp.write('x')
-        temp.
+    #create a table from csv
+    table = Table(schema, filename)
+    df = table.asDataFrame()
+
+    table_from_dataframe = Table(schema, df)
+    assert_not_equal(table.filepath, table_from_dataframe.filepath)
+    print(table.filepath, table_from_dataframe.filepath)
+    #compare to make sure no .0's were appended to the integers
+    assert filecmp.cmp(table.filepath, table_from_dataframe.filepath)
