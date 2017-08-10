@@ -21,7 +21,9 @@ from nose.plugins.attrib import attr
 from nose.tools import assert_raises, assert_equals, assert_less
 import tempfile
 import shutil
+import unit
 from mock import patch
+
 try:
     import ConfigParser
 except:
@@ -34,18 +36,26 @@ import synapseclient.__main__ as cmdline
 
 from synapseclient.evaluation import Evaluation
 
+import synapseutils
+
 if six.PY2:
     from StringIO import StringIO
 else:
     from io import StringIO
 
+def setup(module):
+    print('\n')
+    print('~' * 60)
+    print(os.path.basename(__file__))
+    print('~' * 60)
+    module.syn = unit.syn
 
 def test_command_sync():
     """Test the sync fuction.
 
     Since this function only passes argparse arguments for the sync subcommand
     straight to `synapseutils.sync.syncToSynapse`, the only tests here are for
-    the command line arguments provided.
+    the command line arguments provided and that the function is called once.
 
     """
 
@@ -56,3 +66,11 @@ def test_command_sync():
     assert_equals(args.dryRun, False)
     assert_equals(args.sendMessages, False)
     assert_equals(args.retries, 4)
+
+    with patch.object(synapseutils, "syncToSynapse") as mockedSyncToSynapse:
+        cmdline.sync(args, syn)
+        mockedSyncToSynapse.assert_called_once_with(syn,
+                                                    manifestFile=args.manifestFile,
+                                                    dryRun=args.dryRun,
+                                                    sendMessages=args.sendMessages,
+                                                    retries=args.retries)
