@@ -1172,7 +1172,15 @@ class CsvFileTable(TableAbstractBaseClass):
                 quotechar=encode_param_in_python2(quoteCharacter),
                 escapechar=encode_param_in_python2(escapeCharacter),
                 line_terminator=encode_param_in_python2(lineEnd),
-                na_rep=encode_param_in_python2(kwargs.get('na_rep','')))
+                na_rep=encode_param_in_python2(kwargs.get('na_rep','')),
+                float_format=encode_param_in_python2("%.12g"))
+               # NOTE: reason for flat_format='%.12g':
+               # pandas automatically converts int columns into float64 columns when some cells in the column have no value.
+               # If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are
+               # writing a float into a INTEGER(synapse table type) column.
+               # Using the 'g' will strip off '.0' from whole number values.
+               # pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we use '%.12g'.c
+               # see SYNPY-267.
         finally:
             if f: f.close()
 
@@ -1269,6 +1277,7 @@ class CsvFileTable(TableAbstractBaseClass):
         super(CsvFileTable, self).__init__(schema, headers=headers, etag=etag)
 
         self.setColumnHeaders(headers)
+
 
     def _synapse_store(self, syn):
         if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
