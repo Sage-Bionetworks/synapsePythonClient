@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import sys
 import functools
 import traceback
 
@@ -36,7 +35,7 @@ def notifyMe(func, syn, messageSubject='', retries=0):
                                 'Call to %s completed successfully!' %func.__name__)
                 return output
             except Exception as e:
-                sys.stderr.write(traceback.format_exc())
+                print(traceback.format_exc())
                 syn.sendMessage([destination], messageSubject, 
                                 messageBody = ('Encountered a temporary Failure during upload.  '
                                                'Will retry %i more times. \n\n Error message was:\n%s\n\n%s'
