@@ -62,15 +62,22 @@ def test_readManifestFile__synapseStore_values_not_set():
 
     project_id = "syn123"
     header = 'path\tparent\n'
-    row1 = '~/file1.txt\t%s\n' % project_id
-    row2 = 'http://www.synapse.org\t%s\n' % project_id
+    path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
+    path2 = 'http://www.synapse.org'
+    row1 = '%s\t%s\n' % (path1, project_id)
+    row2 = '%s\t%s\n' % (path2,project_id)
+
+    expected_synapseStore = {
+        str(path1): True,
+        str(path2): False,
+    }
 
     manifest = StringIO(header+row1+row2)
     with patch.object(syn, "get", return_value=Project()),\
          patch.object(os.path, "isfile", return_value=True): #side effect mocks values for: file1.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
-        expected_synapseStore = pd.Series([True, False])
-        pdt.assert_series_equal(expected_synapseStore, manifest_dataframe.synapseStore, check_names=False)
+        actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
+        assert_dict_equal(expected_synapseStore, actual_synapseStore)
 
 
 def test_readManifestFile__synapseStore_values_are_set():
