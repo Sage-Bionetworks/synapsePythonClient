@@ -1040,7 +1040,7 @@ class Synapse:
             except SynapseHTTPError as ex:
                 if createOrUpdate and ex.response.status_code == 409:
                     # Get the existing Entity's ID via the name and parent
-                    existing_entity_id = self.get_entity_id_from_name_and_parent(properties['name'], properties.get('parentId', None))
+                    existing_entity_id = self.findEntityId(properties['name'], properties.get('parentId', None))
                     if existing_entity_id is None: raise
 
                     # get existing properties and annotations
@@ -1137,7 +1137,7 @@ class Synapse:
         #     If the user forgets to catch the return value of a syn.store(e)
         #     this allows them to recover by doing: e = syn.get(e)
         if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
-            entity = self.get_entity_id_from_name_and_parent(entity['name'], entity.get('parentId', None))
+            entity = self.findEntityId(entity['name'], entity.get('parentId', None))
 
         # Avoid an exception from finding an ID from a NoneType
         try: id_of(entity)
@@ -3289,7 +3289,7 @@ class Synapse:
         return self.restPUT(uri, body=json.dumps(get_properties(entity)))
 
 
-    def get_entity_id_from_name_and_parent(self, name, parent=None):
+    def findEntityId(self, name, parent=None):
         """
         Find an Entity given its name and parent.
 

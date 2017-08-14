@@ -450,7 +450,7 @@ def test_external_s3_upload():
 def test_findEntityIdByNameAndParent():
     project_name = str(uuid.uuid1())
     project_id = syn.store(Project(name=project_name))['id']
-    assert_equals(project_id, syn.get_entity_id_from_name_and_parent(project_name))
+    assert_equals(project_id, syn.findEntityId(project_name))
 
 
 def test_getChildren():
