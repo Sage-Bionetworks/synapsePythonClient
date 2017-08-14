@@ -3008,6 +3008,8 @@ class Synapse:
 
     def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None, rowIdAndVersion=None, ifcollision="keep.both"):
         """
+        **Deprecated**
+
         Downloads a file associated with a row in a Synapse table.
 
         :param table:            schema object, table query result or synapse ID
@@ -3028,6 +3030,7 @@ class Synapse:
             print(file_path)
 
         """
+        warnings.warn("downloadTableFile() is deprecated, please use downloadTableColumns() instead", DeprecationWarning, stacklevel=2)
 
         if (rowId is None or versionNumber is None) and rowIdAndVersion is None:
             raise ValueError("Need to pass in either rowIdAndVersion or (rowId and versionNumber).")
