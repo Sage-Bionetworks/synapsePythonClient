@@ -258,7 +258,7 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     with patch.object(synapseclient.upload_functions, "multipart_upload", return_value=expected_file_handle_id) as mocked_multipart_upload, \
          patch.object(syn.cache, "add") as mocked_cache_add,\
          patch.object(syn, "_getFileHandle") as mocked_getFileHandle:
-        file_handle = upload_functions.upload_file(syn, test_file['parentId'], test_file.local_state()) #dotn care about filehandle for this test
+        file_handle = upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path']) #dotn care about filehandle for this test
 
         mock_upload_destination.assert_called_once_with(test_file['parentId'])
         mocked_multipart_upload.assert_called_once_with(syn, expected_path_expanded, contentType=None, storageLocationId=expected_storage_location_id)

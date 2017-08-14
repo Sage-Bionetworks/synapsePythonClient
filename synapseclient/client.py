@@ -71,7 +71,7 @@ import json
 from collections import OrderedDict
 
 import synapseclient
-from synapseclient import concrete_types
+from . import concrete_types
 from . import cache
 from . import exceptions
 from .exceptions import *
@@ -88,7 +88,7 @@ from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
 from .multipart_upload import multipart_upload, multipart_upload_string
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from .upload_functions import upload_file, upload_synapse_s3
+from .upload_functions import upload_file_handle, upload_synapse_s3
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -959,10 +959,10 @@ class Synapse:
 
             if bundle:
                 # Check if the file should be uploaded
-                fileHandle = find_data_file_handle(bundle)
-                if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
+                file_handle = find_data_file_handle(bundle)
+                if file_handle and file_handle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
                     #switching away from ExternalFileHandle or the url was updated
-                    needs_upload = entity['synapseStore'] or (fileHandle['externalURL'] != entity['externalURL'])
+                    needs_upload = entity['synapseStore'] or (file_handle['externalURL'] != entity['externalURL'])
                 else:
                     ## Check if we need to upload a new version of an existing
                     ## file. If the file referred to by entity['path'] has been
@@ -975,9 +975,17 @@ class Synapse:
                 needs_upload = True
 
             if needs_upload:
-                fileHandle = upload_file(self, entity['parentId'], local_state)
-                properties['dataFileHandleId'] = fileHandle['id']
-                local_state['_file_handle'] = fileHandle
+                local_state_fh = local_state.get('_file_handle', {})
+                synapseStore = local_state.get('synapseStore', True)
+                file_handle = upload_file_handle(self,
+                                                 entity['parentId'],
+                                                 local_state['path'] if (synapseStore or local_state_fh.get('externalURL') is None) else local_state_fh.get('externalURL'),
+                                                 synapseStore=synapseStore,
+                                                 md5=local_state_fh.get('contentMd5'),
+                                                 file_size=local_state_fh.get('contentSize'),
+                                                 mimetype=local_state_fh.get('contentType'))
+                properties['dataFileHandleId'] = file_handle['id']
+                local_state['_file_handle'] = file_handle
 
             elif 'dataFileHandleId' not in properties:
                 # Handle the case where the Entity lacks an ID
@@ -1284,6 +1292,22 @@ class Synapse:
 
         return self.get(entity, version=version, downloadFile=True)
 
+    def uploadFileHandle(self, path, parent, synapseStore=True, mimetype=None, md5=None, file_size=None):
+        """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
+        Returns a new FileHandle as a dict to represent the stored file.
+
+        :param parent: parent of the entity to which we upload.
+        :param path: file path to the file being uploaded
+        :param synapseStore: If False, will not upload the file, but instead create an ExternalFileHandle that references the file on the local machine.
+                             If True, will upload the file based on StorageLocation determined by the entity_parent_id
+        :param md5: The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
+        :param file_size: The size the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
+        :param file_size: The MIME type the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
+
+
+        :returns: a dict of a new FileHandle as a dict that represents the uploaded file
+        """
+        return upload_file_handle(self, id_of(parent), path, synapseStore, md5, file_size, mimetype)
 
     def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None, storageLocationId = None):
         """
@@ -1300,7 +1324,7 @@ class Synapse:
 
         .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
         """
-
+        warnings.warn("_uploadToFileHandleService() is deprecated, please use uploadFileHandle() instead", DeprecationWarning, stacklevel=2)
         if filename is None:
             raise ValueError('No filename given')
         elif utils.is_url(filename):
@@ -2082,7 +2106,7 @@ class Synapse:
     ## Project/Folder storage location settings
     ############################################
 
-    def create_StorageLocationSetting(self, storage_type, **kwargs):
+    def createStorageLocationSetting(self, storage_type, **kwargs):
         """
         Creates a stroage location based on the specified type.
 
@@ -2090,7 +2114,7 @@ class Synapse:
 
         ExternalObjectStorageLocationSetting: endpointUrl, bucket
         ExternalS3StorageLocationSetting: bucket
-        ExternalStorageLocationSetting: url, supportsSubfolders(optionsl)
+        ExternalStorageLocationSetting: url, supportsSubfolders(optional)
         ProxyStorageLocationSettings: secretKey, proxyUrl
 
         Optionsl for all types: banner, description
@@ -2116,7 +2140,7 @@ class Synapse:
 
         return self.restPOST('/storageLocation', body=json.dumps(kwargs))
 
-    def set_container_StorageLocationSetting(self, project_or_folder, storage_location_id):
+    def setStorageLocationSetting(self, project_or_folder, storage_location_id):
         project_id = id_of(project_or_folder)
         project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
                                'settingsType': 'upload'}
