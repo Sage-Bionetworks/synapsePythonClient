@@ -167,6 +167,11 @@ def get(args, syn):
 
         print('Creating %s' % entity.path)
 
+def sync(args, syn):
+    synapseutils.syncToSynapse(syn, manifestFile=args.manifestFile,
+                               dryRun=args.dryRun, sendMessages=args.sendMessages,
+                               retries=args.retries)
+
 def store(args, syn):
     #If we are storing a fileEntity we need to have id or parentId
     if args.parentid is None and args.id is None and args.file is not None:
@@ -192,8 +197,8 @@ def store(args, syn):
     entity['path'] = args.file if args.file is not None else None
     entity['synapseStore'] = not utils.is_url(args.file)
 
-    used = _convertProvenanceList(args.used, args.limitSearch, syn)
-    executed = _convertProvenanceList(args.executed, args.limitSearch, syn)
+    used = syn._convertProvenanceList(args.used, args.limitSearch)
+    executed = syn._convertProvenanceList(args.executed, args.limitSearch)
     entity = syn.store(entity, used=used, executed=executed)
 
     _create_wiki_description_if_necessary(args, entity, syn)
@@ -319,25 +324,16 @@ def onweb(args, syn):
     syn.onweb(args.id)
 
 
-def _convertProvenanceList(usedList, limitSearch, syn):
-    if usedList is None:
-        return None
-    usedList = [syn.get(target, limitSearch=limitSearch) if
-                (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
-                target in usedList]
-    return usedList
-
-
 def setProvenance(args, syn):
     """Set provenance information on a synapse entity."""
 
     activity = Activity(name=args.name, description=args.description)
 
     if args.used:
-        for item in _convertProvenanceList(args.used, args.limitSearch, syn):
+        for item in syn._convertProvenanceList(args.used, args.limitSearch):
             activity.used(item)
     if args.executed:
-        for item in _convertProvenanceList(args.executed, args.limitSearch, syn):
+        for item in syn._convertProvenanceList(args.executed, args.limitSearch):
             activity.used(item, wasExecuted=True)
     activity = syn.setProvenance(args.id, activity)
 
@@ -443,8 +439,8 @@ def submit(args, syn):
             raise IOError('file path %s not valid \n' % args.file)
         # //ideally this should be factored out
         synFile = syn.store(synapseclient.File(path=args.file,parent=args.parentid),
-                            used=_convertProvenanceList(args.used, args.limitSearch, syn),
-                            executed=_convertProvenanceList(args.executed, args.limitSearch, syn))
+                            used=syn._convertProvenanceList(args.used, args.limitSearch),
+                            executed=syn._convertProvenanceList(args.executed, args.limitSearch))
         args.entity = synFile.id
 
     submission = syn.submit(args.evaluationID, args.entity, name=args.name, team=args.teamName)
@@ -516,6 +512,17 @@ def build_parser():
     parser_get.add_argument('id',  metavar='syn123', nargs='?', type=str,
             help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)
+
+    parser_sync = subparsers.add_parser('sync',
+                                        help='Synchronize files described in a manifest to Synapse')
+    parser_sync.add_argument('--dryRun', action='store_true', default=False,
+                             help='Perform validation without uploading.')
+    parser_sync.add_argument('--sendMessages', action='store_true', default=False,
+                             help='Send notifications via Synapse messaging (email) at specific intervals, on errors and on completion.')
+    parser_sync.add_argument('--retries', metavar='INT', type=int, default=4)
+    parser_sync.add_argument('manifestFile',  metavar='FILE', type=str,
+                             help='A tsv file with file locations and metadata to be pushed to Synapse.')
+    parser_sync.set_defaults(func=sync)
 
     parser_store = subparsers.add_parser('store', #Python 3.2+ would support alias=['store']
             help='uploads and adds a file to Synapse')

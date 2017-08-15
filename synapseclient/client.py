@@ -611,7 +611,6 @@ class Synapse:
             webbrowser.open("%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId))
 
 
-
     def printEntity(self, entity, ensure_ascii=True):
         """Pretty prints an Entity."""
 
@@ -673,7 +672,7 @@ class Synapse:
 
         #If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, six.string_types) and os.path.isfile(entity):
-            bundle = self.__getFromFile(entity, kwargs.pop('limitSearch', None))
+            bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
 
@@ -696,7 +695,7 @@ class Synapse:
         return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
 
 
-    def __getFromFile(self, filepath, limitSearch=None):
+    def _getFromFile(self, filepath, limitSearch=None):
         """
         Gets a Synapse entityBundle based on the md5 of a local file
         See :py:func:`synapseclient.Synapse.get`.
@@ -882,9 +881,9 @@ class Synapse:
 
         :param obj:                 A Synapse Entity, Evaluation, or Wiki
         :param used:                The Entity, Synapse ID, or URL
-                                    used to create the object
-        :param executed:            The Entity, Synapse ID, or URL
-                                    representing code executed to create the object
+                                    used to create the object (can also be a list of these)
+        :param executed:            The Entity, Synapse ID, or URL representing code executed
+                                    to create the object (can also be a list of these)
         :param activity:            Activity object specifying the user's provenance
         :param activityName:        Activity name to be used in conjunction with *used* and *executed*.
         :param activityDescription: Activity description to be used in conjunction with *used* and *executed*.
@@ -1033,7 +1032,8 @@ class Synapse:
             if properties['concreteType']=="org.sagebionetworks.repo.model.Link":
                 target_properties = self._getEntity(properties['linksTo']['targetId'], version=properties['linksTo']['targetVersionNumber'])
                 properties['linksToClassName'] = target_properties['concreteType']
-                properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
+                if target_properties.get('versionNumber') is not None:
+                    properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
                 properties['name'] = target_properties['name']
             try:
                 properties = self._createEntity(properties)
@@ -1776,6 +1776,15 @@ class Synapse:
         uri = '/activity/%s' % activity['id']
         return Activity(data=self.restPUT(uri, json.dumps(activity)))
 
+    def _convertProvenanceList(self, usedList, limitSearch=None):
+        """Convert a list of synapse Ids, URLs and local files by replacing local files with Synapse Ids"""
+        if usedList is None:
+            return None
+        usedList = [self.get(target, limitSearch=limitSearch) if
+                    (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
+                    target in usedList]
+        return usedList
+
 
 
     ############################################################
@@ -1834,9 +1843,11 @@ class Synapse:
                           (exc_info[0](exc_info[1]), ex.progress), self.debug)
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
-        ## Re-raise exception
-        raise exc_info[0](exc_info[1])
-
+                if retries <= 0:
+                    ## Re-raise exception
+                    raise exc_info[0](exc_info[1])
+                
+        raise Exception("should not reach this line")
 
     def _download(self, url, destination, fileHandleId=None, expected_md5=None):
         """
@@ -3217,6 +3228,9 @@ class Synapse:
                     warnings.warn("Weird file handle: %s" % file_handle_id)
         return file_handle_associations, file_handle_to_path_map
 
+    @memoize
+    def _get_default_entity_view_columns(self, view_type):
+        return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
 
     ############################################################
     ##             CRUD for Entities (properties)             ##

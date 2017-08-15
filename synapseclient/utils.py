@@ -152,7 +152,7 @@ def extract_user_name(profile):
 def _get_from_members_items_or_properties(obj, key):
     try:
         if hasattr(obj, key):
-            return obj.id
+            return getattr(obj, key)
         if hasattr(obj, 'properties') and key in obj.properties:
             return obj.properties[key]
     except (KeyError, TypeError, AttributeError): pass
@@ -163,6 +163,7 @@ def _get_from_members_items_or_properties(obj, key):
             return obj['properties'][key]
     except (KeyError, TypeError): pass
     return None
+
 
 ## TODO: what does this do on an unsaved Synapse Entity object?
 def id_of(obj):
@@ -177,12 +178,15 @@ def id_of(obj):
         return str(obj)
     if isinstance(obj, Number):
         return str(obj)
-    result = _get_from_members_items_or_properties(obj, 'id')
-    if result is None:
-        result = _get_from_members_items_or_properties(obj, 'ownerId')
-    if result is None:
-        raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
-    return result
+
+    id_attr_names = ['id', 'ownerId', 'tableId'] #possible attribute names for a synapse Id
+    for attribute_name in id_attr_names:
+        syn_id = _get_from_members_items_or_properties(obj, attribute_name)
+        if syn_id is not None:
+            return str(syn_id)
+
+    raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
+
 
 def is_in_path(id, path):
     """Determines whether id is in the path as returned from /entity/{id}/path
@@ -616,7 +620,7 @@ def _extract_synapse_id_from_query(query):
 
 #Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 def memoize(obj):
-    cache = obj.cache = {}
+    cache = obj._memoize_cache = {}
 
     @functools.wraps(obj)
     def memoizer(*args, **kwargs):
@@ -827,6 +831,54 @@ def _is_integer(x):
             ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
             return False
 
+
+def topolgical_sort(graph):
+    """Given a graph in the form of a dictionary returns a sorted list
+
+    Adapted from: http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
+    
+    :param graph: a dictionary with values containing lists of keys referencing back into the dictionary
+
+    :returns: sorted list of items
+    """
+    graph_unsorted = graph.copy()
+    graph_sorted = []
+    # Convert the unsorted graph into a hash table. This gives us
+    # constant-time lookup for checking if edges are unresolved
+
+    # Run until the unsorted graph is empty.
+    while graph_unsorted:
+        # Go through each of the node/edges pairs in the unsorted
+        # graph. If a set of edges doesn't contain any nodes that
+        # haven't been resolved, that is, that are still in the
+        # unsorted graph, remove the pair from the unsorted graph,
+        # and append it to the sorted graph. Note here that by using
+        # using the items() method for iterating, a copy of the
+        # unsorted graph is used, allowing us to modify the unsorted
+        # graph as we move through it. We also keep a flag for
+        # checking that that graph is acyclic, which is true if any
+        # nodes are resolved during each pass through the graph. If
+        # not, we need to bail out as the graph therefore can't be
+        # sorted.
+        acyclic = False
+        for node, edges in list(graph_unsorted.items()):
+            for edge in edges:
+                if edge in graph_unsorted:
+                    break
+            else:
+                acyclic = True
+                del graph_unsorted[node]
+                graph_sorted.append((node, edges))
+
+        if not acyclic:
+            # We've passed through all the unsorted nodes and
+            # weren't able to resolve any of them, which means there
+            # are nodes with cyclic edges that will never be resolved,
+            # so we bail out with an error.
+            raise RuntimeError("A cyclic dependency occurred. Some files in provenance reference each other circularly.")
+    return graph_sorted
+
+
 def caller_module_name(current_frame):
     """
     :param current_frame: use inspect.currentframe().
@@ -845,3 +897,4 @@ def caller_module_name(current_frame):
         caller_filename = caller_frame.f_code.co_filename
 
     return inspect.getmodulename(caller_filename)
+

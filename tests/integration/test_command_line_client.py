@@ -572,11 +572,6 @@ def test_command_get_recursive_and_query():
     file_entity = syn.store(file_entity)
     file_entities.append(file_entity)
 
-    #function under test uses queries which are eventually consistent but not immediately after creating the entities
-    start_time = time.time()
-    while syn.query("select id from entity where id=='%s'" % file_entity.id).get('totalNumberOfResults') <= 0:
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        time.sleep(2)
 
     ### Test recursive get
     output = run('synapse', '--skip-checks',
@@ -843,7 +838,7 @@ def test_configPath():
 
     """
 
-    tmp_config_file = tempfile.NamedTemporaryFile(suffix='.synapseConfig')
+    tmp_config_file = tempfile.NamedTemporaryFile(suffix='.synapseConfig', delete=False)
     shutil.copyfile(synapseclient.client.CONFIG_FILE, tmp_config_file.name)
 
     # Create a File
