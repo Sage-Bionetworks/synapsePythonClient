@@ -463,7 +463,6 @@ def test_download_table_files():
         original_files.append(path)
         schedule_for_cleanup(path)
         file_handle = syn.uploadFileHandle(path, project)
-        print(file_handle)
         row[4] = file_handle['id']
 
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))

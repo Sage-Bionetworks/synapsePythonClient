@@ -139,6 +139,7 @@ mimetypes.add_type('text/yaml', '.yaml', strict=False)
 mimetypes.add_type('text/x-markdown', '.md', strict=False)
 mimetypes.add_type('text/x-markdown', '.markdown', strict=False)
 
+DEFAULT_STORAGE_LOCATION_ID = 1
 
 def login(*args, **kwargs):
     """
@@ -2141,13 +2142,21 @@ class Synapse:
         return self.restPOST('/storageLocation', body=json.dumps(kwargs))
 
     def setStorageLocationSetting(self, project_or_folder, storage_location_id):
-        project_id = id_of(project_or_folder)
+        """
+        Sets the storage location for a Project or Folder
+        :param project_or_folder: a Project or Folder to which the StorageLocationSetting is set
+        :param storage_location_id: a StorageLocation id or a list of them. pass in None for the default synapse storage
+        :return:
+        """
+        if storage_location_id is None:
+            storage_location_id = DEFAULT_STORAGE_LOCATION_ID
         project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
-                               'settingsType': 'upload'}
-        project_destination['locations'] = [storage_location_id]
-        project_destination['projectId'] = project_id
+                               'settingsType': 'upload',
+                                'locations': storage_location_id if isinstance(storage_location_id, list) else [storage_location_id],
+                                'projectId': id_of(project_or_folder)
+                               }
 
-        project_destination = self.restPOST('/projectSettings', body=json.dumps(project_destination))
+        return self.restPOST('/projectSettings', body=json.dumps(project_destination))
 
     ############################################################
     ##                  CRUD for Evaluations                  ##
@@ -3097,31 +3106,27 @@ class Synapse:
             temp_dir = tempfile.mkdtemp()
             zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
             try:
-                zip_file_handle_id = response.get('resultZipFileHandleId', None)
-                if zip_file_handle_id:
-                    zipfilepath = self._downloadFileHandle(zip_file_handle_id, table.tableId , 'TableEntity', zipfilepath)
-                    ## TODO handle case when no zip file is returned
-                    ## TODO test case when we give it partial or all bad file handles
-                    ## TODO test case with deleted fileHandleID
-                    ## TODO return null for permanent failures
+                zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId , 'TableEntity', zipfilepath)
+                ## TODO handle case when no zip file is returned
+                ## TODO test case when we give it partial or all bad file handles
+                ## TODO test case with deleted fileHandleID
+                ## TODO return null for permanent failures
 
-                    ##------------------------------------------------------------
-                    ## unzip into cache
-                    ##------------------------------------------------------------
+                ##------------------------------------------------------------
+                ## unzip into cache
+                ##------------------------------------------------------------
 
-                    with zipfile.ZipFile(zipfilepath) as zf:
-                        ## the directory structure within the zip follows that of the cache:
-                        ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
-                        for summary in response['fileSummary']:
-                            if summary['status'] == 'SUCCESS':
-                                cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                                filepath = _extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
-                                self.cache.add(summary['fileHandleId'], filepath)
-                                file_handle_to_path_map[summary['fileHandleId']] = filepath
-                            elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
-                                permanent_failures[summary['fileHandleId']] = summary
-                else:
-                    print(response)
+                with zipfile.ZipFile(zipfilepath) as zf:
+                    ## the directory structure within the zip follows that of the cache:
+                    ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
+                    for summary in response['fileSummary']:
+                        if summary['status'] == 'SUCCESS':
+                            cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
+                            filepath = _extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
+                            self.cache.add(summary['fileHandleId'], filepath)
+                            file_handle_to_path_map[summary['fileHandleId']] = filepath
+                        elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
+                            permanent_failures[summary['fileHandleId']] = summary
             finally:
                 if os.path.exists(zipfilepath):
                     os.remove(zipfilepath)

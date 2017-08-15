@@ -29,13 +29,11 @@ import integration
 from integration import schedule_for_cleanup
 
 DESTINATIONS =  [{"uploadType": "SFTP", 
-                  "concreteType": "org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting", 
                   "description" :'EC2 subfolder A',
                   "supportsSubfolders": True,
                   "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space",
                   "banner": "Uploading file to EC2\n"}, 
                  {"uploadType": "SFTP", 
-                  "concreteType": "org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting", 
                   "supportsSubfolders": True,
                   "description":'EC2 subfolder B',
                   "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/another_location",
@@ -52,13 +50,11 @@ def setup(module):
     module.syn = integration.syn
     module.project = integration.project
     #Create the upload destinations
-    destinations = [syn.restPOST('/storageLocation', body=json.dumps(x)) for x in DESTINATIONS]
-    project_destination = {"concreteType": "org.sagebionetworks.repo.model.project.UploadDestinationListSetting",
-                           "settingsType": "upload"}
-    project_destination['projectId'] = module.project.id
-    project_destination['locations'] = [dest['storageLocationId'] for dest in destinations]
-    project_destination = syn.restPOST('/projectSettings', body = json.dumps(project_destination))
+    destinations = [syn.createStorageLocationSetting('ExternalStorageLocationSetting', **x)['storageLocationId'] for x in DESTINATIONS]
+    module._sftp_project_setting_id = syn.setStorageLocationSetting(project, destinations)['id']
 
+def teardown(module):
+    syn.restDELETE('/projectSettings/%s' % module._sftp_project_setting_id)
 
 def test_synStore_sftpIntegration():
     """Creates a File Entity on an sftp server and add the external url. """
