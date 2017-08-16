@@ -24,7 +24,7 @@ from mock import patch
 
 import synapseclient
 from synapseclient.exceptions import *
-from synapseclient import File, Folder, Schema, EntityViewSchema
+from synapseclient import File, Folder, Schema, EntityViewSchema, Project
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
 
 import integration
@@ -126,6 +126,15 @@ def test_create_and_update_file_view():
     #paranoid check
     assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
 
+def test_entity_view_add_annotation_columns():
+    proj1 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', annotations={'strAnno':'str1', 'intAnno':1, 'floatAnno':1.1}))
+    proj2 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2'), annotations={'strAnno':'str2', 'intAnno':1, 'dateAnno':datetime.datetime.now()})
+    scopeIds = [proj1.lstrip('syn'), proj2.lstrip('syn')]
+
+
+
+    entity_view = syn.store(EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_annotation_columns=True, type='project', parent=project))
+    #TODO: finish test
 
 def test_rowset_tables():
 
