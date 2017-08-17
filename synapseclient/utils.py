@@ -797,7 +797,7 @@ def log_error(message, verbose=True):
         sys.stderr.write(message+'\n')
 
 
-def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
+def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir, preserve_heirarchy=False):
     """
     Extracts a specified file in a zip to the specified directory
     :param zip_file: an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
@@ -806,8 +806,8 @@ def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
 
     :return: full path to the extracted file
     """
-    file_base_name = os.path.basename(zip_entry_name) # base name of the file
-    filepath = os.path.join(target_dir, file_base_name) # file path to the cached file to write
+    file_relative_path = zip_entry_name if preserve_heirarchy else os.path.basename(zip_entry_name)
+    filepath = os.path.join(target_dir, file_relative_path) # file path to the cached file to write
 
     # Create the cache directory if it does not exist
     if not os.path.exists(target_dir):

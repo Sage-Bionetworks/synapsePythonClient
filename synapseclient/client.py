@@ -803,7 +803,6 @@ class Synapse:
         #location in .synapseCache where the file would be corresponding to its FileHandleId
         synapseCache_location = self.cache.get_cache_dir(entity.dataFileHandleId)
 
-        file_name = entity._file_handle.fileName if cached_file_path is None else os.path.basename(cached_file_path)
 
         #Decide the best download location for the file
         if downloadLocation is not None:
@@ -818,6 +817,7 @@ class Synapse:
             #file not cached and no user-specified location so default to .synapseCache
             downloadLocation = synapseCache_location
 
+        file_name = entity._file_handle.fileName if cached_file_path is None else os.path.basename(cached_file_path)
         downloadPath = self._resolve_download_path(downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path)
         if downloadPath is None:
             return
@@ -3096,12 +3096,17 @@ class Synapse:
             return path
 
 
-    def downloadTableColumns(self, table, columns, **kwargs):
+    def downloadTableColumns(self, table, columns, downloadLocation = None, preserveHeirarchy=False, **kwargs):
         """
         Bulk download of table-associated files.
 
         :param table:            table query result
         :param columns:           a list of column names as strings
+        :param downloadLocation: Directory in which to download the files.
+                                 Defaults to the local cache.
+        :param preserveHeirarchy: Only has an effect if downloadLocation is also specified. Defaults to False
+                                If True, will preserve the folder heirarchy used in the Synapse cache(i.e. {downloadLocation}/{filehandleid modulo 100}/{filehandleid}/filename)
+                                If False, will palace the file directly into the specified downloadLocation
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
@@ -3160,33 +3165,64 @@ class Synapse:
             ##------------------------------------------------------------
 
             temp_dir = tempfile.mkdtemp()
-            zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
+            zip_file_obj = None
             try:
-                zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId , 'TableEntity', zipfilepath)
-                ## TODO handle case when no zip file is returned
-                ## TODO test case when we give it partial or all bad file handles
-                ## TODO test case with deleted fileHandleID
-                ## TODO return null for permanent failures
+                designated_zip_filepath = os.path.join(temp_dir,"table_file_download.zip")
 
-                ##------------------------------------------------------------
-                ## unzip into cache
-                ##------------------------------------------------------------
+                zip_file_handle_id = response.get('resultZipFileHandleId')
+                if zip_file_handle_id is not None:
+                    zip_file_obj = zipfile.ZipFile(self._downloadFileHandle(zip_file_handle_id, table.tableId , 'TableEntity', designated_zip_filepath))
 
-                with zipfile.ZipFile(zipfilepath) as zf:
-                    ## the directory structure within the zip follows that of the cache:
-                    ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
-                    for summary in response['fileSummary']:
-                        if summary['status'] == 'SUCCESS':
-                            cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = _extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
-                            self.cache.add(summary['fileHandleId'], filepath)
-                            file_handle_to_path_map[summary['fileHandleId']] = filepath
-                        elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
-                            permanent_failures[summary['fileHandleId']] = summary
+                for summary in response['fileSummary']:
+                    if summary['status'] == 'SUCCESS':
+                        if downloadLocation is None:
+                            downloadLocation = self.cache.get_cache_dir(summary['fileHandleId'])
+                            preserveHeirarchy = False
+                        filepath = _extract_zip_file_to_directory(zip_file_obj, summary['zipEntryName'], downloadLocation, preserveHeirarchy)
+                        self.cache.add(summary['fileHandleId'], filepath)
+                        file_handle_to_path_map[summary['fileHandleId']] = filepath
+                    elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
+                        permanent_failures[summary['fileHandleId']] = summary
 
             finally:
-                if os.path.exists(zipfilepath):
-                    os.remove(zipfilepath)
+                if zip_file_obj is not None:
+                    zip_file_obj.close()
+                shutil.rmtree(temp_dir)
+
+
+
+
+
+
+
+            # temp_dir = tempfile.mkdtemp()
+            # zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
+            # try:
+            #     zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId , 'TableEntity', zipfilepath)
+            #     ## TODO handle case when no zip file is returned
+            #     ## TODO test case when we give it partial or all bad file handles
+            #     ## TODO test case with deleted fileHandleID
+            #     ## TODO return null for permanent failures
+            #
+            #     ##------------------------------------------------------------
+            #     ## unzip into cache
+            #     ##------------------------------------------------------------
+            #
+            #     with zipfile.ZipFile(zipfilepath) as zip_file_obj:
+            #         ## the directory structure within the zip follows that of the cache:
+            #         ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
+            #         for summary in response['fileSummary']:
+            #             if summary['status'] == 'SUCCESS':
+            #                 cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
+            #                 filepath = _extract_zip_file_to_directory(zip_file_obj, summary['zipEntryName'], cache_dir)
+            #                 self.cache.add(summary['fileHandleId'], filepath)
+            #                 file_handle_to_path_map[summary['fileHandleId']] = filepath
+            #             elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
+            #                 permanent_failures[summary['fileHandleId']] = summary
+            #
+            # finally:
+            #     if os.path.exists(zipfilepath):
+            #         os.remove(zipfilepath)
 
             ## Do we have remaining files to download?
             file_handle_associations = [
