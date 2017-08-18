@@ -141,7 +141,7 @@ def test_Entity():
 
     newfolder = Folder('Testing Folder', parent=project)
     newfolder = syn.store(newfolder)
-    link = Link(newfolder.id, parent = folder.id)
+    link = Link(newfolder, parent = folder.id)
     link = syn.store(link)
     assert link['linksTo']['targetId'] == newfolder.id
     assert link['linksToClassName'] == newfolder['concreteType']
