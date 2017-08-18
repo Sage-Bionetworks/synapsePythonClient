@@ -120,6 +120,14 @@ def test_Entity():
     assert a_file.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
 
     #Test create, store, get Links
+    #If version isn't specified, targetVersionNumber should not be set
+    link = Link(a_file['id'], 
+                parent=project)
+    link = syn.store(link)
+    assert link['linksTo']['targetId'] == a_file['id']
+    assert link['linksTo'].get('targetVersionNumber') is None
+    assert link['linksToClassName'] == a_file['concreteType']
+
     link = Link(a_file['id'], 
                 targetVersion=a_file.versionNumber,
                 parent=project)

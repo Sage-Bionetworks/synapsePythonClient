@@ -1030,9 +1030,9 @@ class Synapse:
         else:
             #If Link, get the target name, version number and concrete type and store in link properties
             if properties['concreteType']=="org.sagebionetworks.repo.model.Link":
-                target_properties = self._getEntity(properties['linksTo']['targetId'], version=properties['linksTo']['targetVersionNumber'])
+                target_properties = self._getEntity(properties['linksTo']['targetId'], version=properties['linksTo'].get('targetVersionNumber'))
                 properties['linksToClassName'] = target_properties['concreteType']
-                if target_properties.get('versionNumber') is not None:
+                if target_properties.get('versionNumber') is not None and properties['linksTo'].get('targetVersionNumber') is not None:
                     properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
                 properties['name'] = target_properties['name']
             try:
