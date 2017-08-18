@@ -167,6 +167,11 @@ def get(args, syn):
 
         print('Creating %s' % entity.path)
 
+def sync(args, syn):
+    synapseutils.syncToSynapse(syn, manifestFile=args.manifestFile,
+                               dryRun=args.dryRun, sendMessages=args.sendMessages,
+                               retries=args.retries)
+
 def store(args, syn):
     #If we are storing a fileEntity we need to have id or parentId
     if args.parentid is None and args.id is None and args.file is not None:
@@ -507,6 +512,17 @@ def build_parser():
     parser_get.add_argument('id',  metavar='syn123', nargs='?', type=str,
             help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)
+
+    parser_sync = subparsers.add_parser('sync',
+                                        help='Synchronize files described in a manifest to Synapse')
+    parser_sync.add_argument('--dryRun', action='store_true', default=False,
+                             help='Perform validation without uploading.')
+    parser_sync.add_argument('--sendMessages', action='store_true', default=False,
+                             help='Send notifications via Synapse messaging (email) at specific intervals, on errors and on completion.')
+    parser_sync.add_argument('--retries', metavar='INT', type=int, default=4)
+    parser_sync.add_argument('manifestFile',  metavar='FILE', type=str,
+                             help='A tsv file with file locations and metadata to be pushed to Synapse.')
+    parser_sync.set_defaults(func=sync)
 
     parser_store = subparsers.add_parser('store', #Python 3.2+ would support alias=['store']
             help='uploads and adds a file to Synapse')
