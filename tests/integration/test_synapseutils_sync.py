@@ -71,6 +71,7 @@ def test_readManifest():
     manifest = _makeManifest(header+row1+row2+'/bara/basdfasdf/8hiuu.txt	syn123\n') 
     assert_raises(IOError, synapseutils.sync.readManifestFile, syn, manifest)
 
+
 def test_syncToSynapse():
     synapseclient.table.test_import_pandas()
     import pandas as pd
