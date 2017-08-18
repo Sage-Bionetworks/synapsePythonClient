@@ -500,6 +500,36 @@ def test_download_table_files():
         filecmp.cmp(original_files[i], file_map[row[6]])
 
 
+def test_downloadTableColumns__mixed_S3_and_non_S3_file_handles():
+    cols = [
+        Column(name='notfiles', columnType='STRING'),
+        Column(name='files', columnType='FILEHANDLEID')]
+    schema = syn.store(Schema(name='ravioli ravioli give me the formuoli', columns=cols, parent=project))
+    schedule_for_cleanup(schema)
+
+    data = [["tfw the text doesnt matter", "and neither does the file name"],
+            ["@@@@@@@@@@@@@@@@@", "You expected a filename, but it was me, Dio!"]]
+
+    #TODO: finish test when SYNPY-419 pulled in
+    data_column_idx = 1
+    original_files = []
+    _replace_column_with_generated_random_file(data[0], original_files, column_idx=1, file_upload_function=syn._uploadToFileHandleService)
+    _replace_column_with_generated_random_file(data[0], original_files, column_idx=1,file_upload_function=syn._uploadToFileHandleService)
+
+
+    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+
+
+def test_downloadTableColumns__no_s3_file_handles():
+    pass
+
+def _replace_column_with_generated_random_file(row, original_files, column_idx, file_upload_function):
+    path = utils.make_bogus_data_file()
+    original_files.append(path)
+    schedule_for_cleanup(path)
+    file_handle = file_upload_function(path)
+    row[column_idx] = file_handle['id']
+
 def dontruntest_big_tables():
     cols = []
     cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
