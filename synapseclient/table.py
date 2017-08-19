@@ -567,7 +567,8 @@ class EntityViewSchema(SchemaBase):
     :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
     :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
-    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True. 
+    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True.
+    :param add_annotation_columns: whether to create columns based on set union of all annotations defined in the EntityViewSchema's scope. Defaults to False.
     The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
     ::
 
@@ -578,7 +579,7 @@ class EntityViewSchema(SchemaBase):
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
     _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
-    _local_keys = SchemaBase._local_keys + ['add_default_columns']
+    _local_keys = SchemaBase._local_keys + ['add_default_columns', 'add_annotation_columns']
 
     def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, add_default_columns=True, add_annotation_columns=False, properties=None, annotations=None, local_state=None, **kwargs):
         if type:
@@ -590,7 +591,7 @@ class EntityViewSchema(SchemaBase):
         #This is a hacky solution to make sure we don't try to add default columns to schemas that we retrieve from synapse
         self.add_default_columns = add_default_columns and not (properties or local_state) #allowing annotations because user might want to update annotations all at once
 
-        self.add_annotation_columns_from_scope = add_annotation_columns
+        self.add_annotation_columns = add_annotation_columns
 
         #set default values after constructor so we don't overwrite the values defined in properties
         #using .get() because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
@@ -614,7 +615,27 @@ class EntityViewSchema(SchemaBase):
             self.scopeIds.append(utils.id_of(entities))
 
     def _before_synapse_store(self, syn):
-        if self.add_annotation_columns_from_scope:
+        print("called()")
+        print(self.add_annotation_columns)
+        self._add_annotations_as_columns(syn)
+        print(self.add_annotation_columns)
+
+        super(EntityViewSchema, self)._before_synapse_store(syn)
+        #get the default EntityView columns from Synapse and add them to the columns list
+        if self.add_default_columns:
+            self.addColumns(syn._get_default_entity_view_columns(self.type))
+            self.add_default_columns = False
+        print(self.add_annotation_columns)
+
+    def _add_annotations_as_columns(self, syn):
+        print(self.__dict__)
+        print(self.add_annotation_columns, self['add_annotation_columns'])
+        #TODO: debug why add_annotation_columns is different values depending on self.add_annotation_columns versus obj['add_annotation_columns']
+        if self.add_annotation_columns:
+            existing_column_names = {column['name'] for column in
+                                 syn.getColumns(self.columnIds)}
+            if self.columns_to_store:
+                existing_column_names.update([column['name'] for column in self.columns_to_store])
 
             column_name_map = {
                 "STRING": set(),
@@ -625,21 +646,13 @@ class EntityViewSchema(SchemaBase):
 
             for scope_id in self.scopeIds:
                 raw_annotations = syn._getRawAnnotations(scope_id)
-                column_name_map['STRING'].update(raw_annotations['stringAnnotations'].keys())
-                column_name_map['INTEGER'].update(raw_annotations['longAnnotations'].keys())
-                column_name_map['DOUBLE'].update(raw_annotations['doubleAnnotations'].keys())
-                column_name_map['DATE'].update(raw_annotations['dateAnnotations'].keys())
+                column_name_map['STRING'].update(key for key in raw_annotations['stringAnnotations'].keys() if key not in existing_column_names)
+                column_name_map['INTEGER'].update(key for key in raw_annotations['longAnnotations'].keys() if key not in existing_column_names)
+                column_name_map['DOUBLE'].update(key for key in raw_annotations['doubleAnnotations'].keys() if key not in existing_column_names)
+                column_name_map['DATE'].update(key for key in raw_annotations['dateAnnotations'].keys() if key not in existing_column_names)
 
             for column_type, column_names in six.iteritems(column_name_map):
                 self.addColumns([Column(name=name, columnType=column_type) for name in column_names])
-
-        super(EntityViewSchema, self)._before_synapse_store(syn)
-        #get the default EntityView columns from Synapse and add them to the columns list
-        if self.add_default_columns:
-            self.addColumns(syn._get_default_entity_view_columns(self.type))
-            self.add_default_columns = False
-
-
 
 
 ## add Schema to the map of synapse entity types to their Python representations

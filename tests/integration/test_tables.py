@@ -139,7 +139,19 @@ def test_entity_view_add_annotation_columns():
     expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE'}
     view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
     assert_dict_equal(expected_column_types, view_column_types)
-    assert_false(entity_view.add_default_columns)
+    assert_false(entity_view['add_annotation_columns'])
+
+    #add another annotation to the project and make sure that EntityViewSchema only adds one moe column
+    proj1['anotherAnnotation'] = 'I need healing!'
+    proj1 = syn.store(proj1)
+    entity_view.add_annotation_columns = True
+    entity_view = syn.store(entity_view)
+
+    expected_column_types.update({'anotherAnnotation': 'STRING'})
+    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
+    assert_dict_equal(expected_column_types, view_column_types)
+    assert_false(entity_view['add_annotation_columns'])
+
 
 
 def test_rowset_tables():
