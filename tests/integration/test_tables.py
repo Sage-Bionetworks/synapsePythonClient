@@ -18,7 +18,7 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_dict_equal, assert_false
 from datetime import datetime
 from mock import patch
 
@@ -126,15 +126,21 @@ def test_create_and_update_file_view():
     #paranoid check
     assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
 
+
 def test_entity_view_add_annotation_columns():
     proj1 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', annotations={'strAnno':'str1', 'intAnno':1, 'floatAnno':1.1}))
-    proj2 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2'), annotations={'strAnno':'str2', 'intAnno':1, 'dateAnno':datetime.datetime.now()})
-    scopeIds = [proj1.lstrip('syn'), proj2.lstrip('syn')]
+    proj2 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', annotations={'strAnno':'str2', 'intAnno':2, 'dateAnno':datetime.now()}))
+    schedule_for_cleanup(proj1)
+    schedule_for_cleanup(proj2)
+    scopeIds = [utils.id_of(proj1), utils.id_of(proj2)]
 
+    entity_view = syn.store(EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=False, add_annotation_columns=True, type='project', parent=project))
 
+    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE'}
+    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
+    assert_dict_equal(expected_column_types, view_column_types)
+    assert_false(entity_view.add_default_columns)
 
-    entity_view = syn.store(EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_annotation_columns=True, type='project', parent=project))
-    #TODO: finish test
 
 def test_rowset_tables():
 

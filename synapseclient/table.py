@@ -631,7 +631,7 @@ class EntityViewSchema(SchemaBase):
                 column_name_map['DATE'].update(raw_annotations['dateAnnotations'].keys())
 
             for column_type, column_names in six.iteritems(column_name_map):
-                self.addColumns([Column(name=name, columnType="column_type") for name in column_names])
+                self.addColumns([Column(name=name, columnType=column_type) for name in column_names])
 
         super(EntityViewSchema, self)._before_synapse_store(syn)
         #get the default EntityView columns from Synapse and add them to the columns list
