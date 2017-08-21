@@ -367,8 +367,6 @@ def _manifest_upload(syn, df):
         entity = File(row['path'], parent=row['parent'], **kwargs)
         entity.annotations = dict(row.drop(FILE_CONSTRUCTOR_FIELDS+STORE_FUNCTION_FIELDS+REQUIRED_FIELDS, errors = 'ignore'))
 
-        sys.stderr.write("%s\n" % str(entity))
-
         #Update provenance list again to replace all file references that were uploaded
         if 'used' in row:
             row['used'] = syn._convertProvenanceList(row['used'])
