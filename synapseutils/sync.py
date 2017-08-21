@@ -16,7 +16,7 @@ import sys
 from backports import csv
 
 REQUIRED_FIELDS = ['path', 'parent']
-FILE_CONSTRUCTOR_FIELDS  = ['name', 'synapseStore', 'contentType']
+FILE_CONSTRUCTOR_FIELDS  = ['name', 'synapseStore', 'contentType', 'dataFileHandleId']
 STORE_FUNCTION_FIELDS =  ['used', 'executed', 'activityName', 'activityDescription', 'forceVersion']
 MAX_RETRIES = 4
 MANIFEST_FILENAME = 'SYNAPSE_METADATA_MANIFEST.tsv'
@@ -216,7 +216,10 @@ def readManifestFile(syn, manifestFile):
             raise ValueError("Manifest must contain a column of %s" %field)
     sys.stdout.write('OK\n')
 
-    if 'dataFileHandleId' not in df.columns:
+    if 'dataFileHandleId' in df.columns and 'path' in df.columns:
+        raise ValueError("Cannot have 'path' and 'dataFileHandleId' columns in the same manifest.")
+
+    if 'path' in df.columns:
         sys.stderr.write('Validating that all paths exist')
         df.path = df.path.apply(_check_path_and_normalize)
     else:
@@ -224,14 +227,16 @@ def readManifestFile(syn, manifestFile):
 
     sys.stdout.write('OK\n')
 
-    sys.stdout.write('Validating that all files are unique...')
-    if (len(df.path)!=len(set(df.path))):
-        raise ValueError("All rows in manifest must contain a unique file to upload")
-    sys.stdout.write('OK\n')
+    if 'path' in df.columns:
+        sys.stdout.write('Validating that all files are unique...')
+        if (len(df.path)!=len(set(df.path))):
+            raise ValueError("All rows in manifest must contain a unique file to upload")
+        sys.stdout.write('OK\n')
 
-    sys.stdout.write('Validating provenance...')
-    df = _sortAndFixProvenance(syn, df)
-    sys.stdout.write('OK\n')
+    if 'path' in df.columns:
+        sys.stdout.write('Validating provenance...')
+        df = _sortAndFixProvenance(syn, df)
+        sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that parents exist and are containers...')
     parents = set(df.parent)
@@ -288,18 +293,18 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     path     local file path or URL                  /path/to/local/file.txt
     parent   synapse id                              syn1235
     ======   ======================                  ============================
-                        
-                        
+
+
     **Common fields:**
-    
+
     ===============        ===========================                   ============
     Field                  Meaning                                       Example
     ===============        ===========================                   ============
     name                   name of file in Synapse                       Example_file
     forceVersion           whether to update version                     False
     ===============        ===========================                   ============
-                        
-    **Provenance fields:**  
+
+    **Provenance fields:**
 
     ====================   =====================================  ==========================================
     Field                  Meaning                                Example
@@ -313,9 +318,9 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     Annotations:
 
     **Annotations:        **
-                        
+
     Any columns that are not in the reserved names described above will be intepreted as annotations of the file
-                        
+
     **Other optional fields:**
 
     ===============          ==========================================  ============
@@ -337,7 +342,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     """
     df = readManifestFile(syn, manifestFile)
-    
+
     if 'dataFileHandleId' not in df.columns:
         sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
         #Write output on what is getting pushed and estimated times - send out message.
@@ -361,6 +366,8 @@ def _manifest_upload(syn, df):
         kwargs = {key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row }
         entity = File(row['path'], parent=row['parent'], **kwargs)
         entity.annotations = dict(row.drop(FILE_CONSTRUCTOR_FIELDS+STORE_FUNCTION_FIELDS+REQUIRED_FIELDS, errors = 'ignore'))
+
+        sys.stderr.write("%s\n" % str(entity))
 
         #Update provenance list again to replace all file references that were uploaded
         if 'used' in row:
