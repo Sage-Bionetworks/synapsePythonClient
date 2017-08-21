@@ -194,9 +194,11 @@ def readManifestFile(syn, manifest_file):
     sys.stdout.write('Validation and upload of: %s\n' %manifest_file)
     #Read manifest file into pandas dataframe
     df = pd.read_csv(manifest_file, sep='\t')
-    if 'synapseStore' in df:
-        df.synapseStore[df['synapseStore'].isnull()]=True
-        df.synapseStore = df.synapseStore.astype(bool)
+    if 'synapseStore' not in df:
+        df = df.assign(synapseStore=None)
+    df.synapseStore[df['path'].apply(is_url)] = False #override synapseStore values to False when path is a url
+    df.synapseStore[df['synapseStore'].isnull()] = True # remaining unset values default to True
+    df.synapseStore = df.synapseStore.astype(bool)
     df = df.fillna('')
 
     sys.stdout.write('Validating columns of manifest...')
