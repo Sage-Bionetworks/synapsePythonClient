@@ -801,7 +801,7 @@ class Synapse:
             #file not cached and no user-specified location so default to .synapseCache
             downloadLocation = synapseCache_location
 
-        #make resolve collisions that may occur with the download path
+        #resolve file path collisions by either overwriting, renaming, or not downloading, depending on the ifcollision value
         downloadPath = self._resolve_download_path_collisions(downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path)
         if downloadPath is None:
             return
@@ -960,10 +960,10 @@ class Synapse:
 
             if bundle:
                 # Check if the file should be uploaded
-                file_handle = find_data_file_handle(bundle)
-                if file_handle and file_handle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
+                fileHandle = find_data_file_handle(bundle)
+                if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
                     #switching away from ExternalFileHandle or the url was updated
-                    needs_upload = entity['synapseStore'] or (file_handle['externalURL'] != entity['externalURL'])
+                    needs_upload = entity['synapseStore'] or (fileHandle['externalURL'] != entity['externalURL'])
                 else:
                     ## Check if we need to upload a new version of an existing
                     ## file. If the file referred to by entity['path'] has been
@@ -978,15 +978,15 @@ class Synapse:
             if needs_upload:
                 local_state_fh = local_state.get('_file_handle', {})
                 synapseStore = local_state.get('synapseStore', True)
-                file_handle = upload_file_handle(self,
+                fileHandle = upload_file_handle(self,
                                                  entity['parentId'],
                                                  local_state['path'] if (synapseStore or local_state_fh.get('externalURL') is None) else local_state_fh.get('externalURL'),
                                                  synapseStore=synapseStore,
                                                  md5=local_state_fh.get('contentMd5'),
                                                  file_size=local_state_fh.get('contentSize'),
                                                  mimetype=local_state_fh.get('contentType'))
-                properties['dataFileHandleId'] = file_handle['id']
-                local_state['_file_handle'] = file_handle
+                properties['dataFileHandleId'] = fileHandle['id']
+                local_state['_file_handle'] = fileHandle
 
             elif 'dataFileHandleId' not in properties:
                 # Handle the case where the Entity lacks an ID
@@ -1308,9 +1308,9 @@ class Synapse:
 
         :returns: a dict of a new FileHandle as a dict that represents the uploaded file
         """
-        return upload_file_handle(self, id_of(parent), path, synapseStore, md5, file_size, mimetype)
+        return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
 
-    def uploadSynapseS3FileHandle(self, path, storageLocationId=None,mimetype=None):
+    def uploadSynapseManagedFileHandle(self, path, storageLocationId=None,mimetype=None):
         """
         Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
         :param path: path to the file
@@ -1341,7 +1341,7 @@ class Synapse:
         elif utils.is_url(filename):
             if synapseStore and urlparse(filename).scheme != 'sftp':
                 raise NotImplementedError('Automatic storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
-            return self._create_ExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
+            return self._createExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
@@ -1350,7 +1350,7 @@ class Synapse:
                 self.cache.add(file_handle_id,filename)
                 return self._getFileHandle(file_handle_id)
             else:
-                return self._create_ExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
+                return self._createExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
     ############################################################
     ##                 Get / Set Annotations                  ##
@@ -2019,7 +2019,7 @@ class Synapse:
         return destination
 
 
-    def _create_ExternalFileHandle(self, externalURL, mimetype=None, md5=None, fileSize=None):
+    def _createExternalFileHandle(self, externalURL, mimetype=None, md5=None, fileSize=None):
         """Create a new FileHandle representing an external URL."""
 
         fileName = externalURL.split('/')[-1]
@@ -2035,7 +2035,7 @@ class Synapse:
             fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
 
-    def _create_ExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id, mimetype = None):
+    def _createExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id, mimetype = None):
         if mimetype is None:
             mimetype, enc = mimetypes.guess_type(file_path, strict=False)
         file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle',
@@ -2075,9 +2075,9 @@ class Synapse:
     ##                   SFTP                                 ##
     ############################################################
 
-    def _getDefaultUploadDestination(self, entity_parent_id):
-        return self.restGET('/entity/%s/uploadDestination'% entity_parent_id,
-                     endpoint=self.fileHandleEndpoint)
+    def _getDefaultUploadDestination(self, parent_entity):
+        return self.restGET('/entity/%s/uploadDestination' % id_of(parent_entity),
+                            endpoint=self.fileHandleEndpoint)
 
 
     def _getUserCredentials(self, url, username=None, password=None):
@@ -2638,7 +2638,7 @@ class Synapse:
         # Convert all attachments into file handles
         if 'attachments' in wiki:
             for attachment in wiki['attachments']:
-                fileHandle = upload_synapse_s3(self, attachment)
+                fileHandle = self.uploadSynapseManagedFileHandle(attachment)
                 wiki['attachmentFileHandleIds'].append(fileHandle['id'])
             del wiki['attachments']
 

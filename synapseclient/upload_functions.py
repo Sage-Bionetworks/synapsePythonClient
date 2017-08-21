@@ -4,7 +4,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
-from .utils import is_url, md5_for_file, as_url, file_url_to_path
+from .utils import is_url, md5_for_file, as_url, file_url_to_path, id_of
 from . import concrete_types
 import sys
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
@@ -23,11 +23,11 @@ except ImportError:
     from urllib import unquote
     from urllib import urlretrieve
 
-def upload_file_handle(syn, entity_parent_id, path, synapseStore=True, md5=None, file_size=None, mimetype=None):
+def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, file_size=None, mimetype=None):
     """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
     Returns a new FileHandle as a dict to represent the stored file.
 
-    :param entity_parent_id: parent id of the entity to which we upload.
+    :param parent_entity: Entity object or id of the parent entity.
     :param path: file path to the file being uploaded
     :param synapseStore: If False, will not upload the file, but instead create an ExternalFileHandle that references the file on the local machine.
                          If True, will upload the file based on StorageLocation determined by the entity_parent_id
@@ -47,6 +47,8 @@ def upload_file_handle(syn, entity_parent_id, path, synapseStore=True, md5=None,
 
     #expand the path because past this point an upload is required and some upload functions require an absolute path
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
+
+    entity_parent_id = id_of(parent_entity)
 
     #determine the upload function based on the UploadDestination
     location = syn._getDefaultUploadDestination(entity_parent_id)
@@ -101,7 +103,7 @@ def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=No
         raise ValueError('externalUrl [%s] is not a valid url', url)
 
     #just creates the file handle because there is nothing to upload
-    file_handle =  syn._create_ExternalFileHandle(url, mimetype=mimetype, md5=md5, fileSize=file_size)
+    file_handle =  syn._createExternalFileHandle(url, mimetype=mimetype, md5=md5, fileSize=file_size)
     if is_local_file:
         syn.cache.add(file_handle['id'], file_url_to_path(url))
     return file_handle
@@ -111,7 +113,7 @@ def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
     username, password = syn._getUserCredentials(sftp_url)
     uploaded_url = SFTPWrapper.upload_file(file_path, unquote(sftp_url), username, password)
 
-    file_handle = syn._create_ExternalFileHandle(uploaded_url, mimetype=mimetype, md5=md5_for_file(file_path).hexdigest(), fileSize=os.stat(file_path).st_size)
+    file_handle = syn._createExternalFileHandle(uploaded_url, mimetype=mimetype, md5=md5_for_file(file_path).hexdigest(), fileSize=os.stat(file_path).st_size)
     syn.cache.add(file_handle['id'], file_path)
     return file_handle
 
@@ -128,7 +130,7 @@ def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, stor
 
     S3ClientWrapper.upload_file(bucket, endpoint_url, file_key, file_path, profile_name=profile)
 
-    file_handle = syn._create_ExternalObjectStoreFileHandle(file_key, file_path,storage_location_id, mimetype=mimetype)
+    file_handle = syn._createExternalObjectStoreFileHandle(file_key, file_path, storage_location_id, mimetype=mimetype)
     syn.cache.add(file_handle['id'], file_path)
 
     return file_handle

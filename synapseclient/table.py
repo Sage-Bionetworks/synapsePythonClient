@@ -181,7 +181,7 @@ later::
 
     ## upload album covers
     for row in data:
-        file_handle = syn.uploadSynapseS3FileHandle(os.path.join(covers_dir, row[4]))
+        file_handle = syn.uploadSynapseManagedFileHandle(os.path.join(covers_dir, row[4]))
         row[4] = file_handle['id']
 
     ## store the table data

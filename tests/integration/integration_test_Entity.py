@@ -543,7 +543,7 @@ def test_store_file_handle_update_metadata():
     #create file handle to replace the old one
     replacement_file_path = utils.make_bogus_data_file()
     schedule_for_cleanup(replacement_file_path)
-    new_file_handle = upload_synapse_s3(syn, replacement_file_path)
+    new_file_handle = syn.uploadFileHandle(replacement_file_path, parent=project)
 
     entity.dataFileHandleId = new_file_handle['id']
     new_entity = syn.store(entity)
