@@ -337,11 +337,13 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     """
     df = readManifestFile(syn, manifestFile)
-    sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
-    #Write output on what is getting pushed and estimated times - send out message.
-    sys.stdout.write('='*50+'\n')
-    sys.stdout.write('We are about to upload %i files with a total size of %s.\n ' %(len(df), utils.humanizeBytes(sum(sizes))))
-    sys.stdout.write('='*50+'\n')
+    
+    if 'dataFileHandleId' not in df.columns:
+        sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
+        #Write output on what is getting pushed and estimated times - send out message.
+        sys.stdout.write('='*50+'\n')
+        sys.stdout.write('We are about to upload %i files with a total size of %s.\n ' %(len(df), utils.humanizeBytes(sum(sizes))))
+        sys.stdout.write('='*50+'\n')
 
     if dryRun:
         return
