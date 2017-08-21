@@ -18,7 +18,7 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal, assert_dict_equal, assert_false
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_dict_equal, assert_false, assert_true
 from datetime import datetime
 from mock import patch
 
@@ -134,7 +134,10 @@ def test_entity_view_add_annotation_columns():
     schedule_for_cleanup(proj2)
     scopeIds = [utils.id_of(proj1), utils.id_of(proj2)]
 
-    entity_view = syn.store(EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=False, add_annotation_columns=True, type='project', parent=project))
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=False, add_annotation_columns=True, type='project', parent=project)
+    assert_true(entity_view['add_annotation_columns'])
+    assert_false(entity_view['add_default_columns'])
+    entity_view = syn.store(entity_view)
 
     expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE'}
     view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
@@ -145,6 +148,8 @@ def test_entity_view_add_annotation_columns():
     proj1['anotherAnnotation'] = 'I need healing!'
     proj1 = syn.store(proj1)
     entity_view.add_annotation_columns = True
+    print(entity_view.__dict__)
+    assert_true(entity_view['add_annotation_columns'])
     entity_view = syn.store(entity_view)
 
     expected_column_types.update({'anotherAnnotation': 'STRING'})
