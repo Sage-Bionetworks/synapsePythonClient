@@ -1310,6 +1310,16 @@ class Synapse:
         """
         return upload_file_handle(self, id_of(parent), path, synapseStore, md5, file_size, mimetype)
 
+    def uploadSynapseS3FileHandle(self, path, storageLocationId=None,mimetype=None):
+        """
+        Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
+        :param path: path to the file
+        :param storageLocationId: storageLocationId of a S3 storage location. pass in a value if you wish to use an ExternalS3StorageLocation
+        :param mimetype: MIME type of the file, if known.
+        :return: file handle dict associated with the uploaded file
+        """
+        return upload_synapse_s3(self, path, storageLocationId=storageLocationId, mimetype=mimetype)
+
     def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None, storageLocationId = None):
         """
         **Deprecated**
