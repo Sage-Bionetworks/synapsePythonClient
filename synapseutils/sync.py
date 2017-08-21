@@ -216,8 +216,11 @@ def readManifestFile(syn, manifestFile):
             raise ValueError("Manifest must contain a column of %s" %field)
     sys.stdout.write('OK\n')
 
-    sys.stdout.write('Validating that all paths exist')
-    df.path = df.path.apply(_check_path_and_normalize)
+    if 'dataFileHandleId' not in df.columns:
+        sys.stderr.write('Validating that all paths exist')
+        df.path = df.path.apply(_check_path_and_normalize)
+    else:
+        sys.stderr.write('Validating that all file handles exist')
 
     sys.stdout.write('OK\n')
 
