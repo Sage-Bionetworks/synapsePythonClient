@@ -10,6 +10,7 @@ from synapseclient.utils import id_of, topolgical_sort, is_url
 from synapseclient import File, table
 from synapseclient.exceptions import *
 import os
+from sys import stderr
 import six
 import sys
 from backports import csv
@@ -45,18 +46,18 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     been downloaded.  If there are newer files in Synapse (or a local
     file has been edited outside of the cache) since the last download
     then local the file will be replaced by the new file unless
-    ifcollision is changed.
+    "ifcollision" is changed.
 
     If the files are being downloaded to a specific location outside
-    of the Synapse Cache We will also add a file
-    (SYNAPSE_METADATA_MANIFEST.tsv) in the path that contains
+    of the Synapse cache a file
+    (SYNAPSE_METADATA_MANIFEST.tsv) will also be added in the path that contains
     the metadata (annotations, storage location and provenance of all
-    downloaded files)
+    downloaded files).
 
-    See also: 
+    See also:
     - :py:func:`synapseutils.sync.syncToSynapse`
 
-    Example::
+    Example:
     Download and print the paths of all downloaded files::
 
         entities = syncFromSynapse(syn, "syn1234")
@@ -66,11 +67,13 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
     """
     if allFiles is None: allFiles = list()
     id = id_of(entity)
-    results = syn.chunkedQuery("select id, name, nodeType from entity where entity.parentId=='%s'" %id)
+    results = syn.getChildren(id)
+    zero_results = True
     for result in results:
+        zero_results = False
         if is_container(result):
             if path is not None:  #If we are downloading outside cache create directory.
-                new_path = os.path.join(path, result['entity.name'])
+                new_path = os.path.join(path, result['name'])
                 try:
                     os.mkdir(new_path)
                 except OSError as err:
@@ -79,15 +82,21 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                 print('making dir', new_path)
             else:
                 new_path = None
-            syncFromSynapse(syn, result['entity.id'], new_path, ifcollision, allFiles)
+            syncFromSynapse(syn, result['id'], new_path, ifcollision, allFiles)
         else:
-            ent = syn.get(result['entity.id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
+            ent = syn.get(result['id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
             allFiles.append(ent)
-            
+    if zero_results:
+        #a http error would be raised if the synapse Id was not valid (404) or no permission (403) so at this point the entity should be get-able
+        stderr.write("The synapse id provided is not a container, attempting to get the entity anyways")
+        ent = syn.get(id, downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
+        allFiles.append(ent)
+
     if path is not None:  #If path is None files are stored in cache.
         filename = os.path.join(path, MANIFEST_FILENAME)
         filename = os.path.expanduser(os.path.normcase(filename))
         generateManifest(syn, allFiles, filename)
+
     return allFiles
 
 
@@ -175,15 +184,15 @@ def _check_path_and_normalize(f):
         raise IOError('The path %s is not a file or does not exist' %f)
     return path_normalized
 
-def readManifestFile(syn, manifest_file):
+def readManifestFile(syn, manifestFile):
     """Verifies a file manifest and returns a reordered dataframe ready for upload.
 
     :param syn:    A synapse object as obtained with syn = synapseclient.login()
 
-    :param manifest_file: A tsv file with file locations and metadata
+    :param manifestFile: A tsv file with file locations and metadata
                           to be pushed to Synapse.  See below for details
 
-    :returns a pandas dataframe if the manifest is validated.
+    :returns A pandas dataframe if the manifest is validated.
 
     See also for a description of the file format:
     - :py:func:`synapseutils.sync.syncToSynapse`
@@ -191,7 +200,7 @@ def readManifestFile(syn, manifest_file):
     table.test_import_pandas()
     import pandas as pd
 
-    sys.stdout.write('Validation and upload of: %s\n' %manifest_file)
+    sys.stdout.write('Validation and upload of: %s\n' %manifestFile)
     #Read manifest file into pandas dataframe
     df = pd.read_csv(manifest_file, sep='\t')
     if 'synapseStore' not in df:
@@ -238,15 +247,15 @@ def readManifestFile(syn, manifest_file):
     return df
 
 
-def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=MAX_RETRIES):
+def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MAX_RETRIES):
     """Synchronizes files specified in the manifest file to Synapse
 
     :param syn:    A synapse object as obtained with syn = synapseclient.login()
 
-    :param manifest_file: A tsv file with file locations and metadata
+    :param manifestFile: A tsv file with file locations and metadata
                           to be pushed to Synapse.  See below for details
-    
-    :param dry_run: Performs validation without uploading if set to True (default is False)
+
+    :param dryRun: Performs validation without uploading if set to True (default is False)
 
     Given a file describing all of the uploads uploads the content to
     Synapse and optionally notifies you via Synapse messagging (email)
@@ -256,23 +265,21 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
 
     **Manifest file format**
 
-
-
     The format of the manifest file is a tab delimited file with one
-    row per file to upload and columns describing the file.  The bare
-    minimum required columns is **path** and **parent** where path is
+    row per file to upload and columns describing the file. The
+    minimum required columns are **path** and **parent** where path is
     the local file path and parent is the synapse Id of the project or
-    folder where the file is uploaded to.  In addition to these
+    folder where the file is uploaded to. In addition to these
     columns you can specify any of the parameters to the File
     constructor (**name**, **synapseStore**, **contentType**) as well
     as parameters to the syn.store command (**used**, **executed**,
     **activityName**, **activityDescription**, **forceVersion**).
-    Used and executed can be semi-colon(;) separated lists of synapse
+    Used and executed can be semi-colon (";") separated lists of Synapse
     ids, urls and/or local filepaths of files already stored in
-    Synapse (or being stored in Synapse by the manifest).  Any
+    Synapse (or being stored in Synapse by the manifest). Any
     additional columns will be added as annotations.
 
-    **Required Fields:**
+    **Required fields:**
 
     ======   ======================                  ============================
     Field    Meaning                                 Example
@@ -282,7 +289,7 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     ======   ======================                  ============================
                         
                         
-    **Common Fields:**
+    **Common fields:**
     
     ===============        ===========================                   ============
     Field                  Meaning                                       Example
@@ -291,7 +298,7 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     forceVersion           whether to update version                     False
     ===============        ===========================                   ============
                         
-    **Provenance Fields:**  
+    **Provenance fields:**  
 
     ====================   =====================================  ==========================================
     Field                  Meaning                                Example
@@ -300,23 +307,25 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     executed               List of items exectued                 https://github.org/; /path/to_local/code.py
     activityName           Name of activity in provenance         "Ran normalization"
     activityDescription    Text description on what was done      "Ran algorithm xyx with parameters..."
-    ====================   =====================================  ==========================================                        
+    ====================   =====================================  ==========================================
 
-    Annotations:        
+    Annotations:
+
+    **Annotations:        **
                         
     Any columns that are not in the reserved names described above will be intepreted as annotations of the file
                         
-    **Other Optional fields:**
+    **Other optional fields:**
 
     ===============          ==========================================  ============
     Field                    Meaning                                     Example
     ===============          ==========================================  ============
-    synapseStore             Boolean describing wheterh to upload files  True
+    synapseStore             Boolean describing whether to upload files  True
     contentType              content type of file to overload defaults   text/html
     ===============          ==========================================  ============
 
 
-    **Example Manifest file**
+    **Example manifest file**
 
     ===============   ========    =======   =======   ===========================    ============================
     path              parent      annot1    annot2    used                           executed
@@ -326,30 +335,30 @@ def syncToSynapse(syn, manifest_file, dry_run=False, sendMessages=True, retries=
     ===============   ========    =======   =======   ===========================    ============================
 
     """
-    df = readManifestFile(syn, manifest_file)
+    df = readManifestFile(syn, manifestFile)
     sizes = [os.stat(os.path.expandvars(os.path.expanduser(f))).st_size for f in df.path if not is_url(f)]
     #Write output on what is getting pushed and estimated times - send out message.
     sys.stdout.write('='*50+'\n')
     sys.stdout.write('We are about to upload %i files with a total size of %s.\n ' %(len(df), utils.humanizeBytes(sum(sizes))))
     sys.stdout.write('='*50+'\n')
 
-    if dry_run:
+    if dryRun:
         return
 
     sys.stdout.write('Starting upload...\n')
     if sendMessages:
-        upload = notifyMe(_manifest_upload, syn, 'Upload of %s' %manifest_file, retries=retries)
+        upload = notifyMe(_manifest_upload, syn, 'Upload of %s' %manifestFile, retries=retries)
         upload(syn, df)
     else:
         _manifest_upload(syn,df)
-    
+
 def _manifest_upload(syn, df):
     for i, row in df.iterrows():
         #Todo extract known constructor variables
         kwargs = {key: row[key] for key in FILE_CONSTRUCTOR_FIELDS if key in row }
         entity = File(row['path'], parent=row['parent'], **kwargs)
         entity.annotations = dict(row.drop(FILE_CONSTRUCTOR_FIELDS+STORE_FUNCTION_FIELDS+REQUIRED_FIELDS, errors = 'ignore'))
-        
+
         #Update provenance list again to replace all file references that were uploaded
         if 'used' in row:
             row['used'] = syn._convertProvenanceList(row['used'])
@@ -358,6 +367,3 @@ def _manifest_upload(syn, df):
         kwargs = {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row}
         entity = syn.store(entity, **kwargs)
     return True
-
-    
-

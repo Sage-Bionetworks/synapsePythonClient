@@ -1040,7 +1040,7 @@ class Synapse:
             except SynapseHTTPError as ex:
                 if createOrUpdate and ex.response.status_code == 409:
                     # Get the existing Entity's ID via the name and parent
-                    existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
+                    existing_entity_id = self.findEntityId(properties['name'], properties.get('parentId', None))
                     if existing_entity_id is None: raise
 
                     # get existing properties and annotations
@@ -1137,7 +1137,7 @@ class Synapse:
         #     If the user forgets to catch the return value of a syn.store(e)
         #     this allows them to recover by doing: e = syn.get(e)
         if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
-            entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId', None))
+            entity = self.findEntityId(entity['name'], entity.get('parentId', None))
 
         # Avoid an exception from finding an ID from a NoneType
         try: id_of(entity)
@@ -1843,9 +1843,11 @@ class Synapse:
                           (exc_info[0](exc_info[1]), ex.progress), self.debug)
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
-        ## Re-raise exception
-        raise exc_info[0](exc_info[1])
-
+                if retries <= 0:
+                    ## Re-raise exception
+                    raise exc_info[0](exc_info[1])
+                
+        raise Exception("should not reach this line")
 
     def _download(self, url, destination, fileHandleId=None, expected_md5=None):
         """
@@ -3008,6 +3010,8 @@ class Synapse:
 
     def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None, rowIdAndVersion=None, ifcollision="keep.both"):
         """
+        **Deprecated**
+
         Downloads a file associated with a row in a Synapse table.
 
         :param table:            schema object, table query result or synapse ID
@@ -3020,14 +3024,15 @@ class Synapse:
                                  May be "overwrite.local", "keep.local", or "keep.both".
                                  Defaults to "keep.both".
 
-        :returns: a dictionary with 'path'.
+        :returns: file path (as a string) to the downloaded file.
 
         Example::
 
-            file_info = syn.downloadTableFile(table, rowId=1, versionNumber=1, column="cover_art", downloadLocation=".")
-            print(file_info['path'])
+            file_path = syn.downloadTableFile(table, rowId=1, versionNumber=1, column="cover_art", downloadLocation=".")
+            print(file_path)
 
         """
+        warnings.warn("downloadTableFile() is deprecated, please use downloadTableColumns() instead", DeprecationWarning, stacklevel=2)
 
         if (rowId is None or versionNumber is None) and rowIdAndVersion is None:
             raise ValueError("Need to pass in either rowIdAndVersion or (rowId and versionNumber).")
@@ -3287,13 +3292,14 @@ class Synapse:
         return self.restPUT(uri, body=json.dumps(get_properties(entity)))
 
 
-    def _findEntityIdByNameAndParent(self, name, parent=None):
+    def findEntityId(self, name, parent=None):
         """
-        Find an Entity given its name and parent ID.
+        Find an Entity given its name and parent.
 
-        :returns: the Entity ID or None if not found
+        :param name: name of the entity to find
+        :param parent: An Entity object or the Id of an entity as a string. Pass in None if searching for a Project by name
+        :return: the Entity ID or None if not found
         """
-
         # when we want to search for a project by name. set parentId as None instead of ROOT_ENTITY
         entity_lookup_request = {"parentId": id_of(parent) if parent else None,
                                  "entityName": name}
