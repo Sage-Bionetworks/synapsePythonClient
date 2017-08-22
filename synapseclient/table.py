@@ -581,7 +581,7 @@ class EntityViewSchema(SchemaBase):
     _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
     _local_keys = SchemaBase._local_keys + ['add_default_columns', 'add_annotation_columns']
 
-    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, add_default_columns=True, add_annotation_columns=False, properties=None, annotations=None, local_state=None, **kwargs):
+    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, add_default_columns=True, add_annotation_columns=True, properties=None, annotations=None, local_state=None, **kwargs):
         if type:
             kwargs['type'] = type
 
@@ -615,10 +615,8 @@ class EntityViewSchema(SchemaBase):
             self.scopeIds.append(utils.id_of(entities))
 
     def _before_synapse_store(self, syn):
-        print("called()")
-        print(self.add_annotation_columns)
-        self._add_annotations_as_columns(syn)
-        print(self.add_annotation_columns)
+        if self.add_annotation_columns:
+            self._add_annotations_as_columns(syn)
 
         super(EntityViewSchema, self)._before_synapse_store(syn)
         #get the default EntityView columns from Synapse and add them to the columns list
@@ -628,31 +626,49 @@ class EntityViewSchema(SchemaBase):
         print(self.add_annotation_columns)
 
     def _add_annotations_as_columns(self, syn):
-        print(self.__dict__)
-        print(self.add_annotation_columns, self['add_annotation_columns'])
         #TODO: debug why add_annotation_columns is different values depending on self.add_annotation_columns versus obj['add_annotation_columns']
-        if self.add_annotation_columns:
-            existing_column_names = {column['name'] for column in
-                                 syn.getColumns(self.columnIds)}
-            if self.columns_to_store:
-                existing_column_names.update([column['name'] for column in self.columns_to_store])
+        #TODO: ignoredAnnotations
+        annotation_to_column_type = { #TODO RENAME
+            'STRING': ('stringAnnotations', set()),
+            'INTEGER': ('longAnnotations', set()),
+            'DOUBLE': ('doubleAnnotations', set()),
+            'DATE': ('dateAnnotations', set())
+        }
+        existing_column_names = set() # set of all existing columns names regardless of type
 
-            column_name_map = {
-                "STRING": set(),
-                "INTEGER": set(),
-                "DOUBLE": set(),
-                "DATE": set()
-            }
 
-            for scope_id in self.scopeIds:
-                raw_annotations = syn._getRawAnnotations(scope_id)
-                column_name_map['STRING'].update(key for key in raw_annotations['stringAnnotations'].keys() if key not in existing_column_names)
-                column_name_map['INTEGER'].update(key for key in raw_annotations['longAnnotations'].keys() if key not in existing_column_names)
-                column_name_map['DOUBLE'].update(key for key in raw_annotations['doubleAnnotations'].keys() if key not in existing_column_names)
-                column_name_map['DATE'].update(key for key in raw_annotations['dateAnnotations'].keys() if key not in existing_column_names)
+        def add_column_name_to_sets(columns):
+            for column in columns:
+                column_name = column['name']
+                column_type = column['columnType']
 
-            for column_type, column_names in six.iteritems(column_name_map):
-                self.addColumns([Column(name=name, columnType=column_type) for name in column_names])
+                existing_column_names.add(column_name)
+                #add to type specific set
+                if column_type in annotation_to_column_type:
+                    annotation_to_column_type[column_type][1].add(column_name)
+
+        add_column_name_to_sets(syn.getColumns(self.columnIds))
+        if self.columns_to_store: #add to existing columns the columns that user has added but not yet created in synapse
+            add_column_name_to_sets(self.columns_to_store)
+
+        #get annotations from each of the scopes and create columns
+        for scope_id in self.scopeIds:
+            raw_annotations = syn._getRawAnnotations(scope_id)
+            for column_type, anno_type_names_tuple in six.iteritems(annotation_to_column_type):
+                anno_type = anno_type_names_tuple[0]
+                existing_typed_column_names = anno_type_names_tuple[1]
+
+
+                for anno_col_name in six.iterkeys(raw_annotations[anno_type]):
+                    if anno_col_name not in existing_typed_column_names:
+                        if anno_col_name in existing_column_names:
+                            raise ValueError("The annotation column name [%s] has multiple types in your scopes or in your defined columns."
+                                             "Please either modify your annotations/columns named [%s] to all be of the same type"
+                                             " or add it to the list of ignored annotations by modifying the entityView.ignoredAnnotations variable")
+                        existing_column_names.add(anno_col_name)
+                        existing_typed_column_names.add(anno_col_name)
+                        self.addColumn(Column(name=anno_col_name, columnType=column_type))
+
 
 
 ## add Schema to the map of synapse entity types to their Python representations

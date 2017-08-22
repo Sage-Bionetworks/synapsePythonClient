@@ -147,6 +147,8 @@ def test_entity_view_add_annotation_columns():
     #add another annotation to the project and make sure that EntityViewSchema only adds one moe column
     proj1['anotherAnnotation'] = 'I need healing!'
     proj1 = syn.store(proj1)
+    print(entity_view.__dict__)
+
     entity_view.add_annotation_columns = True
     print(entity_view.__dict__)
     assert_true(entity_view['add_annotation_columns'])
