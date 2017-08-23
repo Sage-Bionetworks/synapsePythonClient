@@ -935,7 +935,6 @@ class Synapse:
 
         ## _synapse_store hook
         ## for objects that know how to store themselves
-
         if hasattr(obj, '_synapse_store'):
             return obj._synapse_store(self)
 
