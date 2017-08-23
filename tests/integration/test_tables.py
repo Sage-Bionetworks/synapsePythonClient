@@ -65,7 +65,7 @@ def test_create_and_update_file_view():
     scopeIds = [folder['id'].lstrip('syn')]
 
     ## Create an empty entity-view with defined scope as folder
-    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=True, type='file', columns=my_added_cols, parent=project)
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=True, type='file', columns=my_added_cols, parent=project)
 
     entity_view = syn.store(entity_view)
     schedule_for_cleanup(entity_view)
@@ -134,31 +134,25 @@ def test_entity_view_add_annotation_columns():
     schedule_for_cleanup(proj2)
     scopeIds = [utils.id_of(proj1), utils.id_of(proj2)]
 
-    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=False, add_annotation_columns=True, type='project', parent=project)
-    assert_true(entity_view['add_annotation_columns'])
-    assert_false(entity_view['add_default_columns'])
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False, addAnnotationColumns=True, type='project', parent=project)
+    assert_true(entity_view['addAnnotationColumns'])
     entity_view = syn.store(entity_view)
+    assert_false(entity_view['addAnnotationColumns'])
 
     expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE'}
     view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
     assert_dict_equal(expected_column_types, view_column_types)
-    assert_false(entity_view['add_annotation_columns'])
 
     #add another annotation to the project and make sure that EntityViewSchema only adds one moe column
     proj1['anotherAnnotation'] = 'I need healing!'
     proj1 = syn.store(proj1)
-    print(entity_view.__dict__)
 
-    entity_view.add_annotation_columns = True
-    print(entity_view.__dict__)
-    assert_true(entity_view['add_annotation_columns'])
+    entity_view.addAnnotationColumns = True
     entity_view = syn.store(entity_view)
 
     expected_column_types.update({'anotherAnnotation': 'STRING'})
     view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
     assert_dict_equal(expected_column_types, view_column_types)
-    assert_false(entity_view['add_annotation_columns'])
-
 
 
 def test_rowset_tables():

@@ -25,7 +25,8 @@ import synapseclient
 from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema
-from mock import patch
+from synapseclient.entity import split_entity_namespaces
+from mock import patch, call
 
 
 def setup(module):
@@ -447,6 +448,7 @@ def test_waitForAsync():
 
     assert_raises(synapseclient.exceptions.SynapseTimeoutError, syn._waitForAsync, uri="foo/bar", request={"foo": "bar"})
 
+
 def _insert_dataframe_column_if_not_exist__setup():
     df = pd.DataFrame()
     column_name = "panda"
@@ -481,6 +483,7 @@ def test_insert_dataframe_column_if_not_exist__existing_column_matching():
 
     #make sure the data has not changed
     assert_equals(data, df[column_name].tolist())
+
 
 @raises(SynapseError)
 def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
@@ -525,11 +528,12 @@ def test_build_table_download_file_handle_list__repeated_file_handles():
     assert_equals(2, len(file_handle_associations))
     assert_equals(0, len(file_handle_to_path_map)) #might as well check anyways
 
+
 def test_EntityViewSchema__default_params():
     entity_view = EntityViewSchema(parent="idk")
     assert_equals('file', entity_view.type)
     assert_equals([], entity_view.scopeIds)
-    assert_equals(True, entity_view.add_default_columns)
+    assert_equals(True, entity_view.addDefaultViewColumns)
 
 
 def test_entityViewSchema__specified_type():
@@ -537,19 +541,23 @@ def test_entityViewSchema__specified_type():
     entity_view = EntityViewSchema(parent="idk", type=view_type)
     assert_equals(view_type, entity_view.type)
 
+
 def test_entityViewSchema__sepcified_scopeId():
     scopeId = ["123"]
     entity_view = EntityViewSchema(parent="idk", scopeId=scopeId)
     assert_equals(scopeId, entity_view.scopeId)
 
+
 def test_entityViewSchema__sepcified_add_default_columns():
-    entity_view = EntityViewSchema(parent="idk", add_default_columns=False)
-    assert_false(entity_view.add_default_columns)
+    entity_view = EntityViewSchema(parent="idk", addDefaultViewColumns=False)
+    assert_false(entity_view.addDefaultViewColumns)
+
 
 def test_entityViewSchema__add_default_columns_when_from_Synapse():
     properties = {u'concreteType': u'org.sagebionetworks.repo.model.table.EntityView'}
-    entity_view = EntityViewSchema(parent="idk", add_default_columns=True, properties=properties)
-    assert_false(entity_view.add_default_columns)
+    entity_view = EntityViewSchema(parent="idk", addDefaultViewColumns=True, properties=properties)
+    assert_false(entity_view.addDefaultViewColumns)
+
 
 def test_entityViewSchema__add_scope():
     entity_view = EntityViewSchema(parent="idk")
@@ -557,3 +565,61 @@ def test_entityViewSchema__add_scope():
     entity_view.add_scope(456)
     entity_view.add_scope("789")
     assert_equals([str(x) for x in ["123","456","789"]], entity_view.scopeIds)
+
+
+def test_EntityViewSchema__ignore_column_names_set_info_preserved():
+    """
+    tests that ignoredAnnotationColumnNames will be preserved after creating a new EntityViewSchema from properties, local_state, and annotations
+    """
+    ignored_names = {'a','b','c'}
+    entity_view = EntityViewSchema("someName", parent="syn123", ignoredAnnotationColumnNames={'a','b','c'})
+    properties, annotations, local_state = split_entity_namespaces(entity_view)
+    entity_view_copy = Entity.create(properties, annotations, local_state)
+    assert_equals( ignored_names, entity_view.ignoredAnnotationColumnNames)
+    assert_equals( ignored_names, entity_view_copy.ignoredAnnotationColumnNames)
+
+
+
+def test_EntityViewSchema__ignore_column_names():
+    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+
+    scopeIds = ['123']
+    entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123", ignoredAnnotationColumnNames={'long1'})
+
+    mocked_annotation_result1 = {'longAnnotations':{'long1':941, 'long2':683},
+                                'stringAnnotations':{},
+                                'doubleAnnotations':{},
+                                'dateAnnotations': {},
+                                }
+
+    with patch.object(syn, '_getRawAnnotations', return_value=mocked_annotation_result1) as mocked_get_annotations,\
+         patch.object(syn, 'getColumns') as mocked_get_columns:
+
+        entity_view._add_annotations_as_columns(syn)
+
+        mocked_get_columns.assert_called_once_with([])
+        mocked_get_annotations.assert_called_once_with(scopeIds[0])
+
+        assert_equals([Column(name='long2', columnType='INTEGER')], entity_view.columns_to_store)
+
+
+def test_EntityViewSchema__repeated_columnName():
+    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+
+    scopeIds = ['123']
+    entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123")
+
+    mocked_annotation_result1 = {'longAnnotations':{'annoName':941},
+                                'stringAnnotations':{},
+                                'doubleAnnotations':{'annoName':1.2},
+                                'dateAnnotations': {},
+                                }
+
+    with patch.object(syn, '_getRawAnnotations', return_value=mocked_annotation_result1) as mocked_get_annotations,\
+         patch.object(syn, 'getColumns') as mocked_get_columns:
+
+        assert_raises(ValueError, entity_view._add_annotations_as_columns, syn)
+
+        mocked_get_columns.assert_called_once_with([])
+        mocked_get_annotations.assert_called_once_with(scopeIds[0])
+

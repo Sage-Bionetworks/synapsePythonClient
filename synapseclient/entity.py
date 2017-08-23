@@ -334,7 +334,7 @@ class Entity(collections.MutableMapping):
 
 
     def __setitem__(self, key, value):
-        if key in self.__dict__:
+        if key in self.__dict__ or key in self.__class__._local_keys:
             # If we assign like so:
             #   entity.annotations = {'foo';123, 'bar':'bat'}
             # Wrap the dictionary in a DictObject so we can
