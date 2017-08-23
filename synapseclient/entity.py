@@ -508,7 +508,7 @@ class Link(Entity):
 
     def __init__(self, targetId=None, targetVersion=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
         if targetId is not None:
-            kwargs['linksTo'] = dict(targetId=targetId, targetVersionNumber=targetVersion)
+            kwargs['linksTo'] = dict(targetId=utils.id_of(targetId), targetVersionNumber=targetVersion)
         elif properties is not None and 'linksTo' in properties:
             pass
         else:
