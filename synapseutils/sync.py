@@ -131,7 +131,11 @@ def _sortAndFixProvenance(syn, df):
         """Determines if provenance item is valid"""
         if item is None:
             return item
-        if os.path.isfile(os.path.expandvars(os.path.expanduser(item))):
+
+        item_path_normalized = os.path.abspath(os.path.expandvars(os.path.expanduser(item)))
+        if os.path.isfile(item_path_normalized):
+            #Add full path
+            item = item_path_normalized
             if item not in df.index: #If it is a file and it is not being uploaded
                 try:
                     bundle = syn._getFromFile(item)
@@ -139,8 +143,7 @@ def _sortAndFixProvenance(syn, df):
                 except SynapseFileNotFoundError:
                     SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
                                             "Specifically %s is not being uploaded and is not in Synapse." % (path, item)))
-            #Add full path
-            item = os.path.expandvars(os.path.expanduser(item))
+
         elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
             raise SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
                                           "Specifically %s, is neither a valid URL or synapseId.") %(path, item))
@@ -162,6 +165,15 @@ def _sortAndFixProvenance(syn, df):
     df = df.reindex([l[0] for l in uploadOrder])
     return df.reset_index()
 
+def _check_path_and_normalize(f):
+    sys.stdout.write('.')
+    if is_url(f):
+        return f
+    path_normalized = os.path.abspath(os.path.expandvars(os.path.expanduser(f)))
+    if not os.path.isfile(path_normalized):
+        print('\nThe specified path "%s" is either not a file path or does not exist.', f)
+        raise IOError('The path %s is not a file or does not exist' %f)
+    return path_normalized
 
 def readManifestFile(syn, manifest_file):
     """Verifies a file manifest and returns a reordered dataframe ready for upload.
@@ -182,9 +194,11 @@ def readManifestFile(syn, manifest_file):
     sys.stdout.write('Validation and upload of: %s\n' %manifest_file)
     #Read manifest file into pandas dataframe
     df = pd.read_csv(manifest_file, sep='\t')
-    if 'synapseStore' in df:
-        df.synapseStore[df['synapseStore'].isnull()]=True
-        df.synapseStore = df.synapseStore.astype(bool)
+    if 'synapseStore' not in df:
+        df = df.assign(synapseStore=None)
+    df.synapseStore[df['path'].apply(is_url)] = False #override synapseStore values to False when path is a url
+    df.synapseStore[df['synapseStore'].isnull()] = True # remaining unset values default to True
+    df.synapseStore = df.synapseStore.astype(bool)
     df = df.fillna('')
 
     sys.stdout.write('Validating columns of manifest...')
@@ -196,13 +210,8 @@ def readManifestFile(syn, manifest_file):
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that all paths exist')
-    for f in df.path:
-        sys.stdout.write('.')
-        if is_url(f):
-            continue
-        if not os.path.isfile(os.path.expandvars(os.path.expanduser(f))):
-            print('\nOne of the files you are trying to upload does not exist.')
-            raise IOError('The file %s is not available' %f)
+    df.path = df.path.apply(_check_path_and_normalize)
+
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that all files are unique...')
