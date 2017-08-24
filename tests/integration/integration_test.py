@@ -13,7 +13,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal
+from nose.tools import assert_raises, assert_equals, assert_not_equal, raises
 from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch, call
 
@@ -36,6 +36,7 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
+    module.other_user = integration.other_user
 
 def test_login():
     try:
@@ -470,3 +471,4 @@ def test_getChildren():
     expected_id_set = {project_file.id, folder.id}
     children_id_set = { x['id'] for x in syn.getChildren(test_project.id)}
     assert_equals(expected_id_set, children_id_set)
+

@@ -362,3 +362,28 @@ def test_getChildren__nextPageToken():
         expected_POST_url = '/entity/children'
         mocked_POST.assert_has_calls([call(expected_POST_url, body=expected_request_JSON(None)), call(expected_POST_url, body=expected_request_JSON(nextPageToken))])
 
+def test_check_entity_restrictions__no_unmet_restriction():
+    with patch("warnings.warn") as mocked_warn:
+        restriction_requirements = {'hasUnmetAccessRequirement': False}
+
+        syn._check_entity_restrictions(restriction_requirements, "syn123", True)
+
+        mocked_warn.assert_not_called()
+
+
+def test_check_entity_restrictions__unmet_restriction_downloadFile_is_True():
+    with patch("warnings.warn") as mocked_warn:
+        restriction_requirements = {'hasUnmetAccessRequirement': True}
+
+        assert_raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, restriction_requirements, "syn123", True)
+
+        mocked_warn.assert_not_called()
+
+
+def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False():
+    with patch("warnings.warn") as mocked_warn:
+        restriction_requirements = {'hasUnmetAccessRequirement': True}
+
+        syn._check_entity_restrictions(restriction_requirements, "syn123", False)
+
+        mocked_warn.assert_called_once()

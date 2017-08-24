@@ -15,12 +15,12 @@ import os
 import sys
 import uuid
 
-from nose.tools import assert_raises, assert_equals
+from nose.tools import assert_raises, assert_equals, raises
 
 import synapseclient
 import synapseclient.utils as utils
 from synapseclient import Activity, Entity, Project, Folder, File
-
+from synapseclient.exceptions import SynapseUnmetAccessRestrictions
 import integration
 from integration import schedule_for_cleanup
 
@@ -36,18 +36,7 @@ def setup(module):
     # Some of these tests require a second user
     config = configparser.ConfigParser()
     config.read(synapseclient.client.CONFIG_FILE)
-    module.other_user = {}
-    try:
-        other_user['username'] = config.get('test-authentication', 'username')
-        other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principalId'] = config.get('test-authentication', 'principalId')
-    except configparser.Error:
-        print("[test-authentication] section missing from the configuration file")
-
-    if 'principalId' not in other_user:
-        # Fall back on the synapse-test user
-        other_user['principalId'] = 1560252
-        other_user['username'] = 'synapse-test'
+    module.other_user = integration.other_user
 
 
 def test_ACL():
@@ -167,15 +156,8 @@ def test_access_restrictions():
                     'id': '42'
                 }
             ],
-            'unmetAccessRequirements': [{
-              'accessType': 'DOWNLOAD',
-              'concreteType': 'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
-              'createdBy': '377358',
-              'entityType': 'org.sagebionetworks.repo.model.TermsOfUseAccessRequirement',
-              'etag': '1dfedff0-c3b1-472c-b9ff-1b67acb81f00',
-              'id': 2299555,
-              'subjectIds': [{'id': 'syn1000002', 'type': 'ENTITY'}],
-              'termsOfUse': 'Use it or lose it!'}]}
+            'restrictionInformation': {'hasUnmetAccessRequirement': True}
+        }
 
         entity = syn.get('syn1000002', downloadFile=False)
         assert entity is not None
@@ -193,4 +175,19 @@ def test_setPermissions__default_permissions():
     permissions = syn.getPermissions(temp_proj, other_user['username'])
 
     assert_equals(set(['READ', 'DOWNLOAD']), set(permissions))
+
+
+
+def test_check_entity_restrictions():
+    current_user_id = int(syn.getUserProfile()['ownerId'])
+
+    #use other user to create a file
+    other_syn = synapseclient.login(other_user['username'], other_user['password'])
+    proj = other_syn.store(Project(name=str(uuid.uuid4())+'test_check_entity_restrictions'))
+    a_file = other_syn.store(File('~/idk', parent=proj, description='A place to put my junk', foo=1000, synapseStore=False), isRestricted=True)
+
+    #attempt to get file
+    assert_raises(SynapseUnmetAccessRestrictions, syn.get, a_file.id, downloadFile=True)
+
+    other_syn.delete(proj)
 

@@ -682,17 +682,22 @@ class Synapse:
         else:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
-
         # Check and warn for unmet access requirements
-        if len(bundle['unmetAccessRequirements']) > 0:
+        self._check_entity_restrictions(bundle['restrictionInformation'], entity, kwargs.get('downloadFile', True))
+
+        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
+
+
+    def _check_entity_restrictions(self, restrictionInformation, entity, downloadFile):
+        if restrictionInformation['hasUnmetAccessRequirement']:
             warning_message = ("\nWARNING: This entity has access restrictions. Please visit the "
                               "web page for this entity (syn.onweb(\"%s\")). Click the downward "
                               "pointing arrow next to the file's name to review and fulfill its "
                               "download requirement(s).\n" % id_of(entity))
-            if kwargs.get('downloadFile', True):
+            if downloadFile:
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
-        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
+
 
 
     def _getFromFile(self, filepath, limitSearch=None):
@@ -1099,12 +1104,12 @@ class Synapse:
         If not, then one is added
         """
 
-        existingRestrictions = self.restGET('/entity/%s/accessRequirement' % id_of(entity))
+        existingRestrictions = self.restGET('/entity/%s/accessRequirement?offset=0&limit=1' % id_of(entity))
         if existingRestrictions['totalNumberOfResults'] <= 0:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
 
-    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x400 | 0x2 | 0x1):
+    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x40000 | 0x2 | 0x1):
         """
         Gets some information about the Entity.
 
@@ -1114,16 +1119,20 @@ class Synapse:
 
         EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)::
 
-            ENTITY                    = 0x1
-            ANNOTATIONS               = 0x2
-            PERMISSIONS               = 0x4
-            ENTITY_PATH               = 0x8
-            ENTITY_REFERENCEDBY       = 0x10
-            HAS_CHILDREN              = 0x20
-            ACL                       = 0x40
-            ACCESS_REQUIREMENTS       = 0x200
-            UNMET_ACCESS_REQUIREMENTS = 0x400
-            FILE_HANDLES              = 0x800
+            ENTITY                     = 0x1
+            ANNOTATIONS                = 0x2
+            PERMISSIONS                = 0x4
+            ENTITY_PATH                = 0x8
+            HAS_CHILDREN               = 0x20
+            ACL                        = 0x40
+            FILE_HANDLES               = 0x800
+            TABLE_DATA                 = 0x1000
+            ROOT_WIKI_ID               = 0x2000
+            BENEFACTOR_ACL             = 0x4000
+            DOI                        = 0x8000
+            FILE_NAME                  = 0x10000
+            THREAD_COUNT               = 0x20000
+            RESTRICTION_INFORMATION    = 0x40000
 
         For example, we might ask for an entity bundle containing file handles, annotations, and properties::
 
