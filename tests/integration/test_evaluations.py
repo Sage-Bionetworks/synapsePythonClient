@@ -11,10 +11,6 @@ import uuid, random, base64
 from datetime import datetime
 from nose.tools import assert_raises
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *

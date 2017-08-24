@@ -5,10 +5,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
 import json
 import mock
 import os
@@ -32,10 +28,6 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
-
-    # Some of these tests require a second user
-    config = configparser.ConfigParser()
-    config.read(synapseclient.client.CONFIG_FILE)
     module.other_user = integration.other_user
 
 

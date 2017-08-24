@@ -18,11 +18,6 @@ from nose.tools import assert_raises, assert_equals, assert_less
 import tempfile
 import shutil
 from mock import patch
-try:
-    import ConfigParser
-except:
-    import configparser as ConfigParser
-
 import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils

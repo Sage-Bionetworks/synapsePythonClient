@@ -27,6 +27,7 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
+    module.other_user = integration.other_user
 
 
 def test_Entity():

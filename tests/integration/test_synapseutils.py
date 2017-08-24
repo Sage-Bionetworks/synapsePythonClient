@@ -9,11 +9,6 @@ import uuid, filecmp, os, sys, time, tempfile
 
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
-
 import synapseclient
 from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
 from synapseclient.exceptions import *
