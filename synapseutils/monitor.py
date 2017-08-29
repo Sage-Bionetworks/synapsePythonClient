@@ -17,27 +17,32 @@ def notifyMe(syn, messageSubject='', retries=0):
     :param retries: Number of retries to attempt on failure (default=0)
 
     Example::
-         from synapseutils import notifyMe
-         import synapseclient
-         syn = synapseclient.login()
-    
-         my_query = notifyMe(syn, 'Long running query', retries=2)(syn.tableQuery)
-         results = my_query("select id from syn1223")
-
-         ###################
+         # to decorate a function that you define
          from synapseutils import notifyMe
          import synapseclient
          syn = synapseclient.login()
 
          @notifyMe(syn, 'Long running function', retries=2)
-         def myFunction(x):
-            print x
+         def my_function(x):
+            doing_something()
+            return long_runtime_func(x)
 
-         myFunction(123)
+         my_function(123)
+         #############################
+         # to wrap a function that already exists
+         from synapseutils import notifyMe
+         import synapseclient
+         syn = synapseclient.login()
+
+         notify_decorator = notifyMe(syn, 'Long running query', retries=2)
+         my_query = notify_decorator(syn.tableQuery)
+         results = my_query("select id from syn1223")
+
+         ###################
+
 
     """
-    #TODO: make example better
-    def decorator(func):
+    def notify_decorator(func):
         @functools.wraps(func)
         def with_retry_and_messaging(*args, **kwargs):
             attempt = 0
@@ -56,24 +61,27 @@ def notifyMe(syn, messageSubject='', retries=0):
                                                    %(retries-attempt, e, traceback.format_exc())))
                     attempt +=1
         return with_retry_and_messaging
-    return decorator
+    return notify_decorator
 
 def with_progress_bar(func, totalCalls, prefix = '', postfix='', isBytes=False):
-    """Adds a progress bar to calls to a function
+    """Wraps a function to add a progress bar based on the number of calls to that function.
 
     :param func: Function being wrapped with progress Bar
     :param totalCalls: total number of items/bytes when completed
     :param prefix: String printed before progress bar
     :param prefix: String printed after progress bar
     :param isBytes: A boolean indicating weather to convert bytes to kB, MB, GB etc.
+    :return: a wrapped function that contains a progress bar
     """
     from multiprocessing import Value, Lock
+    from synapseclient.utils import printTransferProgress
+
     completed = Value('d', 0)
     lock = Lock()
 
     def progress(*args, **kwargs):
         with lock:
             completed.value +=1
-        synapseclient.utils.printTransferProgress(completed.value, totalCalls, prefix, postfix, isBytes)
+        printTransferProgress(completed.value, totalCalls, prefix, postfix, isBytes)
         return func(*args, **kwargs)
     return progress
