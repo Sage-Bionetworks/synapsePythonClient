@@ -4,7 +4,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_not_equal
 
 import filecmp, os, tempfile, shutil
 
@@ -18,7 +18,7 @@ from synapseclient import Activity, Entity, Project, Folder, File
 import integration
 from integration import schedule_for_cleanup
 import json
-
+import time
 
 def setup(module):
     print('\n')
@@ -101,3 +101,19 @@ def test_ftp_download():
     assert FTPfile.md5==utils.md5_for_file(FTPfile.path).hexdigest()
     schedule_for_cleanup(entity)
     os.remove(FTPfile.path)
+
+
+def test_http_download__range_request_error():
+    # SYNPY-525
+
+    file_path = utils.make_bogus_data_file()
+    file_entity = syn.store(File(file_path,parent=project))
+
+    syn.cache.purge(time.time())
+    #download once and rename to temp file to simulate range exceed
+    file_entity = syn.get(file_entity)
+    shutil.move(file_entity.path, utils.temp_download_filename(file_entity.path, file_entity.dataFileHandleId))
+    file_entity = syn.get(file_entity)
+
+    assert_not_equal(file_path, file_entity.path)
+    assert filecmp.cmp(file_path, file_entity.path)
