@@ -1900,6 +1900,12 @@ class Synapse:
                 except SynapseHTTPError as err:
                     if err.response.status_code == 404:
                         raise SynapseError("Could not download the file at %s" % url)
+                    elif err.response.status_code == 416:
+                        # this is a weird error when the client already finished downloading but the loop continues
+                        # assume that the file has been fully downloaded, rename to destination file
+                        # and break out of the loop to perform the MD5 check.
+                        shutil.move(temp_destination, destination)
+                        break
                     raise
 
                 ## handle redirects
