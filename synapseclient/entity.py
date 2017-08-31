@@ -507,8 +507,10 @@ class Link(Entity):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Link'
 
     def __init__(self, targetId=None, targetVersion=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
-        if targetId is not None:
+        if targetId is not None and targetVersion is not None:
             kwargs['linksTo'] = dict(targetId=utils.id_of(targetId), targetVersionNumber=targetVersion)
+        elif targetId is not None and targetVersion is None:
+            kwargs['linksTo'] = dict(targetId=utils.id_of(targetId))
         elif properties is not None and 'linksTo' in properties:
             pass
         else:
