@@ -8,12 +8,12 @@ import os
 import unit
 from mock import patch, MagicMock, ANY, call
 from nose import SkipTest
-from nose.tools import assert_dict_equal
+from nose.tools import assert_equal, assert_in, assert_tuple_equal
 from builtins import str
 
 import synapseutils
-from synapseclient import Project
-from synapseutils import notifyMe
+from synapseclient import utils as synapseclientutils
+from synapseutils import notifyMe, with_progress_bar
 
 try:
     from StringIO import StringIO
@@ -47,7 +47,7 @@ def test_notifyMe__successful_call():
 
         test_function()
         mocked_get_user_profile.assert_called_once()
-        mocked_send_message.assert_called_once_with([owner_id],subject, ANY)
+        mocked_send_message.assert_called_once_with([owner_id],subject, messageBody='Call to test_function completed successfully!')
 
 def test_notifyMe__exception_thrown_and_retry_fail():
     subject = "some message subject"
@@ -61,11 +61,36 @@ def test_notifyMe__exception_thrown_and_retry_fail():
             mocked_func()
 
         test_function()
-        mocked_send_message.
+        assert_equal(2, mocked_send_message.call_count)
 
-        first_call = mocked_send_message.call_args_list[0]
-        second_call = mocked_send_message.call_args_list[1]
+        #call_args_list is a list of tuples, each tuple in the form (args,kwargs)
+        first_call_args = mocked_send_message.call_args_list[0][0]
+        first_call_kwargs = mocked_send_message.call_args_list[0][1]
+
+        second_call_args = mocked_send_message.call_args_list[1][0]
+        second_call_kwargs = mocked_send_message.call_args_list[1][1]
 
 
-def test_notifyMe__exception_throw_and_retry_success():
-    pass
+        assert_tuple_equal(([owner_id], subject), first_call_args)
+        assert_in('Encountered a temporary Failure during upload', first_call_kwargs['messageBody'])
+
+        assert_tuple_equal(([owner_id], subject), first_call_args)
+        assert_equal(1, len(first_call_kwargs))
+        assert_in('Encountered a temporary Failure during upload', first_call_kwargs['messageBody'])
+
+        assert_tuple_equal(([owner_id], subject), second_call_args)
+        assert_equal(1, len(second_call_kwargs))
+        assert_equal("Call to test_function completed successfully!", second_call_kwargs['messageBody'])
+
+
+def test_with_progress_bar():
+    num_calls = 5
+    mocked_function = MagicMock()
+
+    progress_func = with_progress_bar(mocked_function, num_calls)
+
+    with patch.object(synapseutils.monitor, 'printTransferProgress') as mocked_progress_print:
+        for i in range(num_calls):
+            progress_func(i)
+        mocked_progress_print.assert_has_calls([call(float(i+1), num_calls, '', '', False) for i in range(num_calls)])
+        mocked_function.assert_has_calls([call(i) for i in range(num_calls)])
