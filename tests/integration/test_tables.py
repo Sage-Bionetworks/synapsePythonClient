@@ -26,7 +26,7 @@ import synapseclient
 from synapseclient.exceptions import *
 from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
-
+from synapseclient.utils import id_of
 import integration
 from integration import schedule_for_cleanup
 
@@ -599,3 +599,14 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
     print(table.filepath, table_from_dataframe.filepath)
     #compare to make sure no .0's were appended to the integers
     assert filecmp.cmp(table.filepath, table_from_dataframe.filepath)
+
+
+def test_store_table_datetime():
+    current_datetime = datetime.now()
+    schema = syn.store(Schema("testTable",[Column(name="testerino", columnType='DATE')], project))
+    rowset = RowSet(rows=[Row([current_datetime])], schema=schema)
+    rowset_table = syn.store(Table(schema, rowset))
+
+    query_result = syn.tableQuery("select * from %s" % id_of(schema), resultsAs="rowset")
+    assert_equals(current_datetime, query_result.rowset['rows'][0]['values'][0])
+
