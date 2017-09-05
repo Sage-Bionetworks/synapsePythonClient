@@ -145,7 +145,7 @@ def test_syncFromSynapse():
 
     #syncFromSynapse() uses chunkedQuery() which will return results that are eventually consistent but not always right after the entity is created.
     start_time = time.time()
-    while syn.query("select id from entity where id=='%s'" % file_entity.id).get('totalNumberOfResults') <= 0:
+    while len(list(syn.getChildren(project_entity))) != 2:
         assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
         time.sleep(2)
 

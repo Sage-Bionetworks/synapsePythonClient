@@ -205,11 +205,11 @@ def test_evaluations():
                 print("Querying for submissions")
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s" % ev.id)
                 print(results)
-                assert results[u'totalNumberOfResults'] == num_of_submissions+1
+                assert len(results['rows']) == num_of_submissions+1
 
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
                 print(results)
-                assert results[u'totalNumberOfResults'] == num_of_submissions
+                assert len(results['rows']) == num_of_submissions
             except AssertionError as ex1:
                 print("failed query: ", ex1)
                 attempts -= 1
