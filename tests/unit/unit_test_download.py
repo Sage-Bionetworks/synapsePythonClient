@@ -8,7 +8,7 @@ import tempfile, os, hashlib
 import unit
 from mock import MagicMock, patch, mock_open, call
 from nose.tools import assert_raises, assert_equals
-from synapseclient.exceptions import SynapseHTTPError, SynapseMd5MismatchError
+from synapseclient.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, SynapseFileNotFoundError
 
 
 
@@ -351,3 +351,14 @@ def test_download_file_entity__correct_local_state():
         assert_equals(os.path.dirname(mock_cache_path), file_entity.cacheDir)
         assert_equals(1, len(file_entity.files))
         assert_equals(os.path.basename(mock_cache_path), file_entity.files[0])
+
+
+def test_getFileHandleDownload__error_UNAUTHORIZED():
+    ret_val = {'requestedFiles': [{'failureCode': 'UNAUTHORIZED',}]}
+    with patch.object(syn, "restPOST", return_value=ret_val):
+        assert_raises(SynapseError, syn._getFileHandleDownload, '123', 'syn456')
+
+def test_getFileHandleDownload__error_NOT_FOUND():
+    ret_val = {'requestedFiles': [{'failureCode': 'NOT_FOUND',}]}
+    with patch.object(syn, "restPOST", return_value=ret_val):
+        assert_raises(SynapseFileNotFoundError, syn._getFileHandleDownload, '123', 'syn456')
