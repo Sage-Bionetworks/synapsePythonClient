@@ -2799,12 +2799,14 @@ class Synapse:
             ValueError("Can't get columns for a %s" % type(x))
 
 
-    def getTableColumns(self, table, limit=100, offset=0):
+    def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
         """
         uri = '/entity/{id}/column'.format(id=id_of(table))
-        for result in self._GET_paginated(uri, limit=limit, offset=offset):
+        # The returned object type for this service, PaginatedColumnModels, is a misnomer.
+        # This service always returns the full list of results so the pagincation does not not actually matter.
+        for result in self.restGET(uri)['results']:
             yield Column(**result)
 
 
