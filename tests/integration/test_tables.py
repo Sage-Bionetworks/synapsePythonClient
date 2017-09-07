@@ -602,7 +602,7 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
 
 
 def test_store_table_datetime():
-    current_datetime = datetime.now()
+    current_datetime = datetime.fromtimestamp(round(time.time(),3))
     schema = syn.store(Schema("testTable",[Column(name="testerino", columnType='DATE')], project))
     rowset = RowSet(rows=[Row([current_datetime])], schema=schema)
     rowset_table = syn.store(Table(schema, rowset))
