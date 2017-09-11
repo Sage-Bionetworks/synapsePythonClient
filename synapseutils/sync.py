@@ -7,7 +7,7 @@ import errno
 from .monitor import notifyMe
 from synapseclient.entity import is_container
 from synapseclient.utils import id_of, topolgical_sort, is_url
-from synapseclient import File, table
+from synapseclient import File, table, Link
 from synapseclient.exceptions import *
 import os
 from sys import stderr
@@ -85,7 +85,8 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
             syncFromSynapse(syn, result['id'], new_path, ifcollision, allFiles)
         else:
             ent = syn.get(result['id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
-            allFiles.append(ent)
+            if not isinstance(ent, Link):
+                allFiles.append(ent)
     if zero_results:
         #a http error would be raised if the synapse Id was not valid (404) or no permission (403) so at this point the entity should be get-able
         stderr.write("The synapse id provided is not a container, attempting to get the entity anyways")
