@@ -227,7 +227,7 @@ def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=Fa
         mapping=dict()
     #CHECK: If Folder name already exists, raise value error
     if not updateExisting:
-        existingEntity = syn._findEntityIdByNameAndParent(oldFolder.name, parent=destinationId)
+        existingEntity = syn.findEntityId(oldFolder.name, parent=destinationId)
         if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. Folder could not be copied'%oldFolder.name)
 
@@ -264,7 +264,7 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     ent = syn.get(entity, downloadFile=False, version=version, followLink=False)
     #CHECK: If File is in the same parent directory (throw an error) (Can choose to update files)
     if not updateExisting:
-        existingEntity = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
+        existingEntity = syn.findEntityId(ent.name, parent=destinationId)
         if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. File could not be copied'%ent.name)
     profile = syn.getUserProfile()
@@ -327,10 +327,9 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
     print("Getting table %s" % entity)
     myTableSchema = syn.get(entity)
     #CHECK: If Table name already exists, raise value error
-    if not updateExisting:
-        existingEntity = syn._findEntityIdByNameAndParent(myTableSchema.name, parent=destinationId)
-        if existingEntity is not None:
-            raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
+    existingEntity = syn.findEntityId(myTableSchema.name, parent=destinationId)
+    if existingEntity is not None:
+        raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
 
     d = syn.tableQuery('select * from %s' % myTableSchema.id, includeRowIdAndRowVersion=False)
 
@@ -359,7 +358,7 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
     ent = syn.get(entity)
     #CHECK: If Link is in the same parent directory (throw an error)
     if not updateExisting:
-        existingEntity = syn._findEntityIdByNameAndParent(ent.name, parent=destinationId)
+        existingEntity = syn.findEntityId(ent.name, parent=destinationId)
         if existingEntity is not None:
             raise ValueError('An entity named "%s" already exists in this location. Link could not be copied'%ent.name)
     newLink = Link(ent.linksTo['targetId'],parent=destinationId,targetVersion=ent.linksTo.get('targetVersionNumber'))

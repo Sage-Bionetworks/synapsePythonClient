@@ -169,7 +169,6 @@ def test_copy():
     old = syn.get(link_entity.id,followLink=False)
     new = syn.get(copied_link[link_entity.id],followLink=False)
     assert old.linksTo['targetId'] == new.linksTo['targetId']
-    assert old.linksTo['targetVersionNumber'] == new.linksTo['targetVersionNumber']
 
     schedule_for_cleanup(second_file_entity.id)
     schedule_for_cleanup(link_entity.id)
