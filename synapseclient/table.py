@@ -1280,24 +1280,32 @@ class CsvFileTable(TableAbstractBaseClass):
 
 
     def _synapse_store(self, syn):
+        new_schema_created = False
         if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
             ## store schema
             self.schema = syn.store(self.schema)
             self.tableId = self.schema.id
+            new_schema_created = True
 
-        result = syn._uploadCsv(
-            self.filepath,
-            self.schema if self.schema else self.tableId,
-            updateEtag=self.etag,
-            quoteCharacter=self.quoteCharacter,
-            escapeCharacter=self.escapeCharacter,
-            lineEnd=self.lineEnd,
-            separator=self.separator,
-            header=self.header,
-            linesToSkip=self.linesToSkip)
+        try:
+            result = syn._uploadCsv(
+                self.filepath,
+                self.schema if self.schema else self.tableId,
+                updateEtag=self.etag,
+                quoteCharacter=self.quoteCharacter,
+                escapeCharacter=self.escapeCharacter,
+                lineEnd=self.lineEnd,
+                separator=self.separator,
+                header=self.header,
+                linesToSkip=self.linesToSkip)
+        except SynapseHTTPError as e:
+            if e.response.status_code == 400 and new_schema_created: # delete the table schema if this is a newly created table
+                syn.delete(self.schema)
+                self.schema = None
+                self.tableId = None
+            raise
 
         upload_to_table_result = result['results'][0]
-
         assert upload_to_table_result['concreteType'] in ('org.sagebionetworks.repo.model.table.EntityUpdateResults',
                                                           'org.sagebionetworks.repo.model.table.UploadToTableResult'), "Not an UploadToTableResult or EntityUpdateResults."
         if 'etag' in upload_to_table_result:

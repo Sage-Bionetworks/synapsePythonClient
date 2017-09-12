@@ -18,7 +18,7 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_is_none
 from datetime import datetime
 from mock import patch
 
@@ -26,7 +26,7 @@ import synapseclient
 from synapseclient.exceptions import *
 from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
-
+from synapseclient import multipart_upload
 import integration
 from integration import schedule_for_cleanup
 
@@ -599,3 +599,52 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
     print(table.filepath, table_from_dataframe.filepath)
     #compare to make sure no .0's were appended to the integers
     assert filecmp.cmp(table.filepath, table_from_dataframe.filepath)
+
+
+def csv_table_store__400_error_new_entity():
+    cols = [
+        Column(name='Hotdog', columnType='INTEGER'),
+        Column(name='Not Hotdog', columnType='INTEGER')]
+
+    table_name = str(uuid.uuid4())+'csv_table_store__400_error_new_entity'
+    schema = Schema(name=table_name, columns=cols, parent=project)
+
+
+    csv_path = utils.make_temp_file_with_text(
+    "Hotdog,Not Hotdog\n"
+    "1,1\n"
+    "hotdog,2\n", suffix='.csv')
+
+    schedule_for_cleanup(csv_path)
+
+    table = Table(schema, csv_path)
+    try:
+        table = syn.store(table)
+    except Exception as e:
+        assert_is_none(syn.findEntityId(table_name, parent=project))
+
+
+def test_csv_table_store__400_error_existing_entity():
+    cols = [
+        Column(name='Hotdog', columnType='INTEGER'),
+        Column(name='Not Hotdog', columnType='INTEGER')]
+
+    table_name = str(uuid.uuid4())+'csv_table_store__400_error_existing_entity'
+    schema = Schema(name=table_name, columns=cols, parent=project)
+
+
+    csv_path = utils.make_temp_file_with_text(
+    "Hotdog,Not Hotdog\n"
+    "123,456\n", suffix='.csv')
+    schedule_for_cleanup(csv_path)
+    table = Table(schema, csv_path)
+    syn.store(table)
+
+    try:
+        table.filepath = utils.make_temp_file_with_text(
+        "Hotdog,Not Hotdog\n"
+        "hotdog,pizza\n", suffix='.csv')
+        syn.store(table)
+    except Exception as e:
+        table_id = syn.findEntityId(table_name, parent=project)
+        assert_equals(utils.id_of(table),table_id)

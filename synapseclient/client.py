@@ -683,6 +683,9 @@ class Synapse:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
 
+        if bundle is None:
+            raise ValueError("Entity does not exist: [%s]" % (id_of(entity, ignore_error=True) or entity))
+
         # Check and warn for unmet access requirements
         if len(bundle['unmetAccessRequirements']) > 0:
             warning_message = ("\nWARNING: This entity has access restrictions. Please visit the "
