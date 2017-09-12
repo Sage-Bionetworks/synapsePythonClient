@@ -166,13 +166,14 @@ def _get_from_members_items_or_properties(obj, key):
 
 
 ## TODO: what does this do on an unsaved Synapse Entity object?
-def id_of(obj):
+def id_of(obj, ignore_error=False):
     """
     Try to figure out the Synapse ID of the given object.
 
     :param obj: May be a string, Entity object, or dictionary
+    :param ignore_erro: causes the function to return None instead of raising an error if no id is found
 
-    :returns: The ID or throws an exception
+    :returns: The ID of the entity or None if no id found and ignore_error=True
     """
     if isinstance(obj, six.string_types):
         return str(obj)
@@ -185,6 +186,8 @@ def id_of(obj):
         if syn_id is not None:
             return str(syn_id)
 
+    if ignore_error:
+        return None
     raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
 
 
@@ -379,6 +382,11 @@ def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
                 printTransferProgress(progress, n, 'Generated ', filepath)
         return normalize_path(filepath)
 
+
+def make_temp_file_with_text(text, suffix='.txt'):
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_csv:
+        temp_csv.write(text)
+        return temp_csv.name
 
 def to_unix_epoch_time(dt):
     """
