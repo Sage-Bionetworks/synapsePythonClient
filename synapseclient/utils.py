@@ -384,7 +384,7 @@ def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
 
 
 def make_temp_file_with_text(text, suffix='.txt'):
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temp_csv:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=suffix, delete=False) as temp_csv:
         temp_csv.write(text)
         return temp_csv.name
 
