@@ -568,7 +568,7 @@ def test_command_get_recursive_and_query():
     file_entity = syn.store(file_entity)
     file_entities.append(file_entity)
 
-
+    time.sleep(2) # get -r uses syncFromSynapse() which uses getChildren(), which is not immediately consistent, but faster than chunked queries.
     ### Test recursive get
     output = run('synapse', '--skip-checks',
                  'get', '-r',
@@ -584,6 +584,7 @@ def test_command_get_recursive_and_query():
         schedule_for_cleanup(downloaded)
 
 
+    time.sleep(3) # get -q uses chunkedQuery which are eventually consistent
     ### Test query get
     ### Note: We're not querying on annotations because tests can fail if there
     ###       are lots of jobs queued as happens when staging is syncing
@@ -615,6 +616,7 @@ def test_command_get_recursive_and_query():
     row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
+    time.sleep(3) # get -q uses chunkedQuery which are eventually consistent
     ### Test Table/View query get
     output = run('synapse', '--skip-checks', 'get', '-q',
                  "select id from %s" % schema1.id)

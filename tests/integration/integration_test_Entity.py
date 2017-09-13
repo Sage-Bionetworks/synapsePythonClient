@@ -14,6 +14,7 @@ from mock import patch
 import synapseclient
 from synapseclient import Activity, Project, Folder, File, Link, DockerRepository
 from synapseclient.exceptions import *
+from synapseclient.upload_functions import create_external_file_handle, upload_synapse_s3
 
 import integration
 from nose.tools import assert_false, assert_equals
@@ -100,6 +101,14 @@ def test_Entity():
     assert a_file.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
 
     #Test create, store, get Links
+    #If version isn't specified, targetVersionNumber should not be set
+    link = Link(a_file['id'], 
+                parent=project)
+    link = syn.store(link)
+    assert link['linksTo']['targetId'] == a_file['id']
+    assert link['linksTo'].get('targetVersionNumber') is None
+    assert link['linksToClassName'] == a_file['concreteType']
+
     link = Link(a_file['id'], 
                 targetVersion=a_file.versionNumber,
                 parent=project)
@@ -502,8 +511,8 @@ def test_download_local_file_URL_path():
     path = utils.make_bogus_data_file()
     schedule_for_cleanup(path)
 
-    filehandle = syn._uploadToFileHandleService(path, synapseStore=False,
-                                   mimetype=None, fileSize=None)
+    filehandle = create_external_file_handle(syn, path,
+                                   mimetype=None, file_size=None)
 
     localFileEntity = syn.store(File(dataFileHandleId=filehandle['id'], parent=project))
     e = syn.get(localFileEntity.id)
@@ -522,7 +531,7 @@ def test_store_file_handle_update_metadata():
     #create file handle to replace the old one
     replacement_file_path = utils.make_bogus_data_file()
     schedule_for_cleanup(replacement_file_path)
-    new_file_handle = syn._uploadToFileHandleService(replacement_file_path, synapseStore=True)
+    new_file_handle = syn.uploadFileHandle(replacement_file_path, parent=project)
 
     entity.dataFileHandleId = new_file_handle['id']
     new_entity = syn.store(entity)
