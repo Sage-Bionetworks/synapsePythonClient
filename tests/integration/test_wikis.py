@@ -12,6 +12,7 @@ import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient import Project, File, Wiki, Activity, Evaluation
+from synapseclient.upload_functions import upload_synapse_s3
 
 import integration
 from integration import schedule_for_cleanup
@@ -32,7 +33,7 @@ def test_wikiAttachment():
     attachname = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     schedule_for_cleanup(attachname)
-    fileHandle = syn._uploadToFileHandleService(filename)
+    fileHandle = upload_synapse_s3(syn, filename)
 
     # Create and store a Wiki 
     # The constructor should accept both file handles and file paths

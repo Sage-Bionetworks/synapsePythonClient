@@ -80,6 +80,9 @@ def test_syncToSynapse():
     manifest = _makeManifest(header+row1+row2+row3)
     synapseutils.syncToSynapse(syn, manifest, sendMessages=False, retries=2)
 
+    #syn.getChildren() used by syncFromSynapse() may intermittently have timing issues
+    time.sleep(3)
+
     #Download using syncFromSynapse
     tmpdir = tempfile.mkdtemp()
     schedule_for_cleanup(tmpdir)
