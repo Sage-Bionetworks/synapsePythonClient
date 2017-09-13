@@ -606,6 +606,8 @@ class File(Entity, Versionable):
             #hacky solution because we historically allowed modifying 'path' to indicate wanting to change to a new ExternalFileHandle
             if key == 'path' and not self['synapseStore'] and utils.caller_module_name(inspect.currentframe()) != 'client': #don't change exernalURL if it's just the synapseclient setting metadata after a function call such as syn.get()
                 self['externalURL'] = expand_and_convert_to_URL(value)
+                self['contentMd5'] = None
+                self['contentSize'] = None
             super(File, self).__setitem__(key,value)
 
 
