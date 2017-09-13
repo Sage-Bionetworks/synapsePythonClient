@@ -9,11 +9,6 @@ import uuid, filecmp, os, sys, time, tempfile
 
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
-
 import synapseclient
 from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
 from synapseclient.exceptions import *
@@ -29,22 +24,8 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
+    module.other_user = integration.other_user
 
-    # Some of these tests require a second user
-    config = configparser.ConfigParser()
-    config.read(synapseclient.client.CONFIG_FILE)
-    module.other_user = {}
-    try:
-        other_user['username'] = config.get('test-authentication', 'username')
-        other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principalId'] = config.get('test-authentication', 'principalId')
-    except configparser.Error:
-        print("[test-authentication] section missing from the configuration file")
-
-    if 'principalId' not in other_user:
-        # Fall back on the synapse-test user
-        other_user['principalId'] = 1560252
-        other_user['username'] = 'synapse-test'
 
 ###Add Test for UPDATE
 ###Add test for existing provenance but the orig doesn't have provenance
