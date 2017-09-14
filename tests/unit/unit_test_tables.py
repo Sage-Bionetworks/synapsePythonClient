@@ -586,19 +586,15 @@ def test_EntityViewSchema__ignore_column_names():
     scopeIds = ['123']
     entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123", ignoredAnnotationColumnNames={'long1'})
 
-    mocked_annotation_result1 = {'longAnnotations':{'long1':941, 'long2':683},
-                                'stringAnnotations':{},
-                                'doubleAnnotations':{},
-                                'dateAnnotations': {},
-                                }
+    mocked_annotation_result1 = [Column(name='long1', columnType='INTEGER'), Column(name='long2', columnType ='INTEGER')]
 
-    with patch.object(syn, '_getRawAnnotations', return_value=mocked_annotation_result1) as mocked_get_annotations,\
+    with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1) as mocked_get_annotations,\
          patch.object(syn, 'getColumns') as mocked_get_columns:
 
         entity_view._add_annotations_as_columns(syn)
 
         mocked_get_columns.assert_called_once_with([])
-        mocked_get_annotations.assert_called_once_with(scopeIds[0])
+        mocked_get_annotations.assert_called_once_with(scopeIds, 'file')
 
         assert_equals([Column(name='long2', columnType='INTEGER')], entity_view.columns_to_store)
 
@@ -609,17 +605,13 @@ def test_EntityViewSchema__repeated_columnName():
     scopeIds = ['123']
     entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123")
 
-    mocked_annotation_result1 = {'longAnnotations':{'annoName':941},
-                                'stringAnnotations':{},
-                                'doubleAnnotations':{'annoName':1.2},
-                                'dateAnnotations': {},
-                                }
+    mocked_annotation_result1 = [Column(name='annoName', columnType='INTEGER'), Column(name='annoName', columnType='DOUBLE')]
 
-    with patch.object(syn, '_getRawAnnotations', return_value=mocked_annotation_result1) as mocked_get_annotations,\
+    with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1) as mocked_get_annotations,\
          patch.object(syn, 'getColumns') as mocked_get_columns:
 
         assert_raises(ValueError, entity_view._add_annotations_as_columns, syn)
 
         mocked_get_columns.assert_called_once_with([])
-        mocked_get_annotations.assert_called_once_with(scopeIds[0])
+        mocked_get_annotations.assert_called_once_with(scopeIds, 'file')
 

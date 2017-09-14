@@ -139,7 +139,7 @@ def test_entity_view_add_annotation_columns():
     entity_view = syn.store(entity_view)
     assert_false(entity_view['addAnnotationColumns'])
 
-    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE'}
+    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE', 'concreteType':'STRING'}
     view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
     assert_dict_equal(expected_column_types, view_column_types)
 

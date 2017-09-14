@@ -634,12 +634,11 @@ class EntityViewSchema(SchemaBase):
 
 
     def _add_annotations_as_columns(self, syn):
-        AnnotationNames = collections.namedtuple('AnnotationNames', ['type', 'names'])
         column_type_to_annotation_names = {
-            'STRING': AnnotationNames('stringAnnotations', set()),
-            'INTEGER': AnnotationNames('longAnnotations', set()),
-            'DOUBLE': AnnotationNames('doubleAnnotations', set()),
-            'DATE': AnnotationNames('dateAnnotations', set())
+            'STRING': set(),
+            'INTEGER': set(),
+            'DOUBLE': set(),
+            'DATE': set()
         }
         all_existing_column_names = set() # set of all existing columns names regardless of type
 
@@ -653,27 +652,28 @@ class EntityViewSchema(SchemaBase):
             all_existing_column_names.add(column_name)
             #add to type specific set
             if column_type in column_type_to_annotation_names:
-                column_type_to_annotation_names[column_type].names.add(column_name)
+                column_type_to_annotation_names[column_type].add(column_name)
 
 
         #get annotations from each of the scopes and create columns
         columns_to_add = [] #temporarily store all columns so that none are added if any errors occur
-        for scope_id in self.scopeIds: #iterate every scope
-            raw_annotations = syn._getRawAnnotations(scope_id)
-            for column_type, annotation_names in six.iteritems(column_type_to_annotation_names): #iterate each annotation type
-                for anno_col_name in six.iterkeys(raw_annotations[annotation_names.type]): #iterate each annotation name of that type
-                    if (anno_col_name not in self.ignoredAnnotationColumnNames and
-                        anno_col_name not in annotation_names.names):
+        anno_columns = syn._get_annotation_entity_view_columns(self.scopeIds, self.type)
+        for column in anno_columns:
+            anno_col_name = column['name']
+            anno_col_type = column['columnType']
+            typed_col_name_set = column_type_to_annotation_names[anno_col_type]
+            if (anno_col_name not in self.ignoredAnnotationColumnNames
+                 and anno_col_name not in typed_col_name_set):
 
-                        if anno_col_name in all_existing_column_names:
-                            raise ValueError("The annotation column name [%s] has multiple types in your scopes or in your defined columns."
-                                             "Please do one of the following:"
-                                             "  Turn off the automatic conversion of annotations to column names: entityView.addAnnotationColumns = False"
-                                             "  Modify your annotations/columns named [%s] to all be of the same type."
-                                             "  Add the annotation name to the set of ignored annotation names via entityView.ignoredAnnotations.add(%s).")
-                        all_existing_column_names.add(anno_col_name)
-                        annotation_names.names.add(anno_col_name)
-                        columns_to_add.append(Column(name=anno_col_name, columnType=column_type))
+                if anno_col_name in all_existing_column_names:
+                    raise ValueError("The annotation column name [%s] has multiple types in your scopes or in your defined columns.\n"
+                                     "Please do one of the following:\n"
+                                     "  Turn off the automatic conversion of annotations to column names: entityView.addAnnotationColumns = False\n"
+                                     "  Modify your annotations/columns named [%s] to all be of the same type.\n"
+                                     "  Add the annotation name to the set of ignored annotation names via entityView.ignoredAnnotations.add(%s).\n" % (anno_col_name, anno_col_name, anno_col_name))
+                all_existing_column_names.add(anno_col_name)
+                typed_col_name_set.add(anno_col_name)
+                columns_to_add.append(column)
         self.addColumns(columns_to_add)
 
 
