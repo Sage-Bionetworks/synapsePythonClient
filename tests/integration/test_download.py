@@ -42,9 +42,9 @@ def test_download_check_md5():
 
     tempfile_path2 = utils.make_bogus_data_file()
     schedule_for_cleanup(tempfile_path2)
-    entity_bad_md5 = syn.store(File(path = tempfile_path2, md5 = "12345", parent=project['id'], synapseStore=False))
+    entity_bad_md5 = syn.store(File(path = tempfile_path2, parent=project['id'], synapseStore=False))
 
-    assert_raises(SynapseMd5MismatchError, syn._downloadFileHandle, entity_bad_md5['dataFileHandleId'], entity_bad_md5['id'], 'FileEntity', tempfile.gettempdir())
+    assert_raises(SynapseMd5MismatchError, syn._download_from_URL, entity_bad_md5['externalURL'], tempfile.gettempdir(), entity_bad_md5['dataFileHandleId'], expected_md5="2345a")
 
 
 def test_resume_partial_download():
@@ -62,7 +62,7 @@ def test_resume_partial_download():
     temp_dir = tempfile.gettempdir()
 
     url = '%s/entity/%s/file' % (syn.repoEndpoint, entity.id)
-    path = syn._download(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
+    path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
 
     ## simulate an imcomplete download by putting the
     ## complete file back into its temporary location
@@ -74,7 +74,7 @@ def test_resume_partial_download():
         f.truncate(3*os.path.getsize(original_file)//7)
 
     ## this should complete the partial download
-    path = syn._download(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
+    path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
 
     assert filecmp.cmp(original_file, path), "File comparison failed"
 

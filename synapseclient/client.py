@@ -71,7 +71,7 @@ import json
 from collections import OrderedDict
 
 import synapseclient
-from synapseclient import concrete_types
+from . import concrete_types
 from . import cache
 from . import exceptions
 from .exceptions import *
@@ -87,7 +87,8 @@ from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
 from .multipart_upload import multipart_upload, multipart_upload_string
-
+from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
+from .upload_functions import upload_file_handle, upload_synapse_s3
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -138,6 +139,7 @@ mimetypes.add_type('text/yaml', '.yaml', strict=False)
 mimetypes.add_type('text/x-markdown', '.md', strict=False)
 mimetypes.add_type('text/x-markdown', '.markdown', strict=False)
 
+DEFAULT_STORAGE_LOCATION_ID = 1
 
 def login(*args, **kwargs):
     """
@@ -154,29 +156,6 @@ def login(*args, **kwargs):
     syn = Synapse()
     syn.login(*args, **kwargs)
     return syn
-
-
-
-def _test_import_sftp():
-    """
-    Check if pysftp is installed and give instructions if not.
-    """
-    try:
-        import pysftp
-    except ImportError as e1:
-        sys.stderr.write(
-            ("\n\nLibraries required for SFTP are not installed!\n"
-             "The Synapse client uses pysftp in order to access SFTP storage "
-             "locations.  This library in turn depends on pycrypto.\n"
-             "To install these libraries on Unix variants including OS X, make "
-             "sure the python devel libraries are installed, then:\n"
-             "    (sudo) pip install pysftp\n\n"
-             "For Windows systems without a C/C++ compiler, install the appropriate "
-             "binary distribution of pycrypto from:\n"
-             "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n"
-             "For more information, see: http://docs.synapse.org/python/sftp.html"
-             "\n\n\n"))
-        raise
 
 
 class Synapse:
@@ -354,14 +333,7 @@ class Synapse:
 
             # If still no authentication, resort to reading the configuration file
             if self.apiKey is None:
-                config = self.getConfigFile(self.configPath)
-                try:
-                    config_auth_dict = dict(config.items('authentication'))
-                except configparser.NoSectionError:
-                    #authentication section not present
-                    config_auth_dict = {}
-
-                #if no username provided, grab username from config file and check cache first for API key
+                config_auth_dict = self._get_config_section_dict('authentication')#if no username provided, grab username from config file and check cache first for API key
                 if email is None:
                     config_username=config_auth_dict.get('username',None)
                     self.username, self.apiKey = self._get_login_credentials(username=config_username, apikey=cachedSessions.get(config_username, None))
@@ -392,6 +364,17 @@ class Synapse:
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
             print("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
 
+    def _get_config_section_dict(self, section_name):
+        config = self.getConfigFile(self.configPath)
+        try:
+            return dict(config.items(section_name))
+        except configparser.NoSectionError:
+            # section not present
+            return {}
+
+    def _get_client_authenticated_s3_profile(self, endpoint, bucket):
+        config_section = endpoint + "/" + bucket
+        return self._get_config_section_dict(config_section).get("profile_name", "default")
 
     def _get_login_credentials(self, username=None, password=None, apikey=None, sessiontoken=None):
         """
@@ -818,7 +801,8 @@ class Synapse:
             #file not cached and no user-specified location so default to .synapseCache
             downloadLocation = synapseCache_location
 
-        downloadPath = self._resolve_download_path(downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path)
+        #resolve file path collisions by either overwriting, renaming, or not downloading, depending on the ifcollision value
+        downloadPath = self._resolve_download_path_collisions(downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path)
         if downloadPath is None:
             return
 
@@ -841,14 +825,13 @@ class Synapse:
                                                       downloadPath)
 
             if downloadPath is None or not os.path.exists(downloadPath):
-                entity['synapseStore'] = False
                 return
 
         entity.path = downloadPath
         entity.files = [os.path.basename(downloadPath)]
         entity.cacheDir = os.path.dirname(downloadPath)
 
-    def _resolve_download_path(self, downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path):
+    def _resolve_download_path_collisions(self, downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path):
         #always overwrite if we are downloading to .synapseCache
         if utils.normalize_path(downloadLocation) == synapseCache_location:
             if ifcollision is not None:
@@ -993,15 +976,15 @@ class Synapse:
                 needs_upload = True
 
             if needs_upload:
-                fileLocation, local_state , storageLocationId= self.__uploadExternallyStoringProjects(entity, local_state)
-                local_state_file_handle = local_state['_file_handle']
-                fileHandle = self._uploadToFileHandleService(fileLocation,
-                                                             synapseStore=entity.get('synapseStore', True),
-                                                             mimetype=local_state_file_handle.get('contentType', None),
-                                                             md5=local_state_file_handle.get('contentMd5', None),
-                                                             fileSize=local_state_file_handle.get('contentSize', None),
-                                                             storageLocationId=storageLocationId
-                                                             )
+                local_state_fh = local_state.get('_file_handle', {})
+                synapseStore = local_state.get('synapseStore', True)
+                fileHandle = upload_file_handle(self,
+                                                 entity['parentId'],
+                                                 local_state['path'] if (synapseStore or local_state_fh.get('externalURL') is None) else local_state_fh.get('externalURL'),
+                                                 synapseStore=synapseStore,
+                                                 md5=local_state_fh.get('contentMd5'),
+                                                 file_size=local_state_fh.get('contentSize'),
+                                                 mimetype=local_state_fh.get('contentType'))
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 
@@ -1310,7 +1293,64 @@ class Synapse:
 
         return self.get(entity, version=version, downloadFile=True)
 
+    def uploadFileHandle(self, path, parent, synapseStore=True, mimetype=None, md5=None, file_size=None):
+        """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
+        Returns a new FileHandle as a dict to represent the stored file.
 
+        :param parent: parent of the entity to which we upload.
+        :param path: file path to the file being uploaded
+        :param synapseStore: If False, will not upload the file, but instead create an ExternalFileHandle that references the file on the local machine.
+                             If True, will upload the file based on StorageLocation determined by the entity_parent_id
+        :param md5: The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
+        :param file_size: The size the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
+        :param file_size: The MIME type the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
+
+
+        :returns: a dict of a new FileHandle as a dict that represents the uploaded file
+        """
+        return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
+
+    def uploadSynapseManagedFileHandle(self, path, storageLocationId=None,mimetype=None):
+        """
+        Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
+        :param path: path to the file
+        :param storageLocationId: storageLocationId of a S3 storage location. pass in a value if you wish to use an ExternalS3StorageLocation
+        :param mimetype: MIME type of the file, if known.
+        :return: file handle dict associated with the uploaded file
+        """
+        return upload_synapse_s3(self, path, storageLocationId=storageLocationId, mimetype=mimetype)
+
+    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None, storageLocationId = None):
+        """
+        **Deprecated**
+
+
+        Create and return a fileHandle, by either uploading a local file or
+        linking to an external URL.
+
+        :param synapseStore: Indicates whether the file should be stored or just its URL.
+                             Defaults to True.
+
+        :returns: a FileHandle_
+
+        .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
+        """
+        warnings.warn("_uploadToFileHandleService() is deprecated, please use uploadFileHandle() instead", DeprecationWarning, stacklevel=2)
+        if filename is None:
+            raise ValueError('No filename given')
+        elif utils.is_url(filename):
+            if synapseStore and urlparse(filename).scheme != 'sftp':
+                raise NotImplementedError('Automatic storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
+            return self._createExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
+
+        # For local files, we default to uploading the file unless explicitly instructed otherwise
+        else:
+            if synapseStore:
+                file_handle_id = multipart_upload(self, filename, contentType=mimetype, storageLocationId=storageLocationId)
+                self.cache.add(file_handle_id,filename)
+                return self._getFileHandle(file_handle_id)
+            else:
+                return self._createExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
     ############################################################
     ##                 Get / Set Annotations                  ##
@@ -1833,7 +1873,11 @@ class Synapse:
                 fileResult = self._getFileHandleDownload(fileHandleId,
                                                         objectId, objectType)
                 fileHandle = fileResult['fileHandle']
-                downloaded_path = self._download(fileResult['preSignedURL'], destination, fileHandle['id'], fileHandle.get('contentMd5'))
+                if fileHandle['concreteType'] == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
+                    profile = self._get_client_authenticated_s3_profile(fileHandle['endpointUrl'], fileHandle['bucket'])
+                    downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'], fileHandle['fileKey'], destination, profile_name=profile)
+                else:
+                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'], destination, fileHandle['id'], expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
             except Exception as ex:
@@ -1847,7 +1891,7 @@ class Synapse:
         raise exc_info[0](exc_info[1])
 
 
-    def _download(self, url, destination, fileHandleId=None, expected_md5=None):
+    def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
         """
         Download a file from the given URL to the local file system.
 
@@ -1865,7 +1909,6 @@ class Synapse:
 
         destination = os.path.abspath(destination)
         actual_md5 = None
-
         redirect_count = 0
         while redirect_count < REDIRECT_LIMIT:
             redirect_count += 1
@@ -1874,16 +1917,13 @@ class Synapse:
                 destination = utils.file_url_to_path(url, verify_exists=True)
                 if destination is None:
                     raise IOError("Local file (%s) does not exist." % url)
-                actual_md5 = utils.md5_for_file(destination).hexdigest()
                 break
             elif scheme == 'sftp':
-                destination = self._sftpDownloadFile(url, destination)
-                actual_md5 = utils.md5_for_file(destination).hexdigest()
+                username, password = self._getUserCredentials(url)
+                destination = SFTPWrapper.download_file(url, destination, username, password)
                 break
             elif scheme == 'ftp':
-                #username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
                 urlretrieve(url, destination)
-                actual_md5 = utils.md5_for_file(destination).hexdigest()
                 break
             elif scheme == 'http' or scheme == 'https':
                 ## if a partial download exists with the temporary name,
@@ -1974,6 +2014,9 @@ class Synapse:
         else: ## didn't break out of loop
             raise SynapseHTTPError('Too many redirects')
 
+        if actual_md5 is None: # if md5 not set (should be the case for all except http download)
+            actual_md5 = utils.md5_for_file(destination).hexdigest()
+
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
             #if  urlparse(url).scheme != 'file' and os.path.exists(destination):
@@ -1983,37 +2026,7 @@ class Synapse:
         return destination
 
 
-    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None, storageLocationId = None):
-        """
-        Create and return a fileHandle, by either uploading a local file or
-        linking to an external URL.
-
-        :param synapseStore: Indicates whether the file should be stored or just its URL.
-                             Defaults to True.
-
-        :returns: a FileHandle_
-
-        .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
-        """
-
-        if filename is None:
-            raise ValueError('No filename given')
-        elif utils.is_url(filename):
-            if synapseStore and urlparse(filename).scheme != 'sftp':
-                raise NotImplementedError('Automatic storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
-            return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
-
-        # For local files, we default to uploading the file unless explicitly instructed otherwise
-        else:
-            if synapseStore:
-                file_handle_id = multipart_upload(self, filename, contentType=mimetype, storageLocationId=storageLocationId)
-                self.cache.add(file_handle_id,filename)
-                return self._getFileHandle(file_handle_id)
-            else:
-                return self._addURLtoFileHandleService(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
-
-
-    def _addURLtoFileHandleService(self, externalURL, mimetype=None, md5=None, fileSize=None):
+    def _createExternalFileHandle(self, externalURL, mimetype=None, md5=None, fileSize=None):
         """Create a new FileHandle representing an external URL."""
 
         fileName = externalURL.split('/')[-1]
@@ -2028,6 +2041,20 @@ class Synapse:
         if mimetype is not None:
             fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
+
+    def _createExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id, mimetype = None):
+        if mimetype is None:
+            mimetype, enc = mimetypes.guess_type(file_path, strict=False)
+        file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle',
+                       'fileKey': s3_file_key,
+                       'fileName': os.path.basename(file_path),
+                       'contentMd5': utils.md5_for_file(file_path).hexdigest(),
+                       'contentSize': os.stat(file_path).st_size,
+                       'storageLocationId': storage_location_id,
+                       'contentType': mimetype}
+
+        return self.restPOST('/externalFileHandle', json.dumps(file_handle), self.fileHandleEndpoint)
+
 
 
     def _getFileHandle(self, fileHandle):
@@ -2055,71 +2082,12 @@ class Synapse:
     ##                   SFTP                                 ##
     ############################################################
 
-    def _getDefaultUploadDestination(self, entity):
-        return self.restGET('/entity/%s/uploadDestination'% entity['parentId'],
-                     endpoint=self.fileHandleEndpoint)
+    def _getDefaultUploadDestination(self, parent_entity):
+        return self.restGET('/entity/%s/uploadDestination' % id_of(parent_entity),
+                            endpoint=self.fileHandleEndpoint)
 
 
-    def __uploadExternallyStoringProjects(self, entity, local_state):
-        """Determines the upload location of the file based on project settings and if it is
-        an external location performs upload and returns the new url and sets synapseStore=False.
-        It not an external storage location returns the original path.
-
-        :param entity: An entity with path.
-
-        :returns: a tuple consisting of:
-                  A URL or local file path to add to Synapse,
-                  an update local_state containing externalURL and content-type,
-                  and a storage location id indicating to where the entity should be uploaded ("None" defaults to Synapse)
-        """
-        #If it is already an external URL just return
-
-        if '_file_handle' not in local_state:
-            local_state['_file_handle'] = {}
-
-        local_state_file_handle = local_state['_file_handle']
-
-        if not local_state['synapseStore']:
-            if local_state_file_handle.get('externalURL', None):
-                return local_state_file_handle['externalURL'], local_state, None
-            elif utils.is_url(entity['path']):
-                local_state_file_handle['externalURL'] = entity['path']
-                #If the url is a local path compute the md5
-                url = urlparse(entity['path'])
-                if os.path.isfile(url.path) and url.scheme=='file':
-                    local_state_file_handle['contentMd5'] = utils.md5_for_file(url.path).hexdigest()
-                return entity['path'], local_state, None
-
-        location =  self._getDefaultUploadDestination(entity)
-        upload_destination_type = location['concreteType']
-        if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION or \
-           upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
-            storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
-            sys.stdout.write('\n' + '#'*50+'\n Uploading file to ' + storageString + ' storage \n'+'#'*50+'\n')
-            return entity['path'], local_state, location['storageLocationId']
-        elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
-            if location['uploadType'] == 'SFTP' :
-                sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' %('#'*50,
-                                                                      location.get('banner', ''),
-                                                                      urlparse(location['url']).netloc,
-                                                                      '#'*50))
-
-                #Fill out local_state with fileSize, externalURL etc...
-                uploadLocation = self._sftpUploadFile(entity['path'], unquote(location['url']))
-                local_state_file_handle['externalURL'] = uploadLocation
-                local_state_file_handle['contentSize'] = os.stat(entity['path']).st_size
-                local_state_file_handle['contentMd5'] = utils.md5_for_file(entity['path']).hexdigest()
-                if local_state_file_handle.get('contentType', None) is None:
-                    mimetype, enc = mimetypes.guess_type(entity['path'], strict=False)
-                    local_state_file_handle['contentType'] = mimetype
-                return uploadLocation, local_state, location['storageLocationId']
-            else:
-                raise NotImplementedError('Can only handle SFTP upload locations.')
-        else:
-            raise NotImplementedError("The UploadDestination type: " + upload_destination_type.split(".")[-1] + " is not supported")
-
-    #@utils.memoize  #To memoize we need to be able to back out faulty credentials
-    def __getUserCredentials(self, baseURL, username=None, password=None):
+    def _getUserCredentials(self, url, username=None, password=None):
         """Get user credentials for a specified URL by either looking in the configFile
         or querying the user.
 
@@ -2130,6 +2098,10 @@ class Synapse:
         :returns: tuple of username, password
         """
         #Get authentication information from configFile
+
+        parsedURL = urlparse(url)
+        baseURL = parsedURL.scheme+'://'+parsedURL.hostname
+
         config = self.getConfigFile(self.configPath)
         if username is None and config.has_option(baseURL, 'username'):
             username = config.get(baseURL, 'username')
@@ -2148,76 +2120,60 @@ class Synapse:
         return username, password
 
 
-    def _sftpUploadFile(self, filepath, url, username=None, password=None):
+    ############################################
+    ## Project/Folder storage location settings
+    ############################################
+
+    def createStorageLocationSetting(self, storage_type, **kwargs):
         """
-        Performs upload of a local file to an sftp server.
+        Creates a stroage location based on the specified type.
 
-        :param filepath: The file to be uploaded
+        For each type, the following fields should be specified:
 
-        :param url: URL where file will be deposited. Should include path and protocol. e.g.
-                    sftp://sftp.example.com/path/to/file/store
+        ExternalObjectStorageLocationSetting: endpointUrl, bucket
+        ExternalS3StorageLocationSetting: bucket
+        ExternalStorageLocationSetting: url, supportsSubfolders(optional)
+        ProxyStorageLocationSettings: secretKey, proxyUrl
 
-        :param username: username on sftp server
+        Optionsl for all types: banner, description
 
-        :param password: password for authentication on the sftp server
+        For descriptions of each field's meaning, please check:
+        rest.synapse.org/org/sagebionetworks/repo/model/project/StorageLocationSetting.html
 
-        :returns: A URL where file is stored
+        :param storage_type: the type of the StorageLocationSetting to create
+        :param kwargs: fields necessary for creation of the specified storage_type
+        :return: a dict of the created StorageLocationSetting
         """
-        _test_import_sftp()
-        import pysftp
+        upload_type_dict = {"ExternalObjectStorageLocationSetting": "S3",
+                            "ExternalS3StorageLocationSetting": "S3",
+                            "ExternalStorageLocationSetting": "SFTP",
+                            "ProxyStorageLocationSettings":"PROXYLOCAL"}
 
-        parsedURL = urlparse(url)
-        if parsedURL.scheme!='sftp':
-            raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
-                                      " form sftp://..."))
-        username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
-        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.makedirs(parsedURL.path)
-            with sftp.cd(parsedURL.path):
-                sftp.put(filepath, preserve_mtime=True, callback=utils.printTransferProgress)
+        if storage_type not in upload_type_dict:
+            raise ValueError("Unknown storage_type: %s", storage_type)
 
-        path = quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
-        parsedURL = parsedURL._replace(path=path)
-        return urlunparse(parsedURL)
+        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type
+        kwargs['uploadType'] = upload_type_dict[storage_type]
 
 
-    def _sftpDownloadFile(self, url, localFilepath=None,  username=None, password=None):
+        return self.restPOST('/storageLocation', body=json.dumps(kwargs))
+
+    def setStorageLocationSetting(self, project_or_folder, storage_location_id):
         """
-        Performs download of a file from an sftp server.
-
-        :param url: URL where file will be deposited.  Path will be chopped out.
-        :param localFilepath: location where to store file
-        :param username: username on server
-        :param password: password for authentication on  server
-
-        :returns: localFilePath
-
+        Sets the storage location for a Project or Folder
+        :param project_or_folder: a Project or Folder to which the StorageLocationSetting is set
+        :param storage_location_id: a StorageLocation id or a list of them. pass in None for the default synapse storage
+        :return:
         """
-        _test_import_sftp()
-        import pysftp
+        if storage_location_id is None:
+            storage_location_id = DEFAULT_STORAGE_LOCATION_ID
+        project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+                               'settingsType': 'upload',
+                                'locations': storage_location_id if isinstance(storage_location_id, list) else [storage_location_id],
+                                'projectId': id_of(project_or_folder)
+                               }
 
-        parsedURL = urlparse(url)
-        log_error('sftpDownload: %s\n'% (url), self.debug)
-        if parsedURL.scheme!='sftp':
-            raise(NotImplementedError("sftpUpload only supports uploads to URLs of type sftp of the "
-                                      " form sftp://..."))
-        #Create the local file path if it doesn't exist
-        username, password = self.__getUserCredentials(parsedURL.scheme+'://'+parsedURL.hostname, username, password)
-        path = unquote(parsedURL.path)
-        if localFilepath is None:
-            localFilepath = os.getcwd()
-        if os.path.isdir(localFilepath):
-            localFilepath = os.path.join(localFilepath, path.split('/')[-1])
-        #Check and create the directory
-        dir = os.path.dirname(localFilepath)
-        if not os.path.exists(dir):
-            os.makedirs(dir)
-
-        #Download file
-        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.get(path, localFilepath, preserve_mtime=True, callback=utils.printTransferProgress)
-        return localFilepath
-
+        return self.restPOST('/projectSettings', body=json.dumps(project_destination))
 
     ############################################################
     ##                  CRUD for Evaluations                  ##
@@ -2689,7 +2645,7 @@ class Synapse:
         # Convert all attachments into file handles
         if 'attachments' in wiki:
             for attachment in wiki['attachments']:
-                fileHandle = self._uploadToFileHandleService(attachment)
+                fileHandle = self.uploadSynapseManagedFileHandle(attachment)
                 wiki['attachmentFileHandleIds'].append(fileHandle['id'])
             del wiki['attachments']
 
@@ -3188,7 +3144,6 @@ class Synapse:
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
                             permanent_failures[summary['fileHandleId']] = summary
-
             finally:
                 if os.path.exists(zipfilepath):
                     os.remove(zipfilepath)
