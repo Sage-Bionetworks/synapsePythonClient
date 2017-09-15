@@ -129,17 +129,24 @@ def test_create_and_update_file_view():
 
 def test_entity_view_add_annotation_columns():
     proj1 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', annotations={'strAnno':'str1', 'intAnno':1, 'floatAnno':1.1}))
-    proj2 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', annotations={'strAnno':'str2', 'intAnno':2, 'dateAnno':datetime.now()}))
+    proj2 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', annotations={'dateAnno':datetime.now(), 'strAnno':'str2', 'intAnno':2}))
     schedule_for_cleanup(proj1)
     schedule_for_cleanup(proj2)
     scopeIds = [utils.id_of(proj1), utils.id_of(proj2)]
 
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False, addAnnotationColumns=True, type='project', parent=project)
     assert_true(entity_view['addAnnotationColumns'])
+
+    #For some reason this call is eventually consistent but not immediately consistent. so we just wait till the size returned is correct
+    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE', 'concreteType':'STRING'}
+    columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
+    while len(columns) != len(expected_column_types):
+        columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
+        time.sleep(2)
+
     entity_view = syn.store(entity_view)
     assert_false(entity_view['addAnnotationColumns'])
 
-    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE', 'concreteType':'STRING'}
     view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
     assert_dict_equal(expected_column_types, view_column_types)
 
