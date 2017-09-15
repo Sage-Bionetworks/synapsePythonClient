@@ -178,6 +178,9 @@ def test_check_entity_restrictions():
     proj = other_syn.store(Project(name=str(uuid.uuid4())+'test_check_entity_restrictions'))
     a_file = other_syn.store(File('~/idk', parent=proj, description='A place to put my junk', foo=1000, synapseStore=False), isRestricted=True)
 
+    #no download permissions
+    other_syn.setPermissions(proj, syn.username, accessType=['READ'])
+
     #attempt to get file
     assert_raises(SynapseUnmetAccessRestrictions, syn.get, a_file.id, downloadFile=True)
 
