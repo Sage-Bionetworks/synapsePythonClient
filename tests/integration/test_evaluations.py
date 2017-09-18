@@ -11,10 +11,6 @@ import uuid, random, base64
 from datetime import datetime
 from nose.tools import assert_raises
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
 import synapseclient.client as client
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
@@ -34,6 +30,7 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
+    module.other_user = integration.other_user
 
 
 def test_evaluations():
@@ -95,12 +92,7 @@ def test_evaluations():
 
         # -- Get a Submission attachment belonging to another user (SYNR-541) --
         # See if the configuration contains test authentication
-        try:
-            config = configparser.ConfigParser()
-            config.read(client.CONFIG_FILE)
-            other_user = {}
-            other_user['username'] = config.get('test-authentication', 'username')
-            other_user['password'] = config.get('test-authentication', 'password')
+        if other_user['username']:
             print("Testing SYNR-541")
 
             # Login as the test user
@@ -137,9 +129,7 @@ def test_evaluations():
 
             # make sure the fetched file is the same as the original (PLFM-2666)
             assert filecmp.cmp(filename, fetched['filePath'])
-
-
-        except configparser.Error:
+        else:
             print('Skipping test for SYNR-541: No [test-authentication] in %s' % client.CONFIG_FILE)
 
         # Increase this to fully test paging by getEvaluationSubmissions
