@@ -953,7 +953,6 @@ class RowSetTable(TableAbstractBaseClass):
         return iterate_rows(self.rowset['rows'], self.rowset['headers'])
 
     def __len__(self):
-        #TODO:z Test
         return len(self.rowset['rows'])
 
 class TableQueryResult(TableAbstractBaseClass):
@@ -1078,8 +1077,7 @@ class TableQueryResult(TableAbstractBaseClass):
         return self.next()
 
     def __len__(self):
-        #TODO:z test
-        return(self.rowset['rows'])
+        return len(self.rowset['rows'])
 
 
 class CsvFileTable(TableAbstractBaseClass):
