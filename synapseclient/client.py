@@ -1321,7 +1321,7 @@ class Synapse:
         """
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
 
-    def uploadSynapseManagedFileHandle(self, path, storageLocationId=None,mimetype=None):
+    def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
         """
         Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
         :param path: path to the file
@@ -3137,7 +3137,6 @@ class Synapse:
             temp_dir = tempfile.mkdtemp()
             zip_file_obj = None
             try:
-# <<<<<<< HEAD
                 designated_zip_filepath = os.path.join(temp_dir,"table_file_download.zip")
 
                 zip_file_handle_id = response.get('resultZipFileHandleId')
@@ -3154,69 +3153,10 @@ class Synapse:
                         file_handle_to_path_map[summary['fileHandleId']] = filepath
                     elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
                         permanent_failures[summary['fileHandleId']] = summary
-
-# =======
-#                 zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId , 'TableEntity', zipfilepath)
-#                 ## TODO handle case when no zip file is returned
-#                 ## TODO test case when we give it partial or all bad file handles
-#                 ## TODO test case with deleted fileHandleID
-#                 ## TODO return null for permanent failures
-#
-#                 ##------------------------------------------------------------
-#                 ## unzip into cache
-#                 ##------------------------------------------------------------
-#
-#                 with zipfile.ZipFile(zipfilepath) as zf:
-#                     ## the directory structure within the zip follows that of the cache:
-#                     ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
-#                     for summary in response['fileSummary']:
-#                         if summary['status'] == 'SUCCESS':
-#                             cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-#                             filepath = _extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
-#                             self.cache.add(summary['fileHandleId'], filepath)
-#                             file_handle_to_path_map[summary['fileHandleId']] = filepath
-#                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
-#                             permanent_failures[summary['fileHandleId']] = summary
-# >>>>>>> upstream/develop
             finally:
                 if zip_file_obj is not None:
                     zip_file_obj.close()
                 shutil.rmtree(temp_dir)
-
-
-
-
-
-
-
-            # temp_dir = tempfile.mkdtemp()
-            # zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
-            # try:
-            #     zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId , 'TableEntity', zipfilepath)
-            #     ## TODO handle case when no zip file is returned
-            #     ## TODO test case when we give it partial or all bad file handles
-            #     ## TODO test case with deleted fileHandleID
-            #     ## TODO return null for permanent failures
-            #
-            #     ##------------------------------------------------------------
-            #     ## unzip into cache
-            #     ##------------------------------------------------------------
-            #
-            #     with zipfile.ZipFile(zipfilepath) as zip_file_obj:
-            #         ## the directory structure within the zip follows that of the cache:
-            #         ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
-            #         for summary in response['fileSummary']:
-            #             if summary['status'] == 'SUCCESS':
-            #                 cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-            #                 filepath = _extract_zip_file_to_directory(zip_file_obj, summary['zipEntryName'], cache_dir)
-            #                 self.cache.add(summary['fileHandleId'], filepath)
-            #                 file_handle_to_path_map[summary['fileHandleId']] = filepath
-            #             elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
-            #                 permanent_failures[summary['fileHandleId']] = summary
-            #
-            # finally:
-            #     if os.path.exists(zipfilepath):
-            #         os.remove(zipfilepath)
 
             ## Do we have remaining files to download?
             file_handle_associations = [

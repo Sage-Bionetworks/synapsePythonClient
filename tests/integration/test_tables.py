@@ -18,7 +18,7 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_in
 from datetime import datetime
 from mock import patch
 
@@ -26,6 +26,7 @@ import synapseclient
 from synapseclient.exceptions import *
 from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
+from synapseclient.utils import id_of
 
 import integration
 from integration import schedule_for_cleanup
@@ -501,6 +502,7 @@ def test_download_table_files():
 
 
 def test_downloadTableColumns__mixed_S3_and_non_S3_file_handles():
+    #TODO: refactor common code
     cols = [
         Column(name='notfiles', columnType='STRING'),
         Column(name='files', columnType='FILEHANDLEID')]
@@ -511,17 +513,48 @@ def test_downloadTableColumns__mixed_S3_and_non_S3_file_handles():
             ["@@@@@@@@@@@@@@@@@", "You expected a filename, but it was me, Dio!"]]
 
     #TODO: finish test when SYNPY-419 pulled in
-    data_column_idx = 1
+    file_column_idx = 1
     original_files = []
-    _replace_column_with_generated_random_file(data[0], original_files, column_idx=1, file_upload_function=syn._uploadToFileHandleService)
-    _replace_column_with_generated_random_file(data[0], original_files, column_idx=1,file_upload_function=syn._uploadToFileHandleService)
+    synapse_S3_file_handle_id, file_path_synapse_s3 = _replace_column_with_generated_random_file(data[0], original_files, column_idx=file_column_idx, file_upload_function=syn.uploadSynapseManagedFileHandle)
+    _replace_column_with_generated_random_file(data[1], original_files, column_idx=file_column_idx, file_upload_function=syn._createExternalFileHandle)
 
 
-    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+    row_table = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
+
+
+    table_query_result = syn.tableQuery("SELECT * FROM %s" % id_of(row_table))
+    file_map = syn.downloadTableColumns(table_query_result, ['files'])
+
+    assert_equals(1, len(file_map))
+    assert_in(synapse_S3_file_handle_id, file_map)
+    assert filecmp.cmp(file_path_synapse_s3, file_map[synapse_S3_file_handle_id])
 
 
 def test_downloadTableColumns__no_s3_file_handles():
-    pass
+    #TODO: refactor common code
+    cols = [
+        Column(name='notfiles', columnType='STRING'),
+        Column(name='files', columnType='FILEHANDLEID')]
+    schema = syn.store(Schema(name='ravioli ravioli give me the formuoli', columns=cols, parent=project))
+    schedule_for_cleanup(schema)
+
+    data = [["tfw the text doesnt matter", "and neither does the file name"]]
+
+    #TODO: finish test when SYNPY-419 pulled in
+    file_column_idx = 1
+    original_files = []
+    _replace_column_with_generated_random_file(data[0], original_files, column_idx=file_column_idx, file_upload_function=syn._createExternalFileHandle)
+
+
+    row_table = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
+
+
+    table_query_result = syn.tableQuery("SELECT * FROM %s" % id_of(row_table))
+    file_map = syn.downloadTableColumns(table_query_result, ['files'])
+
+    assert_equals(0, len(file_map))
+
+#TODO: downloadLocation tests
 
 def _replace_column_with_generated_random_file(row, original_files, column_idx, file_upload_function):
     path = utils.make_bogus_data_file()
@@ -529,6 +562,7 @@ def _replace_column_with_generated_random_file(row, original_files, column_idx, 
     schedule_for_cleanup(path)
     file_handle = file_upload_function(path)
     row[column_idx] = file_handle['id']
+    return file_handle['id'], path
 
 def dontruntest_big_tables():
     cols = []
