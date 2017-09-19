@@ -462,7 +462,7 @@ def test_download_table_files():
         path = utils.make_bogus_data_file()
         original_files.append(path)
         schedule_for_cleanup(path)
-        file_handle = syn._uploadToFileHandleService(path)
+        file_handle = syn.uploadFileHandle(path, project)
         row[4] = file_handle['id']
 
     row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))

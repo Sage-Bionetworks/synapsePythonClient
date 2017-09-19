@@ -10,7 +10,7 @@ import synapseclient
 from synapseclient import Evaluation, File, concrete_types, Folder
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
-
+import synapseclient.upload_functions as upload_functions
 
 def setup(module):
     print('\n')
@@ -246,19 +246,25 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
     expected_storage_location_id = "1234567"
     expected_local_state = {'_file_handle':{}, 'synapseStore':True}
     expected_path = "~/fake/path/file.txt"
+    expected_path_expanded = os.path.expanduser(expected_path)
+    expected_file_handle_id = "8786"
     mock_upload_destination.return_value = {'storageLocationId' : expected_storage_location_id,
                                             'concreteType' : concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
 
     test_file = File(expected_path, parent="syn12345")
 
-    # method under test
-    path, local_state,  storage_location_id = syn._Synapse__uploadExternallyStoringProjects(test_file, local_state={'_file_handle':{}, 'synapseStore':True}) #dotn care about filehandle for this test
 
-    #test
-    mock_upload_destination.assert_called_once_with(test_file)
-    assert_equal(expected_path, path)
-    assert_equal(expected_local_state, local_state)
-    assert_equal(expected_storage_location_id, storage_location_id)
+    # method under test
+    with patch.object(synapseclient.upload_functions, "multipart_upload", return_value=expected_file_handle_id) as mocked_multipart_upload, \
+         patch.object(syn.cache, "add") as mocked_cache_add,\
+         patch.object(syn, "_getFileHandle") as mocked_getFileHandle:
+        file_handle = upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path']) #dotn care about filehandle for this test
+
+        mock_upload_destination.assert_called_once_with(test_file['parentId'])
+        mocked_multipart_upload.assert_called_once_with(syn, expected_path_expanded, contentType=None, storageLocationId=expected_storage_location_id)
+        mocked_cache_add.assert_called_once_with(expected_file_handle_id,expected_path_expanded)
+        mocked_getFileHandle.assert_called_once_with(expected_file_handle_id)
+        #test
 
 def test_login__only_username_config_file_username_mismatch():
     if (sys.version < '3'):
@@ -299,7 +305,7 @@ def test_findEntityIdByNameAndParent__None_parent():
     expected_id = "syn1234"
     return_val = {'id' : expected_id}
     with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
-        entity_id = syn._findEntityIdByNameAndParent(entity_name)
+        entity_id = syn.findEntityId(entity_name)
         mocked_POST.assert_called_once_with(expected_uri,body=expected_body )
         assert_equal(expected_id, entity_id)
 
@@ -312,7 +318,7 @@ def test_findEntityIdByNameAndParent__with_parent():
     expected_id = "syn1234"
     return_val = {'id' : expected_id}
     with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
-        entity_id = syn._findEntityIdByNameAndParent(entity_name, parent_entity)
+        entity_id = syn.findEntityId(entity_name, parent_entity)
         mocked_POST.assert_called_once_with(expected_uri,body=expected_body )
         assert_equal(expected_id, entity_id)
 
@@ -323,7 +329,7 @@ def test_findEntityIdByNameAndParent__404_error_no_result():
     expected_body = json.dumps({"parentId": None, "entityName": entity_name})
     fake_response = DictObject({"status_code": 404})
     with patch.object(syn, "restPOST", side_effect=SynapseHTTPError(response=fake_response)) as mocked_POST:
-        assert_is_none(syn._findEntityIdByNameAndParent(entity_name))
+        assert_is_none(syn.findEntityId(entity_name))
 
 
 def test_getChildren__nextPageToken():
@@ -362,3 +368,28 @@ def test_getChildren__nextPageToken():
         expected_POST_url = '/entity/children'
         mocked_POST.assert_has_calls([call(expected_POST_url, body=expected_request_JSON(None)), call(expected_POST_url, body=expected_request_JSON(nextPageToken))])
 
+def test_check_entity_restrictions__no_unmet_restriction():
+    with patch("warnings.warn") as mocked_warn:
+        restriction_requirements = {'hasUnmetAccessRequirement': False}
+
+        syn._check_entity_restrictions(restriction_requirements, "syn123", True)
+
+        mocked_warn.assert_not_called()
+
+
+def test_check_entity_restrictions__unmet_restriction_downloadFile_is_True():
+    with patch("warnings.warn") as mocked_warn:
+        restriction_requirements = {'hasUnmetAccessRequirement': True}
+
+        assert_raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, restriction_requirements, "syn123", True)
+
+        mocked_warn.assert_not_called()
+
+
+def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False():
+    with patch("warnings.warn") as mocked_warn:
+        restriction_requirements = {'hasUnmetAccessRequirement': True}
+
+        syn._check_entity_restrictions(restriction_requirements, "syn123", False)
+
+        mocked_warn.assert_called_once()
