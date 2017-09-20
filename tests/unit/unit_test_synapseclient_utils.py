@@ -12,7 +12,6 @@ import os, re, sys, inspect
 
 import synapseclient.utils as utils
 from synapseclient.activity import Activity
-from synapseclient.utils import _find_used
 from synapseclient.exceptions import _raise_for_status, SynapseMalformedEntityError, SynapseHTTPError
 from synapseclient.dict_object import DictObject
 
