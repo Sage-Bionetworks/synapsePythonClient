@@ -3066,7 +3066,7 @@ class Synapse:
             return path
 
 
-    def downloadTableColumns(self, table, columns, downloadLocation = None, preserveHeirarchy=False, **kwargs):
+    def downloadTableColumns(self, table, columns, downloadLocation = None, ignoreHeirarchy=False, **kwargs):
         """
         Bulk download of table-associated files.
 
@@ -3074,9 +3074,9 @@ class Synapse:
         :param columns:           a list of column names as strings
         :param downloadLocation: Directory in which to download the files.
                                  Defaults to the local cache.
-        :param preserveHeirarchy: Only has an effect if downloadLocation is also specified. Defaults to False
-                                If True, will preserve the folder heirarchy used in the Synapse cache(i.e. {downloadLocation}/{filehandleid modulo 100}/{filehandleid}/filename)
-                                If False, will palace the file directly into the specified downloadLocation
+        :param ignoreHeirarchy: Only has an effect if downloadLocation is also specified. Defaults to False
+                                If False, will preserve the folder heirarchy used in the Synapse cache(i.e. {downloadLocation}/{filehandleid modulo 100}/{filehandleid}/filename)
+                                If True, will palace the file directly into the specified downloadLocation
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
@@ -3145,10 +3145,11 @@ class Synapse:
 
                 for summary in response['fileSummary']:
                     if summary['status'] == 'SUCCESS':
-                        if downloadLocation is None:
-                            downloadLocation = self.cache.get_cache_dir(summary['fileHandleId'])
-                            preserveHeirarchy = False
-                        filepath = _extract_zip_file_to_directory(zip_file_obj, summary['zipEntryName'], downloadLocation, preserveHeirarchy)
+                        extract_path = downloadLocation
+                        if extract_path is None:
+                            extract_path = self.cache.get_cache_dir(summary['fileHandleId'])
+                            ignoreHeirarchy = True
+                        filepath = _extract_zip_file_to_directory(zip_file_obj, summary['zipEntryName'], extract_path, ignoreHeirarchy)
                         self.cache.add(summary['fileHandleId'], filepath)
                         file_handle_to_path_map[summary['fileHandleId']] = filepath
                     elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
