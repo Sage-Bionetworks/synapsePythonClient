@@ -562,8 +562,8 @@ def test_downloadTableColumns__downloadLocation():
 
     syn.cache.purge(time.time())
 
-    expected_download_location = None #tempfile.mkdtemp()
-    #schedule_for_cleanup(expected_download_location)
+    expected_download_location = tempfile.mkdtemp()
+    schedule_for_cleanup(expected_download_location)
 
     table_query_result = syn.tableQuery("SELECT * FROM %s" % table_id)
     file_map = syn.downloadTableColumns(table_query_result, ['files'], downloadLocation=expected_download_location)

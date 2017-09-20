@@ -3066,7 +3066,7 @@ class Synapse:
             return path
 
 
-    def downloadTableColumns(self, table, columns, downloadLocation = None, ignoreHeirarchy=False, **kwargs):
+    def downloadTableColumns(self, table, columns, downloadLocation = None, ignoreHeirarchy=True, **kwargs):
         """
         Bulk download of table-associated files.
 
@@ -3148,7 +3148,7 @@ class Synapse:
                         extract_path = downloadLocation
                         if extract_path is None:
                             extract_path = self.cache.get_cache_dir(summary['fileHandleId'])
-                            ignoreHeirarchy = True
+                            ignoreHeirarchy = False
                         filepath = _extract_zip_file_to_directory(zip_file_obj, summary['zipEntryName'], extract_path, ignoreHeirarchy)
                         self.cache.add(summary['fileHandleId'], filepath)
                         file_handle_to_path_map[summary['fileHandleId']] = filepath
