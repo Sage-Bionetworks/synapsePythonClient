@@ -12,6 +12,7 @@ import os, re, sys, inspect
 
 import synapseclient.utils as utils
 from synapseclient.activity import Activity
+from synapseclient.utils import _find_used
 from synapseclient.exceptions import _raise_for_status, SynapseMalformedEntityError, SynapseHTTPError
 from synapseclient.dict_object import DictObject
 
@@ -451,7 +452,7 @@ def _helper_test_extract_zip_file_to_directory(zip_entry_name, target_dir, expec
         assert_equal(expected_path, final_path)
 
         mocked_path_exists.assert_called_once()
-        mocked_open.assert_called_once_with(expected_path, 'wb+')
+        mocked_open.assert_called_once_with(expected_path, 'wb')
         mocked_open().write.assert_called_once_with(fake_data)
 
 def test_extract_zip_file_to_directory__preserve_heirarchy_is_True():

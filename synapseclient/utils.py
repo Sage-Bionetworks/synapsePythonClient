@@ -816,7 +816,7 @@ def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir, ignore_
         os.makedirs(file_path_dir)
 
     # write the file from the zip into the cache
-    with open(filepath, 'wb+') as cache_file:
+    with open(filepath, 'wb') as cache_file:
         cache_file.write(zip_file.read(zip_entry_name))
 
     return filepath
