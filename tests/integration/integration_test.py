@@ -13,7 +13,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_is_not_none, raises
+from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_false
 from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch, call
 
@@ -70,7 +70,7 @@ def test_login():
             # It should REST PUT the token and fail
             # Then keep going and, due to mocking, fail to read any credentials
             assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
-            assert config_items_mock.called
+            assert_false(config_items_mock.called)
             
             # Login with no credentials 
             assert_raises(SynapseAuthenticationError, syn.login)
@@ -108,6 +108,12 @@ def test_login():
     finally:
         # Login with config file
         syn.login(rememberMe=True, silent=True)
+
+def test_login__bad_credentials():
+    # nonexistant username and password
+    assert_raises(SynapseAuthenticationError, synapseclient.login, email=str(uuid.uuid4()), password="In the end, it doens't even matter")
+    # existing username and bad password
+    assert_raises(SynapseAuthenticationError, synapseclient.login, email=syn.username, password=str(uuid.uuid4()))
 
 
 def testCustomConfigFile():

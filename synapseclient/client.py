@@ -316,10 +316,7 @@ class Synapse:
         # Make sure to invalidate the existing session
         self.logout()
 
-        try:
-            self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
-        except SynapseAuthenticationError:
-            pass
+        self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
 
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
@@ -411,7 +408,7 @@ class Synapse:
                 session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.default_headers)
                 return session['sessionToken']
             except SynapseHTTPError as err:
-                if err.response.status_code == 403 or err.response.status_code == 404:
+                if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
                     raise SynapseAuthenticationError("Invalid username or password.")
                 raise
 
@@ -429,7 +426,7 @@ class Synapse:
                     raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
                 raise
         else:
-            raise SynapseAuthenticationError("No credentials provided.")
+            raise SynapseNoCredentialsError("No credentials provided.")
 
     def _getAPIKey(self, sessionToken):
         """Uses a session token to fetch an API key."""
