@@ -89,6 +89,7 @@ from .retry import _with_retry
 from .multipart_upload import multipart_upload, multipart_upload_string
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from .upload_functions import upload_file_handle, upload_synapse_s3
+from .doze import doze
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -2712,7 +2713,7 @@ class Synapse:
                     start_time = time.time()
                     lastMessage, lastProgress, lastTotal = message, progress, total
                 sleep = min(self.table_query_max_sleep, sleep * self.table_query_backoff)
-                time.sleep(sleep)
+                doze(sleep)
             else:
                 break
         else:
