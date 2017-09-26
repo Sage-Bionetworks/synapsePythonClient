@@ -3,26 +3,24 @@ Created on Sep 21, 2017
 
 @author: bhoff
 
-sleep while checking registered listeners
+sleep while checking registered _listeners
 '''
 import time
 
-listeners=[]
+_listeners=[]
 
 def add_listener(listener):
-    global listeners
-    listeners.append(listener)
+    _listeners.append(listener)
     
 def clear_listeners():
-    global listeners
-    listeners=[]
-    
+    del _listeners[:]
     
 def doze(secs, listener_check_interval_secs=0.1):
-    global listeners
     end_time = time.time()+secs
     while time.time()<end_time:
-        for listener in listeners:
+        for listener in _listeners:
+            if not callable(listener):
+                raise ValueError("listener is not callable")
             listener()
         time.sleep(listener_check_interval_secs)
         

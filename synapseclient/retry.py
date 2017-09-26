@@ -9,7 +9,7 @@ import sys
 import time
 
 from synapseclient.utils import _is_json, log_error
-from .doze import doze
+from synapseclient.dozer import doze
 
 def _with_retry(function, verbose=False,
                 retry_status_codes=[429, 500, 502, 503, 504], retry_errors=[], retry_exceptions=[],

@@ -13,7 +13,7 @@ import sys
 import time
 from datetime import timedelta
 from synapseclient.exceptions import *
-from .doze import doze
+from synapseclient.dozer import doze
 
 LOCK_DEFAULT_MAX_AGE = timedelta(seconds=10)
 DEFAULT_BLOCKING_TIMEOUT = timedelta(seconds=70)
