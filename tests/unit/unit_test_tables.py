@@ -181,6 +181,22 @@ def test_as_table_columns():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns.\n\n')
 
+def test_dict_to_table():
+    try:
+        import pandas as pd
+
+        d = dict(a=[1,2,3], b=["c", "d", "e"])
+        df = pd.DataFrame(d)
+        schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
+
+        with patch.object(CsvFileTable, "from_data_frame") as mocked_from_data_frame:
+            Table(schema, d)
+
+        assert (str(df) in str(mocked_from_data_frame.call_args_list)) is True
+
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping test_pandas_to_table.\n\n')
+
 
 def test_pandas_to_table():
     try:

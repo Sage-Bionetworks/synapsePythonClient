@@ -813,6 +813,7 @@ def Table(schema, values, **kwargs):
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+      - a dict where each key is a column
 
     Usually, the immediate next step after creating a Table object is to store it::
 
@@ -847,6 +848,10 @@ def Table(schema, values, **kwargs):
     ## pandas DataFrame
     elif pandas_available and isinstance(values, pd.DataFrame):
         return CsvFileTable.from_data_frame(schema, values, **kwargs)
+
+    ## dict
+    elif pandas_available and isinstance(values, dict):
+        return CsvFileTable.from_data_frame(schema, pd.DataFrame(values), **kwargs)
 
     else:
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))
