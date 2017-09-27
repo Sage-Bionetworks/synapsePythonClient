@@ -71,8 +71,12 @@ def test_chunks():
 def test_upload_chunk__expired_url():
     upload_parts = [{'uploadPresignedUrl': 'https://www.fake.url/fake/news',
                      'partNumber': 420},
-                    {'uploadPresignedUrl': 'https://www.faaaaaaake.url/fake/news',
-                     'partNumber': 421}
+                    {'uploadPresignedUrl': 'https://www.google.com',
+                     'partNumber': 421},
+                    {'uploadPresignedUrl': 'https://rito.pls/',
+                     'partNumber': 422},
+                    {'uploadPresignedUrl': 'https://never.lucky.gg',
+                     'partNumber': 423}
                     ]
 
     value_doesnt_matter = None
@@ -87,7 +91,7 @@ def test_upload_chunk__expired_url():
                                                   fileSize=value_doesnt_matter, partSize=value_doesnt_matter, t0=value_doesnt_matter,
                                                   expired=expired, bytes_already_uploaded=value_doesnt_matter)
         # 2 threads both with urls that have expired
-        mp = Pool(2)
+        mp = Pool(4)
         mp.map(chunk_upload, upload_parts)
         assert_true(expired.value)
 
@@ -95,4 +99,4 @@ def test_upload_chunk__expired_url():
         mocked_warn.assert_called_once_with("The presigned upload URL has expired. Restarting upload...\n")
 
         # assert _put_chunk was called at least once
-        assert_greater_equal(len(mocked_put_chunk.call_args), 1)
+        assert_greater_equal(len(mocked_put_chunk.call_args_list), 1)
