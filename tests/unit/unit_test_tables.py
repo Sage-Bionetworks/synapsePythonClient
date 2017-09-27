@@ -192,7 +192,11 @@ def test_dict_to_table():
         with patch.object(CsvFileTable, "from_data_frame") as mocked_from_data_frame:
             Table(schema, d)
 
-        assert (str(df) in str(mocked_from_data_frame.call_args_list)) is True
+        # call_agrs is a tuple with values and name
+        agrs_list = mocked_from_data_frame.call_args[0]
+        # getting the second argument
+        df_agr = agrs_list[1]
+        assert df_agr.equals(df)
 
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test_pandas_to_table.\n\n')
