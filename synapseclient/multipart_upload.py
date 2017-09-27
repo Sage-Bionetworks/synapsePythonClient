@@ -288,7 +288,7 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
         if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403:
             with expired.get_lock():
                 if not expired.value:
-                    sys.stderr.write("The presigned upload URL has expired. Restarting upload...\n")
+                    warnings.warn("The presigned upload URL has expired. Restarting upload...\n")
                     expired.value = True
             return
         #If we are not in verbose debug mode we will swallow the error and retry.
