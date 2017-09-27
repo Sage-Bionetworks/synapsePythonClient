@@ -813,7 +813,7 @@ def Table(schema, values, **kwargs):
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
-      - a dict where each key is a column
+      - a dict which will be wrapped by a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
 
     Usually, the immediate next step after creating a Table object is to store it::
 
