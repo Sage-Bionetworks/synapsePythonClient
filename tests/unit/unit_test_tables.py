@@ -181,64 +181,81 @@ def test_as_table_columns():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns.\n\n')
 
-
-def test_pandas_to_table():
+def _try_import_pandas(test):
     try:
         import pandas as pd
+        return pd
+    except ImportError:
+        raise SkipTest('Pandas is not installed, skipping '+test+'.\n\n')
 
-        df = pd.DataFrame(dict(a=[1,2,3], b=["c", "d", "e"]))
-        schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
-        print("\n", df, "\n\n")
+def test_dict_to_table():
+    pd = _try_import_pandas('test_dict_to_table')
 
-        ## A dataframe with no row id and version
-        table = Table(schema, df)
+    d = dict(a=[1,2,3], b=["c", "d", "e"])
+    df = pd.DataFrame(d)
+    schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
 
-        for i, row in enumerate(table):
-            print(row)
-            assert row[0]==(i+1)
-            assert row[1]==["c", "d", "e"][i]
+    with patch.object(CsvFileTable, "from_data_frame") as mocked_from_data_frame:
+        Table(schema, d)
 
-        assert len(table)==3
+    # call_agrs is a tuple with values and name
+    agrs_list = mocked_from_data_frame.call_args[0]
+    # getting the second argument
+    df_agr = agrs_list[1]
+    assert df_agr.equals(df)
 
-        ## If includeRowIdAndRowVersion=True, include empty row id an versions
-        ## ROW_ID,ROW_VERSION,a,b
-        ## ,,1,c
-        ## ,,2,d
-        ## ,,3,e
-        table = Table(schema, df, includeRowIdAndRowVersion=True)
-        for i, row in enumerate(table):
-            print(row)
-            assert row[0] is None
-            assert row[1] is None
-            assert row[2]==(i+1)
+def test_pandas_to_table():
+    pd = _try_import_pandas('test_pandas_to_table')
 
-        ## A dataframe with no row id and version
-        df = pd.DataFrame(index=["1_7","2_7","3_8"], data=dict(a=[100,200,300], b=["c", "d", "e"]))
-        print("\n", df, "\n\n")
+    df = pd.DataFrame(dict(a=[1,2,3], b=["c", "d", "e"]))
+    schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
+    print("\n", df, "\n\n")
 
-        table = Table(schema, df)
-        for i, row in enumerate(table):
-            print(row)
-            assert row[0]==["1","2","3"][i]
-            assert row[1]==["7","7","8"][i]
-            assert row[2]==(i+1)*100
-            assert row[3]==["c", "d", "e"][i]
+    ## A dataframe with no row id and version
+    table = Table(schema, df)
 
-        ## A dataframe with row id and version in columns
-        df = pd.DataFrame(dict(ROW_ID=["0","1","2"], ROW_VERSION=["8","9","9"], a=[100,200,300], b=["c", "d", "e"]))
-        print("\n", df, "\n\n")
+    for i, row in enumerate(table):
+        print(row)
+        assert row[0]==(i+1)
+        assert row[1]==["c", "d", "e"][i]
 
-        table = Table(schema, df)
-        for i, row in enumerate(table):
-            print(row)
-            assert row[0]==["0","1","2"][i]
-            assert row[1]==["8","9","9"][i]
-            assert row[2]==(i+1)*100
-            assert row[3]==["c", "d", "e"][i]
+    assert len(table)==3
 
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test_pandas_to_table.\n\n')
+    ## If includeRowIdAndRowVersion=True, include empty row id an versions
+    ## ROW_ID,ROW_VERSION,a,b
+    ## ,,1,c
+    ## ,,2,d
+    ## ,,3,e
+    table = Table(schema, df, includeRowIdAndRowVersion=True)
+    for i, row in enumerate(table):
+        print(row)
+        assert row[0] is None
+        assert row[1] is None
+        assert row[2]==(i+1)
 
+    ## A dataframe with no row id and version
+    df = pd.DataFrame(index=["1_7","2_7","3_8"], data=dict(a=[100,200,300], b=["c", "d", "e"]))
+    print("\n", df, "\n\n")
+
+    table = Table(schema, df)
+    for i, row in enumerate(table):
+        print(row)
+        assert row[0]==["1","2","3"][i]
+        assert row[1]==["7","7","8"][i]
+        assert row[2]==(i+1)*100
+        assert row[3]==["c", "d", "e"][i]
+
+    ## A dataframe with row id and version in columns
+    df = pd.DataFrame(dict(ROW_ID=["0","1","2"], ROW_VERSION=["8","9","9"], a=[100,200,300], b=["c", "d", "e"]))
+    print("\n", df, "\n\n")
+
+    table = Table(schema, df)
+    for i, row in enumerate(table):
+        print(row)
+        assert row[0]==["0","1","2"][i]
+        assert row[1]==["8","9","9"][i]
+        assert row[2]==(i+1)*100
+        assert row[3]==["c", "d", "e"][i]
 
 def test_csv_table():
     ## Maybe not truly a unit test, but here because it doesn't do
