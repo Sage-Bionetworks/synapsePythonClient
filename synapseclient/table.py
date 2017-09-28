@@ -302,6 +302,7 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
                      'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
+MAX_NUM_TABLE_COLUMNS = 152
 
 def test_import_pandas():
     try:
@@ -525,11 +526,12 @@ class SchemaBase(Entity, Versionable):
 
 
     def _before_synapse_store(self, syn):
+        if len(self.columns_to_store) + len(self.columnIds) > MAX_NUM_TABLE_COLUMNS:
+            raise ValueError("Too many columns. The limit is %s columns per table" % MAX_NUM_TABLE_COLUMNS)
+
         ## store any columns before storing table
         if self.columns_to_store:
-            for column in self.columns_to_store:
-                column = syn.store(column)
-                self.properties.columnIds.append(column.id)
+            self.properties.columnIds.extend(column.id for column in syn.createColumns(self.columns_to_store))
             self.__dict__['columns_to_store'] = None
 
 class Schema(SchemaBase):

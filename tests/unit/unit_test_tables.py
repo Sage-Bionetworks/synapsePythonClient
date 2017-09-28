@@ -14,6 +14,7 @@ from builtins import zip
 from mock import MagicMock
 from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false
 from nose import SkipTest
+import unit
 
 try:
     import pandas as pd
@@ -33,6 +34,7 @@ def setup(module):
     print('~' * 60)
     print(os.path.basename(__file__))
     print('~' * 60)
+    module.syn = unit.syn
 
 
 def test_cast_values():
@@ -557,3 +559,9 @@ def test_entityViewSchema__add_scope():
     entity_view.add_scope(456)
     entity_view.add_scope("789")
     assert_equals([str(x) for x in ["123","456","789"]], entity_view.scopeIds)
+
+
+def test_Schema__max_column_check():
+    table = Schema(name="someName", parent="idk")
+    table.addColumns(Column(name="colNum%s"%i, columnType="STRING") for i in range(synapseclient.table.MAX_NUM_TABLE_COLUMNS + 1))
+    assert_raises(ValueError, syn.store, table)
