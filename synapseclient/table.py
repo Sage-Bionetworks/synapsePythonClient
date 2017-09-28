@@ -683,8 +683,11 @@ class Column(DictObject):
     def getURI(cls, id):
         return '/column/%s' % id
 
+
     def __init__(self, **kwargs):
         super(Column, self).__init__(kwargs)
+        self['concreteType'] = 'org.sagebionetworks.repo.model.table.ColumnModel'
+
 
     def postURI(self):
         return '/column'

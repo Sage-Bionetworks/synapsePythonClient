@@ -2964,6 +2964,18 @@ class Synapse:
         return Column(**self.restPOST('/column', json.dumps(columnModel)))
 
 
+    def createColumns(self, columns):
+        """
+        Creates a batch of py:class:`Column`s within a single request
+        :param columns: a list of py:class:`Column` objects
+        :return: a list of py:class:`Column` objects that have been created in Synapse
+        """
+        request_body = {'concreteType':'org.sagebionetworks.repo.model.ListWrapper',
+                        'list': list(columns)}
+        response = self.restPOST('/column/batch', json.dumps(request_body))
+        return [Column(**col) for col in response['list']]
+
+
     def _getColumnByName(self, schema, column_name):
         """
         Given a schema and a column name, get the corresponding py:class:`Column` object.
