@@ -933,19 +933,17 @@ class Synapse:
                 return self._storeWiki(obj, createOrUpdate)
 
             if 'id' in obj: # If ID is present, update
-                obj.update(self.restPUT(obj.putURI(), obj.json()))
-                return obj
+                return type(obj)(**self.restPUT(obj.putURI(), obj.json()))
 
             try: # If no ID is present, attempt to POST the object
-                obj.update(self.restPOST(obj.postURI(), obj.json()))
-                return obj
+                return type(obj)(**self.restPOST(obj.postURI(), obj.json()))
 
             except SynapseHTTPError as err:
                 # If already present and we want to update attempt to get the object content
                 if createOrUpdate and err.response.status_code == 409:
                     newObj = self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
-                    obj = obj.__class__(**newObj)
+                    obj = type(obj)(**newObj)
                     obj.update(self.restPUT(obj.putURI(), obj.json()))
                     return obj
                 raise
