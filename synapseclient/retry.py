@@ -9,7 +9,7 @@ import sys
 import time
 
 from synapseclient.utils import _is_json, log_error
-
+from synapseclient.dozer import doze
 
 def _with_retry(function, verbose=False,
                 retry_status_codes=[429, 500, 502, 503, 504], retry_errors=[], retry_exceptions=[],
@@ -88,7 +88,7 @@ def _with_retry(function, verbose=False,
                        '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait, wait=randomized_wait)),
                        verbose)
             total_wait +=randomized_wait
-            time.sleep(randomized_wait)
+            doze(randomized_wait)
             wait = min(max_wait, wait*back_off)
             continue
 
