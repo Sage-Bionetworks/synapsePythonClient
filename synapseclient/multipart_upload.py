@@ -127,7 +127,7 @@ def _get_presigned_urls(syn, uploadId, parts_to_upload):
     .. BatchPresignedUploadUrlResponse: http://docs.synapse.org/rest/POST/file/multipart/uploadId/presigned/url/batch.html
     """
     if len(parts_to_upload)==0:
-        return 
+        return
     presigned_url_request = { 'uploadId':uploadId }
     uri = '/file/multipart/{uploadId}/presigned/url/batch'.format(uploadId=uploadId)
 
@@ -169,7 +169,6 @@ def _put_chunk(url, chunk, verbose=False):
     except Exception as ex:
         warnings.warn('error reading response: '+str(ex))
     exceptions._raise_for_status(response, verbose=verbose)
-
 
 def multipart_upload(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
     """
@@ -295,8 +294,13 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
             sys.stderr.write(str(ex1))
             sys.stderr.write("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
 
+class FakePool(Object):
+    def map(self, *args, **kwargs):
+        return map(*args, **kwargs)
+    def terminate(self):
+        return None
 
-def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
+def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize,
                       partSize=None, storageLocationId = None,**kwargs):
     """
     Multipart Upload.
@@ -329,14 +333,19 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     time_upload_started = time.time()
     progress=True
     retries=0
-    mp = Pool(8)
+
+    try:
+        mp = Pool(8)
+    except OSError:
+        mp = FakePool()
+
     try:
         while retries<MAX_RETRIES:
             ## keep track of the number of bytes uploaded so far
             completed = Value('d', min(completedParts * partSize, fileSize))
 
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
-            chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
+            chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status,
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
                                                       fileSize=fileSize, partSize=partSize, t0=time_upload_started,
@@ -365,4 +374,3 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
         raise SynapseError("Upload {id} did not complete. Try again.".format(id=status["uploadId"]))
 
     return status
-
