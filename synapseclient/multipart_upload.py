@@ -294,11 +294,26 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
             sys.stderr.write(str(ex1))
             sys.stderr.write("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
 
-class FakePool(Object):
+class DummyPool():
     def map(self, *args, **kwargs):
         return map(*args, **kwargs)
     def terminate(self):
         return None
+
+class DummyValue():
+
+    def __init__(self, value):
+        self.value = value
+
+    def get_lock(self):
+        return DummyLock()
+
+class DummyLock():
+    def __enter__(self):
+        pass
+
+    def __exit__(self ,type, value, traceback):
+        return False
 
 def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize,
                       partSize=None, storageLocationId = None,**kwargs):
@@ -336,20 +351,31 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
     try:
         mp = Pool(8)
+        expiredValue = Value(c_bool, False)
+        singleThreaded = False
     except OSError:
-        mp = FakePool()
-
+        mp = DummyPool()
+        expiredValue = DummyValue(False)
+        singleThreaded = True
     try:
         while retries<MAX_RETRIES:
             ## keep track of the number of bytes uploaded so far
-            completed = Value('d', min(completedParts * partSize, fileSize))
 
-            printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
-            chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status,
+            if singleThreaded:
+                completed = DummyValue(min(completedParts * partSize, fileSize))
+            else:
+                completed = Value('d', min(completedParts * partSize, fileSize))
+
+            printTransferProgress(completed.value, fileSize, prefix='Uploading',
+                                  postfix=filename)
+            chunk_upload = lambda part: _upload_chunk(part, completed=completed,
+                                                      status=status,
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
-                                                      fileSize=fileSize, partSize=partSize, t0=time_upload_started,
-                                                      expired=Value(c_bool, False), bytes_already_uploaded=previously_completed_bytes)
+                                                      fileSize=fileSize, partSize=partSize,
+                                                      t0=time_upload_started,
+                                                      expired=expiredValue,
+                                                      bytes_already_uploaded=previously_completed_bytes)
 
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)
