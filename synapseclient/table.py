@@ -181,7 +181,7 @@ later::
 
     ## upload album covers
     for row in data:
-        file_handle = syn._uploadToFileHandleService(os.path.join(covers_dir, row[4]))
+        file_handle = syn.uploadSynapseManagedFileHandle(os.path.join(covers_dir, row[4]))
         row[4] = file_handle['id']
 
     ## store the table data
@@ -813,6 +813,7 @@ def Table(schema, values, **kwargs):
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+      - a dict which will be wrapped by a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
 
     Usually, the immediate next step after creating a Table object is to store it::
 
@@ -847,6 +848,10 @@ def Table(schema, values, **kwargs):
     ## pandas DataFrame
     elif pandas_available and isinstance(values, pd.DataFrame):
         return CsvFileTable.from_data_frame(schema, values, **kwargs)
+
+    ## dict
+    elif pandas_available and isinstance(values, dict):
+        return CsvFileTable.from_data_frame(schema, pd.DataFrame(values), **kwargs)
 
     else:
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))

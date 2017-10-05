@@ -18,11 +18,6 @@ from nose.tools import assert_raises, assert_equals, assert_less
 import tempfile
 import shutil
 from mock import patch
-try:
-    import ConfigParser
-except:
-    import configparser as ConfigParser
-
 import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
@@ -53,6 +48,7 @@ def setup_module(module):
     module.description_text = "'some description text'"
     module.desc_filename = _create_temp_file_with_cleanup(module.description_text)
     module.update_description_text = "'SOMEBODY ONCE TOLD ME THE WORLD WAS GONNA ROLL ME I AINT THE SHARPEST TOOL IN THE SHED'"
+    module.other_user = integration.other_user
 
 
 
@@ -812,28 +808,22 @@ def test_table_query():
     assert my_headers_set == expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set)
 
 def test_login():
-    try:
-        config = ConfigParser.ConfigParser()
-        config.read(client.CONFIG_FILE)
-        other_user = {}
-        other_user['username'] = config.get('test-authentication', 'username')
-        other_user['password'] = config.get('test-authentication', 'password')
+    if not other_user['username']:
+        raise SkipTest("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
 
-        with patch("synapseclient.client.Synapse._writeSessionCache") as write_session_cache_mock:
-            alt_syn = synapseclient.Synapse()
-            output = run('synapse', '--skip-checks', 'login',
-                         '-u', other_user['username'],
-                         '-p', other_user['password'],
-                         '--rememberMe',
-                         syn=alt_syn)
-            cached_sessions = write_session_cache_mock.call_args[0][0]
-            assert cached_sessions["<mostRecent>"] == other_user['username']
-            assert other_user['username'] in cached_sessions
-            assert alt_syn.username == other_user['username']
-            assert alt_syn.apiKey is not None
+    with patch("synapseclient.client.Synapse._writeSessionCache") as write_session_cache_mock:
+        alt_syn = synapseclient.Synapse()
+        output = run('synapse', '--skip-checks', 'login',
+                     '-u', other_user['username'],
+                     '-p', other_user['password'],
+                     '--rememberMe',
+                     syn=alt_syn)
+        cached_sessions = write_session_cache_mock.call_args[0][0]
+        assert cached_sessions["<mostRecent>"] == other_user['username']
+        assert other_user['username'] in cached_sessions
+        assert alt_syn.username == other_user['username']
+        assert alt_syn.apiKey is not None
 
-    except ConfigParser.Error:
-        print("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
 
 def test_configPath():
     """Test using a user-specified configPath for Synapse configuration file.
