@@ -347,7 +347,8 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     sys.stdout.write('Starting upload...\n')
     if sendMessages:
-        upload = notifyMe(_manifest_upload, syn, 'Upload of %s' %manifestFile, retries=retries)
+        notify_decorator = notifyMe(syn, 'Upload of %s' %manifestFile, retries=retries)
+        upload = notify_decorator(_manifest_upload)
         upload(syn, df)
     else:
         _manifest_upload(syn,df)
