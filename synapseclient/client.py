@@ -2130,15 +2130,15 @@ class Synapse:
         Creates an IMMUTABLE storage location based on the specified type.
 
         For each storage_type, the following kwargs should be specified:
-        ExternalObjectStorageLocationSetting: (S3-like bucket not accessed/managed by synapse)
+        ExternalObjectStorage: (S3-like bucket not accessed/managed by synapse)
          - endpointUrl: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
          - bucket: the name of the bucket to use
-        ExternalS3StorageLocationSetting: (S3-like bucket accessed/managed by synapse)
+        ExternalS3Storage: (S3-like bucket accessed/managed by synapse)
          - bucket: the name of the bucket to use
-        ExternalStorageLocationSetting: (SFTP or FTP storage location not accessed/managed by synapse)
+        ExternalStorage: (SFTP or FTP storage location not accessed/managed by synapse)
          - url: the base URL for uploading to the external destination
          - supportsSubfolders(optional): does the destination support creating subfolders under the base url (default: false)
-        ProxyStorageLocationSettings: (a proxy server to a storage not accessed/managed by Synapse)
+        ProxyStorage: (a proxy server to a storage not accessed/managed by Synapse)
          - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
          - proxyUrl: The HTTPS URL of the proxy used for upload and download.
 
@@ -2151,15 +2151,16 @@ class Synapse:
         :param kwargs: fields necessary for creation of the specified storage_type
         :return: a dict of the created StorageLocationSetting
         """
-        upload_type_dict = {"ExternalObjectStorageLocationSetting": "S3",
-                            "ExternalS3StorageLocationSetting": "S3",
-                            "ExternalStorageLocationSetting": "SFTP",
-                            "ProxyStorageLocationSettings":"PROXYLOCAL"}
+        upload_type_dict = {"ExternalObjectStorage": "S3",
+                            "ExternalS3Storage": "S3",
+                            "ExternalStorage": "SFTP",
+                            "ProxyStorage":"PROXYLOCAL"}
 
         if storage_type not in upload_type_dict:
             raise ValueError("Unknown storage_type: %s", storage_type)
 
-        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type
+        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type + 'LocationSetting' \
+                                 + ('s' if storage_type == 'ProxyStorage' else '') # ProxyStorageLocationSettings has an extra 's' at the end >:(
         kwargs['uploadType'] = upload_type_dict[storage_type]
 
 
