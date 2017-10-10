@@ -483,7 +483,7 @@ def test_ExternalObjectStore_roundtrip():
     proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
     schedule_for_cleanup(proj)
 
-    storage_location = syn.createStorageLocationSetting("ExternalObjectStorageLocationSetting", endpointUrl=endpoint, bucket=bucket)
+    storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=endpoint, bucket=bucket)
     syn.applyStorageLocationSetting(proj, storage_location['storageLocationId'])
 
     file_path = utils.make_bogus_data_file()
