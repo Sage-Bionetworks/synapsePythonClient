@@ -223,6 +223,9 @@ Schema
 .. autoclass:: synapseclient.table.Schema
    :members:
 
+.. autoclass:: synapseclient.table.EntityViewSchema
+   :members:
+
 ~~~~~~
 Column
 ~~~~~~
