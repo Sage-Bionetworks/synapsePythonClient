@@ -2127,39 +2127,55 @@ class Synapse:
 
     def createStorageLocationSetting(self, storage_type, **kwargs):
         """
-        Creates a stroage location based on the specified type.
+        Creates an IMMUTABLE storage location based on the specified type.
 
-        For each type, the following fields should be specified:
+        For each storage_type, the following kwargs should be specified:
+        ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)
+         - endpointUrl: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
+         - bucket: the name of the bucket to use
+        ExternalS3Storage: (Amazon S3 bucket accessed by Synapse)
+         - bucket: the name of the bucket to use
+        ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)
+         - url: the base URL for uploading to the external destination
+         - supportsSubfolders(optional): does the destination support creating subfolders under the base url (default: false)
+        ProxyStorage: (a proxy server that controls access to a storage)
+         - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
+         - proxyUrl: The HTTPS URL of the proxy used for upload and download.
 
-        ExternalObjectStorageLocationSetting: endpointUrl, bucket
-        ExternalS3StorageLocationSetting: bucket
-        ExternalStorageLocationSetting: url, supportsSubfolders(optional)
-        ProxyStorageLocationSettings: secretKey, proxyUrl
+        Optional kwargs for ALL types:
+         - banner: The optional banner to show every time a file is uploaded
+         - description: The description to show the user when the user has to choose which upload destination to use
 
-        Optionsl for all types: banner, description
-
-        For descriptions of each field's meaning, please check:
-        rest.synapse.org/org/sagebionetworks/repo/model/project/StorageLocationSetting.html
 
         :param storage_type: the type of the StorageLocationSetting to create
         :param kwargs: fields necessary for creation of the specified storage_type
         :return: a dict of the created StorageLocationSetting
         """
-        upload_type_dict = {"ExternalObjectStorageLocationSetting": "S3",
-                            "ExternalS3StorageLocationSetting": "S3",
-                            "ExternalStorageLocationSetting": "SFTP",
-                            "ProxyStorageLocationSettings":"PROXYLOCAL"}
+        upload_type_dict = {"ExternalObjectStorage": "S3",
+                            "ExternalS3Storage": "S3",
+                            "ExternalStorage": "SFTP",
+                            "ProxyStorage":"PROXYLOCAL"}
 
         if storage_type not in upload_type_dict:
             raise ValueError("Unknown storage_type: %s", storage_type)
 
-        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type
+        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type + 'LocationSetting' \
+                                 + ('s' if storage_type == 'ProxyStorage' else '') # ProxyStorageLocationSettings has an extra 's' at the end >:(
         kwargs['uploadType'] = upload_type_dict[storage_type]
 
 
         return self.restPOST('/storageLocation', body=json.dumps(kwargs))
 
-    def setStorageLocationSetting(self, project_or_folder, storage_location_id):
+
+    def getStorageLocationSettings(self):
+        """
+        Returns a list of dicts describing StorageLocationSettings created by this user
+        :return: a list of dicts describing StorageLocationSettings created by this user
+        """
+        return self.restGET('/storageLocation')['list']
+
+
+    def setStorageLocation(self, project_or_folder, storage_location_id):
         """
         Sets the storage location for a Project or Folder
         :param project_or_folder: a Project or Folder to which the StorageLocationSetting is set
