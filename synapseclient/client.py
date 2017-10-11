@@ -2175,9 +2175,9 @@ class Synapse:
         return self.restGET('/storageLocation')['list']
 
 
-    def applyStorageLocationSetting(self, project_or_folder, storage_location_id):
+    def setStorageLocation(self, project_or_folder, storage_location_id):
         """
-        Applies the storage location to a Project or Folder
+        Sets the storage location for a Project or Folder
         :param project_or_folder: a Project or Folder to which the StorageLocationSetting is set
         :param storage_location_id: a StorageLocation id or a list of them. pass in None for the default synapse storage
         :return:
