@@ -2167,13 +2167,20 @@ class Synapse:
         return self.restPOST('/storageLocation', body=json.dumps(kwargs))
 
 
-    def getStorageLocationSettings(self):
+    def getMyStorageLocationSettings(self):
         """
-        Returns a list of dicts describing StorageLocationSettings created by this user
+        Get a list of dicts describing StorageLocationSettings created by this user
         :return: a list of dicts describing StorageLocationSettings created by this user
         """
         return self.restGET('/storageLocation')['list']
 
+    def getMyStorageLocationSetting(self, storage_location_id):
+        """
+        Get a StorageLocationId as a dict by its id. The corresponding StorageLocationSetting be created by this user
+        :param storage_location_id: id of the StorageLocationSetting to retrieve
+        :return: a dict describing the StorageLocationSettings retrieved by its id
+        """
+        return self.restGET('/storageLocation/%s' % storage_location_id)
 
     def setStorageLocation(self, project_or_folder, storage_location_id):
         """
