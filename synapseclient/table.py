@@ -588,12 +588,11 @@ class EntityViewSchema(SchemaBase):
     _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
     _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns', 'ignoredAnnotationColumnNames']
 
-    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=None, properties=None, annotations=None, local_state=None, **kwargs):
+    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[], properties=None, annotations=None, local_state=None, **kwargs):
         if type:
             kwargs['type'] = type
 
-        self.ignoredAnnotationColumnNames =  set(ignoredAnnotationColumnNames) if ignoredAnnotationColumnNames else set()
-
+        self.ignoredAnnotationColumnNames =  set(ignoredAnnotationColumnNames)
         super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
                                                annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
