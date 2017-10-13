@@ -571,8 +571,8 @@ class EntityViewSchema(SchemaBase):
     :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
     :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
-    :param addDefaultViewColumns: whether to add the default view whether to add all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
-    :param addAnnotationColumns: whether to columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
+    :param addDefaultViewColumns: If true adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
+    :param addAnnotationColumns: If true adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
     :param ignoredAnnotationColumnNames: A list of strings representing annotation names. When addAnnotationColumns is True,
                                         the names in this list will not be automatically added as columns to the EntityViewSchema
                                         if they exist in any of the defined scopes.
