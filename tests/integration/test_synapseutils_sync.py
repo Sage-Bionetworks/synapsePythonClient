@@ -10,7 +10,7 @@ import uuid, filecmp, os, sys, time, tempfile
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
 
 import synapseclient
-from synapseclient import Project, Folder, File, Entity
+from synapseclient import Project, Folder, File, Entity, Link
 from synapseclient.exceptions import *
 import synapseutils
 import re
@@ -129,6 +129,9 @@ def test_syncFromSynapse():
     # Create a Project
     project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
+    second_project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(second_project_entity.id)
+
 
     # Create a Folder in Project
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
@@ -140,26 +143,41 @@ def test_syncFromSynapse():
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = syn.store(File(f, parent=folder_entity))
+
     #Add a file in the project level as well
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
+    uploaded_paths_without_links = list(uploaded_paths)
     file_entity = syn.store(File(f, parent=project_entity))
 
+    f  = utils.make_bogus_data_file()
+    uploaded_paths.append(f)
+    schedule_for_cleanup(f)
+    file_entity_2 = syn.store(File(f, parent=second_project_entity))
+    link_entity = syn.store(Link(file_entity_2.id, parent=project_entity))
+
+
     #syncFromSynapse() uses chunkedQuery() which will return results that are eventually consistent but not always right after the entity is created.
-    start_time = time.time()
-    while syn.query("select id from entity where id=='%s'" % file_entity.id).get('totalNumberOfResults') <= 0:
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        time.sleep(2)
+    #start_time = time.time()
+    # while syn.query("select id from entity where id=='%s'" % file_entity.id).get('totalNumberOfResults') <= 0:
+    #     assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+    #     time.sleep(2)
 
     ### Test recursive get
     output = synapseutils.syncFromSynapse(syn, project_entity)
+
+    assert len(output) == len(uploaded_paths_without_links)
+    for f in output:
+        assert f.path in uploaded_paths
+
+    ### Test recursive get with link
+    output = synapseutils.syncFromSynapse(syn, project_entity,followLink=True)
 
     assert len(output) == len(uploaded_paths)
     for f in output:
         assert f.path in uploaded_paths
 
 
-        
-    
+
 
