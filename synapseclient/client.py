@@ -2167,31 +2167,58 @@ class Synapse:
         return self.restPOST('/storageLocation', body=json.dumps(kwargs))
 
 
-    def getStorageLocationSettings(self):
+    def getMyStorageLocationSettings(self):
         """
-        Returns a list of dicts describing StorageLocationSettings created by this user
+        Get a list of dicts describing StorageLocationSettings created by this user
         :return: a list of dicts describing StorageLocationSettings created by this user
         """
         return self.restGET('/storageLocation')['list']
 
+    def getMyStorageLocationSetting(self, storage_location_id):
+        """
+        Get a StorageLocationId as a dict by its id. The corresponding StorageLocationSetting be created by this user
+        :param storage_location_id: id of the StorageLocationSetting to retrieve
+        :return: a dict describing the StorageLocationSettings retrieved by its id
+        """
+        return self.restGET('/storageLocation/%s' % storage_location_id)
 
     def setStorageLocation(self, project_or_folder, storage_location_id):
         """
         Sets the storage location for a Project or Folder
         :param project_or_folder: a Project or Folder to which the StorageLocationSetting is set
         :param storage_location_id: a StorageLocation id or a list of them. pass in None for the default synapse storage
-        :return:
+        :return: The created or updated settinga as a dict
         """
         if storage_location_id is None:
             storage_location_id = DEFAULT_STORAGE_LOCATION_ID
-        project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
-                               'settingsType': 'upload',
-                                'locations': storage_location_id if isinstance(storage_location_id, list) else [storage_location_id],
-                                'projectId': id_of(project_or_folder)
-                               }
+        locations = storage_location_id if isinstance(storage_location_id, list) else [storage_location_id]
 
-        return self.restPOST('/projectSettings', body=json.dumps(project_destination))
+        existing_setting = self.getProjectSetting(project_or_folder, 'upload')
+        if existing_setting is not None:
+            existing_setting['locations'] = locations
+            self.restPUT('/projectSettings', body=json.dumps(existing_setting))
+            return self.getProjectSetting(project_or_folder, 'upload')
+        else:
+            project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+                                   'settingsType': 'upload',
+                                    'locations': locations,
+                                    'projectId': id_of(project_or_folder)
+                                   }
 
+            return self.restPOST('/projectSettings', body=json.dumps(project_destination))
+
+    def getProjectSetting(self, project, setting_type):
+        """
+        Gets the ProjectSetting for a project
+        :param project: Project entity or its id as a string
+        :param setting_type: type of setting. Choose from: {'upload', 'external_sync', 'requester_pays'}
+        :return: The ProjectSetting as a dict or None if no settin of the specified type exist
+        """
+        if setting_type not in {'upload', 'external_sync', 'requester_pays'}:
+            raise ValueError("Invalid project_type: %s" % setting_type)
+
+        response = self.restGET('/projectSettings/{projectId}/type/{type}'.format(projectId=id_of(project), type=setting_type))
+        return response if response else None # if no project setting, a empty string is returned as the response
     ############################################################
     ##                  CRUD for Evaluations                  ##
     ############################################################
