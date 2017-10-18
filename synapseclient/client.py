@@ -1087,9 +1087,8 @@ class Synapse:
         Checks to see if the given entity has access requirements.
         If not, then one is added
         """
-
         existingRestrictions = self.restGET('/entity/%s/accessRequirement?offset=0&limit=1' % id_of(entity))
-        if existingRestrictions['totalNumberOfResults'] <= 0:
+        if len(existingRestrictions['results']) <= 0:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
 
@@ -1652,10 +1651,10 @@ class Synapse:
         # If principalId is not a number assume it is a name or email
         except ValueError:
             userProfiles = self.restGET('/userGroupHeaders?prefix=%s' % principalId)
-            totalResults = userProfiles['totalNumberOfResults']
+            totalResults = len(userProfiles['children'])
             if totalResults == 1:
                 return int(userProfiles['children'][0]['ownerId'])
-            elif totalResults > 0:
+            elif totalResults > 1:
                 for profile in userProfiles['children']:
                     if profile['userName'] == principalId:
                         return int(profile['ownerId'])
@@ -1952,6 +1951,13 @@ class Synapse:
                 except SynapseHTTPError as err:
                     if err.response.status_code == 404:
                         raise SynapseError("Could not download the file at %s" % url)
+                    elif err.response.status_code == 416: # Requested Range Not Statisfiable
+                        # this is a weird error when the client already finished downloading but the loop continues
+                        # When this exception occurs, the range we request is guaranteed to be >= file size so we
+                        # assume that the file has been fully downloaded, rename it to destination file
+                        # and break out of the loop to perform the MD5 check. If it fails the user can retry with another downlaod
+                        shutil.move(temp_destination, destination)
+                        break
                     raise
 
                 ## handle redirects
@@ -2131,39 +2137,55 @@ class Synapse:
 
     def createStorageLocationSetting(self, storage_type, **kwargs):
         """
-        Creates a stroage location based on the specified type.
+        Creates an IMMUTABLE storage location based on the specified type.
 
-        For each type, the following fields should be specified:
+        For each storage_type, the following kwargs should be specified:
+        ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)
+         - endpointUrl: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
+         - bucket: the name of the bucket to use
+        ExternalS3Storage: (Amazon S3 bucket accessed by Synapse)
+         - bucket: the name of the bucket to use
+        ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)
+         - url: the base URL for uploading to the external destination
+         - supportsSubfolders(optional): does the destination support creating subfolders under the base url (default: false)
+        ProxyStorage: (a proxy server that controls access to a storage)
+         - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
+         - proxyUrl: The HTTPS URL of the proxy used for upload and download.
 
-        ExternalObjectStorageLocationSetting: endpointUrl, bucket
-        ExternalS3StorageLocationSetting: bucket
-        ExternalStorageLocationSetting: url, supportsSubfolders(optional)
-        ProxyStorageLocationSettings: secretKey, proxyUrl
+        Optional kwargs for ALL types:
+         - banner: The optional banner to show every time a file is uploaded
+         - description: The description to show the user when the user has to choose which upload destination to use
 
-        Optionsl for all types: banner, description
-
-        For descriptions of each field's meaning, please check:
-        rest.synapse.org/org/sagebionetworks/repo/model/project/StorageLocationSetting.html
 
         :param storage_type: the type of the StorageLocationSetting to create
         :param kwargs: fields necessary for creation of the specified storage_type
         :return: a dict of the created StorageLocationSetting
         """
-        upload_type_dict = {"ExternalObjectStorageLocationSetting": "S3",
-                            "ExternalS3StorageLocationSetting": "S3",
-                            "ExternalStorageLocationSetting": "SFTP",
-                            "ProxyStorageLocationSettings":"PROXYLOCAL"}
+        upload_type_dict = {"ExternalObjectStorage": "S3",
+                            "ExternalS3Storage": "S3",
+                            "ExternalStorage": "SFTP",
+                            "ProxyStorage":"PROXYLOCAL"}
 
         if storage_type not in upload_type_dict:
             raise ValueError("Unknown storage_type: %s", storage_type)
 
-        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type
+        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type + 'LocationSetting' \
+                                 + ('s' if storage_type == 'ProxyStorage' else '') # ProxyStorageLocationSettings has an extra 's' at the end >:(
         kwargs['uploadType'] = upload_type_dict[storage_type]
 
 
         return self.restPOST('/storageLocation', body=json.dumps(kwargs))
 
-    def setStorageLocationSetting(self, project_or_folder, storage_location_id):
+
+    def getStorageLocationSettings(self):
+        """
+        Returns a list of dicts describing StorageLocationSettings created by this user
+        :return: a list of dicts describing StorageLocationSettings created by this user
+        """
+        return self.restGET('/storageLocation')['list']
+
+
+    def setStorageLocation(self, project_or_folder, storage_location_id):
         """
         Sets the storage location for a Project or Folder
         :param project_or_folder: a Project or Folder to which the StorageLocationSetting is set
@@ -2525,18 +2547,12 @@ class Synapse:
         enough to be a burden on the service they may be truncated.
         """
 
-        totalNumberOfResults = sys.maxsize
-        while offset < totalNumberOfResults:
+        prev_num_results = sys.maxsize
+        while prev_num_results > 0:
             uri = utils._limit_and_offset(uri, limit=limit, offset=offset)
             page = self.restGET(uri)
             results = page['results'] if 'results' in page else page['children']
-            totalNumberOfResults = page.get('totalNumberOfResults', len(results))
-
-            ## platform bug PLFM-3589 causes totalNumberOfResults to be too large,
-            ## by counting evaluations to which the current user does not have access.
-            ## So, we need to check for empty results and bail if we see that.
-            if len(results) == 0:
-                totalNumberOfResults = offset
+            prev_num_results = len(results)
 
             for result in results:
                 offset += 1
@@ -2771,12 +2787,14 @@ class Synapse:
             ValueError("Can't get columns for a %s" % type(x))
 
 
-    def getTableColumns(self, table, limit=100, offset=0):
+    def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
         """
         uri = '/entity/{id}/column'.format(id=id_of(table))
-        for result in self._GET_paginated(uri, limit=limit, offset=offset):
+        # The returned object type for this service, PaginatedColumnModels, is a misnomer.
+        # This service always returns the full list of results so the pagincation does not not actually matter.
+        for result in self.restGET(uri)['results']:
             yield Column(**result)
 
 
