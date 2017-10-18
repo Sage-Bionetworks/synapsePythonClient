@@ -2176,10 +2176,10 @@ class Synapse:
         return self.restGET('/storageLocation/%s' % storage_location_id)
 
 
-    def setStorageLocation(self, project_or_folder, storage_location_id):
+    def setStorageLocation(self, entity, storage_location_id):
         """
         Sets the storage location for a Project or Folder
-        :param project_or_folder: a Project or Folder to which the StorageLocationSetting is set
+        :param entity: a Project or Folder to which the StorageLocationSetting is set
         :param storage_location_id: a StorageLocation id or a list of them. pass in None for the default synapse storage
         :return: The created or updated settinga as a dict
         """
@@ -2187,19 +2187,20 @@ class Synapse:
             storage_location_id = DEFAULT_STORAGE_LOCATION_ID
         locations = storage_location_id if isinstance(storage_location_id, list) else [storage_location_id]
 
-        existing_setting = self.getProjectSetting(project_or_folder, 'upload')
+        existing_setting = self.getProjectSetting(entity, 'upload')
         if existing_setting is not None:
             existing_setting['locations'] = locations
             self.restPUT('/projectSettings', body=json.dumps(existing_setting))
-            return self.getProjectSetting(project_or_folder, 'upload')
+            return self.getProjectSetting(entity, 'upload')
         else:
             project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
                                    'settingsType': 'upload',
                                     'locations': locations,
-                                    'projectId': id_of(project_or_folder)
+                                    'projectId': id_of(entity)
                                    }
 
             return self.restPOST('/projectSettings', body=json.dumps(project_destination))
+
 
     def getProjectSetting(self, project, setting_type):
         """
@@ -2213,6 +2214,8 @@ class Synapse:
 
         response = self.restGET('/projectSettings/{projectId}/type/{type}'.format(projectId=id_of(project), type=setting_type))
         return response if response else None # if no project setting, a empty string is returned as the response
+
+
     ############################################################
     ##                  CRUD for Evaluations                  ##
     ############################################################
