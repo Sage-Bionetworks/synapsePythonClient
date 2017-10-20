@@ -1420,7 +1420,7 @@ class Synapse:
     def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo"], sortBy="NAME", sortDirection="ASC"):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
-        
+
         :param parent:       An id or an object of a Synapse container
 
         :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
@@ -1431,7 +1431,7 @@ class Synapse:
         :param sortDirection:  The direction of the result sort.  Can be ASC, or DESC
 
         :returns:              An iterator that shows all the children of the container.
-        
+
         Also see:
 
         - :py:func:`synapseutils.walk`
@@ -1453,7 +1453,7 @@ class Synapse:
         """
         Query for Synapse entities.
         **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
-        
+
         the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
         :returns: A JSON object containing an array of query results
@@ -1854,7 +1854,7 @@ class Synapse:
     def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
         Download a file from the given URL to the local file system.
-        
+
         :param fileHandleId: id of the FileHandle to download
         :param objectId:     id of the Synapse object that uses the FileHandle e.g. "syn123"
         :param objectType:   type of the Synapse object that uses the FileHandle e.g. "FileEntity"
@@ -2180,8 +2180,8 @@ class Synapse:
         """
         Sets the storage location for a Project or Folder
         :param entity: a Project or Folder to which the StorageLocationSetting is set
-        :param storage_location_id: a StorageLocation id or a list of them. pass in None for the default synapse storage
-        :return: The created or updated settinga as a dict
+        :param storage_location_id: a StorageLocation id or a list of StorageLocation ids. Pass in None for the default Synapse storage.
+        :return: The created or updated settings as a dict
         """
         if storage_location_id is None:
             storage_location_id = DEFAULT_STORAGE_LOCATION_ID
@@ -2305,7 +2305,7 @@ class Synapse:
         :param name:       A name for this submission
         :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered
                            for the challenge
-        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place 
+        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place
                            of the submitter's name
         :param teamName: (deprecated) A synonym for submitterAlias
 
