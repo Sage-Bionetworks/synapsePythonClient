@@ -2976,7 +2976,9 @@ class Synapse:
                 "separator": separator},
             "sql": query,
             "writeHeader": header,
-            "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
+            "includeRowIdAndRowVersion": includeRowIdAndRowVersion,
+            "includeEntityEtag": True
+        }
 
         uri = "/entity/{id}/table/download/csv/async".format(id=_extract_synapse_id_from_query(query))
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
