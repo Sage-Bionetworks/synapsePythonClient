@@ -765,13 +765,15 @@ class Row(DictObject):
     :param rowId:          The immutable ID issued to a new row
     :param versionNumber:  The version number of this row. Each row version is immutable, so when a row is updated a new version is created.
     """
-    def __init__(self, values, rowId=None, versionNumber=None):
+    def __init__(self, values, rowId=None, versionNumber=None, etag=None):
         super(Row, self).__init__()
         self.values = values
         if rowId is not None:
             self.rowId = rowId
         if versionNumber is not None:
             self.versionNumber = versionNumber
+        if etag is not None: #TODO: with a etag it is techincally a EntityRow class. Do we need a separate class?
+            self.etag = etag
 
 
 class RowSelection(DictObject):

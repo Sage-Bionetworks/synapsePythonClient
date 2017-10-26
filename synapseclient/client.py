@@ -2891,7 +2891,8 @@ class Synapse:
             "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
             "query": {
                 "sql": query,
-                "isConsistent": isConsistent
+                "isConsistent": isConsistent,
+                "includeEntityEtag": True
             }
         }
 
