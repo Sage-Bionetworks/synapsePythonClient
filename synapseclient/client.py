@@ -3218,6 +3218,21 @@ class Synapse:
     def _get_default_entity_view_columns(self, view_type):
         return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
 
+    def _get_annotation_entity_view_columns(self, scope_ids, view_type):
+        view_scope = {'scope': scope_ids,
+                      'viewType': view_type}
+        columns = []
+        next_page_token = None
+        while True: # why does python not havea do-while loop??????????
+            next_page_query = '' if next_page_token is None else '?nextPageToken=%s' % next_page_token
+            response = self.restPOST('/column/view/scope', json.dumps(view_scope))
+            columns.extend(Column(**column) for column in response['results'])
+            next_page_token = response.get('nextPageToken')
+            if next_page_token is None:
+                break
+        return columns
+
+
     ############################################################
     ##             CRUD for Entities (properties)             ##
     ############################################################
