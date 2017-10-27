@@ -7,10 +7,10 @@ from builtins import str
 
 import uuid, filecmp, os, sys, time, tempfile
 
-from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
+from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less, assert_is_not_none, assert_false
 
 import synapseclient
-from synapseclient import Project, Folder, File, Entity
+from synapseclient import Project, Folder, File, Entity, Schema
 from synapseclient.exceptions import *
 import synapseutils
 import re
@@ -160,6 +160,19 @@ def test_syncFromSynapse():
         assert f.path in uploaded_paths
 
 
-        
-    
+def test_syncFromSynapse__children_contain_non_file():
+    proj = syn.store(Project(name="test_syncFromSynapse_children_non_file" + str(uuid.uuid4())))
+    schedule_for_cleanup(proj)
 
+    temp_file = utils.make_bogus_data_file()
+    schedule_for_cleanup(temp_file)
+    file_entity = syn.store(File(temp_file, name="temp_file_test_syncFromSynapse_children_non_file" + str(uuid.uuid4()), parent=proj))
+
+    table_schema = syn.store(Schema(name="table_test_syncFromSynapse", parent=proj))
+
+    temp_folder = tempfile.mkdtemp()
+    schedule_for_cleanup(temp_folder)
+
+    files_list = synapseutils.syncFromSynapse(syn, proj, temp_folder)
+    assert_equals(1, len(files_list))
+    assert_equals(file_entity, files_list[0])
