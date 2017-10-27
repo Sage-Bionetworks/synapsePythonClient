@@ -38,6 +38,7 @@ def setup(module):
     print('~' * 60)
     module.syn = unit.syn
 
+
 def test_cast_values():
     selectColumns = [{'id': '353',
                       'name': 'name',
@@ -587,6 +588,13 @@ def test_entityViewSchema__add_scope():
     assert_equals([str(x) for x in ["123","456","789"]], entity_view.scopeIds)
 
 
+
+def test_Schema__max_column_check():
+    table = Schema(name="someName", parent="idk")
+    table.addColumns(Column(name="colNum%s"%i, columnType="STRING") for i in range(synapseclient.table.MAX_NUM_TABLE_COLUMNS + 1))
+    assert_raises(ValueError, syn.store, table)
+
+    
 def test_EntityViewSchema__ignore_column_names_set_info_preserved():
     """
     tests that ignoredAnnotationColumnNames will be preserved after creating a new EntityViewSchema from properties, local_state, and annotations
@@ -666,5 +674,4 @@ def test_TableQueryResult_len():
         args, kwargs = mocked_table_query.call_args
         assert_equals(query_string, kwargs['query'])
         assert_equals(2, len(query_result_table))
-
 

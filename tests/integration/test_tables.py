@@ -65,6 +65,7 @@ def test_create_and_update_file_view():
     scopeIds = [folder['id'].lstrip('syn')]
 
     ## Create an empty entity-view with defined scope as folder
+
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=True, type='file', columns=my_added_cols, parent=project)
 
     entity_view = syn.store(entity_view)
@@ -194,7 +195,7 @@ def test_rowset_tables():
             ['Jane',   'bat', 17.89,  6, False, 'c'*1002],
             ['Henry',  'bar', 10.12,  1, False, 'd']]
     row_reference_set1 = syn.store(
-        RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data1]))
+        RowSet(schema=schema1, rows=[Row(r) for r in data1]))
 
     assert len(row_reference_set1['rows']) == 4
 
@@ -203,8 +204,7 @@ def test_rowset_tables():
             ['Daphne', 'foo', 27.89, 20, True, 'f'],
             ['Shaggy', 'foo', 23.45, 20, True, 'g'],
             ['Velma',  'bar', 25.67, 20, True, 'h']]
-    syn.store(
-        RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data2]))
+    syn.store(RowSet(schema=schema1, rows=[Row(r) for r in data2]))
 
     results = syn.tableQuery("select * from %s order by name" % schema1.id, resultsAs="rowset")
 
@@ -500,7 +500,7 @@ def test_download_table_files():
         file_handle = syn.uploadFileHandle(path, project)
         row[4] = file_handle['id']
 
-    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+    row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
     ## retrieve the files for each row and verify that they are identical to the originals
     results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, resultsAs="rowset")

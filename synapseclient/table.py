@@ -284,6 +284,8 @@ import re
 import six
 import sys
 import tempfile
+
+import copy
 import collections
 from collections import OrderedDict, Sized, Iterable
 from builtins import zip
@@ -306,6 +308,7 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
                      'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
+MAX_NUM_TABLE_COLUMNS = 152
 
 def test_import_pandas():
     try:
@@ -481,6 +484,8 @@ class SchemaBase(Entity, Versionable):
     @abstractmethod
     def __init__(self, name, columns, properties, annotations, local_state, parent, **kwargs):
         self.properties.setdefault('columnIds',[])
+        self.__dict__.setdefault('columns_to_store',[])
+
         if name:
             kwargs['name'] = name
         super(SchemaBase, self).__init__(properties=properties,
@@ -529,12 +534,13 @@ class SchemaBase(Entity, Versionable):
 
 
     def _before_synapse_store(self, syn):
+        if len(self.columns_to_store) + len(self.columnIds) > MAX_NUM_TABLE_COLUMNS:
+            raise ValueError("Too many columns. The limit is %s columns per table" % MAX_NUM_TABLE_COLUMNS)
+
         ## store any columns before storing table
         if self.columns_to_store:
-            for column in self.columns_to_store:
-                column = syn.store(column)
-                self.properties.columnIds.append(column.id)
-            self.__dict__['columns_to_store'] = None
+            self.properties.columnIds.extend(column.id for column in syn.createColumns(self.columns_to_store))
+            self.columns_to_store = []
 
 class Schema(SchemaBase):
     """
@@ -743,8 +749,11 @@ class Column(DictObject):
     def getURI(cls, id):
         return '/column/%s' % id
 
+
     def __init__(self, **kwargs):
         super(Column, self).__init__(kwargs)
+        self['concreteType'] = 'org.sagebionetworks.repo.model.table.ColumnModel'
+
 
     def postURI(self):
         return '/column'
@@ -775,6 +784,8 @@ class RowSet(DictObject):
 
     def __init__(self, columns=None, schema=None, **kwargs):
         if not 'headers' in kwargs:
+            if columns and schema:
+                raise ValueError("Please only user either 'columns' or 'schema' as an argument but not both.")
             if columns:
                 kwargs.setdefault('headers',[]).extend([SelectColumn.from_column(column) for column in columns])
             elif schema and isinstance(schema, Schema):
@@ -802,7 +813,7 @@ class RowSet(DictObject):
 
         uri = "/entity/{id}/table/append/async".format(id=self.tableId)
         response = syn._waitForAsync(uri=uri, request=arsr)
-        return response.get('rowReferenceSet', response)
+        return RowSet(**response.get('rowReferenceSet', response))
 
     def _synapse_delete(self, syn):
         """
@@ -980,7 +991,7 @@ class RowSetTable(TableAbstractBaseClass):
 
     def _synapse_store(self, syn):
         row_reference_set = syn.store(self.rowset)
-        return self
+        return RowSetTable(self.schema, row_reference_set)
 
     def asDataFrame(self):
         test_import_pandas()
@@ -1349,6 +1360,10 @@ class CsvFileTable(TableAbstractBaseClass):
 
 
     def _synapse_store(self, syn):
+        copied_self = copy.copy(self)
+        return copied_self._update_self(syn)
+
+    def _update_self(self, syn):
         if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
             ## store schema
             self.schema = syn.store(self.schema)

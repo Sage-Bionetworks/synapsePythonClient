@@ -613,7 +613,7 @@ def test_command_get_recursive_and_query():
 
     print(data1)
 
-    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+    row_reference_set1 = syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
     time.sleep(3) # get -q uses chunkedQuery which are eventually consistent
@@ -789,7 +789,7 @@ def test_table_query():
             ['Jane',   'bat', 17.89,  6, False],
             ['Henry',  'bar', 10.12,  1, False]]
 
-    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+    row_reference_set1 = syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
     # Test query
