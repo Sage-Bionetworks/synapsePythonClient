@@ -18,15 +18,15 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_dict_equal, assert_false, assert_true
 from datetime import datetime
 from mock import patch
 
 import synapseclient
 from synapseclient.exceptions import *
-from synapseclient import File, Folder, Schema, EntityViewSchema
+from synapseclient import File, Folder, Schema, EntityViewSchema, Project
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
-
+from synapseclient.utils import id_of
 import integration
 from integration import schedule_for_cleanup
 
@@ -65,7 +65,9 @@ def test_create_and_update_file_view():
     scopeIds = [folder['id'].lstrip('syn')]
 
     ## Create an empty entity-view with defined scope as folder
-    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=True, type='file', columns=my_added_cols, parent=project)
+
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=True, type='file', columns=my_added_cols, parent=project)
+
     entity_view = syn.store(entity_view)
     schedule_for_cleanup(entity_view)
 
@@ -124,6 +126,41 @@ def test_create_and_update_file_view():
         new_view_dict = list(csv.DictReader(io.open(new_view_results.filepath, encoding="utf-8", newline='')))
     #paranoid check
     assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
+
+
+def test_entity_view_add_annotation_columns():
+    proj1 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', annotations={'strAnno':'str1', 'intAnno':1, 'floatAnno':1.1}))
+    proj2 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', annotations={'dateAnno':datetime.now(), 'strAnno':'str2', 'intAnno':2}))
+    schedule_for_cleanup(proj1)
+    schedule_for_cleanup(proj2)
+    scopeIds = [utils.id_of(proj1), utils.id_of(proj2)]
+
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False, addAnnotationColumns=True, type='project', parent=project)
+    assert_true(entity_view['addAnnotationColumns'])
+
+    #For some reason this call is eventually consistent but not immediately consistent. so we just wait till the size returned is correct
+    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE', 'concreteType':'STRING'}
+    columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
+    while len(columns) != len(expected_column_types):
+        columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
+        time.sleep(2)
+
+    entity_view = syn.store(entity_view)
+    assert_false(entity_view['addAnnotationColumns'])
+
+    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
+    assert_dict_equal(expected_column_types, view_column_types)
+
+    #add another annotation to the project and make sure that EntityViewSchema only adds one moe column
+    proj1['anotherAnnotation'] = 'I need healing!'
+    proj1 = syn.store(proj1)
+
+    entity_view.addAnnotationColumns = True
+    entity_view = syn.store(entity_view)
+
+    expected_column_types.update({'anotherAnnotation': 'STRING'})
+    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
+    assert_dict_equal(expected_column_types, view_column_types)
 
 
 def test_rowset_tables():
@@ -597,3 +634,14 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
     print(table.filepath, table_from_dataframe.filepath)
     #compare to make sure no .0's were appended to the integers
     assert filecmp.cmp(table.filepath, table_from_dataframe.filepath)
+
+
+def test_store_table_datetime():
+    current_datetime = datetime.fromtimestamp(round(time.time(),3))
+    schema = syn.store(Schema("testTable",[Column(name="testerino", columnType='DATE')], project))
+    rowset = RowSet(rows=[Row([current_datetime])], schema=schema)
+    rowset_table = syn.store(Table(schema, rowset))
+
+    query_result = syn.tableQuery("select * from %s" % id_of(schema), resultsAs="rowset")
+    assert_equals(current_datetime, query_result.rowset['rows'][0]['values'][0])
+

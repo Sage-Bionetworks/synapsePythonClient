@@ -317,10 +317,7 @@ class Synapse:
         # Make sure to invalidate the existing session
         self.logout()
 
-        try:
-            self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
-        except SynapseAuthenticationError:
-            pass
+        self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
 
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
@@ -412,7 +409,7 @@ class Synapse:
                 session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.default_headers)
                 return session['sessionToken']
             except SynapseHTTPError as err:
-                if err.response.status_code == 403 or err.response.status_code == 404:
+                if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
                     raise SynapseAuthenticationError("Invalid username or password.")
                 raise
 
@@ -430,7 +427,7 @@ class Synapse:
                     raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
                 raise
         else:
-            raise SynapseAuthenticationError("No credentials provided.")
+            raise SynapseNoCredentialsError("No credentials provided.")
 
     def _getAPIKey(self, sessionToken):
         """Uses a session token to fetch an API key."""
@@ -772,7 +769,7 @@ class Synapse:
                 if file_handle:
                     self._download_file_entity(downloadLocation, entity, ifcollision, submission)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
-                    warning_message = "WARNING: you do not have DOWNLOAD permissions for this file. The file has NOT been downloaded"
+                    warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD permission. The file has NOT been downloaded."
                     sys.stderr.write('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
 
         return entity
@@ -1085,9 +1082,8 @@ class Synapse:
         Checks to see if the given entity has access requirements.
         If not, then one is added
         """
-
         existingRestrictions = self.restGET('/entity/%s/accessRequirement?offset=0&limit=1' % id_of(entity))
-        if existingRestrictions['totalNumberOfResults'] <= 0:
+        if len(existingRestrictions['results']) <= 0:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
 
@@ -1650,10 +1646,10 @@ class Synapse:
         # If principalId is not a number assume it is a name or email
         except ValueError:
             userProfiles = self.restGET('/userGroupHeaders?prefix=%s' % principalId)
-            totalResults = userProfiles['totalNumberOfResults']
+            totalResults = len(userProfiles['children'])
             if totalResults == 1:
                 return int(userProfiles['children'][0]['ownerId'])
-            elif totalResults > 0:
+            elif totalResults > 1:
                 for profile in userProfiles['children']:
                     if profile['userName'] == principalId:
                         return int(profile['ownerId'])
@@ -1920,10 +1916,12 @@ class Synapse:
         destination = os.path.abspath(destination)
         actual_md5 = None
         redirect_count = 0
+        delete_on_md5_mismatch = True
         while redirect_count < REDIRECT_LIMIT:
             redirect_count += 1
             scheme = urlparse(url).scheme
             if scheme == 'file':
+                delete_on_md5_mismatch = False
                 destination = utils.file_url_to_path(url, verify_exists=True)
                 if destination is None:
                     raise IOError("Local file (%s) does not exist." % url)
@@ -1950,6 +1948,13 @@ class Synapse:
                 except SynapseHTTPError as err:
                     if err.response.status_code == 404:
                         raise SynapseError("Could not download the file at %s" % url)
+                    elif err.response.status_code == 416: # Requested Range Not Statisfiable
+                        # this is a weird error when the client already finished downloading but the loop continues
+                        # When this exception occurs, the range we request is guaranteed to be >= file size so we
+                        # assume that the file has been fully downloaded, rename it to destination file
+                        # and break out of the loop to perform the MD5 check. If it fails the user can retry with another downlaod
+                        shutil.move(temp_destination, destination)
+                        break
                     raise
 
                 ## handle redirects
@@ -2022,8 +2027,8 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            #if  urlparse(url).scheme != 'file' and os.path.exists(destination):
-            #    os.remove(destination)
+            if delete_on_md5_mismatch and os.path.exists(destination):
+               os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
@@ -2129,39 +2134,55 @@ class Synapse:
 
     def createStorageLocationSetting(self, storage_type, **kwargs):
         """
-        Creates a stroage location based on the specified type.
+        Creates an IMMUTABLE storage location based on the specified type.
 
-        For each type, the following fields should be specified:
+        For each storage_type, the following kwargs should be specified:
+        ExternalObjectStorage: (S3-like (e.g. AWS S3 or Openstack) bucket not accessed by Synapse)
+         - endpointUrl: endpoint URL of the S3 service (for example: 'https://s3.amazonaws.com')
+         - bucket: the name of the bucket to use
+        ExternalS3Storage: (Amazon S3 bucket accessed by Synapse)
+         - bucket: the name of the bucket to use
+        ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)
+         - url: the base URL for uploading to the external destination
+         - supportsSubfolders(optional): does the destination support creating subfolders under the base url (default: false)
+        ProxyStorage: (a proxy server that controls access to a storage)
+         - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
+         - proxyUrl: The HTTPS URL of the proxy used for upload and download.
 
-        ExternalObjectStorageLocationSetting: endpointUrl, bucket
-        ExternalS3StorageLocationSetting: bucket
-        ExternalStorageLocationSetting: url, supportsSubfolders(optional)
-        ProxyStorageLocationSettings: secretKey, proxyUrl
+        Optional kwargs for ALL types:
+         - banner: The optional banner to show every time a file is uploaded
+         - description: The description to show the user when the user has to choose which upload destination to use
 
-        Optionsl for all types: banner, description
-
-        For descriptions of each field's meaning, please check:
-        rest.synapse.org/org/sagebionetworks/repo/model/project/StorageLocationSetting.html
 
         :param storage_type: the type of the StorageLocationSetting to create
         :param kwargs: fields necessary for creation of the specified storage_type
         :return: a dict of the created StorageLocationSetting
         """
-        upload_type_dict = {"ExternalObjectStorageLocationSetting": "S3",
-                            "ExternalS3StorageLocationSetting": "S3",
-                            "ExternalStorageLocationSetting": "SFTP",
-                            "ProxyStorageLocationSettings":"PROXYLOCAL"}
+        upload_type_dict = {"ExternalObjectStorage": "S3",
+                            "ExternalS3Storage": "S3",
+                            "ExternalStorage": "SFTP",
+                            "ProxyStorage":"PROXYLOCAL"}
 
         if storage_type not in upload_type_dict:
             raise ValueError("Unknown storage_type: %s", storage_type)
 
-        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type
+        kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type + 'LocationSetting' \
+                                 + ('s' if storage_type == 'ProxyStorage' else '') # ProxyStorageLocationSettings has an extra 's' at the end >:(
         kwargs['uploadType'] = upload_type_dict[storage_type]
 
 
         return self.restPOST('/storageLocation', body=json.dumps(kwargs))
 
-    def setStorageLocationSetting(self, project_or_folder, storage_location_id):
+
+    def getStorageLocationSettings(self):
+        """
+        Returns a list of dicts describing StorageLocationSettings created by this user
+        :return: a list of dicts describing StorageLocationSettings created by this user
+        """
+        return self.restGET('/storageLocation')['list']
+
+
+    def setStorageLocation(self, project_or_folder, storage_location_id):
         """
         Sets the storage location for a Project or Folder
         :param project_or_folder: a Project or Folder to which the StorageLocationSetting is set
@@ -2523,18 +2544,12 @@ class Synapse:
         enough to be a burden on the service they may be truncated.
         """
 
-        totalNumberOfResults = sys.maxsize
-        while offset < totalNumberOfResults:
+        prev_num_results = sys.maxsize
+        while prev_num_results > 0:
             uri = utils._limit_and_offset(uri, limit=limit, offset=offset)
             page = self.restGET(uri)
             results = page['results'] if 'results' in page else page['children']
-            totalNumberOfResults = page.get('totalNumberOfResults', len(results))
-
-            ## platform bug PLFM-3589 causes totalNumberOfResults to be too large,
-            ## by counting evaluations to which the current user does not have access.
-            ## So, we need to check for empty results and bail if we see that.
-            if len(results) == 0:
-                totalNumberOfResults = offset
+            prev_num_results = len(results)
 
             for result in results:
                 offset += 1
@@ -2769,12 +2784,14 @@ class Synapse:
             ValueError("Can't get columns for a %s" % type(x))
 
 
-    def getTableColumns(self, table, limit=100, offset=0):
+    def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
         """
         uri = '/entity/{id}/column'.format(id=id_of(table))
-        for result in self._GET_paginated(uri, limit=limit, offset=offset):
+        # The returned object type for this service, PaginatedColumnModels, is a misnomer.
+        # This service always returns the full list of results so the pagincation does not not actually matter.
+        for result in self.restGET(uri)['results']:
             yield Column(**result)
 
 
@@ -3209,6 +3226,21 @@ class Synapse:
     @memoize
     def _get_default_entity_view_columns(self, view_type):
         return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
+
+    def _get_annotation_entity_view_columns(self, scope_ids, view_type):
+        view_scope = {'scope': scope_ids,
+                      'viewType': view_type}
+        columns = []
+        next_page_token = None
+        while True: # why does python not havea do-while loop??????????
+            next_page_query = '' if next_page_token is None else '?nextPageToken=%s' % next_page_token
+            response = self.restPOST('/column/view/scope', json.dumps(view_scope))
+            columns.extend(Column(**column) for column in response['results'])
+            next_page_token = response.get('nextPageToken')
+            if next_page_token is None:
+                break
+        return columns
+
 
     ############################################################
     ##             CRUD for Entities (properties)             ##
