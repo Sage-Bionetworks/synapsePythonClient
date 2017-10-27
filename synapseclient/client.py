@@ -1921,10 +1921,12 @@ class Synapse:
         destination = os.path.abspath(destination)
         actual_md5 = None
         redirect_count = 0
+        delete_on_md5_mismatch = True
         while redirect_count < REDIRECT_LIMIT:
             redirect_count += 1
             scheme = urlparse(url).scheme
             if scheme == 'file':
+                delete_on_md5_mismatch = False
                 destination = utils.file_url_to_path(url, verify_exists=True)
                 if destination is None:
                     raise IOError("Local file (%s) does not exist." % url)
@@ -2030,8 +2032,8 @@ class Synapse:
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            #if  urlparse(url).scheme != 'file' and os.path.exists(destination):
-            #    os.remove(destination)
+            if delete_on_md5_mismatch and os.path.exists(destination):
+               os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
