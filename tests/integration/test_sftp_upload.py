@@ -50,8 +50,8 @@ def setup(module):
     module.syn = integration.syn
     module.project = integration.project
     #Create the upload destinations
-    destinations = [syn.createStorageLocationSetting('ExternalStorageLocationSetting', **x)['storageLocationId'] for x in DESTINATIONS]
-    module._sftp_project_setting_id = syn.setStorageLocationSetting(project, destinations)['id']
+    destinations = [syn.createStorageLocationSetting('ExternalStorage', **x)['storageLocationId'] for x in DESTINATIONS]
+    module._sftp_project_setting_id = syn.setStorageLocation(project, destinations)['id']
 
 def teardown(module):
     syn.restDELETE('/projectSettings/%s' % module._sftp_project_setting_id)
