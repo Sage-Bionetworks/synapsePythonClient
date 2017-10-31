@@ -2940,16 +2940,18 @@ class Synapse:
             "uploadFileHandleId": fileHandleId
         }
 
-        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
-           'entityId': id_of(schema),
-           'changes': [uploadRequest]}
-
         if updateEtag:
-            request["updateEtag"] = updateEtag
+            uploadRequest["updateEtag"] = updateEtag
+
+        return self._POST_table_transaction(schema, uploadRequest)
+
+    def _POST_table_transaction(self, schema, transactionRequests):
+        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
+                   'entityId': id_of(schema),
+                   'changes': transactionRequests if isinstance(transactionRequests, list) else [transactionRequests]}
 
         uri = "/entity/{id}/table/transaction/async".format(id=id_of(schema))
         return self._waitForAsync(uri=uri, request=request)
-
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
         """

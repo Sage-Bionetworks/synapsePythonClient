@@ -574,3 +574,7 @@ def test_entityViewSchema__add_scope():
     entity_view.add_scope(456)
     entity_view.add_scope("789")
     assert_equals([str(x) for x in ["123","456","789"]], entity_view.scopeIds)
+
+
+def test_asDataFrame__with_ROW_ETAG_column():
+    #TODO: finish test

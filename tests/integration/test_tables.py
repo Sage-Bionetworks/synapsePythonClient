@@ -18,7 +18,7 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less
+from nose.tools import assert_equals, assert_less, assert_dict_equal
 from datetime import datetime
 from mock import patch
 
@@ -28,7 +28,7 @@ from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
 
 import integration
-from integration import schedule_for_cleanup
+from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
@@ -575,3 +575,44 @@ def dontruntest_big_csvs():
 
     for row in results:
         print(row)
+
+
+def test_table_file_view_csv_update_annotations__includeEntityEtag():
+
+
+    proj = syn.store(synapseclient.Project(name="updateAnnoProj" + str(uuid.uuid4())))
+    schedule_for_cleanup(proj)
+    anno1_name = "annotationColumn1"
+    anno2_name = "annotationColumn2"
+    initial_annotations = {anno1_name:"initial_value1",
+                           anno2_name:"initial_value2"}
+    file_entity = syn.store(File(name="test_table_file_view_csv_update_annotations__includeEntityEtag", path="~/fakepath" ,synapseStore=False, parent=proj, annotations=initial_annotations))
+
+
+    annotation_columns = [Column(name=anno1_name,columnType='STRING'), Column(name=anno2_name,columnType='STRING')]
+    entity_view = syn.store(EntityViewSchema(name="TestEntityViewSchemaUpdateAnnotation"+str(uuid.uuid4()), parent=proj, scopes=[proj], columns=annotation_columns))
+
+    query_str = "SELECT {anno1}, {anno2} FROM {proj_id}".format(anno1=anno1_name, anno2=anno2_name, proj_id=utils.id_of(entity_view))
+
+    #modify first annotation using rowset
+    rowset_query_result = syn.tableQuery(query_str, resultsAs="rowset")
+    rowset = rowset_query_result.asRowSet()
+    rowset_changed_anno_value = "rowset_value_change"
+    rowset.rows[0].values[0] = rowset_changed_anno_value
+    syn.store(rowset)
+
+    #modify second annotation using csv
+    csv_query_result = syn.tableQuery(query_str, resultsAs="csv")
+    dataframe = csv_query_result.asDataFrame()
+    csv_changed_anno_value = "csv_value_change"
+    dataframe.ix[0, anno2_name] = csv_changed_anno_value
+    syn.store(Table(utils.id_of(entity_view), dataframe))
+
+    #check annotations in the file entity. Annotations may not be immediately updated so we wait in while loop
+    expected_annotations = {anno1_name: [rowset_changed_anno_value], anno2_name: [csv_changed_anno_value]}
+    start_time = time.time()
+    while(expected_annotations != file_entity.annotations):
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
+        file_entity = syn.get(file_entity, downloadFile=False)
+
