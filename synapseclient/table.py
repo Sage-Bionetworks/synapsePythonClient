@@ -413,11 +413,10 @@ def column_ids(columns):
 
 
 def row_labels_from_id_and_version(rows):
-    convert_to_str_removing_None = lambda x: str(x) if x is not None else None
-    return ["_".join(map(str, filter(None, row))) for row in rows]
+    return ["_".join(map(str, row)) for row in rows]
 
 def row_labels_from_rows(rows):
-    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber'], row.get('etag')) for row in rows])
+    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber'], row['etag']) if 'etag' in row else (row['rowId'], row['versionNumber']) for row in rows])
 
 
 def cast_values(values, headers):
@@ -1381,9 +1380,12 @@ class CsvFileTable(TableAbstractBaseClass):
             ## combine row-ids (in index) and row-versions (in column 0) to
             ## make new row labels consisting of the row id and version
             ## separated by a dash.
-            etag_source =  df['ROW_ETAG'] if "ROW_ETAG" in df.columns else itertools.repeat(None)
+            zip_args = [df["ROW_ID"], df["ROW_VERSION"]]
+            if "ROW_ETAG" in df.columns:
+                zip_args.append(df['ROW_ETAG'])
 
-            df.index = row_labels_from_id_and_version(zip(df["ROW_ID"], df["ROW_VERSION"], etag_source))
+
+            df.index = row_labels_from_id_and_version(zip(*zip_args))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
 

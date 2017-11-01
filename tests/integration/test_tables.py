@@ -159,8 +159,7 @@ def test_rowset_tables():
             ['Jane',   'bat', 17.89,  6, False, 'c'*1002],
             ['Henry',  'bar', 10.12,  1, False, 'd']]
     row_reference_set1 = syn.store(
-        RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data1]))
-
+        RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data1]))['rowReferenceSet']
     assert len(row_reference_set1['rows']) == 4
 
     ## add more new rows
