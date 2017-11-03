@@ -69,6 +69,7 @@ import warnings
 import getpass
 import json
 from collections import OrderedDict
+import logging
 
 import synapseclient
 from . import concrete_types
@@ -184,6 +185,16 @@ class Synapse:
     - :py:func:`synapseclient.Synapse.setEndpoints`
     """
 
+    @property
+    def debug(self):
+        return self._debug
+    @debug.setter
+    def debug(self, value):
+        if not isinstance(value, bool):
+            raise ValueError("debug must be set to a bool (either True or False)")
+        self._logger_name = synapseclient.DEBUG_LOGGER_NAME if value else synapseclient.DEFAULT_LOGGER_NAME
+        self._debug = value
+
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                  debug=DEBUG_DEFAULT, skip_checks=False, configPath=CONFIG_FILE):
 
@@ -226,7 +237,7 @@ class Synapse:
             config.read(configPath) # Does not fail if the file does not exist
             return config
         except configparser.Error:
-            sys.stderr.write('Error parsing Synapse config file: %s' % configPath)
+            logging.exception('Error parsing Synapse config file: %s' % configPath)
             raise
 
 
