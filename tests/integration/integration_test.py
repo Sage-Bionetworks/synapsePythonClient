@@ -13,7 +13,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal
+from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_false
 from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch, call
 
@@ -36,6 +36,7 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
+    module.other_user = integration.other_user
 
 def test_login():
     try:
@@ -69,7 +70,7 @@ def test_login():
             # It should REST PUT the token and fail
             # Then keep going and, due to mocking, fail to read any credentials
             assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
-            assert config_items_mock.called
+            assert_false(config_items_mock.called)
             
             # Login with no credentials 
             assert_raises(SynapseAuthenticationError, syn.login)
@@ -107,6 +108,12 @@ def test_login():
     finally:
         # Login with config file
         syn.login(rememberMe=True, silent=True)
+
+def test_login__bad_credentials():
+    # nonexistant username and password
+    assert_raises(SynapseAuthenticationError, synapseclient.login, email=str(uuid.uuid4()), password="In the end, it doens't even matter")
+    # existing username and bad password
+    assert_raises(SynapseAuthenticationError, synapseclient.login, email=syn.username, password=str(uuid.uuid4()))
 
 
 def testCustomConfigFile():
@@ -470,3 +477,72 @@ def test_getChildren():
     expected_id_set = {project_file.id, folder.id}
     children_id_set = { x['id'] for x in syn.getChildren(test_project.id)}
     assert_equals(expected_id_set, children_id_set)
+
+
+def test_ExternalObjectStore_roundtrip():
+    endpoint = "https://s3.amazonaws.com"
+    bucket = "test-client-auth-s3"
+    profile_name = syn._get_client_authenticated_s3_profile(endpoint, bucket)
+
+    if profile_name != 'client-auth-s3-test':
+        raise SkipTest("This test only works on travis because it requires AWS credentials to a specific S3 bucket")
+
+    proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
+    schedule_for_cleanup(proj)
+
+    storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=endpoint, bucket=bucket)
+    syn.setStorageLocation(proj, storage_location['storageLocationId'])
+
+    file_path = utils.make_bogus_data_file()
+
+    file_entity = File(file_path, name="TestName", parent=proj)
+    file_entity = syn.store(file_entity)
+
+    syn.cache.purge(time.time())
+    assert_is_none(syn.cache.get(file_entity['dataFileHandleId']))
+
+    #verify key is in s3
+    import boto3
+    boto_session = boto3.session.Session(profile_name=profile_name)
+    s3 = boto_session.resource('s3', endpoint_url=endpoint)
+    try:
+        s3_file = s3.Object(file_entity._file_handle.bucket,file_entity._file_handle.fileKey)
+        s3_file.load()
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error']['Code'] == "404":
+            raise Exception("The file was not uploaded to S3")
+
+    file_entity_downloaded = syn.get(file_entity['id'])
+    file_handle = file_entity_downloaded['_file_handle']
+
+    #verify file_handle metadata
+    assert_equals(endpoint, file_handle['endpointUrl'])
+    assert_equals(bucket, file_handle['bucket'])
+    assert_equals(utils.md5_for_file(file_path).hexdigest(), file_handle['contentMd5'])
+    assert_equals(os.stat(file_path).st_size, file_handle['contentSize'])
+    assert_equals('text/plain', file_handle['contentType'])
+    assert_not_equal(utils.normalize_path(file_path), utils.normalize_path(file_entity_downloaded['path']))
+    assert filecmp.cmp(file_path, file_entity_downloaded['path'])
+
+    #clean up
+    s3_file.delete()
+
+
+def testSetStorageLocation__existing_storage_location():
+    proj = syn.store(Project(name=str(uuid.uuid4()) + "testSetStorageLocation__existing_storage_location"))
+    schedule_for_cleanup(proj)
+
+    endpoint = "https://url.doesnt.matter.com"
+    bucket = "fake-bucket-name"
+    storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=endpoint, bucket=bucket)
+    storage_setting = syn.setStorageLocation(proj, storage_location['storageLocationId'])
+    retrieved_setting = syn.getProjectSetting(proj, 'upload')
+    assert_equals(storage_setting, retrieved_setting)
+
+    new_endpoint = "https://some.other.url.com"
+    new_bucket = "some_other_bucket"
+    new_storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=new_endpoint, bucket=new_bucket)
+    new_storage_setting = syn.setStorageLocation(proj, new_storage_location['storageLocationId'])
+    new_retrieved_setting = syn.getProjectSetting(proj, 'upload')
+    assert_equals(new_storage_setting, new_retrieved_setting)
+

@@ -181,7 +181,7 @@ later::
 
     ## upload album covers
     for row in data:
-        file_handle = syn._uploadToFileHandleService(os.path.join(covers_dir, row[4]))
+        file_handle = syn.uploadSynapseManagedFileHandle(os.path.join(covers_dir, row[4]))
         row[4] = file_handle['id']
 
     ## store the table data
@@ -221,6 +221,9 @@ Schema
 ~~~~~~
 
 .. autoclass:: synapseclient.table.Schema
+   :members:
+
+.. autoclass:: synapseclient.table.EntityViewSchema
    :members:
 
 ~~~~~~
@@ -281,10 +284,13 @@ import re
 import six
 import sys
 import tempfile
-from collections import OrderedDict
+
+import copy
+import collections
+from collections import OrderedDict, Sized, Iterable
 from builtins import zip
 from abc import ABCMeta, abstractmethod, abstractproperty
-
+import itertools
 import synapseclient
 import synapseclient.utils as utils
 from synapseclient.exceptions import *
@@ -302,6 +308,7 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
                      'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
+MAX_NUM_TABLE_COLUMNS = 152
 
 def test_import_pandas():
     try:
@@ -477,6 +484,8 @@ class SchemaBase(Entity, Versionable):
     @abstractmethod
     def __init__(self, name, columns, properties, annotations, local_state, parent, **kwargs):
         self.properties.setdefault('columnIds',[])
+        self.__dict__.setdefault('columns_to_store',[])
+
         if name:
             kwargs['name'] = name
         super(SchemaBase, self).__init__(properties=properties,
@@ -525,12 +534,13 @@ class SchemaBase(Entity, Versionable):
 
 
     def _before_synapse_store(self, syn):
+        if len(self.columns_to_store) + len(self.columnIds) > MAX_NUM_TABLE_COLUMNS:
+            raise ValueError("Too many columns. The limit is %s columns per table" % MAX_NUM_TABLE_COLUMNS)
+
         ## store any columns before storing table
         if self.columns_to_store:
-            for column in self.columns_to_store:
-                column = syn.store(column)
-                self.properties.columnIds.append(column.id)
-            self.__dict__['columns_to_store'] = None
+            self.properties.columnIds.extend(column.id for column in syn.createColumns(self.columns_to_store))
+            self.columns_to_store = []
 
 class Schema(SchemaBase):
     """
@@ -567,7 +577,11 @@ class EntityViewSchema(SchemaBase):
     :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
     :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
-    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True. 
+    :param addDefaultViewColumns: If true adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
+    :param addAnnotationColumns: If true adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
+    :param ignoredAnnotationColumnNames: A list of strings representing annotation names. When addAnnotationColumns is True,
+                                        the names in this list will not be automatically added as columns to the EntityViewSchema
+                                        if they exist in any of the defined scopes.
     The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
     ::
 
@@ -578,17 +592,20 @@ class EntityViewSchema(SchemaBase):
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
     _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
-    _local_keys = SchemaBase._local_keys + ['add_default_columns']
+    _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns', 'ignoredAnnotationColumnNames']
 
-    def __init__(self, name=None, columns=None, parent=None, scopes = None, type=None, add_default_columns = True, properties=None, annotations=None, local_state=None, **kwargs):
+    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[], properties=None, annotations=None, local_state=None, **kwargs):
         if type:
             kwargs['type'] = type
 
+        self.ignoredAnnotationColumnNames =  set(ignoredAnnotationColumnNames)
         super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
                                                annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
-        #This is a hacky solution to make sure we don't try to add default columns to schemas that we retrieve from synapse
-        self.add_default_columns = add_default_columns and not (properties or local_state) #allowing annotations because user might want to update annotations all at once
+        #This is a hacky solution to make sure we don't try to add columns to schemas that we retrieve from synapse
+        is_from_normal_constructor = not (properties or local_state)
+        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor #allowing annotations because user might want to update annotations all at once
+        self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
 
         #set default values after constructor so we don't overwrite the values defined in properties
         #using .get() because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
@@ -612,11 +629,60 @@ class EntityViewSchema(SchemaBase):
             self.scopeIds.append(utils.id_of(entities))
 
     def _before_synapse_store(self, syn):
-        super(EntityViewSchema, self)._before_synapse_store(syn)
+        if self.addAnnotationColumns:
+            self._add_annotations_as_columns(syn)
+            self.addAnnotationColumns = False
+
         #get the default EntityView columns from Synapse and add them to the columns list
-        if self.add_default_columns:
+        if self.addDefaultViewColumns:
             self.addColumns(syn._get_default_entity_view_columns(self.type))
-            self.add_default_columns = False
+            self.addDefaultViewColumns = False
+
+        super(EntityViewSchema, self)._before_synapse_store(syn)
+
+
+    def _add_annotations_as_columns(self, syn):
+        column_type_to_annotation_names = {
+            'STRING': set(),
+            'INTEGER': set(),
+            'DOUBLE': set(),
+            'DATE': set()
+        }
+        all_existing_column_names = set() # set of all existing columns names regardless of type
+
+        # add to existing columns the columns that user has added but not yet created in synapse
+        column_generator = itertools.chain(syn.getColumns(self.columnIds), self.columns_to_store) if self.columns_to_store else syn.getColumns(self.columnIds)
+
+        for column in column_generator:
+            column_name = column['name']
+            column_type = column['columnType']
+
+            all_existing_column_names.add(column_name)
+            #add to type specific set
+            if column_type in column_type_to_annotation_names:
+                column_type_to_annotation_names[column_type].add(column_name)
+
+
+        #get annotations from each of the scopes and create columns
+        columns_to_add = [] #temporarily store all columns so that none are added if any errors occur
+        anno_columns = syn._get_annotation_entity_view_columns(self.scopeIds, self.type)
+        for column in anno_columns:
+            anno_col_name = column['name']
+            anno_col_type = column['columnType']
+            typed_col_name_set = column_type_to_annotation_names[anno_col_type]
+            if (anno_col_name not in self.ignoredAnnotationColumnNames
+                 and anno_col_name not in typed_col_name_set):
+
+                if anno_col_name in all_existing_column_names:
+                    raise ValueError("The annotation column name [%s] has multiple types in your scopes or in your defined columns.\n"
+                                     "Please do one of the following:\n"
+                                     "  Turn off the automatic conversion of annotations to column names: entityView.addAnnotationColumns = False\n"
+                                     "  Modify your annotations/columns named [%s] to all be of the same type.\n"
+                                     "  Add the annotation name to the set of ignored annotation names via entityView.ignoredAnnotations.add(%s).\n" % (anno_col_name, anno_col_name, anno_col_name))
+                all_existing_column_names.add(anno_col_name)
+                typed_col_name_set.add(anno_col_name)
+                columns_to_add.append(column)
+        self.addColumns(columns_to_add)
 
 
 
@@ -683,8 +749,11 @@ class Column(DictObject):
     def getURI(cls, id):
         return '/column/%s' % id
 
+
     def __init__(self, **kwargs):
         super(Column, self).__init__(kwargs)
+        self['concreteType'] = 'org.sagebionetworks.repo.model.table.ColumnModel'
+
 
     def postURI(self):
         return '/column'
@@ -715,6 +784,8 @@ class RowSet(DictObject):
 
     def __init__(self, columns=None, schema=None, **kwargs):
         if not 'headers' in kwargs:
+            if columns and schema:
+                raise ValueError("Please only user either 'columns' or 'schema' as an argument but not both.")
             if columns:
                 kwargs.setdefault('headers',[]).extend([SelectColumn.from_column(column) for column in columns])
             elif schema and isinstance(schema, Schema):
@@ -742,7 +813,7 @@ class RowSet(DictObject):
 
         uri = "/entity/{id}/table/append/async".format(id=self.tableId)
         response = syn._waitForAsync(uri=uri, request=arsr)
-        return response.get('rowReferenceSet', response)
+        return RowSet(**response.get('rowReferenceSet', response))
 
     def _synapse_delete(self, syn):
         """
@@ -813,6 +884,7 @@ def Table(schema, values, **kwargs):
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+      - a dict which will be wrapped by a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
 
     Usually, the immediate next step after creating a Table object is to store it::
 
@@ -848,11 +920,15 @@ def Table(schema, values, **kwargs):
     elif pandas_available and isinstance(values, pd.DataFrame):
         return CsvFileTable.from_data_frame(schema, values, **kwargs)
 
+    ## dict
+    elif pandas_available and isinstance(values, dict):
+        return CsvFileTable.from_data_frame(schema, pd.DataFrame(values), **kwargs)
+
     else:
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))
 
 
-class TableAbstractBaseClass(object):
+class TableAbstractBaseClass(Iterable, Sized):
     """
     Abstract base class for Tables based on different data containers.
     """
@@ -902,8 +978,7 @@ class TableAbstractBaseClass(object):
             etag=self.etag,
             tableId=self.tableId)))
 
-    def __iter__(self):
-        raise NotImplementedError()
+
 
 
 class RowSetTable(TableAbstractBaseClass):
@@ -916,7 +991,7 @@ class RowSetTable(TableAbstractBaseClass):
 
     def _synapse_store(self, syn):
         row_reference_set = syn.store(self.rowset)
-        return self
+        return RowSetTable(self.schema, row_reference_set)
 
     def asDataFrame(self):
         test_import_pandas()
@@ -948,6 +1023,8 @@ class RowSetTable(TableAbstractBaseClass):
                 yield cast_values(row, headers)
         return iterate_rows(self.rowset['rows'], self.rowset['headers'])
 
+    def __len__(self):
+        return len(self.rowset['rows'])
 
 class TableQueryResult(TableAbstractBaseClass):
     """
@@ -1069,6 +1146,9 @@ class TableQueryResult(TableAbstractBaseClass):
         Python 3 iterator
         """
         return self.next()
+
+    def __len__(self):
+        return len(self.rowset['rows'])
 
 
 class CsvFileTable(TableAbstractBaseClass):
@@ -1280,6 +1360,10 @@ class CsvFileTable(TableAbstractBaseClass):
 
 
     def _synapse_store(self, syn):
+        copied_self = copy.copy(self)
+        return copied_self._update_self(syn)
+
+    def _update_self(self, syn):
         if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
             ## store schema
             self.schema = syn.store(self.schema)
