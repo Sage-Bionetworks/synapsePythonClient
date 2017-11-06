@@ -1423,8 +1423,8 @@ class Synapse:
     def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo"], sortBy="NAME", sortDirection="ASC"):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
-
-        :param parent:       An id or an object of a Synapse container
+        
+        :param parent:       An id or an object of a Synapse container or None to retrieve all projects
 
         :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
                                http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
@@ -1439,7 +1439,8 @@ class Synapse:
 
         - :py:func:`synapseutils.walk`
         """
-        entityChildrenRequest = {'parentId':id_of(parent),
+        parentId = id_of(parent) if parent is not None else None
+        entityChildrenRequest = {'parentId':parentId,
                                  'includeTypes':includeTypes,
                                  'sortBy':sortBy,
                                  'sortDirection':sortDirection,
