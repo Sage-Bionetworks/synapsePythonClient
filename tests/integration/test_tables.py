@@ -503,7 +503,7 @@ def test_download_table_files():
     row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
     ## retrieve the files for each row and verify that they are identical to the originals
-    results = syn.tableQuery('select artist, album, year, catalog, cover from %s'%schema.id, resultsAs="rowset")
+    results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s" % schema.id, resultsAs="rowset")
     for i, row in enumerate(results):
         print("%s_%s" % (row.rowId, row.versionNumber), row.values)
         path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
@@ -515,7 +515,7 @@ def test_download_table_files():
     with patch("synapseclient.Synapse._downloadFileHandle") as _downloadFile_mock:
         _downloadFile_mock.side_effect = original_downloadFile_method
 
-        results = syn.tableQuery("select artist, album, year, catalog, cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
+        results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
         for i, row in enumerate(results):
             print("%s_%s" % (row.rowId, row.versionNumber), row.values)
             file_path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')

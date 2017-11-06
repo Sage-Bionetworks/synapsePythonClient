@@ -526,3 +526,23 @@ def test_ExternalObjectStore_roundtrip():
 
     #clean up
     s3_file.delete()
+
+
+def testSetStorageLocation__existing_storage_location():
+    proj = syn.store(Project(name=str(uuid.uuid4()) + "testSetStorageLocation__existing_storage_location"))
+    schedule_for_cleanup(proj)
+
+    endpoint = "https://url.doesnt.matter.com"
+    bucket = "fake-bucket-name"
+    storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=endpoint, bucket=bucket)
+    storage_setting = syn.setStorageLocation(proj, storage_location['storageLocationId'])
+    retrieved_setting = syn.getProjectSetting(proj, 'upload')
+    assert_equals(storage_setting, retrieved_setting)
+
+    new_endpoint = "https://some.other.url.com"
+    new_bucket = "some_other_bucket"
+    new_storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=new_endpoint, bucket=new_bucket)
+    new_storage_setting = syn.setStorageLocation(proj, new_storage_location['storageLocationId'])
+    new_retrieved_setting = syn.getProjectSetting(proj, 'upload')
+    assert_equals(new_storage_setting, new_retrieved_setting)
+
