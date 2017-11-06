@@ -5,13 +5,20 @@
 import os
 import logging
 import logging.config as logging_config
+import errno
 logging.getLogger("requests").setLevel(logging.WARNING)
-logging.captureWarnings(True)
 
 _errlog_dir = os.path.expanduser("~/.synapseCache/logs/")
 _errlog_filename = 'synapseclient_errors.log'
 _errlog_path = os.path.join(_errlog_dir, _errlog_filename)
-os.makedirs(_errlog_dir,exist_ok=True)
+
+try:
+    os.makedirs(_errlog_dir)
+except OSError as e:
+    if e.errno != errno.EEXIST:
+        raise
+
+
 with open(_errlog_path, 'a'): #create the file if not exist
     pass
 
@@ -23,6 +30,23 @@ class LoggingInfoOnlyFilter(logging.Filter):
     def filter(self, record):
         return record.levelno == logging.INFO
 
+
+class LoggingIgnoreInfoFilter(logging.Filter):
+    def filter(self, record):
+        return record.levelno != logging.INFO
+
+
+####################################################
+# logging levels from high to low:
+# CRITICAL
+# ERROR
+# WARNING
+# INFO
+# DEBUG
+# NOTSET
+#
+# see https://docs.python.org/2/library/logging.html
+######################################################
 #TODO: debug file also or only write errors to log?
 logging_config.dictConfig({
     'version': 1,
@@ -38,6 +62,9 @@ logging_config.dictConfig({
     'filters':{
         'info_only': {
             '()': LoggingInfoOnlyFilter
+        },
+        'ignore_info':{
+            '()': LoggingIgnoreInfoFilter
         }
     },
     'handlers': {
@@ -54,11 +81,11 @@ logging_config.dictConfig({
             'formatter': 'debug_format',
             'stream': 'ext://sys.stderr'
         },
-        'error_stderr': {
-            'level': 'ERROR',
+        'warning_stderr': {
+            'level': 'WARNING',
             'class': 'logging.StreamHandler',
             'formatter': 'debug_format',
-            'stream': 'ext://sys.stderr'
+            'stream': 'ext://sys.stderr',
         },
         "error_file": {
             "class": "logging.handlers.RotatingFileHandler",
@@ -72,7 +99,7 @@ logging_config.dictConfig({
     },
     'loggers': {
         DEFAULT_LOGGER_NAME: {
-            'handlers': ['info_only_stdout', 'error_file', 'error_stderr'],
+            'handlers': ['info_only_stdout', 'warning_stderr', 'error_file'],
             'level': 'INFO',
             'propagate': True
         },
@@ -83,3 +110,5 @@ logging_config.dictConfig({
         }
     }
 })
+
+logging.captureWarnings(True)

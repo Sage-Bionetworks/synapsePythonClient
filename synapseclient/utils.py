@@ -790,7 +790,7 @@ def temp_download_filename(destination, file_handle_id):
             destination + '.' + suffix
 
 
-def log_error(message, verbose=True):
+def log_error(message, verbose=True): #TODO: remove?
     if verbose:
         sys.stderr.write(message+'\n')
 

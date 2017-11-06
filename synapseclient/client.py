@@ -77,7 +77,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error, _extract_zip_file_to_directory, _is_integer
+from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_directory, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -160,7 +160,7 @@ def login(*args, **kwargs):
     return syn
 
 
-class Synapse:
+class Synapse(object):
     """
     Constructs a Python client object for the Synapse repository service
 
@@ -185,16 +185,7 @@ class Synapse:
     - :py:func:`synapseclient.Synapse.setEndpoints`
     """
 
-    @property
-    def debug(self):
-        return self._debug
-    @debug.setter
-    def debug(self, value):
-        if not isinstance(value, bool):
-            raise ValueError("debug must be set to a bool (either True or False)")
-        self._logger_name = synapseclient.DEBUG_LOGGER_NAME if value else synapseclient.DEFAULT_LOGGER_NAME
-        self._debug = value
-
+    # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                  debug=DEBUG_DEFAULT, skip_checks=False, configPath=CONFIG_FILE):
 
@@ -208,9 +199,9 @@ class Synapse:
                 cache_root_dir=config.get('cache', 'location')
             if config.has_section('debug'):
                 debug = True
-        elif debug:
+        else:
             # Alert the user if no config is found
-            sys.stderr.write("Could not find a config file (%s).  Using defaults." % os.path.abspath(configPath))
+            self.logger.debug("Could not find a config file (%s).  Using defaults." % os.path.abspath(configPath))
 
         self.cache = synapseclient.cache.Cache(cache_root_dir)
 
@@ -227,6 +218,19 @@ class Synapse:
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600 # in seconds
 
+
+    @property
+    def debug(self):
+        return self._debug
+
+
+    @debug.setter
+    def debug(self, value):
+        if not isinstance(value, bool):
+            raise ValueError("debug must be set to a bool (either True or False)")
+        logger_name = synapseclient.DEBUG_LOGGER_NAME if value else synapseclient.DEFAULT_LOGGER_NAME
+        self.logger = logging.getLogger(logger_name)
+        self._debug = value
 
 
     def getConfigFile(self, configPath):
@@ -374,7 +378,7 @@ class Synapse:
         if not silent:
             profile = self.getUserProfile(refresh=True)
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
-            print("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
+            self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
 
     def _get_config_section_dict(self, section_name):
         config = self.getConfigFile(self.configPath)
@@ -612,9 +616,9 @@ class Synapse:
         if utils.is_synapse_id(entity):
             entity = self._getEntity(entity)
         try:
-            print(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii))
+            self.logger.info(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii))
         except TypeError:
-            print(str(entity))
+            self.logger.info(str(entity))
 
 
 
@@ -709,7 +713,7 @@ class Synapse:
             raise SynapseFileNotFoundError('File %s not found in Synapse' % (filepath,))
         elif len(results)>1:
             id_txts = '\n'.join(['%s.%i' %(r['id'], r['versionNumber']) for r in results])
-            sys.stderr.write('\nWARNING: The file %s is associated with many files in Synapse:\n'
+            self.logger.warning('\nWARNING: The file %s is associated with many files in Synapse:\n'
                              '%s\n'
                              'You can limit to files in specific project or folder by setting the '
                              'limitSearch to the synapse Id of the project or folder.  \n'
@@ -779,7 +783,7 @@ class Synapse:
                     self._download_file_entity(downloadLocation, entity, ifcollision, submission)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = "WARNING: you do not have DOWNLOAD permissions for this file. The file has NOT been downloaded"
-                    sys.stderr.write('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
+                    self.logger.warning('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
 
         return entity
 
@@ -847,7 +851,7 @@ class Synapse:
         #always overwrite if we are downloading to .synapseCache
         if utils.normalize_path(downloadLocation) == synapseCache_location:
             if ifcollision is not None:
-                sys.stderr.write('\n' + '!'*50+'\n WARNING: ifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
+                self.logger.warning('\n' + '!'*50+'\n WARNING: ifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
             ifcollision= 'overwrite.local'
         #if ifcollision not specified, keep.local
         ifcollision = ifcollision or 'keep.both'
@@ -1247,7 +1251,7 @@ class Synapse:
         Use :py:func:`synapseclient.Synapse.get`
         """
 
-        sys.stderr.write('WARNING!: THIS ONLY DOWNLOADS ENTITIES!')
+        self.logger.warning('WARNING!: THIS ONLY DOWNLOADS ENTITIES!')
         return self.downloadEntity(entity)
 
 
@@ -1554,7 +1558,7 @@ class Synapse:
                 # Shrink the query size when appropriate
                 if err.response.status_code == 400 and ('The results of this query exceeded the max' in err.response.json()['reason']):
                     if (limit == 1):
-                        sys.stderr.write("A single row (offset %s) of this query "
+                        self.logger.warning("A single row (offset %s) of this query "
                                          "exceeds the maximum size.  Consider "
                                          "limiting the columns returned "
                                          "in the select clause.  Skipping...\n" % offset)
@@ -1713,7 +1717,7 @@ class Synapse:
             if modify_benefactor:
                 entity = benefactor
             elif warn_if_inherits:
-                sys.stderr.write('Warning: Creating an ACL for entity %s, '
+                self.logger.warning('Warning: Creating an ACL for entity %s, '
                                  'which formerly inherited access control '
                                  'from a benefactor entity, "%s" (%s).\n'
                                  % (id_of(entity), benefactor['name'], benefactor['id']))
@@ -1895,8 +1899,8 @@ class Synapse:
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
-                log_error('\nRetrying download on error: [%s] after progressing %i bytes\n'%
-                          (exc_info[0](exc_info[1]), ex.progress), self.debug)
+                self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes\n" %
+                                  (exc_info[0](exc_info[1]), ex.progress))
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
         ## Re-raise exception
@@ -2012,7 +2016,7 @@ class Synapse:
 
                     # verify that the file was completely downloaded and retry if it is not complete
                     if toBeTransferred > 0 and transferred < toBeTransferred:
-                        sys.stderr.write("\nRetrying download because the connection ended early.\n")
+                        self.logger.warn("\nRetrying download because the connection ended early.\n")
                         continue
 
                     actual_md5 = sig.hexdigest()
@@ -2020,7 +2024,7 @@ class Synapse:
                     shutil.move(temp_destination, destination)
                     break
             else:
-                sys.stderr.write('Unable to download URLs of type %s' % scheme)
+                self.logger.error('Unable to download URLs of type %s' % scheme)
                 return None
 
         else: ## didn't break out of loop
@@ -2408,7 +2412,7 @@ class Synapse:
             if not(isinstance(evaluation, Evaluation)):
                 evaluation = self.getEvaluation(evaluation_id)
             if 'submissionReceiptMessage' in evaluation:
-                print(evaluation['submissionReceiptMessage'])
+                self.logger.info(evaluation['submissionReceiptMessage'])
 
         #TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage']) like the R client
         return submitted
@@ -3147,7 +3151,7 @@ class Synapse:
 
         file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(table, columns)
 
-        print("Downloading %d files, %d cached locally" % (len(file_handle_associations), len(file_handle_to_path_map)))
+        self.logger.info("Downloading %d files, %d cached locally" % (len(file_handle_associations), len(file_handle_to_path_map)))
 
         permanent_failures = OrderedDict()
 

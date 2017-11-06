@@ -286,14 +286,13 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0, previouslyTransferred=bytes_already_uploaded)
     except Exception as ex1:
         if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403:
-            sys.stderr.write("The presigned upload URL has expired. Restarting upload...\n")
+            syn.logger.warning("The presigned upload URL has expired. Restarting upload...\n")
             with expired.get_lock():
                 expired.value = True
             return
         #If we are not in verbose debug mode we will swallow the error and retry.
-        elif syn.debug:
-            sys.stderr.write(str(ex1))
-            sys.stderr.write("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
+        else:
+            syn.logger.exception("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
 
 
 def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
@@ -358,7 +357,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                     if status.state == "COMPLETED":
                         break
                 except Exception as ex1:
-                    sys.stderr.write(str(ex1)+"\n")
+                    syn.logger.exception("Attempt to complete the multipart upload failed:")
     finally:
         mp.terminate()
     if status["state"] != "COMPLETED":
