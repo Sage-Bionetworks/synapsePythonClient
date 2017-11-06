@@ -275,7 +275,6 @@ from builtins import str
 
 from backports import csv
 import io
-import itertools
 import json
 import os
 import re
