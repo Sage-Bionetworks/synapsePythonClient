@@ -82,7 +82,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                 print('making dir', new_path)
             else:
                 new_path = None
-            syncFromSynapse(syn, result['id'], new_path, ifcollision, allFiles)
+            syncFromSynapse(syn, result['id'], new_path, ifcollision, allFiles, followLink=followLink)
         else:
             ent = syn.get(result['id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
             allFiles.append(ent)
@@ -112,19 +112,20 @@ def generateManifest(syn, allFiles, filename):
     annotKeys = set()
     data = []
     for entity in allFiles:
-        row = {'parent': entity['parentId'], 'path': entity.path, 'name': entity.name,
-               'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
-        row.update({key:val[0] for key, val in entity.annotations.items()})
-        annotKeys.update(set(entity.annotations.keys()))
-        try:
-            prov = syn.getProvenance(entity)
-            row['used'] = ';'.join(prov._getUsedStringList())
-            row['executed'] = ';'.join(prov._getExecutedStringList())
-            row['activityName'] = prov.get('name', '')
-            row['activityDescription'] = prov.get('description', '')
-        except SynapseHTTPError:
-            pass # No provenance present
-        data.append(row)
+        if entity.path is not None:
+            row = {'parent': entity['parentId'], 'path': entity.path, 'name': entity.name,
+                   'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
+            row.update({key:val[0] for key, val in entity.annotations.items()})
+            annotKeys.update(set(entity.annotations.keys()))
+            try:
+                prov = syn.getProvenance(entity)
+                row['used'] = ';'.join(prov._getUsedStringList())
+                row['executed'] = ';'.join(prov._getExecutedStringList())
+                row['activityName'] = prov.get('name', '')
+                row['activityDescription'] = prov.get('description', '')
+            except SynapseHTTPError:
+                pass # No provenance present
+            data.append(row)
     keys.extend(annotKeys)
 
     with open(filename, 'w') as fp:
