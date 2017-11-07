@@ -116,20 +116,20 @@ def generateManifest(syn, allFiles, filename):
     annotKeys = set()
     data = []
     for entity in allFiles:
-        if entity.path is not None:
-            row = {'parent': entity['parentId'], 'path': entity.path, 'name': entity.name,
-                   'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
-            row.update({key:val[0] for key, val in entity.annotations.items()})
-            annotKeys.update(set(entity.annotations.keys()))
-            try:
-                prov = syn.getProvenance(entity)
-                row['used'] = ';'.join(prov._getUsedStringList())
-                row['executed'] = ';'.join(prov._getExecutedStringList())
-                row['activityName'] = prov.get('name', '')
-                row['activityDescription'] = prov.get('description', '')
-            except SynapseHTTPError:
-                pass # No provenance present
-            data.append(row)
+
+        row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name,
+               'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
+        row.update({key:val[0] for key, val in entity.annotations.items()})
+        annotKeys.update(set(entity.annotations.keys()))
+        try:
+            prov = syn.getProvenance(entity)
+            row['used'] = ';'.join(prov._getUsedStringList())
+            row['executed'] = ';'.join(prov._getExecutedStringList())
+            row['activityName'] = prov.get('name', '')
+            row['activityDescription'] = prov.get('description', '')
+        except SynapseHTTPError:
+            pass # No provenance present
+        data.append(row)
     keys.extend(annotKeys)
 
     with open(filename, 'w') as fp:
