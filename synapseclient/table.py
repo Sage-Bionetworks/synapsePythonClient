@@ -1140,11 +1140,8 @@ class CsvFileTable(TableAbstractBaseClass):
         if isinstance(schema, Schema) and not schema.has_columns():
             schema.addColumns(cols)
 
-        ## convert row names in the format [row_id]_[version] back to columns
-
-        # matches ROWID_ROWVERSION or ROWID_ROWVERSION_ETAG.
-        # regex for the ETAG part could be more precise but as of now it doesn't seem necessary
-        etag_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}'
+        ## convert row names in the format [row_id]_[version] or [row_id]_[version]_[etag] back to columns
+        etag_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}' #etag is essentially a UUID
         row_id_version_pattern = re.compile(r'(\d+)_(\d+)(_(' + etag_pattern + r'))?')
 
         row_id = []
@@ -1162,7 +1159,6 @@ class CsvFileTable(TableAbstractBaseClass):
 
             cls._insert_dataframe_column_if_not_exist(df2, 0, 'ROW_ID', row_id)
             cls._insert_dataframe_column_if_not_exist(df2, 1, 'ROW_VERSION', row_version)
-
             if any(row_etag):
                 cls._insert_dataframe_column_if_not_exist(df2, 2,'ROW_ETAG', row_etag)
 
@@ -1386,7 +1382,6 @@ class CsvFileTable(TableAbstractBaseClass):
             df.index = row_labels_from_id_and_version(zip(*zip_args))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
-
             if "ROW_ETAG" in df.columns:
                 del df['ROW_ETAG']
 

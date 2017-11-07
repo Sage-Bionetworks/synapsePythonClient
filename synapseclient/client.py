@@ -2956,8 +2956,8 @@ class Synapse:
 
         return response
 
-    def _check_table_transaction_response(self, response):
 
+    def _check_table_transaction_response(self, response):
         for result in response['results']:
             result_type = result['concreteType']
 
@@ -2985,7 +2985,6 @@ class Synapse:
 
             else:
                 warnings.warn("Unexpected result from a table transaction of type [%s]. Please check the result to make sure it is correct. %s" % (result_type, result))
-
 
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
