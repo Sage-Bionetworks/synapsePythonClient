@@ -579,17 +579,16 @@ def dontruntest_big_csvs():
 def test_table_file_view_csv_update_annotations__includeEntityEtag():
 
 
-    proj = syn.store(synapseclient.Project(name="updateAnnoProj" + str(uuid.uuid4())))
-    schedule_for_cleanup(proj)
+    folder = syn.store(synapseclient.Folder(name="updateAnnoFolder" + str(uuid.uuid4()), parent=project))
     anno1_name = "annotationColumn1"
     anno2_name = "annotationColumn2"
     initial_annotations = {anno1_name:"initial_value1",
                            anno2_name:"initial_value2"}
-    file_entity = syn.store(File(name="test_table_file_view_csv_update_annotations__includeEntityEtag", path="~/fakepath" ,synapseStore=False, parent=proj, annotations=initial_annotations))
+    file_entity = syn.store(File(name="test_table_file_view_csv_update_annotations__includeEntityEtag", path="~/fakepath" ,synapseStore=False, parent=folder, annotations=initial_annotations))
 
 
     annotation_columns = [Column(name=anno1_name,columnType='STRING'), Column(name=anno2_name,columnType='STRING')]
-    entity_view = syn.store(EntityViewSchema(name="TestEntityViewSchemaUpdateAnnotation"+str(uuid.uuid4()), parent=proj, scopes=[proj], columns=annotation_columns))
+    entity_view = syn.store(EntityViewSchema(name="TestEntityViewSchemaUpdateAnnotation"+str(uuid.uuid4()), parent=project, scopes=[folder], columns=annotation_columns))
 
     query_str = "SELECT {anno1}, {anno2} FROM {proj_id}".format(anno1=anno1_name, anno2=anno2_name, proj_id=utils.id_of(entity_view))
 

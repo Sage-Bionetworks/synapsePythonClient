@@ -415,7 +415,9 @@ def row_labels_from_id_and_version(rows):
     return ["_".join(map(str, row)) for row in rows]
 
 def row_labels_from_rows(rows):
-    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber'], row['etag']) if 'etag' in row else (row['rowId'], row['versionNumber']) for row in rows])
+    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber'], row['etag'])
+                                           if 'etag' in row else (row['rowId'], row['versionNumber'])
+                                           for row in rows])
 
 
 def cast_values(values, headers):
@@ -1142,7 +1144,8 @@ class CsvFileTable(TableAbstractBaseClass):
 
         # matches ROWID_ROWVERSION or ROWID_ROWVERSION_ETAG.
         # regex for the ETAG part could be more precise but as of now it doesn't seem necessary
-        row_id_version_pattern = re.compile(r'^(\d+)_(\d+)(_([a-zA-Z0-9\-]{36}))?$')
+        etag_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{15}'
+        row_id_version_pattern = re.compile(r'^(\d+)_(\d+)(_(' + etag_pattern + r'))?$')
 
         row_id = []
         row_version = []
@@ -1151,9 +1154,7 @@ class CsvFileTable(TableAbstractBaseClass):
             m = row_id_version_pattern.match(str(row_name))
             row_id.append(m.group(1) if m else None)
             row_version.append(m.group(2) if m else None)
-
             row_etag.append(m.group(4) if m else None)
-
 
         ## include row ID and version, if we're asked to OR if it's encoded in rownames
         if includeRowIdAndRowVersion or (includeRowIdAndRowVersion is None and any(row_id)):
@@ -1164,7 +1165,6 @@ class CsvFileTable(TableAbstractBaseClass):
 
             if any(row_etag):
                 cls._insert_dataframe_column_if_not_exist(df2, 2,'ROW_ETAG', row_etag)
-
 
             df = df2
             includeRowIdAndRowVersion = True
@@ -1383,14 +1383,12 @@ class CsvFileTable(TableAbstractBaseClass):
             if "ROW_ETAG" in df.columns:
                 zip_args.append(df['ROW_ETAG'])
 
-
             df.index = row_labels_from_id_and_version(zip(*zip_args))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
 
             if "ROW_ETAG" in df.columns:
                 del df['ROW_ETAG']
-
 
         return df
 

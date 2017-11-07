@@ -2951,7 +2951,42 @@ class Synapse:
                    'changes': transactionRequests if isinstance(transactionRequests, list) else [transactionRequests]}
 
         uri = "/entity/{id}/table/transaction/async".format(id=id_of(schema))
-        return self._waitForAsync(uri=uri, request=request)
+        response = self._waitForAsync(uri=uri, request=request)
+        self._check_table_transaction_response(response)
+
+        return response
+
+    def _check_table_transaction_response(self, response):
+
+        for result in response['results']:
+            result_type = result['concreteType']
+
+            if result_type in [concrete_types.ROW_REFERENCE_SET_RESULTS,
+                               concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE,
+                               concrete_types.UPLOAD_TO_TABLE_RESULT]:
+                #if these fail, it we would have gotten an SynapseHttpError
+                pass
+            elif result_type == concrete_types.ENTITY_UPDATE_RESULTS:
+                # TODO: output full response to error file when the logging JIRA issue gets pulled in
+                sucessful_updates = []
+                failed_updates = []
+                for update_result in result['updateResults']:
+                    failure_code = update_result.get('failureCode')
+                    failure_message = update_result.get('failureMessage')
+                    entity_id = update_result['entityId']
+                    if failure_code or failure_message:
+                        failed_updates.append({entity_id:failure_message})
+                        #TODO: HERE
+                    else:
+                        sucessful_updates.append(entity_id)
+
+                if failed_updates:
+                    raise SynapseError("The file view faile to update the following entities")
+
+            else:
+                warnings.warn("Unexpected result from a table transaction of type [%s]. Please check the result to make sure it is correct. %s" % (result_type, result))
+
+
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
         """
