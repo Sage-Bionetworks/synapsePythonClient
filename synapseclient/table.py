@@ -1144,8 +1144,8 @@ class CsvFileTable(TableAbstractBaseClass):
 
         # matches ROWID_ROWVERSION or ROWID_ROWVERSION_ETAG.
         # regex for the ETAG part could be more precise but as of now it doesn't seem necessary
-        etag_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{15}'
-        row_id_version_pattern = re.compile(r'^(\d+)_(\d+)(_(' + etag_pattern + r'))?$')
+        etag_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}'
+        row_id_version_pattern = re.compile(r'(\d+)_(\d+)(_(' + etag_pattern + r'))?')
 
         row_id = []
         row_version = []

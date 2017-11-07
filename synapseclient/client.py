@@ -2961,10 +2961,10 @@ class Synapse:
         for result in response['results']:
             result_type = result['concreteType']
 
-            if result_type in [concrete_types.ROW_REFERENCE_SET_RESULTS,
+            if result_type in {concrete_types.ROW_REFERENCE_SET_RESULTS,
                                concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE,
-                               concrete_types.UPLOAD_TO_TABLE_RESULT]:
-                #if these fail, it we would have gotten an SynapseHttpError
+                               concrete_types.UPLOAD_TO_TABLE_RESULT}:
+                #if these fail, it we would have gotten an HttpError before the results came back
                 pass
             elif result_type == concrete_types.ENTITY_UPDATE_RESULTS:
                 # TODO: output full response to error file when the logging JIRA issue gets pulled in
@@ -2973,15 +2973,15 @@ class Synapse:
                 for update_result in result['updateResults']:
                     failure_code = update_result.get('failureCode')
                     failure_message = update_result.get('failureMessage')
-                    entity_id = update_result['entityId']
+                    entity_id = update_result.get('entityId')
                     if failure_code or failure_message:
-                        failed_updates.append({entity_id:failure_message})
-                        #TODO: HERE
+                        failed_updates.append(update_result)
                     else:
                         sucessful_updates.append(entity_id)
 
                 if failed_updates:
-                    raise SynapseError("The file view faile to update the following entities")
+                    raise SynapseError("Not all of the entities were updated."
+                                       " Successful updates: %s.  Failed updates: %s" % (sucessful_updates, failed_updates))
 
             else:
                 warnings.warn("Unexpected result from a table transaction of type [%s]. Please check the result to make sure it is correct. %s" % (result_type, result))
