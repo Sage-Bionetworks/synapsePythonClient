@@ -87,7 +87,7 @@ logging_config.dictConfig({
             'formatter': 'debug_format',
             'stream': 'ext://sys.stderr',
         },
-        "error_file": {
+        "error_to_file": {
             "class": "logging.handlers.RotatingFileHandler",
             "level": "ERROR",
             "formatter": "debug_format",
@@ -99,12 +99,12 @@ logging_config.dictConfig({
     },
     'loggers': {
         DEFAULT_LOGGER_NAME: {
-            'handlers': ['info_only_stdout', 'warning_stderr', 'error_file'],
+            'handlers': ['info_only_stdout', 'warning_stderr'], #TODO: add 'error_to_file' back in after we find solution for multi process logging
             'level': 'INFO',
             'propagate': True
         },
         DEBUG_LOGGER_NAME:{
-            'handlers': ['info_only_stdout', 'debug_stderr', 'error_file'],
+            'handlers': ['info_only_stdout', 'debug_stderr'],
             'level': 'DEBUG',
             'propagate': True
         }

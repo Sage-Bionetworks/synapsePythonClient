@@ -790,11 +790,6 @@ def temp_download_filename(destination, file_handle_id):
             destination + '.' + suffix
 
 
-def log_error(message, verbose=True): #TODO: remove?
-    if verbose:
-        sys.stderr.write(message+'\n')
-
-
 def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
     """
     Extracts a specified file in a zip to the specified directory

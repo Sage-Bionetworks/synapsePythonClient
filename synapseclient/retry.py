@@ -8,6 +8,7 @@ import random
 import sys
 import time
 import logging
+import six
 from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
 from synapseclient.utils import _is_json
 from synapseclient.dozer import doze
@@ -99,13 +100,7 @@ def _with_retry(function, verbose=False,
 
         # Out of retries, re-raise the exception or return the response
         if exc_info is not None and exc_info[0] is not None:
-            #import traceback
-            #traceback.print_exc()
-            print(exc_info[0])
-            print(exc_info[1])
-            print(exc_info[2])
-            # Re-raise exception, preserving original stack trace
-            raise exc_info[0](exc_info[1])
+            six.reraise(exc_info[0],exc_info[1],exc_info[2])
         return response
 
 
