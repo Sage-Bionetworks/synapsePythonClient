@@ -231,6 +231,7 @@ class Synapse(object):
         logger_name = synapseclient.DEBUG_LOGGER_NAME if value else synapseclient.DEFAULT_LOGGER_NAME
         self.logger = logging.getLogger(logger_name)
         self._debug = value
+        logging.getLogger('py.warnings').handlers = self.logger.handlers
 
 
     def getConfigFile(self, configPath):
@@ -241,7 +242,7 @@ class Synapse(object):
             config.read(configPath) # Does not fail if the file does not exist
             return config
         except configparser.Error:
-            logging.exception('Error parsing Synapse config file: %s' % configPath)
+            self.logger.exception('Error parsing Synapse config file: %s' % configPath)
             raise
 
 

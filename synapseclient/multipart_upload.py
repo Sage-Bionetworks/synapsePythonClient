@@ -36,7 +36,7 @@ except ImportError:
     from urlparse import urlparse
     from urlparse import parse_qs
 
-import synapseclient.exceptions as exceptions
+from . import exceptions
 from .utils import printTransferProgress, md5_for_file, MB
 from .dict_object import DictObject
 from .exceptions import SynapseError
