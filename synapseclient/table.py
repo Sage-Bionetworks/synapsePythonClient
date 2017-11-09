@@ -412,10 +412,13 @@ def column_ids(columns):
 
 
 def row_labels_from_id_and_version(rows):
-    return ["%s_%s"%(id, version) for id, version in rows]
+    return ["_".join(map(str, row)) for row in rows]
 
 def row_labels_from_rows(rows):
-    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber']) for row in rows])
+    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber'], row['etag'])
+                                           if 'etag' in row else (row['rowId'], row['versionNumber'])
+                                           for row in rows])
+
 
 def cast_values(values, headers):
     """
@@ -735,14 +738,12 @@ class RowSet(DictObject):
 
         .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
-        arsr = dict(
-            concreteType='org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
-            toAppend=self,
-            entityId=self.tableId)
+        append_rowset_request ={'concreteType':'org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
+               'toAppend':self,
+               'entityId':self.tableId}
 
-        uri = "/entity/{id}/table/append/async".format(id=self.tableId)
-        response = syn._waitForAsync(uri=uri, request=arsr)
-        return response.get('rowReferenceSet', response)
+        response = syn._POST_table_transaction(self.tableId, append_rowset_request)
+        return response['results'][0]
 
     def _synapse_delete(self, syn):
         """
@@ -765,13 +766,15 @@ class Row(DictObject):
     :param rowId:          The immutable ID issued to a new row
     :param versionNumber:  The version number of this row. Each row version is immutable, so when a row is updated a new version is created.
     """
-    def __init__(self, values, rowId=None, versionNumber=None):
+    def __init__(self, values, rowId=None, versionNumber=None, etag=None):
         super(Row, self).__init__()
         self.values = values
         if rowId is not None:
             self.rowId = rowId
         if versionNumber is not None:
             self.versionNumber = versionNumber
+        if etag is not None:
+            self.etag = etag
 
 
 class RowSelection(DictObject):
@@ -1137,15 +1140,18 @@ class CsvFileTable(TableAbstractBaseClass):
         if isinstance(schema, Schema) and not schema.has_columns():
             schema.addColumns(cols)
 
-        ## convert row names in the format [row_id]_[version] back to columns
-        row_id_version_pattern = re.compile(r'(\d+)_(\d+)')
+        ## convert row names in the format [row_id]_[version] or [row_id]_[version]_[etag] back to columns
+        etag_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}' #etag is essentially a UUID
+        row_id_version_pattern = re.compile(r'(\d+)_(\d+)(_(' + etag_pattern + r'))?')
 
         row_id = []
         row_version = []
+        row_etag = []
         for row_name in df.index.values:
             m = row_id_version_pattern.match(str(row_name))
             row_id.append(m.group(1) if m else None)
             row_version.append(m.group(2) if m else None)
+            row_etag.append(m.group(4) if m else None)
 
         ## include row ID and version, if we're asked to OR if it's encoded in rownames
         if includeRowIdAndRowVersion or (includeRowIdAndRowVersion is None and any(row_id)):
@@ -1153,6 +1159,8 @@ class CsvFileTable(TableAbstractBaseClass):
 
             cls._insert_dataframe_column_if_not_exist(df2, 0, 'ROW_ID', row_id)
             cls._insert_dataframe_column_if_not_exist(df2, 1, 'ROW_VERSION', row_version)
+            if any(row_etag):
+                cls._insert_dataframe_column_if_not_exist(df2, 2,'ROW_ETAG', row_etag)
 
             df = df2
             includeRowIdAndRowVersion = True
@@ -1367,9 +1375,15 @@ class CsvFileTable(TableAbstractBaseClass):
             ## combine row-ids (in index) and row-versions (in column 0) to
             ## make new row labels consisting of the row id and version
             ## separated by a dash.
-            df.index = row_labels_from_id_and_version(zip(df["ROW_ID"], df["ROW_VERSION"]))
+            zip_args = [df["ROW_ID"], df["ROW_VERSION"]]
+            if "ROW_ETAG" in df.columns:
+                zip_args.append(df['ROW_ETAG'])
+
+            df.index = row_labels_from_id_and_version(zip(*zip_args))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
+            if "ROW_ETAG" in df.columns:
+                del df['ROW_ETAG']
 
         return df
 

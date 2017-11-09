@@ -2893,7 +2893,8 @@ class Synapse:
             "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
             "query": {
                 "sql": query,
-                "isConsistent": isConsistent
+                "isConsistent": isConsistent,
+                "includeEntityEtag": True
             }
         }
 
@@ -2941,15 +2942,51 @@ class Synapse:
             "uploadFileHandleId": fileHandleId
         }
 
-        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
-           'entityId': id_of(schema),
-           'changes': [uploadRequest]}
-
         if updateEtag:
-            request["updateEtag"] = updateEtag
+            uploadRequest["updateEtag"] = updateEtag
+
+        return self._POST_table_transaction(schema, uploadRequest)
+
+    def _POST_table_transaction(self, schema, transactionRequests):
+        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
+                   'entityId': id_of(schema),
+                   'changes': transactionRequests if isinstance(transactionRequests, list) else [transactionRequests]}
 
         uri = "/entity/{id}/table/transaction/async".format(id=id_of(schema))
-        return self._waitForAsync(uri=uri, request=request)
+        response = self._waitForAsync(uri=uri, request=request)
+        self._check_table_transaction_response(response)
+
+        return response
+
+
+    def _check_table_transaction_response(self, response):
+        for result in response['results']:
+            result_type = result['concreteType']
+
+            if result_type in {concrete_types.ROW_REFERENCE_SET_RESULTS,
+                               concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE,
+                               concrete_types.UPLOAD_TO_TABLE_RESULT}:
+                #if these fail, it we would have gotten an HttpError before the results came back
+                pass
+            elif result_type == concrete_types.ENTITY_UPDATE_RESULTS:
+                # TODO: output full response to error file when the logging JIRA issue gets pulled in
+                sucessful_updates = []
+                failed_updates = []
+                for update_result in result['updateResults']:
+                    failure_code = update_result.get('failureCode')
+                    failure_message = update_result.get('failureMessage')
+                    entity_id = update_result.get('entityId')
+                    if failure_code or failure_message:
+                        failed_updates.append(update_result)
+                    else:
+                        sucessful_updates.append(entity_id)
+
+                if failed_updates:
+                    raise SynapseError("Not all of the entities were updated."
+                                       " Successful updates: %s.  Failed updates: %s" % (sucessful_updates, failed_updates))
+
+            else:
+                warnings.warn("Unexpected result from a table transaction of type [%s]. Please check the result to make sure it is correct. %s" % (result_type, result))
 
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
@@ -2978,7 +3015,9 @@ class Synapse:
                 "separator": separator},
             "sql": query,
             "writeHeader": header,
-            "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
+            "includeRowIdAndRowVersion": includeRowIdAndRowVersion,
+            "includeEntityEtag": True
+        }
 
         uri = "/entity/{id}/table/download/csv/async".format(id=_extract_synapse_id_from_query(query))
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)

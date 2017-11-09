@@ -12,7 +12,7 @@ import sys
 import tempfile
 from builtins import zip
 from mock import MagicMock
-from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false
+from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false, assert_not_in, assert_sequence_equal
 from nose import SkipTest
 
 try:
@@ -21,8 +21,9 @@ try:
 except ImportError:
     pandas_found = True
 
+import unit
 import synapseclient
-from synapseclient import Entity
+from synapseclient import Entity, RowSet
 from synapseclient.exceptions import SynapseError
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema
 from mock import patch
@@ -33,6 +34,7 @@ def setup(module):
     print('~' * 60)
     print(os.path.basename(__file__))
     print('~' * 60)
+    module.syn = unit.syn
 
 
 def test_cast_values():
@@ -574,3 +576,50 @@ def test_entityViewSchema__add_scope():
     entity_view.add_scope(456)
     entity_view.add_scope("789")
     assert_equals([str(x) for x in ["123","456","789"]], entity_view.scopeIds)
+
+
+def test_rowset_asDataFrame__with_ROW_ETAG_column():
+    query_result = {
+                   'concreteType':'org.sagebionetworks.repo.model.table.QueryResultBundle',
+                   'maxRowsPerPage':6990,
+                   'selectColumns':[
+                      {'id':'61770',  'columnType':'STRING', 'name':'annotationColumn1'},
+                      {'id':'61771', 'columnType':'STRING', 'name':'annotationColumn2'}
+                   ],
+                   'queryCount':1,
+                   'queryResult':{
+                      'concreteType':'org.sagebionetworks.repo.model.table.QueryResult',
+                      'nextPageToken': 'sometoken',
+                      'queryResults':{
+                         'headers':[
+                             {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
+                             {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
+                         'concreteType':'org.sagebionetworks.repo.model.table.RowSet',
+                         'etag':'DEFAULT',
+                         'tableId':'syn11363411',
+                         'rows':[{ 'values':[ 'initial_value1', 'initial_value2'],
+                               'etag':'7de0f326-9ef7-4fde-9e4a-ac0babca73f6',
+                               'rowId':123,
+                               'versionNumber':456}]
+                      }
+                   }
+                }
+    query_result_next_page = {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                        'queryResults': {'etag': 'DEFAULT',
+                         'headers': [
+                             {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
+                             {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
+                         'rows':[{ 'values':[ 'initial_value3', 'initial_value4'],
+                               'etag':'7de0f326-9ef7-4fde-9e4a-ac0babca73f7',
+                               'rowId':789,
+                               'versionNumber':101112}],
+                         'tableId': 'syn11363411'}}
+
+    with patch.object(syn, "_queryTable", return_value=query_result),\
+         patch.object(syn, "_queryTableNext", return_value=query_result_next_page):
+        table = syn.tableQuery("select something from syn123", resultsAs='rowset')
+        dataframe = table.asDataFrame()
+        assert_not_in("ROW_ETAG", dataframe.columns)
+        expected_indicies = ['123_456_7de0f326-9ef7-4fde-9e4a-ac0babca73f6', '789_101112_7de0f326-9ef7-4fde-9e4a-ac0babca73f7']
+        assert_sequence_equal(expected_indicies, dataframe.index.values.tolist())
+
