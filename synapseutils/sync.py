@@ -118,8 +118,8 @@ def generateManifest(syn, allFiles, filename):
     for entity in allFiles:
         row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name,
                'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
-        row.update({key:val[0] for key, val in entity.annotations.items() if len(val) > 0})
-        row.update({key:"" for key, val in entity.annotations.items() if len(val) == 0})
+        row.update({key:(val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
+
         annotKeys.update(set(entity.annotations.keys()))
         try:
             prov = syn.getProvenance(entity)
