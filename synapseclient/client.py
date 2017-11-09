@@ -1900,8 +1900,9 @@ class Synapse(object):
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
-                self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes\n" %
-                                  (exc_info[0](exc_info[1]), ex.progress))
+                self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes\n=================\n" %
+                                  (exc_info[0], ex.progress), exc_info=True)# this will include stack trace
+                self.logger.debug("\n=================\n")
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
                 if retries <= 0:

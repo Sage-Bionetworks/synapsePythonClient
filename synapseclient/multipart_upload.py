@@ -276,17 +276,18 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
         chunk = get_chunk_function(partNumber, partSize)
         syn.logger.debug("start upload part %s" % partNumber)
         _put_chunk(url, chunk, syn.debug)
-
+        syn.logger.debug("PUT upload of part %s complete" % partNumber)
         ## compute the MD5 for the chunk
         md5 = hashlib.md5()
         md5.update(chunk)
 
         ## confirm that part got uploaded
+        syn.logger.debug("contacting Synapse to complete part %s" % partNumber)
         add_part_response = _add_part(syn, uploadId=status.uploadId,
                                       partNumber=partNumber, partMD5Hex=md5.hexdigest())
         ## if part was successfully uploaded, increment progress
         if add_part_response["addPartState"] == "ADD_SUCCESS":
-            syn.logger.debug("finished upload part %s" % partNumber)
+            syn.logger.debug("finished contacting Synapse about adding part %s" % partNumber)
             with completed.get_lock():
                 completed.value += len(chunk)
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0, previouslyTransferred=bytes_already_uploaded)
@@ -300,7 +301,7 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
             return
         #If we are not in verbose debug mode we will swallow the error and retry.
         else:
-            syn.logger.exception("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
+            syn.logger.debug("Encountered an exception: %s. Retrying...\n" % str(type(ex1)), exc_info=True)
 
 
 def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
