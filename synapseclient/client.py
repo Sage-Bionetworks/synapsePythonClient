@@ -187,10 +187,11 @@ class Synapse(object):
 
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
-                 debug=DEBUG_DEFAULT, skip_checks=False, configPath=CONFIG_FILE):
+                 debug=None, skip_checks=False, configPath=CONFIG_FILE):
 
         cache_root_dir = synapseclient.cache.CACHE_ROOT_DIR
 
+        config_debug = None
         # Check for a config file
         self.configPath=configPath
         if os.path.isfile(configPath):
@@ -199,9 +200,9 @@ class Synapse(object):
                 cache_root_dir=config.get('cache', 'location')
             if config.has_section('debug'):
                 debug = True
-        else:
-            # Alert the user if no config is found
-            self.logger.debug("Could not find a config file (%s).  Using defaults." % os.path.abspath(configPath))
+
+        if debug is None:
+            debug = config_debug if config_debug is not None else DEBUG_DEFAULT
 
         self.cache = synapseclient.cache.Cache(cache_root_dir)
 
@@ -210,7 +211,7 @@ class Synapse(object):
         self.default_headers = {'content-type': 'application/json; charset=UTF-8', 'Accept': 'application/json; charset=UTF-8'}
         self.username = None
         self.apiKey = None
-        self.debug = debug
+        self.debug = debug #setter for debug initializes syn.logger also
         self.skip_checks = skip_checks
 
         self.table_query_sleep = 2
