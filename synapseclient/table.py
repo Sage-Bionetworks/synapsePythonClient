@@ -290,7 +290,7 @@ import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.entity import Entity, Versionable
-
+from . import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 
@@ -692,6 +692,25 @@ class Column(DictObject):
     def postURI(self):
         return '/column'
 
+#TODO: maybe use AppendableRowSet as superclass of Rowset and PartialRowSet
+class PartialRowset(DictObject):
+    """
+    """
+    #    TODO: documentation
+    def __init__(self, rows, schema):
+        super(PartialRow, self).__init__()
+        self.concreteType = concrete_types.PARTIAL_ROW_SET
+
+        if isinstance(PartialRow, rows):
+            self.rows = [rows]
+        else:
+            self.rows = list(rows)
+
+        if self.tableId is None:
+            raise ValueError("A schema including the tableId is required")
+
+    def _synapse_store(self, syn):
+
 
 class RowSet(DictObject):
     """
@@ -777,6 +796,18 @@ class Row(DictObject):
             self.etag = etag
 
 
+class PartialRow(DictObject):
+    def __init__(self, values, rowId):
+        super(PartialRow, self).__init__()
+        if not isinstance(dict, values):
+            raise ValueError("values must be a dict")
+        if not isinstance(six.integer_types, rowId):
+            raise ValueError("rowId must be an integer")
+
+        self.values = values
+        self.rowId = rowId
+
+
 class RowSelection(DictObject):
     """
     A set of rows to be `deleted <http://docs.synapse.org/rest/POST/entity/id/table/deleteRows.html>`_.
@@ -839,6 +870,8 @@ def Table(schema, values, **kwargs):
     ## a RowSet
     if isinstance(values, RowSet):
         return RowSetTable(schema, values, **kwargs)
+
+
 
     ## a list of rows
     elif isinstance(values, (list, tuple)):
