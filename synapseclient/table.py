@@ -281,15 +281,16 @@ import re
 import six
 import sys
 import tempfile
-from collections import OrderedDict
+from collections import OrderedDict, MutableMapping
 from builtins import zip
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 
-import synapseclient
-import synapseclient.utils as utils
-from synapseclient.exceptions import *
-from synapseclient.dict_object import DictObject
-from synapseclient.entity import Entity, Versionable
+
+from . import utils
+from . import entity
+from .exceptions import *
+from .dict_object import DictObject
+from .entity import Entity, Versionable
 from . import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
@@ -473,7 +474,8 @@ class SchemaBase(Entity, Versionable):
     _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
     _local_keys = Entity._local_keys + ['columns_to_store']
 
-    @abstractproperty  #forces subclasses to define _synapse_entity_type
+    @property
+    @abstractmethod  #forces subclasses to define _synapse_entity_type
     def _synapse_entity_type(self):
         pass
 
@@ -624,8 +626,8 @@ class EntityViewSchema(SchemaBase):
 
 
 ## add Schema to the map of synapse entity types to their Python representations
-synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
-synapseclient.entity._entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
+entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
+entity._entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 
 ## allowed column types
@@ -692,27 +694,59 @@ class Column(DictObject):
     def postURI(self):
         return '/column'
 
-#TODO: maybe use AppendableRowSet as superclass of Rowset and PartialRowSet
-class PartialRowset(DictObject):
+@six.add_metaclass(ABCMeta)
+class AppendableRowset(dict):
+
+
+    @abstractmethod
+    def __init__(self, schema, **kwargs):
+        if ('tableId' not in kwargs) and schema:
+            kwargs['tableId'] = utils.id_of(schema)
+
+        if not kwargs.get('tableId',None):
+            raise ValueError("Table schema ID must be defined to create a %s" % type(self).__name__)
+        super(AppendableRowset, self).__init__(kwargs)
+
+
+    def _synapse_store(self, syn):
+        """
+        Creates and POSTs an AppendableRowSetRequest_
+
+        .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
+        """
+        append_rowset_request ={'concreteType':'org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
+               'toAppend':self,
+               'entityId':self.tableId}
+
+        response = syn._POST_table_transaction(self.tableId, append_rowset_request)
+        return response['results'][0]
+
+
+
+class PartialRowset(AppendableRowset):
     """
     """
     #    TODO: documentation
-    def __init__(self, rows, schema):
-        super(PartialRow, self).__init__()
-        self.concreteType = concrete_types.PARTIAL_ROW_SET
 
-        if isinstance(PartialRow, rows):
+    def __init__(self, schema, rows):
+        super(PartialRowset, self).__init__(schema)
+
+        self.concreteType = 'org.sagebionetworks.repo.model.table.PartialRowSet'
+
+
+        if isinstance(rows, PartialRow):
             self.rows = [rows]
-        else:
-            self.rows = list(rows)
+        try:
+            if all(isinstance(row, PartialRow) for row in rows):
+                self.rows = list(rows)
+            else:
+                raise ValueError("rows must contain only values of type PartialRow")
+        except TypeError:
+            raise ValueError("rows must be iterable")
 
-        if self.tableId is None:
-            raise ValueError("A schema including the tableId is required")
-
-    def _synapse_store(self, syn):
 
 
-class RowSet(DictObject):
+class RowSet(AppendableRowset):
     """
     A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
@@ -741,28 +775,13 @@ class RowSet(DictObject):
                 kwargs.setdefault('headers',[]).extend([SelectColumn.from_column(column) for column in columns])
             elif schema and isinstance(schema, Schema):
                 kwargs.setdefault('headers',[]).extend([SelectColumn(id=id) for id in schema["columnIds"]])
-        if ('tableId' not in kwargs) and schema:
-            kwargs['tableId'] = utils.id_of(schema)
-        if not kwargs.get('tableId',None):
-            raise ValueError("Table schema ID must be defined to create a RowSet")
+
         if not kwargs.get('headers',None):
             raise ValueError("Column headers must be defined to create a RowSet")
         kwargs['concreteType'] = 'org.sagebionetworks.repo.model.table.RowSet'
 
         super(RowSet, self).__init__(kwargs)
 
-    def _synapse_store(self, syn):
-        """
-        Creates and POSTs an AppendableRowSetRequest_
-
-        .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
-        """
-        append_rowset_request ={'concreteType':'org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
-               'toAppend':self,
-               'entityId':self.tableId}
-
-        response = syn._POST_table_transaction(self.tableId, append_rowset_request)
-        return response['results'][0]
 
     def _synapse_delete(self, syn):
         """
@@ -770,6 +789,7 @@ class RowSet(DictObject):
         Example::
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
+        #TODO: this is deprecated, switch to transaction based async delete
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
             rowIds=[row.rowId for row in self.rows],
@@ -797,7 +817,7 @@ class Row(DictObject):
 
 
 class PartialRow(DictObject):
-    def __init__(self, values, rowId):
+    def __init__(self, values, rowId, etag=None):
         super(PartialRow, self).__init__()
         if not isinstance(dict, values):
             raise ValueError("values must be a dict")
@@ -806,6 +826,8 @@ class PartialRow(DictObject):
 
         self.values = values
         self.rowId = rowId
+        if etag is not None:
+            self.values['etag'] = etag
 
 
 class RowSelection(DictObject):
@@ -832,6 +854,7 @@ class RowSelection(DictObject):
                 tableId="syn1234567")
             syn.delete(row_selection)
         """
+        #TODO: this is deprecated, switch to transaction based async delete
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(self))
 
@@ -937,6 +960,7 @@ class TableAbstractBaseClass(object):
         Example::
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
+        #TODO: this is deprecated, switch to transaction based async delete
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
             rowIds=[row['rowId'] for row in self],
@@ -1357,7 +1381,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
         if row_id_col is None:
             raise SynapseError("Can't Delete. No ROW_IDs found.")
-
+        #TODO: this is deprecated, switch to transaction based async delete
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
             rowIds=[row[row_id_col] for row in self],
