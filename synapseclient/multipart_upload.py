@@ -376,7 +376,8 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                     if status.state == "COMPLETED":
                         break
                 except Exception as ex1:
-                    syn.logger.exception("Attempt to complete the multipart upload failed:")
+                    syn.logger.error("Attempt to complete the multipart upload failed with exception %s %s" % (type(ex1),ex1))
+                    syn.logger.debug("multipart upload failed:", exc_info=True)
     finally:
         mp.terminate()
     if status["state"] != "COMPLETED":

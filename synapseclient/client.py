@@ -243,7 +243,8 @@ class Synapse(object):
             config.read(configPath) # Does not fail if the file does not exist
             return config
         except configparser.Error:
-            self.logger.exception('Error parsing Synapse config file: %s' % configPath)
+            self.logger.error('Error parsing Synapse config file: %s' % configPath)
+            self.logger.debug("Synapse config file parse failure:",exc_info=True)
             raise
 
 
@@ -686,7 +687,7 @@ class Synapse(object):
 
         # Check and warn for unmet access requirements
         if len(bundle['unmetAccessRequirements']) > 0:
-            warning_message = ("\nWARNING: This entity has access restrictions. Please visit the "
+            warning_message = ("\nThis entity has access restrictions. Please visit the "
                               "web page for this entity (syn.onweb(\"%s\")). Click the downward "
                               "pointing arrow next to the file's name to review and fulfill its "
                               "download requirement(s).\n" % id_of(entity))
@@ -715,7 +716,7 @@ class Synapse(object):
             raise SynapseFileNotFoundError('File %s not found in Synapse' % (filepath,))
         elif len(results)>1:
             id_txts = '\n'.join(['%s.%i' %(r['id'], r['versionNumber']) for r in results])
-            self.logger.warning('\nWARNING: The file %s is associated with many files in Synapse:\n'
+            self.logger.warning('\nThe file %s is associated with many files in Synapse:\n'
                              '%s\n'
                              'You can limit to files in specific project or folder by setting the '
                              'limitSearch to the synapse Id of the project or folder.  \n'
@@ -784,7 +785,7 @@ class Synapse(object):
                 if file_handle:
                     self._download_file_entity(downloadLocation, entity, ifcollision, submission)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
-                    warning_message = "WARNING: you do not have DOWNLOAD permissions for this file. The file has NOT been downloaded"
+                    warning_message = "You do not have DOWNLOAD permissions for this file. The file has NOT been downloaded"
                     self.logger.warning('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
 
         return entity
@@ -853,7 +854,7 @@ class Synapse(object):
         #always overwrite if we are downloading to .synapseCache
         if utils.normalize_path(downloadLocation) == synapseCache_location:
             if ifcollision is not None:
-                self.logger.warning('\n' + '!'*50+'\n WARNING: ifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
+                self.logger.warning('\n' + '!'*50+'\nifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
             ifcollision= 'overwrite.local'
         #if ifcollision not specified, keep.local
         ifcollision = ifcollision or 'keep.both'
@@ -1253,7 +1254,7 @@ class Synapse(object):
         Use :py:func:`synapseclient.Synapse.get`
         """
 
-        self.logger.warning('WARNING!: THIS ONLY DOWNLOADS ENTITIES!')
+        self.logger.warning('THIS ONLY DOWNLOADS ENTITIES!')
         return self.downloadEntity(entity)
 
 
@@ -1719,7 +1720,7 @@ class Synapse(object):
             if modify_benefactor:
                 entity = benefactor
             elif warn_if_inherits:
-                self.logger.warning('Warning: Creating an ACL for entity %s, '
+                self.logger.warning('Creating an ACL for entity %s, '
                                  'which formerly inherited access control '
                                  'from a benefactor entity, "%s" (%s).\n'
                                  % (id_of(entity), benefactor['name'], benefactor['id']))
@@ -1901,9 +1902,8 @@ class Synapse(object):
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
-                self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes\n=================\n" %
+                self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes" %
                                   (exc_info[0], ex.progress), exc_info=True)# this will include stack trace
-                self.logger.debug("\n=================\n")
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
                 if retries <= 0:

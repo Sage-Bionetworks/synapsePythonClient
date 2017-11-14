@@ -53,7 +53,7 @@ def _with_retry(function, verbose=False,
             response = function()
         except Exception as ex:
             exc_info = sys.exc_info()
-            logger.debug("calling %s resulted in an Exception" % function.__name__)
+            logger.debug("calling %s resulted in an Exception" % function)
             if hasattr(ex, 'response'):
                 response = ex.response
 
@@ -100,8 +100,7 @@ def _with_retry(function, verbose=False,
 
         # Out of retries, re-raise the exception or return the response
         if exc_info is not None and exc_info[0] is not None:
-            logger.debug("retries have run out. reraising the exception\n=================", exc_info=True)
-            logger.debug("\n================\n")
+            logger.debug("retries have run out. reraising the exception", exc_info=True)
             six.reraise(exc_info[0],exc_info[1],exc_info[2])
         return response
 
