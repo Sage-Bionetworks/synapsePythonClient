@@ -642,3 +642,4 @@ def test_partial_row_update():
     query_rows = query_results.rowset.rows
     assert_equals(['foo foo 1', 'bar1'], query_rows[0].values)
     assert_equals(['foo2', 'bar bar 2'], query_rows[1].values)
+

@@ -19,3 +19,4 @@ TABLE_SCHEMA_CHANGE_RESPONSE = 'org.sagebionetworks.repo.model.table.TableSchema
 UPLOAD_TO_TABLE_RESULT = 'org.sagebionetworks.repo.model.table.UploadToTableResult'
 
 PARTIAL_ROW_SET = 'org.sagebionetworks.repo.model.table.PartialRowSet'
+APPENDABLE_ROWSET_REQUEST = 'org.sagebionetworks.repo.model.table.AppendableRowSetRequest'

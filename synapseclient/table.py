@@ -281,16 +281,15 @@ import re
 import six
 import sys
 import tempfile
-from collections import OrderedDict, MutableMapping
+from collections import OrderedDict
 from builtins import zip
 from abc import ABCMeta, abstractmethod
 
 
-from . import utils
-from . import entity
+from .utils import id_of, from_unix_epoch_time
 from .exceptions import *
 from .dict_object import DictObject
-from .entity import Entity, Versionable
+from .entity import Entity, Versionable, _entity_type_to_class
 from . import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
@@ -447,7 +446,7 @@ def cast_values(values, headers):
         elif columnType=='BOOLEAN':
             result.append(to_boolean(field))
         elif columnType=='DATE':
-            result.append(utils.from_unix_epoch_time(field))
+            result.append(from_unix_epoch_time(field))
         else:
             raise ValueError("Unknown column type: %s" % columnType)
 
@@ -495,7 +494,7 @@ class SchemaBase(Entity, Versionable):
         :param column: a column object or its ID
         """
         if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.append(utils.id_of(column))
+            self.properties.columnIds.append(id_of(column))
         elif isinstance(column, Column):
             if not self.__dict__.get('columns_to_store', None):
                 self.__dict__['columns_to_store'] = []
@@ -517,7 +516,7 @@ class SchemaBase(Entity, Versionable):
         :param column: a column object or its ID
         """
         if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.remove(utils.id_of(column))
+            self.properties.columnIds.remove(id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
         else:
@@ -611,10 +610,10 @@ class EntityViewSchema(SchemaBase):
         :param entities: a Project or Folder object or its ID, can also be a list of them
         """
         if isinstance(entities, list):
-            temp_list = [utils.id_of(entity) for entity in entities] #add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
+            temp_list = [id_of(entity) for entity in entities] #add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
             self.scopeIds.extend(temp_list)
         else:
-            self.scopeIds.append(utils.id_of(entities))
+            self.scopeIds.append(id_of(entities))
 
     def _before_synapse_store(self, syn):
         super(EntityViewSchema, self)._before_synapse_store(syn)
@@ -626,8 +625,8 @@ class EntityViewSchema(SchemaBase):
 
 
 ## add Schema to the map of synapse entity types to their Python representations
-entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
-entity._entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
+_entity_type_to_class[Schema._synapse_entity_type] = Schema
+_entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 
 ## allowed column types
@@ -696,12 +695,13 @@ class Column(DictObject):
 
 @six.add_metaclass(ABCMeta)
 class AppendableRowset(DictObject):
-
-
+    """
+    Abstract Base Class for Rowset and PartialRowset
+    """
     @abstractmethod
     def __init__(self, schema, **kwargs):
         if ('tableId' not in kwargs) and schema:
-            kwargs['tableId'] = utils.id_of(schema)
+            kwargs['tableId'] = id_of(schema)
 
         if not kwargs.get('tableId',None):
             raise ValueError("Table schema ID must be defined to create a %s" % type(self).__name__)
@@ -715,7 +715,7 @@ class AppendableRowset(DictObject):
         .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
         print(self)
-        append_rowset_request ={'concreteType':'org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
+        append_rowset_request ={'concreteType': concrete_types.APPENDABLE_ROWSET_REQUEST,
                'toAppend':self,
                'entityId':self.tableId}
 
@@ -727,16 +727,15 @@ class AppendableRowset(DictObject):
 class PartialRowset(AppendableRowset):
     """
     A set of Partial Rows used for Partially updating cells within a table
+
+    :param schema: The :py:class:`Schema` of thee table to update or its tableId as a string
+    :param rows: A list of PartialRows
     """
 
     def __init__(self, schema, rows):
-        """
-        :param schema: The :py:class:`Schema` of hte tble to update or its tableId as a string
-        :param rows: A list of PartialRows
-        """
         super(PartialRowset, self).__init__(schema)
 
-        self.concreteType = 'org.sagebionetworks.repo.model.table.PartialRowSet'
+        self.concreteType = concrete_types.PARTIAL_ROW_SET
 
 
         if isinstance(rows, PartialRow):
@@ -837,17 +836,16 @@ class PartialRow(DictObject):
                             'My Other Row': 42}
         partial_row = PartialRow(values_to_change, row_id, nameToColumnId=name_to_col_id)
 
+    :param values: A dict where:
+                - key is the columnId to the desired row
+                - value is the new desired value for that column
+    :param rowId: THe id of the row to be updated
+    :param etag: used for updating File/Project Views. Not necessary if updating data Tables
+    :param nameToColumnId: Optional map column names to column Ids. If this is provided, the keys of your `values`
+                           dict will be replaced with the column ids in the `nameToColumnId` dict
+
     """
     def __init__(self, values, rowId, etag=None, nameToColumnId = None):
-        """
-        :param values: A dict where:
-                        - key is the columnId to the desired row
-                        - value is the new desired value for that column
-        :param rowId: THe id of the row to be updated
-        :param etag: used for updating File/Project Views. Not necessary if updating data Tables
-        :param nameToColumnId: Optional map column names to column Ids. If this is provided, the keys of your `values`
-                               dict will be replaced with the column ids in the `nameToColumnId` dict
-        """
         super(PartialRow, self).__init__()
         if not isinstance(values, dict):
             raise ValueError("values must be a dict")
@@ -943,6 +941,7 @@ def Table(schema, values, **kwargs):
 
     else:
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))
+
 
 class TableAbstractBaseClass(object):
     """
@@ -1409,6 +1408,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
         if row_id_col is None:
             raise SynapseError("Can't Delete. No ROW_IDs found.")
+
         #TODO: this is deprecated, switch to transaction based async delete
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
