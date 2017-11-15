@@ -25,7 +25,7 @@ from mock import patch
 import synapseclient
 from synapseclient.exceptions import *
 from synapseclient import File, Folder, Schema, EntityViewSchema
-from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
+from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, PartialRow
 
 import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
@@ -611,3 +611,34 @@ def test_table_file_view_csv_update_annotations__includeEntityEtag():
         time.sleep(2)
         file_entity = syn.get(file_entity, downloadFile=False)
 
+
+def test_partial_row_update():
+    cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
+    schema = syn.store(Schema(name='PartialRowTest', columns=cols, parent=project))
+    data = [['foo1','bar1'],['foo2','bar2']]
+    rowset = RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data])
+    table = syn.store(rowset)
+
+    query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
+    query_rows = query_results.rowset.rows
+    assert_equals(len(query_rows), 2)
+
+    name_to_col_id = {col.name:col.id for col in query_results.headers}
+
+    #### change table values
+    #
+    # foo  | bar                  foo     |  bar
+    # ----------   =======>      ----------------------
+    # foo1 | bar1                foo foo1 |  bar 1
+    # foo2 | bar2                foo2     |  bar bar 2
+
+    partial_row1 = PartialRow({'foo': 'foo foo 1'},query_rows[0].rowId, nameToColumnId=name_to_col_id)
+    partial_row2 = PartialRow({'bar': 'bar bar 2'}, query_rows[1].rowId, nameToColumnId=name_to_col_id)
+    partial_rowset = PartialRowset(schema, [partial_row1,partial_row2])
+    syn.store(partial_rowset)
+
+    query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
+    assert_equals(len(query_rows), 2)
+    query_rows = query_results.rowset.rows
+    assert_equals(['foo foo 1', 'bar1'], query_rows[0].values)
+    assert_equals(['foo2', 'bar bar 2'], query_rows[1].values)

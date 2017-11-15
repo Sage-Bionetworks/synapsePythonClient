@@ -695,7 +695,7 @@ class Column(DictObject):
         return '/column'
 
 @six.add_metaclass(ABCMeta)
-class AppendableRowset(dict):
+class AppendableRowset(DictObject):
 
 
     @abstractmethod
@@ -714,6 +714,7 @@ class AppendableRowset(dict):
 
         .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
+        print(self)
         append_rowset_request ={'concreteType':'org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
                'toAppend':self,
                'entityId':self.tableId}
@@ -725,10 +726,14 @@ class AppendableRowset(dict):
 
 class PartialRowset(AppendableRowset):
     """
+    A set of Partial Rows used for Partially updating cells within a table
     """
-    #    TODO: documentation
 
     def __init__(self, schema, rows):
+        """
+        :param schema: The :py:class:`Schema` of hte tble to update or its tableId as a string
+        :param rows: A list of PartialRows
+        """
         super(PartialRowset, self).__init__(schema)
 
         self.concreteType = 'org.sagebionetworks.repo.model.table.PartialRowSet'
@@ -780,7 +785,7 @@ class RowSet(AppendableRowset):
             raise ValueError("Column headers must be defined to create a RowSet")
         kwargs['concreteType'] = 'org.sagebionetworks.repo.model.table.RowSet'
 
-        super(RowSet, self).__init__(kwargs)
+        super(RowSet, self).__init__(schema, **kwargs)
 
 
     def _synapse_delete(self, syn):
@@ -817,14 +822,40 @@ class Row(DictObject):
 
 
 class PartialRow(DictObject):
-    def __init__(self, values, rowId, etag=None):
+    """
+    A partial update for a single row.
+    Note "values" is a :py:class:`dict` where:
+        - key is the columnId to the desired row
+        - value is the new desired value for that column
+    The easiest way to know which columnIds to use is to check the `headers` of your most recent query:"
+        query_result = syn.TableQuery("SELECT * FROM syn123")
+        name_to_col_id = {col.name:col.id for col in query_results.headers}
+
+        row_id = #you to set this yourself#
+
+        values_to_change = {'My Row Name': "new value",
+                            'My Other Row': 42}
+        partial_row = PartialRow(values_to_change, row_id, nameToColumnId=name_to_col_id)
+
+    """
+    def __init__(self, values, rowId, etag=None, nameToColumnId = None):
+        """
+        :param values: A dict where:
+                        - key is the columnId to the desired row
+                        - value is the new desired value for that column
+        :param rowId: THe id of the row to be updated
+        :param etag: used for updating File/Project Views. Not necessary if updating data Tables
+        :param nameToColumnId: Optional map column names to column Ids. If this is provided, the keys of your `values`
+                               dict will be replaced with the column ids in the `nameToColumnId` dict
+        """
         super(PartialRow, self).__init__()
-        if not isinstance(dict, values):
+        if not isinstance(values, dict):
             raise ValueError("values must be a dict")
-        if not isinstance(six.integer_types, rowId):
+        if not isinstance(rowId, six.integer_types):
             raise ValueError("rowId must be an integer")
 
-        self.values = values
+        self.values = [{'key': nameToColumnId[x_key] if nameToColumnId is not None else x_key,
+                        'value': x_value} for x_key, x_value in six.iteritems(values)]
         self.rowId = rowId
         if etag is not None:
             self.values['etag'] = etag
@@ -866,7 +897,7 @@ def Table(schema, values, **kwargs):
 
     :param schema: a table py:class:`Schema` object
     :param value: an object that holds the content of the tables
-      - a py:class:`RowSet`
+      - a :py:class:`RowSet`
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
@@ -894,8 +925,6 @@ def Table(schema, values, **kwargs):
     if isinstance(values, RowSet):
         return RowSetTable(schema, values, **kwargs)
 
-
-
     ## a list of rows
     elif isinstance(values, (list, tuple)):
         return CsvFileTable.from_list_of_rows(schema, values, **kwargs)
@@ -914,7 +943,6 @@ def Table(schema, values, **kwargs):
 
     else:
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))
-
 
 class TableAbstractBaseClass(object):
     """
