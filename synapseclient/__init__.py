@@ -320,6 +320,7 @@ from .version_check import check_for_updates
 from .version_check import release_notes
 
 import json
+from . import custom_json
 import pkg_resources
 __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient').decode())['latestVersion']
 
