@@ -740,13 +740,14 @@ class PartialRowset(AppendableRowset):
 
         if isinstance(rows, PartialRow):
             self.rows = [rows]
-        try:
-            if all(isinstance(row, PartialRow) for row in rows):
-                self.rows = list(rows)
-            else:
-                raise ValueError("rows must contain only values of type PartialRow")
-        except TypeError:
-            raise ValueError("rows must be iterable")
+        else:
+            try:
+                if all(isinstance(row, PartialRow) for row in rows):
+                    self.rows = list(rows)
+                else:
+                    raise ValueError("rows must contain only values of type PartialRow")
+            except TypeError:
+                raise ValueError("rows must be iterable")
 
 
 
@@ -849,14 +850,20 @@ class PartialRow(DictObject):
         super(PartialRow, self).__init__()
         if not isinstance(values, dict):
             raise ValueError("values must be a dict")
-        if not isinstance(rowId, six.integer_types):
-            raise ValueError("rowId must be an integer")
+
+        if isinstance(rowId, (six.integer_types,six.string_types)):
+            try:
+                rowId = int(rowId)
+            except ValueError:
+                raise ValueError("rowId must be an integer or string that represents an integer")
+        else:
+            raise ValueError("rowId must be an integer or string that represents an integer")
 
         self.values = [{'key': nameToColumnId[x_key] if nameToColumnId is not None else x_key,
                         'value': x_value} for x_key, x_value in six.iteritems(values)]
         self.rowId = rowId
         if etag is not None:
-            self.values['etag'] = etag
+            self.etag = etag
 
 
 class RowSelection(DictObject):

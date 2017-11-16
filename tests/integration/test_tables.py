@@ -632,7 +632,7 @@ def test_partial_row_update():
     # foo1 | bar1                foo foo1 |  bar 1
     # foo2 | bar2                foo2     |  bar bar 2
 
-    partial_row1 = PartialRow({'foo': 'foo foo 1'},query_rows[0].rowId, nameToColumnId=name_to_col_id)
+    partial_row1 = PartialRow({'foo': 'foo foo 1'}, query_rows[0].rowId, nameToColumnId=name_to_col_id)
     partial_row2 = PartialRow({'bar': 'bar bar 2'}, query_rows[1].rowId, nameToColumnId=name_to_col_id)
     partial_rowset = PartialRowset(schema, [partial_row1,partial_row2])
     syn.store(partial_rowset)
@@ -643,3 +643,29 @@ def test_partial_row_update():
     assert_equals(['foo foo 1', 'bar1'], query_rows[0].values)
     assert_equals(['foo2', 'bar bar 2'], query_rows[1].values)
 
+
+def test_parital_row_file_view():
+    folder = syn.store(Folder(name="PartialRowTestFolder", parent=project))
+    file1 = syn.store(File("~/path/doesnt/matter",name="f1", parent=folder, synapseStore=False))
+    file2 = syn.store(File("~/path/doesnt/matter/again",name="f2", parent=folder, synapseStore=False))
+
+    cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
+    schema = syn.store(EntityViewSchema(name='PartialRowTestViews', columns=cols, add_default_columns=False, parent=project, scopes=[folder]))
+
+    query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
+    query_rows = query_results.rowset.rows
+    assert_equals(len(query_rows), 2)
+
+    name_to_col_id = {col.name:col.id for col in query_results.headers}
+
+
+    partial_row1 = PartialRow({'foo': 'foo foo 1'}, query_rows[0].rowId, etag=query_rows[0].etag, nameToColumnId=name_to_col_id)
+    partial_row2 = PartialRow({'bar': 'bar bar 2'}, query_rows[1].rowId, etag=query_rows[1].etag, nameToColumnId=name_to_col_id)
+    partial_rowset = PartialRowset(schema, [partial_row1,partial_row2])
+    syn.store(partial_rowset)
+
+    query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
+    assert_equals(len(query_rows), 2)
+    query_rows = query_results.rowset.rows
+    assert_equals(['foo foo 1', None], query_rows[0].values)
+    assert_equals([None, 'bar bar 2'], query_rows[1].values)
