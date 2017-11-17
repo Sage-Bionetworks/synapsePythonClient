@@ -29,7 +29,7 @@ from synapseclient.exceptions import SynapseError
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, \
                                 Table, RowSet, SelectColumn, EntityViewSchema, PartialRow, PartialRowset
 from mock import patch
-
+from collections import OrderedDict
 
 def setup(module):
     print('\n')
@@ -649,9 +649,8 @@ class TestPartialRow():
 
 
     def test_constructor__values_translation(self):
-        values = {"12345": "rowValue",
-                  "09876": "otherValue"
-                  }
+        values = OrderedDict([("12345", "rowValue"),
+                              ("09876", "otherValue")])
         partial_row = PartialRow(values, 711)
 
         expected_values = [{"key":"12345", "value":"rowValue"}, {"key":"09876", "value":"otherValue"}]
@@ -668,9 +667,8 @@ class TestPartialRow():
 
 
     def test_constructor__name_to_col_id(self):
-        values = {"row1": "rowValue",
-                  "row2": "otherValue"
-                  }
+        values = OrderedDict([("row1", "rowValue"),
+                              ("row2", "otherValue")])
         names_to_col_id = {"row1": "12345", "row2": "09876"}
         partial_row = PartialRow(values, 711, nameToColumnId=names_to_col_id)
 
