@@ -13,7 +13,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_is_not_none, raises
+from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_false
 from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch, call
 
@@ -70,7 +70,7 @@ def test_login():
             # It should REST PUT the token and fail
             # Then keep going and, due to mocking, fail to read any credentials
             assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
-            assert config_items_mock.called
+            assert_false(config_items_mock.called)
             
             # Login with no credentials 
             assert_raises(SynapseAuthenticationError, syn.login)
@@ -108,6 +108,12 @@ def test_login():
     finally:
         # Login with config file
         syn.login(rememberMe=True, silent=True)
+
+def test_login__bad_credentials():
+    # nonexistant username and password
+    assert_raises(SynapseAuthenticationError, synapseclient.login, email=str(uuid.uuid4()), password="In the end, it doens't even matter")
+    # existing username and bad password
+    assert_raises(SynapseAuthenticationError, synapseclient.login, email=syn.username, password=str(uuid.uuid4()))
 
 
 def testCustomConfigFile():
@@ -484,8 +490,8 @@ def test_ExternalObjectStore_roundtrip():
     proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
     schedule_for_cleanup(proj)
 
-    storage_location = syn.createStorageLocationSetting("ExternalObjectStorageLocationSetting", endpointUrl=endpoint, bucket=bucket)
-    syn.setStorageLocationSetting(proj, storage_location['storageLocationId'])
+    storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=endpoint, bucket=bucket)
+    syn.setStorageLocation(proj, storage_location['storageLocationId'])
 
     file_path = utils.make_bogus_data_file()
 
@@ -520,3 +526,23 @@ def test_ExternalObjectStore_roundtrip():
 
     #clean up
     s3_file.delete()
+
+
+def testSetStorageLocation__existing_storage_location():
+    proj = syn.store(Project(name=str(uuid.uuid4()) + "testSetStorageLocation__existing_storage_location"))
+    schedule_for_cleanup(proj)
+
+    endpoint = "https://url.doesnt.matter.com"
+    bucket = "fake-bucket-name"
+    storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=endpoint, bucket=bucket)
+    storage_setting = syn.setStorageLocation(proj, storage_location['storageLocationId'])
+    retrieved_setting = syn.getProjectSetting(proj, 'upload')
+    assert_equals(storage_setting, retrieved_setting)
+
+    new_endpoint = "https://some.other.url.com"
+    new_bucket = "some_other_bucket"
+    new_storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=new_endpoint, bucket=new_bucket)
+    new_storage_setting = syn.setStorageLocation(proj, new_storage_location['storageLocationId'])
+    new_retrieved_setting = syn.getProjectSetting(proj, 'upload')
+    assert_equals(new_storage_setting, new_retrieved_setting)
+

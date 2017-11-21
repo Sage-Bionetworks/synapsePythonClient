@@ -174,7 +174,7 @@ def test_copy():
             [2.3,'baz',30]]
 
     schema = syn.store(Schema(name='Testing', columns=cols, parent=project_entity.id))
-    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+    row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
     table_map = synapseutils.copy(syn,schema.id, destinationId=second_project.id)
     copied_table = syn.tableQuery('select * from %s' %table_map[schema.id])

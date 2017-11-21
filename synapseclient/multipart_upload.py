@@ -286,9 +286,10 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0, previouslyTransferred=bytes_already_uploaded)
     except Exception as ex1:
         if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403:
-            sys.stderr.write("The presigned upload URL has expired. Restarting upload...\n")
             with expired.get_lock():
-                expired.value = True
+                if not expired.value:
+                    warnings.warn("The presigned upload URL has expired. Restarting upload...\n")
+                    expired.value = True
             return
         #If we are not in verbose debug mode we will swallow the error and retry.
         elif syn.debug:
@@ -334,13 +335,14 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
         while retries<MAX_RETRIES:
             ## keep track of the number of bytes uploaded so far
             completed = Value('d', min(completedParts * partSize, fileSize))
+            expired = Value(c_bool, False)
 
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
-            chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
+            chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status,
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
                                                       fileSize=fileSize, partSize=partSize, t0=time_upload_started,
-                                                      expired=Value(c_bool, False), bytes_already_uploaded=previously_completed_bytes)
+                                                      expired=expired, bytes_already_uploaded=previously_completed_bytes)
 
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)
@@ -365,4 +367,3 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
         raise SynapseError("Upload {id} did not complete. Try again.".format(id=status["uploadId"]))
 
     return status
-
