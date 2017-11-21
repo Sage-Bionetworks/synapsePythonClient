@@ -3407,7 +3407,9 @@ class Synapse:
         Performs a REST GET operation to the Synapse server.
 
         :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
+        :param endpoint: Server endpoint, defaults to 'https://repo-prod.prod.sagebase.org/file/v1'.  Some
+        services require 'https://file-prod.prod.sagebase.org/file/v1' or 'https://file-prod.prod.sagebase.org/auth/v1',
+        as per the REST API docs, see: http://docs.synapse.org/rest.
         :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
         :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
 
