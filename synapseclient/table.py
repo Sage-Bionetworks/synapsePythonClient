@@ -281,7 +281,7 @@ import re
 import six
 import sys
 import tempfile
-from collections import OrderedDict
+from collections import OrderedDict, Mapping
 from builtins import zip
 from abc import ABCMeta, abstractmethod
 
@@ -571,12 +571,12 @@ class EntityViewSchema(SchemaBase):
     :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
     :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
-    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True. 
+    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True.
     The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
     ::
 
-      
-        project_or_folder = syn.get("syn123")  
+
+        project_or_folder = syn.get("syn123")
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'], view_type='file'))
     """
 
@@ -714,7 +714,6 @@ class AppendableRowset(DictObject):
 
         .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
-        print(self)
         append_rowset_request ={'concreteType': concrete_types.APPENDABLE_ROWSET_REQUEST,
                'toAppend':self,
                'entityId':self.tableId}
@@ -731,6 +730,15 @@ class PartialRowset(AppendableRowset):
     :param schema: The :py:class:`Schema` of thee table to update or its tableId as a string
     :param rows: A list of PartialRows
     """
+
+    @classmethod
+    def from_mapping(cls, mapping, originalQueryResult):
+        """
+        Creates a PartialRowset
+        :param mapping:
+        :return:
+        """
+
 
     def __init__(self, schema, rows):
         super(PartialRowset, self).__init__(schema)
@@ -823,35 +831,27 @@ class Row(DictObject):
 
 class PartialRow(DictObject):
     """
-    A partial update for a single row.
-    Note "values" is a :py:class:`dict` where:
-        - key is the columnId to the desired row
-        - value is the new desired value for that column
-    The easiest way to know which columnIds to use is to check the `headers` of your most recent query:"
-        query_result = syn.TableQuery("SELECT * FROM syn123")
-        name_to_col_id = {col.name:col.id for col in query_results.headers}
+    Ued to update individual cells within a single row.
 
-        row_id = #you to set this yourself#
+    See ::py:class:`PartialRowSet` documentation for an example.
 
-        values_to_change = {'My Row Name': "new value",
-                            'My Other Row': 42}
-        partial_row = PartialRow(values_to_change, row_id, nameToColumnId=name_to_col_id)
-
-    :param values: A dict where:
-                - key is the columnId to the desired row
+    :param values: A Mapping where:
+                - key is name of the column (or its columnId) to change in the desired row
                 - value is the new desired value for that column
-    :param rowId: THe id of the row to be updated
-    :param etag: used for updating File/Project Views. Not necessary if updating data Tables
+    :param rowId: The id of the row to be updated
+    :param etag: used for updating File/Project Views(::py:class:`EntityViewSchema`). Not necessary for a (::py:class:`Schema`) Table
     :param nameToColumnId: Optional map column names to column Ids. If this is provided, the keys of your `values`
-                           dict will be replaced with the column ids in the `nameToColumnId` dict
+                           Mapping will be replaced with the column ids in the `nameToColumnId` dict. Include this as an argument
+                           when you are providing the column names instead of columnIds as the keys to the `values` Mapping
 
     """
-    def __init__(self, values, rowId, etag=None, nameToColumnId = None):
-        super(PartialRow, self).__init__()
-        if not isinstance(values, dict):
-            raise ValueError("values must be a dict")
 
-        if isinstance(rowId, (six.integer_types,six.string_types)):
+    def __init__(self, values, rowId, etag=None, nameToColumnId=None):
+        super(PartialRow, self).__init__()
+        if not isinstance(values, Mapping):
+            raise ValueError("values must be a Mapping")
+
+        if isinstance(rowId, (six.integer_types, six.string_types)):
             try:
                 rowId = int(rowId)
             except ValueError:
