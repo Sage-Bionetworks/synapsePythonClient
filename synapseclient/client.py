@@ -3407,9 +3407,10 @@ class Synapse:
         Performs a REST GET operation to the Synapse server.
 
         :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to 'https://repo-prod.prod.sagebase.org/file/v1'.  Some
-        services require 'https://file-prod.prod.sagebase.org/file/v1' or 'https://file-prod.prod.sagebase.org/auth/v1',
-        as per the REST API docs, see: http://docs.synapse.org/rest.
+        :param endpoint: Server endpoint, defaults to self.repoEndpoint.   
+        The required endpoint is shown in each service's page in the REST API doc's (http://docs.synapse.org/rest).
+        Options are: 'https://repo-prod.prod.sagebase.org/repo/v1', 'https://file-prod.prod.sagebase.org/file/v1' 
+        or 'https://file-prod.prod.sagebase.org/auth/v1'.
         :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
         :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
 
@@ -3429,7 +3430,10 @@ class Synapse:
         Performs a REST POST operation to the Synapse server.
 
         :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
+        :param endpoint: Server endpoint, defaults to self.repoEndpoint   
+        The required endpoint is shown in each service's page in the REST API doc's (http://docs.synapse.org/rest).
+        Options are: 'https://repo-prod.prod.sagebase.org/repo/v1', 'https://file-prod.prod.sagebase.org/file/v1' 
+        or 'https://file-prod.prod.sagebase.org/auth/v1'.
         :param body:     The payload to be delivered
         :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
         :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
@@ -3449,7 +3453,10 @@ class Synapse:
         Performs a REST PUT operation to the Synapse server.
 
         :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
+        :param endpoint: Server endpoint, defaults to self.repoEndpoint   
+        The required endpoint is shown in each service's page in the REST API doc's (http://docs.synapse.org/rest).
+        Options are: 'https://repo-prod.prod.sagebase.org/repo/v1', 'https://file-prod.prod.sagebase.org/file/v1' 
+        or 'https://file-prod.prod.sagebase.org/auth/v1'.
         :param body:     The payload to be delivered
         :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
         :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
@@ -3471,7 +3478,10 @@ class Synapse:
         Performs a REST DELETE operation to the Synapse server.
 
         :param uri:      URI of resource to be deleted
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
+        :param endpoint: Server endpoint, defaults to self.repoEndpoint   
+        The required endpoint is shown in each service's page in the REST API doc's (http://docs.synapse.org/rest).
+        Options are: 'https://repo-prod.prod.sagebase.org/repo/v1', 'https://file-prod.prod.sagebase.org/file/v1' 
+        or 'https://file-prod.prod.sagebase.org/auth/v1'.
         :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
         :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
         """
