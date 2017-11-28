@@ -364,7 +364,6 @@ def df2Table(df, syn, tableName, parentProject):
     """
 
     #Create columns:
-    print(df.shape)
     cols = as_table_columns(df)
     cols = [syn.store(col) for col in cols]
 
@@ -377,10 +376,8 @@ def df2Table(df, syn, tableName, parentProject):
     for i in range(0, df.shape[0]/1200+1):
         start =  i*1200
         end = min((i+1)*1200, df.shape[0])
-        print(start, end)
         rowset1 = RowSet(columns=cols, schema=schema1,
                          rows=[Row(list(df.ix[j,:])) for j in range(start,end)])
-        #print(len(rowset1.rows))
         rowset1 = syn.store(rowset1)
 
     return schema1
