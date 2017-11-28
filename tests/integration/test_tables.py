@@ -612,60 +612,56 @@ def test_table_file_view_csv_update_annotations__includeEntityEtag():
         file_entity = syn.get(file_entity, downloadFile=False)
 
 
-def test_partial_row_update():
-    cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
-    schema = syn.store(Schema(name='PartialRowTest', columns=cols, parent=project))
-    data = [['foo1','bar1'],['foo2','bar2']]
-    rowset = RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data])
-    table = syn.store(rowset)
+class TestPartialRow():
 
-    query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
-    query_rows = query_results.rowset.rows
-    assert_equals(len(query_rows), 2)
+    def test_partial_row_update_dict(self):
+        """
+        Test PartialRow updates to regular tables
+        """
 
-    name_to_col_id = {col.name:col.id for col in query_results.headers}
+        cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
+        schema = syn.store(Schema(name='PartialRowTest', columns=cols, parent=project))
+        data = [['foo1', None],[None,'bar2']]
+        rowset = RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data])
+        table = syn.store(rowset)
 
-    #### change table values
-    #
-    # foo  | bar                  foo     |  bar
-    # ----------   =======>      ----------------------
-    # foo1 | bar1                foo foo1 |  bar 1
-    # foo2 | bar2                foo2     |  bar bar 2
-
-    partial_row1 = PartialRow({'foo': 'foo foo 1'}, query_rows[0].rowId, nameToColumnId=name_to_col_id)
-    partial_row2 = PartialRow({'bar': 'bar bar 2'}, query_rows[1].rowId, nameToColumnId=name_to_col_id)
-    partial_rowset = PartialRowset(schema, [partial_row1,partial_row2])
-    syn.store(partial_rowset)
-
-    query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
-    assert_equals(len(query_rows), 2)
-    query_rows = query_results.rowset.rows
-    assert_equals(['foo foo 1', 'bar1'], query_rows[0].values)
-    assert_equals(['foo2', 'bar bar 2'], query_rows[1].values)
+        self._helper_test(schema)
 
 
-def test_parital_row_file_view():
-    folder = syn.store(Folder(name="PartialRowTestFolder", parent=project))
-    file1 = syn.store(File("~/path/doesnt/matter",name="f1", parent=folder, synapseStore=False))
-    file2 = syn.store(File("~/path/doesnt/matter/again",name="f2", parent=folder, synapseStore=False))
+    def test_parital_row_file_view_dict(self):
+        """
+        Test PartialRow updates to EntityView tables
+        """
 
-    cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
-    schema = syn.store(EntityViewSchema(name='PartialRowTestViews', columns=cols, add_default_columns=False, parent=project, scopes=[folder]))
+        folder = syn.store(Folder(name="PartialRowTestFolder", parent=project))
+        file1 = syn.store(File("~/path/doesnt/matter",name="f1", parent=folder, synapseStore=False))
+        file2 = syn.store(File("~/path/doesnt/matter/again",name="f2", parent=folder, synapseStore=False))
 
-    query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
-    query_rows = query_results.rowset.rows
-    assert_equals(len(query_rows), 2)
+        cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
+        schema = syn.store(EntityViewSchema(name='PartialRowTestViews', columns=cols, add_default_columns=False, parent=project, scopes=[folder]))
 
-    name_to_col_id = {col.name:col.id for col in query_results.headers}
+        self._helper_test(schema)
 
 
-    partial_row1 = PartialRow({'foo': 'foo foo 1'}, query_rows[0].rowId, etag=query_rows[0].etag, nameToColumnId=name_to_col_id)
-    partial_row2 = PartialRow({'bar': 'bar bar 2'}, query_rows[1].rowId, etag=query_rows[1].etag, nameToColumnId=name_to_col_id)
-    partial_rowset = PartialRowset(schema, [partial_row1,partial_row2])
-    syn.store(partial_rowset)
+    def _helper_test(self, schema):
+        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
+        query_rows = query_results.rowset.rows
+        assert_equals(len(query_rows), 2)
+        #### change table values
+        #
+        # foo  | bar                  foo     |  bar
+        # ----------   =======>      ----------------------
+        # foo1 | None               foo foo1  |  None
+        # None | bar2               None      |  bar bar 2
+        partial_changes = {query_rows[0].rowId: {'foo': 'foo foo 1'},
+                           query_rows[1].rowId: {'bar': 'bar bar 2'}}
 
-    query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
-    assert_equals(len(query_rows), 2)
-    query_rows = query_results.rowset.rows
-    assert_equals(['foo foo 1', None], query_rows[0].values)
-    assert_equals([None, 'bar bar 2'], query_rows[1].values)
+
+        partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
+        syn.store(partial_rowset)
+        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
+        assert_equals(len(query_rows), 2)
+        query_rows = query_results.rowset.rows
+        assert_equals(['foo foo 1', None], query_rows[0].values)
+        assert_equals([None, 'bar bar 2'], query_rows[1].values)
+

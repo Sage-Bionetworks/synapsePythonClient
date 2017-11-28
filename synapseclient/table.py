@@ -281,7 +281,7 @@ import re
 import six
 import sys
 import tempfile
-from collections import OrderedDict, Mapping
+from collections import OrderedDict, Mapping, namedtuple
 from builtins import zip
 from abc import ABCMeta, abstractmethod
 
@@ -725,11 +725,14 @@ class AppendableRowset(DictObject):
 
 class PartialRowset(AppendableRowset):
     """
-    A set of Partial Rows used for Partially updating cells within a table
+    A set of Partial Rows used for updating cells of a table.
+    PartialRowsets allow you to push only the individual cells you wish to change
+    instead of pushing entire rows with many unchanged cells.
 
     :param schema: The :py:class:`Schema` of thee table to update or its tableId as a string
     :param rows: A list of PartialRows
     """
+    #TODO: add documentation about from_mapping
 
     @classmethod
     def from_mapping(cls, mapping, originalQueryResult):
@@ -738,6 +741,26 @@ class PartialRowset(AppendableRowset):
         :param mapping:
         :return:
         """
+        if not isinstance(mapping, Mapping):
+            raise ValueError("mapping must be a supported Mapping type such as 'dict'")
+
+        try:
+            name_to_column_id = {col.name:col.id for col in originalQueryResult.headers}
+        except AttributeError:
+            raise ValueError('originalQueryResult must be the result of a syn.tableQuery()')
+
+        row_etags = {}
+        row_ids = set(six.iterkeys(mapping))
+        for id, etag in originalQueryResult.iter_etags():
+            if id in row_ids and etag is not None:
+                row_etags[id] = etag
+
+        partial_rows = []
+        for row_id, row_changes in six.iteritems(mapping):
+            partial_rows.append(PartialRow(row_changes, row_id, etag=row_etags.get(row_id), nameToColumnId=name_to_column_id))
+
+        return cls(id_of(originalQueryResult), partial_rows)
+
 
 
     def __init__(self, schema, rows):
@@ -954,6 +977,9 @@ class TableAbstractBaseClass(object):
     """
     Abstract base class for Tables based on different data containers.
     """
+
+    IdEtagTuple = namedtuple('IdEtagTuple', ['row_id', 'row_etag'])
+
     def __init__(self, schema, headers=None, etag=None):
         if isinstance(schema, Schema):
             self.schema = schema
@@ -1004,6 +1030,15 @@ class TableAbstractBaseClass(object):
     def __iter__(self):
         raise NotImplementedError()
 
+    def iter_etags(self):
+        """
+        Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
+        it will generated as (row_id, None)
+
+        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
+        """
+        pass
+
 
 class RowSetTable(TableAbstractBaseClass):
     """
@@ -1047,6 +1082,8 @@ class RowSetTable(TableAbstractBaseClass):
                 yield cast_values(row, headers)
         return iterate_rows(self.rowset['rows'], self.rowset['headers'])
 
+    def iter_etags(self):
+        raise NotImplementedError("iter_etags is not supported for RowSetTable")
 
 class TableQueryResult(TableAbstractBaseClass):
     """
@@ -1168,6 +1205,10 @@ class TableQueryResult(TableAbstractBaseClass):
         Python 3 iterator
         """
         return self.next()
+
+    def iter_etags(self):
+        for row in self:
+            yield type(self).IdEtagTuple(row['rowId'], row.get('etag'))
 
 
 class CsvFileTable(TableAbstractBaseClass):
@@ -1532,3 +1573,17 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def __len__(self):
         return sum(1 for row in self)
+
+    def iter_etags(self):
+        try:
+            idx_of_col = lambda col_name: next((idx for idx, elem in enumerate(self.headers) if elem.name == col_name), None)
+            row_id_idx = idx_of_col('ROW_ID')
+            row_etag_idx = idx_of_col('ROW_ETAG')
+        except AttributeError:
+            raise ValueError("The CsvFileTable must be the result of a syn.tableQuery()")
+
+        if row_id_idx is None:
+            raise ValueError("This csv table does not have a ROW_ID column")
+
+        for row in self:
+            yield type(self).IdEtagTuple(row[row_id_idx], row[row_etag_idx] if row_etag_idx else None)
