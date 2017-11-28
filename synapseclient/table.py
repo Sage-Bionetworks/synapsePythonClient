@@ -759,12 +759,9 @@ class PartialRowset(AppendableRowset):
         return cls(id_of(originalQueryResult), partial_rows)
 
 
-
     def __init__(self, schema, rows):
         super(PartialRowset, self).__init__(schema)
-
         self.concreteType = concrete_types.PARTIAL_ROW_SET
-
 
         if isinstance(rows, PartialRow):
             self.rows = [rows]
