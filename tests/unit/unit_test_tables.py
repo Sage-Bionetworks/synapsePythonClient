@@ -14,6 +14,7 @@ from builtins import zip
 from mock import MagicMock
 from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false, assert_not_in, assert_sequence_equal
 from nose import SkipTest
+import unit
 
 try:
     import pandas as pd
@@ -24,10 +25,10 @@ except ImportError:
 from nose.tools import raises, assert_equals, assert_set_equal
 import unit
 import synapseclient
-from synapseclient import Entity, RowSet
+from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
-from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, \
-                                Table, RowSet, SelectColumn, EntityViewSchema, PartialRow, PartialRowset
+from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
+     as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset
 from mock import patch
 from collections import OrderedDict
 
@@ -572,6 +573,7 @@ def test_entityViewSchema__add_default_columns_when_from_Synapse():
     entity_view = EntityViewSchema(parent="idk", add_default_columns=True, properties=properties)
     assert_false(entity_view.add_default_columns)
 
+
 def test_entityViewSchema__add_scope():
     entity_view = EntityViewSchema(parent="idk")
     entity_view.add_scope(Entity(parent="also idk", id=123))
@@ -624,6 +626,38 @@ def test_rowset_asDataFrame__with_ROW_ETAG_column():
         assert_not_in("ROW_ETAG", dataframe.columns)
         expected_indicies = ['123_456_7de0f326-9ef7-4fde-9e4a-ac0babca73f6', '789_101112_7de0f326-9ef7-4fde-9e4a-ac0babca73f7']
         assert_sequence_equal(expected_indicies, dataframe.index.values.tolist())
+
+def test_RowSetTable_len():
+    schema = Schema(parentId="syn123", id='syn456', columns=[Column(name='column_name', id='123')])
+    rowset =  RowSet(schema=schema, rows=[Row(['first row']), Row(['second row'])])
+    row_set_table = RowSetTable(schema, rowset)
+    assert_equals(2, len(row_set_table))
+
+
+def test_TableQueryResult_len():
+    # schema = Schema(parentId="syn123", id='syn456', columns=[Column(name='column_name', id='123')])
+    # rowset =  RowSet(schema=schema, rows=[Row(['first row']), Row(['second row'])])
+
+    query_result_dict =  {'queryResult': {
+                         'queryResults': {
+                         'headers': [
+                          {'columnType': 'STRING',  'name': 'col_name'}],
+                          'rows': [
+                           {'values': ['first_row']},
+                           {'values': ['second_row']}],
+                          'tableId': 'syn123'}},
+                        'selectColumns': [{
+                         'columnType': 'STRING',
+                         'id': '1337',
+                         'name': 'col_name'}]}
+
+    query_string = "SELECT whatever FROM some_table WHERE sky=blue"
+    with patch.object(syn, "_queryTable", return_value =  query_result_dict) as mocked_table_query:
+        query_result_table = TableQueryResult(syn, query_string)
+        args, kwargs = mocked_table_query.call_args
+        assert_equals(query_string, kwargs['query'])
+        assert_equals(2, len(query_result_table))
+
 
 class TestPartialRow():
     """

@@ -281,7 +281,7 @@ import re
 import six
 import sys
 import tempfile
-from collections import OrderedDict, Mapping, namedtuple
+from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
 from builtins import zip
 from abc import ABCMeta, abstractmethod
 
@@ -979,7 +979,7 @@ def Table(schema, values, **kwargs):
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))
 
 
-class TableAbstractBaseClass(object):
+class TableAbstractBaseClass(Iterable, Sized):
     """
     Abstract base class for Tables based on different data containers.
     """
@@ -1033,8 +1033,7 @@ class TableAbstractBaseClass(object):
             etag=self.etag,
             tableId=self.tableId)))
 
-    def __iter__(self):
-        raise NotImplementedError()
+
 
     def iter_etags(self):
         """
@@ -1088,8 +1087,14 @@ class RowSetTable(TableAbstractBaseClass):
                 yield cast_values(row, headers)
         return iterate_rows(self.rowset['rows'], self.rowset['headers'])
 
+
+    def __len__(self):
+        return len(self.rowset['rows'])
+
+
     def iter_etags(self):
         raise NotImplementedError("iter_etags is not supported for RowSetTable")
+
 
 class TableQueryResult(TableAbstractBaseClass):
     """
@@ -1239,6 +1244,11 @@ class TableQueryResult(TableAbstractBaseClass):
         Python 3 iterator
         """
         return self.next()
+
+
+    def __len__(self):
+        return len(self.rowset['rows'])
+
 
     def iter_etags(self):
         for row in self:
