@@ -612,9 +612,14 @@ def test_table_file_view_csv_update_annotations__includeEntityEtag():
         file_entity = syn.get(file_entity, downloadFile=False)
 
 
-class TestPartialRow():
+class TestPartialRowSet():
+    """
+    These integration tests ensures that Tables can be updated via PartialRowSets.
+    There are 2 tests that use the same :py:method::`_helper_test` for assertions because
+    the EntityView tests resolves etags for the user automatically whereas the Table test will not use etags at all
+    """
 
-    def test_partial_row_update_dict(self):
+    def test_partial_row_Table(self):
         """
         Test PartialRow updates to regular tables
         """
@@ -625,10 +630,11 @@ class TestPartialRow():
         rowset = RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data])
         table = syn.store(rowset)
 
-        self._helper_test(schema)
+        self._helper_test(schema, "csv")
+        self._helper_test(schema, "rowset")
 
 
-    def test_parital_row_file_view_dict(self):
+    def test_parital_row_Entity_View(self):
         """
         Test PartialRow updates to EntityView tables
         """
@@ -640,28 +646,36 @@ class TestPartialRow():
         cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
         schema = syn.store(EntityViewSchema(name='PartialRowTestViews', columns=cols, add_default_columns=False, parent=project, scopes=[folder]))
 
-        self._helper_test(schema)
+        self._helper_test(schema, "csv")
+        self._helper_test(schema, "rowset")
 
 
-    def _helper_test(self, schema):
-        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
-        query_rows = query_results.rowset.rows
-        assert_equals(len(query_rows), 2)
+
+    def _helper_test(self, schema, resultsAs):
+        import pandas as pd
+        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
+        assert_equals(len(query_results), 2)
         #### change table values
         #
         # foo  | bar                  foo     |  bar
         # ----------   =======>      ----------------------
         # foo1 | None               foo foo1  |  None
         # None | bar2               None      |  bar bar 2
-        partial_changes = {query_rows[0].rowId: {'foo': 'foo foo 1'},
-                           query_rows[1].rowId: {'bar': 'bar bar 2'}}
+
+        df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
+        partial_changes = {df['ROW_ID'][0]: {'foo': 'foo foo 1'},
+                           df['ROW_ID'][1]: {'bar': 'bar bar 2'}}
 
 
         partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
         syn.store(partial_rowset)
-        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs='rowset')
-        assert_equals(len(query_rows), 2)
-        query_rows = query_results.rowset.rows
-        assert_equals(['foo foo 1', None], query_rows[0].values)
-        assert_equals([None, 'bar bar 2'], query_rows[1].values)
+        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
+        assert_equals(len(query_results), 2)
+        df2 = query_results.asDataFrame()
+        df2 = df2.where((pd.notnull(df2)), None)
+
+        expected_rows = [['foo foo 1', None], [None, 'bar bar 2']]
+        for expected, df_row in zip(expected_rows, df2.iterrows()):
+            df_idx, actual_row = df_row
+            assert_equals(expected, actual_row.tolist())
 

@@ -726,6 +726,23 @@ class PartialRowset(AppendableRowset):
     PartialRowsets allow you to push only the individual cells you wish to change
     instead of pushing entire rows with many unchanged cells.
 
+    Example::
+        query_results = syn.tableQuery("SELECT * FROM syn123")
+        query_rows = query_results.rowset.rows
+        assert_equals(len(query_rows), 2)
+        #### change table values
+        #
+        # foo  | bar                  foo     |  bar
+        # ----------   =======>      ----------------------
+        # foo1 | None               foo foo1  |  None
+        # None | bar2               None      |  bar bar 2
+        partial_changes = {query_rows[0].rowId: {'foo': 'foo foo 1'},
+                           query_rows[1].rowId: {'bar': 'bar bar 2'}}
+
+
+        partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
+        syn.store(partial_rowset)
+
     :param schema: The :py:class:`Schema` of thee table to update or its tableId as a string
     :param rows: A list of PartialRows
     """
@@ -747,14 +764,14 @@ class PartialRowset(AppendableRowset):
             raise ValueError('originalQueryResult must be the result of a syn.tableQuery()')
 
         row_etags = {}
-        row_ids = set(six.iterkeys(mapping))
+        row_ids = set(int(id) for id in six.iterkeys(mapping))
         for id, etag in originalQueryResult.iter_etags():
             if id in row_ids and etag is not None:
                 row_etags[id] = etag
 
         partial_rows = []
         for row_id, row_changes in six.iteritems(mapping):
-            partial_rows.append(PartialRow(row_changes, row_id, etag=row_etags.get(row_id), nameToColumnId=name_to_column_id))
+            partial_rows.append(PartialRow(row_changes, row_id, etag=row_etags.get(int(row_id)), nameToColumnId=name_to_column_id))
 
         return cls(id_of(originalQueryResult), partial_rows)
 
@@ -848,9 +865,10 @@ class Row(DictObject):
 
 class PartialRow(DictObject):
     """
-    Ued to update individual cells within a single row.
+    Instances of this class are  passed in to a :py:class::`PartialRowSet` to update individual cells within a table.
 
-    See ::py:class:`PartialRowSet` documentation for an example.
+
+    It is recommended you use :py:classmethod::`PartialRowSet.from_mapping`to construct PartialRows
 
     :param values: A Mapping where:
                 - key is name of the column (or its columnId) to change in the desired row
@@ -868,13 +886,7 @@ class PartialRow(DictObject):
         if not isinstance(values, Mapping):
             raise ValueError("values must be a Mapping")
 
-        if isinstance(rowId, (six.integer_types, six.string_types)):
-            try:
-                rowId = int(rowId)
-            except ValueError:
-                raise ValueError("rowId must be an integer or string that represents an integer")
-        else:
-            raise ValueError("rowId must be an integer or string that represents an integer")
+        rowId = int(rowId)
 
         self.values = [{'key': nameToColumnId[x_key] if nameToColumnId is not None else x_key,
                         'value': x_value} for x_key, x_value in six.iteritems(values)]
@@ -1119,7 +1131,7 @@ class TableQueryResult(TableAbstractBaseClass):
     def _synapse_store(self, syn):
         raise SynapseError("A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a DataFrame or RowSet instead.")
 
-    def asDataFrame(self):
+    def asDataFrame(self, rowIdAndVersionInIndex=True):
         """
         Convert query result to a Pandas DataFrame.
         """
@@ -1132,7 +1144,8 @@ class TableQueryResult(TableAbstractBaseClass):
 
         def construct_rownames(rowset, offset=0):
             try:
-                return row_labels_from_rows(rowset['rows'])
+
+                return row_labels_from_rows(rowset['rows']) if rowIdAndVersionInIndex else None
             except KeyError:
                 ## if we don't have row id and version, just number the rows
                 # python3 cast range to list for safety
@@ -1143,9 +1156,26 @@ class TableQueryResult(TableAbstractBaseClass):
         rownames = construct_rownames(self.rowset, offset)
         offset += len(self.rowset['rows'])
         series = OrderedDict()
+
+        if not rowIdAndVersionInIndex:
+            #Since we use an OrderedDict this must happen before we construct the other columns
+            #add row id, verison, and etag as rows
+            append_etag = False #only useful when (not rowIdAndVersionInIndex), hooray for lazy variables!
+            series['ROW_ID']  =  pd.Series(name='ROW_ID', data=[row['id'] for row in self.rowset['rows']])
+            series['ROW_VERSION'] = pd.Series(name='ROW_VERSION', data=[row['version'] for row in self.rowset['rows']])
+
+            row_etag = [row.get('etag') for row in self.rowset['rows']]
+            if any(row_etag):
+                append_etag = True
+                series['ROW_ETAG'] = pd.Series(name='ROW_ETAG', data=row_etag)
+
         for i, header in enumerate(self.rowset["headers"]):
             column_name = header.name
             series[column_name] = pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames)
+
+
+
+
 
         # subsequent pages of rows
         while self.nextPageToken:
@@ -1156,9 +1186,19 @@ class TableQueryResult(TableAbstractBaseClass):
 
             rownames = construct_rownames(self.rowset, offset)
             offset += len(self.rowset['rows'])
+
+            if not rowIdAndVersionInIndex:
+                series['ROW_ID'].append(pd.Series(name='ROW_ID', data=[row['id'] for row in self.rowset['rows']]))
+                series['ROW_VERSION'].append(pd.Series(name='ROW_VERSION', data=[row['version'] for row in self.rowset['rows']]))
+                if append_etag:
+                    series['ROW_ETAG'] = pd.Series(name='ROW_ETAG', data=[row.get('etag') for row in self.rowset['rows']])
+
             for i, header in enumerate(self.rowset["headers"]):
                 column_name = header.name
-                series[column_name] = series[column_name].append(pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames), verify_integrity=True)
+                series[column_name] = series[column_name].append(pd.Series(name=column_name,
+                                                                           data=[row['values'][i] for row in self.rowset['rows']],
+                                                                           index=rownames),
+                                                                 verify_integrity=rowIdAndVersionInIndex) # can't verify integrity when indices are just numbers instead of 'rowid_rowversion'
 
         return pd.DataFrame(data=series)
 
@@ -1202,7 +1242,7 @@ class TableQueryResult(TableAbstractBaseClass):
 
     def iter_etags(self):
         for row in self:
-            yield type(self).IdEtagTuple(row['rowId'], row.get('etag'))
+            yield type(self).IdEtagTuple(int(row['rowId']), row.get('etag'))
 
 
 class CsvFileTable(TableAbstractBaseClass):
@@ -1559,25 +1599,38 @@ class CsvFileTable(TableAbstractBaseClass):
                     escapechar=self.escapeCharacter,
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
+                num_metadata_cols = 2 # ROW_ID and ROW_ETAG
                 if self.header:
                     header = next(reader)
+                    if 'ROW_ETAG' in header:
+                        num_metadata_cols = 3
                 for row in reader:
-                    yield cast_values(row, headers)
+                    yield cast_values(row[num_metadata_cols:], headers)
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):
         return sum(1 for row in self)
 
     def iter_etags(self):
-        try:
-            idx_of_col = lambda col_name: next((idx for idx, elem in enumerate(self.headers) if elem.name == col_name), None)
-            row_id_idx = idx_of_col('ROW_ID')
-            row_etag_idx = idx_of_col('ROW_ETAG')
-        except AttributeError:
-            raise ValueError("The CsvFileTable must be the result of a syn.tableQuery()")
+        with io.open(self.filepath, encoding='utf-8') as f:
+            if not self.header:
+                raise ValueError("The csv file must have headers in order to find the etag column")
 
-        if row_id_idx is None:
-            raise ValueError("This csv table does not have a ROW_ID column")
+            reader = csv.reader(f,
+                                delimiter=self.separator,
+                                escapechar=self.escapeCharacter,
+                                lineterminator=self.lineEnd,
+                                quotechar=self.quoteCharacter)
+            header = next(reader)
 
-        for row in self:
-            yield type(self).IdEtagTuple(row[row_id_idx], row[row_etag_idx] if row_etag_idx else None)
+            #The ROW_... headers are always in a predefined order
+            ROW_ID_COL = 0
+            ROW_ETAG_COL = 2
+
+            if header[ROW_ID_COL] != 'ROW_ID':
+                raise ValueError("There is no ROW_ID header at column #%d" % ROW_ID_COL)
+
+            has_etag = (ROW_ETAG_COL < len(header) or header[ROW_ETAG_COL] != 'ROW_ETAG')
+
+            for row in reader:
+                yield type(self).IdEtagTuple(int(row[ROW_ID_COL]), row[ROW_ETAG_COL] if has_etag else None)
