@@ -281,7 +281,7 @@ import re
 import six
 import sys
 import tempfile
-from collections import OrderedDict
+from collections import OrderedDict, Sized, Iterable
 from builtins import zip
 from abc import ABCMeta, abstractmethod, abstractproperty
 
@@ -857,7 +857,7 @@ def Table(schema, values, **kwargs):
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))
 
 
-class TableAbstractBaseClass(object):
+class TableAbstractBaseClass(Iterable, Sized):
     """
     Abstract base class for Tables based on different data containers.
     """
@@ -907,8 +907,7 @@ class TableAbstractBaseClass(object):
             etag=self.etag,
             tableId=self.tableId)))
 
-    def __iter__(self):
-        raise NotImplementedError()
+
 
 
 class RowSetTable(TableAbstractBaseClass):
@@ -953,6 +952,8 @@ class RowSetTable(TableAbstractBaseClass):
                 yield cast_values(row, headers)
         return iterate_rows(self.rowset['rows'], self.rowset['headers'])
 
+    def __len__(self):
+        return len(self.rowset['rows'])
 
 class TableQueryResult(TableAbstractBaseClass):
     """
@@ -1074,6 +1075,9 @@ class TableQueryResult(TableAbstractBaseClass):
         Python 3 iterator
         """
         return self.next()
+
+    def __len__(self):
+        return len(self.rowset['rows'])
 
 
 class CsvFileTable(TableAbstractBaseClass):
