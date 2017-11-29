@@ -68,6 +68,7 @@ import tempfile
 import warnings
 import getpass
 import json
+import sys
 from collections import OrderedDict
 
 import synapseclient
@@ -360,7 +361,7 @@ class Synapse:
         if not silent:
             profile = self.getUserProfile(refresh=True)
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
-            print("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
+            sys.stderr.write("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
 
     def _get_config_section_dict(self, section_name):
         config = self.getConfigFile(self.configPath)
