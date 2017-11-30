@@ -163,7 +163,7 @@ def _get_from_members_items_or_properties(obj, key):
         elif 'properties' in obj and key in obj['properties']:
             return obj['properties'][key]
     except (KeyError, TypeError): pass
-    return getattr(obj, key, None)
+    return None
 
 ## TODO: what does this do on an unsaved Synapse Entity object?
 def id_of(obj):
@@ -181,8 +181,6 @@ def id_of(obj):
     result = _get_from_members_items_or_properties(obj, 'id')
     if result is None:
         result = _get_from_members_items_or_properties(obj, 'ownerId')
-    if result is None:
-        result = _get_from_members_items_or_properties(obj, 'tableId')
     if result is None:
         raise ValueError('Invalid parameters: couldn\'t find id of ' + str(obj))
     return str(result)
