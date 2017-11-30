@@ -612,46 +612,60 @@ def test_table_file_view_csv_update_annotations__includeEntityEtag():
         file_entity = syn.get(file_entity, downloadFile=False)
 
 
-class TestPartialRowSet():
-    """
-    These integration tests ensures that Tables can be updated via PartialRowSets.
-    There are 2 tests that use the same :py:method::`_helper_test` for assertions because
-    the EntityView tests resolves etags for the user automatically whereas the Table test will not use etags at all
-    """
+class TestPartialRowSet(object):
 
-    def test_partial_row_Table(self):
+    def test_partial_row_view_csv_query_table(self):
         """
-        Test PartialRow updates to regular tables
+        Test PartialRow updates from cvs queries
         """
+        self._test_method(self.table_setup(), "csv")
 
+    def test_partial_row_view_csv_query_entity_view(self):
+        """
+        Test PartialRow updates from cvs queries
+        """
+        self._test_method(self.view_setup(), "csv")
+
+    def test_parital_row_rowset_query_table(self):
+        """
+        Test PartialRow updates from rowset queries
+        """
+        self._test_method(self.table_setup(), "rowset")
+
+    def test_parital_row_rowset_query_entity_veiw(self):
+        """
+        Test PartialRow updates from rowset queries
+        """
+        self._test_method(self.view_setup(), "rowset")
+
+
+    def table_setup(self):
+        print("1")
+        # set up a table
         cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
-        schema = syn.store(Schema(name='PartialRowTest', columns=cols, parent=project))
+        schema = syn.store(Schema(name='PartialRowTest' + str(uuid.uuid4()), columns=cols, parent=project))
         data = [['foo1', None],[None,'bar2']]
-        rowset = RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data])
-        table = syn.store(rowset)
-
-        self._helper_test(schema, "csv")
-        self._helper_test(schema, "rowset")
+        syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+        return schema
 
 
-    def test_parital_row_Entity_View(self):
-        """
-        Test PartialRow updates to EntityView tables
-        """
+    def view_setup(self):
+        # set up a file view
+        print("2")
 
-        folder = syn.store(Folder(name="PartialRowTestFolder", parent=project))
-        file1 = syn.store(File("~/path/doesnt/matter",name="f1", parent=folder, synapseStore=False))
-        file2 = syn.store(File("~/path/doesnt/matter/again",name="f2", parent=folder, synapseStore=False))
+        folder = syn.store(Folder(name="PartialRowTestFolder" + str(uuid.uuid4()), parent=project))
+        syn.store(File("~/path/doesnt/matter", name="f1", parent=folder, synapseStore=False))
+        syn.store(File("~/path/doesnt/matter/again", name="f2", parent=folder, synapseStore=False))
 
         cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
-        schema = syn.store(EntityViewSchema(name='PartialRowTestViews', columns=cols, add_default_columns=False, parent=project, scopes=[folder]))
-
-        self._helper_test(schema, "csv")
-        self._helper_test(schema, "rowset")
-
+        return syn.store(
+            EntityViewSchema(name='PartialRowTestViews' + str(uuid.uuid4()), columns=cols, add_default_columns=False,
+                             parent=project, scopes=[folder]))
 
 
-    def _helper_test(self, schema, resultsAs):
+    def _test_method(self, schema, resultsAs):
+        #anything starting with "test" will be considered a test case by nosetests so I had to append '_' to it
+
         import pandas as pd
         query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
         assert_equals(len(query_results), 2)

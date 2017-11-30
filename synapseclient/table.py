@@ -759,8 +759,8 @@ class PartialRowset(AppendableRowset):
             raise ValueError("mapping must be a supported Mapping type such as 'dict'")
 
         try:
-            name_to_column_id = {col.name:col.id for col in originalQueryResult.headers}
-        except AttributeError:
+            name_to_column_id = {col.name:col.id for col in originalQueryResult.headers if 'id' in col}
+        except AttributeError as e:
             raise ValueError('originalQueryResult must be the result of a syn.tableQuery()')
 
         row_etags = {}
@@ -773,7 +773,7 @@ class PartialRowset(AppendableRowset):
         for row_id, row_changes in six.iteritems(mapping):
             partial_rows.append(PartialRow(row_changes, row_id, etag=row_etags.get(int(row_id)), nameToColumnId=name_to_column_id))
 
-        return cls(id_of(originalQueryResult), partial_rows)
+        return cls(originalQueryResult.tableId, partial_rows)
 
 
     def __init__(self, schema, rows):
@@ -1166,8 +1166,8 @@ class TableQueryResult(TableAbstractBaseClass):
             #Since we use an OrderedDict this must happen before we construct the other columns
             #add row id, verison, and etag as rows
             append_etag = False #only useful when (not rowIdAndVersionInIndex), hooray for lazy variables!
-            series['ROW_ID']  =  pd.Series(name='ROW_ID', data=[row['id'] for row in self.rowset['rows']])
-            series['ROW_VERSION'] = pd.Series(name='ROW_VERSION', data=[row['version'] for row in self.rowset['rows']])
+            series['ROW_ID']  =  pd.Series(name='ROW_ID', data=[row['rowId'] for row in self.rowset['rows']])
+            series['ROW_VERSION'] = pd.Series(name='ROW_VERSION', data=[row['versionNumber'] for row in self.rowset['rows']])
 
             row_etag = [row.get('etag') for row in self.rowset['rows']]
             if any(row_etag):
@@ -1609,17 +1609,19 @@ class CsvFileTable(TableAbstractBaseClass):
                     escapechar=self.escapeCharacter,
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
-                num_metadata_cols = 2 # ROW_ID and ROW_ETAG
                 if self.header:
                     header = next(reader)
-                    if 'ROW_ETAG' in header:
-                        num_metadata_cols = 3
+
                 for row in reader:
-                    yield cast_values(row[num_metadata_cols:], headers)
+                    yield cast_values(row, headers)
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):
-        return sum(1 for row in self)
+        with io.open(self.filepath, encoding='utf-8') as f:
+            if self.header:  #ignore the header line
+                f.readline()
+
+            return sum(1 for line in f.readlines())
 
     def iter_etags(self):
         with io.open(self.filepath, encoding='utf-8') as f:
