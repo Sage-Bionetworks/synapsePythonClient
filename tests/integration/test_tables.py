@@ -640,7 +640,6 @@ class TestPartialRowSet(object):
 
 
     def table_setup(self):
-        print("1")
         # set up a table
         cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
         schema = syn.store(Schema(name='PartialRowTest' + str(uuid.uuid4()), columns=cols, parent=project))
@@ -651,8 +650,6 @@ class TestPartialRowSet(object):
 
     def view_setup(self):
         # set up a file view
-        print("2")
-
         folder = syn.store(Folder(name="PartialRowTestFolder" + str(uuid.uuid4()), parent=project))
         syn.store(File("~/path/doesnt/matter", name="f1", parent=folder, synapseStore=False))
         syn.store(File("~/path/doesnt/matter/again", name="f2", parent=folder, synapseStore=False))

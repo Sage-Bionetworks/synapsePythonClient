@@ -727,19 +727,25 @@ class PartialRowset(AppendableRowset):
     instead of pushing entire rows with many unchanged cells.
 
     Example::
-        query_results = syn.tableQuery("SELECT * FROM syn123")
-        query_rows = query_results.rowset.rows
-        assert_equals(len(query_rows), 2)
-        #### change table values
+        #### the following code will change cells in a hypothetical table, syn123:
+        #### these same steps will also work for using EntityView tables to change Entity annotations
         #
-        # foo  | bar                  foo     |  bar
-        # ----------   =======>      ----------------------
-        # foo1 | None               foo foo1  |  None
-        # None | bar2               None      |  bar bar 2
-        partial_changes = {query_rows[0].rowId: {'foo': 'foo foo 1'},
-                           query_rows[1].rowId: {'bar': 'bar bar 2'}}
+        # fooCol | barCol             fooCol    |  barCol
+        # -----------------  =======> ----------------------
+        # foo1   | bar1               foo foo1  |  bar1
+        # foo2   | bar2               foo2      |  bar bar 2
 
+        query_results = syn.tableQuery("SELECT * FROM syn123")
 
+        # The easiest way to know the rowId of the row you wish to change
+        # is by converting the table to a pandas Dataframe with rowIdAndVersionInIndex=False
+        df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
+
+        partial_changes = {df['ROW_ID'][0]: {'fooCol': 'foo foo 1'},
+                           df['ROW_ID'][1]: {'barCol': 'bar bar 2'}}
+
+        # you will need to pass in your original query result as an argument
+        # so that we can perform column id translation and etag retrieval on your behalf:
         partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
         syn.store(partial_rowset)
 
@@ -752,8 +758,9 @@ class PartialRowset(AppendableRowset):
     def from_mapping(cls, mapping, originalQueryResult):
         """
         Creates a PartialRowset
-        :param mapping:
-        :return:
+        :param mapping: A mapping of mappings in the structure: {ROW_ID : {COLUMN_NAME: NEW_COL_VALUE}}
+        :param originalQueryResult:
+        :return: a PartialRowSet that can be syn.store()-ed to apply the changes
         """
         if not isinstance(mapping, Mapping):
             raise ValueError("mapping must be a supported Mapping type such as 'dict'")
@@ -865,10 +872,27 @@ class Row(DictObject):
 
 class PartialRow(DictObject):
     """
-    Instances of this class are  passed in to a :py:class::`PartialRowSet` to update individual cells within a table.
+    This is a lower-level class for use in :py:class::`PartialRowSet` to update individual cells within a table.
 
+    It is recommended you use :py:classmethod::`PartialRowSet.from_mapping`to construct partial changesets to a table.
 
-    It is recommended you use :py:classmethod::`PartialRowSet.from_mapping`to construct PartialRows
+    If you want to do the tedious parts yourself:
+
+    To change cells in the "foo"(colId:1234) and "bar"(colId:456) columns of a row with rowId=5 ::
+        rowId = 5
+
+        #pass in with columnIds as key:
+        PartialRow({123: 'fooVal', 456:'barVal'}, rowId)
+
+        #pass in with a nameToColumnId argument
+
+        #manually define:
+        nameToColumnId = {'foo':123, 'bar':456}
+        #OR if you have the result of a tableQuery() you can generate nameToColumnId using:
+        query_result = syn.tableQuery("SELECT * FROM syn123")
+        nameToColumnId = {col.name:col.id for col in query_result.headers}
+
+        PartialRow({'foo': 'fooVal', 'bar':'barVal'}, rowId, nameToColumnId=nameToColumnId)
 
     :param values: A Mapping where:
                 - key is name of the column (or its columnId) to change in the desired row
@@ -1177,10 +1201,6 @@ class TableQueryResult(TableAbstractBaseClass):
         for i, header in enumerate(self.rowset["headers"]):
             column_name = header.name
             series[column_name] = pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames)
-
-
-
-
 
         # subsequent pages of rows
         while self.nextPageToken:
