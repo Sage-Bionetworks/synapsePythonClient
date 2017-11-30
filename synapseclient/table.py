@@ -692,9 +692,7 @@ class Column(DictObject):
 
 @six.add_metaclass(ABCMeta)
 class AppendableRowset(DictObject):
-    """
-    Abstract Base Class for Rowset and PartialRowset
-    """
+    """Abstract Base Class for :py:class:`Rowset` and :py:class:`PartialRowset`"""
     @abstractmethod
     def __init__(self, schema, **kwargs):
         if ('tableId' not in kwargs) and schema:
@@ -721,8 +719,7 @@ class AppendableRowset(DictObject):
 
 
 class PartialRowset(AppendableRowset):
-    """
-    A set of Partial Rows used for updating cells of a table.
+    """A set of Partial Rows used for updating cells of a table.
     PartialRowsets allow you to push only the individual cells you wish to change
     instead of pushing entire rows with many unchanged cells.
 
@@ -749,15 +746,13 @@ class PartialRowset(AppendableRowset):
         partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
         syn.store(partial_rowset)
 
-    :param schema: The :py:class:`Schema` of thee table to update or its tableId as a string
+    :param schema: The :py:class:`Schema` of the table to update or its tableId as a string
     :param rows: A list of PartialRows
     """
-    #TODO: add documentation about from_mapping
 
     @classmethod
     def from_mapping(cls, mapping, originalQueryResult):
-        """
-        Creates a PartialRowset
+        """Creates a PartialRowset
         :param mapping: A mapping of mappings in the structure: {ROW_ID : {COLUMN_NAME: NEW_COL_VALUE}}
         :param originalQueryResult:
         :return: a PartialRowSet that can be syn.store()-ed to apply the changes
@@ -770,15 +765,15 @@ class PartialRowset(AppendableRowset):
         except AttributeError as e:
             raise ValueError('originalQueryResult must be the result of a syn.tableQuery()')
 
-        row_etags = {}
         row_ids = set(int(id) for id in six.iterkeys(mapping))
-        for id, etag in originalQueryResult.iter_etags():
-            if id in row_ids and etag is not None:
-                row_etags[id] = etag
 
-        partial_rows = []
-        for row_id, row_changes in six.iteritems(mapping):
-            partial_rows.append(PartialRow(row_changes, row_id, etag=row_etags.get(int(row_id)), nameToColumnId=name_to_column_id))
+        #row_ids in the originalQueryResult are not guaranteed to be in ascending order
+        #iterate over all etags but only map the row_ids used for this partial update to their etags
+        row_etags = {row_id:etag for row_id, etag in originalQueryResult.iter_etags()
+                     if row_id in row_ids and etag is not None}
+
+        partial_rows = [PartialRow(row_changes, row_id, etag=row_etags.get(int(row_id)), nameToColumnId=name_to_column_id)
+                        for row_id, row_changes in six.iteritems(mapping)]
 
         return cls(originalQueryResult.tableId, partial_rows)
 
@@ -871,8 +866,7 @@ class Row(DictObject):
 
 
 class PartialRow(DictObject):
-    """
-    This is a lower-level class for use in :py:class::`PartialRowSet` to update individual cells within a table.
+    """This is a lower-level class for use in :py:class::`PartialRowSet` to update individual cells within a table.
 
     It is recommended you use :py:classmethod::`PartialRowSet.from_mapping`to construct partial changesets to a table.
 
@@ -1058,10 +1052,9 @@ class TableAbstractBaseClass(Iterable, Sized):
             tableId=self.tableId)))
 
 
-
+    @abstractmethod
     def iter_etags(self):
-        """
-        Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
+        """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
         it will generated as (row_id, None)
 
         :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
@@ -1163,6 +1156,7 @@ class TableQueryResult(TableAbstractBaseClass):
     def asDataFrame(self, rowIdAndVersionInIndex=True):
         """
         Convert query result to a Pandas DataFrame.
+        :param rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version (and row_etag if it exists)
         """
         test_import_pandas()
         import pandas as pd
@@ -1271,6 +1265,11 @@ class TableQueryResult(TableAbstractBaseClass):
 
 
     def iter_etags(self):
+        """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
+        it will generated as (row_id, None)
+
+        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
+        """
         for row in self:
             yield type(self).IdEtagTuple(int(row['rowId']), row.get('etag'))
 
@@ -1529,9 +1528,8 @@ class CsvFileTable(TableAbstractBaseClass):
             tableId=self.tableId)))
 
     def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime = False):
-        """
-        
-        :param rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version
+        """Convert query result to a Pandas DataFrame.
+        :param rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version (and row_etag if it exists)
         :param convert_to_datetime: If set to True, will convert all Synapse DATE columns from UNIX timestamp integers into UTC datetime objects
         :return: 
         """
@@ -1641,9 +1639,14 @@ class CsvFileTable(TableAbstractBaseClass):
             if self.header:  #ignore the header line
                 f.readline()
 
-            return sum(1 for line in f.readlines())
+            return sum(1 for line in f)
 
     def iter_etags(self):
+        """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
+        it will generated as (row_id, None)
+
+        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
+        """
         with io.open(self.filepath, encoding='utf-8') as f:
             if not self.header:
                 raise ValueError("The csv file must have headers in order to find the etag column")
@@ -1656,13 +1659,11 @@ class CsvFileTable(TableAbstractBaseClass):
             header = next(reader)
 
             #The ROW_... headers are always in a predefined order
-            ROW_ID_COL = 0
-            ROW_ETAG_COL = 2
-
-            if header[ROW_ID_COL] != 'ROW_ID':
-                raise ValueError("There is no ROW_ID header at column #%d" % ROW_ID_COL)
-
-            has_etag = (ROW_ETAG_COL < len(header) or header[ROW_ETAG_COL] != 'ROW_ETAG')
+            row_id_index = header.index('ROW_ID')
+            try:
+                row_etag_index = header.index('ROW_ETAG')
+            except ValueError:
+                row_etag_index = None
 
             for row in reader:
-                yield type(self).IdEtagTuple(int(row[ROW_ID_COL]), row[ROW_ETAG_COL] if has_etag else None)
+                yield type(self).IdEtagTuple(int(row[row_id_index]), row[row_etag_index] if (row_etag_index is not None) else None)
