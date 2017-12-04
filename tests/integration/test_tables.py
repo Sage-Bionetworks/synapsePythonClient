@@ -21,11 +21,12 @@ from builtins import zip
 from nose.tools import assert_equals, assert_less, assert_dict_equal
 from datetime import datetime
 from mock import patch
+from collections import namedtuple
 
 import synapseclient
 from synapseclient.exceptions import *
 from synapseclient import File, Folder, Schema, EntityViewSchema
-from synapseclient.table import Column, RowSet, Row, as_table_columns, Table
+from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, PartialRow
 
 import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
@@ -611,3 +612,97 @@ def test_table_file_view_csv_update_annotations__includeEntityEtag():
         time.sleep(2)
         file_entity = syn.get(file_entity, downloadFile=False)
 
+
+class TestPartialRowSet(object):
+
+    def test_partial_row_view_csv_query_table(self):
+        """
+        Test PartialRow updates from cvs queries
+        """
+        cls = type(self)
+        self._test_method(cls.table_schema, "csv", cls.table_changes, cls.expected_table_cells)
+
+    def test_partial_row_view_csv_query_entity_view(self):
+        """
+        Test PartialRow updates from cvs queries
+        """
+        cls = type(self)
+        self._test_method(cls.view_schema, "csv", cls.view_changes, cls.expected_view_cells)
+
+    def test_parital_row_rowset_query_table(self):
+        """
+        Test PartialRow updates from rowset queries
+        """
+        cls = type(self)
+        self._test_method(cls.table_schema, "rowset", cls.table_changes, cls.expected_table_cells)
+
+    def test_parital_row_rowset_query_entity_veiw(self):
+        """
+        Test PartialRow updates from rowset queries
+        """
+        cls = type(self)
+        self._test_method(cls.view_schema, "rowset", cls.view_changes, cls.expected_view_cells)
+
+
+    def _test_method(self, schema, resultsAs, partial_changes, expected_results):
+        #anything starting with "test" will be considered a test case by nosetests so I had to append '_' to it
+
+        import pandas as pd
+        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
+        assert_equals(len(query_results), 2)
+
+        df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
+
+        partial_changes = {df['ROW_ID'][i]: row_changes for i, row_changes in enumerate(partial_changes)}
+
+        partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
+        syn.store(partial_rowset)
+        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
+        assert_equals(len(query_results), 2)
+        df2 = query_results.asDataFrame()
+        df2 = df2.where((pd.notnull(df2)), None)
+
+        for expected_row, df_row in zip(expected_results, df2.iterrows()):
+            df_idx, actual_row = df_row
+            for expected_cell in expected_row:
+                assert_equals(expected_cell.value, actual_row[expected_cell.col_index])
+
+
+    @classmethod
+    def setup_class(cls):
+        cls.table_schema = cls._table_setup()
+        cls.view_schema = cls._view_setup()
+
+        cls.table_changes = [{'foo': 'foo foo 1'}, {'bar': 'bar bar 2'}]
+        cls.view_changes = [{'bar': 'bar bar 1'}, {'foo': 'foo foo 2'}]
+
+        #class used to in asserts for cell values
+        ExpectedTableCell = namedtuple('ExpectedTableCell', ['col_index', 'value'])
+
+        cls.expected_table_cells = [[ExpectedTableCell(0, 'foo foo 1')],
+                                    [ExpectedTableCell(1, 'bar bar 2')]]
+        cls.expected_view_cells = [[ExpectedTableCell(1, 'bar bar 1')],
+                                   [ExpectedTableCell(0, 'foo foo 2')]]
+
+
+    @classmethod
+    def _table_setup(self):
+        # set up a table
+        cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
+        schema = syn.store(Schema(name='PartialRowTest' + str(uuid.uuid4()), columns=cols, parent=project))
+        data = [['foo1', None],[None,'bar2']]
+        syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+        return schema
+
+
+    @classmethod
+    def _view_setup(self):
+        # set up a file view
+        folder = syn.store(Folder(name="PartialRowTestFolder" + str(uuid.uuid4()), parent=project))
+        syn.store(File("~/path/doesnt/matter", name="f1", parent=folder, synapseStore=False))
+        syn.store(File("~/path/doesnt/matter/again", name="f2", parent=folder, synapseStore=False))
+
+        cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
+        return syn.store(
+            EntityViewSchema(name='PartialRowTestViews' + str(uuid.uuid4()), columns=cols, add_default_columns=False,
+                             parent=project, scopes=[folder]))
