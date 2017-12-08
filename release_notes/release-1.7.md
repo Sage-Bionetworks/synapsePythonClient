@@ -1,6 +1,8 @@
 Release Notes - Synapse Python Client - Version py-1.7
 
-#Release 1.7.3
+
+# Release 1.7.3
+
 
 **Release Date:** 08-December-2017  
 **Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
@@ -48,7 +50,7 @@ Below are the full list of issues addressed by this release:
 *   [[SYNPY-597](https://sagebionetworks.jira.com/browse/SYNPY-597)] - Add ability to create PartialRowset updates
 
 
-#Release 1.7.1
+# Release 1.7.1
 
 **Release Date:** 17-June-2017  
 **Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
