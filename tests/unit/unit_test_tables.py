@@ -13,7 +13,7 @@ import six
 import tempfile
 from builtins import zip
 from mock import MagicMock
-from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false, assert_not_in, assert_sequence_equal
+from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false, assert_not_in, assert_sequence_equal, assert_in
 from nose import SkipTest
 import unit
 
@@ -314,13 +314,15 @@ def test_csv_table():
             # print(table_row, expected_row)
             assert table_row==expected_row
 
+        expected_rows = [[str(val) for val in row] for row in data]
+
         ## test asRowSet
         rowset = table.asRowSet()
-        for rowset_row, expected_row in zip(rowset.rows, data):
+        for rowset_row, expected_row in zip(rowset.rows, expected_rows):
             #print(rowset_row, expected_row)
-            assert rowset_row['values']==expected_row[2:]
-            assert rowset_row['rowId']==expected_row[0]
-            assert rowset_row['versionNumber']==expected_row[1]
+            assert_equals(rowset_row['values'], expected_row[2:])
+            assert_equals(rowset_row['rowId'], expected_row[0])
+            assert_equals(rowset_row['versionNumber'], expected_row[1])
 
         ## test asDataFrame
         try:
@@ -369,12 +371,15 @@ def test_list_of_rows_table():
     ## need columns to do cast_values w/o storing
     table = Table(schema1, data, headers=[SelectColumn.from_column(col) for col in cols])
 
+
     for table_row, expected_row in zip(table, data):
-        assert table_row==expected_row
+        assert_equals(table_row, expected_row)
+
+    expected_rows = [[str(val) for val in row] for row in data]
 
     rowset = table.asRowSet()
-    for rowset_row, expected_row in zip(rowset.rows, data):
-        assert rowset_row['values']==expected_row
+    for rowset_row, expected_row in zip(rowset.rows, expected_rows):
+        assert_equals(rowset_row['values'], expected_row)
 
     table.columns = cols
 
@@ -724,7 +729,10 @@ class TestPartialRow():
             assert_is_instance(key_val['value'], six.string_types)
 
         expected_values = [{'key':'12three', 'value':'321'}, {'key':'456', 'value':'65four'}]
-        assert_equals(expected_values, partial_row.values)
+        assert_equals(2, len(expected_values))
+        assert_in(expected_values[0], partial_row.values)
+        assert_in(expected_values[1], partial_row.values)
+
 
 class TestPartialRowSet():
     @raises(ValueError)
