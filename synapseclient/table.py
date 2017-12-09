@@ -856,7 +856,7 @@ class Row(DictObject):
     """
     def __init__(self, values, rowId=None, versionNumber=None, etag=None):
         super(Row, self).__init__()
-        self.values = values
+        self.values = [str(value) for value in values]
         if rowId is not None:
             self.rowId = rowId
         if versionNumber is not None:
@@ -906,8 +906,8 @@ class PartialRow(DictObject):
 
         rowId = int(rowId)
 
-        self.values = [{'key': nameToColumnId[x_key] if nameToColumnId is not None else x_key,
-                        'value': x_value} for x_key, x_value in six.iteritems(values)]
+        self.values = [{'key': str(nameToColumnId[x_key]) if nameToColumnId is not None else str(x_key),
+                        'value': str(x_value)} for x_key, x_value in six.iteritems(values)]
         self.rowId = rowId
         if etag is not None:
             self.etag = etag

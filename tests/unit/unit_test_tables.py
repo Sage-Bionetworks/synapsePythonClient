@@ -9,6 +9,7 @@ import io
 import math
 import os
 import sys
+import six
 import tempfile
 from builtins import zip
 from mock import MagicMock
@@ -22,7 +23,7 @@ try:
 except ImportError:
     pandas_found = True
 
-from nose.tools import raises, assert_equals, assert_set_equal
+from nose.tools import raises, assert_equals, assert_is_instance
 import unit
 import synapseclient
 from synapseclient import Entity
@@ -712,6 +713,19 @@ class TestPartialRow():
         assert_equals(711, partial_row.rowId)
 
 
+    def test_values_have_string_type(type):
+        values = {
+            '12three':321,
+            456:'65four'
+        }
+        partial_row = PartialRow(values, rowId=11111)
+        for key_val in partial_row.values:
+            assert_is_instance(key_val['key'], six.string_types)
+            assert_is_instance(key_val['value'], six.string_types)
+
+        expected_values = [{'key':'12three', 'value':'321'}, {'key':'456', 'value':'65four'}]
+        assert_equals(expected_values, partial_row.values)
+
 class TestPartialRowSet():
     @raises(ValueError)
     def test_constructor__not_all_rows_of_type_PartialRow(self):
@@ -725,3 +739,9 @@ class TestPartialRowSet():
         assert_equals([partial_row], partial_rowset.rows)
 
 
+class TestRow():
+    def test_values_have_string_type(self):
+        row = Row([1,2,"three"])
+        for val in row.values:
+            assert_is_instance(val, six.string_types)
+        assert_equals(["1","2","three"], row.values)
