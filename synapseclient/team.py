@@ -17,6 +17,7 @@ class UserGroupHeader(DictObject):
 class Team(DictObject):
     """
     Represent a `Synapse Team <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html>`_. User definable fields are:
+    
     :param icon:          fileHandleId for icon image of the Team
     :param description:   A short description of this Team.
     :param name:          The name of the Team.
