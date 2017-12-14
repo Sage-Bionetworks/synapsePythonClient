@@ -292,8 +292,9 @@ class Synapse:
         :param email:      Synapse user name (or an email address associated with a Synapse account)
         :param password:   password
         :param apiKey:     Base64 encoded Synapse API key
-        :param rememberMe: Whether the authentication information should be cached locally
-                           for usage across sessions and clients.
+        :param sessionToken: A previously obtained session token
+        :param rememberMe: Whether the authentication information should be cached 
+        						locally for usage across sessions and clients.
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
         :param forced:     Defaults to False.  Bypass the credential cache if set.
 
@@ -1457,10 +1458,9 @@ class Synapse:
         """
         Query for Synapse entities.
         **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
+		See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
-        the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
-
-        :returns: A JSON object containing an array of query results
+        :returns: an array of query results
 
         Example::
 
@@ -1562,7 +1562,7 @@ class Synapse:
 
     def md5Query(self, md5):
         """
-        Find the Entities with attached file(s) with the given MD5 hash.
+        Find the Entities which have attached file(s) which have the given MD5 hash.
 
         :param md5: The MD5 to query for (hexadecimal string)
 
@@ -2668,9 +2668,9 @@ class Synapse:
 
     def getWikiHeaders(self, owner):
         """
-        Retrieves the header of all Wiki's belonging to the owner.
+        Retrieves the headers of all Wikis belonging to the owner (the entity to which the Wiki is attached).
 
-        :param owner: An Evaluation or Entity
+        :param owner: An Entity
 
         :returns: A list of Objects with three fields: id, title and parentId.
         """
@@ -2725,8 +2725,9 @@ class Synapse:
 
     def getWikiAttachments(self, wiki):
         """
+        Retrieve the attachments to a wiki page.
         :param wiki: the Wiki object for which the attachments are to be returned.
-        :return: a list of file handles for the files attached to the Wiki.
+        :return: A list of file handles for the files attached to the Wiki.
         """
         uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
         results = self.restGET(uri)
