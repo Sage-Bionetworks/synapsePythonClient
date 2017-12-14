@@ -1145,7 +1145,7 @@ class Synapse:
         Removes an object from Synapse.
 
         :param obj: An existing object stored on Synapse
-                    such as Evaluation, File, Project, WikiPage etc
+                    such as Evaluation, File, Project, or Wiki
 
         :param version: For entities, specify a particular version to delete.
 
@@ -2778,11 +2778,11 @@ class Synapse:
 
     def getColumns(self, x, limit=100, offset=0):
         """
-        Get all columns defined in Synapse, those corresponding to a set of column
-        headers or those whose names start with a given prefix.
+        Get the columns defined in Synapse either (1) corresponding to a set of column
+        headers, (2) those for a given schema, or (3) those whose names start with a given prefix.
 
         :param x: a list of column headers, a Schema, a TableSchema's Synapse ID, or a string prefix
-        :Return: a generator of Column objects
+        :return: a generator of Column objects
         """
         if x is None:
             uri = '/column'
@@ -3006,9 +3006,9 @@ class Synapse:
 
     def createColumns(self, columns):
         """
-        Creates a batch of py:class:`Column`s within a single request
-        :param columns: a list of py:class:`Column` objects
-        :return: a list of py:class:`Column` objects that have been created in Synapse
+        Creates a batch of :py:class:`Column`s within a single request
+        :param columns: a list of :py:class:`Column` objects
+        :return: a list of :py:class:`Column` objects that have been created in Synapse
         """
         request_body = {'concreteType':'org.sagebionetworks.repo.model.ListWrapper',
                         'list': list(columns)}
@@ -3329,7 +3329,7 @@ class Synapse:
         Find an Entity given its name and parent.
 
         :param name: name of the entity to find
-        :param parent: An Entity object or the Id of an entity as a string. Pass in None if searching for a Project by name
+        :param parent: An Entity object or the Id of an entity as a string. Omit if searching for a Project by name
         :return: the Entity ID or None if not found
         """
         # when we want to search for a project by name. set parentId as None instead of ROOT_ENTITY

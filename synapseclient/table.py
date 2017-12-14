@@ -544,12 +544,12 @@ class SchemaBase(Entity, Versionable):
 
 class Schema(SchemaBase):
     """
-    A Schema is a :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
+    A Schema is an :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
 
-    :param name: give the Table Schema object a name
+    :param name: the name for the Table Schema object
     :param description:
     :param columns: a list of :py:class:`Column` objects or their IDs
-    :param parent: the project (file a bug if you'd like folders supported) in Synapse to which this table belongs
+    :param parent: the project in Synapse to which this table belongs
 
     ::
 
@@ -572,20 +572,21 @@ class EntityViewSchema(SchemaBase):
     """
     A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects (depending on user choice) within a given set of scopes
 
-    :param name: give the Entity View Table object a name
-    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional
+    :param name: the name of the Entity View Table object
+    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional.
     :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
-    :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
-    :param addDefaultViewColumns: If true adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
-    :param addAnnotationColumns: If true adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
+    :param type: the type of EntityView to display: either 'file','project' or 'file_and_table'. Defaults to 'file'.
+    :param addDefaultViewColumns: If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
+    :param addAnnotationColumns: If true, adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
     :param ignoredAnnotationColumnNames: A list of strings representing annotation names. When addAnnotationColumns is True,
                                         the names in this list will not be automatically added as columns to the EntityViewSchema
                                         if they exist in any of the defined scopes.
     The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
-    ::
-
-      
+    
+    
+    Example::
+    
         project_or_folder = syn.get("syn123")  
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'], view_type='file'))
     """
