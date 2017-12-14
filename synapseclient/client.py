@@ -518,7 +518,7 @@ class Synapse:
         :param refresh:  If set to True will always fetch the data from Synape otherwise
                          will used cached information
 
-        :returns: JSON-object
+        :returns: The user profile for the user of interest.
 
         Example::
 
@@ -2177,9 +2177,10 @@ class Synapse:
 
     def getMyStorageLocationSetting(self, storage_location_id):
         """
-        Get a StorageLocationId as a dict by its id. The corresponding StorageLocationSetting be created by this user
-        :param storage_location_id: id of the StorageLocationSetting to retrieve
-        :return: a dict describing the StorageLocationSettings retrieved by its id
+        Get a StorageLocationSetting by its id.
+        :param storage_location_id: id of the StorageLocationSetting to retrieve. 
+        The corresponding StorageLocationSetting must have been created by this user.
+        :return: a dict describing the StorageLocationSetting retrieved by its id
         """
         return self.restGET('/storageLocation/%s' % storage_location_id)
 
@@ -2215,7 +2216,7 @@ class Synapse:
         Gets the ProjectSetting for a project
         :param project: Project entity or its id as a string
         :param setting_type: type of setting. Choose from: {'upload', 'external_sync', 'requester_pays'}
-        :return: The ProjectSetting as a dict or None if no settin of the specified type exist
+        :return: The ProjectSetting as a dict or None if no settins of the specified type exists.
         """
         if setting_type not in {'upload', 'external_sync', 'requester_pays'}:
             raise ValueError("Invalid project_type: %s" % setting_type)
@@ -2297,6 +2298,8 @@ class Synapse:
 
     def getTeamMembers(self, team):
         """
+        Lists the members of the given team.
+        
         :parameter team: A :py:class:`Team` object or a team's ID.
         :returns: a generator over :py:class:`TeamMember` objects.
         """
@@ -2459,7 +2462,7 @@ class Synapse:
                            Defaults to False (all Submissions)
         :param limit:      Limits the number of submissions in a single response.
                            Because this method returns a generator and repeatedly
-                           fetches submissions, this arguement is limiting the
+                           fetches submissions, this argument is limiting the
                            size of a single request and NOT the number of sub-
                            missions returned in total.
         :param offset:     Start iterating at a submission offset from the first
@@ -2525,6 +2528,9 @@ class Synapse:
 
     def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
+        Retrieve a paginated list of submission bundles (submission and submissions status) for an evaluation queue, optionally 
+        filtered by submission status and/or owner.
+        
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
                            One of {OPEN, CLOSED, SCORED, INVALID}
@@ -2583,7 +2589,7 @@ class Synapse:
 
     def getSubmission(self, id, **kwargs):
         """
-        Gets a :py:class:`synapseclient.evaluation.Submission` object.
+        Gets a :py:class:`synapseclient.evaluation.Submission` object by its id.
 
         See: :py:func:`synapseclient.Synapse.get` for information
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
@@ -2718,6 +2724,10 @@ class Synapse:
 
 
     def getWikiAttachments(self, wiki):
+        """
+        :param wiki: the Wiki object for which the attachments are to be returned.
+        :return: a list of file handles for the files attached to the Wiki.
+        """
         uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
         results = self.restGET(uri)
         file_handles = list(WikiAttachment(**fh) for fh in results['list'])
