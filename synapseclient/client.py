@@ -1306,6 +1306,7 @@ class Synapse:
         :param path: file path to the file being uploaded
         :param synapseStore: If False, will not upload the file, but instead create an ExternalFileHandle that references the file on the local machine.
                              If True, will upload the file based on StorageLocation determined by the entity_parent_id
+        :param mimetype: The MIME type metadata for the uploaded file
         :param md5: The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
         :param file_size: The size the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
         :param file_size: The MIME type the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
@@ -2311,13 +2312,13 @@ class Synapse:
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
-        :param evaluation: Evaluation board to submit to
+        :param evaluation: Evaluation queue to submit to
         :param entity:     The Entity containing the Submission
         :param name:       A name for this submission
         :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered
                            for the challenge
-        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place
-                           of the submitter's name
+        :param silent:	Suppress output.
+        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
         :param teamName: (deprecated) A synonym for submitterAlias
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
@@ -2835,10 +2836,9 @@ class Synapse:
         """
         Query a Synapse Table.
 
-        :param query: query string in a `SQL-like syntax <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_::
-
+        :param query: query string in a `SQL-like syntax <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_:
             SELECT * from syn12345
-
+            
         :param resultsAs: select whether results are returned as a CSV file ("csv") or incrementally
                           downloaded as sets of rows ("rowset").
 
@@ -3415,7 +3415,7 @@ class Synapse:
 
     def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
-        Performs a REST GET operation to the Synapse server.
+        Sends an HTTP GET request to the Synapse server.
 
         :param uri:      URI on which get is performed
         :param endpoint: Server endpoint, defaults to self.repoEndpoint
@@ -3435,7 +3435,7 @@ class Synapse:
 
     def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
-        Performs a REST POST operation to the Synapse server.
+        Sends an HTTP POST request to the Synapse server.
 
         :param uri:      URI on which get is performed
         :param endpoint: Server endpoint, defaults to self.repoEndpoint
@@ -3455,7 +3455,7 @@ class Synapse:
 
     def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
-        Performs a REST PUT operation to the Synapse server.
+        Sends an HTTP PUT request to the Synapse server.
 
         :param uri:      URI on which get is performed
         :param endpoint: Server endpoint, defaults to self.repoEndpoint
@@ -3477,7 +3477,7 @@ class Synapse:
 
     def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
-        Performs a REST DELETE operation to the Synapse server.
+        Sends an HTTP DELETE request to the Synapse server.
 
         :param uri:      URI of resource to be deleted
         :param endpoint: Server endpoint, defaults to self.repoEndpoint
