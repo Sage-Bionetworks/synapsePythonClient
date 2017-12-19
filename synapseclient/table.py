@@ -460,6 +460,31 @@ def cast_row_set(rowset):
         rowset['rows'][i]['values'] = cast_row(row, rowset['headers'])
     return rowset
 
+
+def _create_row_delete_csv(row_id_vers_iterable):
+    """
+    creates a temporary csv used for deleting rows
+    :param row_id_vers_iterable: an iterable containing tuples with format: (row_id, row_version)
+    :return: filepath of created csv file
+    """
+    with tempfile.NamedTemporaryFile("w",suffix=".csv", delete=False) as temp_csv:
+        csv_writer = csv.writer(temp_csv)
+        csv_writer.writerow(("ROW_ID","ROW_VERSION"))
+        csv_writer.writerows(row_id_vers_iterable)
+        return temp_csv.name
+
+
+def _delete_rows(syn, schema, row_id_vers_list):
+    """
+    Deletes rows from a synapse table
+    :param syn: an instance of py:class:`synapseclient.client.Synapse`
+    :param row_id_vers_list: an iterable containing tuples with format: (row_id, row_version)
+    """
+    delete_row_csv_filepath = _create_row_delete_csv(row_id_vers_list)
+    syn._uploadCsv(delete_row_csv_filepath, schema)
+    os.remove(delete_row_csv_filepath)
+
+
 @six.add_metaclass(ABCMeta)
 class SchemaBase(Entity, Versionable):
     '''
@@ -769,7 +794,7 @@ class PartialRowset(AppendableRowset):
 
         #row_ids in the originalQueryResult are not guaranteed to be in ascending order
         #iterate over all etags but only map the row_ids used for this partial update to their etags
-        row_etags = {row_id:etag for row_id, etag in originalQueryResult.iter_etags()
+        row_etags = {row_id:etag for row_id, row_version, etag in originalQueryResult.iter_metadata()
                      if row_id in row_ids and etag is not None}
 
         partial_rows = [PartialRow(row_changes, row_id, etag=row_etags.get(int(row_id)), nameToColumnId=name_to_column_id)
@@ -838,12 +863,9 @@ class RowSet(AppendableRowset):
         Example::
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
-        #TODO: this is deprecated, switch to transaction based async delete
-        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
-        return syn.restPOST(uri, body=json.dumps(RowSelection(
-            rowIds=[row.rowId for row in self.rows],
-            etag=self.etag,
-            tableId=self.tableId)))
+        row_id_vers_generator = ((row.rowId, row.versionNumber) for row in self.rows)
+
+        _delete_rows(syn, self.tableId, row_id_vers_generator)
 
 
 class Row(DictObject):
@@ -913,35 +935,6 @@ class PartialRow(DictObject):
             self.etag = etag
 
 
-class RowSelection(DictObject):
-    """
-    A set of rows to be `deleted <http://docs.synapse.org/rest/POST/entity/id/table/deleteRows.html>`_.
-
-    :param rowIds: list of row ids
-    :param etag: etag of latest change set
-    :param tableId: synapse ID of the table schema
-    """
-    def __init__(self, rowIds, etag, tableId):
-        super(RowSelection, self).__init__()
-        self.rowIds = rowIds
-        self.etag = etag
-        self.tableId = tableId
-
-    def _synapse_delete(self, syn):
-        """
-        Delete the rows.
-        Example::
-            row_selection = RowSelection(
-                rowIds=[1,2,3,4],
-                etag="64d265c0-ef5b-4598-a50d-ddcbe71abc61",
-                tableId="syn1234567")
-            syn.delete(row_selection)
-        """
-        #TODO: this is deprecated, switch to transaction based async delete
-        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
-        return syn.restPOST(uri, body=json.dumps(self))
-
-
 def Table(schema, values, **kwargs):
     """
     Combine a table schema and a set of values into some type of Table object
@@ -1002,7 +995,7 @@ class TableAbstractBaseClass(Iterable, Sized):
     Abstract base class for Tables based on different data containers.
     """
 
-    IdEtagTuple = namedtuple('IdEtagTuple', ['row_id', 'row_etag'])
+    RowMetadataTuple = namedtuple('RowMetadataTuple', ['row_id', 'row_version', 'row_etag'])
 
     def __init__(self, schema, headers=None, etag=None):
         if isinstance(schema, Schema):
@@ -1044,16 +1037,14 @@ class TableAbstractBaseClass(Iterable, Sized):
         Example::
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
-        #TODO: this is deprecated, switch to transaction based async delete
-        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
-        return syn.restPOST(uri, body=json.dumps(RowSelection(
-            rowIds=[row['rowId'] for row in self],
-            etag=self.etag,
-            tableId=self.tableId)))
+        row_id_vers_generator = ((metadata.row_id, metadata.row_version) for metadata in self.iter_metadata())
+
+        _delete_rows(syn, self.tableId, row_id_vers_generator)
+
 
 
     @abstractmethod
-    def iter_etags(self):
+    def iter_metadata(self):
         """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
         it will generated as (row_id, None)
 
@@ -1109,8 +1100,8 @@ class RowSetTable(TableAbstractBaseClass):
         return len(self.rowset['rows'])
 
 
-    def iter_etags(self):
-        raise NotImplementedError("iter_etags is not supported for RowSetTable")
+    def iter_metadata(self):
+        raise NotImplementedError("iter_metadata is not supported for RowSetTable")
 
 
 class TableQueryResult(TableAbstractBaseClass):
@@ -1264,14 +1255,14 @@ class TableQueryResult(TableAbstractBaseClass):
         return len(self.rowset['rows'])
 
 
-    def iter_etags(self):
+    def iter_metadata(self):
         """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
-        it will generated as (row_id, None)
+        it will generated as (row_id, row_version,None)
 
-        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
+        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_version, row_etag)
         """
         for row in self:
-            yield type(self).IdEtagTuple(int(row['rowId']), row.get('etag'))
+            yield type(self).RowMetadataTuple(int(row['rowId']), int(row['versionNumber']), row.get('etag'))
 
 
 class CsvFileTable(TableAbstractBaseClass):
@@ -1503,29 +1494,6 @@ class CsvFileTable(TableAbstractBaseClass):
             self.etag = upload_to_table_result['etag']
         return self
 
-    def _synapse_delete(self, syn):
-        """
-        Delete the rows that are the results of this query.
-
-        Example::
-            syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
-        """
-        ## Extract row id and version, if present in rows
-        row_id_col = None
-        for i, header in enumerate(self.headers):
-            if header.name=='ROW_ID':
-                row_id_col = i
-                break
-
-        if row_id_col is None:
-            raise SynapseError("Can't Delete. No ROW_IDs found.")
-
-        #TODO: this is deprecated, switch to transaction based async delete
-        uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
-        return syn.restPOST(uri, body=json.dumps(RowSelection(
-            rowIds=[row[row_id_col] for row in self],
-            etag=self.etag,
-            tableId=self.tableId)))
 
     def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime = False):
         """Convert query result to a Pandas DataFrame.
@@ -1641,7 +1609,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
             return sum(1 for line in f)
 
-    def iter_etags(self):
+    def iter_metadata(self):
         """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
         it will generated as (row_id, None)
 
@@ -1660,10 +1628,11 @@ class CsvFileTable(TableAbstractBaseClass):
 
             #The ROW_... headers are always in a predefined order
             row_id_index = header.index('ROW_ID')
+            row_version_index = header.index('ROW_VERSION')
             try:
                 row_etag_index = header.index('ROW_ETAG')
             except ValueError:
                 row_etag_index = None
 
             for row in reader:
-                yield type(self).IdEtagTuple(int(row[row_id_index]), row[row_etag_index] if (row_etag_index is not None) else None)
+                yield type(self).RowMetadataTuple(int(row[row_id_index]), int(row[row_version_index]), row[row_etag_index] if (row_etag_index is not None) else None)
