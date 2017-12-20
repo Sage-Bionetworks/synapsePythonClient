@@ -12,7 +12,7 @@ import sys
 import tempfile
 from builtins import zip
 from mock import MagicMock
-from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false
+from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false, assert_not_in, assert_sequence_equal
 from nose import SkipTest
 import unit
 
@@ -22,14 +22,16 @@ try:
 except ImportError:
     pandas_found = True
 
+from nose.tools import raises, assert_equals
+import unit
 import synapseclient
 from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
-from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row
 from synapseclient.entity import split_entity_namespaces
-from mock import patch, call
-
-
+from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
+     as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset
+from mock import patch
+from collections import OrderedDict
 
 def setup(module):
     print('\n')
@@ -580,13 +582,13 @@ def test_entityViewSchema__add_default_columns_when_from_Synapse():
 
 
 
+
 def test_entityViewSchema__add_scope():
     entity_view = EntityViewSchema(parent="idk")
     entity_view.add_scope(Entity(parent="also idk", id=123))
     entity_view.add_scope(456)
     entity_view.add_scope("789")
     assert_equals([str(x) for x in ["123","456","789"]], entity_view.scopeIds)
-
 
 
 def test_Schema__max_column_check():
@@ -644,6 +646,52 @@ def test_EntityViewSchema__repeated_columnName():
         mocked_get_annotations.assert_called_once_with(scopeIds, 'file')
 
 
+def test_rowset_asDataFrame__with_ROW_ETAG_column():
+    query_result = {
+                   'concreteType':'org.sagebionetworks.repo.model.table.QueryResultBundle',
+                   'maxRowsPerPage':6990,
+                   'selectColumns':[
+                      {'id':'61770',  'columnType':'STRING', 'name':'annotationColumn1'},
+                      {'id':'61771', 'columnType':'STRING', 'name':'annotationColumn2'}
+                   ],
+                   'queryCount':1,
+                   'queryResult':{
+                      'concreteType':'org.sagebionetworks.repo.model.table.QueryResult',
+                      'nextPageToken': 'sometoken',
+                      'queryResults':{
+                         'headers':[
+                             {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
+                             {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
+                         'concreteType':'org.sagebionetworks.repo.model.table.RowSet',
+                         'etag':'DEFAULT',
+                         'tableId':'syn11363411',
+                         'rows':[{ 'values':[ 'initial_value1', 'initial_value2'],
+                               'etag':'7de0f326-9ef7-4fde-9e4a-ac0babca73f6',
+                               'rowId':123,
+                               'versionNumber':456}]
+                      }
+                   }
+                }
+    query_result_next_page = {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                        'queryResults': {'etag': 'DEFAULT',
+                         'headers': [
+                             {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
+                             {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
+                         'rows':[{ 'values':[ 'initial_value3', 'initial_value4'],
+                               'etag':'7de0f326-9ef7-4fde-9e4a-ac0babca73f7',
+                               'rowId':789,
+                               'versionNumber':101112}],
+                         'tableId': 'syn11363411'}}
+
+    with patch.object(syn, "_queryTable", return_value=query_result),\
+         patch.object(syn, "_queryTableNext", return_value=query_result_next_page):
+        table = syn.tableQuery("select something from syn123", resultsAs='rowset')
+        dataframe = table.asDataFrame()
+        assert_not_in("ROW_ETAG", dataframe.columns)
+        expected_indicies = ['123_456_7de0f326-9ef7-4fde-9e4a-ac0babca73f6', '789_101112_7de0f326-9ef7-4fde-9e4a-ac0babca73f7']
+        assert_sequence_equal(expected_indicies, dataframe.index.values.tolist())
+
+
 def test_RowSetTable_len():
     schema = Schema(parentId="syn123", id='syn456', columns=[Column(name='column_name', id='123')])
     rowset =  RowSet(schema=schema, rows=[Row(['first row']), Row(['second row'])])
@@ -674,4 +722,70 @@ def test_TableQueryResult_len():
         args, kwargs = mocked_table_query.call_args
         assert_equals(query_string, kwargs['query'])
         assert_equals(2, len(query_result_table))
+
+
+class TestPartialRow():
+    """
+    Testing PartialRow class
+    """
+
+    @raises(ValueError)
+    def test_constructor__value_not_dict(self):
+        PartialRow([], 123)
+
+
+    @raises(ValueError)
+    def test_constructor__row_id_string_not_castable_to_int(self):
+        PartialRow({}, "fourty-two")
+
+
+    def test_constructor__row_id_is_int_castable_string(self):
+        partial_row = PartialRow({}, "350")
+
+        assert_equals([], partial_row.values)
+        assert_equals(350, partial_row.rowId)
+        assert_not_in('etag', partial_row)
+
+
+    def test_constructor__values_translation(self):
+        values = OrderedDict([("12345", "rowValue"),
+                              ("09876", "otherValue")])
+        partial_row = PartialRow(values, 711)
+
+        expected_values = [{"key":"12345", "value":"rowValue"}, {"key":"09876", "value":"otherValue"}]
+
+        assert_equals(expected_values, partial_row.values)
+        assert_equals(711, partial_row.rowId)
+        assert_not_in('etag', partial_row)
+
+    def test_constructor__with_etag(self):
+        partial_row = PartialRow({}, 420, "my etag")
+        assert_equals([], partial_row.values)
+        assert_equals(420, partial_row.rowId)
+        assert_equals("my etag", partial_row.etag)
+
+
+    def test_constructor__name_to_col_id(self):
+        values = OrderedDict([("row1", "rowValue"),
+                              ("row2", "otherValue")])
+        names_to_col_id = {"row1": "12345", "row2": "09876"}
+        partial_row = PartialRow(values, 711, nameToColumnId=names_to_col_id)
+
+        expected_values = [{"key":"12345", "value":"rowValue"}, {"key":"09876", "value":"otherValue"}]
+
+        assert_equals(expected_values, partial_row.values)
+        assert_equals(711, partial_row.rowId)
+
+
+class TestPartialRowSet():
+    @raises(ValueError)
+    def test_constructor__not_all_rows_of_type_PartialRow(self):
+        rows = [PartialRow({}, 123), "some string instead"]
+        PartialRowset("syn123",rows)
+
+
+    def test_constructor__single_PartialRow(self):
+        partial_row = PartialRow({}, 123)
+        partial_rowset = PartialRowset("syn123", partial_row)
+        assert_equals([partial_row], partial_rowset.rows)
 

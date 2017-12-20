@@ -57,13 +57,13 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
     if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION or \
                     upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
         storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
-        sys.stdout.write('\n' + '#' * 50 + '\n Uploading file to ' + storageString + ' storage \n' + '#' * 50 + '\n')
+        syn.logger.info('\n' + '#' * 50 + '\n Uploading file to ' + storageString + ' storage \n' + '#' * 50 + '\n')
 
         return upload_synapse_s3(syn, expanded_upload_path, location['storageLocationId'], mimetype=mimetype)
     #external file handle (sftp)
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
         if location['uploadType'] == 'SFTP':
-            sys.stdout.write('\n%s\n%s\nUploading to: %s\n%s\n' % ('#' * 50,
+            syn.logger.info('\n%s\n%s\nUploading to: %s\n%s\n' % ('#' * 50,
                                                                    location.get('banner', ''),
                                                                    urlparse(location['url']).netloc,
                                                                    '#' * 50))
@@ -72,14 +72,14 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
             raise NotImplementedError('Can only handle SFTP upload locations.')
     #client authenticated S3
     elif upload_destination_type == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION:
-        sys.stdout.write('\n%s\n%s\nUploading to endpoint: [%s] bucket: [%s]\n%s\n' % ('#' * 50,
+        syn.logger.info('\n%s\n%s\nUploading to endpoint: [%s] bucket: [%s]\n%s\n' % ('#' * 50,
                                                                location.get('banner', ''),
                                                                location.get('endpointUrl'),
                                                                location.get('bucket'),
                                                                '#' * 50))
         return upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'], location['keyPrefixUUID'], location['storageLocationId'], mimetype=mimetype)
     else: #unknown storage location
-        sys.stdout.write('\n%s\n%s\nUNKNOWN STORAGE LOCATION. Defaulting upload to Synapse.\n%s\n' % ('!' * 50,
+        syn.logger.info('\n%s\n%s\nUNKNOWN STORAGE LOCATION. Defaulting upload to Synapse.\n%s\n' % ('!' * 50,
                                                                location.get('banner', ''),
                                                                '!' * 50))
         return upload_synapse_s3(syn, expanded_upload_path, None, mimetype=mimetype)

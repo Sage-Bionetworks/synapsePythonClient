@@ -5,7 +5,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 import six
-
+import logging
 import filecmp
 import os
 import re
@@ -62,19 +62,25 @@ def run(*command, **kwargs):
     print(' '.join(command))
     old_stdout = sys.stdout
     capturedSTDOUT = StringIO()
+    syn_client = kwargs.get('syn', syn)
+    stream_handler = logging.StreamHandler(capturedSTDOUT)
+
     try:
         sys.stdout = capturedSTDOUT
+        syn_client.logger.addHandler(stream_handler)
         sys.argv = [item for item in command]
         args = parser.parse_args()
         args.debug = True
-        cmdline.perform_main(args, kwargs.get('syn',syn))
+        cmdline.perform_main(args, syn_client)
     except SystemExit:
         pass # Prevent the test from quitting prematurely
     finally:
         sys.stdout = old_stdout
+        syn_client.logger.handlers.remove(stream_handler)
+
 
     capturedSTDOUT = capturedSTDOUT.getvalue()
-    print(capturedSTDOUT)
+    # print(capturedSTDOUT)
     return capturedSTDOUT
 
 

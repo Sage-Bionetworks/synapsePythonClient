@@ -69,6 +69,7 @@ import warnings
 import getpass
 import json
 from collections import OrderedDict
+import logging
 
 import synapseclient
 from . import concrete_types
@@ -76,7 +77,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, log_error, _extract_zip_file_to_directory, _is_integer
+from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_directory, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -159,7 +160,7 @@ def login(*args, **kwargs):
     return syn
 
 
-class Synapse:
+class Synapse(object):
     """
     Constructs a Python client object for the Synapse repository service
 
@@ -184,11 +185,13 @@ class Synapse:
     - :py:func:`synapseclient.Synapse.setEndpoints`
     """
 
+    # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
-                 debug=DEBUG_DEFAULT, skip_checks=False, configPath=CONFIG_FILE):
+                 debug=None, skip_checks=False, configPath=CONFIG_FILE):
 
         cache_root_dir = synapseclient.cache.CACHE_ROOT_DIR
 
+        config_debug = None
         # Check for a config file
         self.configPath=configPath
         if os.path.isfile(configPath):
@@ -197,9 +200,9 @@ class Synapse:
                 cache_root_dir=config.get('cache', 'location')
             if config.has_section('debug'):
                 debug = True
-        elif debug:
-            # Alert the user if no config is found
-            sys.stderr.write("Could not find a config file (%s).  Using defaults." % os.path.abspath(configPath))
+
+        if debug is None:
+            debug = config_debug if config_debug is not None else DEBUG_DEFAULT
 
         self.cache = synapseclient.cache.Cache(cache_root_dir)
 
@@ -208,7 +211,7 @@ class Synapse:
         self.default_headers = {'content-type': 'application/json; charset=UTF-8', 'Accept': 'application/json; charset=UTF-8'}
         self.username = None
         self.apiKey = None
-        self.debug = debug
+        self.debug = debug #setter for debug initializes syn.logger also
         self.skip_checks = skip_checks
 
         self.table_query_sleep = 2
@@ -216,6 +219,20 @@ class Synapse:
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600 # in seconds
 
+
+    @property
+    def debug(self):
+        return self._debug
+
+
+    @debug.setter
+    def debug(self, value):
+        if not isinstance(value, bool):
+            raise ValueError("debug must be set to a bool (either True or False)")
+        logger_name = synapseclient.DEBUG_LOGGER_NAME if value else synapseclient.DEFAULT_LOGGER_NAME
+        self.logger = logging.getLogger(logger_name)
+        self._debug = value
+        logging.getLogger('py.warnings').handlers = self.logger.handlers
 
 
     def getConfigFile(self, configPath):
@@ -226,7 +243,8 @@ class Synapse:
             config.read(configPath) # Does not fail if the file does not exist
             return config
         except configparser.Error:
-            sys.stderr.write('Error parsing Synapse config file: %s' % configPath)
+            self.logger.error('Error parsing Synapse config file: %s' % configPath)
+            self.logger.debug("Synapse config file parse failure:",exc_info=True)
             raise
 
 
@@ -360,7 +378,7 @@ class Synapse:
         if not silent:
             profile = self.getUserProfile(refresh=True)
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
-            print("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
+            self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
 
     def _get_config_section_dict(self, section_name):
         config = self.getConfigFile(self.configPath)
@@ -598,9 +616,9 @@ class Synapse:
         if utils.is_synapse_id(entity):
             entity = self._getEntity(entity)
         try:
-            print(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii))
+            self.logger.info(json.dumps(entity, sort_keys=True, indent=2, ensure_ascii=ensure_ascii))
         except TypeError:
-            print(str(entity))
+            self.logger.info(str(entity))
 
 
 
@@ -671,7 +689,7 @@ class Synapse:
 
     def _check_entity_restrictions(self, restrictionInformation, entity, downloadFile):
         if restrictionInformation['hasUnmetAccessRequirement']:
-            warning_message = ("\nWARNING: This entity has access restrictions. Please visit the "
+            warning_message = ("\nThis entity has access restrictions. Please visit the "
                               "web page for this entity (syn.onweb(\"%s\")). Click the downward "
                               "pointing arrow next to the file's name to review and fulfill its "
                               "download requirement(s).\n" % id_of(entity))
@@ -700,7 +718,7 @@ class Synapse:
             raise SynapseFileNotFoundError('File %s not found in Synapse' % (filepath,))
         elif len(results)>1:
             id_txts = '\n'.join(['%s.%i' %(r['id'], r['versionNumber']) for r in results])
-            sys.stderr.write('\nWARNING: The file %s is associated with many files in Synapse:\n'
+            self.logger.warning('\nThe file %s is associated with many files in Synapse:\n'
                              '%s\n'
                              'You can limit to files in specific project or folder by setting the '
                              'limitSearch to the synapse Id of the project or folder.  \n'
@@ -770,8 +788,7 @@ class Synapse:
                     self._download_file_entity(downloadLocation, entity, ifcollision, submission)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD permission. The file has NOT been downloaded."
-                    sys.stderr.write('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
-
+                    self.logger.warning('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
         return entity
 
 
@@ -838,7 +855,7 @@ class Synapse:
         #always overwrite if we are downloading to .synapseCache
         if utils.normalize_path(downloadLocation) == synapseCache_location:
             if ifcollision is not None:
-                sys.stderr.write('\n' + '!'*50+'\n WARNING: ifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
+                self.logger.warning('\n' + '!'*50+'\nifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
             ifcollision= 'overwrite.local'
         #if ifcollision not specified, keep.local
         ifcollision = ifcollision or 'keep.both'
@@ -1239,7 +1256,7 @@ class Synapse:
         Use :py:func:`synapseclient.Synapse.get`
         """
 
-        sys.stderr.write('WARNING!: THIS ONLY DOWNLOADS ENTITIES!')
+        self.logger.warning('THIS ONLY DOWNLOADS ENTITIES!')
         return self.downloadEntity(entity)
 
 
@@ -1547,7 +1564,7 @@ class Synapse:
                 # Shrink the query size when appropriate
                 if err.response.status_code == 400 and ('The results of this query exceeded the max' in err.response.json()['reason']):
                     if (limit == 1):
-                        sys.stderr.write("A single row (offset %s) of this query "
+                        self.logger.warning("A single row (offset %s) of this query "
                                          "exceeds the maximum size.  Consider "
                                          "limiting the columns returned "
                                          "in the select clause.  Skipping...\n" % offset)
@@ -1706,7 +1723,7 @@ class Synapse:
             if modify_benefactor:
                 entity = benefactor
             elif warn_if_inherits:
-                sys.stderr.write('Warning: Creating an ACL for entity %s, '
+                self.logger.warning('Creating an ACL for entity %s, '
                                  'which formerly inherited access control '
                                  'from a benefactor entity, "%s" (%s).\n'
                                  % (id_of(entity), benefactor['name'], benefactor['id']))
@@ -1888,8 +1905,8 @@ class Synapse:
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
-                log_error('\nRetrying download on error: [%s] after progressing %i bytes\n'%
-                          (exc_info[0](exc_info[1]), ex.progress), self.debug)
+                self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes" %
+                                  (exc_info[0], ex.progress), exc_info=True)# this will include stack trace
                 if ex.progress==0 :  #No progress was made reduce remaining retries.
                     retries -= 1
                 if retries <= 0:
@@ -2009,7 +2026,7 @@ class Synapse:
 
                     # verify that the file was completely downloaded and retry if it is not complete
                     if toBeTransferred > 0 and transferred < toBeTransferred:
-                        sys.stderr.write("\nRetrying download because the connection ended early.\n")
+                        self.logger.warn("\nRetrying download because the connection ended early.\n")
                         continue
 
                     actual_md5 = sig.hexdigest()
@@ -2017,7 +2034,7 @@ class Synapse:
                     shutil.move(temp_destination, destination)
                     break
             else:
-                sys.stderr.write('Unable to download URLs of type %s' % scheme)
+                self.logger.error('Unable to download URLs of type %s' % scheme)
                 return None
 
         else: ## didn't break out of loop
@@ -2405,7 +2422,7 @@ class Synapse:
             if not(isinstance(evaluation, Evaluation)):
                 evaluation = self.getEvaluation(evaluation_id)
             if 'submissionReceiptMessage' in evaluation:
-                print(evaluation['submissionReceiptMessage'])
+                self.logger.info(evaluation['submissionReceiptMessage'])
 
         #TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage']) like the R client
         return submitted
@@ -2895,7 +2912,8 @@ class Synapse:
             "concreteType": "org.sagebionetworks.repo.model.table.QueryBundleRequest",
             "query": {
                 "sql": query,
-                "isConsistent": isConsistent
+                "isConsistent": isConsistent,
+                "includeEntityEtag": True
             }
         }
 
@@ -2943,15 +2961,51 @@ class Synapse:
             "uploadFileHandleId": fileHandleId
         }
 
-        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
-           'entityId': id_of(schema),
-           'changes': [uploadRequest]}
-
         if updateEtag:
-            request["updateEtag"] = updateEtag
+            uploadRequest["updateEtag"] = updateEtag
+
+        return self._POST_table_transaction(schema, uploadRequest)
+
+    def _POST_table_transaction(self, schema, transactionRequests):
+        request = {'concreteType': 'org.sagebionetworks.repo.model.table.TableUpdateTransactionRequest',
+                   'entityId': id_of(schema),
+                   'changes': transactionRequests if isinstance(transactionRequests, list) else [transactionRequests]}
 
         uri = "/entity/{id}/table/transaction/async".format(id=id_of(schema))
-        return self._waitForAsync(uri=uri, request=request)
+        response = self._waitForAsync(uri=uri, request=request)
+        self._check_table_transaction_response(response)
+
+        return response
+
+
+    def _check_table_transaction_response(self, response):
+        for result in response['results']:
+            result_type = result['concreteType']
+
+            if result_type in {concrete_types.ROW_REFERENCE_SET_RESULTS,
+                               concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE,
+                               concrete_types.UPLOAD_TO_TABLE_RESULT}:
+                #if these fail, it we would have gotten an HttpError before the results came back
+                pass
+            elif result_type == concrete_types.ENTITY_UPDATE_RESULTS:
+                # TODO: output full response to error file when the logging JIRA issue gets pulled in
+                sucessful_updates = []
+                failed_updates = []
+                for update_result in result['updateResults']:
+                    failure_code = update_result.get('failureCode')
+                    failure_message = update_result.get('failureMessage')
+                    entity_id = update_result.get('entityId')
+                    if failure_code or failure_message:
+                        failed_updates.append(update_result)
+                    else:
+                        sucessful_updates.append(entity_id)
+
+                if failed_updates:
+                    raise SynapseError("Not all of the entities were updated."
+                                       " Successful updates: %s.  Failed updates: %s" % (sucessful_updates, failed_updates))
+
+            else:
+                warnings.warn("Unexpected result from a table transaction of type [%s]. Please check the result to make sure it is correct. %s" % (result_type, result))
 
 
     def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
@@ -2980,7 +3034,9 @@ class Synapse:
                 "separator": separator},
             "sql": query,
             "writeHeader": header,
-            "includeRowIdAndRowVersion": includeRowIdAndRowVersion}
+            "includeRowIdAndRowVersion": includeRowIdAndRowVersion,
+            "includeEntityEtag": True
+        }
 
         uri = "/entity/{id}/table/download/csv/async".format(id=_extract_synapse_id_from_query(query))
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
@@ -3155,7 +3211,7 @@ class Synapse:
 
         file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(table, columns)
 
-        print("Downloading %d files, %d cached locally" % (len(file_handle_associations), len(file_handle_to_path_map)))
+        self.logger.info("Downloading %d files, %d cached locally" % (len(file_handle_associations), len(file_handle_to_path_map)))
 
         permanent_failures = OrderedDict()
 
