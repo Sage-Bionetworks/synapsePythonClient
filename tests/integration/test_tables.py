@@ -68,7 +68,7 @@ def test_create_and_update_file_view():
 
     ## Create an empty entity-view with defined scope as folder
 
-    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=True, type='file', columns=my_added_cols, parent=project)
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=True, addAnnotationColumns=False, type='file', columns=my_added_cols, parent=project)
 
     entity_view = syn.store(entity_view)
     schedule_for_cleanup(entity_view)
@@ -113,7 +113,6 @@ def test_create_and_update_file_view():
     assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
 
     #query for the change
-    query_timeout_seconds = 30
     start_time = time.time()
 
     new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
@@ -122,7 +121,7 @@ def test_create_and_update_file_view():
     #query until change is seen.
     while new_view_dict[0]['fileFormat'] != 'PNG':
         #check timeout
-        assert_less(time.time() - start_time, query_timeout_seconds)
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
         #query again
         new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
         new_view_dict = list(csv.DictReader(io.open(new_view_results.filepath, encoding="utf-8", newline='')))
@@ -131,11 +130,11 @@ def test_create_and_update_file_view():
 
 
 def test_entity_view_add_annotation_columns():
-    proj1 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', annotations={'strAnno':'str1', 'intAnno':1, 'floatAnno':1.1}))
-    proj2 = syn.store(Project(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', annotations={'dateAnno':datetime.now(), 'strAnno':'str2', 'intAnno':2}))
-    schedule_for_cleanup(proj1)
-    schedule_for_cleanup(proj2)
-    scopeIds = [utils.id_of(proj1), utils.id_of(proj2)]
+    folder1 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', parent=project, annotations={'strAnno':'str1', 'intAnno':1, 'floatAnno':1.1}))
+    folder2 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', parent=project,annotations={'dateAnno':datetime.now(), 'strAnno':'str2', 'intAnno':2}))
+    schedule_for_cleanup(folder1)
+    schedule_for_cleanup(folder2)
+    scopeIds = [utils.id_of(folder1), utils.id_of(folder2)]
 
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False, addAnnotationColumns=True, type='project', parent=project)
     assert_true(entity_view['addAnnotationColumns'])
@@ -154,11 +153,14 @@ def test_entity_view_add_annotation_columns():
     assert_dict_equal(expected_column_types, view_column_types)
 
     #add another annotation to the project and make sure that EntityViewSchema only adds one moe column
-    proj1['anotherAnnotation'] = 'I need healing!'
-    proj1 = syn.store(proj1)
+    folder1['anotherAnnotation'] = 'I need healing!'
+    folder1 = syn.store(folder1)
 
-    entity_view.addAnnotationColumns = True
-    entity_view = syn.store(entity_view)
+    prev_columns = list(entity_view.columnIds)
+    # sometimes annotation columns are not immediately updated so we wait for it to update in a loop
+    while len(entity_view.columnIds) != len(prev_columns) + 1:
+        entity_view.addAnnotationColumns = True
+        entity_view = syn.store(entity_view)
 
     expected_column_types.update({'anotherAnnotation': 'STRING'})
     view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
@@ -687,28 +689,28 @@ class TestPartialRowSet(object):
 
     def test_partial_row_view_csv_query_table(self):
         """
-        Test PartialRow updates from cvs queries
+        Test PartialRow updates to tables from cvs queries
         """
         cls = type(self)
         self._test_method(cls.table_schema, "csv", cls.table_changes, cls.expected_table_cells)
 
     def test_partial_row_view_csv_query_entity_view(self):
         """
-        Test PartialRow updates from cvs queries
+        Test PartialRow updates to entity views from cvs queries
         """
         cls = type(self)
         self._test_method(cls.view_schema, "csv", cls.view_changes, cls.expected_view_cells)
 
     def test_parital_row_rowset_query_table(self):
         """
-        Test PartialRow updates from rowset queries
+        Test PartialRow updates to tables from rowset queries
         """
         cls = type(self)
         self._test_method(cls.table_schema, "rowset", cls.table_changes, cls.expected_table_cells)
 
     def test_parital_row_rowset_query_entity_veiw(self):
         """
-        Test PartialRow updates from rowset queries
+        Test PartialRow updates to entity views from rowset queries
         """
         cls = type(self)
         self._test_method(cls.view_schema, "rowset", cls.view_changes, cls.expected_view_cells)
@@ -756,7 +758,7 @@ class TestPartialRowSet(object):
 
 
     @classmethod
-    def _table_setup(self):
+    def _table_setup(cls):
         # set up a table
         cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
         schema = syn.store(Schema(name='PartialRowTest' + str(uuid.uuid4()), columns=cols, parent=project))
@@ -766,7 +768,7 @@ class TestPartialRowSet(object):
 
 
     @classmethod
-    def _view_setup(self):
+    def _view_setup(cls):
         # set up a file view
         folder = syn.store(Folder(name="PartialRowTestFolder" + str(uuid.uuid4()), parent=project))
         syn.store(File("~/path/doesnt/matter", name="f1", parent=folder, synapseStore=False))
