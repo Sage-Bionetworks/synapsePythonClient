@@ -22,7 +22,7 @@ try:
 except ImportError:
     pandas_found = True
 
-from nose.tools import raises, assert_equals, assert_set_equal
+from nose.tools import raises, assert_equals
 import unit
 import synapseclient
 from synapseclient import Entity
@@ -31,7 +31,7 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
      as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset
 from mock import patch
 from collections import OrderedDict
-
+from .unit_utils import StringIOContextManager
 def setup(module):
     print('\n')
     print('~' * 60)
@@ -633,31 +633,47 @@ def test_RowSetTable_len():
     row_set_table = RowSetTable(schema, rowset)
     assert_equals(2, len(row_set_table))
 
+class TestTableQueryResult():
+    def setup(self):
+        self.rows = [{'rowId':1, 'versionNumber':2, 'values': ['first_row']},
+                    {'rowId':5, 'versionNumber':1, 'values': ['second_row']}]
+        self.query_result_dict = {'queryResult': {
+            'queryResults': {
+                'headers': [
+                    {'columnType': 'STRING', 'name': 'col_name'}],
+                'rows': self.rows,
+                'tableId': 'syn123'}},
+            'selectColumns': [{
+                'columnType': 'STRING',
+                'id': '1337',
+                'name': 'col_name'}]}
 
-def test_TableQueryResult_len():
-    # schema = Schema(parentId="syn123", id='syn456', columns=[Column(name='column_name', id='123')])
-    # rowset =  RowSet(schema=schema, rows=[Row(['first row']), Row(['second row'])])
+        self.query_string = "SELECT whatever FROM some_table WHERE sky=blue"
 
-    query_result_dict =  {'queryResult': {
-                         'queryResults': {
-                         'headers': [
-                          {'columnType': 'STRING',  'name': 'col_name'}],
-                          'rows': [
-                           {'values': ['first_row']},
-                           {'values': ['second_row']}],
-                          'tableId': 'syn123'}},
-                        'selectColumns': [{
-                         'columnType': 'STRING',
-                         'id': '1337',
-                         'name': 'col_name'}]}
+    def test_len(self):
+        with patch.object(syn, "_queryTable", return_value =  self.query_result_dict) as mocked_table_query:
+            query_result_table = TableQueryResult(syn, self.query_string)
+            args, kwargs = mocked_table_query.call_args
+            assert_equals(self.query_string, kwargs['query'])
+            assert_equals(2, len(query_result_table))
 
-    query_string = "SELECT whatever FROM some_table WHERE sky=blue"
-    with patch.object(syn, "_queryTable", return_value =  query_result_dict) as mocked_table_query:
-        query_result_table = TableQueryResult(syn, query_string)
-        args, kwargs = mocked_table_query.call_args
-        assert_equals(query_string, kwargs['query'])
-        assert_equals(2, len(query_result_table))
+    def test_iter_metadata__no_etag(self):
+        with patch.object(syn, "_queryTable", return_value =  self.query_result_dict) as mocked_table_query:
+            query_result_table = TableQueryResult(syn, self.query_string)
+            metadata = [x for x in query_result_table.iter_row_metadata()]
+            assert_equals(2, len(metadata))
+            assert_equals((1,2, None), metadata[0])
+            assert_equals((5, 1, None), metadata[1])
 
+    def test_iter_metadata__has_etag(self):
+        self.rows[0].update({'etag':'etag1'})
+        self.rows[1].update({'etag':'etag2'})
+        with patch.object(syn, "_queryTable", return_value =  self.query_result_dict) as mocked_table_query:
+            query_result_table = TableQueryResult(syn, self.query_string)
+            metadata = [x for x in query_result_table.iter_row_metadata()]
+            assert_equals(2, len(metadata))
+            assert_equals((1,2, 'etag1'), metadata[0])
+            assert_equals((5, 1, 'etag2'), metadata[1])
 
 class TestPartialRow():
     """
@@ -725,3 +741,25 @@ class TestPartialRowSet():
         assert_equals([partial_row], partial_rowset.rows)
 
 
+class TestCsvFileTable():
+    def test_iter_metadata__has_etag(self):
+        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,asdf\n"
+                   "1,2,etag1,\"I like trains\"\n"
+                   "5,1,etag2,\"weeeeeeeeeeee\"\n")
+        with patch.object(io, "open", return_value=string_io):
+            csv_file_table = CsvFileTable("syn123","/fake/file/path")
+            metadata = [x for x in csv_file_table.iter_row_metadata()]
+            assert_equals(2, len(metadata))
+            assert_equals((1,2,"etag1"), metadata[0])
+            assert_equals((5, 1, "etag2"), metadata[1])
+
+    def test_iter_metadata__no_etag(self):
+        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,asdf\n"
+                   "1,2,\"I like trains\"\n"
+                   "5,1,\"weeeeeeeeeeee\"\n")
+        with patch.object(io, "open", return_value=string_io):
+            csv_file_table = CsvFileTable("syn123","/fake/file/path")
+            metadata = [x for x in csv_file_table.iter_row_metadata()]
+            assert_equals(2, len(metadata))
+            assert_equals((1,2, None), metadata[0])
+            assert_equals((5, 1, None), metadata[1])

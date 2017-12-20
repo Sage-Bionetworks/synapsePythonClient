@@ -794,7 +794,7 @@ class PartialRowset(AppendableRowset):
 
         #row_ids in the originalQueryResult are not guaranteed to be in ascending order
         #iterate over all etags but only map the row_ids used for this partial update to their etags
-        row_etags = {row_id:etag for row_id, row_version, etag in originalQueryResult.iter_metadata()
+        row_etags = {row_id:etag for row_id, row_version, etag in originalQueryResult.iter_row_metadata()
                      if row_id in row_ids and etag is not None}
 
         partial_rows = [PartialRow(row_changes, row_id, etag=row_etags.get(int(row_id)), nameToColumnId=name_to_column_id)
@@ -864,7 +864,6 @@ class RowSet(AppendableRowset):
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
         row_id_vers_generator = ((row.rowId, row.versionNumber) for row in self.rows)
-
         _delete_rows(syn, self.tableId, row_id_vers_generator)
 
 
@@ -1037,14 +1036,13 @@ class TableAbstractBaseClass(Iterable, Sized):
         Example::
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
-        row_id_vers_generator = ((metadata.row_id, metadata.row_version) for metadata in self.iter_metadata())
-
+        row_id_vers_generator = ((metadata.row_id, metadata.row_version) for metadata in self.iter_row_metadata())
         _delete_rows(syn, self.tableId, row_id_vers_generator)
 
 
 
     @abstractmethod
-    def iter_metadata(self):
+    def iter_row_metadata(self):
         """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
         it will generated as (row_id, None)
 
@@ -1100,7 +1098,7 @@ class RowSetTable(TableAbstractBaseClass):
         return len(self.rowset['rows'])
 
 
-    def iter_metadata(self):
+    def iter_row_metadata(self):
         raise NotImplementedError("iter_metadata is not supported for RowSetTable")
 
 
@@ -1255,7 +1253,7 @@ class TableQueryResult(TableAbstractBaseClass):
         return len(self.rowset['rows'])
 
 
-    def iter_metadata(self):
+    def iter_row_metadata(self):
         """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
         it will generated as (row_id, row_version,None)
 
@@ -1609,16 +1607,13 @@ class CsvFileTable(TableAbstractBaseClass):
 
             return sum(1 for line in f)
 
-    def iter_metadata(self):
+    def iter_row_metadata(self):
         """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
         it will generated as (row_id, None)
 
         :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
         """
         with io.open(self.filepath, encoding='utf-8') as f:
-            if not self.header:
-                raise ValueError("The csv file must have headers in order to find the etag column")
-
             reader = csv.reader(f,
                                 delimiter=self.separator,
                                 escapechar=self.escapeCharacter,
@@ -1635,4 +1630,6 @@ class CsvFileTable(TableAbstractBaseClass):
                 row_etag_index = None
 
             for row in reader:
-                yield type(self).RowMetadataTuple(int(row[row_id_index]), int(row[row_version_index]), row[row_etag_index] if (row_etag_index is not None) else None)
+                yield type(self).RowMetadataTuple(int(row[row_id_index]),
+                                                  int(row[row_version_index]),
+                                                  row[row_etag_index] if (row_etag_index is not None) else None)
