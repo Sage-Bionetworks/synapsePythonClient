@@ -455,7 +455,7 @@ class Project(Entity):
     Projects in Synapse must be uniquely named. Trying to create a project with
     a name that's already taken, say 'My project', will result in an error
 
-    ::
+    Example::
 
         project = Project('Foobarbat project')
         project = syn.store(project)
@@ -475,7 +475,7 @@ class Folder(Entity):
 
     Folders must have a name and a parent and can optionally have annotations.
 
-    ::
+    Example::
 
         folder = Folder('my data', parent=project)
         folder = syn.store(Folder)
@@ -497,7 +497,7 @@ class Link(Entity):
 
     :param targetVersion:       Version of the file you want to create a link for
 
-    ::
+    Example::
 
         link = Link('targetID', parent=folder)
         link = syn.store(link)
@@ -534,7 +534,7 @@ class File(Entity, Versionable):
     :param contentType:      Manually specify Content-type header, for example "application/png" or "application/json; charset=UTF-8"
     :param dataFileHandleId: Defining an existing dataFileHandleId will use the existing dataFileHandleId
                              The creator of the file must also be the owner of the dataFileHandleId to have permission to store the file
-    ::
+    Example::
 
         data = File('/path/to/file/data.xyz', parent=folder)
         data = syn.store(data)

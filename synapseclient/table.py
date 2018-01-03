@@ -551,7 +551,7 @@ class Schema(SchemaBase):
     :param columns: a list of :py:class:`Column` objects or their IDs
     :param parent: the project in Synapse to which this table belongs
 
-    ::
+    Example::
 
         cols = [Column(name='Isotope', columnType='STRING'),
                 Column(name='Atomic Mass', columnType='INTEGER'),
@@ -880,7 +880,7 @@ def Table(schema, values, **kwargs):
     depending on what type of values are given.
 
     :param schema: a table py:class:`Schema` object
-    :param value: an object that holds the content of the tables
+    :param values: an object that holds the content of the tables
       - a py:class:`RowSet`
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
