@@ -2217,7 +2217,7 @@ class Synapse:
         Gets the ProjectSetting for a project
         :param project: Project entity or its id as a string
         :param setting_type: type of setting. Choose from: {'upload', 'external_sync', 'requester_pays'}
-        :return: The ProjectSetting as a dict or None if no settins of the specified type exists.
+        :return: The ProjectSetting as a dict or None if no settings of the specified type exists.
         """
         if setting_type not in {'upload', 'external_sync', 'requester_pays'}:
             raise ValueError("Invalid project_type: %s" % setting_type)
