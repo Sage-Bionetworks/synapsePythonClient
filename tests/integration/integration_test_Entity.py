@@ -566,11 +566,10 @@ def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
     #upload to synapse and set permissions to READ only
     entity = syn.store(File(path, parent=project))
     syn.setPermissions(entity, other_user['username'], accessType=['READ'])
-
     #try to download and check that nothing wad downloaded and a warning message was printed
-    with patch("sys.stderr") as mocked_stderr:
+    with patch.object(other_syn.logger, "warning") as mocked_warn:
         entity_no_download = other_syn.get(entity['id'])
-        mocked_stderr.write.assert_called_once()
+        mocked_warn.assert_called_once()
         assert_is_none(entity_no_download.path)
 
 

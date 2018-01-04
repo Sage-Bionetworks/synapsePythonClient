@@ -61,7 +61,7 @@ class Lock(object):
                 raise
             # already locked...
             if break_old_locks and self.get_age() > self.max_age.total_seconds():
-                sys.stderr.write("Breaking lock who's age is: %s\n" % self.get_age())
+                sys.stderr.write("Breaking lock whose age is: %s\n" % self.get_age())
                 self.held = True
                 # Make sure the modification times are correct
                 # On some machines, the modification time could be seconds off
