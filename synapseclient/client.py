@@ -1309,7 +1309,7 @@ class Synapse:
         :param mimetype: The MIME type metadata for the uploaded file
         :param md5: The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
         :param file_size: The size the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
-        :param file_size: The MIME type the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
+        :param file_type: The MIME type the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
 
 
         :returns: a dict of a new FileHandle as a dict that represents the uploaded file
