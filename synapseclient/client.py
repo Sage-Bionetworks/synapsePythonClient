@@ -335,10 +335,7 @@ class Synapse(object):
         # Make sure to invalidate the existing session
         self.logout()
 
-        try:
-            self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
-        except SynapseAuthenticationError:
-            pass
+        self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
 
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
@@ -430,7 +427,7 @@ class Synapse(object):
                 session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.default_headers)
                 return session['sessionToken']
             except SynapseHTTPError as err:
-                if err.response.status_code == 403 or err.response.status_code == 404:
+                if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
                     raise SynapseAuthenticationError("Invalid username or password.")
                 raise
 
@@ -448,7 +445,7 @@ class Synapse(object):
                     raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
                 raise
         else:
-            raise SynapseAuthenticationError("No credentials provided.")
+            raise SynapseNoCredentialsError("No credentials provided.")
 
     def _getAPIKey(self, sessionToken):
         """Uses a session token to fetch an API key."""
@@ -684,17 +681,22 @@ class Synapse(object):
         else:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
-
         # Check and warn for unmet access requirements
-        if len(bundle['unmetAccessRequirements']) > 0:
+        self._check_entity_restrictions(bundle['restrictionInformation'], entity, kwargs.get('downloadFile', True))
+
+        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
+
+
+    def _check_entity_restrictions(self, restrictionInformation, entity, downloadFile):
+        if restrictionInformation['hasUnmetAccessRequirement']:
             warning_message = ("\nThis entity has access restrictions. Please visit the "
                               "web page for this entity (syn.onweb(\"%s\")). Click the downward "
                               "pointing arrow next to the file's name to review and fulfill its "
                               "download requirement(s).\n" % id_of(entity))
-            if kwargs.get('downloadFile', True):
+            if downloadFile:
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
-        return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
+
 
 
     def _getFromFile(self, filepath, limitSearch=None):
@@ -785,9 +787,8 @@ class Synapse(object):
                 if file_handle:
                     self._download_file_entity(downloadLocation, entity, ifcollision, submission)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
-                    warning_message = "You do not have DOWNLOAD permissions for this file. The file has NOT been downloaded"
+                    warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD permission. The file has NOT been downloaded."
                     self.logger.warning('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
-
         return entity
 
 
@@ -946,19 +947,17 @@ class Synapse(object):
                 return self._storeWiki(obj, createOrUpdate)
 
             if 'id' in obj: # If ID is present, update
-                obj.update(self.restPUT(obj.putURI(), obj.json()))
-                return obj
+                return type(obj)(**self.restPUT(obj.putURI(), obj.json()))
 
             try: # If no ID is present, attempt to POST the object
-                obj.update(self.restPOST(obj.postURI(), obj.json()))
-                return obj
+                return type(obj)(**self.restPOST(obj.postURI(), obj.json()))
 
             except SynapseHTTPError as err:
                 # If already present and we want to update attempt to get the object content
                 if createOrUpdate and err.response.status_code == 409:
                     newObj = self.restGET(obj.getByNameURI(obj.name))
                     newObj.update(obj)
-                    obj = obj.__class__(**newObj)
+                    obj = type(obj)(**newObj)
                     obj.update(self.restPUT(obj.putURI(), obj.json()))
                     return obj
                 raise
@@ -1032,9 +1031,9 @@ class Synapse(object):
         else:
             #If Link, get the target name, version number and concrete type and store in link properties
             if properties['concreteType']=="org.sagebionetworks.repo.model.Link":
-                target_properties = self._getEntity(properties['linksTo']['targetId'], version=properties['linksTo']['targetVersionNumber'])
+                target_properties = self._getEntity(properties['linksTo']['targetId'], version=properties['linksTo'].get('targetVersionNumber'))
                 properties['linksToClassName'] = target_properties['concreteType']
-                if target_properties.get('versionNumber') is not None:
+                if target_properties.get('versionNumber') is not None and properties['linksTo'].get('targetVersionNumber') is not None:
                     properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
                 properties['name'] = target_properties['name']
             try:
@@ -1042,7 +1041,7 @@ class Synapse(object):
             except SynapseHTTPError as ex:
                 if createOrUpdate and ex.response.status_code == 409:
                     # Get the existing Entity's ID via the name and parent
-                    existing_entity_id = self._findEntityIdByNameAndParent(properties['name'], properties.get('parentId', None))
+                    existing_entity_id = self.findEntityId(properties['name'], properties.get('parentId', None))
                     if existing_entity_id is None: raise
 
                     # get existing properties and annotations
@@ -1100,13 +1099,12 @@ class Synapse(object):
         Checks to see if the given entity has access requirements.
         If not, then one is added
         """
-
-        existingRestrictions = self.restGET('/entity/%s/accessRequirement' % id_of(entity))
-        if existingRestrictions['totalNumberOfResults'] <= 0:
+        existingRestrictions = self.restGET('/entity/%s/accessRequirement?offset=0&limit=1' % id_of(entity))
+        if len(existingRestrictions['results']) <= 0:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
 
-    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x400 | 0x2 | 0x1):
+    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x40000 | 0x2 | 0x1):
         """
         Gets some information about the Entity.
 
@@ -1116,16 +1114,20 @@ class Synapse(object):
 
         EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)::
 
-            ENTITY                    = 0x1
-            ANNOTATIONS               = 0x2
-            PERMISSIONS               = 0x4
-            ENTITY_PATH               = 0x8
-            ENTITY_REFERENCEDBY       = 0x10
-            HAS_CHILDREN              = 0x20
-            ACL                       = 0x40
-            ACCESS_REQUIREMENTS       = 0x200
-            UNMET_ACCESS_REQUIREMENTS = 0x400
-            FILE_HANDLES              = 0x800
+            ENTITY                     = 0x1
+            ANNOTATIONS                = 0x2
+            PERMISSIONS                = 0x4
+            ENTITY_PATH                = 0x8
+            HAS_CHILDREN               = 0x20
+            ACL                        = 0x40
+            FILE_HANDLES               = 0x800
+            TABLE_DATA                 = 0x1000
+            ROOT_WIKI_ID               = 0x2000
+            BENEFACTOR_ACL             = 0x4000
+            DOI                        = 0x8000
+            FILE_NAME                  = 0x10000
+            THREAD_COUNT               = 0x20000
+            RESTRICTION_INFORMATION    = 0x40000
 
         For example, we might ask for an entity bundle containing file handles, annotations, and properties::
 
@@ -1139,7 +1141,7 @@ class Synapse(object):
         #     If the user forgets to catch the return value of a syn.store(e)
         #     this allows them to recover by doing: e = syn.get(e)
         if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
-            entity = self._findEntityIdByNameAndParent(entity['name'], entity.get('parentId', None))
+            entity = self.findEntityId(entity['name'], entity.get('parentId', None))
 
         # Avoid an exception from finding an ID from a NoneType
         try: id_of(entity)
@@ -1438,8 +1440,8 @@ class Synapse(object):
     def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo"], sortBy="NAME", sortDirection="ASC"):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
-
-        :param parent:       An id or an object of a Synapse container
+        
+        :param parent:       An id or an object of a Synapse container or None to retrieve all projects
 
         :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
                                http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
@@ -1454,7 +1456,8 @@ class Synapse(object):
 
         - :py:func:`synapseutils.walk`
         """
-        entityChildrenRequest = {'parentId':id_of(parent),
+        parentId = id_of(parent) if parent is not None else None
+        entityChildrenRequest = {'parentId':parentId,
                                  'includeTypes':includeTypes,
                                  'sortBy':sortBy,
                                  'sortDirection':sortDirection,
@@ -1661,10 +1664,10 @@ class Synapse(object):
         # If principalId is not a number assume it is a name or email
         except ValueError:
             userProfiles = self.restGET('/userGroupHeaders?prefix=%s' % principalId)
-            totalResults = userProfiles['totalNumberOfResults']
+            totalResults = len(userProfiles['children'])
             if totalResults == 1:
                 return int(userProfiles['children'][0]['ownerId'])
-            elif totalResults > 0:
+            elif totalResults > 1:
                 for profile in userProfiles['children']:
                     if profile['userName'] == principalId:
                         return int(profile['ownerId'])
@@ -1931,10 +1934,12 @@ class Synapse(object):
         destination = os.path.abspath(destination)
         actual_md5 = None
         redirect_count = 0
+        delete_on_md5_mismatch = True
         while redirect_count < REDIRECT_LIMIT:
             redirect_count += 1
             scheme = urlparse(url).scheme
             if scheme == 'file':
+                delete_on_md5_mismatch = False
                 destination = utils.file_url_to_path(url, verify_exists=True)
                 if destination is None:
                     raise IOError("Local file (%s) does not exist." % url)
@@ -2040,8 +2045,8 @@ class Synapse(object):
 
         ## check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
-            #if  urlparse(url).scheme != 'file' and os.path.exists(destination):
-            #    os.remove(destination)
+            if delete_on_md5_mismatch and os.path.exists(destination):
+               os.remove(destination)
             raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
 
         return destination
@@ -2581,18 +2586,12 @@ class Synapse(object):
         enough to be a burden on the service they may be truncated.
         """
 
-        totalNumberOfResults = sys.maxsize
-        while offset < totalNumberOfResults:
+        prev_num_results = sys.maxsize
+        while prev_num_results > 0:
             uri = utils._limit_and_offset(uri, limit=limit, offset=offset)
             page = self.restGET(uri)
             results = page['results'] if 'results' in page else page['children']
-            totalNumberOfResults = page.get('totalNumberOfResults', len(results))
-
-            ## platform bug PLFM-3589 causes totalNumberOfResults to be too large,
-            ## by counting evaluations to which the current user does not have access.
-            ## So, we need to check for empty results and bail if we see that.
-            if len(results) == 0:
-                totalNumberOfResults = offset
+            prev_num_results = len(results)
 
             for result in results:
                 offset += 1
@@ -2827,12 +2826,14 @@ class Synapse(object):
             ValueError("Can't get columns for a %s" % type(x))
 
 
-    def getTableColumns(self, table, limit=100, offset=0):
+    def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
         """
         uri = '/entity/{id}/column'.format(id=id_of(table))
-        for result in self._GET_paginated(uri, limit=limit, offset=offset):
+        # The returned object type for this service, PaginatedColumnModels, is a misnomer.
+        # This service always returns the full list of results so the pagincation does not not actually matter.
+        for result in self.restGET(uri)['results']:
             yield Column(**result)
 
 
@@ -3059,6 +3060,18 @@ class Synapse(object):
         return Column(**self.restPOST('/column', json.dumps(columnModel)))
 
 
+    def createColumns(self, columns):
+        """
+        Creates a batch of py:class:`Column`s within a single request
+        :param columns: a list of py:class:`Column` objects
+        :return: a list of py:class:`Column` objects that have been created in Synapse
+        """
+        request_body = {'concreteType':'org.sagebionetworks.repo.model.ListWrapper',
+                        'list': list(columns)}
+        response = self.restPOST('/column/batch', json.dumps(request_body))
+        return [Column(**col) for col in response['list']]
+
+
     def _getColumnByName(self, schema, column_name):
         """
         Given a schema and a column name, get the corresponding py:class:`Column` object.
@@ -3071,6 +3084,8 @@ class Synapse(object):
 
     def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None, rowIdAndVersion=None, ifcollision="keep.both"):
         """
+        **Deprecated**
+
         Downloads a file associated with a row in a Synapse table.
 
         :param table:            schema object, table query result or synapse ID
@@ -3083,14 +3098,15 @@ class Synapse(object):
                                  May be "overwrite.local", "keep.local", or "keep.both".
                                  Defaults to "keep.both".
 
-        :returns: a dictionary with 'path'.
+        :returns: file path (as a string) to the downloaded file.
 
         Example::
 
-            file_info = syn.downloadTableFile(table, rowId=1, versionNumber=1, column="cover_art", downloadLocation=".")
-            print(file_info['path'])
+            file_path = syn.downloadTableFile(table, rowId=1, versionNumber=1, column="cover_art", downloadLocation=".")
+            print(file_path)
 
         """
+        warnings.warn("downloadTableFile() is deprecated, please use downloadTableColumns() instead", DeprecationWarning, stacklevel=2)
 
         if (rowId is None or versionNumber is None) and rowIdAndVersion is None:
             raise ValueError("Need to pass in either rowIdAndVersion or (rowId and versionNumber).")
@@ -3292,6 +3308,21 @@ class Synapse(object):
     def _get_default_entity_view_columns(self, view_type):
         return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
 
+    def _get_annotation_entity_view_columns(self, scope_ids, view_type):
+        view_scope = {'scope': scope_ids,
+                      'viewType': view_type}
+        columns = []
+        next_page_token = None
+        while True: # why does python not havea do-while loop??????????
+            next_page_query = '' if next_page_token is None else '?nextPageToken=%s' % next_page_token
+            response = self.restPOST('/column/view/scope', json.dumps(view_scope))
+            columns.extend(Column(**column) for column in response['results'])
+            next_page_token = response.get('nextPageToken')
+            if next_page_token is None:
+                break
+        return columns
+
+
     ############################################################
     ##             CRUD for Entities (properties)             ##
     ############################################################
@@ -3349,13 +3380,14 @@ class Synapse(object):
         return self.restPUT(uri, body=json.dumps(get_properties(entity)))
 
 
-    def _findEntityIdByNameAndParent(self, name, parent=None):
+    def findEntityId(self, name, parent=None):
         """
-        Find an Entity given its name and parent ID.
+        Find an Entity given its name and parent.
 
-        :returns: the Entity ID or None if not found
+        :param name: name of the entity to find
+        :param parent: An Entity object or the Id of an entity as a string. Pass in None if searching for a Project by name
+        :return: the Entity ID or None if not found
         """
-
         # when we want to search for a project by name. set parentId as None instead of ROOT_ENTITY
         entity_lookup_request = {"parentId": id_of(parent) if parent else None,
                                  "entityName": name}

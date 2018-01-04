@@ -334,7 +334,7 @@ class Entity(collections.MutableMapping):
 
 
     def __setitem__(self, key, value):
-        if key in self.__dict__:
+        if key in self.__dict__ or key in self.__class__._local_keys:
             # If we assign like so:
             #   entity.annotations = {'foo';123, 'bar':'bat'}
             # Wrap the dictionary in a DictObject so we can
@@ -507,8 +507,10 @@ class Link(Entity):
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Link'
 
     def __init__(self, targetId=None, targetVersion=None, parent=None, properties=None, annotations=None, local_state=None, **kwargs):
-        if targetId is not None:
-            kwargs['linksTo'] = dict(targetId=targetId, targetVersionNumber=targetVersion)
+        if targetId is not None and targetVersion is not None:
+            kwargs['linksTo'] = dict(targetId=utils.id_of(targetId), targetVersionNumber=targetVersion)
+        elif targetId is not None and targetVersion is None:
+            kwargs['linksTo'] = dict(targetId=utils.id_of(targetId))
         elif properties is not None and 'linksTo' in properties:
             pass
         else:

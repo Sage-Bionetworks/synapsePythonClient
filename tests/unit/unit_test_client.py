@@ -305,7 +305,7 @@ def test_findEntityIdByNameAndParent__None_parent():
     expected_id = "syn1234"
     return_val = {'id' : expected_id}
     with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
-        entity_id = syn._findEntityIdByNameAndParent(entity_name)
+        entity_id = syn.findEntityId(entity_name)
         mocked_POST.assert_called_once_with(expected_uri,body=expected_body )
         assert_equal(expected_id, entity_id)
 
@@ -318,7 +318,7 @@ def test_findEntityIdByNameAndParent__with_parent():
     expected_id = "syn1234"
     return_val = {'id' : expected_id}
     with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
-        entity_id = syn._findEntityIdByNameAndParent(entity_name, parent_entity)
+        entity_id = syn.findEntityId(entity_name, parent_entity)
         mocked_POST.assert_called_once_with(expected_uri,body=expected_body )
         assert_equal(expected_id, entity_id)
 
@@ -329,7 +329,7 @@ def test_findEntityIdByNameAndParent__404_error_no_result():
     expected_body = json.dumps({"parentId": None, "entityName": entity_name})
     fake_response = DictObject({"status_code": 404})
     with patch.object(syn, "restPOST", side_effect=SynapseHTTPError(response=fake_response)) as mocked_POST:
-        assert_is_none(syn._findEntityIdByNameAndParent(entity_name))
+        assert_is_none(syn.findEntityId(entity_name))
 
 
 def test_getChildren__nextPageToken():
@@ -368,3 +368,28 @@ def test_getChildren__nextPageToken():
         expected_POST_url = '/entity/children'
         mocked_POST.assert_has_calls([call(expected_POST_url, body=expected_request_JSON(None)), call(expected_POST_url, body=expected_request_JSON(nextPageToken))])
 
+def test_check_entity_restrictions__no_unmet_restriction():
+    with patch("warnings.warn") as mocked_warn:
+        restriction_requirements = {'hasUnmetAccessRequirement': False}
+
+        syn._check_entity_restrictions(restriction_requirements, "syn123", True)
+
+        mocked_warn.assert_not_called()
+
+
+def test_check_entity_restrictions__unmet_restriction_downloadFile_is_True():
+    with patch("warnings.warn") as mocked_warn:
+        restriction_requirements = {'hasUnmetAccessRequirement': True}
+
+        assert_raises(SynapseUnmetAccessRestrictions, syn._check_entity_restrictions, restriction_requirements, "syn123", True)
+
+        mocked_warn.assert_not_called()
+
+
+def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False():
+    with patch("warnings.warn") as mocked_warn:
+        restriction_requirements = {'hasUnmetAccessRequirement': True}
+
+        syn._check_entity_restrictions(restriction_requirements, "syn123", False)
+
+        mocked_warn.assert_called_once()
