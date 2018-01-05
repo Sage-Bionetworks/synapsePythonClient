@@ -1698,7 +1698,7 @@ class Synapse(object):
         :param principalId: Identifier of a user or group (defaults to PUBLIC users)
 
         :returns: An array containing some combination of
-                  ['READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS', 'DOWNLOAD', 'PARTICIPATE']
+                  ['READ', 'CREATE', 'UPDATE', 'DELETE', 'CHANGE_PERMISSIONS', 'DOWNLOAD']
                   or an empty array
 
         """
