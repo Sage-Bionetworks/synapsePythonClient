@@ -517,7 +517,7 @@ class Synapse:
         :param id:           The 'userId' (aka 'ownerId') of a user or the userName
         :param sessionToken: The session token to use to find the user profile
         :param refresh:  If set to True will always fetch the data from Synape otherwise
-                         will used cached information
+                         will use cached information
 
         :returns: The user profile for the user of interest.
 
@@ -594,7 +594,12 @@ class Synapse:
 
 
     def printEntity(self, entity, ensure_ascii=True):
-        """Pretty prints an Entity."""
+        """
+        Pretty prints an Entity.
+        
+        :param entity:  The entity to be printed.
+        :ensure_ascii:  If True, escapes all non-ASCII characters
+        """
 
         if utils.is_synapse_id(entity):
             entity = self._getEntity(entity)
@@ -1397,10 +1402,10 @@ class Synapse:
         Store annotations for an Entity in the Synapse Repository.
 
         :param entity:      The Entity or Synapse Entity ID whose annotations are to be updated
-        :param annotations: A dictionary in Synapse or Python format
-        :param kwargs:      Any additional entries to be added to the annotations dictionary
+        :param annotations: A dictionary of annotation names and values
+        :param kwargs:      annotation names and values
 
-        :returns: A dictionary
+        :returns: the updated annotations for the entity
         """
         uri = '/entity/%s/annotations' % id_of(entity)
 
@@ -1816,6 +1821,8 @@ class Synapse:
         """
         Modifies an existing Activity.
 
+        :param activity:  The Activity to be saved.
+        
         :returns: An updated Activity object
         """
 
@@ -2233,6 +2240,10 @@ class Synapse:
     def getEvaluation(self, id):
         """
         Gets an Evaluation object from Synapse.
+        
+        :param id:  The ID of the :py:class:`synapseclient.evaluation.Evaluation` to return.
+        
+        :return: an :py:class:`synapseclient.evaluation.Evaluation` object
 
         See: :py:mod:`synapseclient.evaluation`
 
@@ -2251,6 +2262,10 @@ class Synapse:
         """
         Gets an Evaluation object from Synapse.
 
+        :param name:  The name of the :py:class:`synapseclient.evaluation.Evaluation` to return.
+        
+        :return: an :py:class:`synapseclient.evaluation.Evaluation` object
+
         See: :py:mod:`synapseclient.evaluation`
         """
         uri = Evaluation.getByNameURI(quote(name))
@@ -2259,8 +2274,12 @@ class Synapse:
 
     def getEvaluationByContentSource(self, entity):
         """
-        Returns a generator over evaluations that
-        derive their content from the given entity
+        Returns a generator over evaluations that derive their content from the given entity
+        
+        :param entity:  The :py:class:`synapseclient.Project` whose Evaluations are to be fetched.
+        
+        :return: a Generator over the :py:class:`synapseclient.evaluation.Evaluation` objects for the given :py:class:`synapseclient.Project`
+
         """
 
         entityId = id_of(entity)
@@ -2281,6 +2300,10 @@ class Synapse:
     def getTeam(self, id):
         """
         Finds a team with a given ID or name.
+        
+        :param id:  The ID of the team to retrieve
+        
+        :return:  An object of type :py:class:`synapseclient.Team`
         """
         try:
             int(id)
@@ -2591,6 +2614,9 @@ class Synapse:
     def getSubmission(self, id, **kwargs):
         """
         Gets a :py:class:`synapseclient.evaluation.Submission` object by its id.
+        :param id:  The id of the submission to retrieve
+        
+        :return:  a :py:class:`synapseclient.evaluation.Submission` object
 
         See: :py:func:`synapseclient.Synapse.get` for information
              on the *downloadFile*, *downloadLocation*, and *ifcollision* parameters
@@ -2636,6 +2662,12 @@ class Synapse:
         """
         Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2
         API which supports versioning.
+        
+        :param owner: The entity to which the Wiki is attached
+        :param subpageId:  The id of the specific sub-page or None to get the root Wiki page
+        :param version:  The version of the page to retrieve or None to retrieve the latest
+        
+        :return: a :py:class:`synapseclient.wiki.Wiki` object
         """
         uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
         if subpageId is not None:
@@ -2780,6 +2812,10 @@ class Synapse:
         Gets a Column object from Synapse by ID.
 
         See: :py:mod:`synapseclient.table.Column`
+        
+        :param id: the ID of the column to retrieve
+        
+        :return: an object of type :py:class`synapseclient.table.Column`
 
         Example::
 
@@ -2794,6 +2830,8 @@ class Synapse:
         headers, (2) those for a given schema, or (3) those whose names start with a given prefix.
 
         :param x: a list of column headers, a Schema, a TableSchema's Synapse ID, or a string prefix
+        :param limit: maximum number of columns to return (pagination parameter)
+        :param offset: the index of the first column to return (pagination parameter)
         :return: a generator of Column objects
         """
         if x is None:
@@ -2824,6 +2862,10 @@ class Synapse:
     def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
+        
+        :param table:  the schema of the Table whose columns are to be retrieved
+        
+        :return:  a Generator over the Table's columns
         """
         uri = '/entity/{id}/column'.format(id=id_of(table))
         # The returned object type for this service, PaginatedColumnModels, is a misnomer.

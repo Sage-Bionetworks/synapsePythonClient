@@ -455,6 +455,11 @@ class Project(Entity):
     Projects in Synapse must be uniquely named. Trying to create a project with
     a name that's already taken, say 'My project', will result in an error
 
+    :param name:            The name of the project
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Allow local state to be given. This state information is not persisted  in the Synapse Repository.
+    
     Example::
 
         project = Project('Foobarbat project')
@@ -474,6 +479,11 @@ class Folder(Entity):
     Represents a folder in Synapse.
 
     Folders must have a name and a parent and can optionally have annotations.
+    :param name:            The name of the folder
+    :param parent:          The parent project or folder
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Allow local state to be given.  This state information is not persisted in the Synapse Repository.
 
     Example::
 
@@ -492,11 +502,15 @@ class Link(Entity):
     """
     Represents a link in Synapse.
 
-    Links must have a target ID and a parent. When you do synapseclient.Synapse.get on a Link object,
+    Links must have a target ID and a parent. When you do :py:func:`synapseclient.Synapse.get` on a Link object,
     the Link object is returned. If the target is desired, specify followLink=True in synapseclient.Synapse.get.
 
-    :param targetVersion:       Version of the file you want to create a link for
-
+    :param targetId:        The ID of the entity to be linked
+    :param targetVersion:   The version of the entity to be linked
+    :param parent:          The parent project or folder
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Allow local state to be given. This state information is not persisted  in the Synapse Repository.
     Example::
 
         link = Link('targetID', parent=folder)
@@ -534,6 +548,10 @@ class File(Entity, Versionable):
     :param contentType:      Manually specify Content-type header, for example "application/png" or "application/json; charset=UTF-8"
     :param dataFileHandleId: Defining an existing dataFileHandleId will use the existing dataFileHandleId
                              The creator of the file must also be the owner of the dataFileHandleId to have permission to store the file
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Allow local state to be given. This state information is not persisted  in the Synapse Repository.
+    
     Example::
 
         data = File('/path/to/file/data.xyz', parent=folder)
@@ -631,7 +649,12 @@ class DockerRepository(Entity):
     To upload a docker image that is managed by Synapse please use the official Docker client and read http://docs.synapse.org/articles/docker.html for instructions on uploading a Docker Image to Synapse
     
     :param repositoryName: the name of the Docker Repository. Usually in the format: [host[:port]/]path. If host is not set, it will default to that of DockerHub. port can only be specified if the host is also specified
+    :param parent: the parent project for the Docker repository
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Allow local state to be given.  This state information is not persisted in the Synapse Repository.
     
+    :return:  an object of type :py:class:`org.sagebionetworks.repo.model.docker.DockerRepository`
     """
     _synapse_entity_type = 'org.sagebionetworks.repo.model.docker.DockerRepository'
 

@@ -550,7 +550,11 @@ class Schema(SchemaBase):
     :param description:
     :param columns: a list of :py:class:`Column` objects or their IDs
     :param parent: the project in Synapse to which this table belongs
-
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Allow local state to be given.
+                            This state information is not persisted
+                            in the Synapse Repository.
     Example::
 
         cols = [Column(name='Isotope', columnType='STRING'),
@@ -578,12 +582,14 @@ class EntityViewSchema(SchemaBase):
     :param scopes: a list of Projects/Folders or their ids
     :param type: the type of EntityView to display: either 'file','project' or 'file_and_table'. Defaults to 'file'.
     :param addDefaultViewColumns: If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
+     The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
     :param addAnnotationColumns: If true, adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
     :param ignoredAnnotationColumnNames: A list of strings representing annotation names. When addAnnotationColumns is True,
                                         the names in this list will not be automatically added as columns to the EntityViewSchema
                                         if they exist in any of the defined scopes.
-    The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
-    
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Allow local state to be given.  This state information is not persisted in the Synapse Repository.
     
     Example::
     
@@ -766,7 +772,8 @@ class RowSet(DictObject):
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
-    :param tableId:  The ID of the TableEntity than owns these rows
+    :param columns:  An alternative to 'headers', a list of column objects that describe the fields in each row.
+    :param tableId:  The ID of the TableEntity that owns these rows
     :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
     :var etag:       Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
 
@@ -881,7 +888,7 @@ def Table(schema, values, **kwargs):
 
     :param schema: a table py:class:`Schema` object
     :param values: an object that holds the content of the tables
-      - a py:class:`RowSet`
+      - a :py:class:`RowSet`
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
