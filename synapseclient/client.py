@@ -219,7 +219,12 @@ class Synapse:
 
 
     def getConfigFile(self, configPath):
-        """Returns a ConfigParser populated with properties from the user's configuration file."""
+        """
+        Retrieves the client configuration information.
+        
+        :param configPath:  Path to configuration file on local file system
+        :return: a ConfigParser populated with properties from the user's configuration file.
+        """
 
         try:
             config = configparser.ConfigParser()
@@ -1466,6 +1471,7 @@ class Synapse:
         **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
 		See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
+		:param queryStr:  the query to execute
         :returns: an array of query results
 
         Example::
@@ -1483,7 +1489,8 @@ class Synapse:
         More robust than :py:func:`synapseclient.Synapse.query`.
         See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
-        :returns: An iterator that will break up large queries into managable pieces.
+		:param queryStr:  the query to execute
+         :returns: An iterator that will break up large queries into managable pieces.
 
         Example::
 
@@ -1692,7 +1699,7 @@ class Synapse:
 
         :param entity:            An Entity or Synapse ID to modify
         :param principalId:       Identifier of a user or group
-        :param accessType:        Type of permission to be granted
+        :param accessType:        Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE, DELETE, CHANGE_PERMISSIONS
         :param modify_benefactor: Set as True when modifying a benefactor's ACL
         :param warn_if_inherits:  Set as False, when creating a new ACL.
                                   Trying to modify the ACL of an Entity that
@@ -1702,8 +1709,6 @@ class Synapse:
                                   flag to False to add new permissions nondestructively.
 
         :returns: an Access Control List object
-
-        Valid access types are: CREATE, READ, UPDATE, DELETE, CHANGE_PERMISSIONS, DOWNLOAD, PARTICIPATE, SUBMIT
 
         """
 

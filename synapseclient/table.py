@@ -886,13 +886,16 @@ def Table(schema, values, **kwargs):
     Combine a table schema and a set of values into some type of Table object
     depending on what type of values are given.
 
-    :param schema: a table py:class:`Schema` object
+    :param schema: a table :py:class:`Schema` object
     :param values: an object that holds the content of the tables
       - a :py:class:`RowSet`
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
       - a dict which will be wrapped by a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+      
+      
+    :return: a Table object suitable for storing
 
     Usually, the immediate next step after creating a Table object is to store it::
 
