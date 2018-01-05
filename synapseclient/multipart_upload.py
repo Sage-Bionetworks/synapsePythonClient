@@ -36,7 +36,7 @@ except ImportError:
     from urlparse import urlparse
     from urlparse import parse_qs
 
-import synapseclient.exceptions as exceptions
+from . import exceptions
 from .utils import printTransferProgress, md5_for_file, MB
 from .dict_object import DictObject
 from .exceptions import SynapseError
@@ -204,6 +204,7 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, storageLoca
         if not mimetype:
             mimetype = "application/octet-stream"
         contentType = mimetype
+    syn.logger.debug("Initiating multi-part upload for file: [{path}] size={size} md5={md5}, contentType={contentType}".format(path=filepath,size=fileSize,md5=md5,contentType=contentType))
 
     get_chunk_function = lambda n,partSize: get_file_chunk(filepath, n, partSize)
 
@@ -213,7 +214,7 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, storageLoca
                                fileSize=fileSize,
                                storageLocationId=storageLocationId,
                                **kwargs)
-
+    syn.logger.debug("Completed multi-part upload. Result:%s" % status)
     return status["resultFileHandleId"]
 
 
@@ -264,37 +265,45 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
     partNumber=part["partNumber"]
     url=part["uploadPresignedUrl"]
 
+    syn.logger.debug("uploading this part of the upload: %s" % part)
     #if the upload url for another worker has expired, assume that this one also expired and return early
     with expired.get_lock():
         if expired.value:
+            syn.logger.debug("part %s is returning early because other parts have already expired" % partNumber)
             return
 
     try:
         chunk = get_chunk_function(partNumber, partSize)
+        syn.logger.debug("start upload part %s" % partNumber)
         _put_chunk(url, chunk, syn.debug)
+        syn.logger.debug("PUT upload of part %s complete" % partNumber)
         ## compute the MD5 for the chunk
         md5 = hashlib.md5()
         md5.update(chunk)
 
         ## confirm that part got uploaded
+        syn.logger.debug("contacting Synapse to complete part %s" % partNumber)
         add_part_response = _add_part(syn, uploadId=status.uploadId,
                                       partNumber=partNumber, partMD5Hex=md5.hexdigest())
         ## if part was successfully uploaded, increment progress
         if add_part_response["addPartState"] == "ADD_SUCCESS":
+            syn.logger.debug("finished contacting Synapse about adding part %s" % partNumber)
             with completed.get_lock():
                 completed.value += len(chunk)
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0, previouslyTransferred=bytes_already_uploaded)
+        else:
+            syn.logger.debug("did not sucessfuly add part %s" % partNumber)
     except Exception as ex1:
         if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403:
+            syn.logger.debug("The presigned upload URL for part %s has expired. Restarting upload...\n" % partNumber)
             with expired.get_lock():
                 if not expired.value:
                     warnings.warn("The presigned upload URL has expired. Restarting upload...\n")
                     expired.value = True
             return
         #If we are not in verbose debug mode we will swallow the error and retry.
-        elif syn.debug:
-            sys.stderr.write(str(ex1))
-            sys.stderr.write("Encountered an exception: %s. Retrying...\n" % str(type(ex1)))
+        else:
+            syn.logger.debug("Encountered an exception: %s. Retrying...\n" % str(type(ex1)), exc_info=True)
 
 
 def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileSize, 
@@ -327,12 +336,16 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
     completedParts = count_completed_parts(status.partsState)
     previously_completed_bytes =  min(completedParts * partSize, fileSize) # bytes that were previously uploaded before the current upload began. this variable is set only once
+    syn.logger.debug("file partitioned into size: %s" % partSize)
+    syn.logger.debug("current multipart-upload status: %s" % status)
+    syn.logger.debug("previously completed %d parts, estimated %d bytes" % (completedParts, previously_completed_bytes))
     time_upload_started = time.time()
     progress=True
     retries=0
     mp = Pool(8)
     try:
         while retries<MAX_RETRIES:
+            syn.logger.debug("Started retry loop for multipart_upload. Currently %d/%d retries" % (retries, MAX_RETRIES))
             ## keep track of the number of bytes uploaded so far
             completed = Value('d', min(completedParts * partSize, fileSize))
             expired = Value(c_bool, False)
@@ -344,23 +357,29 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                                                       fileSize=fileSize, partSize=partSize, t0=time_upload_started,
                                                       expired=expired, bytes_already_uploaded=previously_completed_bytes)
 
+            syn.logger.debug("fetching presigned urls and mapping to Pool")
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)
+            syn.logger.debug("completed pooled upload")
+
 
             #Check if there are still parts
             status = _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType, storageLocationId=storageLocationId, **kwargs)
             oldCompletedParts, completedParts = completedParts, count_completed_parts(status.partsState)
             progress = (completedParts>oldCompletedParts)
             retries = retries+1 if not progress else retries
+            syn.logger.debug("progress made in this loop? %s" % progress)
 
             ## Are we done, yet?
             if completed.value >= fileSize:
                 try:
+                    syn.logger.debug("attempting to finalize multipart upload because completed.value >= filesize ({completed} >= {size})".format(completed=completed.value, size=fileSize))
                     status = _complete_multipart_upload(syn, status.uploadId)
                     if status.state == "COMPLETED":
                         break
                 except Exception as ex1:
-                    sys.stderr.write(str(ex1)+"\n")
+                    syn.logger.error("Attempt to complete the multipart upload failed with exception %s %s" % (type(ex1),ex1))
+                    syn.logger.debug("multipart upload failed:", exc_info=True)
     finally:
         mp.terminate()
     if status["state"] != "COMPLETED":
