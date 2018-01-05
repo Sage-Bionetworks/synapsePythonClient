@@ -603,7 +603,7 @@ class Synapse:
         Pretty prints an Entity.
         
         :param entity:  The entity to be printed.
-        :ensure_ascii:  If True, escapes all non-ASCII characters
+        :param ensure_ascii:  If True, escapes all non-ASCII characters
         """
 
         if utils.is_synapse_id(entity):
@@ -1472,6 +1472,7 @@ class Synapse:
 		See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
 		:param queryStr:  the query to execute
+		
         :returns: an array of query results
 
         Example::
@@ -1489,8 +1490,9 @@ class Synapse:
         More robust than :py:func:`synapseclient.Synapse.query`.
         See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
-		:param queryStr:  the query to execute
-         :returns: An iterator that will break up large queries into managable pieces.
+		:param queryStr: the query to execute
+		
+        :returns: An iterator that will break up large queries into managable pieces.
 
         Example::
 
@@ -1826,7 +1828,7 @@ class Synapse:
         """
         Modifies an existing Activity.
 
-        :param activity:  The Activity to be saved.
+        :param activity:  The Activity to be updated.
         
         :returns: An updated Activity object
         """
@@ -2306,7 +2308,7 @@ class Synapse:
         """
         Finds a team with a given ID or name.
         
-        :param id:  The ID of the team to retrieve
+        :param id:  The ID or name of the team to retrieve
         
         :return:  An object of type :py:class:`synapseclient.Team`
         """
