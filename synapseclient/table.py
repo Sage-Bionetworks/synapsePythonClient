@@ -552,9 +552,8 @@ class Schema(SchemaBase):
     :param parent: the project in Synapse to which this table belongs
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
-    :param local_state:     Allow local state to be given.
-                            This state information is not persisted
-                            in the Synapse Repository.
+    :param local_state:     Allow local state to be given. This state information is not persisted in the Synapse Repository.
+                            
     Example::
 
         cols = [Column(name='Isotope', columnType='STRING'),
