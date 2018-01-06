@@ -70,6 +70,19 @@ Table Schema
 .. autoclass:: synapseclient.table.Schema
 
 
+~~~~~~~~~~~~~~~~~~
+Entity View Schema
+~~~~~~~~~~~~~~~~~~
+
+.. autoclass:: synapseclient.table.EntityViewSchema
+
+
+~~~~~~~~~~~~~~~~
+DockerRepository
+~~~~~~~~~~~~~~~~
+
+.. autoclass:: synapseclient.entity.DockerRepository
+
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Properties and annotations, implementation details
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

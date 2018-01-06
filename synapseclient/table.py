@@ -241,6 +241,13 @@ Row
    :members: __init__
 
 ~~~~~~
+RowSet
+~~~~~~
+
+.. autoclass:: synapseclient.table.RowSet
+   :members: __init__
+
+~~~~~~
 Table
 ~~~~~~
 
@@ -877,7 +884,7 @@ class RowSet(AppendableRowset):
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
     :param columns:  An alternative to 'headers', a list of column objects that describe the fields in each row.
     :param tableId:  The ID of the TableEntity that owns these rows
-    :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
+    :param rows:     The :py:class:`synapseclient.table.Row` s of this set. The index of each row value aligns with the index of each header.
     :var etag:       Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
 
     :type headers:   array of SelectColumns
@@ -1203,9 +1210,10 @@ class RowSetTable(TableAbstractBaseClass):
 class TableQueryResult(TableAbstractBaseClass):
     """
     An object to wrap rows returned as a result of a table query.
+    The TableQueryResult object can be used to iterate over results of a query.
 
-    The TableQueryResult object can be used to iterate over results of a query:
-
+    Example ::
+    
         results = syn.tableQuery("select * from syn1234")
         for row in results:
             print(row)

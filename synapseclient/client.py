@@ -1486,7 +1486,7 @@ class Synapse(object):
         """
         Query for Synapse entities.
         **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
-		See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
 		:param queryStr:  the query to execute
 		

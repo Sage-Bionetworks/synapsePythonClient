@@ -41,7 +41,7 @@ def notifyMe(syn, messageSubject='', retries=0):
          my_query = notify_decorator(syn.tableQuery)
          results = my_query("select id from syn1223")
 
-         ###################
+         #############################
 
 
     """
