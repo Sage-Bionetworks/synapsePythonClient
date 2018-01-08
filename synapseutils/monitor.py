@@ -20,6 +20,7 @@ def notifyMe(syn, messageSubject='', retries=0):
     :param retries: Number of retries to attempt on failure (default=0)
 
     Example::
+    
         # to decorate a function that you define
         from synapseutils import notifyMe
         import synapseclient
