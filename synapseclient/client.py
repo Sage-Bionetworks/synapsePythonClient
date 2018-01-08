@@ -2249,7 +2249,7 @@ class Synapse(object):
         Gets the ProjectSetting for a project
         :param project: Project entity or its id as a string
         :param setting_type: type of setting. Choose from: {'upload', 'external_sync', 'requester_pays'}
-        :return: The ProjectSetting as a dict or None if no settings of the specified type exists.
+        :return: The ProjectSetting as a dict or None if no settings of the specified type exist.
         """
         if setting_type not in {'upload', 'external_sync', 'requester_pays'}:
             raise ValueError("Invalid project_type: %s" % setting_type)
@@ -2301,9 +2301,9 @@ class Synapse(object):
         """
         Returns a generator over evaluations that derive their content from the given entity
         
-        :param entity:  The :py:class:`synapseclient.Project` whose Evaluations are to be fetched.
+        :param entity:  The :py:class:`synapseclient.entity.Project` whose Evaluations are to be fetched.
         
-        :return: a Generator over the :py:class:`synapseclient.evaluation.Evaluation` objects for the given :py:class:`synapseclient.Project`
+        :return: a Generator over the :py:class:`synapseclient.evaluation.Evaluation` objects for the given :py:class:`synapseclient.entity.Project`
 
         """
 
@@ -2328,7 +2328,7 @@ class Synapse(object):
         
         :param id:  The ID or name of the team to retrieve
         
-        :return:  An object of type :py:class:`synapseclient.Team`
+        :return:  An object of type :py:class:`synapseclient.team.Team`
         """
         try:
             int(id)
@@ -2349,8 +2349,8 @@ class Synapse(object):
         """
         Lists the members of the given team.
         
-        :parameter team: A :py:class:`Team` object or a team's ID.
-        :returns: a generator over :py:class:`TeamMember` objects.
+        :parameter team: A :py:class:`synapseclient.team.Team` object or a team's ID.
+        :returns: a generator over :py:class:`synapseclient.team.TeamMember` objects.
         """
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
@@ -2577,7 +2577,7 @@ class Synapse(object):
 
     def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
-        Retrieve a paginated list of submission bundles (submission and submissions status) for an evaluation queue, optionally 
+        Retrieve submission bundles (submission and submissions status) for an evaluation queue, optionally 
         filtered by submission status and/or owner.
         
         :param evaluation: Evaluation to get submissions from.
@@ -2639,6 +2639,7 @@ class Synapse(object):
     def getSubmission(self, id, **kwargs):
         """
         Gets a :py:class:`synapseclient.evaluation.Submission` object by its id.
+        
         :param id:  The id of the submission to retrieve
         
         :return:  a :py:class:`synapseclient.evaluation.Submission` object
@@ -2784,7 +2785,9 @@ class Synapse(object):
     def getWikiAttachments(self, wiki):
         """
         Retrieve the attachments to a wiki page.
+        
         :param wiki: the Wiki object for which the attachments are to be returned.
+        
         :return: A list of file handles for the files attached to the Wiki.
         """
         uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
@@ -2840,7 +2843,7 @@ class Synapse(object):
         
         :param id: the ID of the column to retrieve
         
-        :return: an object of type :py:class`synapseclient.table.Column`
+        :return: an object of type :py:class:`synapseclient.table.Column`
 
         Example::
 
@@ -2903,14 +2906,11 @@ class Synapse(object):
         """
         Query a Synapse Table.
 
-        :param query: query string in a `SQL-like syntax <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_:
-            SELECT * from syn12345
+        :param query: query string in a `SQL-like syntax <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_, for example
+            "SELECT * from syn12345"
             
         :param resultsAs: select whether results are returned as a CSV file ("csv") or incrementally
                           downloaded as sets of rows ("rowset").
-
-        :return: A Table object that serves as a wrapper around a CSV file (or generator over
-                 Row objects if resultsAs="rowset").
 
         You can receive query results either as a generator over rows or as a CSV file. For
         smallish tables, either method will work equally well. Use of a "rowset" generator allows
@@ -2934,6 +2934,9 @@ class Synapse(object):
         :param header: True by default
         :param includeRowIdAndRowVersion: True by default
 
+        :return: A Table object that serves as a wrapper around a CSV file (or generator over
+                 Row objects if resultsAs="rowset").
+
         NOTE: When performing queries on frequently updated tables,
               the table can be inaccessible for a period leading to a
               timeout of the query.  Since the results are guaranteed
@@ -2942,8 +2945,6 @@ class Synapse(object):
               object:
 
               syn.table_query_timeout = 300  #Sets the max timeout to 5 minutes.
-
-
 
         """
         if resultsAs.lower()=="rowset":
@@ -3123,9 +3124,11 @@ class Synapse(object):
 
     def createColumns(self, columns):
         """
-        Creates a batch of :py:class:`Column`s within a single request
-        :param columns: a list of :py:class:`Column` objects
-        :return: a list of :py:class:`Column` objects that have been created in Synapse
+        Creates a batch of :py:class:`synapseclient.table.Column` s within a single request.
+        
+        :param columns: a list of :py:class:`synapseclient.table.Column` objects
+        
+        :return: a list of :py:class:`synapseclient.table.Column` objects that have been created in Synapse
         """
         request_body = {'concreteType':'org.sagebionetworks.repo.model.ListWrapper',
                         'list': list(columns)}

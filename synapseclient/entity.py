@@ -221,9 +221,7 @@ class Entity(collections.MutableMapping):
             entity as a prototype.
 
         :param annotations: A map of user defined annotations
-        :param local_state: Allow local state to be given.
-                            This state information is not persisted
-                            in the Synapse Repository.
+        :param local_state: Internal use only
         """
 
         # Create a new Entity using an existing Entity as a prototype
@@ -471,7 +469,7 @@ class Project(Entity):
     :param name:            The name of the project
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
-    :param local_state:     Allow local state to be given. This state information is not persisted  in the Synapse Repository.
+    :param local_state:     Internal use only
     
     Example::
 
@@ -492,16 +490,17 @@ class Folder(Entity):
     Represents a folder in Synapse.
 
     Folders must have a name and a parent and can optionally have annotations.
+    
     :param name:            The name of the folder
     :param parent:          The parent project or folder
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
-    :param local_state:     Allow local state to be given.  This state information is not persisted in the Synapse Repository.
+    :param local_state:     Internal use only
 
     Example::
 
         folder = Folder('my data', parent=project)
-        folder = syn.store(Folder)
+        folder = syn.store(folder)
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Folder'
@@ -523,7 +522,7 @@ class Link(Entity):
     :param parent:          The parent project or folder
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
-    :param local_state:     Allow local state to be given. This state information is not persisted  in the Synapse Repository.
+    :param local_state:     Internal use only
     
     Example::
 
@@ -564,7 +563,7 @@ class File(Entity, Versionable):
                              The creator of the file must also be the owner of the dataFileHandleId to have permission to store the file
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
-    :param local_state:     Allow local state to be given. This state information is not persisted  in the Synapse Repository.
+    :param local_state:     Internal use only
     
     Example::
 
@@ -666,9 +665,9 @@ class DockerRepository(Entity):
     :param parent: the parent project for the Docker repository
     :param properties:      A map of Synapse properties
     :param annotations:     A map of user defined annotations
-    :param local_state:     Allow local state to be given.  This state information is not persisted in the Synapse Repository.
+    :param local_state:     Internal use only
     
-    :return:  an object of type :py:class:`org.sagebionetworks.repo.model.docker.DockerRepository`
+    :return:  an object of type :py:class:`synapseclient.entity.DockerRepository`
     """
     _synapse_entity_type = 'org.sagebionetworks.repo.model.docker.DockerRepository'
 
