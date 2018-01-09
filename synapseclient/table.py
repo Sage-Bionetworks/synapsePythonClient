@@ -222,9 +222,11 @@ Schema
 
 .. autoclass:: synapseclient.table.Schema
    :members:
-
+   :noindex:
+   
 .. autoclass:: synapseclient.table.EntityViewSchema
    :members:
+   :noindex:
 
 ~~~~~~
 Column
@@ -238,6 +240,13 @@ Row
 ~~~~~~
 
 .. autoclass:: synapseclient.table.Row
+   :members: __init__
+
+~~~~~~
+RowSet
+~~~~~~
+
+.. autoclass:: synapseclient.table.RowSet
    :members: __init__
 
 ~~~~~~
@@ -544,14 +553,17 @@ class SchemaBase(Entity, Versionable):
 
 class Schema(SchemaBase):
     """
-    A Schema is a :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
+    A Schema is an :py:class:`synapseclient.entity.Entity` that defines a set of columns in a table.
 
-    :param name: give the Table Schema object a name
-    :param description:
+    :param name: the name for the Table Schema object
+    :param description: User readable description of the schema
     :param columns: a list of :py:class:`Column` objects or their IDs
-    :param parent: the project (file a bug if you'd like folders supported) in Synapse to which this table belongs
-
-    ::
+    :param parent: the project in Synapse to which this table belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Internal use only
+                            
+    Example::
 
         cols = [Column(name='Isotope', columnType='STRING'),
                 Column(name='Atomic Mass', columnType='INTEGER'),
@@ -572,21 +584,25 @@ class EntityViewSchema(SchemaBase):
     """
     A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects (depending on user choice) within a given set of scopes
 
-    :param name: give the Entity View Table object a name
-    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional
+    :param name: the name of the Entity View Table object
+    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional.
     :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
-    :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
-    :param addDefaultViewColumns: If true adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
-    :param addAnnotationColumns: If true adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
+    :param type: the type of EntityView to display: either 'file','project' or 'file_and_table'. Defaults to 'file'.
+    :param addDefaultViewColumns: If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
+     The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
+    :param addAnnotationColumns: If true, adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
+     The annotation columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
     :param ignoredAnnotationColumnNames: A list of strings representing annotation names. When addAnnotationColumns is True,
                                         the names in this list will not be automatically added as columns to the EntityViewSchema
                                         if they exist in any of the defined scopes.
-    The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
-    ::
-
-
-        project_or_folder = syn.get("syn123")
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Internal use only
+    
+    Example::
+    
+        project_or_folder = syn.get("syn123")  
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'], view_type='file'))
     """
 
@@ -869,8 +885,9 @@ class RowSet(AppendableRowset):
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
-    :param tableId:  The ID of the TableEntity than owns these rows
-    :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
+    :param columns:  An alternative to 'headers', a list of column objects that describe the fields in each row.
+    :param tableId:  The ID of the TableEntity that owns these rows
+    :param rows:     The :py:class:`synapseclient.table.Row` s of this set. The index of each row value aligns with the index of each header.
     :var etag:       Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
 
     :type headers:   array of SelectColumns
@@ -1022,13 +1039,16 @@ def Table(schema, values, **kwargs):
     Combine a table schema and a set of values into some type of Table object
     depending on what type of values are given.
 
-    :param schema: a table py:class:`Schema` object
-    :param value: an object that holds the content of the tables
+    :param schema: a table :py:class:`Schema` object
+    :param values: an object that holds the content of the tables
       - a :py:class:`RowSet`
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
       - a dict which will be wrapped by a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+      
+      
+    :return: a Table object suitable for storing
 
     Usually, the immediate next step after creating a Table object is to store it::
 
@@ -1193,9 +1213,10 @@ class RowSetTable(TableAbstractBaseClass):
 class TableQueryResult(TableAbstractBaseClass):
     """
     An object to wrap rows returned as a result of a table query.
+    The TableQueryResult object can be used to iterate over results of a query.
 
-    The TableQueryResult object can be used to iterate over results of a query:
-
+    Example ::
+    
         results = syn.tableQuery("select * from syn1234")
         for row in results:
             print(row)
