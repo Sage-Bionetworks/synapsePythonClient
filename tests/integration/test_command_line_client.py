@@ -5,7 +5,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 import six
-
+import logging
 import filecmp
 import os
 import re
@@ -62,19 +62,25 @@ def run(*command, **kwargs):
     print(' '.join(command))
     old_stdout = sys.stdout
     capturedSTDOUT = StringIO()
+    syn_client = kwargs.get('syn', syn)
+    stream_handler = logging.StreamHandler(capturedSTDOUT)
+
     try:
         sys.stdout = capturedSTDOUT
+        syn_client.logger.addHandler(stream_handler)
         sys.argv = [item for item in command]
         args = parser.parse_args()
         args.debug = True
-        cmdline.perform_main(args, kwargs.get('syn',syn))
+        cmdline.perform_main(args, syn_client)
     except SystemExit:
         pass # Prevent the test from quitting prematurely
     finally:
         sys.stdout = old_stdout
+        syn_client.logger.handlers.remove(stream_handler)
+
 
     capturedSTDOUT = capturedSTDOUT.getvalue()
-    print(capturedSTDOUT)
+    # print(capturedSTDOUT)
     return capturedSTDOUT
 
 
@@ -613,7 +619,7 @@ def test_command_get_recursive_and_query():
 
     print(data1)
 
-    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+    row_reference_set1 = syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
     time.sleep(3) # get -q uses chunkedQuery which are eventually consistent
@@ -789,7 +795,7 @@ def test_table_query():
             ['Jane',   'bat', 17.89,  6, False],
             ['Henry',  'bar', 10.12,  1, False]]
 
-    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+    row_reference_set1 = syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
     # Test query

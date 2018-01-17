@@ -161,7 +161,7 @@ class Wiki(DictObject):
 
     def update_markdown(self, markdown = None, markdown_file = None):
         """
-        Updates the wiki's markdown. Specify only one of markdown and markdown_file
+        Updates the wiki's markdown. Specify only one of markdown or markdown_file
         :param markdown: text that will become the markdown
         :param markdown_file: path to a file. Its contents will be the markdown
         """

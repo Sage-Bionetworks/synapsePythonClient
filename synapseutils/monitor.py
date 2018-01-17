@@ -20,30 +20,30 @@ def notifyMe(syn, messageSubject='', retries=0):
     :param retries: Number of retries to attempt on failure (default=0)
 
     Example::
-         # to decorate a function that you define
-         from synapseutils import notifyMe
-         import synapseclient
-         syn = synapseclient.login()
-
-         @notifyMe(syn, 'Long running function', retries=2)
-         def my_function(x):
+    
+        # to decorate a function that you define
+        from synapseutils import notifyMe
+        import synapseclient
+        syn = synapseclient.login()
+        
+        @notifyMe(syn, 'Long running function', retries=2)
+        def my_function(x):
             doing_something()
             return long_runtime_func(x)
-
-         my_function(123)
-         #############################
-         # to wrap a function that already exists
-         from synapseutils import notifyMe
-         import synapseclient
-         syn = synapseclient.login()
-
-         notify_decorator = notifyMe(syn, 'Long running query', retries=2)
-         my_query = notify_decorator(syn.tableQuery)
-         results = my_query("select id from syn1223")
-
-         ###################
-
-
+        
+        my_function(123)
+        
+        #############################
+        # to wrap a function that already exists
+        from synapseutils import notifyMe
+        import synapseclient
+        syn = synapseclient.login()
+        
+        notify_decorator = notifyMe(syn, 'Long running query', retries=2)
+        my_query = notify_decorator(syn.tableQuery)
+        results = my_query("select id from syn1223")
+    
+        #############################
     """
     def notify_decorator(func):
         @functools.wraps(func)
