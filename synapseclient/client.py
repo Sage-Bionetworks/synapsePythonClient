@@ -1889,7 +1889,7 @@ class Synapse(object):
         if failure == 'NOT_FOUND':
             raise exceptions.SynapseFileNotFoundError("The fileHandleId %s could not be found" % fileHandleId)
         elif failure == "UNAUTHORIZED":
-            raise exceptions.SynapseError("You are not authorized to access fileHandleId %s associated with the synapse Entity %s" % (fileHandleId, objectId))
+            raise exceptions.SynapseError("You are not authorized to access fileHandleId %s associated with the Synapse %s: %s" % (fileHandleId, objectType, objectId))
 
         return result
 
