@@ -3,8 +3,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import botocore
-
 try:
     from urllib.parse import urlparse
     from urllib.parse import urlunparse
@@ -18,7 +16,6 @@ except ImportError:
 
 import os
 import time
-import sys
 from .utils import printTransferProgress, attempt_import
 from multiprocessing import Value
 
@@ -52,6 +49,7 @@ class S3ClientWrapper:
     def download_file(bucket, endpoint_url, remote_file_key, download_file_path, profile_name = None, show_progress=True):
 
         boto3 = S3ClientWrapper._attempt_import_boto3()
+        import botocore #if we boto3 is importable, botocore should also be importable since it is a dependency of boto3
 
         boto_session = boto3.session.Session(profile_name=profile_name)
         s3 = boto_session.resource('s3', endpoint_url=endpoint_url)

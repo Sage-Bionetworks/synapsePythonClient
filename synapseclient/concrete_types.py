@@ -11,3 +11,12 @@ EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION = 'org.sagebionetworks.repo.model.file.
 #Concrete types for FileHandles
 EXTERNAL_OBJECT_STORE_FILE_HANDLE = "org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle"
 S3_FILE_HANDLE = "org.sagebionetworks.repo.model.file.S3FileHandle"
+
+#Concrete types for TableUpdateResponse
+ROW_REFERENCE_SET_RESULTS = 'org.sagebionetworks.repo.model.table.RowReferenceSetResults'
+ENTITY_UPDATE_RESULTS = 'org.sagebionetworks.repo.model.table.EntityUpdateResults'
+TABLE_SCHEMA_CHANGE_RESPONSE = 'org.sagebionetworks.repo.model.table.TableSchemaChangeResponse'
+UPLOAD_TO_TABLE_RESULT = 'org.sagebionetworks.repo.model.table.UploadToTableResult'
+
+PARTIAL_ROW_SET = 'org.sagebionetworks.repo.model.table.PartialRowSet'
+APPENDABLE_ROWSET_REQUEST = 'org.sagebionetworks.repo.model.table.AppendableRowSetRequest'
