@@ -77,7 +77,7 @@ from . import cache
 from . import exceptions
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_directory, _is_integer
+from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_path, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -3241,7 +3241,7 @@ class Synapse(object):
             return path
 
 
-    def downloadTableColumns(self, table, columns, downloadLocation = None, ignoreHeirarchy=True, **kwargs):
+    def downloadTableColumns(self, table, columns, downloadLocation = None, ignoreHeirarchy=True, ifcollision=None, **kwargs):
         """
         Bulk download of table-associated files.
 
@@ -3252,6 +3252,9 @@ class Synapse(object):
         :param ignoreHeirarchy: Only has an effect if downloadLocation is also specified. Defaults to False
                                 If False, will preserve the folder heirarchy used in the Synapse cache(i.e. {downloadLocation}/{filehandleid modulo 100}/{filehandleid}/filename)
                                 If True, will palace the file directly into the specified downloadLocation
+        :param ifcollision:     Determines how to handle file collisions.
+                                May be "overwrite.local", "keep.local", or "keep.both".
+                                Defaults to "keep.both".
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
@@ -3312,19 +3315,32 @@ class Synapse(object):
             temp_dir = tempfile.mkdtemp()
             zip_file_obj = None
             try:
+                #download the zip file and open it as a zipfile.Zipfile
                 designated_zip_filepath = os.path.join(temp_dir,"table_file_download.zip")
-
-                zip_file_handle_id = response.get('resultZipFileHandleId')
+                zip_file_handle_id = response['resultZipFileHandleId']
                 if zip_file_handle_id is not None:
-                    zip_file_obj = zipfile.ZipFile(self._downloadFileHandle(zip_file_handle_id, table.tableId , 'TableEntity', designated_zip_filepath))
+                    zip_file_path = self._downloadFileHandle(zip_file_handle_id, table.tableId, 'TableEntity', designated_zip_filepath)
+                    zip_file_obj = zipfile.ZipFile(zip_file_path, mode='r')
 
                 for summary in response['fileSummary']:
                     if summary['status'] == 'SUCCESS':
-                        extract_path = downloadLocation
-                        if extract_path is None:
-                            extract_path = self.cache.get_cache_dir(summary['fileHandleId'])
+                        extract_dir = downloadLocation
+
+                        cached_file_path = self.cache.get(summary['fileHandleId'], downloadLocation)
+                        synapseCache_location = self.cache.get_cache_dir(summary['fileHandleId'])
+
+                        if extract_dir is None:
+                            extract_dir = synapseCache_location
                             ignoreHeirarchy = False
-                        filepath = _extract_zip_file_to_directory(zip_file_obj, summary['zipEntryName'], extract_path, ignoreHeirarchy)
+
+                        zip_entry_name = summary['zipEntryName']
+                        # determine file extraction location
+                        file_relative_path = os.path.basename(zip_entry_name) if ignoreHeirarchy else zip_entry_name
+
+                        filepath = self._resolve_download_path_collisions(extract_dir, file_relative_path, ifcollision,
+                                                                          synapseCache_location, cached_file_path)
+
+                        _extract_zip_file_to_path(zip_file_obj, zip_entry_name, filepath)
                         self.cache.add(summary['fileHandleId'], filepath)
                         file_handle_to_path_map[summary['fileHandleId']] = filepath
                     elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
