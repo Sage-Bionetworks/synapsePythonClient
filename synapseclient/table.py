@@ -649,13 +649,13 @@ class EntityViewSchema(SchemaBase):
         #get the default EntityView columns from Synapse and add them to the columns list
         additional_columns = []
         if self.addDefaultViewColumns:
-            additional_columns.append(syn._get_default_entity_view_columns(self.type))
+            additional_columns.extend(syn._get_default_entity_view_columns(self.type))
 
         #get default annotations
         if self.addAnnotationColumns:
             anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self.type) if
              x['name'] not in self.ignoredAnnotationColumnNames]
-            additional_columns.append(anno_columns)
+            additional_columns.extend(anno_columns)
 
         self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
 
@@ -679,12 +679,7 @@ class EntityViewSchema(SchemaBase):
             return columns_to_add
 
         # set up Column name/type tracking
-        column_type_to_annotation_names = {
-            'STRING': set(),
-            'INTEGER': set(),
-            'DOUBLE': set(),
-            'DATE': set()
-        }
+        column_type_to_annotation_names = {} # map of str -> set(str), where str is the column type as a string and set is a set of column name strings
 
         # add to existing columns the columns that user has added but not yet created in synapse
         column_generator = itertools.chain(syn.getColumns(self.columnIds),
@@ -694,19 +689,17 @@ class EntityViewSchema(SchemaBase):
             column_name = column['name']
             column_type = column['columnType']
 
-            #add to type specific set
-            if column_type in column_type_to_annotation_names:
-                column_type_to_annotation_names[column_type].add(column_name)
+            column_type_to_annotation_names.setdefault(column_type,set()).add(column_name)
 
 
         valid_columns = []
         for column in columns_to_add:
-            anno_col_name = column['name']
-            anno_col_type = column['columnType']
+            new_col_name = column['name']
+            new_col_type = column['columnType']
 
-            typed_col_name_set = column_type_to_annotation_names[anno_col_type]
-            if anno_col_name not in typed_col_name_set:
-                typed_col_name_set.add(anno_col_name)
+            typed_col_name_set = column_type_to_annotation_names.setdefault(new_col_type, set())
+            if new_col_name not in typed_col_name_set:
+                typed_col_name_set.add(new_col_name)
                 valid_columns.append(column)
         return valid_columns
 

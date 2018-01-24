@@ -29,7 +29,7 @@ from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
 from synapseclient.entity import split_entity_namespaces
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
-     as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset
+     as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset, SchemaBase
 from mock import patch
 from collections import OrderedDict
 
@@ -610,18 +610,19 @@ def test_EntityViewSchema__ignore_column_names_set_info_preserved():
 
 
 
-def test_EntityViewSchema__ignore_column_names():
+def test_EntityViewSchema__ignore_annotation_column_names():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
 
     scopeIds = ['123']
-    entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123", ignoredAnnotationColumnNames={'long1'})
+    entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123", ignoredAnnotationColumnNames={'long1'}, addDefaultViewColumns=False, addAnnotationColumns=True)
 
     mocked_annotation_result1 = [Column(name='long1', columnType='INTEGER'), Column(name='long2', columnType ='INTEGER')]
 
     with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1) as mocked_get_annotations,\
-         patch.object(syn, 'getColumns') as mocked_get_columns:
+         patch.object(syn, 'getColumns') as mocked_get_columns,\
+         patch.object(SchemaBase, "_before_synapse_store"):
 
-        entity_view._add_annotations_as_columns(syn)
+        entity_view._before_synapse_store(syn)
 
         mocked_get_columns.assert_called_once_with([])
         mocked_get_annotations.assert_called_once_with(scopeIds, 'file')
@@ -644,7 +645,7 @@ def test_EntityViewSchema__repeated_columnName_different_type():
 
         mocked_get_columns.assert_called_once_with([])
         assert_equals(2, len(filtered_results))
-        assert_equals(columns, filtered_results[0])
+        assert_equals(columns, filtered_results)
 
 
 def test_EntityViewSchema__repeated_columnName_same_type():
