@@ -29,7 +29,7 @@ from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
 from synapseclient.entity import split_entity_namespaces
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
-     as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset
+     as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset, SchemaBase
 from mock import patch
 from collections import OrderedDict
 
@@ -610,18 +610,19 @@ def test_EntityViewSchema__ignore_column_names_set_info_preserved():
 
 
 
-def test_EntityViewSchema__ignore_column_names():
+def test_EntityViewSchema__ignore_annotation_column_names():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
 
     scopeIds = ['123']
-    entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123", ignoredAnnotationColumnNames={'long1'})
+    entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123", ignoredAnnotationColumnNames={'long1'}, addDefaultViewColumns=False, addAnnotationColumns=True)
 
     mocked_annotation_result1 = [Column(name='long1', columnType='INTEGER'), Column(name='long2', columnType ='INTEGER')]
 
     with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1) as mocked_get_annotations,\
-         patch.object(syn, 'getColumns') as mocked_get_columns:
+         patch.object(syn, 'getColumns') as mocked_get_columns,\
+         patch.object(SchemaBase, "_before_synapse_store"):
 
-        entity_view._add_annotations_as_columns(syn)
+        entity_view._before_synapse_store(syn)
 
         mocked_get_columns.assert_called_once_with([])
         mocked_get_annotations.assert_called_once_with(scopeIds, 'file')
@@ -629,21 +630,38 @@ def test_EntityViewSchema__ignore_column_names():
         assert_equals([Column(name='long2', columnType='INTEGER')], entity_view.columns_to_store)
 
 
-def test_EntityViewSchema__repeated_columnName():
+def test_EntityViewSchema__repeated_columnName_different_type():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
 
     scopeIds = ['123']
     entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123")
 
-    mocked_annotation_result1 = [Column(name='annoName', columnType='INTEGER'), Column(name='annoName', columnType='DOUBLE')]
+    columns = [Column(name='annoName', columnType='INTEGER'),
+                                 Column(name='annoName', columnType='DOUBLE')]
 
-    with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1) as mocked_get_annotations,\
-         patch.object(syn, 'getColumns') as mocked_get_columns:
+    with patch.object(syn, 'getColumns') as mocked_get_columns:
 
-        assert_raises(ValueError, entity_view._add_annotations_as_columns, syn)
+        filtered_results = entity_view._filter_duplicate_columns(syn, columns)
 
         mocked_get_columns.assert_called_once_with([])
-        mocked_get_annotations.assert_called_once_with(scopeIds, 'file')
+        assert_equals(2, len(filtered_results))
+        assert_equals(columns, filtered_results)
+
+
+def test_EntityViewSchema__repeated_columnName_same_type():
+    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+
+    entity_view = EntityViewSchema("someName", parent="syn123")
+
+    columns = [Column(name='annoName', columnType='INTEGER'),
+               Column(name='annoName', columnType='INTEGER')]
+
+    with patch.object(syn, 'getColumns') as mocked_get_columns:
+        filtered_results = entity_view._filter_duplicate_columns(syn, columns)
+
+        mocked_get_columns.assert_called_once_with([])
+        assert_equals(1, len(filtered_results))
+        assert_equals(Column(name='annoName', columnType='INTEGER'), filtered_results[0])
 
 
 def test_rowset_asDataFrame__with_ROW_ETAG_column():
