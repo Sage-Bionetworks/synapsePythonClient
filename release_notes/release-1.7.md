@@ -1,12 +1,12 @@
 Release Notes - Synapse Python Client - Version py-1.7
 
+**Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
+**Documentation:** [http://docs.synapse.org/python/](http://docs.synapse.org/python/)
+
 
 # Release 1.7.3
 
-
 **Release Date:** 08-December-2017  
-**Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
-**Documentation:** [http://docs.synapse.org/python/](http://docs.synapse.org/python/)
 
 Release 1.7.3 introduces fixes and quality of life changes to Tables and synapseutils:
 * Changes to Tables:
@@ -52,9 +52,7 @@ Below are the full list of issues addressed by this release:
 
 # Release 1.7.1
 
-**Release Date:** 17-June-2017  
-**Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
-**Documentation:** [http://docs.synapse.org/python/](http://docs.synapse.org/python/)
+**Release Date:** 17-June-2017
 
 Release 1.7 is a large bugfix release with several new features. The main ones include:
 * We have expanded the [syanpaseutils packages](docs.synapse.org/python/synapseutils.html#module-synapseutils) to add the  abilitity to:
