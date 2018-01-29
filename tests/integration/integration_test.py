@@ -13,7 +13,7 @@ except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_is_not_none
+from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_false
 from nose.plugins.skip import SkipTest
 from mock import MagicMock, patch, call
 
@@ -36,6 +36,7 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
+    module.other_user = integration.other_user
 
 def test_login():
     try:
@@ -69,7 +70,7 @@ def test_login():
             # It should REST PUT the token and fail
             # Then keep going and, due to mocking, fail to read any credentials
             assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
-            assert config_items_mock.called
+            assert_false(config_items_mock.called)
             
             # Login with no credentials 
             assert_raises(SynapseAuthenticationError, syn.login)
@@ -107,6 +108,12 @@ def test_login():
     finally:
         # Login with config file
         syn.login(rememberMe=True, silent=True)
+
+def test_login__bad_credentials():
+    # nonexistant username and password
+    assert_raises(SynapseAuthenticationError, synapseclient.login, email=str(uuid.uuid4()), password="In the end, it doens't even matter")
+    # existing username and bad password
+    assert_raises(SynapseAuthenticationError, synapseclient.login, email=syn.username, password=str(uuid.uuid4()))
 
 
 def testCustomConfigFile():
@@ -450,7 +457,7 @@ def test_external_s3_upload():
 def test_findEntityIdByNameAndParent():
     project_name = str(uuid.uuid1())
     project_id = syn.store(Project(name=project_name))['id']
-    assert_equals(project_id, syn._findEntityIdByNameAndParent(project_name))
+    assert_equals(project_id, syn.findEntityId(project_name))
 
 
 def test_getChildren():

@@ -222,6 +222,11 @@ Schema
 
 .. autoclass:: synapseclient.table.Schema
    :members:
+   :noindex:
+   
+.. autoclass:: synapseclient.table.EntityViewSchema
+   :members:
+   :noindex:
 
 ~~~~~~
 Column
@@ -235,6 +240,13 @@ Row
 ~~~~~~
 
 .. autoclass:: synapseclient.table.Row
+   :members: __init__
+
+~~~~~~
+RowSet
+~~~~~~
+
+.. autoclass:: synapseclient.table.RowSet
    :members: __init__
 
 ~~~~~~
@@ -281,10 +293,12 @@ import re
 import six
 import sys
 import tempfile
+import copy
+import collections
+import itertools
 from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
 from builtins import zip
 from abc import ABCMeta, abstractmethod
-
 
 from .utils import id_of, from_unix_epoch_time
 from .exceptions import *
@@ -302,6 +316,7 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'S': 'STRING', 'U': 'STRING', 'O': 'STRING',
                      'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
+MAX_NUM_TABLE_COLUMNS = 152
 
 def test_import_pandas():
     try:
@@ -351,7 +366,7 @@ def as_table_columns(df):
             if maxStrLen>1000:
                 cols.append(Column(name=col, columnType='LARGETEXT', defaultValue=''))
             else:
-                size = min(1000, max(30, maxStrLen*1.5))  #Determine lenght of longest string
+                size = int(round(min(1000, max(30, maxStrLen*1.5))))  #Determine lenght of longest string
                 cols.append(Column(name=col, columnType=columnType, maximumSize=size, defaultValue=''))
         else:
             cols.append(Column(name=col, columnType=columnType))
@@ -478,6 +493,8 @@ class SchemaBase(Entity, Versionable):
     @abstractmethod
     def __init__(self, name, columns, properties, annotations, local_state, parent, **kwargs):
         self.properties.setdefault('columnIds',[])
+        self.__dict__.setdefault('columns_to_store',[])
+
         if name:
             kwargs['name'] = name
         super(SchemaBase, self).__init__(properties=properties,
@@ -526,23 +543,28 @@ class SchemaBase(Entity, Versionable):
 
 
     def _before_synapse_store(self, syn):
+        if len(self.columns_to_store) + len(self.columnIds) > MAX_NUM_TABLE_COLUMNS:
+            raise ValueError("Too many columns. The limit is %s columns per table" % MAX_NUM_TABLE_COLUMNS)
+
         ## store any columns before storing table
         if self.columns_to_store:
-            for column in self.columns_to_store:
-                column = syn.store(column)
-                self.properties.columnIds.append(column.id)
-            self.__dict__['columns_to_store'] = None
+            self.properties.columnIds.extend(column.id for column in syn.createColumns(self.columns_to_store))
+            self.columns_to_store = []
+
 
 class Schema(SchemaBase):
     """
-    A Schema is a :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
+    A Schema is an :py:class:`synapseclient.entity.Entity` that defines a set of columns in a table.
 
-    :param name: give the Table Schema object a name
-    :param description:
+    :param name: the name for the Table Schema object
+    :param description: User readable description of the schema
     :param columns: a list of :py:class:`Column` objects or their IDs
-    :param parent: the project (file a bug if you'd like folders supported) in Synapse to which this table belongs
-
-    ::
+    :param parent: the project in Synapse to which this table belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Internal use only
+                            
+    Example::
 
         cols = [Column(name='Isotope', columnType='STRING'),
                 Column(name='Atomic Mass', columnType='INTEGER'),
@@ -563,33 +585,44 @@ class EntityViewSchema(SchemaBase):
     """
     A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects (depending on user choice) within a given set of scopes
 
-    :param name: give the Entity View Table object a name
-    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional
+    :param name: the name of the Entity View Table object
+    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional.
     :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
-    :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
-    :param add_default_columns: whether to add the default view columns based on the EntityView. Defaults to True.
-    The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
-    ::
-
-
-        project_or_folder = syn.get("syn123")
+    :param type: the type of EntityView to display: either 'file','project' or 'file_and_table'. Defaults to 'file'.
+    :param addDefaultViewColumns: If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
+     The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
+    :param addAnnotationColumns: If true, adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
+     The annotation columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
+    :param ignoredAnnotationColumnNames: A list of strings representing annotation names. When addAnnotationColumns is True,
+                                        the names in this list will not be automatically added as columns to the EntityViewSchema
+                                        if they exist in any of the defined scopes.
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Internal use only
+    
+    Example::
+    
+        project_or_folder = syn.get("syn123")  
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'], view_type='file'))
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
     _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
-    _local_keys = SchemaBase._local_keys + ['add_default_columns']
+    _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns', 'ignoredAnnotationColumnNames']
 
-    def __init__(self, name=None, columns=None, parent=None, scopes = None, type=None, add_default_columns = True, properties=None, annotations=None, local_state=None, **kwargs):
+    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[], properties=None, annotations=None, local_state=None, **kwargs):
         if type:
             kwargs['type'] = type
 
+        self.ignoredAnnotationColumnNames =  set(ignoredAnnotationColumnNames)
         super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
                                                annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
-        #This is a hacky solution to make sure we don't try to add default columns to schemas that we retrieve from synapse
-        self.add_default_columns = add_default_columns and not (properties or local_state) #allowing annotations because user might want to update annotations all at once
+        #This is a hacky solution to make sure we don't try to add columns to schemas that we retrieve from synapse
+        is_from_normal_constructor = not (properties or local_state)
+        self.addDefaultViewColumns = addDefaultViewColumns and is_from_normal_constructor #allowing annotations because user might want to update annotations all at once
+        self.addAnnotationColumns = addAnnotationColumns and is_from_normal_constructor
 
         #set default values after constructor so we don't overwrite the values defined in properties
         #using .get() because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
@@ -613,12 +646,62 @@ class EntityViewSchema(SchemaBase):
             self.scopeIds.append(id_of(entities))
 
     def _before_synapse_store(self, syn):
-        super(EntityViewSchema, self)._before_synapse_store(syn)
         #get the default EntityView columns from Synapse and add them to the columns list
-        if self.add_default_columns:
-            self.addColumns(syn._get_default_entity_view_columns(self.type))
-            self.add_default_columns = False
+        additional_columns = []
+        if self.addDefaultViewColumns:
+            additional_columns.extend(syn._get_default_entity_view_columns(self.type))
 
+        #get default annotations
+        if self.addAnnotationColumns:
+            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self.type) if
+             x['name'] not in self.ignoredAnnotationColumnNames]
+            additional_columns.extend(anno_columns)
+
+        self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
+
+        #set these boolean flags to false so they are not repeated.
+        self.addDefaultViewColumns = False
+        self.addAnnotationColumns = False
+
+        super(EntityViewSchema, self)._before_synapse_store(syn)
+
+
+    def _filter_duplicate_columns(self, syn, columns_to_add):
+        """
+        If a column to be added has the same name and same type as an existing column, it will be considered a duplicate and not added.
+        :param syn: a :py:class:`synapseclient.client.Synapse` object that is logged in
+        :param columns_to_add: iterable collection of type :py:class:`synapseclient.table.Column` objects
+        :return: a filtered list of columns to add
+        """
+
+        # no point in making HTTP calls to retrieve existing Columns if we not adding any new columns
+        if not columns_to_add:
+            return columns_to_add
+
+        # set up Column name/type tracking
+        column_type_to_annotation_names = {} # map of str -> set(str), where str is the column type as a string and set is a set of column name strings
+
+        # add to existing columns the columns that user has added but not yet created in synapse
+        column_generator = itertools.chain(syn.getColumns(self.columnIds),
+                                           self.columns_to_store) if self.columns_to_store else syn.getColumns(self.columnIds)
+
+        for column in column_generator:
+            column_name = column['name']
+            column_type = column['columnType']
+
+            column_type_to_annotation_names.setdefault(column_type,set()).add(column_name)
+
+
+        valid_columns = []
+        for column in columns_to_add:
+            new_col_name = column['name']
+            new_col_type = column['columnType']
+
+            typed_col_name_set = column_type_to_annotation_names.setdefault(new_col_type, set())
+            if new_col_name not in typed_col_name_set:
+                typed_col_name_set.add(new_col_name)
+                valid_columns.append(column)
+        return valid_columns
 
 
 ## add Schema to the map of synapse entity types to their Python representations
@@ -684,8 +767,11 @@ class Column(DictObject):
     def getURI(cls, id):
         return '/column/%s' % id
 
+
     def __init__(self, **kwargs):
         super(Column, self).__init__(kwargs)
+        self['concreteType'] = 'org.sagebionetworks.repo.model.table.ColumnModel'
+
 
     def postURI(self):
         return '/column'
@@ -801,8 +887,9 @@ class RowSet(AppendableRowset):
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
-    :param tableId:  The ID of the TableEntity than owns these rows
-    :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
+    :param columns:  An alternative to 'headers', a list of column objects that describe the fields in each row.
+    :param tableId:  The ID of the TableEntity that owns these rows
+    :param rows:     The :py:class:`synapseclient.table.Row` s of this set. The index of each row value aligns with the index of each header.
     :var etag:       Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
 
     :type headers:   array of SelectColumns
@@ -820,6 +907,8 @@ class RowSet(AppendableRowset):
 
     def __init__(self, columns=None, schema=None, **kwargs):
         if not 'headers' in kwargs:
+            if columns and schema:
+                raise ValueError("Please only user either 'columns' or 'schema' as an argument but not both.")
             if columns:
                 kwargs.setdefault('headers',[]).extend([SelectColumn.from_column(column) for column in columns])
             elif schema and isinstance(schema, Schema):
@@ -830,6 +919,11 @@ class RowSet(AppendableRowset):
         kwargs['concreteType'] = 'org.sagebionetworks.repo.model.table.RowSet'
 
         super(RowSet, self).__init__(schema, **kwargs)
+
+
+    def _synapse_store(self, syn):
+            response = super(RowSet, self)._synapse_store(syn)
+            return response.get('rowReferenceSet', response)
 
 
     def _synapse_delete(self, syn):
@@ -947,13 +1041,16 @@ def Table(schema, values, **kwargs):
     Combine a table schema and a set of values into some type of Table object
     depending on what type of values are given.
 
-    :param schema: a table py:class:`Schema` object
-    :param value: an object that holds the content of the tables
+    :param schema: a table :py:class:`Schema` object
+    :param values: an object that holds the content of the tables
       - a :py:class:`RowSet`
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
       - a dict which will be wrapped by a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+      
+      
+    :return: a Table object suitable for storing
 
     Usually, the immediate next step after creating a Table object is to store it::
 
@@ -1072,7 +1169,7 @@ class RowSetTable(TableAbstractBaseClass):
 
     def _synapse_store(self, syn):
         row_reference_set = syn.store(self.rowset)
-        return self
+        return RowSetTable(self.schema, row_reference_set)
 
     def asDataFrame(self):
         test_import_pandas()
@@ -1104,6 +1201,8 @@ class RowSetTable(TableAbstractBaseClass):
                 yield cast_values(row, headers)
         return iterate_rows(self.rowset['rows'], self.rowset['headers'])
 
+    def __len__(self):
+        return len(self.rowset['rows'])
 
     def __len__(self):
         return len(self.rowset['rows'])
@@ -1116,9 +1215,10 @@ class RowSetTable(TableAbstractBaseClass):
 class TableQueryResult(TableAbstractBaseClass):
     """
     An object to wrap rows returned as a result of a table query.
+    The TableQueryResult object can be used to iterate over results of a query.
 
-    The TableQueryResult object can be used to iterate over results of a query:
-
+    Example ::
+    
         results = syn.tableQuery("select * from syn1234")
         for row in results:
             print(row)
@@ -1259,6 +1359,9 @@ class TableQueryResult(TableAbstractBaseClass):
         """
         return self.next()
 
+    def __len__(self):
+        return len(self.rowset['rows'])
+
 
     def __len__(self):
         return len(self.rowset['rows'])
@@ -1380,7 +1483,15 @@ class CsvFileTable(TableAbstractBaseClass):
                 quotechar=encode_param_in_python2(quoteCharacter),
                 escapechar=encode_param_in_python2(escapeCharacter),
                 line_terminator=encode_param_in_python2(lineEnd),
-                na_rep=encode_param_in_python2(kwargs.get('na_rep','')))
+                na_rep=encode_param_in_python2(kwargs.get('na_rep','')),
+                float_format=encode_param_in_python2("%.12g"))
+               # NOTE: reason for flat_format='%.12g':
+               # pandas automatically converts int columns into float64 columns when some cells in the column have no value.
+               # If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are
+               # writing a float into a INTEGER(synapse table type) column.
+               # Using the 'g' will strip off '.0' from whole number values.
+               # pandas by default (with no float_format parameter) seems to keep 12 values after decimal, so we use '%.12g'.c
+               # see SYNPY-267.
         finally:
             if f: f.close()
 
@@ -1478,7 +1589,12 @@ class CsvFileTable(TableAbstractBaseClass):
 
         self.setColumnHeaders(headers)
 
+
     def _synapse_store(self, syn):
+        copied_self = copy.copy(self)
+        return copied_self._update_self(syn)
+
+    def _update_self(self, syn):
         if isinstance(self.schema, Schema) and self.schema.get('id', None) is None:
             ## store schema
             self.schema = syn.store(self.schema)

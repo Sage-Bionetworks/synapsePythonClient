@@ -18,14 +18,15 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_dict_equal
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_dict_equal, assert_false, assert_true
 from datetime import datetime
 from mock import patch
 from collections import namedtuple
 
 import synapseclient
 from synapseclient.exceptions import *
-from synapseclient import File, Folder, Schema, EntityViewSchema
+from synapseclient import File, Folder, Schema, EntityViewSchema, Project
+from synapseclient.utils import id_of
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, PartialRow
 
 import integration
@@ -66,7 +67,8 @@ def test_create_and_update_file_view():
     scopeIds = [folder['id'].lstrip('syn')]
 
     ## Create an empty entity-view with defined scope as folder
-    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, add_default_columns=True, type='file', columns=my_added_cols, parent=project)
+
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=True, addAnnotationColumns=False, type='file', columns=my_added_cols, parent=project)
 
     entity_view = syn.store(entity_view)
     schedule_for_cleanup(entity_view)
@@ -111,7 +113,6 @@ def test_create_and_update_file_view():
     assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
 
     #query for the change
-    query_timeout_seconds = 30
     start_time = time.time()
 
     new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
@@ -120,12 +121,51 @@ def test_create_and_update_file_view():
     #query until change is seen.
     while new_view_dict[0]['fileFormat'] != 'PNG':
         #check timeout
-        assert_less(time.time() - start_time, query_timeout_seconds)
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
         #query again
         new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
         new_view_dict = list(csv.DictReader(io.open(new_view_results.filepath, encoding="utf-8", newline='')))
     #paranoid check
     assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
+
+
+def test_entity_view_add_annotation_columns():
+    folder1 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', parent=project, annotations={'strAnno':'str1', 'intAnno':1, 'floatAnno':1.1}))
+    folder2 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', parent=project,annotations={'dateAnno':datetime.now(), 'strAnno':'str2', 'intAnno':2}))
+    schedule_for_cleanup(folder1)
+    schedule_for_cleanup(folder2)
+    scopeIds = [utils.id_of(folder1), utils.id_of(folder2)]
+
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False, addAnnotationColumns=True, type='project', parent=project)
+    assert_true(entity_view['addAnnotationColumns'])
+
+    #For some reason this call is eventually consistent but not immediately consistent. so we just wait till the size returned is correct
+    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE', 'concreteType':'STRING'}
+    columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
+    while len(columns) != len(expected_column_types):
+        columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
+        time.sleep(2)
+
+    entity_view = syn.store(entity_view)
+    assert_false(entity_view['addAnnotationColumns'])
+
+    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
+    assert_dict_equal(expected_column_types, view_column_types)
+
+    #add another annotation to the project and make sure that EntityViewSchema only adds one moe column
+    folder1['anotherAnnotation'] = 'I need healing!'
+    folder1 = syn.store(folder1)
+
+    prev_columns = list(entity_view.columnIds)
+    # sometimes annotation columns are not immediately updated so we wait for it to update in a loop
+    while len(entity_view.columnIds) != len(prev_columns) + 1:
+        print(len(prev_columns), entity_view.columnIds)
+        entity_view.addAnnotationColumns = True
+        entity_view = syn.store(entity_view)
+
+    expected_column_types.update({'anotherAnnotation': 'STRING'})
+    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
+    assert_dict_equal(expected_column_types, view_column_types)
 
 
 def test_rowset_tables():
@@ -160,7 +200,7 @@ def test_rowset_tables():
             ['Jane',   'bat', 17.89,  6, False, 'c'*1002],
             ['Henry',  'bar', 10.12,  1, False, 'd']]
     row_reference_set1 = syn.store(
-        RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data1]))['rowReferenceSet']
+        RowSet(schema=schema1, rows=[Row(r) for r in data1]))
     assert len(row_reference_set1['rows']) == 4
 
     ## add more new rows
@@ -168,8 +208,7 @@ def test_rowset_tables():
             ['Daphne', 'foo', 27.89, 20, True, 'f'],
             ['Shaggy', 'foo', 23.45, 20, True, 'g'],
             ['Velma',  'bar', 25.67, 20, True, 'h']]
-    syn.store(
-        RowSet(columns=cols, schema=schema1, rows=[Row(r) for r in data2]))
+    syn.store(RowSet(schema=schema1, rows=[Row(r) for r in data2]))
 
     results = syn.tableQuery("select * from %s order by name" % schema1.id, resultsAs="rowset")
 
@@ -465,7 +504,7 @@ def test_download_table_files():
         file_handle = syn.uploadFileHandle(path, project)
         row[4] = file_handle['id']
 
-    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+    row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
     ## retrieve the files for each row and verify that they are identical to the originals
     results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s" % schema.id, resultsAs="rowset")
@@ -577,6 +616,40 @@ def dontruntest_big_csvs():
         print(row)
 
 
+def test_synapse_integer_columns_with_missing_values_from_dataframe():
+    #SYNPY-267
+    cols = [Column(name='x', columnType='STRING'),Column(name='y', columnType='INTEGER'), Column(name='z', columnType='DOUBLE')]
+    schema = syn.store(Schema(name='Big Table', columns=cols, parent=project))
+
+    ## write rows to CSV file
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as temp:
+        schedule_for_cleanup(temp.name)
+        #2nd row is missing a value in its integer column
+        temp.write('x,y,z\na,1,0.9\nb,,0.8\nc,3,0.7\n')
+        temp.flush()
+        filename = temp.name
+
+    #create a table from csv
+    table = Table(schema, filename)
+    df = table.asDataFrame()
+
+    table_from_dataframe = Table(schema, df)
+    assert_not_equal(table.filepath, table_from_dataframe.filepath)
+    print(table.filepath, table_from_dataframe.filepath)
+    #compare to make sure no .0's were appended to the integers
+    assert filecmp.cmp(table.filepath, table_from_dataframe.filepath)
+
+
+def test_store_table_datetime():
+    current_datetime = datetime.fromtimestamp(round(time.time(),3))
+    schema = syn.store(Schema("testTable",[Column(name="testerino", columnType='DATE')], project))
+    rowset = RowSet(rows=[Row([current_datetime])], schema=schema)
+    rowset_table = syn.store(Table(schema, rowset))
+
+    query_result = syn.tableQuery("select * from %s" % id_of(schema), resultsAs="rowset")
+    assert_equals(current_datetime, query_result.rowset['rows'][0]['values'][0])
+
+
 def test_table_file_view_csv_update_annotations__includeEntityEtag():
     folder = syn.store(synapseclient.Folder(name="updateAnnoFolder" + str(uuid.uuid4()), parent=project))
     anno1_name = "annotationColumn1"
@@ -617,28 +690,28 @@ class TestPartialRowSet(object):
 
     def test_partial_row_view_csv_query_table(self):
         """
-        Test PartialRow updates from cvs queries
+        Test PartialRow updates to tables from cvs queries
         """
         cls = type(self)
         self._test_method(cls.table_schema, "csv", cls.table_changes, cls.expected_table_cells)
 
     def test_partial_row_view_csv_query_entity_view(self):
         """
-        Test PartialRow updates from cvs queries
+        Test PartialRow updates to entity views from cvs queries
         """
         cls = type(self)
         self._test_method(cls.view_schema, "csv", cls.view_changes, cls.expected_view_cells)
 
     def test_parital_row_rowset_query_table(self):
         """
-        Test PartialRow updates from rowset queries
+        Test PartialRow updates to tables from rowset queries
         """
         cls = type(self)
         self._test_method(cls.table_schema, "rowset", cls.table_changes, cls.expected_table_cells)
 
     def test_parital_row_rowset_query_entity_veiw(self):
         """
-        Test PartialRow updates from rowset queries
+        Test PartialRow updates to entity views from rowset queries
         """
         cls = type(self)
         self._test_method(cls.view_schema, "rowset", cls.view_changes, cls.expected_view_cells)
@@ -661,7 +734,7 @@ class TestPartialRowSet(object):
         assert_equals(len(query_results), 2)
         df2 = query_results.asDataFrame()
         df2 = df2.where((pd.notnull(df2)), None)
-
+        print(df2)
         for expected_row, df_row in zip(expected_results, df2.iterrows()):
             df_idx, actual_row = df_row
             for expected_cell in expected_row:
@@ -686,17 +759,17 @@ class TestPartialRowSet(object):
 
 
     @classmethod
-    def _table_setup(self):
+    def _table_setup(cls):
         # set up a table
         cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
         schema = syn.store(Schema(name='PartialRowTest' + str(uuid.uuid4()), columns=cols, parent=project))
         data = [['foo1', None],[None,'bar2']]
-        syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+        syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
         return schema
 
 
     @classmethod
-    def _view_setup(self):
+    def _view_setup(cls):
         # set up a file view
         folder = syn.store(Folder(name="PartialRowTestFolder" + str(uuid.uuid4()), parent=project))
         syn.store(File("~/path/doesnt/matter", name="f1", parent=folder, synapseStore=False))
@@ -704,5 +777,5 @@ class TestPartialRowSet(object):
 
         cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
         return syn.store(
-            EntityViewSchema(name='PartialRowTestViews' + str(uuid.uuid4()), columns=cols, add_default_columns=False,
+            EntityViewSchema(name='PartialRowTestViews' + str(uuid.uuid4()), columns=cols, addDefaultViewColumns=False,
                              parent=project, scopes=[folder]))

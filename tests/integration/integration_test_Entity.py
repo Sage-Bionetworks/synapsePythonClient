@@ -11,11 +11,6 @@ from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_e
 from nose import SkipTest
 from mock import patch
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
-
 import synapseclient
 from synapseclient import Activity, Project, Folder, File, Link, DockerRepository
 from synapseclient.exceptions import *
@@ -33,22 +28,7 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
-
-    # Some of these tests require a second user
-    config = configparser.ConfigParser()
-    config.read(synapseclient.client.CONFIG_FILE)
-    module.other_user = {}
-    try:
-        other_user['username'] = config.get('test-authentication', 'username')
-        other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principalId'] = config.get('test-authentication', 'principalId')
-    except configparser.Error:
-        print("[test-authentication] section missing from the configuration file")
-
-    if 'principalId' not in other_user:
-        # Fall back on the synapse-test user
-        other_user['principalId'] = 1560252
-        other_user['username'] = 'synapse-test'
+    module.other_user = integration.other_user
 
 
 def test_Entity():
@@ -121,6 +101,14 @@ def test_Entity():
     assert a_file.versionNumber == 1, "unexpected version number: " +  str(a_file.versionNumber)
 
     #Test create, store, get Links
+    #If version isn't specified, targetVersionNumber should not be set
+    link = Link(a_file['id'], 
+                parent=project)
+    link = syn.store(link)
+    assert link['linksTo']['targetId'] == a_file['id']
+    assert link['linksTo'].get('targetVersionNumber') is None
+    assert link['linksToClassName'] == a_file['concreteType']
+
     link = Link(a_file['id'], 
                 targetVersion=a_file.versionNumber,
                 parent=project)
@@ -142,7 +130,7 @@ def test_Entity():
 
     newfolder = Folder('Testing Folder', parent=project)
     newfolder = syn.store(newfolder)
-    link = Link(newfolder.id, parent = folder.id)
+    link = Link(newfolder, parent = folder.id)
     link = syn.store(link)
     assert link['linksTo']['targetId'] == newfolder.id
     assert link['linksToClassName'] == newfolder['concreteType']

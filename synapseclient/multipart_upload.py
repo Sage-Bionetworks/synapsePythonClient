@@ -297,7 +297,9 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
         if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403:
             syn.logger.debug("The presigned upload URL for part %s has expired. Restarting upload...\n" % partNumber)
             with expired.get_lock():
-                expired.value = True
+                if not expired.value:
+                    warnings.warn("The presigned upload URL has expired. Restarting upload...\n")
+                    expired.value = True
             return
         #If we are not in verbose debug mode we will swallow the error and retry.
         else:
@@ -349,7 +351,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             expired = Value(c_bool, False)
 
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
-            chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status, 
+            chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status,
                                                       syn=syn, filename=filename,
                                                       get_chunk_function=get_chunk_function,
                                                       fileSize=fileSize, partSize=partSize, t0=time_upload_started,
@@ -384,4 +386,3 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
         raise SynapseError("Upload {id} did not complete. Try again.".format(id=status["uploadId"]))
 
     return status
-

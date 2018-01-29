@@ -9,11 +9,6 @@ import uuid, filecmp, os, sys, time, tempfile
 
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
-
 import synapseclient
 from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
 from synapseclient.exceptions import *
@@ -29,22 +24,8 @@ def setup(module):
     print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
+    module.other_user = integration.other_user
 
-    # Some of these tests require a second user
-    config = configparser.ConfigParser()
-    config.read(synapseclient.client.CONFIG_FILE)
-    module.other_user = {}
-    try:
-        other_user['username'] = config.get('test-authentication', 'username')
-        other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principalId'] = config.get('test-authentication', 'principalId')
-    except configparser.Error:
-        print("[test-authentication] section missing from the configuration file")
-
-    if 'principalId' not in other_user:
-        # Fall back on the synapse-test user
-        other_user['principalId'] = 1560252
-        other_user['username'] = 'synapse-test'
 
 ###Add Test for UPDATE
 ###Add test for existing provenance but the orig doesn't have provenance
@@ -165,17 +146,10 @@ def test_copy():
     link_entity = Link(second_file_entity.id,parent=folder_entity.id)
     link_entity = syn.store(link_entity)
 
-    #function under test uses queries which are eventually consistent but not immediately after creating the entities
-    start_time = time.time()
-    while syn.query("select id from entity where id=='%s'" % link_entity.id).get('totalNumberOfResults') <= 0:
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        time.sleep(2)
-
     copied_link = synapseutils.copy(syn,link_entity.id, destinationId=second_folder.id)
     old = syn.get(link_entity.id,followLink=False)
     new = syn.get(copied_link[link_entity.id],followLink=False)
     assert old.linksTo['targetId'] == new.linksTo['targetId']
-    assert old.linksTo['targetVersionNumber'] == new.linksTo['targetVersionNumber']
 
     schedule_for_cleanup(second_file_entity.id)
     schedule_for_cleanup(link_entity.id)
@@ -200,7 +174,7 @@ def test_copy():
             [2.3,'baz',30]]
 
     schema = syn.store(Schema(name='Testing', columns=cols, parent=project_entity.id))
-    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+    row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
     table_map = synapseutils.copy(syn,schema.id, destinationId=second_project.id)
     copied_table = syn.tableQuery('select * from %s' %table_map[schema.id])
@@ -238,10 +212,6 @@ def test_copy():
     assert copied_folder.name == second_folder.name
     assert len(second) == 1
     # TEST: Make sure error is thrown if foldername already exists
-    start_time = time.time()
-    while syn.query("select id from entity where id=='%s'" % copied_folder.id).get('totalNumberOfResults') <= 0:
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        time.sleep(2)
 
     assert_raises(ValueError,synapseutils.copy,syn,second_folder.id, destinationId=second_project.id)
 
@@ -440,13 +410,6 @@ def test_walk():
                    [],
                    [(third_file.name,third_file.id)]))
 
-    #walk() uses query() which returns results that will be eventually consistent with synapse but not immediately after creating the entities
-    start_time = time.time()
-    while syn.query("select id from entity where id=='%s'" % third_file.id).get('totalNumberOfResults') <= 0:
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        time.sleep(2)
-
-
     temp = synapseutils.walk(syn, project_entity.id)
     temp = list(temp)
     #Must sort the tuples returned, because order matters for the assert
@@ -465,6 +428,49 @@ def test_walk():
     temp = synapseutils.walk(syn, second_file.id)
     assert list(temp) == []
 
+
+def test_syncFromSynapse():
+    """This function tests recursive download as defined in syncFromSynapse
+    most of the functionality of this function are already tested in the 
+    tests/integration/test_command_line_client::test_command_get_recursive_and_query
+
+    which means that the only test if for path=None
+    """
+    # Create a Project
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    # Create a Folder in Project
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+
+    # Create and upload two files in Folder
+    uploaded_paths = []
+    for i in range(2):
+        f  = utils.make_bogus_data_file()
+        uploaded_paths.append(f)
+        schedule_for_cleanup(f)
+        file_entity = syn.store(File(f, parent=folder_entity))
+    #Add a file in the project level as well
+    f  = utils.make_bogus_data_file()
+    uploaded_paths.append(f)
+    schedule_for_cleanup(f)
+    file_entity = syn.store(File(f, parent=project_entity))
+
+    ### Test recursive get
+    output = synapseutils.syncFromSynapse(syn, project_entity)
+
+    assert len(output) == len(uploaded_paths)
+    for f in output:
+        print(f.path)
+        assert f.path in uploaded_paths
+
+def test_syncFromSynapse__given_file_id():
+    file_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(file_path)
+    file = syn.store(File(file_path, name=str(uuid.uuid4()), parent=project, synapseStore=False))
+    all_files = synapseutils.syncFromSynapse(syn, file.id)
+    assert_equals(1, len(all_files))
+    assert_equals(file, all_files[0])
 
 def test_copyFileHandleAndchangeFileMetadata():
     project_entity = syn.store(Project(name=str(uuid.uuid4())))

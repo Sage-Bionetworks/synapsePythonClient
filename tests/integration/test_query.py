@@ -30,7 +30,7 @@ def test_query():
     query_str = "select id from entity where entity.parentId=='%s'" % project['id']
     # Remove all the Entities that are in the project
     qry = syn.query(query_str)
-    while qry.get('totalNumberOfResults') > 0:
+    while len(qry['results']) > 0:
         for res in qry['results']:
             syn.delete(res['entity.id'])
         qry = syn.query(query_str)
@@ -42,12 +42,12 @@ def test_query():
 
         start_time = time.time()
         qry = syn.query(query_str)
-        while qry['totalNumberOfResults'] != i + 1:
+        while len(qry['results']) != i + 1:
             assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
             time.sleep(2)
             qry = syn.query(query_str)
 
-        assert qry['totalNumberOfResults'] == i + 1
+        assert len(qry['results']) == i + 1
         
 def test_chunked_query():
     oldLimit = synapseclient.client.QUERY_LIMIT
