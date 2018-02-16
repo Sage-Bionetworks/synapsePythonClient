@@ -312,7 +312,7 @@ from .client import ROOT_ENTITY
 from .activity import Activity
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table
+from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
@@ -326,5 +326,6 @@ __version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapse
 
 import requests
 USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
-import logging
-logging.getLogger("requests").setLevel(logging.WARNING)
+
+from . import logging_setup as __logingsetup
+from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME

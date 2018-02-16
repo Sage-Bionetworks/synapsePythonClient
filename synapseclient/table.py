@@ -222,9 +222,11 @@ Schema
 
 .. autoclass:: synapseclient.table.Schema
    :members:
-
+   :noindex:
+   
 .. autoclass:: synapseclient.table.EntityViewSchema
    :members:
+   :noindex:
 
 ~~~~~~
 Column
@@ -238,6 +240,13 @@ Row
 ~~~~~~
 
 .. autoclass:: synapseclient.table.Row
+   :members: __init__
+
+~~~~~~
+RowSet
+~~~~~~
+
+.. autoclass:: synapseclient.table.RowSet
    :members: __init__
 
 ~~~~~~
@@ -284,19 +293,18 @@ import re
 import six
 import sys
 import tempfile
-
 import copy
 import collections
-from collections import OrderedDict, Sized, Iterable
-from builtins import zip
-from abc import ABCMeta, abstractmethod, abstractproperty
 import itertools
-import synapseclient
-import synapseclient.utils as utils
-from synapseclient.exceptions import *
-from synapseclient.dict_object import DictObject
-from synapseclient.entity import Entity, Versionable
+from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
+from builtins import zip
+from abc import ABCMeta, abstractmethod
 
+from .utils import id_of, from_unix_epoch_time
+from .exceptions import *
+from .dict_object import DictObject
+from .entity import Entity, Versionable, _entity_type_to_class
+from . import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 
@@ -371,7 +379,6 @@ def df2Table(df, syn, tableName, parentProject):
     """
 
     #Create columns:
-    print(df.shape)
     cols = as_table_columns(df)
     cols = [syn.store(col) for col in cols]
 
@@ -384,10 +391,8 @@ def df2Table(df, syn, tableName, parentProject):
     for i in range(0, df.shape[0]/1200+1):
         start =  i*1200
         end = min((i+1)*1200, df.shape[0])
-        print(start, end)
         rowset1 = RowSet(columns=cols, schema=schema1,
                          rows=[Row(list(df.ix[j,:])) for j in range(start,end)])
-        #print(len(rowset1.rows))
         rowset1 = syn.store(rowset1)
 
     return schema1
@@ -419,10 +424,13 @@ def column_ids(columns):
 
 
 def row_labels_from_id_and_version(rows):
-    return ["%s_%s"%(id, version) for id, version in rows]
+    return ["_".join(map(str, row)) for row in rows]
 
 def row_labels_from_rows(rows):
-    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber']) for row in rows])
+    return row_labels_from_id_and_version([(row['rowId'], row['versionNumber'], row['etag'])
+                                           if 'etag' in row else (row['rowId'], row['versionNumber'])
+                                           for row in rows])
+
 
 def cast_values(values, headers):
     """
@@ -450,7 +458,7 @@ def cast_values(values, headers):
         elif columnType=='BOOLEAN':
             result.append(to_boolean(field))
         elif columnType=='DATE':
-            result.append(utils.from_unix_epoch_time(field))
+            result.append(from_unix_epoch_time(field))
         else:
             raise ValueError("Unknown column type: %s" % columnType)
 
@@ -477,7 +485,8 @@ class SchemaBase(Entity, Versionable):
     _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
     _local_keys = Entity._local_keys + ['columns_to_store']
 
-    @abstractproperty  #forces subclasses to define _synapse_entity_type
+    @property
+    @abstractmethod  #forces subclasses to define _synapse_entity_type
     def _synapse_entity_type(self):
         pass
 
@@ -499,7 +508,7 @@ class SchemaBase(Entity, Versionable):
         :param column: a column object or its ID
         """
         if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.append(utils.id_of(column))
+            self.properties.columnIds.append(id_of(column))
         elif isinstance(column, Column):
             if not self.__dict__.get('columns_to_store', None):
                 self.__dict__['columns_to_store'] = []
@@ -521,7 +530,7 @@ class SchemaBase(Entity, Versionable):
         :param column: a column object or its ID
         """
         if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.remove(utils.id_of(column))
+            self.properties.columnIds.remove(id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
         else:
@@ -542,16 +551,20 @@ class SchemaBase(Entity, Versionable):
             self.properties.columnIds.extend(column.id for column in syn.createColumns(self.columns_to_store))
             self.columns_to_store = []
 
+
 class Schema(SchemaBase):
     """
-    A Schema is a :py:class:`synapse.entity.Entity` that defines a set of columns in a table.
+    A Schema is an :py:class:`synapseclient.entity.Entity` that defines a set of columns in a table.
 
-    :param name: give the Table Schema object a name
-    :param description:
+    :param name: the name for the Table Schema object
+    :param description: User readable description of the schema
     :param columns: a list of :py:class:`Column` objects or their IDs
-    :param parent: the project (file a bug if you'd like folders supported) in Synapse to which this table belongs
-
-    ::
+    :param parent: the project in Synapse to which this table belongs
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Internal use only
+                            
+    Example::
 
         cols = [Column(name='Isotope', columnType='STRING'),
                 Column(name='Atomic Mass', columnType='INTEGER'),
@@ -572,20 +585,24 @@ class EntityViewSchema(SchemaBase):
     """
     A EntityViewSchema is a :py:class:`synapseclient.entity.Entity` that displays all files/projects (depending on user choice) within a given set of scopes
 
-    :param name: give the Entity View Table object a name
-    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional
+    :param name: the name of the Entity View Table object
+    :param columns: a list of :py:class:`Column` objects or their IDs. These are optional.
     :param parent: the project in Synapse to which this table belongs
     :param scopes: a list of Projects/Folders or their ids
-    :param view_type: the type of EntityView to display: either 'file' or 'project'. Defaults to 'file'
-    :param addDefaultViewColumns: If true adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
-    :param addAnnotationColumns: If true adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
+    :param type: the type of EntityView to display: either 'file','project' or 'file_and_table'. Defaults to 'file'.
+    :param addDefaultViewColumns: If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.) Defaults to True.
+     The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
+    :param addAnnotationColumns: If true, adds columns for all annotation keys defined across all Entities in the EntityViewSchema's scope. Defaults to True.
+     The annotation columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
     :param ignoredAnnotationColumnNames: A list of strings representing annotation names. When addAnnotationColumns is True,
                                         the names in this list will not be automatically added as columns to the EntityViewSchema
                                         if they exist in any of the defined scopes.
-    The default columns will be added after a call to :py:meth:`synapseclient.Synapse.store`.
-    ::
-
-      
+    :param properties:      A map of Synapse properties
+    :param annotations:     A map of user defined annotations
+    :param local_state:     Internal use only
+    
+    Example::
+    
         project_or_folder = syn.get("syn123")  
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'], view_type='file'))
     """
@@ -623,72 +640,73 @@ class EntityViewSchema(SchemaBase):
         :param entities: a Project or Folder object or its ID, can also be a list of them
         """
         if isinstance(entities, list):
-            temp_list = [utils.id_of(entity) for entity in entities] #add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
+            temp_list = [id_of(entity) for entity in entities] #add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
             self.scopeIds.extend(temp_list)
         else:
-            self.scopeIds.append(utils.id_of(entities))
+            self.scopeIds.append(id_of(entities))
 
     def _before_synapse_store(self, syn):
-        if self.addAnnotationColumns:
-            self._add_annotations_as_columns(syn)
-            self.addAnnotationColumns = False
-
         #get the default EntityView columns from Synapse and add them to the columns list
+        additional_columns = []
         if self.addDefaultViewColumns:
-            self.addColumns(syn._get_default_entity_view_columns(self.type))
-            self.addDefaultViewColumns = False
+            additional_columns.extend(syn._get_default_entity_view_columns(self.type))
+
+        #get default annotations
+        if self.addAnnotationColumns:
+            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self.type) if
+             x['name'] not in self.ignoredAnnotationColumnNames]
+            additional_columns.extend(anno_columns)
+
+        self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
+
+        #set these boolean flags to false so they are not repeated.
+        self.addDefaultViewColumns = False
+        self.addAnnotationColumns = False
 
         super(EntityViewSchema, self)._before_synapse_store(syn)
 
 
-    def _add_annotations_as_columns(self, syn):
-        column_type_to_annotation_names = {
-            'STRING': set(),
-            'INTEGER': set(),
-            'DOUBLE': set(),
-            'DATE': set()
-        }
-        all_existing_column_names = set() # set of all existing columns names regardless of type
+    def _filter_duplicate_columns(self, syn, columns_to_add):
+        """
+        If a column to be added has the same name and same type as an existing column, it will be considered a duplicate and not added.
+        :param syn: a :py:class:`synapseclient.client.Synapse` object that is logged in
+        :param columns_to_add: iterable collection of type :py:class:`synapseclient.table.Column` objects
+        :return: a filtered list of columns to add
+        """
+
+        # no point in making HTTP calls to retrieve existing Columns if we not adding any new columns
+        if not columns_to_add:
+            return columns_to_add
+
+        # set up Column name/type tracking
+        column_type_to_annotation_names = {} # map of str -> set(str), where str is the column type as a string and set is a set of column name strings
 
         # add to existing columns the columns that user has added but not yet created in synapse
-        column_generator = itertools.chain(syn.getColumns(self.columnIds), self.columns_to_store) if self.columns_to_store else syn.getColumns(self.columnIds)
+        column_generator = itertools.chain(syn.getColumns(self.columnIds),
+                                           self.columns_to_store) if self.columns_to_store else syn.getColumns(self.columnIds)
 
         for column in column_generator:
             column_name = column['name']
             column_type = column['columnType']
 
-            all_existing_column_names.add(column_name)
-            #add to type specific set
-            if column_type in column_type_to_annotation_names:
-                column_type_to_annotation_names[column_type].add(column_name)
+            column_type_to_annotation_names.setdefault(column_type,set()).add(column_name)
 
 
-        #get annotations from each of the scopes and create columns
-        columns_to_add = [] #temporarily store all columns so that none are added if any errors occur
-        anno_columns = syn._get_annotation_entity_view_columns(self.scopeIds, self.type)
-        for column in anno_columns:
-            anno_col_name = column['name']
-            anno_col_type = column['columnType']
-            typed_col_name_set = column_type_to_annotation_names[anno_col_type]
-            if (anno_col_name not in self.ignoredAnnotationColumnNames
-                 and anno_col_name not in typed_col_name_set):
+        valid_columns = []
+        for column in columns_to_add:
+            new_col_name = column['name']
+            new_col_type = column['columnType']
 
-                if anno_col_name in all_existing_column_names:
-                    raise ValueError("The annotation column name [%s] has multiple types in your scopes or in your defined columns.\n"
-                                     "Please do one of the following:\n"
-                                     "  Turn off the automatic conversion of annotations to column names: entityView.addAnnotationColumns = False\n"
-                                     "  Modify your annotations/columns named [%s] to all be of the same type.\n"
-                                     "  Add the annotation name to the set of ignored annotation names via entityView.ignoredAnnotations.add(%s).\n" % (anno_col_name, anno_col_name, anno_col_name))
-                all_existing_column_names.add(anno_col_name)
-                typed_col_name_set.add(anno_col_name)
-                columns_to_add.append(column)
-        self.addColumns(columns_to_add)
-
+            typed_col_name_set = column_type_to_annotation_names.setdefault(new_col_type, set())
+            if new_col_name not in typed_col_name_set:
+                typed_col_name_set.add(new_col_name)
+                valid_columns.append(column)
+        return valid_columns
 
 
 ## add Schema to the map of synapse entity types to their Python representations
-synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
-synapseclient.entity._entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
+_entity_type_to_class[Schema._synapse_entity_type] = Schema
+_entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 
 ## allowed column types
@@ -758,15 +776,120 @@ class Column(DictObject):
     def postURI(self):
         return '/column'
 
+@six.add_metaclass(ABCMeta)
+class AppendableRowset(DictObject):
+    """Abstract Base Class for :py:class:`Rowset` and :py:class:`PartialRowset`"""
+    @abstractmethod
+    def __init__(self, schema, **kwargs):
+        if ('tableId' not in kwargs) and schema:
+            kwargs['tableId'] = id_of(schema)
 
-class RowSet(DictObject):
+        if not kwargs.get('tableId',None):
+            raise ValueError("Table schema ID must be defined to create a %s" % type(self).__name__)
+        super(AppendableRowset, self).__init__(kwargs)
+
+
+    def _synapse_store(self, syn):
+        """
+        Creates and POSTs an AppendableRowSetRequest_
+
+        .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
+        """
+        append_rowset_request ={'concreteType': concrete_types.APPENDABLE_ROWSET_REQUEST,
+               'toAppend':self,
+               'entityId':self.tableId}
+
+        response = syn._POST_table_transaction(self.tableId, append_rowset_request)
+        return response['results'][0]
+
+
+
+class PartialRowset(AppendableRowset):
+    """A set of Partial Rows used for updating cells of a table.
+    PartialRowsets allow you to push only the individual cells you wish to change
+    instead of pushing entire rows with many unchanged cells.
+
+    Example::
+        #### the following code will change cells in a hypothetical table, syn123:
+        #### these same steps will also work for using EntityView tables to change Entity annotations
+        #
+        # fooCol | barCol             fooCol    |  barCol
+        # -----------------  =======> ----------------------
+        # foo1   | bar1               foo foo1  |  bar1
+        # foo2   | bar2               foo2      |  bar bar 2
+
+        query_results = syn.tableQuery("SELECT * FROM syn123")
+
+        # The easiest way to know the rowId of the row you wish to change
+        # is by converting the table to a pandas Dataframe with rowIdAndVersionInIndex=False
+        df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
+
+        partial_changes = {df['ROW_ID'][0]: {'fooCol': 'foo foo 1'},
+                           df['ROW_ID'][1]: {'barCol': 'bar bar 2'}}
+
+        # you will need to pass in your original query result as an argument
+        # so that we can perform column id translation and etag retrieval on your behalf:
+        partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
+        syn.store(partial_rowset)
+
+    :param schema: The :py:class:`Schema` of the table to update or its tableId as a string
+    :param rows: A list of PartialRows
+    """
+
+    @classmethod
+    def from_mapping(cls, mapping, originalQueryResult):
+        """Creates a PartialRowset
+        :param mapping: A mapping of mappings in the structure: {ROW_ID : {COLUMN_NAME: NEW_COL_VALUE}}
+        :param originalQueryResult:
+        :return: a PartialRowSet that can be syn.store()-ed to apply the changes
+        """
+        if not isinstance(mapping, Mapping):
+            raise ValueError("mapping must be a supported Mapping type such as 'dict'")
+
+        try:
+            name_to_column_id = {col.name:col.id for col in originalQueryResult.headers if 'id' in col}
+        except AttributeError as e:
+            raise ValueError('originalQueryResult must be the result of a syn.tableQuery()')
+
+        row_ids = set(int(id) for id in six.iterkeys(mapping))
+
+        #row_ids in the originalQueryResult are not guaranteed to be in ascending order
+        #iterate over all etags but only map the row_ids used for this partial update to their etags
+        row_etags = {row_id:etag for row_id, etag in originalQueryResult.iter_etags()
+                     if row_id in row_ids and etag is not None}
+
+        partial_rows = [PartialRow(row_changes, row_id, etag=row_etags.get(int(row_id)), nameToColumnId=name_to_column_id)
+                        for row_id, row_changes in six.iteritems(mapping)]
+
+        return cls(originalQueryResult.tableId, partial_rows)
+
+
+    def __init__(self, schema, rows):
+        super(PartialRowset, self).__init__(schema)
+        self.concreteType = concrete_types.PARTIAL_ROW_SET
+
+        if isinstance(rows, PartialRow):
+            self.rows = [rows]
+        else:
+            try:
+                if all(isinstance(row, PartialRow) for row in rows):
+                    self.rows = list(rows)
+                else:
+                    raise ValueError("rows must contain only values of type PartialRow")
+            except TypeError:
+                raise ValueError("rows must be iterable")
+
+
+
+class RowSet(AppendableRowset):
     """
     A Synapse object of type `org.sagebionetworks.repo.model.table.RowSet <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html>`_.
 
     :param schema:   A :py:class:`synapseclient.table.Schema` object that will be used to set the tableId
     :param headers:  The list of SelectColumn objects that describe the fields in each row.
-    :param tableId:  The ID of the TableEntity than owns these rows
-    :param rows:     The :py:class:`synapseclient.table.Row`s of this set. The index of each row value aligns with the index of each header.
+    :param columns:  An alternative to 'headers', a list of column objects that describe the fields in each row.
+    :param tableId:  The ID of the TableEntity that owns these rows
+    :param rows:     The :py:class:`synapseclient.table.Row` s of this set. The index of each row value aligns with the index of each header.
     :var etag:       Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
 
     :type headers:   array of SelectColumns
@@ -790,30 +913,18 @@ class RowSet(DictObject):
                 kwargs.setdefault('headers',[]).extend([SelectColumn.from_column(column) for column in columns])
             elif schema and isinstance(schema, Schema):
                 kwargs.setdefault('headers',[]).extend([SelectColumn(id=id) for id in schema["columnIds"]])
-        if ('tableId' not in kwargs) and schema:
-            kwargs['tableId'] = utils.id_of(schema)
-        if not kwargs.get('tableId',None):
-            raise ValueError("Table schema ID must be defined to create a RowSet")
+
         if not kwargs.get('headers',None):
             raise ValueError("Column headers must be defined to create a RowSet")
         kwargs['concreteType'] = 'org.sagebionetworks.repo.model.table.RowSet'
 
-        super(RowSet, self).__init__(kwargs)
+        super(RowSet, self).__init__(schema, **kwargs)
+
 
     def _synapse_store(self, syn):
-        """
-        Creates and POSTs an AppendableRowSetRequest_
+            response = super(RowSet, self)._synapse_store(syn)
+            return response.get('rowReferenceSet', response)
 
-        .. AppendableRowSetRequest: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
-        """
-        arsr = dict(
-            concreteType='org.sagebionetworks.repo.model.table.AppendableRowSetRequest',
-            toAppend=self,
-            entityId=self.tableId)
-
-        uri = "/entity/{id}/table/append/async".format(id=self.tableId)
-        response = syn._waitForAsync(uri=uri, request=arsr)
-        return RowSet(**response.get('rowReferenceSet', response))
 
     def _synapse_delete(self, syn):
         """
@@ -821,6 +932,7 @@ class RowSet(DictObject):
         Example::
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
+        #TODO: this is deprecated, switch to transaction based async delete
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
             rowIds=[row.rowId for row in self.rows],
@@ -836,13 +948,63 @@ class Row(DictObject):
     :param rowId:          The immutable ID issued to a new row
     :param versionNumber:  The version number of this row. Each row version is immutable, so when a row is updated a new version is created.
     """
-    def __init__(self, values, rowId=None, versionNumber=None):
+    def __init__(self, values, rowId=None, versionNumber=None, etag=None):
         super(Row, self).__init__()
         self.values = values
         if rowId is not None:
             self.rowId = rowId
         if versionNumber is not None:
             self.versionNumber = versionNumber
+        if etag is not None:
+            self.etag = etag
+
+
+class PartialRow(DictObject):
+    """This is a lower-level class for use in :py:class::`PartialRowSet` to update individual cells within a table.
+
+    It is recommended you use :py:classmethod::`PartialRowSet.from_mapping`to construct partial changesets to a table.
+
+    If you want to do the tedious parts yourself:
+
+    To change cells in the "foo"(colId:1234) and "bar"(colId:456) columns of a row with rowId=5 ::
+        rowId = 5
+
+        #pass in with columnIds as key:
+        PartialRow({123: 'fooVal', 456:'barVal'}, rowId)
+
+        #pass in with a nameToColumnId argument
+
+        #manually define:
+        nameToColumnId = {'foo':123, 'bar':456}
+        #OR if you have the result of a tableQuery() you can generate nameToColumnId using:
+        query_result = syn.tableQuery("SELECT * FROM syn123")
+        nameToColumnId = {col.name:col.id for col in query_result.headers}
+
+        PartialRow({'foo': 'fooVal', 'bar':'barVal'}, rowId, nameToColumnId=nameToColumnId)
+
+    :param values: A Mapping where:
+                - key is name of the column (or its columnId) to change in the desired row
+                - value is the new desired value for that column
+    :param rowId: The id of the row to be updated
+    :param etag: used for updating File/Project Views(::py:class:`EntityViewSchema`). Not necessary for a (::py:class:`Schema`) Table
+    :param nameToColumnId: Optional map column names to column Ids. If this is provided, the keys of your `values`
+                           Mapping will be replaced with the column ids in the `nameToColumnId` dict. Include this as an argument
+                           when you are providing the column names instead of columnIds as the keys to the `values` Mapping
+
+    """
+
+    def __init__(self, values, rowId, etag=None, nameToColumnId=None):
+        super(PartialRow, self).__init__()
+        if not isinstance(values, Mapping):
+            raise ValueError("values must be a Mapping")
+
+        rowId = int(rowId)
+
+        self.values = [{'key': nameToColumnId[x_key] if nameToColumnId is not None else x_key,
+                        'value': x_value} for x_key, x_value in six.iteritems(values)]
+        self.rowId = rowId
+        if etag is not None:
+            self.etag = etag
 
 
 class RowSelection(DictObject):
@@ -869,6 +1031,7 @@ class RowSelection(DictObject):
                 tableId="syn1234567")
             syn.delete(row_selection)
         """
+        #TODO: this is deprecated, switch to transaction based async delete
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(self))
 
@@ -878,13 +1041,16 @@ def Table(schema, values, **kwargs):
     Combine a table schema and a set of values into some type of Table object
     depending on what type of values are given.
 
-    :param schema: a table py:class:`Schema` object
-    :param value: an object that holds the content of the tables
-      - a py:class:`RowSet`
+    :param schema: a table :py:class:`Schema` object
+    :param values: an object that holds the content of the tables
+      - a :py:class:`RowSet`
       - a list of lists (or tuples) where each element is a row
       - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
       - a dict which will be wrapped by a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+      
+      
+    :return: a Table object suitable for storing
 
     Usually, the immediate next step after creating a Table object is to store it::
 
@@ -932,6 +1098,9 @@ class TableAbstractBaseClass(Iterable, Sized):
     """
     Abstract base class for Tables based on different data containers.
     """
+
+    IdEtagTuple = namedtuple('IdEtagTuple', ['row_id', 'row_etag'])
+
     def __init__(self, schema, headers=None, etag=None):
         if isinstance(schema, Schema):
             self.schema = schema
@@ -972,6 +1141,7 @@ class TableAbstractBaseClass(Iterable, Sized):
         Example::
             syn.delete(syn.tableQuery('select name from %s where no_good = true' % schema1.id))
         """
+        #TODO: this is deprecated, switch to transaction based async delete
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
             rowIds=[row['rowId'] for row in self],
@@ -979,6 +1149,14 @@ class TableAbstractBaseClass(Iterable, Sized):
             tableId=self.tableId)))
 
 
+    @abstractmethod
+    def iter_etags(self):
+        """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
+        it will generated as (row_id, None)
+
+        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
+        """
+        pass
 
 
 class RowSetTable(TableAbstractBaseClass):
@@ -1026,12 +1204,21 @@ class RowSetTable(TableAbstractBaseClass):
     def __len__(self):
         return len(self.rowset['rows'])
 
+    def __len__(self):
+        return len(self.rowset['rows'])
+
+
+    def iter_etags(self):
+        raise NotImplementedError("iter_etags is not supported for RowSetTable")
+
+
 class TableQueryResult(TableAbstractBaseClass):
     """
     An object to wrap rows returned as a result of a table query.
+    The TableQueryResult object can be used to iterate over results of a query.
 
-    The TableQueryResult object can be used to iterate over results of a query:
-
+    Example ::
+    
         results = syn.tableQuery("select * from syn1234")
         for row in results:
             print(row)
@@ -1066,9 +1253,10 @@ class TableQueryResult(TableAbstractBaseClass):
     def _synapse_store(self, syn):
         raise SynapseError("A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a DataFrame or RowSet instead.")
 
-    def asDataFrame(self):
+    def asDataFrame(self, rowIdAndVersionInIndex=True):
         """
         Convert query result to a Pandas DataFrame.
+        :param rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version (and row_etag if it exists)
         """
         test_import_pandas()
         import pandas as pd
@@ -1079,7 +1267,8 @@ class TableQueryResult(TableAbstractBaseClass):
 
         def construct_rownames(rowset, offset=0):
             try:
-                return row_labels_from_rows(rowset['rows'])
+
+                return row_labels_from_rows(rowset['rows']) if rowIdAndVersionInIndex else None
             except KeyError:
                 ## if we don't have row id and version, just number the rows
                 # python3 cast range to list for safety
@@ -1090,6 +1279,19 @@ class TableQueryResult(TableAbstractBaseClass):
         rownames = construct_rownames(self.rowset, offset)
         offset += len(self.rowset['rows'])
         series = OrderedDict()
+
+        if not rowIdAndVersionInIndex:
+            #Since we use an OrderedDict this must happen before we construct the other columns
+            #add row id, verison, and etag as rows
+            append_etag = False #only useful when (not rowIdAndVersionInIndex), hooray for lazy variables!
+            series['ROW_ID']  =  pd.Series(name='ROW_ID', data=[row['rowId'] for row in self.rowset['rows']])
+            series['ROW_VERSION'] = pd.Series(name='ROW_VERSION', data=[row['versionNumber'] for row in self.rowset['rows']])
+
+            row_etag = [row.get('etag') for row in self.rowset['rows']]
+            if any(row_etag):
+                append_etag = True
+                series['ROW_ETAG'] = pd.Series(name='ROW_ETAG', data=row_etag)
+
         for i, header in enumerate(self.rowset["headers"]):
             column_name = header.name
             series[column_name] = pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames)
@@ -1103,9 +1305,19 @@ class TableQueryResult(TableAbstractBaseClass):
 
             rownames = construct_rownames(self.rowset, offset)
             offset += len(self.rowset['rows'])
+
+            if not rowIdAndVersionInIndex:
+                series['ROW_ID'].append(pd.Series(name='ROW_ID', data=[row['id'] for row in self.rowset['rows']]))
+                series['ROW_VERSION'].append(pd.Series(name='ROW_VERSION', data=[row['version'] for row in self.rowset['rows']]))
+                if append_etag:
+                    series['ROW_ETAG'] = pd.Series(name='ROW_ETAG', data=[row.get('etag') for row in self.rowset['rows']])
+
             for i, header in enumerate(self.rowset["headers"]):
                 column_name = header.name
-                series[column_name] = series[column_name].append(pd.Series(name=column_name, data=[row['values'][i] for row in self.rowset['rows']], index=rownames), verify_integrity=True)
+                series[column_name] = series[column_name].append(pd.Series(name=column_name,
+                                                                           data=[row['values'][i] for row in self.rowset['rows']],
+                                                                           index=rownames),
+                                                                 verify_integrity=rowIdAndVersionInIndex) # can't verify integrity when indices are just numbers instead of 'rowid_rowversion'
 
         return pd.DataFrame(data=series)
 
@@ -1149,6 +1361,20 @@ class TableQueryResult(TableAbstractBaseClass):
 
     def __len__(self):
         return len(self.rowset['rows'])
+
+
+    def __len__(self):
+        return len(self.rowset['rows'])
+
+
+    def iter_etags(self):
+        """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
+        it will generated as (row_id, None)
+
+        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
+        """
+        for row in self:
+            yield type(self).IdEtagTuple(int(row['rowId']), row.get('etag'))
 
 
 class CsvFileTable(TableAbstractBaseClass):
@@ -1212,15 +1438,18 @@ class CsvFileTable(TableAbstractBaseClass):
         if isinstance(schema, Schema) and not schema.has_columns():
             schema.addColumns(cols)
 
-        ## convert row names in the format [row_id]_[version] back to columns
-        row_id_version_pattern = re.compile(r'(\d+)_(\d+)')
+        ## convert row names in the format [row_id]_[version] or [row_id]_[version]_[etag] back to columns
+        etag_pattern = r'[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}' #etag is essentially a UUID
+        row_id_version_pattern = re.compile(r'(\d+)_(\d+)(_(' + etag_pattern + r'))?')
 
         row_id = []
         row_version = []
+        row_etag = []
         for row_name in df.index.values:
             m = row_id_version_pattern.match(str(row_name))
             row_id.append(m.group(1) if m else None)
             row_version.append(m.group(2) if m else None)
+            row_etag.append(m.group(4) if m else None)
 
         ## include row ID and version, if we're asked to OR if it's encoded in rownames
         if includeRowIdAndRowVersion or (includeRowIdAndRowVersion is None and any(row_id)):
@@ -1228,6 +1457,8 @@ class CsvFileTable(TableAbstractBaseClass):
 
             cls._insert_dataframe_column_if_not_exist(df2, 0, 'ROW_ID', row_id)
             cls._insert_dataframe_column_if_not_exist(df2, 1, 'ROW_VERSION', row_version)
+            if any(row_etag):
+                cls._insert_dataframe_column_if_not_exist(df2, 2,'ROW_ETAG', row_etag)
 
             df = df2
             includeRowIdAndRowVersion = True
@@ -1405,6 +1636,7 @@ class CsvFileTable(TableAbstractBaseClass):
         if row_id_col is None:
             raise SynapseError("Can't Delete. No ROW_IDs found.")
 
+        #TODO: this is deprecated, switch to transaction based async delete
         uri = '/entity/{id}/table/deleteRows'.format(id=self.tableId)
         return syn.restPOST(uri, body=json.dumps(RowSelection(
             rowIds=[row[row_id_col] for row in self],
@@ -1412,9 +1644,8 @@ class CsvFileTable(TableAbstractBaseClass):
             tableId=self.tableId)))
 
     def asDataFrame(self, rowIdAndVersionInIndex=True, convert_to_datetime = False):
-        """
-        
-        :param rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version
+        """Convert query result to a Pandas DataFrame.
+        :param rowIdAndVersionInIndex: Make the dataframe index consist of the row_id and row_version (and row_etag if it exists)
         :param convert_to_datetime: If set to True, will convert all Synapse DATE columns from UNIX timestamp integers into UTC datetime objects
         :return: 
         """
@@ -1455,9 +1686,15 @@ class CsvFileTable(TableAbstractBaseClass):
             ## combine row-ids (in index) and row-versions (in column 0) to
             ## make new row labels consisting of the row id and version
             ## separated by a dash.
-            df.index = row_labels_from_id_and_version(zip(df["ROW_ID"], df["ROW_VERSION"]))
+            zip_args = [df["ROW_ID"], df["ROW_VERSION"]]
+            if "ROW_ETAG" in df.columns:
+                zip_args.append(df['ROW_ETAG'])
+
+            df.index = row_labels_from_id_and_version(zip(*zip_args))
             del df["ROW_ID"]
             del df["ROW_VERSION"]
+            if "ROW_ETAG" in df.columns:
+                del df['ROW_ETAG']
 
         return df
 
@@ -1508,9 +1745,41 @@ class CsvFileTable(TableAbstractBaseClass):
                     quotechar=self.quoteCharacter)
                 if self.header:
                     header = next(reader)
+
                 for row in reader:
                     yield cast_values(row, headers)
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):
-        return sum(1 for row in self)
+        with io.open(self.filepath, encoding='utf-8') as f:
+            if self.header:  #ignore the header line
+                f.readline()
+
+            return sum(1 for line in f)
+
+    def iter_etags(self):
+        """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
+        it will generated as (row_id, None)
+
+        :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
+        """
+        with io.open(self.filepath, encoding='utf-8') as f:
+            if not self.header:
+                raise ValueError("The csv file must have headers in order to find the etag column")
+
+            reader = csv.reader(f,
+                                delimiter=self.separator,
+                                escapechar=self.escapeCharacter,
+                                lineterminator=self.lineEnd,
+                                quotechar=self.quoteCharacter)
+            header = next(reader)
+
+            #The ROW_... headers are always in a predefined order
+            row_id_index = header.index('ROW_ID')
+            try:
+                row_etag_index = header.index('ROW_ETAG')
+            except ValueError:
+                row_etag_index = None
+
+            for row in reader:
+                yield type(self).IdEtagTuple(int(row[row_id_index]), row[row_etag_index] if (row_etag_index is not None) else None)

@@ -10,7 +10,7 @@ import uuid, filecmp, os, sys, time, tempfile
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less, assert_is_not_none, assert_false
 
 import synapseclient
-from synapseclient import Project, Folder, File, Entity, Schema
+from synapseclient import Project, Folder, File, Entity, Schema, Link
 from synapseclient.exceptions import *
 import synapseutils
 import re
@@ -176,3 +176,46 @@ def test_syncFromSynapse__children_contain_non_file():
     files_list = synapseutils.syncFromSynapse(syn, proj, temp_folder)
     assert_equals(1, len(files_list))
     assert_equals(file_entity, files_list[0])
+
+def test_syncFromSynapse_Links():
+    """This function tests recursive download of links as defined in syncFromSynapse
+    most of the functionality of this function are already tested in the 
+    tests/integration/test_command_line_client::test_command_get_recursive_and_query
+
+    which means that the only test if for path=None
+    """
+    # Create a Project
+    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+
+    # Create a Folder in Project
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+    # Create a Folder hiearchy in folder_entity
+    inner_folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
+
+    second_folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
+
+
+    # Create and upload two files in Folder
+    uploaded_paths = []
+    for i in range(2):
+        f  = utils.make_bogus_data_file()
+        uploaded_paths.append(f)
+        schedule_for_cleanup(f)
+        file_entity = syn.store(File(f, parent=project_entity))
+        # Create links to inner folder
+        syn.store(Link(file_entity.id, parent=folder_entity))
+    #Add a file in the project level as well
+    f  = utils.make_bogus_data_file()
+    uploaded_paths.append(f)
+    schedule_for_cleanup(f)
+    file_entity = syn.store(File(f, parent=second_folder_entity))
+    # Create link to inner folder
+    syn.store(Link(file_entity.id, parent=inner_folder_entity))
+
+    ### Test recursive get
+    output = synapseutils.syncFromSynapse(syn, folder_entity, followLink=True)
+
+    assert len(output) == len(uploaded_paths)
+    for f in output:
+        assert f.path in uploaded_paths
