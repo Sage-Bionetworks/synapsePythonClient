@@ -56,10 +56,13 @@ def test_cast_values():
                       'columnType': 'INTEGER'},
                      {'id': '357',
                       'name': 'bonk',
-                      'columnType': 'BOOLEAN'}]
+                      'columnType': 'BOOLEAN'},
+                     {'id': '358',
+                      'name': 'boom',
+                      'columnType': 'LINK'}]
 
-    row = ('Finklestein', 'bat', '3.14159', '65535', 'true')
-    assert cast_values(row, selectColumns)==['Finklestein', 'bat', 3.14159, 65535, True]
+    row = ('Finklestein', 'bat', '3.14159', '65535', 'true', 'https://www.synapse.org/')
+    assert cast_values(row, selectColumns)==['Finklestein', 'bat', 3.14159, 65535, True, 'https://www.synapse.org/']
 
     ## group by
     selectColumns = [{'name': 'bonk',
