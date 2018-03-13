@@ -43,8 +43,8 @@ except ImportError:
     import ConfigParser as configparser
 
 import collections
-import os, sys, re, json, time
-import base64, hashlib, hmac
+import os, sys, re, time
+import base64, hashlib
 import six
 
 try:
@@ -71,11 +71,12 @@ import json
 from collections import OrderedDict
 import logging
 
-import synapseclient
 from . import concrete_types
 from . import cache
 from . import exceptions
 from . import cached_sessions
+from .credential_provider import SynapseCredentials
+from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from .exceptions import *
 from .version_check import version_check
 from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_directory, _is_integer
@@ -84,7 +85,7 @@ from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Column, TableQueryResult, CsvFileTable
+from .table import Schema, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
@@ -92,6 +93,8 @@ from .multipart_upload import multipart_upload, multipart_upload_string
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from .upload_functions import upload_file_handle, upload_synapse_s3
 from .dozer import doze
+
+import synapseclient
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -190,7 +193,7 @@ class Synapse(object):
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                  debug=None, skip_checks=False, configPath=CONFIG_FILE):
 
-        cache_root_dir = synapseclient.cache.CACHE_ROOT_DIR
+        cache_root_dir = cache.CACHE_ROOT_DIR
 
         config_debug = None
         # Check for a config file
@@ -205,13 +208,12 @@ class Synapse(object):
         if debug is None:
             debug = config_debug if config_debug is not None else DEBUG_DEFAULT
 
-        self.cache = synapseclient.cache.Cache(cache_root_dir)
+        self.cache = cache.Cache(cache_root_dir)
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
 
         self.default_headers = {'content-type': 'application/json; charset=UTF-8', 'Accept': 'application/json; charset=UTF-8'}
-        self.username = None
-        self.apiKey = None
+        self.credentials = None
         self.debug = debug #setter for debug initializes syn.logger also
         self.skip_checks = skip_checks
 
@@ -230,7 +232,7 @@ class Synapse(object):
     def debug(self, value):
         if not isinstance(value, bool):
             raise ValueError("debug must be set to a bool (either True or False)")
-        logger_name = synapseclient.DEBUG_LOGGER_NAME if value else synapseclient.DEFAULT_LOGGER_NAME
+        logger_name = DEBUG_LOGGER_NAME if value else DEFAULT_LOGGER_NAME
         self.logger = logging.getLogger(logger_name)
         self._debug = value
         logging.getLogger('py.warnings').handlers = self.logger.handlers
@@ -337,49 +339,49 @@ class Synapse(object):
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
-        if not self.skip_checks: version_check(synapseclient.__version__)
+        if not self.skip_checks: version_check()
 
         # Make sure to invalidate the existing session
         self.logout()
 
-        self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
+        self.credentials = self._get_login_credentials(email, password, apiKey, sessionToken)
 
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
-        if self.apiKey is None and not forced:
+        if self.credentials is None and not forced:
             #use most recently used username from cache if none provided as an argument
             cache_username = email if email is not None else cached_sessions.get_most_recent_user()
             #attempt to retrieve apiKey from cache
-            self.username, self.apiKey = self._get_login_credentials(username=cache_username, apikey=cached_sessions.get_API_key(cache_username))
+            self.credentials = self._get_login_credentials(username=cache_username, apikey=cached_sessions.get_API_key(cache_username))
 
             # If still no authentication, resort to reading the configuration file
-            if self.apiKey is None:
+            if self.credentials is None:
                 config_auth_dict = self._get_config_section_dict('authentication')#if no username provided, grab username from config file and check cache first for API key
                 if email is None:
                     config_username=config_auth_dict.get('username',None)
-                    self.username, self.apiKey = self._get_login_credentials(username=config_username, apikey=cached_sessions.get_API_key(config_username))
+                    self.credentials = self._get_login_credentials(username=config_username, apikey=cached_sessions.get_API_key(config_username))
 
                 # Login using configuration file and check against given username if provided
-                if self.apiKey is None:
+                if self.credentials is None:
                     #NOTE: in the case where sessionkey is the only option defined in the config file,
                     #we don't know the username until we _get_login_credentials()
                     config_username, config_apiKey = self._get_login_credentials(**config_auth_dict)
                     if email == None or email == config_username:
-                        self.username, self.apiKey = config_username, config_apiKey
+                        self.credentials = config_username, config_apiKey
 
         # Final check on login success
-        if self.apiKey is None:
+        if self.credentials is None:
             raise SynapseNoCredentialsError("No credentials provided.")
 
         # Save the API key in the cache
         if rememberMe:
-            cached_sessions.set_API_key(self.username, base64.b64encode(self.apiKey).decode())
-            cached_sessions.set_most_recent_user(self.username)
+            cached_sessions.set_API_key(self.credentials.username, base64.b64encode(self.credentials.apiKey).decode())
+            cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
             profile = self.getUserProfile(refresh=True)
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
-            self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
+            self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.credentials.username))
 
     def _get_config_section_dict(self, section_name):
         config = self.getConfigFile(self.configPath)
@@ -402,21 +404,21 @@ class Synapse(object):
         # login using email and password
         if username is not None and password is not None:
             sessionToken = self._getSessionToken(email=username, password=password)
-            return username, self._getAPIKey(sessionToken)
+            return SynapseCredentials(username, self._getAPIKey(sessionToken))
 
         # login using email and apiKey
         elif username is not None and apikey is not None:
-            return username, base64.b64decode(apikey)
+            return SynapseCredentials(username, base64.b64decode(apikey))
 
         # login using sessionToken
         elif sessiontoken is not None:
             sessionToken = self._getSessionToken(sessionToken=sessiontoken)
             returned_username = self.getUserProfile(sessionToken=sessiontoken)['userName']
             returned_apiKey = self._getAPIKey(sessionToken)
-            return returned_username, returned_apiKey
+            return SynapseCredentials(returned_username, returned_apiKey)
 
         else:
-            return None, None
+            return None
 
 
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
@@ -459,7 +461,7 @@ class Synapse(object):
     def _loggedIn(self):
         """Test whether the user is logged in to Synapse."""
 
-        if self.apiKey is None or self.username is None:
+        if self.credentials is None:
             return False
 
         try:
@@ -488,11 +490,10 @@ class Synapse(object):
 
         # Delete the user's API key from the cache
         if forgetMe:
-            cached_sessions.remove_API_key(self.username)
+            cached_sessions.remove_API_key(self.credentials.username)
 
         # Remove the authentication information from memory
-        self.username = None
-        self.apiKey = None
+        self.credentials = None
 
 
     def invalidateAPIKey(self):
@@ -1214,7 +1215,7 @@ class Synapse(object):
                 self._list(result['entity.id'], recursive=recursive, long_format=long_format, show_modified=show_modified, indent=indent+2, out=out)
 
         if indent==0 and not results_found:
-            out.write('No results visible to {username} found for id {id}\n'.format(username=self.username, id=id_of(parent)))
+            out.write('No results visible to {username} found for id {id}\n'.format(username=self.credentials.username, id=id_of(parent)))
 
 
     ############################################################
@@ -2314,7 +2315,7 @@ class Synapse(object):
                 else:
                     raise ValueError("Can't find team \"{}\"".format(id))
             else:
-                raise ValueError("Can't find team \"{}\"".format(u(id)))
+                raise ValueError("Can't find team \"{}\"".format(id))
         return Team(**self.restGET('/team/%s' % id))
 
 
@@ -3151,7 +3152,7 @@ class Synapse(object):
         ## get table ID, given a string, Table or Schema
         if isinstance(table, six.string_types):
             table_id = table
-        elif isinstance(table, synapseclient.table.TableAbstractBaseClass):
+        elif isinstance(table, TableAbstractBaseClass):
             table_id = table.tableId
         elif isinstance(table, Schema):
             table_id = table.id
@@ -3472,7 +3473,7 @@ class Synapse(object):
     def _generateSignedHeaders(self, url, headers=None):
         """Generate headers signed with the API key."""
 
-        if self.username is None or self.apiKey is None:
+        if self.credentials is None:
             raise SynapseAuthenticationError("Please login")
 
         if headers is None:
@@ -3480,18 +3481,7 @@ class Synapse(object):
 
         headers.update(synapseclient.USER_AGENT)
 
-        sig_timestamp = time.strftime(utils.ISO_FORMAT, time.gmtime())
-        url = urlparse(url).path
-        sig_data = self.username + url + sig_timestamp
-        signature = base64.b64encode(hmac.new(self.apiKey,
-            sig_data.encode('utf-8'),
-            hashlib.sha1).digest())
-
-        sig_header = {'userId'             : self.username,
-                      'signatureTimestamp' : sig_timestamp,
-                      'signature'          : signature}
-
-        headers.update(sig_header)
+        headers.update(self.credentials.get_signed_headers(url))
         return headers
 
 
