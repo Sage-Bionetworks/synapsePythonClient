@@ -1,5 +1,5 @@
 import os, json, tempfile, base64, sys
-from mock import patch, mock_open, call
+from mock import patch, call
 from builtins import str
 
 import uuid
@@ -210,36 +210,6 @@ def test_send_message():
             assert_equal(msg["subject"] , "Xanadu", msg)
 
 
-def test_readSessionCache_bad_file_data():
-    with patch("os.path.isfile", return_value=True), \
-         patch("os.path.join"):
-
-        bad_cache_file_data = [
-                            '[]\n', # empty array
-                            '["dis"]\n', # array w/ element
-                            '{"is"}\n', # set with element ( '{}' defaults to empty map so no case for that)
-                            '[{}]\n', # array with empty set inside.
-                            '[{"snek"}]\n', # array with nonempty set inside
-                            'hissss\n' # string
-                            ]
-        expectedDict = {} # empty map
-        # read each bad input and makes sure an empty map is returned instead
-        for bad_data in bad_cache_file_data:
-            with patch("synapseclient.client.open", mock_open(read_data=bad_data), create=True):
-                assert_equal(expectedDict, syn._readSessionCache())
-
-
-def test_readSessionCache_good_file_data():
-    with patch("os.path.isfile", return_value=True), \
-         patch("os.path.join"):
-
-        expectedDict = {'AzureDiamond': 'hunter2',
-                        'ayy': 'lmao'}
-        good_data = json.dumps(expectedDict)
-        with patch("synapseclient.client.open", mock_open(read_data=good_data), create=True):
-            assert_equal(expectedDict, syn._readSessionCache())
-
- 
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
 def test__uploadExternallyStoringProjects_external_user(mock_upload_destination):
     # setup

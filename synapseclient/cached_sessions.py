@@ -1,0 +1,76 @@
+import keyring
+import os
+import json
+import warnings
+
+from keyring.errors import PasswordDeleteError
+from keyring.backends.fail import Keyring as FailKeyring
+
+
+SYNAPSE_CACHED_SESSION_APLICATION_NAME = "<SYNAPSE.ORG CLIENT>"
+SESSION_CAHCE_FILEPATH = os.path.expanduser("~/.synapseSession")
+
+# In the case where no key store backend is available (most likely in Linux), a fail.Keyring is returned which will throw errors when any of its functions are called
+# However, the errors thrown are of the generic type RuntimeError (not a subclass of RuntimeError).
+# It didn't feel safe to try/except and ignore RuntimeError since there are very many other RuntimeErrors that could occur.
+# Instead, we use this boolean to keep track of whether we should call the keyring methods
+_keyring_is_available = not isinstance(keyring.get_keyring(), FailKeyring)
+
+
+def get_API_key(username):
+    """
+    Retrieves the user's API key
+    :param str username:
+    :return: API key for the specified username
+    :rtype: str
+    """
+    if _keyring_is_available:
+        return keyring.get_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
+    return None
+
+def remove_API_key(username):
+    if _keyring_is_available:
+        try:
+            keyring.delete_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
+            return True
+        except PasswordDeleteError:
+            #The API key does not exist
+            return False
+
+    return False
+
+def set_API_key(username, API_key):
+    if _keyring_is_available:
+        keyring.set_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username, API_key)
+    else:
+        warnings.warn("Unable to save user credentials as you do not have a keyring available. "
+                      "If you are on a headless Linux session (for example, connecting via SSH), "
+                      "please refer to https://pypi.python.org/pypi/keyring#using-keyring-on-headless-linux-systems"
+                      " to enable credential storage")
+
+def get_most_recent_user():
+    session_cache = _readSessionCache()
+    return session_cache.get("<mostRecent>")
+
+def set_most_recent_user(username):
+    cachedSessions = {"<mostRecent>": username}
+    _writeSessionCache(cachedSessions)
+
+
+def _readSessionCache():
+    """Returns the JSON contents of CACHE_DIR/SESSION_FILENAME."""
+    if os.path.isfile(SESSION_CAHCE_FILEPATH):
+        try:
+            file = open(SESSION_CAHCE_FILEPATH, 'r')
+            result = json.load(file)
+            if isinstance(result, dict):
+                return result
+        except: pass
+    return {}
+
+
+def _writeSessionCache(data):
+    """Dumps the JSON data into CACHE_DIR/SESSION_FILENAME."""
+    with open(SESSION_CAHCE_FILEPATH, 'w') as file:
+        json.dump(data, file)
+        file.write('\n') # For compatibility with R's JSON parser

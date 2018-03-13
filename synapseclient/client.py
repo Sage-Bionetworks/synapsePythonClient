@@ -75,6 +75,7 @@ import synapseclient
 from . import concrete_types
 from . import cache
 from . import exceptions
+from . import cached_sessions
 from .exceptions import *
 from .version_check import version_check
 from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_directory, _is_integer
@@ -346,19 +347,17 @@ class Synapse(object):
         # If supplied arguments are not enough
         # Try fetching the information from the API key cache
         if self.apiKey is None and not forced:
-            cachedSessions = self._readSessionCache()
-
             #use most recently used username from cache if none provided as an argument
-            cache_username = email if email is not None else cachedSessions.get("<mostRecent>", None)
+            cache_username = email if email is not None else cached_sessions.get_most_recent_user()
             #attempt to retrieve apiKey from cache
-            self.username, self.apiKey = self._get_login_credentials(username=cache_username, apikey=cachedSessions.get(cache_username, None))
+            self.username, self.apiKey = self._get_login_credentials(username=cache_username, apikey=cached_sessions.get_API_key(cache_username))
 
             # If still no authentication, resort to reading the configuration file
             if self.apiKey is None:
                 config_auth_dict = self._get_config_section_dict('authentication')#if no username provided, grab username from config file and check cache first for API key
                 if email is None:
                     config_username=config_auth_dict.get('username',None)
-                    self.username, self.apiKey = self._get_login_credentials(username=config_username, apikey=cachedSessions.get(config_username, None))
+                    self.username, self.apiKey = self._get_login_credentials(username=config_username, apikey=cached_sessions.get_API_key(config_username))
 
                 # Login using configuration file and check against given username if provided
                 if self.apiKey is None:
@@ -374,12 +373,8 @@ class Synapse(object):
 
         # Save the API key in the cache
         if rememberMe:
-            cachedSessions = self._readSessionCache()
-            cachedSessions[self.username] = base64.b64encode(self.apiKey).decode()
-
-            # Note: make sure this key cannot conflict with usernames by using invalid username characters
-            cachedSessions["<mostRecent>"] = self.username
-            self._writeSessionCache(cachedSessions)
+            cached_sessions.set_API_key(self.username, base64.b64encode(self.apiKey).decode())
+            cached_sessions.set_most_recent_user(self.username)
 
         if not silent:
             profile = self.getUserProfile(refresh=True)
@@ -461,27 +456,6 @@ class Synapse(object):
         return base64.b64decode(secret['secretKey'])
 
 
-    def _readSessionCache(self):
-        """Returns the JSON contents of CACHE_DIR/SESSION_FILENAME."""
-        sessionFile = os.path.join(self.cache.cache_root_dir, SESSION_FILENAME)
-        if os.path.isfile(sessionFile):
-            try:
-                file = open(sessionFile, 'r')
-                result = json.load(file)
-                if isinstance(result, dict):
-                    return result
-            except: pass
-        return {}
-
-
-    def _writeSessionCache(self, data):
-        """Dumps the JSON data into CACHE_DIR/SESSION_FILENAME."""
-        sessionFile = os.path.join(self.cache.cache_root_dir, SESSION_FILENAME)
-        with open(sessionFile, 'w') as file:
-            json.dump(data, file)
-            file.write('\n') # For compatibility with R's JSON parser
-
-
     def _loggedIn(self):
         """Test whether the user is logged in to Synapse."""
 
@@ -514,10 +488,7 @@ class Synapse(object):
 
         # Delete the user's API key from the cache
         if forgetMe:
-            cachedSessions = self._readSessionCache()
-            if self.username in cachedSessions:
-                del cachedSessions[self.username]
-                self._writeSessionCache(cachedSessions)
+            cached_sessions.remove_API_key(self.username)
 
         # Remove the authentication information from memory
         self.username = None
