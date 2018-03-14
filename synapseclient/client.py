@@ -352,22 +352,22 @@ class Synapse(object):
             #use most recently used username from cache if none provided as an argument
             cache_username = email if email is not None else cached_sessions.get_most_recent_user()
             #attempt to retrieve apiKey from cache
-            self.credentials = self._get_login_credentials(username=cache_username, apikey=cached_sessions.get_API_key(cache_username))
+            self.credentials = self._get_login_credentials(username=cache_username, skip_cache=forced)
 
             # If still no authentication, resort to reading the configuration file
             if self.credentials is None:
                 config_auth_dict = self._get_config_section_dict('authentication')#if no username provided, grab username from config file and check cache first for API key
                 if email is None:
                     config_username=config_auth_dict.get('username',None)
-                    self.credentials = self._get_login_credentials(username=config_username, apikey=cached_sessions.get_API_key(config_username))
+                    self.credentials = self._get_login_credentials(username=config_username, skip_cache=forced)
 
                 # Login using configuration file and check against given username if provided
                 if self.credentials is None:
                     #NOTE: in the case where sessionkey is the only option defined in the config file,
                     #we don't know the username until we _get_login_credentials()
-                    config_username, config_apiKey = self._get_login_credentials(**config_auth_dict)
-                    if email == None or email == config_username:
-                        self.credentials = config_username, config_apiKey
+                    config_credentials = self._get_login_credentials(skip_cache=forced, **config_auth_dict)
+                    if email == None or email == config_credentials.username:
+                        self.credentials = config_credentials
 
         # Final check on login success
         if self.credentials is None:
@@ -375,7 +375,7 @@ class Synapse(object):
 
         # Save the API key in the cache
         if rememberMe:
-            cached_sessions.set_API_key(self.credentials.username, base64.b64encode(self.credentials.apiKey).decode())
+            cached_sessions.set_API_key(self.credentials.username, base64.b64encode(self.credentials.api_key).decode())
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
@@ -395,23 +395,24 @@ class Synapse(object):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
-    def _get_login_credentials(self, username=None, password=None, apikey=None, sessiontoken=None):
+    def _get_login_credentials(self, username=None, password=None, apikey=None, sessiontoken=None, skip_cache=False):
         """
         :return: username and the api key used for client authenticaiton
         """
         #NOTE: variable names are set to match the names of keys in the authentication section in the .synapseConfig files
 
         # login using email and password
-        if username is not None and password is not None:
-            sessionToken = self._getSessionToken(email=username, password=password)
-            return SynapseCredentials(username, self._getAPIKey(sessionToken))
+        if username is not None:
+            if not skip_cache and apikey is None: # retrieve cached api key
+                apikey = cached_sessions.get_API_key(username)
 
-        # login using email and apiKey
-        elif username is not None and apikey is not None:
-            return SynapseCredentials(username, base64.b64decode(apikey))
+            if password is not None: #login using email and password
+                sessionToken = self._getSessionToken(email=username, password=password)
+                return SynapseCredentials(username, self._getAPIKey(sessionToken))
+            elif apikey is not None: # login using email and apiKey
+                return SynapseCredentials(username, base64.b64decode(apikey))
 
-        # login using sessionToken
-        elif sessiontoken is not None:
+        elif sessiontoken is not None: # login using sessionToken
             sessionToken = self._getSessionToken(sessionToken=sessiontoken)
             returned_username = self.getUserProfile(sessionToken=sessiontoken)['userName']
             returned_apiKey = self._getAPIKey(sessionToken)
@@ -3477,7 +3478,7 @@ class Synapse(object):
             raise SynapseAuthenticationError("Please login")
 
         if headers is None:
-            headers = dict(self.default_headers)
+            headers = {}
 
         headers.update(synapseclient.USER_AGENT)
 

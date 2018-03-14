@@ -19,7 +19,8 @@ from six import with_metaclass
 
 import utils
 
-
+#TODO: either need to pass in a synapse client or reafactor out the code that gets the API key from URI's
+#TODO: Either way, need to be able to swap endpoints easily.
 
 
 
@@ -49,26 +50,35 @@ class SynapseCredentials(object): #TODO: if no additional functionality needed, 
                       'signature': signature}
         return sig_header
 
+class SynapseAuthInformationProvider(with_metaclass(ABCMeta)):
+    def get_credentials(self):
+        self.get_auth_info()
 
-class SynapseCredentialProvider(with_metaclass(ABCMeta)):
     @abstractmethod
+    def get_auth_info(self):
+        pass #TODO return info about what is the user password apikey or sesion_token
+
+class UserArgAuthInformationProvider(SynapseAuthInformationProvider):
+    def __init__(self, username, password, api_key, session_token):
+        if username is None and (password is not None or api_key is not None):
+                raise ValueError('Username must also be specified with a password or API key')
+        self.username = username
+        self.password = password
+        self.api_key = api_key
+        self.session_token = session_token
+    def get_credentials(self):
+        return {} #TODO
+
+class CachedUsernameAuthInformationProvider(SynapseAuthInformationProvider):
+    pass
+
+
+class ConfigFileAuthInformationProvider(SynapseAuthInformationProvider):
     def get_credentials(self):
         pass
 
-class UserArgCredentialProvider(SynapseCredentialProvider):
-    def get_credentials(self):
-        pass
 
-class CacheCredentialProvider(SynapseCredentialProvider):
-    def get_credentials(self):
-        pass
-
-class ConfigFileCredentialProvider(SynapseCredentialProvider):
-    def get_credentials(self):
-        pass
-
-
-class SynapseCredentialProviderChain(object):
+class SynapseAuthInformationProviderChain(object):
     def __init__(self, cred_providers):
         """
 
@@ -87,4 +97,12 @@ class SynapseCredentialProviderChain(object):
         return None
 
 
-def get_default_credential_chain():
+def get_default_auth_information_chain(username, password, api_key, session_token, skip_cache = False):
+
+
+
+    credential_providers = [UserArgAuthInformationProvider(username, password, api_key, session_token),
+                            ]
+
+
+
