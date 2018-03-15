@@ -44,7 +44,7 @@ except ImportError:
 
 import collections
 import os, sys, re, time
-import base64, hashlib
+import hashlib
 import six
 
 try:
@@ -345,18 +345,19 @@ class Synapse(object):
         # Make sure to invalidate the existing session
         self.logout()
 
-        user_login_args = UserLoginArgs(username, password, apiKey, sessionToken, forced) #TODO: maybe just need a dict instead?
-        credentail_provder_chain = get_default_credential_chain(user_args)
-        self.credentials = credentail_provder_chain.get_credentials(None)
+        credentail_provder_chain = get_default_credential_chain()
+        user_login_args = UserLoginArgs(email, password, apiKey, sessionToken, forced)
+        self.credentials = credentail_provder_chain.get_credentials(self, user_login_args)
 
         # Final check on login success
         if self.credentials is None:
             #TODO: attempt to connect to synapse in the case where an api key is provided
             raise SynapseNoCredentialsError("No credentials provided.")
+        #TODO: maybe verify the API key (in the case where we used a cached copy)?
 
         # Save the API key in the cache
         if rememberMe:
-            cached_sessions.set_API_key(self.credentials.username, base64.b64encode(self.credentials.api_key).decode())
+            cached_sessions.set_API_key(self.credentials.username, self.credentials.api_key)
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
@@ -376,39 +377,30 @@ class Synapse(object):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
-    def _get_login_credentials(self, username=None, password=None, apikey=None, sessiontoken=None, skip_cache=False):
+    def _get_login_credentials(self, username=None, password=None, sessiontoken=None):
         """
         :return: username and the api key used for client authenticaiton
         """
         #NOTE: variable names are set to match the names of keys in the authentication section in the .synapseConfig files
 
         # login using username and cached apikey
-        if username is not None:
-            if not skip_cache and apikey is None:
-                # retrieve cached api key if none are set this stills follows the password auth path if password was specified
-                apikey = cached_sessions.get_API_key(username)
 
-            elif apikey is not None: # login using email and apiKey
-                return SynapseCredentials(username, base64.b64decode(apikey))
-
-        # login using sessionToken
         retrieved_session_token = self._getSessionToken(email=username, password=password, sessionToken=sessiontoken)
-        returned_apiKey = self._getAPIKey(retrieved_session_token)
-
-        returned_username = self.getUserProfile(sessionToken=sessiontoken)['userName'] if sessiontoken else username
-
-        return SynapseCredentials(returned_username, returned_apiKey)
+        if retrieved_session_token is not None:
+            returned_apiKey = self._getAPIKey(retrieved_session_token)
+            returned_username = self.getUserProfile(sessionToken=sessiontoken)['userName'] if sessiontoken else username
+            return returned_username, returned_apiKey
+        return None, None
 
 
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
         """Returns a validated session token."""
         if email is not None and password is not None:
             # Login normally
-            self._fetch_new_session_token(email, password)
+            return self._fetch_new_session_token(email, password)
         elif sessionToken is not None:
             return self._refresh_sesssion_token(sessionToken)
-        else:
-            raise SynapseNoCredentialsError("No credentials provided.")
+        return None
 
     def _fetch_new_session_token(self, email, password):
         try:
@@ -442,7 +434,7 @@ class Synapse(object):
 
         headers = {'sessionToken' : sessionToken, 'Accept': 'application/json'}
         secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
-        return base64.b64decode(secret['secretKey'])
+        return secret['secretKey']
 
 
     def _loggedIn(self):

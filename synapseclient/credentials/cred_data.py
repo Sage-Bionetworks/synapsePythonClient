@@ -14,9 +14,19 @@ class SynapseCredentials(object): #TODO: inherit requests.AuthBase so that this 
     """
     Credentials used to make requests to Synapse.
     """
-    def __init__(self, username, api_key):
+
+    #api key is actually stored as base64 value but setting and getting it will use the base64 encoded string representation
+    @property
+    def api_key(self):
+        return base64.b64encode(self._api_key).decode()
+
+    @api_key.setter
+    def api_key(self, value):
+        self._api_key = base64.b64decode(value)
+
+    def __init__(self, username, api_key_string):
         self.username = username
-        self.api_key = api_key
+        self.api_key = api_key_string
 
     def get_signed_headers(self, url):
         """
@@ -27,7 +37,7 @@ class SynapseCredentials(object): #TODO: inherit requests.AuthBase so that this 
         sig_timestamp = time.strftime(synapseclient.utils.ISO_FORMAT, time.gmtime())
         url = urlparse(url).path
         sig_data = self.username + url + sig_timestamp
-        signature = base64.b64encode(hmac.new(self.api_key,
+        signature = base64.b64encode(hmac.new(self._api_key,
                                               sig_data.encode('utf-8'),
                                               hashlib.sha1).digest())
 
@@ -37,4 +47,4 @@ class SynapseCredentials(object): #TODO: inherit requests.AuthBase so that this 
         return sig_header
 
 #a class that just contains args passed form synapse client login
-UserLoginArgs = namedtuple('UserLoginArgs', ['username','password','api_key','session_token','use_cache'])
+UserLoginArgs = namedtuple('UserLoginArgs', ['username','password','api_key','session_token','skip_cache'])

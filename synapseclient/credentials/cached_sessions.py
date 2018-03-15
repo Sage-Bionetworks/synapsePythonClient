@@ -2,7 +2,6 @@ import keyring
 import os
 import json
 import warnings
-
 from keyring.errors import PasswordDeleteError
 from keyring.backends.fail import Keyring as FailKeyring
 
