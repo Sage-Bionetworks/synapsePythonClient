@@ -74,8 +74,9 @@ import logging
 from . import concrete_types
 from . import cache
 from . import exceptions
-from . import cached_sessions
-from .credential_provider import SynapseCredentials
+from .credentials import cached_sessions
+from .credentials.cred_data import SynapseCredentials, UserLoginArgs
+from .credentials.credential_provider import get_default_credential_chain
 from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from .exceptions import *
 from .version_check import version_check
@@ -344,33 +345,13 @@ class Synapse(object):
         # Make sure to invalidate the existing session
         self.logout()
 
-        self.credentials = self._get_login_credentials(email, password, apiKey, sessionToken)
-
-        # If supplied arguments are not enough
-        # Try fetching the information from the API key cache
-        if self.credentials is None and not forced:
-            #use most recently used username from cache if none provided as an argument
-            cache_username = email if email is not None else cached_sessions.get_most_recent_user()
-            #attempt to retrieve apiKey from cache
-            self.credentials = self._get_login_credentials(username=cache_username, skip_cache=forced)
-
-            # If still no authentication, resort to reading the configuration file
-            if self.credentials is None:
-                config_auth_dict = self._get_config_section_dict('authentication')#if no username provided, grab username from config file and check cache first for API key
-                if email is None:
-                    config_username=config_auth_dict.get('username',None)
-                    self.credentials = self._get_login_credentials(username=config_username, skip_cache=forced)
-
-                # Login using configuration file and check against given username if provided
-                if self.credentials is None:
-                    #NOTE: in the case where sessionkey is the only option defined in the config file,
-                    #we don't know the username until we _get_login_credentials()
-                    config_credentials = self._get_login_credentials(skip_cache=forced, **config_auth_dict)
-                    if email == None or email == config_credentials.username:
-                        self.credentials = config_credentials
+        user_login_args = UserLoginArgs(username, password, apiKey, sessionToken, forced) #TODO: maybe just need a dict instead?
+        credentail_provder_chain = get_default_credential_chain(user_args)
+        self.credentials = credentail_provder_chain.get_credentials(None)
 
         # Final check on login success
         if self.credentials is None:
+            #TODO: attempt to connect to synapse in the case where an api key is provided
             raise SynapseNoCredentialsError("No credentials provided.")
 
         # Save the API key in the cache
@@ -379,7 +360,7 @@ class Synapse(object):
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
-            profile = self.getUserProfile(refresh=True)
+            profile = self.getUserProfile(refresh=True) #TODO: duplicate
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
             self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.credentials.username))
 
@@ -401,55 +382,60 @@ class Synapse(object):
         """
         #NOTE: variable names are set to match the names of keys in the authentication section in the .synapseConfig files
 
-        # login using email and password
+        # login using username and cached apikey
         if username is not None:
-            if not skip_cache and apikey is None: # retrieve cached api key
+            if not skip_cache and apikey is None:
+                # retrieve cached api key if none are set this stills follows the password auth path if password was specified
                 apikey = cached_sessions.get_API_key(username)
 
-            if password is not None: #login using email and password
-                sessionToken = self._getSessionToken(email=username, password=password)
-                return SynapseCredentials(username, self._getAPIKey(sessionToken))
             elif apikey is not None: # login using email and apiKey
                 return SynapseCredentials(username, base64.b64decode(apikey))
 
-        elif sessiontoken is not None: # login using sessionToken
-            sessionToken = self._getSessionToken(sessionToken=sessiontoken)
-            returned_username = self.getUserProfile(sessionToken=sessiontoken)['userName']
-            returned_apiKey = self._getAPIKey(sessionToken)
-            return SynapseCredentials(returned_username, returned_apiKey)
+        # login using sessionToken
+        retrieved_session_token = self._getSessionToken(email=username, password=password, sessionToken=sessiontoken)
+        returned_apiKey = self._getAPIKey(retrieved_session_token)
 
-        else:
-            return None
+        returned_username = self.getUserProfile(sessionToken=sessiontoken)['userName'] if sessiontoken else username
+
+        return SynapseCredentials(returned_username, returned_apiKey)
 
 
     def _getSessionToken(self, email=None, password=None, sessionToken=None):
         """Returns a validated session token."""
         if email is not None and password is not None:
             # Login normally
-            try:
-                req = {'email' : email, 'password' : password}
-                session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.default_headers)
-                return session['sessionToken']
-            except SynapseHTTPError as err:
-                if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
-                    raise SynapseAuthenticationError("Invalid username or password.")
-                raise
-
+            self._fetch_new_session_token(email, password)
         elif sessionToken is not None:
-            # Validate the session token
-            try:
-                token = {'sessionToken' : sessionToken}
-                response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint, headers=self.default_headers)
-
-                # Success!
-                return sessionToken
-
-            except SynapseHTTPError as err:
-                if err.response.status_code == 401:
-                    raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
-                raise
+            return self._refresh_sesssion_token(sessionToken)
         else:
             raise SynapseNoCredentialsError("No credentials provided.")
+
+    def _fetch_new_session_token(self, email, password):
+        try:
+            req = {'email': email, 'password': password}
+            session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint,
+                                    headers=self.default_headers)
+            return session['sessionToken']
+        except SynapseHTTPError as err:
+            if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
+                raise SynapseAuthenticationError("Invalid username or password.")
+            raise
+
+    def _refresh_sesssion_token(self, sessionToken):
+        # Validate the session token
+        try:
+            token = {'sessionToken': sessionToken}
+            response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint,
+                                    headers=self.default_headers)
+
+            # Success!
+            return sessionToken
+
+        except SynapseHTTPError as err:
+            if err.response.status_code == 401:
+                raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
+            raise
+
 
     def _getAPIKey(self, sessionToken):
         """Uses a session token to fetch an API key."""
