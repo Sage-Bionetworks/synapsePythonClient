@@ -48,28 +48,27 @@ def set_api_key(username, api_key):
 
 
 def get_most_recent_user():
-    session_cache = _readSessionCache()
+    session_cache = _read_session_cache()
     return session_cache.get("<mostRecent>")
 
 
 def set_most_recent_user(username):
     cachedSessions = {"<mostRecent>": username}
-    _writeSessionCache(cachedSessions)
+    _write_session_cache(cachedSessions)
 
 
-def _readSessionCache():
+def _read_session_cache():
     """Returns the JSON contents of CACHE_DIR/SESSION_FILENAME."""
-    if os.path.isfile(SESSION_CAHCE_FILEPATH):
-        try:
-            file = open(SESSION_CAHCE_FILEPATH, 'r')
-            result = json.load(file)
-            if isinstance(result, dict):
-                return result
-        except: pass
+    try:
+        file = open(SESSION_CAHCE_FILEPATH, 'r')
+        result = json.load(file)
+        if isinstance(result, dict):
+            return result
+    except: pass
     return {}
 
 
-def _writeSessionCache(data):
+def _write_session_cache(data):
     """Dumps the JSON data into CACHE_DIR/SESSION_FILENAME."""
     with open(SESSION_CAHCE_FILEPATH, 'w') as file:
         json.dump(data, file)
