@@ -1,6 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from six import with_metaclass
-from .cred_data import SynapseCredentials
+from cred_data import SynapseCredentials
 import cached_sessions
 
 
@@ -65,7 +65,7 @@ class ConfigSessionTokenCredentialsProvider(SynapseCredentialsProvider):
 class CachedUserNameCredentialsProvider(SynapseCredentialsProvider):
     def get_username_and_api_key(self, syn, user_login_args):
         if not user_login_args.skip_cache:
-            cached_api_key = cached_sessions.get_API_key(user_login_args.username)
+            cached_api_key = cached_sessions.get_api_key(user_login_args.username)
             if cached_api_key is not None:
                 return user_login_args.username, cached_api_key
         return None, None
@@ -78,7 +78,7 @@ class CachedRecentlyUsedUsernameCredentialsProvider(SynapseCredentialsProvider):
     def get_username_and_api_key(self, syn, user_login_args):
         if not user_login_args.skip_cache and user_login_args.username is None: #don't use the cached recent used username, if a username was specified
             username = cached_sessions.get_most_recent_user()
-            return username, cached_sessions.get_API_key(username)
+            return username, cached_sessions.get_api_key(username)
         return None, None
 
 

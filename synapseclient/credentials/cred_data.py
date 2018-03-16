@@ -15,7 +15,7 @@ class SynapseCredentials(object): #TODO: inherit requests.AuthBase so that this 
     Credentials used to make requests to Synapse.
     """
 
-    #api key is actually stored as base64 value but setting and getting it will use the base64 encoded string representation
+    #setting and getting api_key it will use the base64 encoded string representation
     @property
     def api_key(self):
         return base64.b64encode(self._api_key).decode()
@@ -41,10 +41,13 @@ class SynapseCredentials(object): #TODO: inherit requests.AuthBase so that this 
                                               sig_data.encode('utf-8'),
                                               hashlib.sha1).digest())
 
-        sig_header = {'userId': self.username,
-                      'signatureTimestamp': sig_timestamp,
-                      'signature': signature}
-        return sig_header
+        return {'userId': self.username,
+                'signatureTimestamp': sig_timestamp,
+                'signature': signature}
+
+    def __repr__(self):
+        return "SynapseCredentials(username='%s', api_key_string='%s')" % (self.username, self.api_key)
+
 
 #a class that just contains args passed form synapse client login
 UserLoginArgs = namedtuple('UserLoginArgs', ['username','password','api_key','session_token','skip_cache'])

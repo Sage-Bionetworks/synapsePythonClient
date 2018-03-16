@@ -16,7 +16,7 @@ SESSION_CAHCE_FILEPATH = os.path.expanduser("~/.synapseSession")
 _keyring_is_available = not isinstance(keyring.get_keyring(), FailKeyring)
 
 
-def get_API_key(username):
+def get_api_key(username):
     """
     Retrieves the user's API key
     :param str username:
@@ -27,29 +27,30 @@ def get_API_key(username):
         return keyring.get_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
     return None
 
-def remove_API_key(username):
+
+def remove_api_key(username):
     if _keyring_is_available:
         try:
             keyring.delete_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
-            return True
         except PasswordDeleteError:
-            #The API key does not exist
-            return False
+            #The API key does not exist, but that is fine
+            pass
 
-    return False
 
-def set_API_key(username, API_key):
+def set_api_key(username, api_key):
     if _keyring_is_available:
-        keyring.set_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username, API_key)
+        keyring.set_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username, api_key)
     else:
         warnings.warn("Unable to save user credentials as you do not have a keyring available. "
                       "If you are on a headless Linux session (for example, connecting via SSH), "
                       "please refer to https://pypi.python.org/pypi/keyring#using-keyring-on-headless-linux-systems"
                       " to enable credential storage")
 
+
 def get_most_recent_user():
     session_cache = _readSessionCache()
     return session_cache.get("<mostRecent>")
+
 
 def set_most_recent_user(username):
     cachedSessions = {"<mostRecent>": username}

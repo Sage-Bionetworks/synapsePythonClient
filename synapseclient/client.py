@@ -74,9 +74,7 @@ import logging
 from . import concrete_types
 from . import cache
 from . import exceptions
-from .credentials import cached_sessions
-from .credentials.cred_data import SynapseCredentials, UserLoginArgs
-from .credentials.credential_provider import get_default_credential_chain
+from .credentials import cached_sessions, UserLoginArgs, get_default_credential_chain
 from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from .exceptions import *
 from .version_check import version_check
@@ -215,7 +213,7 @@ class Synapse(object):
 
         self.default_headers = {'content-type': 'application/json; charset=UTF-8', 'Accept': 'application/json; charset=UTF-8'}
         self.credentials = None
-        self.debug = debug #setter for debug initializes syn.logger also
+        self.debug = debug #setter for debug initializes self.logger also
         self.skip_checks = skip_checks
 
         self.table_query_sleep = 2
@@ -237,6 +235,11 @@ class Synapse(object):
         self.logger = logging.getLogger(logger_name)
         self._debug = value
         logging.getLogger('py.warnings').handlers = self.logger.handlers
+
+
+    @property
+    def username(self): #for backwards compatability when username was a part of the Synapse object and not in credentials
+        return self.credentials.username
 
 
     def getConfigFile(self, configPath):
@@ -357,13 +360,14 @@ class Synapse(object):
 
         # Save the API key in the cache
         if rememberMe:
-            cached_sessions.set_API_key(self.credentials.username, self.credentials.api_key)
+            cached_sessions.set_api_key(self.credentials.username, self.credentials.api_key)
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
             profile = self.getUserProfile(refresh=True) #TODO: duplicate
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
             self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.credentials.username))
+
 
     def _get_config_section_dict(self, section_name):
         config = self.getConfigFile(self.configPath)
@@ -373,9 +377,11 @@ class Synapse(object):
             # section not present
             return {}
 
+
     def _get_client_authenticated_s3_profile(self, endpoint, bucket):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
+
 
     def _get_login_credentials(self, username=None, password=None, sessiontoken=None):
         """
@@ -402,6 +408,7 @@ class Synapse(object):
             return self._refresh_sesssion_token(sessionToken)
         return None
 
+
     def _fetch_new_session_token(self, email, password):
         try:
             req = {'email': email, 'password': password}
@@ -412,6 +419,7 @@ class Synapse(object):
             if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
                 raise SynapseAuthenticationError("Invalid username or password.")
             raise
+
 
     def _refresh_sesssion_token(self, sessionToken):
         # Validate the session token
@@ -469,7 +477,7 @@ class Synapse(object):
 
         # Delete the user's API key from the cache
         if forgetMe:
-            cached_sessions.remove_API_key(self.credentials.username)
+            cached_sessions.remove_api_key(self.credentials.username)
 
         # Remove the authentication information from memory
         self.credentials = None
