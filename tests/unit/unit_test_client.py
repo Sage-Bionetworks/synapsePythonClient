@@ -45,7 +45,7 @@ class TestLogout():
 
 class TestLogin():
     def setup(self):
-        self.login_args = {'username':"AzureDiamond", "password":"hunter2"}
+        self.login_args = {'email':"AzureDiamond", "password":"hunter2"}
         self.expected_user_args = UserLoginArgs(username="AzureDiamond", password="hunter2", session_token=None, api_key=None, skip_cache=False)
         self.synapse_creds = SynapseCredentials("AzureDiamond", base64.b64encode("*******").decode())
 

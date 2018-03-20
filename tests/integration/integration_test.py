@@ -53,7 +53,7 @@ def test_login():
         syn.login(username, password, silent=True)
         
         # Login with ID + API key
-        syn.login(username=username, apiKey=base64.b64encode(syn.apiKey), silent=True)
+        syn.login(email=username, apiKey=base64.b64encode(syn.credentials.api_key), silent=True)
         syn.logout(forgetMe=True)
         
         # Config file is read-only for the client, so it must be mocked!
@@ -61,7 +61,7 @@ def test_login():
             configparser_package_name = 'ConfigParser'
         else:
             configparser_package_name = 'configparser'
-        with patch("%s.ConfigParser.items" % configparser_package_name) as config_items_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
+        with patch("%s.ConfigParser.items" % configparser_package_name) as config_items_mock, patch("synapseclient.credentials.cached_sessions._read_session_cache") as read_session_mock:
 
             config_items_mock.return_value = []
             read_session_mock.return_value = {}
@@ -89,16 +89,12 @@ def test_login():
         syn.login(sessionToken=sessionToken, rememberMe=True, silent=True)
         
         # Login as the most recent user
-        with patch('synapseclient.Synapse._readSessionCache') as read_session_mock:
-            dict_mock = MagicMock()
+        with patch("synapseclient.credentials.cached_sessions._read_session_cache") as read_session_mock:
+            dict_mock = {"<mostRecent>":syn.username}
             read_session_mock.return_value = dict_mock
 
-            #first call is for <mostRecent> next call is the api key of the username in <mostRecent>
-            dict_mock.get.side_effect = [syn.username, base64.b64encode(syn.apiKey)]
-
             syn.login(silent=True)
-            dict_mock.assert_has_calls([call.get('<mostRecent>', None),call.get(syn.username, None)])
-        
+
         # Login with ID only
         syn.login(username, silent=True)
         syn.logout(forgetMe=True)

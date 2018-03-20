@@ -305,7 +305,7 @@ class Synapse(object):
         self.portalEndpoint     = endpoints['portalEndpoint']
 
 
-    def login(self, username=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
+    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
         """
         Authenticates the user using the given credentials (in order of preference):
 
@@ -318,7 +318,7 @@ class Synapse(object):
         - supplied email and cached API key
         - most recent cached email and API key
 
-        :param username:   Synapse user name (or an email address associated with a Synapse account)
+        :param email:   Synapse user name (or an email address associated with a Synapse account)
         :param password:   password
         :param apiKey:     Base64 encoded Synapse API key
         :param sessionToken: A previously obtained session token
@@ -348,7 +348,7 @@ class Synapse(object):
         self.logout()
 
         credentail_provder_chain = get_default_credential_chain()
-        user_login_args = UserLoginArgs(username, password, apiKey, sessionToken, forced)
+        user_login_args = UserLoginArgs(email, password, apiKey, sessionToken, forced)
         self.credentials = credentail_provder_chain.get_credentials(self, user_login_args)
 
         # Final check on login success
@@ -3460,7 +3460,7 @@ class Synapse(object):
             raise SynapseAuthenticationError("Please login")
 
         if headers is None:
-            headers = {}
+            headers = dict(self.default_headers)
 
         headers.update(synapseclient.USER_AGENT)
 
