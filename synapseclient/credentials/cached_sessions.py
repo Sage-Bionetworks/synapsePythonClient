@@ -41,10 +41,22 @@ def set_api_key(username, api_key):
     if _keyring_is_available:
         keyring.set_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username, api_key)
     else:
-        warnings.warn("Unable to save user credentials as you do not have a keyring available. "
-                      "If you are on a headless Linux session (for example, connecting via SSH), "
-                      "please refer to https://pypi.python.org/pypi/keyring#using-keyring-on-headless-linux-systems"
-                      " to enable credential storage")
+        warnings.warn("\nUnable to save user credentials as you do not have a keyring available.\n"
+                      "'GNOME keyring' is necessary to be installed for credential store to work on Linux systems:\n"
+                      "\tsudo apt-get install gnome-keyring\n\n"
+                      "\tsudo apt-get install python-dbus  #(for Python 2 installed via apt-get)\n"
+                      "\tOR\n"
+                      "\tsudo apt-get install python3-dbus #(for Python 3 installed via apt-get)\n"
+                      "\tOR\n"
+                      "\tsudo apt-get install libdbus-glib-1-dev #(for custom installation of Python)\n"
+                      "\tsudo pip install dbus-python #(may take a while to compile C code)\n"
+
+                        
+        
+                      "\nIf you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before running your Python session:\n"
+                      "\tdbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)\n"
+                      "\techo REPLACE_WITH_YOUR_KEYRING_PASSWORD|gnome-keyring-daemon -- unlock\n")
+
 
 
 def get_most_recent_user():
