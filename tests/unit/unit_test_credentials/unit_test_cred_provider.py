@@ -30,7 +30,7 @@ class TestSynapseCredentialsProviderChain(object):
 
     def test_get_credentials__provider_return_credentials(self):
         username = "synapse_user"
-        api_key = base64.b64encode("api_key")
+        api_key = base64.b64encode(b"api_key").decode()
         self.cred_provider.get_username_and_api_key.return_value = (username, api_key)
 
         creds = self.credential_provider_chain.get_credentials(syn, self.user_login_args)
@@ -42,7 +42,7 @@ class TestSynapseCredentialsProviderChain(object):
 
     def test_get_credentials__provider_username_not_match_user_arg_username(self):
         username = "synapse_user"
-        api_key = base64.b64encode("api_key")
+        api_key = base64.b64encode(b"api_key")
         self.cred_provider.get_username_and_api_key.return_value = (username, api_key)
         user_args = UserLoginArgs("non_match_username", *(None,) * 4)
 
@@ -56,7 +56,7 @@ class TestSynapseCredentialsProviderChain(object):
         cred_provider3 = mock.create_autospec(SynapseCredentialsProvider)
 
         self.cred_provider.get_username_and_api_key.return_value = (None, None)
-        cred_provider2.get_username_and_api_key.return_value = ("asdf", base64.b64encode("api_key").decode())
+        cred_provider2.get_username_and_api_key.return_value = ("asdf", base64.b64encode(b"api_key").decode())
         cred_provider3.get_username_and_api_key.return_value = (None, None)
 
         #change the credential providers
@@ -75,7 +75,7 @@ class TestCredentialProviders(object):
     Common setup/teardown for test involving config file
     """
     def setup(self):
-        self.user_login_args = UserLoginArgs("username","password", base64.b64encode("api_key"),"session_token", False)
+        self.user_login_args = UserLoginArgs("username","password", base64.b64encode(b"api_key"),"session_token", False)
         self.config_auth_dict = {"username": "username",
                                  "password": "password",
                                  "apikey": "api_key",

@@ -5,7 +5,7 @@ from synapseclient.credentials.cred_data import SynapseCredentials
 
 class TestSynapseCredentials():
     def setup(self):
-        self.api_key = "I am api key"
+        self.api_key = b"I am api key"
         self.api_key_b64 = base64.b64encode(self.api_key).decode()
         self.username = "ahhhhhhhhhhhhhh"
         self.credentials = SynapseCredentials(self.username, self.api_key_b64)

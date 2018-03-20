@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from six import with_metaclass
-from cred_data import SynapseCredentials
-import cached_sessions
+from .cred_data import SynapseCredentials
+from . import cached_sessions
 
 
 class SynapseCredentialsProvider(with_metaclass(ABCMeta)):

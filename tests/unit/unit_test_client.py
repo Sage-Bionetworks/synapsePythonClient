@@ -24,7 +24,7 @@ def setup(module):
 class TestLogout():
     def setup(self):
         self.username = "asdf"
-        self.credentials = SynapseCredentials(self.username, base64.b64encode("api_key_doesnt_matter").decode())
+        self.credentials = SynapseCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
 
     def test_logout__forgetMe_is_True(self):
         username = "asdf"
@@ -47,7 +47,7 @@ class TestLogin():
     def setup(self):
         self.login_args = {'email':"AzureDiamond", "password":"hunter2"}
         self.expected_user_args = UserLoginArgs(username="AzureDiamond", password="hunter2", session_token=None, api_key=None, skip_cache=False)
-        self.synapse_creds = SynapseCredentials("AzureDiamond", base64.b64encode("*******").decode())
+        self.synapse_creds = SynapseCredentials("AzureDiamond", base64.b64encode(b"*******").decode())
 
         self.mocked_credential_chain = MagicMock()
         self.mocked_credential_chain.get_credentials.return_value =self.synapse_creds

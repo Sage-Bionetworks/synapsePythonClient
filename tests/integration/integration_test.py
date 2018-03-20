@@ -53,7 +53,7 @@ def test_login():
         syn.login(username, password, silent=True)
         
         # Login with ID + API key
-        syn.login(email=username, apiKey=base64.b64encode(syn.credentials.api_key), silent=True)
+        syn.login(email=username, apiKey=base64.b64encode(syn.credentials.api_key.encode()), silent=True)
         syn.logout(forgetMe=True)
         
         # Config file is read-only for the client, so it must be mocked!
