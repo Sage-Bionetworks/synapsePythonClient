@@ -90,6 +90,56 @@ class TestLogin():
             mocked_cached_sessions.set_api_key.assert_called_once_with(self.synapse_creds.username, self.synapse_creds.api_key)
             mocked_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
 
+class TestGetLoginCredentials():
+    """
+    test _get_login_credentials() helper function
+    """
+    def setup(self):
+        self.username = "username"
+        self.password = "password"
+
+        self.returned_session_token = "newSessionToken"
+
+        self.returned_api_key = "api_key"
+
+
+        self.get_session_token_patcher = patch.object(syn, "_getSessionToken", return_value=self.returned_session_token)
+        self.get_user_profile_patcher = patch.object(syn, "getUserProfile", return_value={'userName':self.username})
+        self.get_api_key_patcher = patch.object(syn, "_getAPIKey", return_value=self.returned_api_key)
+
+        self.mock_get_sesison_token = self.get_session_token_patcher.start()
+        self.mock_get_user_profile = self.get_user_profile_patcher.start()
+        self.mock_get_api_key =  self.get_api_key_patcher.start()
+
+    def teardown(self):
+        self.get_session_token_patcher.stop()
+        self.get_user_profile_patcher.stop()
+        self.get_api_key_patcher.stop()
+
+    def test_no_returned_session_token(self):
+        self.mock_get_sesison_token.return_value = None
+
+        syn._get_login_credentials(self.username, self.password)
+        self.mock_get_sesison_token.assert_called_with(email=self.username, password=self.password, sessionToken=None)
+        self.mock_get_api_key.assert_not_called()
+        self.mock_get_user_profile.assert_not_called()
+
+    def test_returned_session_token_from_username_password(self):
+
+        syn._get_login_credentials(self.username, self.password)
+
+        self.mock_get_sesison_token.assert_called_with(email=self.username, password=self.password, sessionToken=None)
+        self.mock_get_api_key.assert_called_with(self.returned_session_token)
+        self.mock_get_user_profile.assert_not_called()
+
+    def test_returned_session_token_from_session_token(self):
+        old_session_token = "old_session_token"
+
+        syn._get_login_credentials(sessiontoken=old_session_token)
+
+        self.mock_get_sesison_token.assert_called_with(email=None, password=None, sessionToken=old_session_token)
+        self.mock_get_api_key.assert_called_with(self.returned_session_token)
+        self.mock_get_user_profile.assert_called_with(sessionToken=self.returned_session_token)
 
 @patch('synapseclient.Synapse._getFileHandleDownload')
 @patch('synapseclient.Synapse._downloadFileHandle')

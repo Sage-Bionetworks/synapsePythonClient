@@ -386,14 +386,11 @@ class Synapse(object):
         """
         :return: username and the api key used for client authenticaiton
         """
-        #NOTE: variable names are set to match the names of keys in the authentication section in the .synapseConfig files
-
-        # login using username and cached apikey
 
         retrieved_session_token = self._getSessionToken(email=username, password=password, sessionToken=sessiontoken)
         if retrieved_session_token is not None:
             returned_apiKey = self._getAPIKey(retrieved_session_token)
-            returned_username = self.getUserProfile(sessionToken=sessiontoken)['userName'] if sessiontoken else username
+            returned_username = self.getUserProfile(sessionToken=retrieved_session_token)['userName'] if sessiontoken else username
             return returned_username, returned_apiKey
         return None, None
 
