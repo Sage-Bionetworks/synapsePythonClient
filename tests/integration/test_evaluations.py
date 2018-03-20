@@ -97,7 +97,7 @@ def test_evaluations():
 
             # Login as the test user
             testSyn = client.Synapse(skip_checks=True)
-            testSyn.login(email=other_user['username'], password=other_user['password'])
+            testSyn.login(username=other_user['username'], password=other_user['password'])
             testOwnerId = int(testSyn.getUserProfile()['ownerId'])
 
             # Make a project

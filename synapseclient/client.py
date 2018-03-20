@@ -305,21 +305,20 @@ class Synapse(object):
         self.portalEndpoint     = endpoints['portalEndpoint']
 
 
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
+    def login(self, username=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
         """
         Authenticates the user using the given credentials (in order of preference):
 
         - supplied synapse user name (or email) and password
         - supplied email and API key (base 64 encoded)
         - supplied session token
-        - supplied email and cached API key
-        - most recent cached email and API key
-        - email in the configuration file and cached API key
         - email and API key in the configuration file
         - email and password in the configuraton file
         - session token in the configuration file
+        - supplied email and cached API key
+        - most recent cached email and API key
 
-        :param email:      Synapse user name (or an email address associated with a Synapse account)
+        :param username:   Synapse user name (or an email address associated with a Synapse account)
         :param password:   password
         :param apiKey:     Base64 encoded Synapse API key
         :param sessionToken: A previously obtained session token
@@ -349,14 +348,12 @@ class Synapse(object):
         self.logout()
 
         credentail_provder_chain = get_default_credential_chain()
-        user_login_args = UserLoginArgs(email, password, apiKey, sessionToken, forced)
+        user_login_args = UserLoginArgs(username, password, apiKey, sessionToken, forced)
         self.credentials = credentail_provder_chain.get_credentials(self, user_login_args)
 
         # Final check on login success
         if self.credentials is None:
-            #TODO: attempt to connect to synapse in the case where an api key is provided
             raise SynapseNoCredentialsError("No credentials provided.")
-        #TODO: maybe verify the API key (in the case where we used a cached copy)?
 
         # Save the API key in the cache
         if rememberMe:
@@ -364,7 +361,7 @@ class Synapse(object):
             cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
-            profile = self.getUserProfile(refresh=True) #TODO: duplicate
+            profile = self.getUserProfile(refresh=True)
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
             self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.credentials.username))
 
@@ -377,6 +374,8 @@ class Synapse(object):
             # section not present
             return {}
 
+    def _get_config_authenticaton(self):
+        return self._get_config_section_dict('authentication')
 
     def _get_client_authenticated_s3_profile(self, endpoint, bucket):
         config_section = endpoint + "/" + bucket
