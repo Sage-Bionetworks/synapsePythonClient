@@ -816,19 +816,17 @@ def test_table_query():
 def test_login():
     if not other_user['username']:
         raise SkipTest("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
-
-    with patch("synapseclient.client.Synapse._writeSessionCache") as write_session_cache_mock:
-        alt_syn = synapseclient.Synapse()
+    alt_syn = synapseclient.Synapse()
+    with patch.object(alt_syn, "login") as mock_login, patch.object(alt_syn, "getUserProfile", return_value={"userName":"test_user","ownerId":"ownerId"}) as mock_get_user_profile:
         output = run('synapse', '--skip-checks', 'login',
                      '-u', other_user['username'],
                      '-p', other_user['password'],
                      '--rememberMe',
                      syn=alt_syn)
-        cached_sessions = write_session_cache_mock.call_args[0][0]
-        assert cached_sessions["<mostRecent>"] == other_user['username']
-        assert other_user['username'] in cached_sessions
-        assert alt_syn.username == other_user['username']
-        assert alt_syn.apiKey is not None
+        mock_login.assert_called_once_with(other_user['username'], other_user['password'], forced=True, rememberMe=True, silent=False)
+        mock_get_user_profile.assert_called_once_with()
+
+
 
 
 def test_configPath():
