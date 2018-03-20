@@ -140,7 +140,7 @@ def test_entity_view_add_annotation_columns():
     assert_true(entity_view['addAnnotationColumns'])
 
     #For some reason this call is eventually consistent but not immediately consistent. so we just wait till the size returned is correct
-    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE', 'concreteType':'STRING'}
+    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE'}
     columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
 
     start_time = time.time()
