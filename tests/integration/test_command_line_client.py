@@ -160,12 +160,15 @@ def test_command_line_client():
     assert filecmp.cmp(filename, downloaded_filename)
 
     # Test query
-    output = run('synapse',
+    output = ""
+    start_time = time.time()
+    while not ('BogusFileEntity' in output and file_entity_id in output):
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        output = run('synapse',
                  '--skip-checks',
                  'query',
                  'select id, name from entity where parentId=="%s"' % project_id)
-    assert 'BogusFileEntity' in output
-    assert file_entity_id in output
+
 
 
     # Move the file to new folder
