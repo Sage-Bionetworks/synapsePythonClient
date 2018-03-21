@@ -28,7 +28,7 @@ class TestSynapseCredentials():
             headers = self.credentials.get_signed_headers(url)
             assert_equals({'signatureTimestamp': fake_time_string,
                            'userId': self.username,
-                           'signature': '018ADVu2o2NUOxgO0gM9bo08Wcw='},
+                           'signature': b'018ADVu2o2NUOxgO0gM9bo08Wcw='},
                           headers)
 
     def test_repr(self):
