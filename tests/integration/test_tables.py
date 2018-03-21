@@ -735,16 +735,26 @@ class TestPartialRowSet(object):
 
         partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
         syn.store(partial_rowset)
-        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
-        assert_equals(len(query_results), 2)
-        df2 = query_results.asDataFrame()
-        df2 = df2.where((pd.notnull(df2)), None)
-        print(df2)
+
+        df2 = None
+        start_time = time.time()
+        while not (self._rows_match(df2, expected_results)):
+            assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+            query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
+            assert_equals(len(query_results), 2)
+            df2 = query_results.asDataFrame()
+            df2 = df2.where((pd.notnull(df2)), None)
+
+    def _rows_match(self, df2, expected_results):
+        if df2 is None:
+            return False
+
         for expected_row, df_row in zip(expected_results, df2.iterrows()):
             df_idx, actual_row = df_row
             for expected_cell in expected_row:
-                assert_equals(expected_cell.value, actual_row[expected_cell.col_index])
-
+                if expected_cell.value != actual_row[expected_cell.col_index]:
+                    return False
+            return True
 
     @classmethod
     def setup_class(cls):
