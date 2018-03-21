@@ -188,6 +188,7 @@ class Synapse(object):
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                  debug=None, skip_checks=False, configPath=CONFIG_FILE):
+        self._requests_session = requests.Session()
 
         cache_root_dir = synapseclient.cache.CACHE_ROOT_DIR
 
@@ -288,7 +289,7 @@ class Synapse(object):
 
             # Update endpoints if we get redirected
             if not skip_checks:
-                response = requests.get(endpoints[point], allow_redirects=False, headers=synapseclient.USER_AGENT)
+                response = self._requests_session.get(endpoints[point], allow_redirects=False, headers=synapseclient.USER_AGENT)
                 if response.status_code == 301:
                     endpoints[point] = response.headers['location']
 
@@ -1973,7 +1974,7 @@ class Synapse(object):
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                                 if os.path.exists(temp_destination) else {}
                 response = _with_retry(
-                    lambda: requests.get(url, headers=self._generateSignedHeaders(url, range_header),
+                    lambda: self._requests_session.get(url, headers=self._generateSignedHeaders(url, range_header),
                                                                                   stream=True, allow_redirects=False),
                                         verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
@@ -3539,7 +3540,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.get(uri, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
+        response = _with_retry(lambda: self._requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3559,7 +3560,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
+        response = _with_retry(lambda: self._requests_session.post(uri, data=body, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3580,7 +3581,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs),
+        response = _with_retry(lambda: self._requests_session.put(uri, data=body, headers=headers, **kwargs),
                                verbose = self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
@@ -3599,7 +3600,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs),
+        response = _with_retry(lambda: self._requests_session.delete(uri, headers=headers, **kwargs),
                                verbose = self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
 
