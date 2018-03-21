@@ -1,4 +1,4 @@
-masudo: false
+sudo: false
 language: python
 
 script:

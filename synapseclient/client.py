@@ -71,6 +71,7 @@ import json
 from collections import OrderedDict
 import logging
 
+import synapseclient
 from . import concrete_types
 from . import cache
 from . import exceptions
@@ -93,7 +94,6 @@ from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from .upload_functions import upload_file_handle, upload_synapse_s3
 from .dozer import doze
 
-import synapseclient
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',

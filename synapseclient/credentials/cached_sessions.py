@@ -85,3 +85,4 @@ def _write_session_cache(data):
     with open(SESSION_CAHCE_FILEPATH, 'w') as file:
         json.dump(data, file)
         file.write('\n') # For compatibility with R's JSON parser
+
