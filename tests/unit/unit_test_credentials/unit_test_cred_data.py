@@ -1,5 +1,7 @@
 import base64
+import time
 from nose.tools import assert_equals
+from mock import patch
 
 from synapseclient.credentials.cred_data import SynapseCredentials
 
@@ -20,8 +22,14 @@ class TestSynapseCredentials():
     def test_get_signed_headers(self):
         url = "https://www.synapse.org/fake_url"
 
-        headers = self.credentials.get_signed_headers(url)
-        #TODO: how to test w/out basically reimplementing the functions?
+        #mock the 'time' module so the result is always the same instead of dependent upon current time
+        fake_time_string = "It is Wednesday, my dudes"
+        with patch.object(time, "strftime", return_value=fake_time_string):
+            headers = self.credentials.get_signed_headers(url)
+            assert_equals({'signatureTimestamp': fake_time_string,
+                           'userId': self.username,
+                           'signature': '018ADVu2o2NUOxgO0gM9bo08Wcw='},
+                          headers)
 
     def test_repr(self):
         assert_equals("SynapseCredentials(username='ahhhhhhhhhhhhhh', api_key_string='SSBhbSBhcGkga2V5')",repr(self.credentials))
