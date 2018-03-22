@@ -50,4 +50,4 @@ class SynapseCredentials(object): #TODO: inherit requests.AuthBase so that this 
 
 
 #a class that just contains args passed form synapse client login
-UserLoginArgs = namedtuple('UserLoginArgs', ['username','password','api_key','session_token','skip_cache'])
+UserLoginArgs = namedtuple('UserLoginArgs', ['username','password','api_key','skip_cache'])

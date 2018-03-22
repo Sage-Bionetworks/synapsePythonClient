@@ -305,24 +305,21 @@ class Synapse(object):
         self.portalEndpoint     = endpoints['portalEndpoint']
 
 
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
+    def login(self, email=None, password=None, apiKey=None, rememberMe=False, silent=False, forced=False):
         """
         Authenticates the user using the given credentials (in order of preference):
 
         - supplied synapse user name (or email) and password
         - supplied email and API key (base 64 encoded)
-        - supplied session token
         - email and API key in the configuration file
         - email and password in the configuraton file
-        - session token in the configuration file
         - supplied email and cached API key
         - most recent cached email and API key
 
         :param email:   Synapse user name (or an email address associated with a Synapse account)
         :param password:   password
         :param apiKey:     Base64 encoded Synapse API key
-        :param sessionToken: A previously obtained session token
-        :param rememberMe: Whether the authentication information should be cached 
+        :param rememberMe: Whether the authentication information should be cached
         						locally for usage across sessions and clients.
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
         :param forced:     Defaults to False.  Bypass the credential cache if set.
@@ -347,9 +344,9 @@ class Synapse(object):
         # Make sure to invalidate the existing session
         self.logout()
 
-        credentail_provder_chain = get_default_credential_chain()
-        user_login_args = UserLoginArgs(email, password, apiKey, sessionToken, forced)
-        self.credentials = credentail_provder_chain.get_credentials(self, user_login_args)
+        credential_provder_chain = get_default_credential_chain()
+        user_login_args = UserLoginArgs(email, password, apiKey, forced)
+        self.credentials = credential_provder_chain.get_credentials(self, user_login_args)
 
         # Final check on login success
         if self.credentials is None:
@@ -382,30 +379,17 @@ class Synapse(object):
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
 
-    def _get_login_credentials(self, username=None, password=None, sessiontoken=None):
+    def _get_login_credentials(self, username, password):
         """
         :return: username and the api key used for client authenticaiton
         """
-
-        retrieved_session_token = self._getSessionToken(email=username, password=password, sessionToken=sessiontoken)
-        if retrieved_session_token is not None:
-            returned_apiKey = self._getAPIKey(retrieved_session_token)
-            returned_username = self.getUserProfile(sessionToken=retrieved_session_token)['userName'] if sessiontoken else username
-            return returned_username, returned_apiKey
-        return None, None
-
-
-    def _getSessionToken(self, email=None, password=None, sessionToken=None):
-        """Returns a validated session token."""
-        if email is not None and password is not None:
-            # Login normally
-            return self._fetch_new_session_token(email, password)
-        elif sessionToken is not None:
-            return self._refresh_sesssion_token(sessionToken)
+        if username is not None and password is not None:
+            retrieved_session_token = self._getSessionToken(email=username, password=password)
+            return self._getAPIKey(retrieved_session_token)
         return None
 
-
-    def _fetch_new_session_token(self, email, password):
+    def _getSessionToken(self, email, password):
+        """Returns a validated session token."""
         try:
             req = {'email': email, 'password': password}
             session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint,
@@ -414,22 +398,6 @@ class Synapse(object):
         except SynapseHTTPError as err:
             if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
                 raise SynapseAuthenticationError("Invalid username or password.")
-            raise
-
-
-    def _refresh_sesssion_token(self, sessionToken):
-        # Validate the session token
-        try:
-            token = {'sessionToken': sessionToken}
-            response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint,
-                                    headers=self.default_headers)
-
-            # Success!
-            return sessionToken
-
-        except SynapseHTTPError as err:
-            if err.response.status_code == 401:
-                raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
             raise
 
 
@@ -451,7 +419,6 @@ class Synapse(object):
             user = self.restGET('/userProfile')
             if 'displayName' in user:
                 if user['displayName'] == 'Anonymous':
-                    # No session token, not logged in
                     return False
                 return user['displayName']
         except SynapseHTTPError as err:
@@ -467,10 +434,6 @@ class Synapse(object):
         :param forgetMe: Set as True to clear any local storage of authentication information.
                          See the flag "rememberMe" in :py:func:`synapseclient.Synapse.login`.
         """
-
-        # Since this client does not store the session token,
-        # it cannot REST DELETE /session
-
         # Delete the user's API key from the cache
         if forgetMe:
             cached_sessions.remove_api_key(self.credentials.username)
@@ -487,13 +450,12 @@ class Synapse(object):
             self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
     @memoize
-    def getUserProfile(self, id=None, sessionToken=None, refresh=False):
+    def getUserProfile(self, id=None, refresh=False):
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted.
 
         :param id:           The 'userId' (aka 'ownerId') of a user or the userName
-        :param sessionToken: The session token to use to find the user profile
         :param refresh:  If set to True will always fetch the data from Synape otherwise
                          will use cached information
 
@@ -527,7 +489,7 @@ class Synapse(object):
                     else: # no break
                         raise ValueError('Can\'t find user "%s": ' % id)
         uri = '/userProfile/%s' % id
-        return UserProfile(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
+        return UserProfile(**self.restGET(uri))
 
 
     def _findPrincipals(self, query_string):
