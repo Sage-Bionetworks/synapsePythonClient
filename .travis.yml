@@ -77,7 +77,7 @@ script:
       PREFIX="dbus-launch"
     fi
 
-    dbus-launch python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password("asdf","asdf") is None)"
+    dbus-launch python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
     #TODO change back
     #$PREFIX nosetests -vs tests/integration;
 
