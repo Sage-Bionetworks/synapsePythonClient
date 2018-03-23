@@ -12,12 +12,18 @@ matrix:
     - os: osx
       language: generic
       env: PY_VERSION=2.7.14
+      python: 2.7.14
+
     - os: osx
       language: generic
       env: PY_VERSION=3.5.3
+      python: 3.5.3
+
     - os: osx
       language: generic
       env: PY_VERSION=3.6.2
+      python: 3.6.2
+
 
 addons:
   ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
@@ -37,6 +43,7 @@ before_install: |
   pip install nose mock
 
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    sudo apt-get update
     sudo apt-get install dbus gnome-keyring python-dbus python-gnomekeyring
   fi
 
@@ -62,17 +69,17 @@ before_script:
 
 
 script:
-- nosetests -vs tests/unit
+#- nosetests -vs tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
     PREFIX=""
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      echo "running with dbus"
       PREFIX="dbus-launch"
     fi
 
+    dbus-launch python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password("asdf","asdf") is None)"
     #TODO change back
-    $PREFIX nosetests -vs tests/integration/integration_test.py:test_login;
+    #$PREFIX nosetests -vs tests/integration;
 
 
   else
