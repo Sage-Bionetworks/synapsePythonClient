@@ -1,51 +1,5 @@
-sudo: false
+sudo: true
 language: python
-
-before-script:
-- |
-  if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-    exec dbus-run-session -- bash
-  fi
-- |
-  if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
-    openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
-    mv test.synapseConfig ~/.synapseConfig
-    openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.awscredentials.enc -out test.awscredentials -d
-    mkdir -p ~/.aws && mv test.awscredentials ~/.aws/credentials
-  fi
-
-
-script:
-- python setup.py install
-- nosetests -vs tests/unit
-- 'if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then nosetests -vs tests/integration; else echo "Skipping integration tests"; fi'
-
-before_install: |
-  if [ "$TRAVIS_OS_NAME" == "osx" ]; then
-    brew update
-    brew outdated pyenv || brew upgrade pyenv
-    brew install pyenv-virtualenv
-    pyenv install $PY_VERSION
-    export PYENV_VERSION=$PY_VERSION
-    export PATH="/Users/travis/.pyenv/shims:${PATH}"
-    pyenv-virtualenv venv
-    source venv/bin/activate
-  fi
-
-install: |
-  pip install nose mock
-
-  if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-    apt-get install dbus gnome-keyring libdbus-glib-1-dev && pip install dbus-python
-  fi
-
-
-
-  travis_wait pip install pysftp cython pandas boto3
-
-
-addons:
-  ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
 
 matrix:
   include:
@@ -64,3 +18,64 @@ matrix:
     - os: osx
       language: generic
       env: PY_VERSION=3.6.2
+
+addons:
+  ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
+
+before_install: |
+  if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+    brew update
+    brew outdated pyenv || brew upgrade pyenv
+    brew install pyenv-virtualenv
+    pyenv install $PY_VERSION
+    export PYENV_VERSION=$PY_VERSION
+    export PATH="/Users/travis/.pyenv/shims:${PATH}"
+    pyenv-virtualenv venv
+    source venv/bin/activate
+  fi
+
+  pip install nose mock
+
+  if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    sudo apt-get install dbus gnome-keyring python-dbus python-gnome-keyring
+  fi
+
+
+
+  travis_wait pip install pysftp cython pandas boto3
+
+install:
+- python setup.py install
+
+before-script:
+- |
+  if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then #create a default keyring
+      dbus-run-session /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');"
+  fi
+- |
+  if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
+    openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
+    mv test.synapseConfig ~/.synapseConfig
+    openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.awscredentials.enc -out test.awscredentials -d
+    mkdir -p ~/.aws && mv test.awscredentials ~/.aws/credentials
+  fi
+
+
+script:
+- nosetests -vs tests/unit
+- |
+  if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
+    PREFIX=""
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      PREFIX="dbus-run-session"
+    fi
+
+    $PREFIX nosetests -vs tests/integration;
+
+
+  else
+    echo "Skipping integration tests";
+  fi
+
+
+

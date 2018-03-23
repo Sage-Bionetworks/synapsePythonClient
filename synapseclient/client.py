@@ -332,7 +332,7 @@ class Synapse(object):
             sudo pip install dbus-python #(may take a while to compile C code)
         If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before running your Python session:
             dbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)
-            echo REPLACE_WITH_YOUR_KEYRING_PASSWORD|gnome-keyring-daemon -- unlock
+            echo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon -- unlock
 
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
         :param forced:     Defaults to False.  Bypass the credential cache if set.
