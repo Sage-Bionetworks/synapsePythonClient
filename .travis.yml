@@ -68,9 +68,12 @@ script:
 #- nosetests -vs tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
+    PREFIX=""
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
       eval $(dbus-launch --sh-syntax)
-      echo -n "hunter2" | eval $(gnome-keyring-daemon --unlock)
+      echo -n "hunter2" | eval $(gnome-keyring-daemon --login)
+      eval $(gnome-keyring-daemon --components=secrets --start)
+      python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
     fi
 
     python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
