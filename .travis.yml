@@ -50,7 +50,7 @@ install:
 before-script:
 - |
   if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then #create a default keyring
-      dbus-run-session /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');"
+      dbus-launch /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');"
   fi
 - |
   if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
@@ -67,7 +67,7 @@ script:
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
     PREFIX=""
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      PREFIX="dbus-run-session"
+      PREFIX="dbus-launch"
     fi
 
     $PREFIX nosetests -vs tests/integration;
