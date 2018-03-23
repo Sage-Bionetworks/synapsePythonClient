@@ -67,10 +67,12 @@ script:
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
     PREFIX=""
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+      echo "running with dbus"
       PREFIX="dbus-launch"
     fi
 
-    $PREFIX nosetests -vs tests/integration;
+    #TODO change back
+    $PREFIX nosetests -vs tests/integration/integration_test.py:test_login;
 
 
   else
