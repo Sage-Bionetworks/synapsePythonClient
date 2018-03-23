@@ -37,7 +37,7 @@ before_install: |
   pip install nose mock
 
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-    sudo apt-get install dbus gnome-keyring python-dbus python-gnome-keyring
+    sudo apt-get install dbus gnome-keyring python-dbus python-gnomekeyring
   fi
 
 
