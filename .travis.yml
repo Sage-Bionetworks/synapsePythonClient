@@ -47,7 +47,7 @@ before_install: |
 install:
 - python setup.py install
 
-before-script:
+before_script:
 - |
   if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then #create a default keyring
       dbus-launch /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');"
