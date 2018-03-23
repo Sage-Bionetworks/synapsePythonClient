@@ -22,8 +22,11 @@ before_install: |
     apt-get install gnome-keyring
     apt-get install libdbus-glib-1-dev
     pip install dbus-python
+    exec dbus-run-session -- bash
   fi
-
+  if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    echo ""| gnome-keyring-daemon -- unlock
+  fi
 
   if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
     openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d

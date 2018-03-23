@@ -308,19 +308,32 @@ class Synapse(object):
     def login(self, email=None, password=None, apiKey=None, rememberMe=False, silent=False, forced=False):
         """
         Authenticates the user using the given credentials (in order of preference):
+        - supplied arguments
+        - .synapseConfig file
+        - cached credentials from rememberMe=True
 
-        - supplied synapse user name (or email) and password
-        - supplied email and API key (base 64 encoded)
-        - email and API key in the configuration file
-        - email and password in the configuraton file
-        - supplied email and cached API key
-        - most recent cached email and API key
+        Valid combinations of authentication information:
+        - email(or username) and password
+        - email(or username) and API key (Base64 encoded string)
 
         :param email:   Synapse user name (or an email address associated with a Synapse account)
         :param password:   password
         :param apiKey:     Base64 encoded Synapse API key
-        :param rememberMe: Whether the authentication information should be cached
-        						locally for usage across sessions and clients.
+        :param rememberMe: Whether the authentication information should be cached in your operating system's credential storage.
+        'GNOME keyring' is necessary to be installed for credential store to work on Linux systems. For example on Ubuntu:
+            sudo apt-get install gnome-keyring
+
+
+            sudo apt-get install python-dbus  #(for Python 2 installed via apt-get)
+            OR
+            sudo apt-get install python3-dbus #(for Python 3 installed via apt-get)
+            OR
+            sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python)
+            sudo pip install dbus-python #(may take a while to compile C code)
+        If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before running your Python session:
+            dbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)
+            echo REPLACE_WITH_YOUR_KEYRING_PASSWORD|gnome-keyring-daemon -- unlock
+
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
         :param forced:     Defaults to False.  Bypass the credential cache if set.
 
@@ -345,8 +358,7 @@ class Synapse(object):
         self.logout()
 
         credential_provder_chain = get_default_credential_chain()
-        user_login_args = UserLoginArgs(email, password, apiKey, forced)
-        self.credentials = credential_provder_chain.get_credentials(self, user_login_args)
+        self.credentials = credential_provder_chain.get_credentials(self, UserLoginArgs(email, password, apiKey, forced))
 
         # Final check on login success
         if self.credentials is None:
@@ -371,22 +383,14 @@ class Synapse(object):
             # section not present
             return {}
 
-    def _get_config_authenticaton(self):
+    def _get_config_authentication(self):
         return self._get_config_section_dict('authentication')
+
 
     def _get_client_authenticated_s3_profile(self, endpoint, bucket):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
-
-    def _get_login_credentials(self, username, password):
-        """
-        :return: username and the api key used for client authenticaiton
-        """
-        if username is not None and password is not None:
-            retrieved_session_token = self._getSessionToken(email=username, password=password)
-            return self._getAPIKey(retrieved_session_token)
-        return None
 
     def _getSessionToken(self, email, password):
         """Returns a validated session token."""

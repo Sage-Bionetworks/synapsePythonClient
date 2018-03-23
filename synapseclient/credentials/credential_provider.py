@@ -11,57 +11,77 @@ class SynapseCredentialsProvider(with_metaclass(ABCMeta)):
     the
     """
     @abstractmethod
-    def get_username_and_api_key(self, syn, user_login_args):
+    def _get_auth_info(self, syn, user_login_args):
         """
-        Sublcasses implement this to decide how to obtain username and password.
-        Not all implementations will need to use the user_login_args parameter or syn.
-        :param ``synapseclient.client.Synapse`` syn: synapse client
+        Subclasses must implement this to decide how to obtain username, password, and api_key.
+        For any of these 3 values, return None if it is not possible to get that value.
+
+        Not all implementations will need to make use of the user_login_args parameter or syn.
+        These parameters help provide context about the Synapse client's configuration and login() arguments.
+
+        :param ``synapseclient.client.Synapse`` syn: Synapse client
         :param ``cred_data.UserLoginArgs`` user_login_args: subset of arguments passed during syn.login()
-        :return: (username, api_key) or (None,None) if unable to provide credentials
+        :return: tuple of (username, password, api_key), any of these three values could None if it is not available.
         """
-        username = self.get_username(user_login_args)
-        if user_login_args.username is None or user_login_args.username == username:
-            self.get_api_key(username)
+        return None, None, None
+
+    def get_synapse_credentials(self, syn, user_login_args):
+        """
+        Returns `SynapseCredentials` if this provider is able to get valid credentials, returns None otherwise.
+        :param ``synapseclient.client.Synapse`` syn: Synapse client
+        :param ``cred_data.UserLoginArgs`` user_login_args: subset of arguments passed during syn.login()
+        :return: `SynapseCredentials` if valid credentials can be found by this provider, None otherwise
+        """
+        return self._create_synapse_credential(syn, *self._get_auth_info(syn, user_login_args))
+
+    def _create_synapse_credential(self, syn, username, password, api_key):
+        if username is not None:
+            if password is not None:
+                retrieved_session_token = syn._getSessionToken(email=username, password=password)
+                return SynapseCredentials(username, syn._getAPIKey(retrieved_session_token))
+            elif api_key is not None:
+                return SynapseCredentials(username, api_key)
+        return None
 
 
 class UserArgsCredentialsProvider(SynapseCredentialsProvider):
-    def get_username_and_api_key(self, syn, user_login_args):
+    """
+    Retrieves auth info from user_login_args
+    """
+    def _get_auth_info(self, syn, user_login_args):
         return user_login_args.username, user_login_args.password, user_login_args.api_key
 
 
-
-class ConfigUsernamePasswordCredentialsProvider(SynapseCredentialsProvider):
-    def get_username_and_api_key(self, syn, user_login_args):
-        config_dict = syn._get_config_authenticaton()
+class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
+    """
+    Retrieves auth info from .synapseConfig file
+    """
+    def _get_auth_info(self, syn, user_login_args):
+        config_dict = syn._get_config_authentication()
         # check to make sure we didn't accidentally provide the wrong user
+        username = config_dict.get('username')
+        if user_login_args.username is None or username == user_login_args.username:
+            return config_dict.get('username'), config_dict.get('password'), config_dict.get('apikey')
+        return None, None, None
 
-        return config_dict.get('username'), config_dict.get('password'), config_dict.get('apikey')
 
-
-
-class CachedUserNameCredentialsProvider(SynapseCredentialsProvider):
-    def get_username_and_api_key(self, syn, user_login_args):
+class CachedCredentialsProvider(SynapseCredentialsProvider):
+    """
+    Retrieves auth info from cached_sessions
+    """
+    def _get_auth_info(self, syn, user_login_args):
         if not user_login_args.skip_cache:
             username = user_login_args.username or cached_sessions.get_most_recent_user()
             return username, None, cached_sessions.get_api_key(username)
-        return None, None
+        return None, None, None
 
 
-class CachedRecentlyUsedUsernameCredentialsProvider(SynapseCredentialsProvider):
-    """
-    Only checks cache for username and
-    """
-    def get_username_and_api_key(self, syn, user_login_args):
-        if not user_login_args.skip_cache:
-            username = cached_sessions.get_most_recent_user()
-            return username, cached_sessions.get_api_key(username)
-        return None, None
 
 
 class SynapseCredentialsProviderChain(object):
     def __init__(self, cred_providers):
         """
-        Uses a list of ``SynapseCredentialsProvider`` that decides which source of Synapse credentials to use
+        Uses a list of ``SynapseCredentialsProvider`` and returns the first non-None ``SynapseCredential`` returned by a provider.
         :param ``cred_data.UserLoginArgs`` user_login_args:
         :param list[``SynapseCredentialsProvider``] cred_providers:
         """
@@ -69,22 +89,19 @@ class SynapseCredentialsProviderChain(object):
 
     def get_credentials(self, syn, user_login_args): #maybe use __call__ instead
         for provider in self.cred_providers:
-            result_username, result_api_key = provider.get_username_and_api_key(syn, user_login_args)
-            if result_username is not None and result_api_key is not None:
-                return SynapseCredentials(result_username, result_api_key)
+            creds = provider.get_synapse_credentials(syn, user_login_args)
+            if creds is not None:
+                return creds
         return None
 
 
 #NOTE: If you change the order of this list, please also change the documentation in Synapse.login() that describes the order
-DEFAULT_CREDENTIAL_PROVIDERS = [UserArgsUsernamePasswordCredentialsProvider(),
-                                UserArgsUsernameAPICredentialsProvider(),
-                                ConfigUsernamePasswordCredentialsProvider(),
-                                ConfigUsernameAPICredentialsProvider(),
-                                CachedUserNameCredentialsProvider(),
-                                CachedRecentlyUsedUsernameCredentialsProvider()]
+DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([UserArgsCredentialsProvider(),
+                                                                     ConfigFileCredentialsProvider(),
+                                                                     CachedCredentialsProvider()])
 
 def get_default_credential_chain():
-    return SynapseCredentialsProviderChain(DEFAULT_CREDENTIAL_PROVIDERS)
+    return DEFAULT_CREDENTIAL_PROVIDER_CHAIN
 
 
 

@@ -40,56 +40,48 @@ def setup(module):
 
 def test_login():
     try:
-        # Test that we fail gracefully with wrong user
-        assert_raises(SynapseAuthenticationError, syn.login, str(uuid.uuid1()), 'notarealpassword')
-
         config = configparser.ConfigParser()
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
-        sessionToken = syn._getSessionToken(username, password)
-        
+
         # Simple login with ID + PW
         syn.login(username, password, silent=True)
-        
+
+        api_key = syn.credentials.api_key
+
         # Login with ID + API key
-        syn.login(email=username, apiKey=base64.b64encode(syn.credentials.api_key.encode()), silent=True)
+        syn.login(email=username, apiKey=api_key, silent=True)
+
+
         syn.logout(forgetMe=True)
 
-        with patch.object(syn, "_get_config_authenticaton", return_value={})as config_auth_mock, patch("synapseclient.credentials.cached_sessions.get_most_recent_user", return_value=None) as read_session_mock:
+        #login with config file no username
+        syn.login(silent=True)
+        syn.logout(forgetMe=True)
 
-            # Login with given bad session token, 
-            # It should REST PUT the token and fail
-            # Then keep going and, due to mocking, fail to read any credentials
-            assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
-            assert_false(config_auth_mock.called)
+        # Login with ID only form config file
+        syn.login(username, silent=True)
+        syn.logout(forgetMe=True)
+
+        # Login with ID not matching username
+        assert_raises(SynapseNoCredentialsError, syn.login, "fakeusername")
+
+        #login using cache
+        # mock to make the config file empty
+        with patch.object(syn, "_get_config_authentication", return_value={}):
             
             # Login with no credentials 
             assert_raises(SynapseNoCredentialsError, syn.login)
 
-            config_auth_mock.reset_mock()
+            #remember login info in cache
+            syn.login(username,password,rememberMe=True,silent=True)
 
-            # Login with a session token from the config file
-            config_auth_mock.return_value = {'sessiontoken': sessionToken}
+            #login using cached info
+            syn.login(username, silent=True)
             syn.login(silent=True)
 
-            # Login with a bad session token from the config file
-            config_auth_mock.return_value = {'sessiontoken': "derp-dee-derp"}
-            assert_raises(SynapseAuthenticationError, syn.login)
-        
-        # Login with session token
-        syn.login(sessionToken=sessionToken, rememberMe=True, silent=True)
 
-        # Login as the most recent user
-        with patch("synapseclient.credentials.cached_sessions.get_most_recent_user") as read_session_mock:
-            dict_mock = {"<mostRecent>":syn.username}
-            read_session_mock.return_value = dict_mock
-
-            syn.login(silent=True)
-
-        # Login with ID only
-        syn.login(username, silent=True)
-        syn.logout(forgetMe=True)
     except configparser.Error:
         print("To fully test the login method, please supply a username and password in the configuration file")
 
