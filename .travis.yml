@@ -56,10 +56,6 @@ install:
 
 before_script:
 - |
-  if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then #create a default keyring
-      dbus-launch /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');"
-  fi
-- |
   if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
     openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
     mv test.synapseConfig ~/.synapseConfig
@@ -72,12 +68,12 @@ script:
 #- nosetests -vs tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
-    PREFIX=""
     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      PREFIX="dbus-launch"
+      eval $(dbus-launch --sh-syntax)
+      echo -n "hunter2" | eval $(gnome-keyring-daemon --unlock)
     fi
 
-    dbus-launch python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
+    python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
     #TODO change back
     #$PREFIX nosetests -vs tests/integration;
 
