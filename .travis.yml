@@ -44,9 +44,8 @@ before_install: |
 
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
     sudo apt-get update
-    sudo apt-get install gnome-keyring python-dbus python-gnomekeyring
+    sudo apt-get install gnome-keyring libdbus-glib-1-dev python-gnomekeyring
     pip install dbus-python
-    which python
   fi
 
 
@@ -74,7 +73,7 @@ script:
       eval $(dbus-launch --sh-syntax)
       echo -n "hunter2" | eval $(gnome-keyring-daemon --login)
       eval $(gnome-keyring-daemon --components=secrets --start)
-      dbus-launch python -c "import dbus; import gnomekeyring;gnomekeyring.create_sync('login', '');";
+      dbus-launch /usr/bin/python -c "import dbus; import gnomekeyring;gnomekeyring.create_sync('login', '');";
     fi
 
     dbus-launch python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
