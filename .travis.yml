@@ -44,7 +44,9 @@ before_install: |
 
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
     sudo apt-get update
-    sudo apt-get install dbus gnome-keyring python-dbus python-gnomekeyring
+    sudo apt-get install gnome-keyring python-dbus python-gnomekeyring
+    pip install dbus-python
+    which python
   fi
 
 
