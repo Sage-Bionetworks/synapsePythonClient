@@ -72,7 +72,7 @@ script:
       eval $(dbus-launch --sh-syntax)
       echo -n "hunter2" | eval $(gnome-keyring-daemon --login)
       eval $(gnome-keyring-daemon --components=secrets --start)
-      dbus-launch python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
+      dbus-launch python -c "import dbus; import gnomekeyring;gnomekeyring.create_sync('login', '');";
     fi
 
     dbus-launch python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
