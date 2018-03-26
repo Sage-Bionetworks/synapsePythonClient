@@ -76,7 +76,7 @@ script:
       /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
     fi
 
-    python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
+    python -c "import dbus; import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
     #TODO change back
     #$PREFIX nosetests -vs tests/integration;
 
