@@ -50,18 +50,11 @@ before_install: |
 
 
 install:
+- pip install nose mock
 - |
-  pip install nose mock
-
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
     sudo apt-get update
-    sudo apt-get -y install --reinstall dbus libdbus-glib-1-dev
-    sudo apt-get install gnome-keyring python-gnomekeyring
-    pip --version
-  fi
-
-- |
-  if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    sudo apt-get install gnome-keyring python-gnomekeyring libdbus-glib-1-dev
     pip install --no-cache-dir --upgrade --force-reinstall dbus-python
   fi
 - travis_wait pip install pysftp cython pandas boto3
@@ -75,19 +68,20 @@ before_script:
     openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.awscredentials.enc -out test.awscredentials -d
     mkdir -p ~/.aws && mv test.awscredentials ~/.aws/credentials
   fi
-- | # set up default "login" keyring in Linux. TODO: once Travis uses Ubuntu Xenial instead of Trusty, remove python-gnomekeyring and just use 'gnome-keyring-daemon --unlock'
-  if [ [ "${TRAVIS_PULL_REQUEST}" = "false" ] &&  [ "$TRAVIS_OS_NAME" == "linux" ] ];then
-    eval $(dbus-launch --sh-syntax)
-    echo -n "hunter2" | eval $(gnome-keyring-daemon --login)
-    eval $(gnome-keyring-daemon --components=secrets --start)
-    /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
-  fi
 
 
 script:
 #- nosetests -vs tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
+    # set up default "login" keyring in Linux. TODO: once Travis uses Ubuntu Xenial instead of Trusty, remove python-gnomekeyring and just use 'gnome-keyring-daemon --unlock'
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+      eval $(dbus-launch --sh-syntax)
+      echo -n "hunter2" | eval $(gnome-keyring-daemon --login)
+      eval $(gnome-keyring-daemon --components=secrets --start)
+      /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
+    fi
+
     python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
     #TODO change back
     #$PREFIX nosetests -vs tests/integration;
