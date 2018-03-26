@@ -79,8 +79,8 @@ script:
       eval $(gnome-keyring-daemon --components=secrets --start)
       /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
     fi
-
-    nosetests -vs tests/integration/integration_test.py:test_login;
+    python -c "import keyring; keyring.set_password('foo','bar','baz'); print(keyring.get_password('foo','bar'))"
+    #nosetests -vs tests/integration/integration_test.py:test_login;
   else
     echo "Skipping integration tests";
   fi
