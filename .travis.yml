@@ -43,6 +43,8 @@ before_install: |
 
 
 install:
+- ls -l /opt/python/3.5**/lib
+- ls -l /home/travis/virtualenv/python3**/include/*
 - |
   pip install nose mock
 
@@ -54,7 +56,10 @@ install:
     pip --version
   fi
 
-- pip install -v --no-cache-dir --upgrade --force-reinstall dbus-python
+- |
+  if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    pip install -v --no-cache-dir --upgrade --force-reinstall dbus-python
+  fi
 - travis_wait pip install pysftp cython pandas boto3
 - python setup.py install
 
