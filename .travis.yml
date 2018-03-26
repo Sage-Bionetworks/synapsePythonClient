@@ -24,6 +24,8 @@ matrix:
       env: PY_VERSION=3.6.2
       python: 3.6.2
 
+virtualenv:
+  system_site_packages: true
 
 addons:
   ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
@@ -44,11 +46,8 @@ before_install: |
 
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
     sudo apt-get update
-    sudo apt-get install dbus gnome-keyring libdbus-1-dev libdbus-glib-1-dev python-gnomekeyring
-    sudo -H pip --no-cache-dir install dbus-python
+    sudo apt-get install dbus gnome-keyring python-gnomekeyring python-dbus python3-dbus
   fi
-
-
 
   travis_wait pip install pysftp cython pandas boto3
 
