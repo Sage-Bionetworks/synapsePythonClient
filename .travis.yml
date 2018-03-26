@@ -25,7 +25,8 @@ matrix:
       python: 3.6.2
 
 env:
-  #maybe a workaround for dbus-python installation. https://github.com/willprice/python-omxplayer-wrapper/pull/101/files
+  # workaround for the dbus-python package installation not being able to find python shared object files for compilation when using virtualenv.
+  # source: https://github.com/willprice/python-omxplayer-wrapper/pull/101/files
   global:
    - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
    - PY_ENABLE_SHARD=0
@@ -49,14 +50,12 @@ before_install: |
 
 
 install:
-- ls -l /opt/python/3.5**/lib
-- ls -l /home/travis/virtualenv/python3**/include/*
 - |
   pip install nose mock
 
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
     sudo apt-get update
-    sudo apt-get -y install --reinstall dbus dbus-x11 libdbus-1-3 libdbus-1-dev libdbus-glib-1-2 libdbus-glib-1-dev
+    sudo apt-get -y install --reinstall dbus libdbus-glib-1-dev
     sudo apt-get install gnome-keyring python-gnomekeyring
     pip --version
   fi
