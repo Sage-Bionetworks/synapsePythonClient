@@ -62,18 +62,25 @@ install:
 
 - |
   if [ "$TRAVIS_OS_NAME" == "linux" ]; then
-    pip install -v --no-cache-dir --upgrade --force-reinstall dbus-python
+    pip install --no-cache-dir --upgrade --force-reinstall dbus-python
   fi
 - travis_wait pip install pysftp cython pandas boto3
 - python setup.py install
 
 before_script:
-- |
+- | # decrypt credentials used in tests
   if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
     openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
     mv test.synapseConfig ~/.synapseConfig
     openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.awscredentials.enc -out test.awscredentials -d
     mkdir -p ~/.aws && mv test.awscredentials ~/.aws/credentials
+  fi
+- | # set up default "login" keyring in Linux. TODO: once Travis uses Ubuntu Xenial instead of Trusty, remove python-gnomekeyring and just use 'gnome-keyring-daemon --unlock'
+  if [ [ "${TRAVIS_PULL_REQUEST}" = "false" ] &&  [ "$TRAVIS_OS_NAME" == "linux" ] ];then
+    eval $(dbus-launch --sh-syntax)
+    echo -n "hunter2" | eval $(gnome-keyring-daemon --login)
+    eval $(gnome-keyring-daemon --components=secrets --start)
+    /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
   fi
 
 
@@ -81,18 +88,9 @@ script:
 #- nosetests -vs tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
-    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-      eval $(dbus-launch --sh-syntax)
-      echo -n "hunter2" | eval $(gnome-keyring-daemon --login)
-      eval $(gnome-keyring-daemon --components=secrets --start)
-      /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
-    fi
-
-    python -c "import dbus; import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
+    python -c "import keyring; print(keyring.get_keyring()); print(keyring.get_password('asdf','asdf') is None)"
     #TODO change back
     #$PREFIX nosetests -vs tests/integration;
-
-
   else
     echo "Skipping integration tests";
   fi
