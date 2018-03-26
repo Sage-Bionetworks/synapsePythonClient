@@ -4,17 +4,11 @@ language: python
 matrix:
   include:
     - os: linux
-      python: 2.7.14
-      virtualenv:
-      - system_site_packages: true
+      python: 2.7
     - os: linux
-      python: 3.5.3
-      virtualenv:
-      - system_site_packages: true
+      python: 3.5
     - os: linux
-      python: 3.6.2
-      virtualenv:
-      - system_site_packages: true
+      python: 3.6
     - os: osx
       language: generic
       env: PY_VERSION=2.7.14
@@ -29,6 +23,9 @@ matrix:
       language: generic
       env: PY_VERSION=3.6.2
       python: 3.6.2
+
+virtualenv:
+  system_site_packages: true
 
 addons:
   ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
