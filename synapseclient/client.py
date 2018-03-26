@@ -366,7 +366,7 @@ class Synapse(object):
 
         # Save the API key in the cache
         if rememberMe:
-            print(type(self.credentials.api_key, self.credentials.api_key))
+            print(type(self.credentials.api_key), self.credentials.api_key)
             cached_sessions.set_api_key(self.credentials.username, self.credentials.api_key)
             cached_sessions.set_most_recent_user(self.credentials.username)
 
