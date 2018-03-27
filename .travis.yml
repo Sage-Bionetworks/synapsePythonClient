@@ -12,14 +12,16 @@ matrix:
     - os: osx
       language: generic
       python: 2.7.14
-
+      env: PY_VERSION=2.7.14
     - os: osx
       language: generic
       python: 3.5.3
+      env: PY_VERSION=2.7.14
 
     - os: osx
       language: generic
       python: 3.6.2
+      env: PY_VERSION=2.7.14
 
 env:
   # workaround for the dbus-python package installation not being able to find python shared object files for compilation when using virtualenv.
@@ -39,8 +41,8 @@ before_install:
     brew update
     brew outdated pyenv || brew upgrade pyenv
     brew install pyenv-virtualenv
-    pyenv install $TRAVIS_PYTHON_VERSION
-    export PYENV_VERSION=$TRAVIS_PYTHON_VERSION
+    pyenv install $PY_VERSION
+    export PYENV_VERSION=$PY_VERSION
     export PATH="/Users/travis/.pyenv/shims:${PATH}"
     pyenv virtualenv venv
     source venv/bin/activate
