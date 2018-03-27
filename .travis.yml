@@ -32,6 +32,8 @@ addons:
   ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
 
 before_install:
+- env
+- echo $TRAVIS_PYTHON_VERSION
 - |
   if [ "$TRAVIS_OS_NAME" == "osx" ]; then
     brew update
@@ -78,9 +80,6 @@ script:
       eval $(gnome-keyring-daemon --components=secrets --start)
       /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
     fi
-    which python
-    which nosetests
-    python -c "import synapseclient.credentials.cached_sessions as cs; import keyring; cs.set_api_key(u'bar','VGhpcyBpcyBqdXN0IGEgcmVhbGx5IGxvbmcgYmFzZTY0IGVuY29kZWQgc3RyaW5nLiBwbHMgbm8gaGFja2VyaW5vIHRoYW5rcyE='); print(keyring.get_password(cs.SYNAPSE_CACHED_SESSION_APLICATION_NAME,u'bar'));print(cs.get_api_key(u'bar'))"
 
     nosetests -vs tests/integration/integration_test.py:test_login;
   else
