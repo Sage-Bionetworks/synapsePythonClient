@@ -6,7 +6,7 @@ from keyring.errors import PasswordDeleteError
 from keyring.backends.fail import Keyring as FailKeyring
 
 
-SYNAPSE_CACHED_SESSION_APLICATION_NAME = "<SYNAPSE.ORG CLIENT>"
+SYNAPSE_CACHED_SESSION_APLICATION_NAME = "SYNAPSE.ORG_CLIENT"
 SESSION_CAHCE_FILEPATH = os.path.expanduser("~/.synapseSession")
 
 # In the case where no key store backend is available (most likely in Linux), a fail.Keyring is returned which will throw errors when any of its functions are called
@@ -24,6 +24,7 @@ def get_api_key(username):
     :rtype: str
     """
     if _keyring_is_available:
+        print(username)
         return keyring.get_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
     return None
 
