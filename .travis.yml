@@ -31,8 +31,6 @@ addons:
   ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
 
 before_install:
-- env
-- echo $TRAVIS_PYTHON_VERSION
 - |
   if [ "$TRAVIS_OS_NAME" == "osx" ]; then
     brew update
@@ -43,8 +41,9 @@ before_install:
     export PATH="/Users/travis/.pyenv/shims:${PATH}"
     pyenv-virtualenv venv
     source venv/bin/activate
+    echo ""
   fi
-- sudo pip install --upgrade pip
+  sudo pip install --upgrade pip
 
 install:
 - pip install nose mock
