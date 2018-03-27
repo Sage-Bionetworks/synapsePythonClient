@@ -64,7 +64,7 @@ class TestSynapseCredentialProvider(object):
     def setup(self):
         self.username = "username"
         self.password = "password"
-        self.api_key = base64.b64encode(b"api_key")
+        self.api_key = base64.b64encode(b"api_key").decode()
         self.user_login_args = UserLoginArgs(self.username, self.password, self.api_key, False)
         class SynapseCredProviderTester(SynapseCredentialsProvider): #SynapseCredentialsProvider has abstractmethod so we can't instantiate it unless we overwrite it
             def _get_auth_info(self, syn, user_login_args):
