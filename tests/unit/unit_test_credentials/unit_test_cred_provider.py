@@ -109,22 +109,44 @@ class TestSynapseCredentialProvider(object):
 
 
 class TestUserArgsSessionTokenCredentialsProvider(object):
+    def setup(self):
+        self.provider = UserArgsSessionTokenCredentialsProvider()
+        self.get_user_profile__patcher = patch.object(syn, "getUserProfile")
+        self.get_api_key__patcher = patch.object(syn, "_getAPIKey")
 
-    def test_get_auth_info(self):
+        self.mock_get_user_profile = self.get_user_profile__patcher.start()
+        self.mock_get_api_key = self.get_api_key__patcher.start()
+
+
+    def teardown(self):
+        self.get_user_profile__patcher.stop()
+        self.get_api_key__patcher.stop()
+
+
+    def test_get_auth_info__session_token_not_None(self):
         username = 'asdf'
         api_key = 'qwerty'
         session_token = "my session token"
-        provider = UserArgsSessionTokenCredentialsProvider()
         user_login_args = UserLoginArgs(session_token=session_token)
+        self.mock_get_user_profile.return_value = {'userName': username}
+        self.mock_get_api_key.return_value = api_key
+
+        returned_tuple = self.provider._get_auth_info(syn, user_login_args)
+
+        assert_equals((username, None, api_key), returned_tuple)
+        self.mock_get_user_profile.assert_called_once_with(sessionToken=session_token)
+        self.mock_get_api_key.assert_called_once_with(session_token)
 
 
-        with patch.object(syn, "getUserProfile", return_value={'userName': username}) as mock_get_user_profile, \
-             patch.object(syn, "_getAPIKey", return_value=api_key) as mock_get_api_key:
-            returned_tuple = provider._get_auth_info(syn, user_login_args)
+    def test_get_auth_info__session_token_is_None(self):
+        user_login_args = UserLoginArgs(session_token=None)
 
-            assert_equals((username, None, api_key), returned_tuple)
-            mock_get_user_profile.assert_called_once_with(sessionToken=session_token)
-            mock_get_api_key.assert_called_once_with(session_token)
+        returned_tuple = self.provider._get_auth_info(syn, user_login_args)
+
+        assert_equals((None, None, None), returned_tuple)
+        self.mock_get_user_profile.assert_not_called()
+        self.mock_get_api_key.assert_not_called()
+
 
 class TestUserArgsCredentialsProvider(object):
     def test_get_auth_info(self):

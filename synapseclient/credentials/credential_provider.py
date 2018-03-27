@@ -60,7 +60,9 @@ class UserArgsSessionTokenCredentialsProvider(SynapseCredentialsProvider):
     """
 
     def _get_auth_info(self, syn, user_login_args):
-        return syn.getUserProfile(sessionToken=user_login_args.session_token)['userName'], None, syn._getAPIKey(user_login_args.session_token)
+        if user_login_args.session_token:
+            return syn.getUserProfile(sessionToken=user_login_args.session_token)['userName'], None, syn._getAPIKey(user_login_args.session_token)
+        return None, None, None
 
 
 
