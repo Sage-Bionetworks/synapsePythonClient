@@ -81,7 +81,7 @@ script:
     fi
     which python
     which nosetests
-    python -c "import keyring; keyring.set_password(u'foo',u'bar',u'baz'); print(keyring.get_password(u'foo',u'bar');)"
+    python -c "import keyring; keyring.set_password(u'foo',u'bar',u'baz'); print(keyring.get_password(u'foo',u'bar'))"
     #nosetests -vs tests/integration/integration_test.py:test_login;
   else
     echo "Skipping integration tests";
