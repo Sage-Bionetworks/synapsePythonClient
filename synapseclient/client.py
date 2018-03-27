@@ -308,21 +308,28 @@ class Synapse(object):
     def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
         """
         Authenticates the user using the given credentials (in order of preference):
-        - supplied arguments
-        - .synapseConfig file
-        - cached credentials from rememberMe=True
+
+        #. supplied arguments
+
+        #. .synapseConfig file
+
+        #. cached credentials from rememberMe=True
 
         Valid combinations of authentication information:
+
         - email(or username) and password
+
         - email(or username) and apiKey (Base64 encoded string)
-        - sessionToken (DEPRECATED)
+
+        - sessionToken (**DEPRECATED**)
 
         :param email:   Synapse user name (or an email address associated with a Synapse account)
         :param password:   password
         :param apiKey:     Base64 encoded Synapse API key
-        :param sessionToken: !!DEPRECATED FIELD!! User's current session token. Using this field will ignore the following fields: email, password, apiKey
+        :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the following fields: email, password, apiKey
         :param rememberMe: Whether the authentication information should be cached in your operating system's credential storage.
-        'GNOME keyring' is necessary to be installed for credential store to work on Linux systems. For example on Ubuntu:
+        **GNOME Keyring** (recommended) or **KWallet** is necessary to be installed for credential store to work on **Linux** systems. For example on Ubuntu::
+
             sudo apt-get install gnome-keyring
 
 
@@ -330,9 +337,10 @@ class Synapse(object):
             OR
             sudo apt-get install python3-dbus #(for Python 3 installed via apt-get)
             OR
-            sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python)
+            sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python or vitualenv)
             sudo pip install dbus-python #(may take a while to compile C code)
-        If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before running your Python session:
+        If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before running your Python session::
+
             dbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)
             echo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon -- unlock
 
@@ -341,7 +349,7 @@ class Synapse(object):
 
         Example::
 
-            syn.login('me@somewhere.com', 'secret-password', rememberMe=True)
+            syn.login('my-username', 'secret-password', rememberMe=True)
             #> Welcome, Me!
 
         After logging in with the *rememberMe* flag set, an API key will be cached and
