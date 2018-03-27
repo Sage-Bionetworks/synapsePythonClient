@@ -5,26 +5,32 @@ matrix:
   include:
     - os: linux
       python: 2.7.14
+      env:
+      # workaround for the dbus-python package installation not being able to find python shared object files for compilation when using virtualenv.
+      # source: https://github.com/willprice/python-omxplayer-wrapper/pull/101/files
+      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+      - PY_ENABLE_SHARD=0
     - os: linux
       python: 3.5.3
+      env:
+      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+      - PY_ENABLE_SHARD=0
     - os: linux
       python: 3.6.2
-    - os: osx
-      language: generic
-      env: PY_VERSION=2.7.14
-    - os: osx
-      language: generic
-      env: PY_VERSION=2.7.14
-    - os: osx
-      language: generic
-      env: PY_VERSION=2.7.14
+      env:
+      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+      - PY_ENABLE_SHARD=0
 
-env:
-  # workaround for the dbus-python package installation not being able to find python shared object files for compilation when using virtualenv.
-  # source: https://github.com/willprice/python-omxplayer-wrapper/pull/101/files
-  global:
-   - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
-   - PY_ENABLE_SHARD=0
+
+    - os: osx
+      language: generic
+      env: PY_VERSION=2.7.14
+    - os: osx
+      language: generic
+      env: PY_VERSION=2.7.14
+    - os: osx
+      language: generic
+      env: PY_VERSION=2.7.14
 
 addons:
   ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
@@ -64,7 +70,7 @@ before_script:
 
 
 script:
-#- nosetests -vs tests/unit
+- nosetests -vs tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
     if [ "$TRAVIS_OS_NAME" == "linux" ]; then
@@ -76,7 +82,7 @@ script:
       /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
     fi
 
-    nosetests -vs tests/integration/integration_test.py:test_login;
+    nosetests -vs tests/integration
   else
     echo "Skipping integration tests";
   fi
