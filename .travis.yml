@@ -44,8 +44,8 @@ before_install:
     pyenv install $PY_VERSION
     export PYENV_VERSION=$PY_VERSION
     export PATH="/Users/travis/.pyenv/shims:${PATH}"
-    pyenv virtualenv venv
-    pyenv activate venv
+    pyenv-virtualenv venv
+    source venv/bin/activate
   fi
 - sudo pip install --upgrade pip
 
