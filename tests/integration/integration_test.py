@@ -44,6 +44,9 @@ def test_login():
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
+        sessionToken = syn._getSessionToken(username, password)
+
+        syn.logout(forgetMe=True)
 
         # Simple login with ID + PW
         syn.login(username, password, silent=True)
@@ -53,16 +56,15 @@ def test_login():
         # Login with ID + API key
         syn.login(email=username, apiKey=api_key, silent=True)
 
+        #login with session token
+        syn.login(sessionToken=sessionToken)
 
-        syn.logout(forgetMe=True)
 
         #login with config file no username
         syn.login(silent=True)
-        syn.logout(forgetMe=True)
 
-        # Login with ID only form config file
+        # Login with ID only from config file
         syn.login(username, silent=True)
-        syn.logout(forgetMe=True)
 
         # Login with ID not matching username
         assert_raises(SynapseNoCredentialsError, syn.login, "fakeusername")

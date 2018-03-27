@@ -305,7 +305,7 @@ class Synapse(object):
         self.portalEndpoint     = endpoints['portalEndpoint']
 
 
-    def login(self, email=None, password=None, apiKey=None, rememberMe=False, silent=False, forced=False):
+    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
         """
         Authenticates the user using the given credentials (in order of preference):
         - supplied arguments
@@ -314,11 +314,13 @@ class Synapse(object):
 
         Valid combinations of authentication information:
         - email(or username) and password
-        - email(or username) and API key (Base64 encoded string)
+        - email(or username) and apiKey (Base64 encoded string)
+        - sessionToken (DEPRECATED)
 
         :param email:   Synapse user name (or an email address associated with a Synapse account)
         :param password:   password
         :param apiKey:     Base64 encoded Synapse API key
+        :param sessionToken: !!DEPRECATED FIELD!! User's current session token. Using this field will ignore the following fields: email, password, apiKey
         :param rememberMe: Whether the authentication information should be cached in your operating system's credential storage.
         'GNOME keyring' is necessary to be installed for credential store to work on Linux systems. For example on Ubuntu:
             sudo apt-get install gnome-keyring
@@ -358,7 +360,7 @@ class Synapse(object):
         self.logout()
 
         credential_provder_chain = get_default_credential_chain()
-        self.credentials = credential_provder_chain.get_credentials(self, UserLoginArgs(email, password, apiKey, forced))
+        self.credentials = credential_provder_chain.get_credentials(self, UserLoginArgs(email, password, apiKey, forced, sessionToken)) #TODO: remove deprecated sessionToken when we move to a different solution
 
         # Final check on login success
         if self.credentials is None:
@@ -453,24 +455,20 @@ class Synapse(object):
         if self._loggedIn():
             self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
+
     @memoize
-    def getUserProfile(self, id=None, refresh=False):
+    def getUserProfile(self, id=None, sessionToken=None, refresh=False):
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted.
-
         :param id:           The 'userId' (aka 'ownerId') of a user or the userName
+        :param sessionToken: The session token to use to find the user profile
         :param refresh:  If set to True will always fetch the data from Synape otherwise
                          will use cached information
-
         :returns: The user profile for the user of interest.
-
         Example::
-
             my_profile = syn.getUserProfile()
-
             freds_profile = syn.getUserProfile('fredcommo')
-
         """
 
         try:
@@ -487,13 +485,14 @@ class Synapse(object):
                     id = principals[0]['ownerId']
                 else:
                     for principal in principals:
-                        if principal.get('userName', None).lower()==id.lower():
+                        if principal.get('userName', None).lower() == id.lower():
                             id = principal['ownerId']
                             break
-                    else: # no break
+                    else:  # no break
                         raise ValueError('Can\'t find user "%s": ' % id)
         uri = '/userProfile/%s' % id
-        return UserProfile(**self.restGET(uri))
+
+        return UserProfile(**self.restGET(uri, headers={'sessionToken': sessionToken} if sessionToken else None))
 
 
     def _findPrincipals(self, query_string):

@@ -108,15 +108,31 @@ class TestSynapseCredentialProvider(object):
         assert_equals(self.api_key, cred.api_key)
 
 
+class TestUserArgsSessionTokenCredentialsProvider(object):
+
+    def test_get_auth_info(self):
+        username = 'asdf'
+        api_key = 'qwerty'
+        session_token = "my session token"
+        provider = UserArgsSessionTokenCredentialsProvider()
+        user_login_args = UserLoginArgs(session_token=session_token)
+
+
+        with patch.object(syn, "getUserProfile", return_value={'userName': username}) as mock_get_user_profile, \
+             patch.object(syn, "_getAPIKey", return_value=api_key) as mock_get_api_key:
+            returned_tuple = provider._get_auth_info(syn, user_login_args)
+
+            assert_equals((username, None, api_key), returned_tuple)
+            mock_get_user_profile.assert_called_once_with(sessionToken=session_token)
+            mock_get_api_key.assert_called_once_with(session_token)
+
 class TestUserArgsCredentialsProvider(object):
     def test_get_auth_info(self):
         user_login_args = UserLoginArgs("username", "password", base64.b64encode(b"api_key"), False)
         provider = UserArgsCredentialsProvider()
-        username, password, api_key = provider._get_auth_info(syn, user_login_args)
+        returned_tuple = provider._get_auth_info(syn, user_login_args)
 
-        assert_equals(user_login_args.username, username)
-        assert_equals(user_login_args.password, password)
-        assert_equals(user_login_args.api_key, api_key)
+        assert_equals((user_login_args.username, user_login_args.password, user_login_args.api_key), returned_tuple)
 
 
 class TestConfigFileCredentialsProvider(object):

@@ -52,6 +52,18 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
         return user_login_args.username, user_login_args.password, user_login_args.api_key
 
 
+class UserArgsSessionTokenCredentialsProvider(SynapseCredentialsProvider):
+    """
+    !!!DEPRECATED!!!
+    This is a special case where we are not given context as to what the username is. We are only given a session token
+    and must retrieve the username and api key from Synapse
+    """
+
+    def _get_auth_info(self, syn, user_login_args):
+        return syn.getUserProfile(sessionToken=user_login_args.session_token)['userName'], None, syn._getAPIKey(user_login_args.session_token)
+
+
+
 class ConfigFileCredentialsProvider(SynapseCredentialsProvider):
     """
     Retrieves auth info from .synapseConfig file
@@ -76,8 +88,6 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
         return None, None, None
 
 
-
-
 class SynapseCredentialsProviderChain(object):
     def __init__(self, cred_providers):
         """
@@ -96,7 +106,8 @@ class SynapseCredentialsProviderChain(object):
 
 
 #NOTE: If you change the order of this list, please also change the documentation in Synapse.login() that describes the order
-DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([UserArgsCredentialsProvider(),
+DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([UserArgsSessionTokenCredentialsProvider(), #This provider is DEPRECATED
+                                                                     UserArgsCredentialsProvider(),
                                                                      ConfigFileCredentialsProvider(),
                                                                      CachedCredentialsProvider()])
 
