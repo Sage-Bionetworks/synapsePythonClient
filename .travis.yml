@@ -81,7 +81,7 @@ script:
     fi
     which python
     which nosetests
-    python -c "import synapseclient.credentials.cached_sessions as cs; import keyring; cs.set_api_key(u'bar',u'baz'); print(keyring.get_password(cs.SYNAPSE_CACHED_SESSION_APLICATION_NAME,u'bar'));print(cs.get_api_key(u'bar'))"
+    python -c "import synapseclient.credentials.cached_sessions as cs; import keyring; cs.set_api_key(u'bar','VGhpcyBpcyBqdXN0IGEgcmVhbGx5IGxvbmcgYmFzZTY0IGVuY29kZWQgc3RyaW5nLiBwbHMgbm8gaGFja2VyaW5vIHRoYW5rcyE='); print(keyring.get_password(cs.SYNAPSE_CACHED_SESSION_APLICATION_NAME,u'bar'));print(cs.get_api_key(u'bar'))"
 
     #nosetests -vs tests/integration/integration_test.py:test_login;
   else
