@@ -23,9 +23,8 @@ def get_api_key(username):
     :return: API key for the specified username
     :rtype: str
     """
-    if _keyring_is_available:
-        print(username)
-        return keyring.get_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
+    if _keyring_is_available and username is not None:
+            return keyring.get_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
     return None
 
 
