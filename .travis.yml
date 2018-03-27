@@ -11,24 +11,21 @@ matrix:
       python: 3.6.2
     - os: osx
       language: generic
-      python: 2.7.14
       env: PY_VERSION=2.7.14
     - os: osx
       language: generic
-      python: 3.5.3
       env: PY_VERSION=2.7.14
 
     - os: osx
       language: generic
-      python: 3.6.2
       env: PY_VERSION=2.7.14
 
-#env:
-#  # workaround for the dbus-python package installation not being able to find python shared object files for compilation when using virtualenv.
-#  # source: https://github.com/willprice/python-omxplayer-wrapper/pull/101/files
-#  global:
-#   - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
-#   - PY_ENABLE_SHARD=0
+env:
+  # workaround for the dbus-python package installation not being able to find python shared object files for compilation when using virtualenv.
+  # source: https://github.com/willprice/python-omxplayer-wrapper/pull/101/files
+  global:
+   - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+   - PY_ENABLE_SHARD=0
 
 addons:
   ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
