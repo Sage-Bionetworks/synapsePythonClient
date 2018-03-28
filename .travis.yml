@@ -1,12 +1,42 @@
-sudo: false
+sudo: required
 language: python
 
-script:
-- python setup.py install
-- nosetests -vs tests/unit
-- 'if [ "${TRAVIS_PULL_REQUEST}" = "false" ]; then nosetests -vs tests/integration; else echo "Skipping integration tests"; fi'
+matrix:
+  include:
+    - os: linux
+      python: 2.7.14
+      env:
+      # workaround for the dbus-python package installation not being able to find python shared object files for compilation when using virtualenv.
+      # source: https://github.com/willprice/python-omxplayer-wrapper/pull/101/files
+      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+      - PY_ENABLE_SHARD=0
+    - os: linux
+      python: 3.5.3
+      env:
+      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+      - PY_ENABLE_SHARD=0
+    - os: linux
+      python: 3.6.2
+      env:
+      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+      - PY_ENABLE_SHARD=0
 
-before_install: |
+
+    - os: osx
+      language: generic
+      env: PY_VERSION=2.7.14
+    - os: osx
+      language: generic
+      env: PY_VERSION=3.5.3
+    - os: osx
+      language: generic
+      env: PY_VERSION=3.6.2
+
+addons:
+  ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
+
+before_install:
+- |
   if [ "$TRAVIS_OS_NAME" == "osx" ]; then
     brew update
     brew outdated pyenv || brew upgrade pyenv
@@ -19,31 +49,43 @@ before_install: |
     pip install nose mock
   fi
 
+install:
+- |
+  if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+    sudo apt-get update
+    sudo apt-get install gnome-keyring python-gnomekeyring libdbus-glib-1-dev
+    pip install --no-cache-dir --upgrade --force-reinstall dbus-python
+  fi
+- travis_wait pip install pysftp pandas boto3
+- python setup.py install
+
+before_script:
+- | # decrypt credentials used in tests
   if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
     openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
     mv test.synapseConfig ~/.synapseConfig
     openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.awscredentials.enc -out test.awscredentials -d
     mkdir -p ~/.aws && mv test.awscredentials ~/.aws/credentials
   fi
-  travis_wait pip install pysftp cython pandas boto3
 
-addons:
-  ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
 
-matrix:
-  include:
-    - os: linux
-      python: 2.7.14
-    - os: linux
-      python: 3.5.3
-    - os: linux
-      python: 3.6.2
-    - os: osx
-      language: generic
-      env: PY_VERSION=2.7.14
-    - os: osx
-      language: generic
-      env: PY_VERSION=3.5.3
-    - os: osx
-      language: generic
-      env: PY_VERSION=3.6.2
+script:
+- nosetests -vs tests/unit
+- |
+  if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
+    if [ "$TRAVIS_OS_NAME" == "linux" ]; then
+      # set up the dbus daemon used to connect to the keyring. create default "login" keyring.
+      # TODO: once Travis uses Ubuntu Xenial instead of Trusty, remove python-gnomekeyring and just use 'gnome-keyring-daemon --unlock'
+      eval $(dbus-launch --sh-syntax)
+      echo -n "hunter2" | eval $(gnome-keyring-daemon --login)
+      eval $(gnome-keyring-daemon --components=secrets --start)
+      /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
+    fi
+
+    nosetests -vs tests/integration
+  else
+    echo "Skipping integration tests";
+  fi
+
+
+

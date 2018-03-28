@@ -40,68 +40,50 @@ def setup(module):
 
 def test_login():
     try:
-        # Test that we fail gracefully with wrong user
-        assert_raises(SynapseAuthenticationError, syn.login, str(uuid.uuid1()), 'notarealpassword')
-
         config = configparser.ConfigParser()
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
         sessionToken = syn._getSessionToken(username, password)
-        
+
+        syn.logout(forgetMe=True)
+
         # Simple login with ID + PW
         syn.login(username, password, silent=True)
-        
-        # Login with ID + API key
-        syn.login(email=username, apiKey=base64.b64encode(syn.apiKey), silent=True)
-        syn.logout(forgetMe=True)
-        
-        # Config file is read-only for the client, so it must be mocked!
-        if (sys.version < '3'):
-            configparser_package_name = 'ConfigParser'
-        else:
-            configparser_package_name = 'configparser'
-        with patch("%s.ConfigParser.items" % configparser_package_name) as config_items_mock, patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
 
-            config_items_mock.return_value = []
-            read_session_mock.return_value = {}
-            
-            # Login with given bad session token, 
-            # It should REST PUT the token and fail
-            # Then keep going and, due to mocking, fail to read any credentials
-            assert_raises(SynapseAuthenticationError, syn.login, sessionToken="Wheeeeeeee")
-            assert_false(config_items_mock.called)
+        api_key = syn.credentials.api_key
+
+        # Login with ID + API key
+        syn.login(email=username, apiKey=api_key, silent=True)
+
+        #login with session token
+        syn.login(sessionToken=sessionToken)
+
+
+        #login with config file no username
+        syn.login(silent=True)
+
+        # Login with ID only from config file
+        syn.login(username, silent=True)
+
+        # Login with ID not matching username
+        assert_raises(SynapseNoCredentialsError, syn.login, "fakeusername")
+
+        #login using cache
+        # mock to make the config file empty
+        with patch.object(syn, "_get_config_authentication", return_value={}):
             
             # Login with no credentials 
-            assert_raises(SynapseAuthenticationError, syn.login)
-            
-            config_items_mock.reset_mock()
+            assert_raises(SynapseNoCredentialsError, syn.login)
 
-            # Login with a session token from the config file
-            config_items_mock.return_value = [('sessiontoken', sessionToken)]
+            #remember login info in cache
+            syn.login(username,password,rememberMe=True,silent=True)
+
+            #login using cached info
+            syn.login(username, silent=True)
             syn.login(silent=True)
 
-            # Login with a bad session token from the config file
-            config_items_mock.return_value = [('sessiontoken', "derp-dee-derp")]
-            assert_raises(SynapseAuthenticationError, syn.login)
-        
-        # Login with session token
-        syn.login(sessionToken=sessionToken, rememberMe=True, silent=True)
-        
-        # Login as the most recent user
-        with patch('synapseclient.Synapse._readSessionCache') as read_session_mock:
-            dict_mock = MagicMock()
-            read_session_mock.return_value = dict_mock
 
-            #first call is for <mostRecent> next call is the api key of the username in <mostRecent>
-            dict_mock.get.side_effect = [syn.username, base64.b64encode(syn.apiKey)]
-
-            syn.login(silent=True)
-            dict_mock.assert_has_calls([call.get('<mostRecent>', None),call.get(syn.username, None)])
-        
-        # Login with ID only
-        syn.login(username, silent=True)
-        syn.logout(forgetMe=True)
     except configparser.Error:
         print("To fully test the login method, please supply a username and password in the configuration file")
 
