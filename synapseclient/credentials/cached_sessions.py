@@ -41,10 +41,11 @@ def set_api_key(username, api_key):
     if _keyring_is_available:
         keyring.set_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username, api_key)
     else:
-        warnings.warn('\nUnable to save user credentials as you do not have a keyring available. Please refer to login() documentation for setting up credential storage a Linux machine\n'
+        warnings.warn('\nUnable to save user credentials as you do not have a keyring available. '
+                      'Please refer to login() documentation (http://docs.synapse.org/python/Client.html#synapseclient.Synapse.login) for setting up credential storage a Linux machine\n'
                       'If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before running your Python session:'
-                        '\tdbus-run-session -- bash #(replace "bash" with "sh" if bash is unavailable)'
-                        '\techo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon --unlock')
+                      '\tdbus-run-session -- bash #(replace "bash" with "sh" if bash is unavailable)'
+                      '\techo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon --unlock')
 
 
 

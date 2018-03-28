@@ -91,6 +91,10 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
 
 
 class SynapseCredentialsProviderChain(object):
+    """
+    A list of ``SynapseCredentialsProvider`` from which this class attempts to get credentials.
+    If a credential provider can not provide credentials (i.e. returns None), this class will move on and try the next provider in the list
+    """
     def __init__(self, cred_providers):
         """
         Uses a list of ``SynapseCredentialsProvider`` and returns the first non-None ``SynapseCredential`` returned by a provider.
