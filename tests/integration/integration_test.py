@@ -77,7 +77,7 @@ def test_login():
             assert_raises(SynapseNoCredentialsError, syn.login)
 
             #remember login info in cache
-            syn.login(username,password,rememberMe=True,silent=True)
+            syn.login(username, password,rememberMe=True, silent=True)
 
             #login using cached info
             syn.login(username, silent=True)

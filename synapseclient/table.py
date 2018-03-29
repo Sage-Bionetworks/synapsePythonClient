@@ -283,7 +283,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from future.utils import bytes_to_native_str
-from builtins import str
 
 from backports import csv
 import io
@@ -294,7 +293,6 @@ import six
 import sys
 import tempfile
 import copy
-import collections
 import itertools
 from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
 from builtins import zip
@@ -304,7 +302,7 @@ from .utils import id_of, from_unix_epoch_time
 from .exceptions import *
 from .dict_object import DictObject
 from .entity import Entity, Versionable, _entity_type_to_class
-from . import concrete_types
+from .constants import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 

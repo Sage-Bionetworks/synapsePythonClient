@@ -7,8 +7,7 @@ from . import cached_sessions
 class SynapseCredentialsProvider(with_metaclass(ABCMeta)):
     """
     A credential provider is responsible for retrieving synapse authentication information (e.g. username/password or username/api key)
-    from a source and return th
-    the
+    from a source(e.g. login args, config file, cached credentials in keyring), and use them to return a ``SynapseCredentials` instance.
     """
     @abstractmethod
     def _get_auth_info(self, syn, user_login_args):
@@ -17,9 +16,9 @@ class SynapseCredentialsProvider(with_metaclass(ABCMeta)):
         For any of these 3 values, return None if it is not possible to get that value.
 
         Not all implementations will need to make use of the user_login_args parameter or syn.
-        These parameters help provide context about the Synapse client's configuration and login() arguments.
+        These parameters provide context about the Synapse client's configuration and login() arguments.
 
-        :param ``synapseclient.client.Synapse`` syn: Synapse client
+        :param ``synapseclient.client.Synapse`` syn: Synapse client instance
         :param ``cred_data.UserLoginArgs`` user_login_args: subset of arguments passed during syn.login()
         :return: tuple of (username, password, api_key), any of these three values could None if it is not available.
         """
@@ -28,7 +27,7 @@ class SynapseCredentialsProvider(with_metaclass(ABCMeta)):
     def get_synapse_credentials(self, syn, user_login_args):
         """
         Returns `SynapseCredentials` if this provider is able to get valid credentials, returns None otherwise.
-        :param ``synapseclient.client.Synapse`` syn: Synapse client
+        :param ``synapseclient.client.Synapse`` syn: Synapse client instance
         :param ``cred_data.UserLoginArgs`` user_login_args: subset of arguments passed during syn.login()
         :return: `SynapseCredentials` if valid credentials can be found by this provider, None otherwise
         """
@@ -92,18 +91,22 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
 
 class SynapseCredentialsProviderChain(object):
     """
-    A list of ``SynapseCredentialsProvider`` from which this class attempts to get credentials.
-    If a credential provider can not provide credentials (i.e. returns None), this class will move on and try the next provider in the list
+    Class that has a list of ``SynapseCredentialsProvider`` from which this class attempts to retrieve ``SynapseCredentials``.
     """
     def __init__(self, cred_providers):
         """
-        Uses a list of ``SynapseCredentialsProvider`` and returns the first non-None ``SynapseCredential`` returned by a provider.
-        :param ``cred_data.UserLoginArgs`` user_login_args:
-        :param list[``SynapseCredentialsProvider``] cred_providers:
+        :param list[``SynapseCredentialsProvider``] cred_providers: list of credential providers
         """
         self.cred_providers = list(cred_providers)
 
-    def get_credentials(self, syn, user_login_args): #maybe use __call__ instead
+    def get_credentials(self, syn, user_login_args):
+        """
+        Iterates its list of ``SynapseCredentialsProvider`` and returns the first non-None ``SynapseCredential`` returned by a provider.
+        If no provider is able to provide a ``SynapseCredential``, returns None
+        :param ``synapseclient.client.Synapse`` syn: Synapse client instance
+        :param ``cred_data.UserLoginArgs`` user_login_args: subset of arguments passed during syn.login()
+        :return: `SynapseCredentials` returned by the first non-None provider in its list, None otherwise
+        """
         for provider in self.cred_providers:
             creds = provider.get_synapse_credentials(syn, user_login_args)
             if creds is not None:
@@ -118,6 +121,10 @@ DEFAULT_CREDENTIAL_PROVIDER_CHAIN = SynapseCredentialsProviderChain([UserArgsSes
                                                                      CachedCredentialsProvider()])
 
 def get_default_credential_chain():
+    """
+    :return: credential chain
+    :rtype: ```SynapseCredentialsProviderChain``
+    """
     return DEFAULT_CREDENTIAL_PROVIDER_CHAIN
 
 
