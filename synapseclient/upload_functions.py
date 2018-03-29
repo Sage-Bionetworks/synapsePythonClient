@@ -5,8 +5,7 @@ from __future__ import unicode_literals
 
 import os
 from .utils import is_url, md5_for_file, as_url, file_url_to_path, id_of
-from . import concrete_types
-import sys
+from .constants import concrete_types
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from .multipart_upload import  multipart_upload
 from .exceptions import SynapseMd5MismatchError

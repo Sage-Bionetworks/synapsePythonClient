@@ -35,7 +35,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from builtins import input
-from builtins import str
 
 try:
     import configparser
@@ -72,9 +71,9 @@ from collections import OrderedDict
 import logging
 
 import synapseclient
-from . import concrete_types
 from . import cache
 from . import exceptions
+from .constants import concrete_types, config_file_constants
 from .credentials import cached_sessions, UserLoginArgs, get_default_credential_chain
 from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from .exceptions import *
@@ -308,28 +307,26 @@ class Synapse(object):
 
     def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
         """
-        Authenticates the user using the given credentials (in order of preference):
+        Valid combinations of login() arguments:
 
-        #. supplied arguments
+        - email/username and password
 
-        #. .synapseConfig file
-
-        #. cached credentials from rememberMe=True
-
-        Valid combinations of authentication information:
-
-        - email(or username) and password
-
-        - email(or username) and apiKey (Base64 encoded string)
+        - email/username and apiKey (Base64 encoded string)
 
         - sessionToken (**DEPRECATED**)
+
+        If no login arguments are provided or only username is provided, login() will attempt to log in using information from these sources (in order of preference):
+
+        #. .synapseConfig file (in user home folder unless configured otherwise)
+
+        #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
 
         :param email:   Synapse user name (or an email address associated with a Synapse account)
         :param password:   password
         :param apiKey:     Base64 encoded Synapse API key
         :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the following fields: email, password, apiKey
         :param rememberMe: Whether the authentication information should be cached in your operating system's credential storage.
-        **GNOME Keyring** (recommended) or **KWallet** is necessary to be installed for credential store to work on **Linux** systems. For example on Ubuntu::
+        **GNOME Keyring** (recommended) or **KWallet** is necessary to be installed for credential store to work on **Linux** systems. To install GNOME Keyring on Ubuntu::
 
             sudo apt-get install gnome-keyring
 
@@ -395,7 +392,7 @@ class Synapse(object):
             return {}
 
     def _get_config_authentication(self):
-        return self._get_config_section_dict('authentication')
+        return self._get_config_section_dict(config_file_constants.AUTHENTICATION_SECTION_NAME)
 
 
     def _get_client_authenticated_s3_profile(self, endpoint, bucket):

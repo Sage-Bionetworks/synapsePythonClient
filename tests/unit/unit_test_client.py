@@ -1,14 +1,14 @@
-import os, json, tempfile, base64, sys
-from mock import patch, call, MagicMock
-from builtins import str
+import os, json, tempfile, base64
+from mock import patch, call, create_autospec
 
-import uuid
 import unit
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none
 
 import synapseclient
-from synapseclient import Evaluation, File, concrete_types, Folder
+from synapseclient import Evaluation, File, Folder
+from synapseclient.constants import concrete_types
 from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArgs
+from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 import synapseclient.upload_functions as upload_functions
@@ -27,16 +27,14 @@ class TestLogout():
         self.credentials = SynapseCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
 
     def test_logout__forgetMe_is_True(self):
-        username = "asdf"
         with patch.object(synapseclient.client, "cached_sessions") as mock_cached_session:
             syn.credentials = self.credentials
             syn.logout(True)
             assert_is_none(syn.credentials)
-            mock_cached_session.remove_api_key.assert_called_with(username)
+            mock_cached_session.remove_api_key.assert_called_with(self.username)
 
 
     def test_logout__forgetMe_is_False(self):
-        username = "asdf"
         with patch.object(synapseclient.client, "cached_sessions") as mock_cached_session:
             syn.credentials = self.credentials
             syn.logout(False)
@@ -49,7 +47,7 @@ class TestLogin():
         self.expected_user_args = UserLoginArgs(username="AzureDiamond", password="hunter2", api_key=None, skip_cache=False)
         self.synapse_creds = SynapseCredentials("AzureDiamond", base64.b64encode(b"*******").decode())
 
-        self.mocked_credential_chain = MagicMock()
+        self.mocked_credential_chain = create_autospec(SynapseCredentialsProviderChain)
         self.mocked_credential_chain.get_credentials.return_value =self.synapse_creds
         self.get_default_credential_chain_patcher = patch.object(synapseclient.client, "get_default_credential_chain", return_value=self.mocked_credential_chain)
         self.mocked_get_credential_chain = self.get_default_credential_chain_patcher.start()

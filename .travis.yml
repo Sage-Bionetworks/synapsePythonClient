@@ -33,6 +33,7 @@ matrix:
       env: PY_VERSION=3.6.2
 
 addons:
+  #This is used for SFTP integration tests
   ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
 
 before_install:
