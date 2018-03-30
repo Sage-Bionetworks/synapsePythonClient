@@ -140,9 +140,13 @@ def test_entity_view_add_annotation_columns():
     assert_true(entity_view['addAnnotationColumns'])
 
     #For some reason this call is eventually consistent but not immediately consistent. so we just wait till the size returned is correct
-    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE', 'concreteType':'STRING'}
+    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE'}
     columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
+
+    start_time = time.time()
     while len(columns) != len(expected_column_types):
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+
         columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
         time.sleep(2)
 
@@ -158,8 +162,9 @@ def test_entity_view_add_annotation_columns():
 
     prev_columns = list(entity_view.columnIds)
     # sometimes annotation columns are not immediately updated so we wait for it to update in a loop
+    start_time = time.time()
     while len(entity_view.columnIds) != len(prev_columns) + 1:
-        print(len(prev_columns), entity_view.columnIds)
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
         entity_view.addAnnotationColumns = True
         entity_view = syn.store(entity_view)
 
