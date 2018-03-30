@@ -158,8 +158,9 @@ def test_entity_view_add_annotation_columns():
 
     prev_columns = list(entity_view.columnIds)
     # sometimes annotation columns are not immediately updated so we wait for it to update in a loop
+    start_time = time.time()
     while len(entity_view.columnIds) != len(prev_columns) + 1:
-        print(len(prev_columns), entity_view.columnIds)
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)        print(len(prev_columns), entity_view.columnIds)
         entity_view.addAnnotationColumns = True
         entity_view = syn.store(entity_view)
 
