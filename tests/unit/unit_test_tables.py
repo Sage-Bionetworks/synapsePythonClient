@@ -668,6 +668,8 @@ def test_EntityViewSchema__repeated_columnName_same_type():
 
 
 def test_rowset_asDataFrame__with_ROW_ETAG_column():
+    _try_import_pandas('test_rowset_asDataFrame__with_ROW_ETAG_column')
+
     query_result = {
                    'concreteType':'org.sagebionetworks.repo.model.table.QueryResultBundle',
                    'maxRowsPerPage':6990,
