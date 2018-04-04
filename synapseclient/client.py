@@ -326,7 +326,11 @@ class Synapse(object):
         :param apiKey:     Base64 encoded Synapse API key
         :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the following fields: email, password, apiKey
         :param rememberMe: Whether the authentication information should be cached in your operating system's credential storage.
-        **GNOME Keyring** (recommended) or **KWallet** is necessary to be installed for credential store to work on **Linux** systems. To install GNOME Keyring on Ubuntu::
+        **GNOME Keyring** (recommended) or **KWallet** is recommonded to be installed for credential storage on **Linux** systems.
+        If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for the current user only (chmod 600).
+        On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
+        To install GNOME Keyring on Ubuntu::
+
 
             sudo apt-get install gnome-keyring
 
