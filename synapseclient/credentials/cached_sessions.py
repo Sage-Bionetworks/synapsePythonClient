@@ -9,10 +9,6 @@ from keyrings.alt.file import PlaintextKeyring
 SYNAPSE_CACHED_SESSION_APLICATION_NAME = "SYNAPSE.ORG_CLIENT"
 SESSION_CACHE_FILEPATH = os.path.expanduser("~/.synapseSession")
 
-# used to track if we already warned users so we don't spam user with multiple warnings in a single session
-# wrapped in list because of Python 2 scoping issues, if we only supported Python 3, we would just use `nonlocal`
-_should_warn = [isinstance(keyring.get_keyring(), PlaintextKeyring)]
-
 def get_api_key(username):
     """
     Retrieves the user's API key
@@ -34,11 +30,6 @@ def remove_api_key(username):
 
 
 def set_api_key(username, api_key):
-    if _should_warn[0]:
-        warnings.warn('\nYour API key is currently being saved as plain-text because there is no accessible credential storage (keyring) available on your operating system. This most likely occurrs in Linux systems.'
-                      'Though this takes a bit more work, we HIGHLY RECOMMEND setting up a credentials storage (gnome-keyring or KWallet) for security!'
-                      'Please refer to login() documentation (http://docs.synapse.org/python/Client.html#synapseclient.Synapse.login) for setting up credential storage a Linux machine\n')
-        _should_warn[0] = False
     keyring.set_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username, api_key)
 
 
