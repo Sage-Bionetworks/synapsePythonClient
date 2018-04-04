@@ -41,28 +41,12 @@ class TestCachedSessionsKeyring():
         mocked_keyring.delete_password.assert_called_once_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username)
 
 
-    def test_set_api_key__should_warn_is_True(self, mocked_keyring):
-        cached_sessions._should_warn = [True]
-
-        with patch("warnings.warn") as mock_warn:
+    def test_set_api_key(self, mocked_keyring):
             #function under test
             cached_sessions.set_api_key(self.username, self.api_key)
 
             mocked_keyring.set_password.assert_called_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username, self.api_key)
-            assert_false(cached_sessions._should_warn[0])
-            mock_warn.assert_called_once()
 
-
-    def test_set_api_key__should_warn_is_False(self, mocked_keyring):
-        cached_sessions._should_warn = [False]
-
-        with patch("warnings.warn") as mock_warn:
-            #function under test
-            cached_sessions.set_api_key(self.username, self.api_key)
-
-            mocked_keyring.set_password.assert_called_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username, self.api_key)
-            assert_false(cached_sessions._should_warn[0])
-            mock_warn.assert_not_called()
 
 
 class TestCachedSessionsMostRecentUserFile():
