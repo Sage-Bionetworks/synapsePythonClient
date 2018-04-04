@@ -1,6 +1,6 @@
 import json
 from mock import patch, mock_open
-from nose.tools import assert_is_none, assert_equals
+from nose.tools import assert_false, assert_equals
 
 import synapseclient.credentials.cached_sessions as cached_sessions
 
@@ -12,18 +12,7 @@ class TestCachedSessionsKeyring():
         self.api_key = "ecks dee"
 
 
-    def test_get_api_key__keyring_not_available(self, mocked_keyring):
-        cached_sessions._keyring_is_available = False
-
-        #function under test
-        returned_key = cached_sessions.get_api_key(self.username)
-
-        assert_is_none(returned_key)
-        mocked_keyring.get_password.assert_not_called()
-
-
-    def test_get_api_key__keyring_availble(self, mocked_keyring):
-        cached_sessions._keyring_is_available = True
+    def test_get_api_key__username_not_None(self, mocked_keyring):
         key = "asdf"
         mocked_keyring.get_password.return_value = key
 
@@ -34,40 +23,46 @@ class TestCachedSessionsKeyring():
         mocked_keyring.get_password.assert_called_once_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username)
 
 
-    def test_get_remove_api_key__keyring_not_available(self, mocked_keyring):
-        cached_sessions._keyring_is_available = False
+    def test_get_api_key_username_is_None(self, mocked_keyring):
+        key = "asdf"
+        mocked_keyring.get_password.return_value = key
 
         #functionu under test
-        cached_sessions.remove_api_key(self.username)
+        returned_key = cached_sessions.get_api_key(None)
 
-        mocked_keyring.delete_password.assert_not_called()
+        assert_equals(None, returned_key)
+        mocked_keyring.get_password.assert_not_called()
 
 
-    def test_get_remove_api_key__keyring_available(self, mocked_keyring):
-        cached_sessions._keyring_is_available = True
-
+    def test_get_remove_api_key(self, mocked_keyring):
         #function under test
         cached_sessions.remove_api_key(self.username)
 
         mocked_keyring.delete_password.assert_called_once_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username)
 
 
-    def test_set_api_key__keyring_not_available(self, mocked_keyring):
-        cached_sessions._keyring_is_available = False
+    def test_set_api_key__should_warn_is_True(self, mocked_keyring):
+        cached_sessions._should_warn = [True]
 
-        #function under test
-        cached_sessions.set_api_key(self.username, self.api_key)
+        with patch("warnings.warn") as mock_warn:
+            #function under test
+            cached_sessions.set_api_key(self.username, self.api_key)
 
-        mocked_keyring.set_password.assert_not_called()
+            mocked_keyring.set_password.assert_called_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username, self.api_key)
+            assert_false(cached_sessions._should_warn[0])
+            mock_warn.assert_called_once()
 
 
-    def test_set_api_key__keyring_available(self, mocked_keyring):
-        cached_sessions._keyring_is_available = True
+    def test_set_api_key__should_warn_is_False(self, mocked_keyring):
+        cached_sessions._should_warn = [False]
 
-        #function under test
-        cached_sessions.set_api_key(self.username, self.api_key)
+        with patch("warnings.warn") as mock_warn:
+            #function under test
+            cached_sessions.set_api_key(self.username, self.api_key)
 
-        mocked_keyring.set_password.assert_called_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username, self.api_key)
+            mocked_keyring.set_password.assert_called_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username, self.api_key)
+            assert_false(cached_sessions._should_warn[0])
+            mock_warn.assert_not_called()
 
 
 class TestCachedSessionsMostRecentUserFile():

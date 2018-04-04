@@ -3,18 +3,15 @@ import os
 import json
 import warnings
 from keyring.errors import PasswordDeleteError
-from keyring.backends.fail import Keyring as FailKeyring
+from keyrings.alt.file import PlaintextKeyring
 
 
 SYNAPSE_CACHED_SESSION_APLICATION_NAME = "SYNAPSE.ORG_CLIENT"
 SESSION_CACHE_FILEPATH = os.path.expanduser("~/.synapseSession")
 
-# We use this boolean to keep track of whether we or not we should call the keyring methods
-# In the case where no key store backend is available (most likely in Linux), a fail.Keyring is returned which will throw errors when any of its functions are called
-# However, the errors thrown are of the generic type RuntimeError (not a subclass of RuntimeError).
-# It didn't feel safe to try/except and ignore RuntimeError since there are very many other RuntimeErrors that could occur.
-_keyring_is_available = not isinstance(keyring.get_keyring(), FailKeyring)
-
+# used to track if we already warned users so we don't spam user with multiple warnings in a single session
+# wrapped in list because of Python 2 scoping issues, if we only supported Python 3, we would just use `nonlocal`
+_should_warn = [isinstance(keyring.get_keyring(), PlaintextKeyring)]
 
 def get_api_key(username):
     """
@@ -23,13 +20,12 @@ def get_api_key(username):
     :return: API key for the specified username
     :rtype: str
     """
-    if _keyring_is_available and username is not None:
+    if username is not None:
             return keyring.get_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
     return None
 
 
 def remove_api_key(username):
-    if _keyring_is_available:
         try:
             keyring.delete_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
         except PasswordDeleteError:
@@ -38,14 +34,12 @@ def remove_api_key(username):
 
 
 def set_api_key(username, api_key):
-    if _keyring_is_available:
-        keyring.set_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username, api_key)
-    else:
-        warnings.warn('\nUnable to save user credentials as you do not have a keyring available. '
-                      'Please refer to login() documentation (http://docs.synapse.org/python/Client.html#synapseclient.Synapse.login) for setting up credential storage a Linux machine\n'
-                      'If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before running your Python session:'
-                      '\tdbus-run-session -- bash #(replace "bash" with "sh" if bash is unavailable)'
-                      '\techo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon --unlock')
+    if _should_warn[0]:
+        warnings.warn('\nYour API key is currently being saved as plain-text because there is no accessible credential storage (keyring) available on your operating system. This most likely occurrs in Linux systems.'
+                      'Though this takes a bit more work, we HIGHLY RECOMMEND setting up a credentials storage (gnome-keyring or KWallet) for security!'
+                      'Please refer to login() documentation (http://docs.synapse.org/python/Client.html#synapseclient.Synapse.login) for setting up credential storage a Linux machine\n')
+        _should_warn[0] = False
+    keyring.set_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username, api_key)
 
 
 

@@ -43,7 +43,8 @@ setup(name='synapseclient',
         'six',
         'future',
         'backports.csv',
-        'keyring'
+        'keyring',
+        'keyrings.alt'
     ],
     extras_require = {
         'pandas':  ["pandas"],
