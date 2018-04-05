@@ -283,7 +283,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 from future.utils import bytes_to_native_str
-from builtins import str
 
 from backports import csv
 import io
@@ -294,7 +293,6 @@ import six
 import sys
 import tempfile
 import copy
-import collections
 import itertools
 from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
 from builtins import zip
@@ -304,7 +302,7 @@ from .utils import id_of, from_unix_epoch_time
 from .exceptions import *
 from .dict_object import DictObject
 from .entity import Entity, Versionable, _entity_type_to_class
-from . import concrete_types
+from .constants import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 
@@ -449,7 +447,7 @@ def cast_values(values, headers):
         ## convert field to column type
         if field is None or field=='':
             result.append(None)
-        elif columnType in {'STRING', 'ENTITYID', 'FILEHANDLEID', 'LARGETEXT', 'USERID'}:
+        elif columnType in {'STRING', 'ENTITYID', 'FILEHANDLEID', 'LARGETEXT', 'USERID', 'LINK'}:
             result.append(field)
         elif columnType=='DOUBLE':
             result.append(float(field))
@@ -551,6 +549,7 @@ class SchemaBase(Entity, Versionable):
             self.properties.columnIds.extend(column.id for column in syn.createColumns(self.columns_to_store))
             self.columns_to_store = []
 
+
 class Schema(SchemaBase):
     """
     A Schema is an :py:class:`synapseclient.entity.Entity` that defines a set of columns in a table.
@@ -645,61 +644,62 @@ class EntityViewSchema(SchemaBase):
             self.scopeIds.append(id_of(entities))
 
     def _before_synapse_store(self, syn):
-        if self.addAnnotationColumns:
-            self._add_annotations_as_columns(syn)
-            self.addAnnotationColumns = False
-
         #get the default EntityView columns from Synapse and add them to the columns list
+        additional_columns = []
         if self.addDefaultViewColumns:
-            self.addColumns(syn._get_default_entity_view_columns(self.type))
-            self.addDefaultViewColumns = False
+            additional_columns.extend(syn._get_default_entity_view_columns(self.type))
+
+        #get default annotations
+        if self.addAnnotationColumns:
+            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self.type) if
+             x['name'] not in self.ignoredAnnotationColumnNames]
+            additional_columns.extend(anno_columns)
+
+        self.addColumns(self._filter_duplicate_columns(syn, additional_columns))
+
+        #set these boolean flags to false so they are not repeated.
+        self.addDefaultViewColumns = False
+        self.addAnnotationColumns = False
 
         super(EntityViewSchema, self)._before_synapse_store(syn)
 
 
-    def _add_annotations_as_columns(self, syn):
-        column_type_to_annotation_names = {
-            'STRING': set(),
-            'INTEGER': set(),
-            'DOUBLE': set(),
-            'DATE': set()
-        }
-        all_existing_column_names = set() # set of all existing columns names regardless of type
+    def _filter_duplicate_columns(self, syn, columns_to_add):
+        """
+        If a column to be added has the same name and same type as an existing column, it will be considered a duplicate and not added.
+        :param syn: a :py:class:`synapseclient.client.Synapse` object that is logged in
+        :param columns_to_add: iterable collection of type :py:class:`synapseclient.table.Column` objects
+        :return: a filtered list of columns to add
+        """
+
+        # no point in making HTTP calls to retrieve existing Columns if we not adding any new columns
+        if not columns_to_add:
+            return columns_to_add
+
+        # set up Column name/type tracking
+        column_type_to_annotation_names = {} # map of str -> set(str), where str is the column type as a string and set is a set of column name strings
 
         # add to existing columns the columns that user has added but not yet created in synapse
-        column_generator = itertools.chain(syn.getColumns(self.columnIds), self.columns_to_store) if self.columns_to_store else syn.getColumns(self.columnIds)
+        column_generator = itertools.chain(syn.getColumns(self.columnIds),
+                                           self.columns_to_store) if self.columns_to_store else syn.getColumns(self.columnIds)
 
         for column in column_generator:
             column_name = column['name']
             column_type = column['columnType']
 
-            all_existing_column_names.add(column_name)
-            #add to type specific set
-            if column_type in column_type_to_annotation_names:
-                column_type_to_annotation_names[column_type].add(column_name)
+            column_type_to_annotation_names.setdefault(column_type,set()).add(column_name)
 
 
-        #get annotations from each of the scopes and create columns
-        columns_to_add = [] #temporarily store all columns so that none are added if any errors occur
-        anno_columns = syn._get_annotation_entity_view_columns(self.scopeIds, self.type)
-        for column in anno_columns:
-            anno_col_name = column['name']
-            anno_col_type = column['columnType']
-            typed_col_name_set = column_type_to_annotation_names[anno_col_type]
-            if (anno_col_name not in self.ignoredAnnotationColumnNames
-                 and anno_col_name not in typed_col_name_set):
+        valid_columns = []
+        for column in columns_to_add:
+            new_col_name = column['name']
+            new_col_type = column['columnType']
 
-                if anno_col_name in all_existing_column_names:
-                    raise ValueError("The annotation column name [%s] has multiple types in your scopes or in your defined columns.\n"
-                                     "Please do one of the following:\n"
-                                     "  Turn off the automatic conversion of annotations to column names: entityView.addAnnotationColumns = False\n"
-                                     "  Modify your annotations/columns named [%s] to all be of the same type.\n"
-                                     "  Add the annotation name to the set of ignored annotation names via entityView.ignoredAnnotations.add(%s).\n" % (anno_col_name, anno_col_name, anno_col_name))
-                all_existing_column_names.add(anno_col_name)
-                typed_col_name_set.add(anno_col_name)
-                columns_to_add.append(column)
-        self.addColumns(columns_to_add)
-
+            typed_col_name_set = column_type_to_annotation_names.setdefault(new_col_type, set())
+            if new_col_name not in typed_col_name_set:
+                typed_col_name_set.add(new_col_name)
+                valid_columns.append(column)
+        return valid_columns
 
 
 ## add Schema to the map of synapse entity types to their Python representations
