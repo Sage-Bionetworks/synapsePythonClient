@@ -90,14 +90,13 @@ from synapseclient.dict_object import DictObject
 
 class Evaluation(DictObject):
     """
-    Keeps track of an evaluation queue in Synapse.  Allowing for
-    submissions, retrieval and scoring.
+    An Evaluation Submission queue, allowing submissions, retrieval and scoring.
     
     :param name:          Name of the evaluation
-    :param description:   A short description describing the evaluation
-    :param contentSource: Synapse Project or entity associated with the evaluation
+    :param description:   A short description of the evaluation
+    :param contentSource: Synapse Project associated with the evaluation
     :param submissionReceiptMessage: Message to display to users upon submission
-    :param submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions
+    :param submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions.
 
     `To create an Evaluation <http://docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_
     and store it in Synapse::

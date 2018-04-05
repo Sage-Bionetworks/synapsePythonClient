@@ -316,7 +316,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     Annotations:
 
-    **Annotations:        **
+    **Annotations:**
                         
     Any columns that are not in the reserved names described above will be intepreted as annotations of the file
                         
