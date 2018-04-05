@@ -16,7 +16,7 @@ from synapseclient.utils import _find_used
 from synapseclient.exceptions import _raise_for_status, SynapseMalformedEntityError, SynapseHTTPError
 from synapseclient.dict_object import DictObject
 
-from mock import patch, mock_open
+from mock import patch, mock_open, MagicMock
 import tempfile
 from shutil import rmtree
 
@@ -438,3 +438,33 @@ def test_calling_module():
     # we made a helper so that the call order is: case.some_function_for_running_tests() -> unit_test.test_calling_module() -> unit_test._calling_module_test_helper()
     # since both _calling_module_test_helper and test_calling_module are a part of the unit_test module, we can test that callers of the same module do indeed are skipped
     assert_equal("case", _calling_module_test_helper())
+
+def _helper_test_extract_zip_file_to_directory(zip_entry_name, target_dir, expected_path, ignore_heirarchy):
+    fake_data = "Omae Wa Mou Shindeiru. Nani?!"
+    mocked_zip_file_obj = MagicMock();
+    mocked_zip_file_obj.read = MagicMock(return_value=fake_data);
+
+
+    with patch.object(utils, "open", mock_open(), create=True) as mocked_open, \
+         patch.object(os.path, "exists", return_value=True) as mocked_path_exists:
+        final_path = utils._extract_zip_file_to_directory(mocked_zip_file_obj, zip_entry_name, target_dir, ignore_heirarchy)
+
+        assert_equal(expected_path, final_path)
+
+        mocked_path_exists.assert_called_once()
+        mocked_open.assert_called_once_with(expected_path, 'wb')
+        mocked_open().write.assert_called_once_with(fake_data)
+
+def test_extract_zip_file_to_directory__preserve_heirarchy_is_True():
+    zip_entry_name =  "folder/heiarchy/and/then/filename.txt"
+    target_dir = "/some/path"
+
+    expected_path = os.path.join(target_dir, zip_entry_name)
+    _helper_test_extract_zip_file_to_directory(zip_entry_name, target_dir, expected_path, ignore_heirarchy=False)
+
+def test_extract_zip_file_to_directory__preserve_heirarchy_is_False():
+    zip_entry_name =  "folder/heiarchy/and/then/filename.txt"
+    target_dir = "/some/path"
+
+    expected_path = os.path.join(target_dir, os.path.basename(zip_entry_name))
+    _helper_test_extract_zip_file_to_directory(zip_entry_name, target_dir, expected_path, ignore_heirarchy=True)

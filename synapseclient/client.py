@@ -78,7 +78,7 @@ from .credentials import cached_sessions, UserLoginArgs, get_default_credential_
 from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_directory, _is_integer
+from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_path, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -747,7 +747,6 @@ class Synapse(object):
         #location in .synapseCache where the file would be corresponding to its FileHandleId
         synapseCache_location = self.cache.get_cache_dir(entity.dataFileHandleId)
 
-        file_name = entity._file_handle.fileName if cached_file_path is None else os.path.basename(cached_file_path)
 
         #Decide the best download location for the file
         if downloadLocation is not None:
@@ -762,8 +761,11 @@ class Synapse(object):
             #file not cached and no user-specified location so default to .synapseCache
             downloadLocation = synapseCache_location
 
+
+        file_name = entity._file_handle.fileName if cached_file_path is None else os.path.basename(cached_file_path)
         #resolve file path collisions by either overwriting, renaming, or not downloading, depending on the ifcollision value
         downloadPath = self._resolve_download_path_collisions(downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path)
+
         if downloadPath is None:
             return
 
@@ -1273,7 +1275,7 @@ class Synapse(object):
         """
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
 
-    def uploadSynapseManagedFileHandle(self, path, storageLocationId=None,mimetype=None):
+    def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
         """
         Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
         :param path: path to the file
@@ -3169,12 +3171,20 @@ class Synapse(object):
             return path
 
 
-    def downloadTableColumns(self, table, columns, **kwargs):
+    def downloadTableColumns(self, table, columns, downloadLocation = None, ignoreHeirarchy=True, ifcollision=None, **kwargs):
         """
         Bulk download of table-associated files.
 
         :param table:            table query result
         :param columns:           a list of column names as strings
+        :param downloadLocation: Directory in which to download the files.
+                                 Defaults to the local cache.
+        :param ignoreHeirarchy: Only has an effect if downloadLocation is also specified. Defaults to False
+                                If False, will preserve the folder heirarchy used in the Synapse cache(i.e. {downloadLocation}/{filehandleid modulo 100}/{filehandleid}/filename)
+                                If True, will palace the file directly into the specified downloadLocation
+        :param ifcollision:     Determines how to handle file collisions.
+                                May be "overwrite.local", "keep.local", or "keep.both".
+                                Defaults to "keep.both".
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
@@ -3233,32 +3243,42 @@ class Synapse(object):
             ##------------------------------------------------------------
 
             temp_dir = tempfile.mkdtemp()
-            zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
+            zip_file_obj = None
             try:
-                zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId , 'TableEntity', zipfilepath)
-                ## TODO handle case when no zip file is returned
-                ## TODO test case when we give it partial or all bad file handles
-                ## TODO test case with deleted fileHandleID
-                ## TODO return null for permanent failures
+                #download the zip file and open it as a zipfile.Zipfile
+                designated_zip_filepath = os.path.join(temp_dir,"table_file_download.zip")
+                zip_file_handle_id = response['resultZipFileHandleId']
+                if zip_file_handle_id is not None:
+                    zip_file_path = self._downloadFileHandle(zip_file_handle_id, table.tableId, 'TableEntity', designated_zip_filepath)
+                    zip_file_obj = zipfile.ZipFile(zip_file_path, mode='r')
 
-                ##------------------------------------------------------------
-                ## unzip into cache
-                ##------------------------------------------------------------
+                for summary in response['fileSummary']:
+                    if summary['status'] == 'SUCCESS':
+                        extract_dir = downloadLocation
 
-                with zipfile.ZipFile(zipfilepath) as zf:
-                    ## the directory structure within the zip follows that of the cache:
-                    ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
-                    for summary in response['fileSummary']:
-                        if summary['status'] == 'SUCCESS':
-                            cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = _extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
-                            self.cache.add(summary['fileHandleId'], filepath)
-                            file_handle_to_path_map[summary['fileHandleId']] = filepath
-                        elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
-                            permanent_failures[summary['fileHandleId']] = summary
+                        cached_file_path = self.cache.get(summary['fileHandleId'], downloadLocation)
+                        synapseCache_location = self.cache.get_cache_dir(summary['fileHandleId'])
+
+                        if extract_dir is None:
+                            extract_dir = synapseCache_location
+                            ignoreHeirarchy = False
+
+                        zip_entry_name = summary['zipEntryName']
+                        # determine file extraction location
+                        file_relative_path = os.path.basename(zip_entry_name) if ignoreHeirarchy else zip_entry_name
+
+                        filepath = self._resolve_download_path_collisions(extract_dir, file_relative_path, ifcollision,
+                                                                          synapseCache_location, cached_file_path)
+
+                        _extract_zip_file_to_path(zip_file_obj, zip_entry_name, filepath)
+                        self.cache.add(summary['fileHandleId'], filepath)
+                        file_handle_to_path_map[summary['fileHandleId']] = filepath
+                    elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
+                        permanent_failures[summary['fileHandleId']] = summary
             finally:
-                if os.path.exists(zipfilepath):
-                    os.remove(zipfilepath)
+                if zip_file_obj is not None:
+                    zip_file_obj.close()
+                shutil.rmtree(temp_dir)
 
             ## Do we have remaining files to download?
             file_handle_associations = [

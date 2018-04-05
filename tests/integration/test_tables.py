@@ -7,7 +7,6 @@ from builtins import str
 
 from backports import csv
 import io
-import json
 import filecmp
 import math
 import os
@@ -18,9 +17,11 @@ import time
 import uuid
 import six
 from builtins import zip
+
 from nose.tools import assert_equals, assert_less, assert_not_equal, assert_dict_equal, assert_false, assert_true
 from datetime import datetime
 from mock import patch
+from collections import OrderedDict
 from collections import namedtuple
 
 import synapseclient
@@ -31,6 +32,7 @@ from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, Pa
 
 import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+
 
 
 def setup(module):
@@ -542,6 +544,104 @@ def test_download_table_files():
     assert len(file_map) == 4
     for row in results:
         filecmp.cmp(original_files[i], file_map[row[6]])
+
+
+def test_downloadTableColumns__no_s3_file_handles():
+    #TODO: refactor common code
+
+    row_data = [["some text", "fake_file.txt"]]
+    upload_functions = [syn._createExternalFileHandle]
+    table_id, _ = _downloadTableColumns_test_setup(row_data, upload_functions)
+
+    table_query_result = syn.tableQuery("SELECT * FROM %s" % table_id)
+    file_map = syn.downloadTableColumns(table_query_result, ['files'])
+
+    assert_equals(0, len(file_map))
+
+
+def test_downloadTableColumns__mixed_S3_and_non_S3_file_handles():
+    # cols = [
+    #     Column(name='notfiles', columnType='STRING'),
+    #     Column(name='files', columnType='FILEHANDLEID')]
+    # schema = syn.store(Schema(name='ravioli ravioli give me the formuoli', columns=cols, parent=project))
+    # schedule_for_cleanup(schema)
+    #
+    # data = [["tfw the text doesnt matter", "and neither does the file name"],
+    #         ["@@@@@@@@@@@@@@@@@", "You expected a filename, but it was me, Dio!"]]
+    #
+    # file_column_idx = 1
+    # original_files = []
+    # synapse_S3_file_handle_id, file_path_synapse_s3 = _replace_column_with_generated_random_file(data[0], original_files, column_idx=file_column_idx, file_upload_function=syn.uploadSynapseManagedFileHandle)
+    # _replace_column_with_generated_random_file(data[1], original_files, column_idx=file_column_idx, file_upload_function=syn._createExternalFileHandle)
+    #
+    #
+    # row_table = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
+
+    row_data = [["some text", "fake_file.txt"],
+                ["WWWWWWWWWWWWWWWWWWWWW@@@@@@@@@@@@@@@rururururururu", "other_file.txt"]]
+    upload_functions = [syn.uploadSynapseManagedFileHandle, syn._createExternalFileHandle]
+    table_id, fh_id_to_original_path = _downloadTableColumns_test_setup(row_data, upload_functions)
+    #the dict is an OrderedDict so it is guaranteed that the first item is one uploaded to Synapse S3
+    synapse_s3_file_handle_id, original_path = next(six.iteritems(fh_id_to_original_path))
+
+
+    syn.cache.purge(time.time())
+
+    table_query_result = syn.tableQuery("SELECT * FROM %s" % table_id)
+    file_map = syn.downloadTableColumns(table_query_result, ['files'])
+
+    assert_equals(1, len(file_map))
+
+    unzipped_path = file_map[synapse_s3_file_handle_id]
+    assert_not_equal(original_path, unzipped_path)
+    assert filecmp.cmp(original_path, unzipped_path)
+
+
+def test_downloadTableColumns__downloadLocation():
+    row_data = [["some text", "fake_file.txt"],
+                ["WWWWWWWWWWWWWWWWWWWWW@@@@@@@@@@@@@@@rururururururu", "other_file.txt"]]
+    upload_functions = [syn.uploadSynapseManagedFileHandle] * 2
+    table_id, _ = _downloadTableColumns_test_setup(row_data, upload_functions)
+
+    syn.cache.purge(time.time())
+
+    expected_download_location = tempfile.mkdtemp()
+    schedule_for_cleanup(expected_download_location)
+
+    table_query_result = syn.tableQuery("SELECT * FROM %s" % table_id)
+    file_map = syn.downloadTableColumns(table_query_result, ['files'], downloadLocation=expected_download_location)
+
+    for path in six.itervalues(file_map):
+        assert_equals(expected_download_location, os.path.dirname(path))
+
+
+
+def _downloadTableColumns_test_setup(data, upload_functions):
+    if len(data) != len(upload_functions):
+        raise ValueError("data and upload_functions must be the same size!")
+
+    cols = [
+        Column(name='notfiles', columnType='STRING'),
+        Column(name='files', columnType='FILEHANDLEID')]
+    schema = syn.store(Schema(name='ravioli ravioli give me the formuoli', columns=cols, parent=project))
+    schedule_for_cleanup(schema)
+
+
+    file_column_idx = 1
+    fh_id_to_original_path = OrderedDict()
+    for row, upload_func in zip(data, upload_functions):
+        _replace_column_with_generated_random_file(row, fh_id_to_original_path, column_idx=file_column_idx, file_upload_function=upload_func)
+
+    row_table = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
+    return id_of(row_table), fh_id_to_original_path
+
+
+def _replace_column_with_generated_random_file(row, fh_id_to_original_path, column_idx, file_upload_function):
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    file_handle_id = file_upload_function(path)['id']
+    row[column_idx] = file_handle_id
+    fh_id_to_original_path[file_handle_id] = path
 
 
 def dontruntest_big_tables():
