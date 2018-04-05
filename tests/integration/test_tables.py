@@ -153,7 +153,7 @@ def test_entity_view_add_annotation_columns():
     entity_view = syn.store(entity_view)
     assert_false(entity_view['addAnnotationColumns'])
 
-    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
+    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view)}
     assert_dict_equal(expected_column_types, view_column_types)
 
     #add another annotation to the project and make sure that EntityViewSchema only adds one moe column
@@ -169,7 +169,7 @@ def test_entity_view_add_annotation_columns():
         entity_view = syn.store(entity_view)
 
     expected_column_types.update({'anotherAnnotation': 'STRING'})
-    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view.columnIds)}
+    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view)}
     assert_dict_equal(expected_column_types, view_column_types)
 
 
