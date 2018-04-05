@@ -20,3 +20,5 @@ UPLOAD_TO_TABLE_RESULT = 'org.sagebionetworks.repo.model.table.UploadToTableResu
 
 PARTIAL_ROW_SET = 'org.sagebionetworks.repo.model.table.PartialRowSet'
 APPENDABLE_ROWSET_REQUEST = 'org.sagebionetworks.repo.model.table.AppendableRowSetRequest'
+
+COLUMN_MODEL = 'org.sagebionetworks.repo.model.table.ColumnModel'

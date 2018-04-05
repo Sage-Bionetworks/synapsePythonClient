@@ -709,7 +709,7 @@ _entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 ## allowed column types
 ## see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
-ColumnTypes = ['STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK', 'LARGETEXT', 'USERID']
+ColumnTypes = {'STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK', 'LARGETEXT', 'USERID'}
 
 
 class SelectColumn(DictObject):
@@ -744,7 +744,7 @@ class SelectColumn(DictObject):
 
 class Column(DictObject):
     """
-    Defines a column to be used in a table :py:class:`synapseclient.table.Schema`.
+    Defines a column to be used in a table :py:class:`synapseclient.table.Schema` :py:class:`synapseclient.table.EntityViewSchema`.
 
     :var id:              An immutable ID issued by the platform
     :param columnType:    Can be any of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID"
@@ -768,7 +768,7 @@ class Column(DictObject):
 
     def __init__(self, **kwargs):
         super(Column, self).__init__(kwargs)
-        self['concreteType'] = 'org.sagebionetworks.repo.model.table.ColumnModel'
+        self['concreteType'] = concrete_types.COLUMN_MODEL
 
 
     def postURI(self):

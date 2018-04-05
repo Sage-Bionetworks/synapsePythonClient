@@ -2789,7 +2789,7 @@ class Synapse(object):
         Get the columns defined in Synapse either (1) corresponding to a set of column
         headers, (2) those for a given schema, or (3) those whose names start with a given prefix.
 
-        :param x: a list of column headers, a Schema, a TableSchema's Synapse ID, or a string prefix
+        :param x: a list of column headers, a Table Entity object (Schema/EntityViewSchema), a Table's Synapse ID, or a string prefix
         :param limit: maximum number of columns to return (pagination parameter)
         :param offset: the index of the first column to return (pagination parameter)
         :return: a generator of Column objects
@@ -2809,7 +2809,7 @@ class Synapse(object):
                     pass
         elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
             for col in self.getTableColumns(x):
-                yield x
+                yield col
         elif isinstance(x, six.string_types):
             uri = '/column?prefix=' + x
             for result in self._GET_paginated(uri, limit=limit, offset=offset):
