@@ -494,8 +494,10 @@ def _delete_rows(syn, schema, row_id_vers_list):
     :param row_id_vers_list: an iterable containing tuples with format: (row_id, row_version)
     """
     delete_row_csv_filepath = _create_row_delete_csv(row_id_vers_list)
-    syn._uploadCsv(delete_row_csv_filepath, schema)
-    os.remove(delete_row_csv_filepath)
+    try:
+        syn._uploadCsv(delete_row_csv_filepath, schema)
+    finally:
+        os.remove(delete_row_csv_filepath)
 
 
 @six.add_metaclass(ABCMeta)
