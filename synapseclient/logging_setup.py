@@ -25,7 +25,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 DEBUG_LOGGER_NAME = 'synapseclient_debug'
 DEFAULT_LOGGER_NAME = 'synapseclient_default'
-
+SILENT_LOGGER_NAME = 'synapseclient_silent'
 
 class LoggingInfoOnlyFilter(logging.Filter):
     def filter(self, record):
@@ -90,7 +90,7 @@ logging_config.dictConfig({
             'class': 'logging.StreamHandler',
             'formatter': 'warning_format',
             'stream': 'ext://sys.stderr',
-        }
+        },
         # ,
         # "error_to_file": {
         #     "class": "logging.handlers.RotatingFileHandler",
@@ -112,6 +112,11 @@ logging_config.dictConfig({
             'handlers': ['info_only_stdout', 'debug_stderr'],
             'level': 'DEBUG',
             'propagate': True
+        },
+        SILENT_LOGGER_NAME:{
+            'handlers': [],
+            'level': 'ERROR',
+            'propagate': False
         }
     }
 })
