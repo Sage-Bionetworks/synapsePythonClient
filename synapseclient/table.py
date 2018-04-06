@@ -1559,8 +1559,6 @@ class CsvFileTable(TableAbstractBaseClass):
     def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
         self.filepath = filepath
 
-        self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
-
         ## CsvTableDescriptor fields
         self.linesToSkip = linesToSkip
         self.quoteCharacter = quoteCharacter
@@ -1571,7 +1569,12 @@ class CsvFileTable(TableAbstractBaseClass):
 
         super(CsvFileTable, self).__init__(schema, headers=headers, etag=etag)
 
-        self.setColumnHeaders(headers)
+        if includeRowIdAndRowVersion:
+            names = [header.name for header in headers]
+            if "ROW_ID" not in names and "ROW_VERSION" not in names:
+                headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                           SelectColumn(name="ROW_VERSION", columnType="STRING")] + headers
+        self.headers = headers
 
 
     def _synapse_store(self, syn):
@@ -1704,20 +1707,6 @@ class CsvFileTable(TableAbstractBaseClass):
                       tableId=self.tableId,
                       etag=self.etag,
                       rows=[to_row_object(row, row_id_col, row_ver_col) for row in self])
-
-    def setColumnHeaders(self, headers):
-        """
-        Set the list of :py:class:`synapseclient.table.SelectColumn` objects that
-        will be used to convert fields to the appropriate data types.
-
-        Column headers are automatically set when querying.
-        """
-        if self.includeRowIdAndRowVersion:
-            names = [header.name for header in headers]
-            if "ROW_ID" not in names and "ROW_VERSION" not in names:
-                headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
-                           SelectColumn(name="ROW_VERSION", columnType="STRING")] + headers
-        self.headers = headers
 
     def __iter__(self):
         def iterate_rows(filepath, headers):

@@ -302,14 +302,13 @@ def test_csv_table():
                 print(row)
                 writer.writerow(row)
 
-        table = Table(schema1, filename)
-        assert isinstance(table, CsvFileTable)
-
         ## need to set column headers to read a CSV file
-        table.setColumnHeaders(
-            [SelectColumn(name="ROW_ID", columnType="STRING"),
+        headers = ([SelectColumn(name="ROW_ID", columnType="STRING"),
              SelectColumn(name="ROW_VERSION", columnType="STRING")] +
             [SelectColumn.from_column(col) for col in cols])
+
+        table = Table(schema1, filename, headers=headers)
+        assert isinstance(table, CsvFileTable)
 
         ## test iterator
         # print("\n\nJazz Guys")
