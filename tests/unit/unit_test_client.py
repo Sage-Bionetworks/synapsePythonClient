@@ -14,10 +14,7 @@ from synapseclient.dict_object import DictObject
 import synapseclient.upload_functions as upload_functions
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = unit.syn
 
 
@@ -115,16 +112,12 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
 
     fileHandle = bundle['fileHandles'][0]['id']
     cacheDir = syn.cache.get_cache_dir(fileHandle)
-    print("cacheDir=", cacheDir)
-
     # Make sure the .cacheMap file does not already exist
     cacheMap = os.path.join(cacheDir, '.cacheMap')
     if os.path.exists(cacheMap):
-        print("removing cacheMap file: ", cacheMap)
         os.remove(cacheMap)
 
     def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5):
-        print("mock downloading file to:", path)
         ## touch file at path
         with open(path, 'a'):
             os.utime(path, None)
@@ -133,7 +126,6 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
         return path
 
     def _getFileHandleDownload(fileHandleId,  objectId, objectType='FileHandle'):
-        print("getting metadata for:", fileHandleId)
         return {'fileHandle':bundle['fileHandles'][0], 'fileHandleId':fileHandleId, 'preSignedURL':'http://example.com'}
 
     download_file_mock.side_effect = _downloadFileHandle
@@ -143,12 +135,10 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     # download file to an alternate location
 
     temp_dir1 = tempfile.mkdtemp()
-    print("temp_dir1=", temp_dir1)
 
     e = syn._getWithEntityBundle(entityBundle=bundle,
                                  downloadLocation=temp_dir1,
                                  ifcollision="overwrite.local")
-    print(e)
 
     assert_equal(e.name , bundle["entity"]["name"])
     assert_equal(e.parentId , bundle["entity"]["parentId"])
@@ -160,7 +150,6 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     # get without specifying downloadLocation
     e = syn._getWithEntityBundle(entityBundle=bundle, ifcollision="overwrite.local")
 
-    print(e)
 
     assert_equal(e.name , bundle["entity"]["name"])
     assert_equal(e.parentId , bundle["entity"]["parentId"])
@@ -173,8 +162,6 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     e = syn._getWithEntityBundle(entityBundle=bundle,
                                  downloadLocation=temp_dir2,
                                  ifcollision="overwrite.local")
-    print("temp_dir2=", temp_dir2)
-    print(e)
 
     assert_in(bundle["fileHandles"][0]["fileName"], e.files)
     assert e.path is not None
@@ -230,8 +217,6 @@ def test_submit(*mocks):
     assert_equal(submission.evaluationId , '9090')
     assert_equal(submission.name , 'George')
     assert_equal(submission.submitterAlias , 'Team X')
-
-    print(submission)
 
 
 def test_send_message():

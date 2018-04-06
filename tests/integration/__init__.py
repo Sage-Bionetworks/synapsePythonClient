@@ -33,7 +33,7 @@ QUERY_TIMEOUT_SEC = 25
 def setup_module(module):
     print("Python version:", sys.version)
 
-    syn = synapseclient.Synapse(debug=True, skip_checks=True)
+    syn = synapseclient.Synapse(debug=False, skip_checks=True)
 
     print("Testing against endpoints:")
     print("  " + syn.repoEndpoint)

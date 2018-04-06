@@ -34,10 +34,7 @@ else:
 
 
 def setup_module(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
 
@@ -59,7 +56,6 @@ def run(*command, **kwargs):
     :returns: The STDOUT output of the command.
     """
 
-    print(' '.join(command))
     old_stdout = sys.stdout
     capturedSTDOUT = StringIO()
     syn_client = kwargs.get('syn', syn)
@@ -80,7 +76,6 @@ def run(*command, **kwargs):
 
 
     capturedSTDOUT = capturedSTDOUT.getvalue()
-    # print(capturedSTDOUT)
     return capturedSTDOUT
 
 
@@ -587,7 +582,6 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -603,7 +597,6 @@ def test_command_get_recursive_and_query():
     #Verify that we downloaded files from folder_entity2
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
-        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -620,8 +613,6 @@ def test_command_get_recursive_and_query():
 
     data1 =[[x.id] for x in file_entities]
 
-    print(data1)
-
     row_reference_set1 = syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
@@ -634,7 +625,6 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -729,7 +719,6 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'get',
                  '--limitSearch', folder_entity.id,
                  filename)
-    print("output = \"", output, "\"")
     id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
     name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
     assert_equals(file_entity.id, id)

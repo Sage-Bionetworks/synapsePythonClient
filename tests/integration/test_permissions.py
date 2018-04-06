@@ -22,10 +22,7 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
     module.other_user = integration.other_user

@@ -30,10 +30,6 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
     module.other_user = integration.other_user
@@ -72,7 +68,7 @@ def test_login():
         #login using cache
         # mock to make the config file empty
         with patch.object(syn, "_get_config_authentication", return_value={}):
-            
+
             # Login with no credentials 
             assert_raises(SynapseNoCredentialsError, syn.login)
 
@@ -85,7 +81,7 @@ def test_login():
 
 
     except configparser.Error:
-        print("To fully test the login method, please supply a username and password in the configuration file")
+        raise SkipTest("To fully test the login method, please supply a username and password in the configuration file")
 
     finally:
         # Login with config file
@@ -107,7 +103,7 @@ def testCustomConfigFile():
         syn2 = synapseclient.Synapse(configPath=configPath)
         syn2.login()
     else:
-        print("To fully test the login method a configuration file is required")
+        raise SkipTest("To fully test the login method a configuration file is required")
 
 
 def test_entity_version():
@@ -216,7 +212,6 @@ def test_uploadFileEntity():
     # Download and verify
     entity = syn.downloadEntity(entity)
 
-    print(entity['files'])
     assert entity['files'][0] == os.path.basename(fname)
     assert filecmp.cmp(fname, entity['path'])
 
@@ -233,7 +228,6 @@ def test_uploadFileEntity():
 
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)
-    print(entity['files'])
     assert_equals(entity['files'][0], os.path.basename(fname))
     assert filecmp.cmp(fname, entity['path'])
 

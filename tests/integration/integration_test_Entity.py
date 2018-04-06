@@ -22,10 +22,6 @@ from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
     module.other_user = integration.other_user
@@ -155,9 +151,6 @@ def test_Entity():
     a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
     assert a_file_cached.path is not None
     assert_equal(os.path.basename(a_file_cached.path), os.path.basename(a_file.path))
-
-    print("\n\nList of files in project:\n")
-    syn._list(project, recursive=True)
 
 
 def test_special_characters():

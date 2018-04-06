@@ -17,10 +17,7 @@ from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
 

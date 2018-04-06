@@ -21,20 +21,14 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
 def test_round_trip():
     fhid = None
     filepath = utils.make_bogus_binary_file(multipart_upload_module.MIN_PART_SIZE + 777771)
-    print('Made bogus file: ', filepath)
     try:
         fhid = multipart_upload(syn, filepath)
-        print('FileHandle: {fhid}'.format(fhid=fhid))
 
         # Download the file and compare it with the original
         junk = File(parent=project, dataFileHandleId=fhid)
@@ -64,7 +58,6 @@ def test_randomly_failing_parts():
     multipart_upload_module.MAX_RETRIES = 20
 
     filepath = utils.make_bogus_binary_file(multipart_upload_module.MIN_PART_SIZE*2 + 777771)
-    print('Made bogus file: ', filepath)
 
     normal_put_chunk = None
 
@@ -80,7 +73,6 @@ def test_randomly_failing_parts():
 
     try:
         fhid = multipart_upload(syn, filepath)
-        print('FileHandle: {fhid}'.format(fhid=fhid))
 
         # Download the file and compare it with the original
         junk = File(parent=project, dataFileHandleId=fhid)
@@ -123,7 +115,6 @@ def test_multipart_upload_big_string():
         text += ", ".join( random.choice(cities) for i in range(5000) ) + "\n"
 
     fhid = multipart_upload_string(syn, text)
-    print('FileHandle: {fhid}'.format(fhid=fhid))
 
     # Download the file and compare it with the original
     junk = File(parent=project, dataFileHandleId=fhid)
