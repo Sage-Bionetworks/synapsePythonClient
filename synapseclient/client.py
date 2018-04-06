@@ -84,7 +84,7 @@ from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
@@ -2795,7 +2795,7 @@ class Synapse(object):
         Get the columns defined in Synapse either (1) corresponding to a set of column
         headers, (2) those for a given schema, or (3) those whose names start with a given prefix.
 
-        :param x: a list of column headers, a Schema, a TableSchema's Synapse ID, or a string prefix
+        :param x: a list of column headers, a Table Entity object (Schema/EntityViewSchema), a Table's Synapse ID, or a string prefix
         :param limit: maximum number of columns to return (pagination parameter)
         :param offset: the index of the first column to return (pagination parameter)
         :return: a generator of Column objects
@@ -2813,10 +2813,9 @@ class Synapse(object):
                     yield self.getColumn(header)
                 except ValueError:
                     pass
-        elif isinstance(x, Schema) or utils.is_synapse_id(x):
-            uri = '/entity/{id}/column'.format(id=id_of(x))
-            for result in self._GET_paginated(uri, limit=limit, offset=offset):
-                yield Column(**result)
+        elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
+            for col in self.getTableColumns(x):
+                yield col
         elif isinstance(x, six.string_types):
             uri = '/column?prefix=' + x
             for result in self._GET_paginated(uri, limit=limit, offset=offset):

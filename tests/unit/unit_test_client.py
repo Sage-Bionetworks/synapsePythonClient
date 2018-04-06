@@ -11,6 +11,7 @@ from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArg
 from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
+from synapseclient.table import Column, EntityViewSchema
 import synapseclient.upload_functions as upload_functions
 
 def setup(module):
@@ -380,3 +381,13 @@ def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False():
         syn._check_entity_restrictions(restriction_requirements, "syn123", False)
 
         mocked_warn.assert_called_once()
+
+
+class TestGetColumns(object):
+    def test_input_is_SchemaBase(self):
+        get_table_colums_results = [Column(name='A'),Column(name='B')]
+        with patch.object(syn, "getTableColumns", return_value=iter(get_table_colums_results)) as mock_get_table_coulmns:
+            schema = EntityViewSchema(parentId="syn123")
+            results = list(syn.getColumns(schema))
+            assert_equal(get_table_colums_results, results)
+            mock_get_table_coulmns.assert_called_with(schema)
