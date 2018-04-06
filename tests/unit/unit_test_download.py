@@ -14,10 +14,7 @@ import synapseclient.constants.concrete_types as concrete_types
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = unit.syn
 
 
@@ -131,7 +128,6 @@ def test_mock_download():
     url = "https://repo-prod.prod.sagebase.org/repo/v1/entity/syn6403467/file"
 
     ## 1. No redirects
-    print("\n1. No redirects", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "stream", contents=contents, buffer_size=1024)
     ])
@@ -144,7 +140,6 @@ def test_mock_download():
 
 
     ## 2. Multiple redirects
-    print("\n2. Multiple redirects", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "redirect", location="https://fakeurl.com/qwer"),
@@ -159,7 +154,6 @@ def test_mock_download():
 
 
     ## 3. recover from partial download
-    print("\n3. recover from partial download", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_end=len(contents)//7*3, status_code=200),
@@ -177,7 +171,6 @@ def test_mock_download():
 
 
     ## 4. as long as we're making progress, keep trying
-    print("\n4. as long as we're making progress, keep trying", "-"*60)
     responses = [
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=0, partial_end=len(contents)//11, status_code=200)
@@ -198,7 +191,6 @@ def test_mock_download():
 
     ## 5. don't recover, a partial download that never completes
     ##    should eventually throw an exception
-    print("\n5. don't recover", "-"*60)
     responses = [
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=0, partial_end=len(contents)//11, status_code=200),
@@ -218,7 +210,6 @@ def test_mock_download():
                       syn._downloadFileHandle, fileHandleId, objectId, objectType, destination=temp_dir)
 
     ## 6. 206 Range header not supported, respond with 200 and full file
-    print("\n6. 206 Range header not supported", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial=len(contents)//7*3, status_code=200),
@@ -234,7 +225,6 @@ def test_mock_download():
 
 
     ## 7. Too many redirects
-    print("\n7. Too many redirects", "-"*60)
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf") for i in range(100)])
 

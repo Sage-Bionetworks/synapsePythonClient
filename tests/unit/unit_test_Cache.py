@@ -16,18 +16,11 @@ import synapseclient.cache as cache
 import synapseclient.utils as utils
 
 
-def setup():
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
-
 
 def add_file_to_cache(i, cache_root_dir):
     """
     Helper function for use in test_cache_concurrent_access
     """
-    # print("Starting process %d" % i)
     my_cache = cache.Cache(cache_root_dir=cache_root_dir)
     file_handle_ids = [1001, 1002, 1003, 1004, 1005]
     random.shuffle(file_handle_ids)
@@ -36,7 +29,6 @@ def add_file_to_cache(i, cache_root_dir):
         file_path = os.path.join(cache_dir, "file_handle_%d_process_%02d.junk" % (file_handle_id, i))
         utils.touch(file_path)
         my_cache.add(file_handle_id, file_path)
-    # print("Completed process %d" % i)
 
 
 def test_cache_concurrent_access():
@@ -77,9 +69,7 @@ def test_parse_cache_entry_into_seconds():
     timestamps["2001-09-09T01:46:40.000Z"] = 1000000000
     timestamps["2286-11-20T17:46:40.375Z"] = 10000000000.375
     timestamps["2286-11-20T17:46:40.999Z"] = 10000000000.999
-    print("\n\n")
     for stamp in timestamps.keys():
-        print("Input = %s | Parsed = %f" % (stamp, cache.iso_time_to_epoch(stamp)))
         assert_equal(cache.iso_time_to_epoch(stamp), timestamps[stamp])
         assert_equal(cache.epoch_time_to_iso(cache.iso_time_to_epoch(stamp)), stamp)
 
@@ -92,12 +82,10 @@ def test_get_modification_time():
 
     # File creation should result in a correct modification time
     _, path = tempfile.mkstemp()
-    # print("Now = %f | File = %f" % (time.gmtime(), cache.get_modification_time(path)))
     assert cache._get_modified_time(path) - time.time() < ALLOWABLE_TIME_ERROR
 
     # Directory creation should result in a correct modification time
     path = tempfile.mkdtemp()
-    # print("Now = %f | File = %f" % (calendar.timegm(time.gmtime()), cache.get_modification_time(path)))
     assert cache._get_modified_time(path) - time.time() < ALLOWABLE_TIME_ERROR
 
 
@@ -291,10 +279,6 @@ def test_cache_rules():
 
     ## test case 2b.
     assert_is_none( my_cache.get(file_handle_id=101202) )
-
-    print("\nCache dirs")
-    for d in my_cache._cache_dirs():
-        print(d, synapseclient.cache._get_modified_time(d))
 
 
 def test_set_cache_root_dir():

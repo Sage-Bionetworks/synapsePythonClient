@@ -21,10 +21,7 @@ import json
 import time
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
 
@@ -35,8 +32,6 @@ def test_download_check_md5():
     entity = File(parent=project['id'])
     entity['path'] = tempfile_path
     entity = syn.store(entity)
-
-    print('expected MD5:', entity['md5'])
 
     syn._downloadFileHandle(entity['dataFileHandleId'], entity['id'], 'FileEntity', tempfile.gettempdir())
 

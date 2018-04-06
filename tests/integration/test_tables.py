@@ -34,14 +34,9 @@ from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
     module.syn = integration.syn
     module.project = integration.project
 
-    print("Crank up timeout on async calls")
     module.syn.table_query_timeout = 423
 
 def test_create_and_update_file_view():
@@ -174,10 +169,6 @@ def test_entity_view_add_annotation_columns():
 
 
 def test_rowset_tables():
-
-    # print("Project ID:", project.id)
-    # del integration._to_cleanup[:]
-
     cols = []
     cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
     cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
@@ -188,8 +179,6 @@ def test_rowset_tables():
 
 
     schema1 = syn.store(Schema(name='Foo Table', columns=cols, parent=project))
-
-    print("Table Schema:", schema1.id)
 
     ## Get columns associated with the given table
     retrieved_cols = list(syn.getTableColumns(schema1))
@@ -281,7 +270,6 @@ def test_rowset_tables():
         import pandas as pd
         results = syn.tableQuery("select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id, resultsAs="rowset")
         df = results.asDataFrame()
-        print(df)
         assert df.shape == (3,4)
         assert all(df.iloc[:,0] == ["bar", "bat", "foo"])
         assert all(df.iloc[:,1] == [88.888, 88.888, 88.888])
@@ -410,7 +398,6 @@ def test_tables_csv():
         import pandas as pd
         results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
         df = results.asDataFrame()
-        print("\nUpdated hipness to 8.5", df)
         all(df['Born'].values == 1930)
         all(df['Hipness'].values == 8.5)
 
@@ -514,7 +501,6 @@ def test_download_table_files():
     ## retrieve the files for each row and verify that they are identical to the originals
     results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s" % schema.id, resultsAs="rowset")
     for i, row in enumerate(results):
-        print("%s_%s" % (row.rowId, row.versionNumber), row.values)
         path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
         assert filecmp.cmp(original_files[i], path)
         schedule_for_cleanup(path)
@@ -526,7 +512,6 @@ def test_download_table_files():
 
         results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
         for i, row in enumerate(results):
-            print("%s_%s" % (row.rowId, row.versionNumber), row.values)
             file_path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
             assert filecmp.cmp(original_files[i], file_path)
 
@@ -554,9 +539,6 @@ def dontruntest_big_tables():
 
     table1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
-    print("Created table:", table1.id)
-    print("with columns:", table1.columnIds)
-
     rows_per_append = 10
 
     for i in range(1000):
@@ -564,21 +546,13 @@ def dontruntest_big_tables():
         for j in range(rows_per_append):
             foo = cols[1].enumValues[random.randint(0,2)]
             rows.append(Row(('Robot ' + str(i*rows_per_append + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
-        print("added %d rows" % rows_per_append)
         rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
     results = syn.tableQuery("select * from %s" % table1.id)
-    print("etag:", results.etag)
-    print("tableId:", results.tableId)
 
-    for row in results:
-        print(row)
 
     results = syn.tableQuery("select n, COUNT(n), MIN(x), AVG(x), MAX(x), SUM(x) from %s group by n" % table1.id)
     df = results.asDataFrame()
-
-    print(df.shape)
-    print(df)
 
 
 def dontruntest_big_csvs():
@@ -590,9 +564,6 @@ def dontruntest_big_csvs():
     cols.append(Column(name='is_bogus', columnType='BOOLEAN'))
 
     schema1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
-
-    print("Created table:", schema1.id)
-    print("with columns:", schema1.columnIds)
 
     ## write rows to CSV file
     with tempfile.NamedTemporaryFile(delete=False) as temp:
@@ -607,18 +578,11 @@ def dontruntest_big_csvs():
             for j in range(100):
                 foo = cols[1].enumValues[random.randint(0,2)]
                 writer.writerow(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5))
-            print("wrote 100 rows to disk")
-
     ## upload CSV
     UploadToTableResult = syn._uploadCsv(filepath=temp.name, schema=schema1)
 
     from synapseclient.table import CsvFileTable
     results = CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
-    print("etag:", results.etag)
-    print("tableId:", results.tableId)
-
-    for row in results:
-        print(row)
 
 
 def test_synapse_integer_columns_with_missing_values_from_dataframe():
@@ -640,7 +604,6 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
 
     table_from_dataframe = Table(schema, df)
     assert_not_equal(table.filepath, table_from_dataframe.filepath)
-    print(table.filepath, table_from_dataframe.filepath)
     #compare to make sure no .0's were appended to the integers
     assert filecmp.cmp(table.filepath, table_from_dataframe.filepath)
 
