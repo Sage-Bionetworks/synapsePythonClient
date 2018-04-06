@@ -2,9 +2,6 @@ import os
 from synapseclient.dict_object import DictObject
 
 
-def setup():
-
-
 def test_DictObject():
     """Test creation and property access on DictObjects"""
     d = DictObject({'args_working?':'yes'}, a=123, b='foobar', nerds=['chris','jen','janey'])
