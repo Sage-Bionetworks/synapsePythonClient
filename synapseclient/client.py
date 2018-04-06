@@ -1812,10 +1812,16 @@ class Synapse(object):
                 'requestedFiles':[{'fileHandleId':fileHandleId,
                                    'associateObjectId': objectId,
                                    'associateObjectType':objectType}]}
-        results = self.restPOST('/fileHandle/batch', body=json.dumps(body),
+        response = self.restPOST('/fileHandle/batch', body=json.dumps(body),
                                 endpoint=self.fileHandleEndpoint)
-        return results['requestedFiles'][0]
+        result = response['requestedFiles'][0]
+        failure = result.get('failureCode')
+        if failure == 'NOT_FOUND':
+            raise exceptions.SynapseFileNotFoundError("The fileHandleId %s could not be found" % fileHandleId)
+        elif failure == "UNAUTHORIZED":
+            raise exceptions.SynapseError("You are not authorized to access fileHandleId %s associated with the Synapse %s: %s" % (fileHandleId, objectType, objectId))
 
+        return result
 
     def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
