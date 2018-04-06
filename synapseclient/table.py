@@ -1397,20 +1397,6 @@ class CsvFileTable(TableAbstractBaseClass):
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
-        ## A dirty hack to find out if we got back row ID and Version
-        ## in particular, we don't get these back from aggregate queries
-        with io.open(path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f,
-                delimiter=separator,
-                escapechar=escapeCharacter,
-                lineterminator=lineEnd,
-                quotechar=quoteCharacter)
-            first_line = next(reader)
-        if len(download_from_table_result['headers']) + 2 == len(first_line):
-            includeRowIdAndRowVersion = True
-        else:
-            includeRowIdAndRowVersion = False
-
         self = cls(
             filepath=path,
             schema=download_from_table_result.get('tableId', None),
