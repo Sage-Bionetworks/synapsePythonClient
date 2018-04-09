@@ -115,7 +115,7 @@ logging_config.dictConfig({
         },
         SILENT_LOGGER_NAME:{
             'handlers': [],
-            'level': 'ERROR',
+            'level': 'INFO',
             'propagate': False
         }
     }
