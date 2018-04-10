@@ -1,9 +1,7 @@
 import keyring
 import os
 import json
-import warnings
 from keyring.errors import PasswordDeleteError
-from keyrings.alt.file import PlaintextKeyring
 
 
 SYNAPSE_CACHED_SESSION_APLICATION_NAME = "SYNAPSE.ORG_CLIENT"
