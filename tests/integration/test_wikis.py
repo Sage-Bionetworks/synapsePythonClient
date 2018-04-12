@@ -114,3 +114,9 @@ def test_wiki_version():
     assert "version 2" in w2.title
     assert "version 2" in w2.markdown
 
+
+def test_wiki_with_none_attachments():
+    ## create a new project to avoid artifacts from previous tests
+    project = syn.store(Project(name=str(uuid.uuid4())))
+    w = Wiki(owner=project, markdown="markdown", attachments=None)
+    syn.store(w)
