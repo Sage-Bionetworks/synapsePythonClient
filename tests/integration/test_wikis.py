@@ -113,4 +113,3 @@ def test_wiki_version():
     w2 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=1)
     assert "version 2" in w2.title
     assert "version 2" in w2.markdown
-
