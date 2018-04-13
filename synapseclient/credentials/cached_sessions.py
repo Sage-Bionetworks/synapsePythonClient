@@ -64,7 +64,7 @@ def _write_session_cache(filepath, data):
 def migrate_old_session_file_credentials_if_necessary(syn):
     old_session_file_path = os.path.join(syn.cache.cache_root_dir, '.session')
 
-    # only migrate if the download cache is in the default location (i.e. user did set its location)
+    # only migrate if the download cache is in the default location (i.e. user did not set its location)
     # we don't want to migrate credentials if they were a part of a cache shared by multiple people
     if equal_paths(syn.cache.cache_root_dir, os.path.expanduser(_DEFAULT_CACHE_ROOT_DIR)):
         #iterate throught the old file and place in new credential storage
