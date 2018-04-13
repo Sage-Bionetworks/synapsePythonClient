@@ -165,21 +165,3 @@ def test_setPermissions__default_permissions():
 
     assert_equals(set(['READ', 'DOWNLOAD']), set(permissions))
 
-
-
-def test_check_entity_restrictions():
-    current_user_id = int(syn.getUserProfile()['ownerId'])
-
-    #use other user to create a file
-    other_syn = synapseclient.login(other_user['username'], other_user['password'])
-    proj = other_syn.store(Project(name=str(uuid.uuid4())+'test_check_entity_restrictions'))
-    a_file = other_syn.store(File('~/idk', parent=proj, description='A place to put my junk', foo=1000, synapseStore=False), isRestricted=True)
-
-    #no download permissions
-    other_syn.setPermissions(proj, syn.username, accessType=['READ'])
-
-    #attempt to get file
-    assert_raises(SynapseUnmetAccessRestrictions, syn.get, a_file.id, downloadFile=True)
-
-    other_syn.delete(proj)
-
