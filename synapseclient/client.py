@@ -221,6 +221,9 @@ class Synapse(object):
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600 # in seconds
 
+        # TODO: remove once most clients are no longer on versions <= 1.7.5
+        cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
+
 
     @property
     def debug(self):
