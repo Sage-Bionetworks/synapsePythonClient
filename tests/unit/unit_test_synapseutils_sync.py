@@ -8,11 +8,11 @@ import os
 import unit
 from mock import patch
 from nose import SkipTest
-from nose.tools import assert_dict_equal
+from nose.tools import assert_dict_equal, assert_raises
 from builtins import str
 
 import synapseutils
-from synapseclient import Project
+from synapseclient import Project, Schema
 
 try:
     from StringIO import StringIO
@@ -27,10 +27,7 @@ except:
     pandas_available=False
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = unit.syn
 
 def test_readManifest__sync_order_with_home_directory():
@@ -116,3 +113,11 @@ def test_readManifestFile__synapseStore_values_are_set():
 
         actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
         assert_dict_equal(expected_synapseStore, actual_synapseStore)
+
+
+def test_syncFromSynapse__non_file_Entity():
+    table_schema = "syn12345"
+    with patch.object(syn, "getChildren", return_value = []),\
+         patch.object(syn, "get", return_value = Schema(name="asssdfa", parent="whatever")):
+        assert_raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
+

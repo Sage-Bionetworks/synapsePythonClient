@@ -11,6 +11,12 @@ from __future__ import unicode_literals
 from __future__ import print_function
 from builtins import str
 
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
+import logging
 import uuid
 import os
 import sys
@@ -19,16 +25,18 @@ import six
 import tempfile
 
 from synapseclient import Entity, Project, Folder, File, Evaluation
+from synapseclient.logging_setup import SILENT_LOGGER_NAME
 import synapseclient
 import synapseclient.utils as utils
 
 
-QUERY_TIMEOUT_SEC = 20
+QUERY_TIMEOUT_SEC = 25
 
 def setup_module(module):
     print("Python version:", sys.version)
 
-    syn = synapseclient.Synapse(debug=True, skip_checks=True)
+    syn = synapseclient.Synapse(debug=False, skip_checks=True)
+    syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
 
     print("Testing against endpoints:")
     print("  " + syn.repoEndpoint)
@@ -41,7 +49,7 @@ def setup_module(module):
     module._to_cleanup = []
     
     # Make one project for all the tests to use
-    project = syn.store(Project(name=str(uuid.uuid4())))
+    project = syn.store(Project(name="integration_test_project"+str(uuid.uuid4())))
     schedule_for_cleanup(project)
     module.project = project
 
@@ -50,6 +58,22 @@ def setup_module(module):
     working_directory = tempfile.mkdtemp(prefix="someTestFolder")
     schedule_for_cleanup(working_directory)
     os.chdir(working_directory)
+
+    # Some of these tests require a second user
+    config = configparser.ConfigParser()
+    config.read(synapseclient.client.CONFIG_FILE)
+    module.other_user = {}
+    try:
+        other_user['username'] = config.get('test-authentication', 'username')
+        other_user['password'] = config.get('test-authentication', 'password')
+        other_user['principalId'] = config.get('test-authentication', 'principalId')
+    except configparser.Error:
+        print("[test-authentication] section missing from the configuration file")
+
+    if 'principalId' not in other_user:
+        # Fall back on the synapse-test user
+        other_user['principalId'] = 1560252
+        other_user['username'] = 'synapse-test'
 
 
 def teardown_module(module):

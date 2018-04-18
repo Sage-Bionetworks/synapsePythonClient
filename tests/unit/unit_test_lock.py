@@ -7,12 +7,6 @@ import synapseclient.utils as utils
 from synapseclient.lock import Lock
 
 
-def setup():
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
-
 
 def test_lock():
     user1_lock = Lock("foo", max_age=timedelta(seconds=5))

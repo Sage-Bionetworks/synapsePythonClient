@@ -1,8 +1,118 @@
 Release Notes - Synapse Python Client - Version py-1.7
 
-**Release Date:** 17-June-2017  
 **Install Instructions:** `pip install --upgrade synapseclient` or see [http://docs.synapse.org/python/#installation](http://docs.synapse.org/python/#installation)  
 **Documentation:** [http://docs.synapse.org/python/](http://docs.synapse.org/python/)
+
+# Release 1.7.4
+
+**Release Date:** 29-January-2018
+
+Release 1.7.4 
+
+This release mostly includes bugfixes and improvements for various Table classes:
+ * Fixed bug where you couldn't store a table converted to a `pandas.Dataframe` if it had a INTEGER column with some missing values.
+ * `EntityViewSchema` can now automatically add all annotations within your defined `scopes` as columns. Just set the view's `addAnnotationColumns=True` before calling `syn.store()`. This attribute defaults to `True` for all newly created `EntityViewSchemas`. Setting `addAnnotationColumns=True` on existing tables will only add annotation columns that are not already a part of your schema.
+ * You can now use `synapseutils.notifyMe` as a decorator to notify you by email when your function has completed. You will also be notified of any Errors if they are thrown while your function runs.
+
+We also added some new features:
+ * `syn.findEntityId()` function that allows you to find an Entity by its name and parentId, set parentId to `None` to search for Projects by name.
+ * The bulk upload functionality of `synapseutils.syncToSynapse` is avaliable from the command line using: `synapse sync`.
+
+Below are the full list of issues addressed by this release:
+
+
+## New Feature
+
+*   [[SYNPY-506](https://sagebionetworks.jira.com/browse/SYNPY-506)] - need convenience function for /entity/child
+*   [[SYNPY-517](https://sagebionetworks.jira.com/browse/SYNPY-517)] - sync command line
+
+
+## Improvement
+
+*   [[SYNPY-267](https://sagebionetworks.jira.com/browse/SYNPY-267)] - Update Synapse tables for integer types
+*   [[SYNPY-304](https://sagebionetworks.jira.com/browse/SYNPY-304)] - Table objects should implement len()
+*   [[SYNPY-416](https://sagebionetworks.jira.com/browse/SYNPY-416)] - warning message for recursive get when a non-Project of Folder entity is passed
+*   [[SYNPY-482](https://sagebionetworks.jira.com/browse/SYNPY-482)] - Create a sample synapseConfig if none is present
+*   [[SYNPY-489](https://sagebionetworks.jira.com/browse/SYNPY-489)] - Add a boolean paramter in EntityViewSchema that will indicate whether the client should create columns based on annotations in the specified scopes
+*   [[SYNPY-494](https://sagebionetworks.jira.com/browse/SYNPY-494)] - Link should be able to take an entity object as the parameter and derive its id
+*   [[SYNPY-511](https://sagebionetworks.jira.com/browse/SYNPY-511)] - improve exception handling
+*   [[SYNPY-512](https://sagebionetworks.jira.com/browse/SYNPY-512)] - Remove the use of PaginatedResult's totalNumberOfResult
+*   [[SYNPY-539](https://sagebionetworks.jira.com/browse/SYNPY-539)] - When creating table Schemas, enforce a limit on the number of columns that can be created.
+
+
+## Bug
+
+*   [[SYNPY-235](https://sagebionetworks.jira.com/browse/SYNPY-235)] - can't print Row objects with dates in them
+*   [[SYNPY-272](https://sagebionetworks.jira.com/browse/SYNPY-272)] - bug syn.storing rowsets containing Python datetime objects
+*   [[SYNPY-297](https://sagebionetworks.jira.com/browse/SYNPY-297)] - as_table_columns shouldn't give fractional max size
+*   [[SYNPY-404](https://sagebionetworks.jira.com/browse/SYNPY-404)] - when we get a SynapseMd5MismatchError we should delete the downloaded file
+*   [[SYNPY-425](https://sagebionetworks.jira.com/browse/SYNPY-425)] - onweb doesn't work for tables
+*   [[SYNPY-438](https://sagebionetworks.jira.com/browse/SYNPY-438)] - Need to change 'submit' not to use evaluation/id/accessRequirementUnfulfilled
+*   [[SYNPY-496](https://sagebionetworks.jira.com/browse/SYNPY-496)] - monitor.NotifyMe can not be used as an annotation decorator
+*   [[SYNPY-521](https://sagebionetworks.jira.com/browse/SYNPY-521)] - inconsistent error message when username/password is wrong on login
+*   [[SYNPY-536](https://sagebionetworks.jira.com/browse/SYNPY-536)] - presigned upload URL expired warnings using Python client sync function
+*   [[SYNPY-555](https://sagebionetworks.jira.com/browse/SYNPY-555)] - EntityViewSchema is missing from sphinx documentation
+*   [[SYNPY-558](https://sagebionetworks.jira.com/browse/SYNPY-558)] - synapseutils.sync.syncFromSynapse throws error when syncing a Table object
+*   [[SYNPY-595](https://sagebionetworks.jira.com/browse/SYNPY-595)] - Get recursive folders filled with Links fails
+*   [[SYNPY-605](https://sagebionetworks.jira.com/browse/SYNPY-605)] - Update documentation for getUserProfile to include information about refreshing and memoization
+
+
+## Task
+
+*   [[SYNPY-451](https://sagebionetworks.jira.com/browse/SYNPY-451)] - Add limit and offset for accessApproval and accessRequirement API calls and remove 0x400 flag default when calling GET /entity/{id}/bundle
+*   [[SYNPY-546](https://sagebionetworks.jira.com/browse/SYNPY-546)] - Change warning message when user does not DOWNLOAD permissions.
+
+
+
+# Release 1.7.3
+
+**Release Date:** 08-December-2017  
+
+Release 1.7.3 introduces fixes and quality of life changes to Tables and synapseutils:
+* Changes to Tables:
+	* You no longer have to include the `etag` column in your SQL query when using a `tableQuery()` to update File/Project Views. just `SELECT` the relevant columns and etags will be resolved automatically.
+	* The new `PartialRowSet` class allows you to only have to upload changes to individual cells of a table instead of every row that had a value changed. It is recommended to use the `PartialRowSet.from_mapping()` classmethod instead of the `PartialRowSet` constructor.
+* Changes to synapseutils:
+	* Improved documentation
+	* You can now use `~` to refer to your home directory in your manifest.tsv
+
+We also added improved debug logging and use Python's bulitin `logging` module instead of printing directly to `sys.stderr`
+
+Below are the full list of issues addressed by this release:
+### Bug
+
+*   [[SYNPY-419](https://sagebionetworks.jira.com/browse/SYNPY-419)] - support object store from client
+*   [[SYNPY-499](https://sagebionetworks.jira.com/browse/SYNPY-499)] - metadata manifest file name spelled wrong
+*   [[SYNPY-504](https://sagebionetworks.jira.com/browse/SYNPY-504)] - downloadTableFile changed return type with no change in documentation or mention in release notes
+*   [[SYNPY-508](https://sagebionetworks.jira.com/browse/SYNPY-508)] - syncToSynapse does not work if "the file path in "used" or "executed" of the manifest.tsv uses home directory shortcut "~"
+*   [[SYNPY-516](https://sagebionetworks.jira.com/browse/SYNPY-516)] - synapse sync file does not work if file is a URL
+*   [[SYNPY-525](https://sagebionetworks.jira.com/browse/SYNPY-525)] - Download CSV file of Synapse Table - 416 error
+*   [[SYNPY-572](https://sagebionetworks.jira.com/browse/SYNPY-572)] - Users should only be prompted for updates if the first or second part of the version number is changed.
+
+### New Feature
+
+*   [[SYNPY-450](https://sagebionetworks.jira.com/browse/SYNPY-450)] - Create convenience functions for synapse project settings
+*   [[SYNPY-517](https://sagebionetworks.jira.com/browse/SYNPY-517)] - sync command line
+*   [[SYNPY-519](https://sagebionetworks.jira.com/browse/SYNPY-519)] - Clean up doc string for Sync
+*   [[SYNPY-545](https://sagebionetworks.jira.com/browse/SYNPY-545)] - no module botocore
+*   [[SYNPY-577](https://sagebionetworks.jira.com/browse/SYNPY-577)] - Expose new view etags in command line clients
+
+### Task
+
+*   [[SYNPY-569](https://sagebionetworks.jira.com/browse/SYNPY-569)] - 'includeEntityEtag' should be True for Async table csv query downloads
+
+### Improvement
+
+*   [[SYNPY-304](https://sagebionetworks.jira.com/browse/SYNPY-304)] - Table objects should implement len()
+*   [[SYNPY-511](https://sagebionetworks.jira.com/browse/SYNPY-511)] - improve exception handling
+*   [[SYNPY-518](https://sagebionetworks.jira.com/browse/SYNPY-518)] - Clean up sync interface
+*   [[SYNPY-590](https://sagebionetworks.jira.com/browse/SYNPY-590)] - Need better logging of errors that occur in the Python client.
+*   [[SYNPY-597](https://sagebionetworks.jira.com/browse/SYNPY-597)] - Add ability to create PartialRowset updates
+
+
+# Release 1.7.1
+
+**Release Date:** 17-June-2017
 
 Release 1.7 is a large bugfix release with several new features. The main ones include:
 * We have expanded the [syanpaseutils packages](docs.synapse.org/python/synapseutils.html#module-synapseutils) to add the  abilitity to:

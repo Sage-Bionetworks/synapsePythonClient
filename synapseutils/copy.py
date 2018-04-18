@@ -400,7 +400,7 @@ def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=None):
     """
     Function to assist in getting wiki headers of subwikipages
     """
-    subPageId = str(subPageId)
+    subPageId = str(int(subPageId)) if isinstance(subPageId, float) else str(subPageId)
     for i in wikiHeaders:
         # This is for the first match 
         # If it isnt the actual parent, it will turn the first match into a parent node which will not have a parentId
@@ -509,7 +509,8 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             raise e
     if entitySubPageId is not None:
         oldWikiHeaders = _getSubWikiHeaders(oldWikiHeaders,entitySubPageId)
-
+        if oldWikiHeaders is None:
+            raise ValueError("Please specify a correct entitySubPageId. https://www.synapse.org/#!Synapse:%s/wiki/%s does not exist" % (oldOwn.id, entitySubPageId))
     for wikiHeader in oldWikiHeaders:
         wiki = syn.getWiki(oldOwn, wikiHeader.id)
         print('Got wiki %s' % wikiHeader.id)

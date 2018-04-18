@@ -9,11 +9,6 @@ import uuid, filecmp, os, sys, time, tempfile
 
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
 
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
-
 import synapseclient
 from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row, EntityViewSchema
 from synapseclient.exceptions import *
@@ -23,28 +18,11 @@ import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
+    module.other_user = integration.other_user
 
-    # Some of these tests require a second user
-    config = configparser.ConfigParser()
-    config.read(synapseclient.client.CONFIG_FILE)
-    module.other_user = {}
-    try:
-        other_user['username'] = config.get('test-authentication', 'username')
-        other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principalId'] = config.get('test-authentication', 'principalId')
-    except configparser.Error:
-        print("[test-authentication] section missing from the configuration file")
-
-    if 'principalId' not in other_user:
-        # Fall back on the synapse-test user
-        other_user['principalId'] = 1560252
-        other_user['username'] = 'synapse-test'
 
 ###Add Test for UPDATE
 ###Add test for existing provenance but the orig doesn't have provenance
@@ -94,7 +72,6 @@ def test_copy():
     schedule_for_cleanup(copied_URL_ent.id)
 
     # TEST: set_Provenance = Traceback
-    print("Test: setProvenance = Traceback")
     assert copied_prov['used'][0]['reference']['targetId'] == file_entity.id
     assert copied_url_prov['used'][0]['reference']['targetId'] == externalURL_entity.id
 
@@ -114,12 +91,12 @@ def test_copy():
     assert_raises(ValueError,synapseutils.copy,syn,file_entity.id,destinationId = third_folder.id,setProvenance = "gib")
     assert_raises(ValueError,synapseutils.copy,syn,file_entity.id,destinationId = file_entity.id)
 
-    print("Test: setProvenance = None")
+    #Test: setProvenance = None
     output = synapseutils.copy(syn,file_entity.id,destinationId=second_folder.id,setProvenance = None)
     assert_raises(SynapseHTTPError,syn.getProvenance,output[file_entity.id])
     schedule_for_cleanup(output[file_entity.id])
 
-    print("Test: setProvenance = Existing")
+    #Test: setProvenance = Existing
     output_URL = synapseutils.copy(syn,externalURL_entity.id,destinationId=second_folder.id,setProvenance = "existing")
     output_prov = syn.getProvenance(output_URL[externalURL_entity.id])
     schedule_for_cleanup(output_URL[externalURL_entity.id])
@@ -131,7 +108,7 @@ def test_copy():
         return
 
     try:
-        print("Test: Other user copy should result in different data file handle")
+        #Test: Other user copy should result in different data file handle
         syn_other = synapseclient.Synapse(skip_checks=True)
         syn_other.login(other_user['username'], other_user['password'])
 
@@ -158,7 +135,6 @@ def test_copy():
     # ------------------------------------
     # TEST COPY LINKS
     # ------------------------------------
-    print("Test: Copy Links")
     second_file = utils.make_bogus_data_file()
     #schedule_for_cleanup(filename)
     second_file_entity = syn.store(File(second_file, parent=project_entity))
@@ -184,7 +160,6 @@ def test_copy():
     # ------------------------------------
     second_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(second_project.id)
-    print("Test: Copy Tables")
     cols = [Column(name='n', columnType='DOUBLE', maximumSize=50),
             Column(name='c', columnType='STRING', maximumSize=50),
             Column(name='i', columnType='INTEGER')]
@@ -193,7 +168,7 @@ def test_copy():
             [2.3,'baz',30]]
 
     schema = syn.store(Schema(name='Testing', columns=cols, parent=project_entity.id))
-    row_reference_set = syn.store(RowSet(columns=cols, schema=schema, rows=[Row(r) for r in data]))
+    row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
     table_map = synapseutils.copy(syn,schema.id, destinationId=second_project.id)
     copied_table = syn.tableQuery('select * from %s' %table_map[schema.id])
@@ -227,7 +202,6 @@ def test_copy():
     # ------------------------------------
     # TEST COPY FOLDER
     # ------------------------------------
-    print("Test: Copy Folder")
     mapping = synapseutils.copy(syn,folder_entity.id,destinationId=second_project.id)
     for i in mapping:
         old = syn.get(i,downloadFile=False)
@@ -254,7 +228,6 @@ def test_copy():
     # ------------------------------------
     # TEST COPY PROJECT
     # ------------------------------------
-    print("Test: Copy Project")
     third_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(third_project.id)
 
@@ -339,7 +312,7 @@ def test_copyWiki():
 
     fileMapping = synapseutils.copy(syn, project_entity, second_project.id, skipCopyWikiPage=True)
     
-    print("Test: copyWikiPage = False")
+    #Test: copyWikiPage = False
     assert_raises(SynapseHTTPError,syn.getWiki,second_project.id)
 
     first_headers = syn.getWikiHeaders(project_entity)
@@ -347,7 +320,7 @@ def test_copyWiki():
 
     mapping = dict()
 
-    print("Test: Check that all wikis were copied correctly with the correct mapping")
+    #Test: Check that all wikis were copied correctly with the correct mapping
     for index,info in enumerate(second_headers):
         mapping[first_headers[index]['id']] = info['id']
         assert first_headers[index]['title'] == info['title']
@@ -355,7 +328,7 @@ def test_copyWiki():
             #Check if parent Ids are mapping correctly in the copied Wikis
             assert info['parentId'] == mapping[first_headers[index]['parentId']]
 
-    print("Test: Check that all wikis have the correct attachments and have correct internal synapse link/file mapping")
+    #Test: Check that all wikis have the correct attachments and have correct internal synapse link/file mapping
     for index,info in enumerate(second_headers):
         #Check if markdown is the correctly mapped
         orig_wikiPage= syn.getWiki(project_entity, first_headers[index]['id'])
@@ -377,7 +350,7 @@ def test_copyWiki():
         #check that attachment file names are the same
         assert orig_file == new_file
 
-    print("Test: copyWikiPage = True (Default) (Should copy all wikis including wikis on files)")
+    #Test: copyWikiPage = True (Default) (Should copy all wikis including wikis on files)
     third_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(third_project.id)
 
@@ -386,15 +359,18 @@ def test_copyWiki():
     assert copiedWiki.title == fileWiki.title
     assert copiedWiki.markdown == fileWiki.markdown
 
-    print("Test: entitySubPageId")
+    #Test: entitySubPageId
     third_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=sub_subwiki.id, destinationSubPageId=None, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
     test_ent_subpage = syn.getWiki(third_project.id,third_header[0]['id'])
+    
+    assert_raises(ValueError, synapseutils.copyWiki, syn, project_entity.id, third_project.id, 3)
+    assert_raises(ValueError, synapseutils.copyWiki, syn, project_entity.id, third_project.id, "foo")
 
-    print("Test: No internal links updated")
+    #Test: No internal links updated
     assert test_ent_subpage.markdown == sub_subwiki.markdown
     assert test_ent_subpage.title == sub_subwiki.title
 
-    print("Test: destinationSubPageId")
+    #Test: destinationSubPageId
     fourth_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=subwiki.id, destinationSubPageId=test_ent_subpage.id, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
     temp = syn.getWiki(third_project.id, fourth_header[0]['id'])
     #There are issues where some title pages are blank.  This is an issue that needs to be addressed
@@ -460,7 +436,6 @@ def test_walk():
                 x = x.sort()
         assert i in walked
 
-    print("CHECK: synapseutils.walk on a file should return empty generator")
     temp = synapseutils.walk(syn, second_file.id)
     assert list(temp) == []
 
@@ -497,7 +472,6 @@ def test_syncFromSynapse():
 
     assert len(output) == len(uploaded_paths)
     for f in output:
-        print(f.path)
         assert f.path in uploaded_paths
 
 def test_syncFromSynapse__given_file_id():

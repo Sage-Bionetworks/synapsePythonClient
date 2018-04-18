@@ -1,0 +1,26 @@
+build: off
+
+environment:
+    matrix:
+        - PYTHON: "C:\\Python27-x64"
+        - PYTHON: "C:\\Python36-x64"
+
+install:
+    - "%PYTHON%\\python.exe -m pip install nose mock pysftp cython pandas boto3"
+    - "cd %APPVEYOR_BUILD_FOLDER%"
+    - "%PYTHON%\\python.exe setup.py install"
+
+before_test:
+    - IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( ssh-keyscan -t ecdsa ec2-54-212-85-156.us-west-2.compute.amazonaws.com >> %userprofile%\\.ssh\\known_hosts )
+
+test_script:
+    - cmd: "%PYTHON%\\python.exe -m nose -vs tests\\unit"
+    - ps: |
+        if ( -Not $env:APPVEYOR_PULL_REQUEST_NUMBER ){
+          openssl aes-256-cbc -K $env:encrypted_d17283647768_key -iv $env:encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
+          move -force test.synapseConfig ${env:userprofile}\\.synapseConfig
+          openssl aes-256-cbc -K $env:encrypted_d17283647768_key -iv $env:encrypted_d17283647768_iv -in test.awscredentials.enc -out test.awscredentials -d
+          mkdir ${env:userprofile}\\.aws
+          move test.awscredentials ${env:userprofile}\\.aws\\credentials
+        }
+    - cmd: "IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( %PYTHON%\\python.exe -m nose -vs tests\\integration ) ELSE ( ECHO Skipping integration tests )"
