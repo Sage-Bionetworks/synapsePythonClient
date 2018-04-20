@@ -182,22 +182,7 @@ def test_copy():
     schedule_for_cleanup(schema.id)
     schedule_for_cleanup(table_map[schema.id])
 
-    # ------------------------------------
-    # TEST COPY ENTITY VIEW
-    # ------------------------------------
-    print("Test: Copy Entity View")
-    entity_view_schema = syn.store(EntityViewSchema(name='TestingEntityView', columns=cols, parent=project_entity.id, scopes=[project_entity.id]))
-    orig_entity_view = syn.tableQuery('select * from %s' % entity_view_schema.id)
-    orig_rows = orig_entity_view.asRowSet()['rows']
-    entity_view_schema_map = synapseutils.copy(syn, entity_view_schema.id, destinationId=second_project.id)
-    copied_table = syn.tableQuery('select * from %s' % entity_view_schema_map[entity_view_schema.id])
-    rows = copied_table.asRowSet()['rows']
-    # TEST: Check if all values are the same
-    for row,orig_row in zip(rows, orig_rows):
-        assert row['values'] == orig_row['values']
 
-    schedule_for_cleanup(entity_view_schema.id)
-    schedule_for_cleanup(entity_view_schema_map[entity_view_schema.id])
     
     # ------------------------------------
     # TEST COPY FOLDER
@@ -473,6 +458,25 @@ def test_syncFromSynapse():
     assert len(output) == len(uploaded_paths)
     for f in output:
         assert f.path in uploaded_paths
+
+def test_copy_EntityView():
+    project_entity = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(project_entity.id)
+    second_project = syn.store(Project(name=str(uuid.uuid4())))
+    schedule_for_cleanup(second_project.id)
+    entity_view_schema = syn.store(EntityViewSchema(name='TestingEntityView', columns=cols, parent=project_entity.id, scopes=[project_entity.id]))
+    orig_entity_view = syn.tableQuery('select * from %s' % entity_view_schema.id)
+    orig_rows = orig_entity_view.asRowSet()['rows']
+    entity_view_schema_map = synapseutils.copy(syn, entity_view_schema.id, destinationId=second_project.id)
+    copied_table = syn.tableQuery('select * from %s' % entity_view_schema_map[entity_view_schema.id])
+    rows = copied_table.asRowSet()['rows']
+    # TEST: Check if all values are the same
+    for row,orig_row in zip(rows, orig_rows):
+        assert row['values'] == orig_row['values']
+
+    schedule_for_cleanup(entity_view_schema.id)
+    schedule_for_cleanup(entity_view_schema_map[entity_view_schema.id])
+
 
 def test_syncFromSynapse__given_file_id():
     file_path = utils.make_bogus_data_file()
