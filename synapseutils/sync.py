@@ -11,7 +11,7 @@ from synapseclient import File, table
 from synapseclient.exceptions import *
 import os
 from sys import stderr
-import six
+import io
 import sys
 from backports import csv
 
@@ -20,6 +20,8 @@ FILE_CONSTRUCTOR_FIELDS  = ['name', 'synapseStore', 'contentType']
 STORE_FUNCTION_FIELDS =  ['used', 'executed', 'activityName', 'activityDescription', 'forceVersion']
 MAX_RETRIES = 4
 MANIFEST_FILENAME = 'SYNAPSE_METADATA_MANIFEST.tsv'
+DEFAULT_MANIFEST_KEYS = ['path', 'parent', 'name', 'synapseStore', 'contentType', 'used',
+            'executed', 'activityName', 'activityDescription']
 
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles = None, followLink=False):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file metadata.
@@ -111,14 +113,18 @@ def generateManifest(syn, allFiles, filename):
 
     :param filename: file where manifest will be written
     """
-    keys = ['path', 'parent', 'name', 'synapseStore', 'contentType', 'used',
-            'executed', 'activityName', 'activityDescription']
+    keys, data = _process_manifest_rows(syn, allFiles)
+    _write_manifest_data(filename, keys, data)
+
+
+def _process_manifest_rows(syn, allFiles):
+    keys = list(DEFAULT_MANIFEST_KEYS)
     annotKeys = set()
     data = []
     for entity in allFiles:
         row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name,
                'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
-        row.update({key:(val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
+        row.update({key: (val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
 
         annotKeys.update(set(entity.annotations.keys()))
         try:
@@ -128,15 +134,19 @@ def generateManifest(syn, allFiles, filename):
             row['activityName'] = prov.get('name', '')
             row['activityDescription'] = prov.get('description', '')
         except SynapseHTTPError:
-            pass # No provenance present
+            pass  # No provenance present
         data.append(row)
     keys.extend(annotKeys)
+    return keys, data
 
-    with open(filename, 'w') as fp:
+
+def _write_manifest_data(filename, keys, data):
+    with io.open(filename, 'w', encoding='utf8') as fp:
         csvWriter = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
         csvWriter.writeheader()
-        for  row in data:
+        for row in data:
             csvWriter.writerow(row)
+
 
 def _sortAndFixProvenance(syn, df):
     df = df.set_index('path')

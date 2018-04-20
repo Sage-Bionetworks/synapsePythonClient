@@ -1,14 +1,16 @@
+# coding=utf-8
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
+import tempfile
 
 import unit
 from mock import patch
 from nose import SkipTest
-from nose.tools import assert_dict_equal, assert_raises
+from nose.tools import assert_dict_equal, assert_raises, assert_equals
 from builtins import str
 
 import synapseutils
@@ -121,3 +123,29 @@ def test_syncFromSynapse__non_file_Entity():
          patch.object(syn, "get", return_value = Schema(name="asssdfa", parent="whatever")):
         assert_raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
 
+
+def test_write_manifest_data__unicode_characters_in_rows():
+    # SYNPY-693
+    if not pandas_available:
+        raise SkipTest("pandas was not found. Skipping test.")
+
+    named_temp_file = tempfile.NamedTemporaryFile('w')
+    named_temp_file.close()
+    keys = ["col_A", "col_B"]
+    data = [
+        {'col_A': 'asdf', 'col_B': 'qwerty'},
+        {'col_A': u'凵𠘨工匚口刀乇', 'col_B': u'丅乇丂丅'}
+    ]
+    synapseutils.sync._write_manifest_data(named_temp_file.name, keys, data)
+
+    df = pd.read_csv(named_temp_file.name, sep='\t', encoding='utf8')
+
+    for dfrow, datarow in zip(df.itertuples(), data):
+        assert_equals(datarow['col_A'], dfrow.col_A)
+        assert_equals(datarow['col_B'], dfrow.col_B)
+
+    os.remove(named_temp_file.name)
+
+
+def test_process_manifest_rows():
+    pass
