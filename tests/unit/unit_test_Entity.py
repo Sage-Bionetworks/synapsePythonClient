@@ -9,14 +9,6 @@ from synapseclient.entity import Entity, Project, Folder, File, DockerRepository
 from synapseclient.exceptions import *
 from nose.tools import assert_raises, assert_true, assert_false,  raises
 
-
-def setup():
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
-
-
 def test_Entity():
     # Test the basics of creating and accessing properties on an entity
     for i in range(2):
@@ -91,11 +83,6 @@ def test_Entity():
         e.train = '時刻表には記載されない　月への列車が来ると聞いて'
         e.band = "Motörhead"
         e.lunch = "すし"
-
-        if hasattr(sys.stdout, 'encoding') and sys.stdout.encoding and sys.stdout.encoding.lower() == 'utf-8':
-            print(e)
-        else:
-            print(ascii(e))
 
 
 def test_subclassing():

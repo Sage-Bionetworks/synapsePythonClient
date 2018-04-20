@@ -23,18 +23,17 @@ import synapseclient
 import synapseclient.utils as utils
 from synapseclient.utils import MB, GB
 from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient.remote_file_storage_wrappers import SFTPWrapper
 
 import integration
 from integration import schedule_for_cleanup
 
 DESTINATIONS =  [{"uploadType": "SFTP", 
-                  "concreteType": "org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting", 
                   "description" :'EC2 subfolder A',
                   "supportsSubfolders": True,
                   "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space",
                   "banner": "Uploading file to EC2\n"}, 
                  {"uploadType": "SFTP", 
-                  "concreteType": "org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting", 
                   "supportsSubfolders": True,
                   "description":'EC2 subfolder B',
                   "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/another_location",
@@ -44,20 +43,15 @@ DESTINATIONS =  [{"uploadType": "SFTP",
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
     #Create the upload destinations
-    destinations = [syn.restPOST('/storageLocation', body=json.dumps(x)) for x in DESTINATIONS]
-    project_destination = {"concreteType": "org.sagebionetworks.repo.model.project.UploadDestinationListSetting",
-                           "settingsType": "upload"}
-    project_destination['projectId'] = module.project.id
-    project_destination['locations'] = [dest['storageLocationId'] for dest in destinations]
-    project_destination = syn.restPOST('/projectSettings', body = json.dumps(project_destination))
+    destinations = [syn.createStorageLocationSetting('ExternalStorage', **x)['storageLocationId'] for x in DESTINATIONS]
+    module._sftp_project_setting_id = syn.setStorageLocation(project, destinations)['id']
 
+def teardown(module):
+    syn.restDELETE('/projectSettings/%s' % module._sftp_project_setting_id)
 
 def test_synStore_sftpIntegration():
     """Creates a File Entity on an sftp server and add the external url. """
@@ -86,12 +80,13 @@ def test_synGet_sftpIntegration():
     #Create file by uploading directly to sftp and creating entity from URL
     serverURL='sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/'+str(uuid.uuid1())
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
-    print('\n\tMade bogus file: ', filepath)
-    
-    url = syn._sftpUploadFile(filepath, url=serverURL)
+
+    username, password = syn._getUserCredentials(serverURL)
+
+
+    url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
     file = syn.store(File(path=url, parent=project, synapseStore=False))
 
-    print('\nDownloading file', os.getcwd(), filepath)
     junk = syn.get(file, downloadLocation=os.getcwd(), downloadFile=True)
     filecmp.cmp(filepath, junk.path)
 
@@ -103,24 +98,19 @@ def test_utils_sftp_upload_and_download():
 
     tempdir = tempfile.mkdtemp()
 
+    username, password = syn._getUserCredentials(serverURL)
+
     try:
-        print('\n\tMade bogus file: ', filepath)
-        url = syn._sftpUploadFile(filepath, url=serverURL)
-        print('\tStored URL:', url)
-        print('\tDownloading',)
+        url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
+
         #Get with a specified localpath
-        junk = syn._sftpDownloadFile(url, tempdir)
-        print('\tComparing:', junk, filepath)
+        junk = SFTPWrapper.download_file(url, tempdir, username=username, password=password)
         filecmp.cmp(filepath, junk)
         #Get without specifying path
-        print('\tDownloading',)
-        junk2 = syn._sftpDownloadFile(url)
-        print('\tComparing:', junk2, filepath)
+        junk2 = SFTPWrapper.download_file(url, username=username, password=password)
         filecmp.cmp(filepath, junk2)
         #Get with a specified localpath as file
-        print('\tDownloading',)
-        junk3 = syn._sftpDownloadFile(url, os.path.join(tempdir, 'bar.dat'))
-        print('\tComparing:', junk3, filepath)
+        junk3 = SFTPWrapper.download_file(url, os.path.join(tempdir, 'bar.dat'), username=username, password=password)
         filecmp.cmp(filepath, junk3)
     finally:
         try:

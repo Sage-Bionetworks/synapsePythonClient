@@ -46,6 +46,7 @@ import platform
 import functools
 import threading
 import uuid
+import importlib
 from datetime import datetime as Datetime
 from datetime import date as Date
 from datetime import timedelta
@@ -644,7 +645,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
 
     """
     if not sys.stdout.isatty():
-        return 
+        return
     barLength = 20 # Modify this to change the length of the progress bar
     status = ''
     rate = ''
@@ -792,11 +793,6 @@ def temp_download_filename(destination, file_handle_id):
             destination + '.' + suffix
 
 
-def log_error(message, verbose=True):
-    if verbose:
-        sys.stderr.write(message+'\n')
-
-
 def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
     """
     Extracts a specified file in a zip to the specified directory
@@ -898,3 +894,17 @@ def caller_module_name(current_frame):
 
     return inspect.getmodulename(caller_filename)
 
+
+def attempt_import(module_name, fail_message):
+
+    try:
+        return importlib.import_module(module_name)
+    except ImportError:
+        sys.stderr.write(
+            (fail_message +
+                 "To install this library on Mac or Linux distributions:\n"
+                 "    (sudo) pip install %s\n\n"
+                 "On Windows, right click the Command Prompt(cmd.exe) and select 'Run as administrator' then:\n"
+                 "    pip install %s\n\n"
+                 "\n\n\n" % (module_name, module_name)))
+        raise

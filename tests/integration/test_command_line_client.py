@@ -5,7 +5,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from builtins import str
 import six
-
+import logging
 import filecmp
 import os
 import re
@@ -18,11 +18,6 @@ from nose.tools import assert_raises, assert_equals, assert_less
 import tempfile
 import shutil
 from mock import patch
-try:
-    import ConfigParser
-except:
-    import configparser as ConfigParser
-
 import synapseclient
 import synapseclient.client as client
 import synapseclient.utils as utils
@@ -39,10 +34,7 @@ else:
 
 
 def setup_module(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
 
@@ -53,6 +45,7 @@ def setup_module(module):
     module.description_text = "'some description text'"
     module.desc_filename = _create_temp_file_with_cleanup(module.description_text)
     module.update_description_text = "'SOMEBODY ONCE TOLD ME THE WORLD WAS GONNA ROLL ME I AINT THE SHARPEST TOOL IN THE SHED'"
+    module.other_user = integration.other_user
 
 
 
@@ -63,22 +56,26 @@ def run(*command, **kwargs):
     :returns: The STDOUT output of the command.
     """
 
-    print(' '.join(command))
     old_stdout = sys.stdout
     capturedSTDOUT = StringIO()
+    syn_client = kwargs.get('syn', syn)
+    stream_handler = logging.StreamHandler(capturedSTDOUT)
+
     try:
         sys.stdout = capturedSTDOUT
+        syn_client.logger.addHandler(stream_handler)
         sys.argv = [item for item in command]
         args = parser.parse_args()
         args.debug = True
-        cmdline.perform_main(args, kwargs.get('syn',syn))
+        cmdline.perform_main(args, syn_client)
     except SystemExit:
         pass # Prevent the test from quitting prematurely
     finally:
         sys.stdout = old_stdout
+        syn_client.logger.handlers.remove(stream_handler)
+
 
     capturedSTDOUT = capturedSTDOUT.getvalue()
-    print(capturedSTDOUT)
     return capturedSTDOUT
 
 
@@ -158,12 +155,15 @@ def test_command_line_client():
     assert filecmp.cmp(filename, downloaded_filename)
 
     # Test query
-    output = run('synapse',
+    output = ""
+    start_time = time.time()
+    while not ('BogusFileEntity' in output and file_entity_id in output):
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        output = run('synapse',
                  '--skip-checks',
                  'query',
                  'select id, name from entity where parentId=="%s"' % project_id)
-    assert 'BogusFileEntity' in output
-    assert file_entity_id in output
+
 
 
     # Move the file to new folder
@@ -582,7 +582,6 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -598,7 +597,6 @@ def test_command_get_recursive_and_query():
     #Verify that we downloaded files from folder_entity2
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
-        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -615,9 +613,7 @@ def test_command_get_recursive_and_query():
 
     data1 =[[x.id] for x in file_entities]
 
-    print(data1)
-
-    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+    row_reference_set1 = syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
     time.sleep(3) # get -q uses chunkedQuery which are eventually consistent
@@ -629,7 +625,6 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -724,7 +719,6 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'get',
                  '--limitSearch', folder_entity.id,
                  filename)
-    print("output = \"", output, "\"")
     id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
     name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
     assert_equals(file_entity.id, id)
@@ -793,7 +787,7 @@ def test_table_query():
             ['Jane',   'bat', 17.89,  6, False],
             ['Henry',  'bar', 10.12,  1, False]]
 
-    row_reference_set1 = syn.store(synapseclient.RowSet(columns=cols, schema=schema1,
+    row_reference_set1 = syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
     # Test query
@@ -812,28 +806,20 @@ def test_table_query():
     assert my_headers_set == expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set)
 
 def test_login():
-    try:
-        config = ConfigParser.ConfigParser()
-        config.read(client.CONFIG_FILE)
-        other_user = {}
-        other_user['username'] = config.get('test-authentication', 'username')
-        other_user['password'] = config.get('test-authentication', 'password')
+    if not other_user['username']:
+        raise SkipTest("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
+    alt_syn = synapseclient.Synapse()
+    with patch.object(alt_syn, "login") as mock_login, patch.object(alt_syn, "getUserProfile", return_value={"userName":"test_user","ownerId":"ownerId"}) as mock_get_user_profile:
+        output = run('synapse', '--skip-checks', 'login',
+                     '-u', other_user['username'],
+                     '-p', other_user['password'],
+                     '--rememberMe',
+                     syn=alt_syn)
+        mock_login.assert_called_once_with(other_user['username'], other_user['password'], forced=True, rememberMe=True, silent=False)
+        mock_get_user_profile.assert_called_once_with()
 
-        with patch("synapseclient.client.Synapse._writeSessionCache") as write_session_cache_mock:
-            alt_syn = synapseclient.Synapse()
-            output = run('synapse', '--skip-checks', 'login',
-                         '-u', other_user['username'],
-                         '-p', other_user['password'],
-                         '--rememberMe',
-                         syn=alt_syn)
-            cached_sessions = write_session_cache_mock.call_args[0][0]
-            assert cached_sessions["<mostRecent>"] == other_user['username']
-            assert other_user['username'] in cached_sessions
-            assert alt_syn.username == other_user['username']
-            assert alt_syn.apiKey is not None
 
-    except ConfigParser.Error:
-        print("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
+
 
 def test_configPath():
     """Test using a user-specified configPath for Synapse configuration file.

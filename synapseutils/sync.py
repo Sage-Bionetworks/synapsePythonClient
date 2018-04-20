@@ -75,22 +75,26 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
             if path is not None:  #If we are downloading outside cache create directory.
                 new_path = os.path.join(path, result['name'])
                 try:
-                    os.mkdir(new_path)
+                    os.makedirs(new_path)
                 except OSError as err:
                     if err.errno!=errno.EEXIST:
                         raise
                 print('making dir', new_path)
             else:
                 new_path = None
-            syncFromSynapse(syn, result['id'], new_path, ifcollision, allFiles)
+            syncFromSynapse(syn, result['id'], new_path, ifcollision, allFiles, followLink=followLink)
         else:
             ent = syn.get(result['id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
-            allFiles.append(ent)
+            if isinstance(ent, File):
+                allFiles.append(ent)
     if zero_results:
         #a http error would be raised if the synapse Id was not valid (404) or no permission (403) so at this point the entity should be get-able
-        stderr.write("The synapse id provided is not a container, attempting to get the entity anyways")
+        stderr.write("The synapse id %s is not a container (Project/Folder), attempting to get the entity anyways" % id)
         ent = syn.get(id, downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
-        allFiles.append(ent)
+        if isinstance(ent, File):
+            allFiles.append(ent)
+        else:
+            raise ValueError("The provided id: %s is was neither a container nor a File" % id)
 
     if path is not None:  #If path is None files are stored in cache.
         filename = os.path.join(path, MANIFEST_FILENAME)
@@ -112,9 +116,10 @@ def generateManifest(syn, allFiles, filename):
     annotKeys = set()
     data = []
     for entity in allFiles:
-        row = {'parent': entity['parentId'], 'path': entity.path, 'name': entity.name,
+        row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name,
                'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
-        row.update({key:val[0] for key, val in entity.annotations.items()})
+        row.update({key:(val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
+
         annotKeys.update(set(entity.annotations.keys()))
         try:
             prov = syn.getProvenance(entity)
@@ -311,7 +316,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     Annotations:
 
-    **Annotations:        **
+    **Annotations:**
                         
     Any columns that are not in the reserved names described above will be intepreted as annotations of the file
                         
@@ -347,7 +352,8 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
 
     sys.stdout.write('Starting upload...\n')
     if sendMessages:
-        upload = notifyMe(_manifest_upload, syn, 'Upload of %s' %manifestFile, retries=retries)
+        notify_decorator = notifyMe(syn, 'Upload of %s' %manifestFile, retries=retries)
+        upload = notify_decorator(_manifest_upload)
         upload(syn, df)
     else:
         _manifest_upload(syn,df)
