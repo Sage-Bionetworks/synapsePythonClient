@@ -123,7 +123,7 @@ def _process_manifest_rows(syn, allFiles):
     data = []
     for entity in allFiles:
         row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name,
-               'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
+               'synapseStore': entity.synapseStore, 'contentType': entity['contentType']}
         row.update({key: (val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
 
         annotKeys.update(set(entity.annotations.keys()))
