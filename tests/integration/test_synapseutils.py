@@ -347,9 +347,6 @@ def test_copyWiki():
     #Test: entitySubPageId
     third_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=sub_subwiki.id, destinationSubPageId=None, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
     test_ent_subpage = syn.getWiki(third_project.id,third_header[0]['id'])
-    
-    assert_raises(ValueError, synapseutils.copyWiki, syn, project_entity.id, third_project.id, 3)
-    assert_raises(ValueError, synapseutils.copyWiki, syn, project_entity.id, third_project.id, "foo")
 
     #Test: No internal links updated
     assert test_ent_subpage.markdown == sub_subwiki.markdown
