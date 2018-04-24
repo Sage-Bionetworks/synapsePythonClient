@@ -8,7 +8,7 @@ import os
 import tempfile
 
 import unit
-from mock import patch, create_autospec
+from mock import patch, create_autospec, Mock
 from nose import SkipTest
 from nose.tools import assert_dict_equal, assert_raises, assert_equals
 from builtins import str
@@ -125,45 +125,21 @@ def test_syncFromSynapse__non_file_Entity():
         assert_raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
 
 
-def test_write_manifest_data__unicode_characters_in_rows():
-    # SYNPY-693
-    if not pandas_available:
-        raise SkipTest("pandas was not found. Skipping test.")
+def test_extract_file_entity_metadata__ensure_correct_row_metadata():
+    #Test for SYNPY-692, where 'contentType' was incorrectly set on all rows except for the very first row.
 
-    named_temp_file = tempfile.NamedTemporaryFile('w')
-    named_temp_file.close()
-    keys = ["col_A", "col_B"]
-    data = [
-        {'col_A': 'asdf', 'col_B': 'qwerty'},
-        {'col_A': u'凵𠘨工匚口刀乇', 'col_B': u'丅乇丂丅'}
-    ]
-    synapseutils.sync._write_manifest_data(named_temp_file.name, keys, data)
-
-    df = pd.read_csv(named_temp_file.name, sep='\t', encoding='utf8')
-
-    for dfrow, datarow in zip(df.itertuples(), data):
-        assert_equals(datarow['col_A'], dfrow.col_A)
-        assert_equals(datarow['col_B'], dfrow.col_B)
-
-    os.remove(named_temp_file.name)
-
-
-def test_process_manifest_rows__no_p():
-    #Test for SYNPY-692
-    if not pandas_available:
-        raise SkipTest("pandas was not found. Skipping test.")
-
+    #create 2 file entities with different metadata
     entity1 = File(parent='syn123', id='syn456', contentType='text/json', path='path1', name='entity1', synapseStore=True)
     entity2 = File(parent='syn789', id='syn890', contentType='text/html', path='path2', name='entity2', synapseStore=False)
-
     files = [entity1, entity2]
 
-    mock_syn = create_autospec(syn)
-    # we don't care about provenance in this case so we throw an error to skip adding provenance rowss
-    mock_syn.getProvenance.side_effect = SynapseHTTPError()
+    # we don't care about provenance metadata in this case
+    patch.object(synapseutils.sync, "_get_file_entity_provenance_dict", return_value={}).start()
 
-    keys, data = synapseutils.sync._process_manifest_rows(mock_syn, files)
+    #method under test
+    keys, data = synapseutils.sync._extract_file_entity_metadata(syn, files)
 
+    #compare source entity metadata gainst the extracted metadata
     for file_entity, file_row_data in zip(files, data):
         for key in keys:
             if key == 'parent': #workaroundd for parent/parentId inconsistency. (SYNPY-697)
@@ -171,3 +147,23 @@ def test_process_manifest_rows__no_p():
             else:
                 assert_equals(file_entity.get(key), file_row_data.get(key))
 
+
+class TestGetFileEntityProvenanceDict():
+    """
+    test synapseutils.sync._get_file_entity_provenance_dict
+    """
+    def setup(self):
+        self.mock_syn = create_autospec(syn)
+
+
+    def test_get_file_entity_provenance_dict__error_is_404(self):
+        self.mock_syn.getProvenance.side_effect = SynapseHTTPError(response=Mock(status_code=404))
+
+        result_dict = synapseutils.sync._get_file_entity_provenance_dict(self.mock_syn, "syn123")
+        assert_dict_equal({}, result_dict)
+
+
+    def test_get_file_entity_provenance_dict__error_not_404(self):
+        self.mock_syn.getProvenance.side_effect = SynapseHTTPError(response=Mock(status_code=400))
+
+        assert_raises(SynapseHTTPError, synapseutils.sync._get_file_entity_provenance_dict, self.mock_syn, "syn123")
