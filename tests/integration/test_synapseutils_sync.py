@@ -16,6 +16,7 @@ import synapseutils
 import re
 import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+import pandas as pd
 
 def setup(module):
 
@@ -70,9 +71,6 @@ def test_readManifest():
 
 
 def test_syncToSynapse():
-    synapseclient.table.test_import_pandas()
-    import pandas as pd
-
     #Test upload of accurate manifest
     manifest = _makeManifest(header+row1+row2+row3)
     synapseutils.syncToSynapse(syn, manifest, sendMessages=False, retries=2)
@@ -174,6 +172,7 @@ def test_syncFromSynapse__children_contain_non_file():
     assert_equals(1, len(files_list))
     assert_equals(file_entity, files_list[0])
 
+
 def test_syncFromSynapse_Links():
     """This function tests recursive download of links as defined in syncFromSynapse
     most of the functionality of this function are already tested in the 
@@ -216,3 +215,24 @@ def test_syncFromSynapse_Links():
     assert len(output) == len(uploaded_paths)
     for f in output:
         assert f.path in uploaded_paths
+
+
+def test_write_manifest_data__unicode_characters_in_rows():
+    # SYNPY-693
+
+    named_temp_file = tempfile.NamedTemporaryFile('w')
+    named_temp_file.close()
+    schedule_for_cleanup(named_temp_file.name)
+
+    keys = ["col_A", "col_B"]
+    data = [
+        {'col_A': 'asdf', 'col_B': 'qwerty'},
+        {'col_A': u'凵𠘨工匚口刀乇', 'col_B': u'丅乇丂丅'}
+    ]
+    synapseutils.sync._write_manifest_data(named_temp_file.name, keys, data)
+
+    df = pd.read_csv(named_temp_file.name, sep='\t', encoding='utf8')
+
+    for dfrow, datarow in zip(df.itertuples(), data):
+        assert_equals(datarow['col_A'], dfrow.col_A)
+        assert_equals(datarow['col_B'], dfrow.col_B)
