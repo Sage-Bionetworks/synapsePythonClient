@@ -290,14 +290,13 @@ def test_csv_table():
             for row in data:
                 writer.writerow(row)
 
-        table = Table(schema1, filename)
-        assert isinstance(table, CsvFileTable)
-
         ## need to set column headers to read a CSV file
-        table.setColumnHeaders(
-            [SelectColumn(name="ROW_ID", columnType="STRING"),
+        headers = ([SelectColumn(name="ROW_ID", columnType="STRING"),
              SelectColumn(name="ROW_VERSION", columnType="STRING")] +
             [SelectColumn.from_column(col) for col in cols])
+
+        table = Table(schema1, filename, headers=headers)
+        assert isinstance(table, CsvFileTable)
 
         ## test iterator
         for table_row, expected_row in zip(table, data):
