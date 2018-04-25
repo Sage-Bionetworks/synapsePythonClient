@@ -1,44 +1,90 @@
-import os, json, tempfile, base64, sys
-from mock import patch, mock_open, call
-from builtins import str
+import os, json, tempfile, base64
+from mock import patch, call, create_autospec
 
-import uuid
 import unit
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none
 
 import synapseclient
-from synapseclient import Evaluation, File, concrete_types, Folder
+from synapseclient import Evaluation, File, Folder
+from synapseclient.constants import concrete_types
+from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArgs
+from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
+from synapseclient.table import Column, EntityViewSchema
 import synapseclient.upload_functions as upload_functions
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = unit.syn
 
 
-@patch('synapseclient.Synapse._loggedIn')
-@patch('synapseclient.Synapse.restDELETE')
-@patch('synapseclient.Synapse._readSessionCache')
-@patch('synapseclient.Synapse._writeSessionCache')
-def test_logout(*mocks):
-    mocks = [item for item in mocks]
-    logged_in_mock     = mocks.pop()
-    delete_mock        = mocks.pop()
-    read_session_mock  = mocks.pop()
-    write_session_mock = mocks.pop()
-    
-    # -- Logging out while not logged in shouldn't do anything --
-    logged_in_mock.return_value = False
-    syn.username = None
-    syn.logout()
-    syn.logout()
-    
-    assert not delete_mock.called
-    assert not write_session_mock.called
+class TestLogout():
+    def setup(self):
+        self.username = "asdf"
+        self.credentials = SynapseCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
+
+    def test_logout__forgetMe_is_True(self):
+        with patch.object(synapseclient.client, "cached_sessions") as mock_cached_session:
+            syn.credentials = self.credentials
+            syn.logout(True)
+            assert_is_none(syn.credentials)
+            mock_cached_session.remove_api_key.assert_called_with(self.username)
+
+
+    def test_logout__forgetMe_is_False(self):
+        with patch.object(synapseclient.client, "cached_sessions") as mock_cached_session:
+            syn.credentials = self.credentials
+            syn.logout(False)
+            assert_is_none(syn.credentials)
+            mock_cached_session.remove_api_key.assert_not_called()
+
+class TestLogin():
+    def setup(self):
+        self.login_args = {'email':"AzureDiamond", "password":"hunter2"}
+        self.expected_user_args = UserLoginArgs(username="AzureDiamond", password="hunter2", api_key=None, skip_cache=False)
+        self.synapse_creds = SynapseCredentials("AzureDiamond", base64.b64encode(b"*******").decode())
+
+        self.mocked_credential_chain = create_autospec(SynapseCredentialsProviderChain)
+        self.mocked_credential_chain.get_credentials.return_value =self.synapse_creds
+        self.get_default_credential_chain_patcher = patch.object(synapseclient.client, "get_default_credential_chain", return_value=self.mocked_credential_chain)
+        self.mocked_get_credential_chain = self.get_default_credential_chain_patcher.start()
+
+    def teardown(self):
+        self.get_default_credential_chain_patcher.stop()
+
+    def test_login__no_credentials(self):
+        self.mocked_credential_chain.get_credentials.return_value = None
+
+        #method under test
+        assert_raises(SynapseAuthenticationError, syn.login, **self.login_args)
+
+        self.mocked_get_credential_chain.assert_called_once_with()
+        self.mocked_credential_chain.get_credentials.assert_called_once_with(syn, self.expected_user_args)
+
+    def test_login__credentials_returned(self):
+        #method under test
+        syn.login(silent=True, **self.login_args)
+
+        self.mocked_get_credential_chain.assert_called_once_with()
+        self.mocked_credential_chain.get_credentials.assert_called_once_with(syn, self.expected_user_args)
+        assert_equal(self.synapse_creds, syn.credentials)
+
+    def test_login__silentIsFalse(self):
+        with patch.object(syn, "getUserProfile") as mocked_get_user_profile, \
+             patch.object(syn, "logger") as mocked_logger:
+            #method under test
+            syn.login(silent=False, **self.login_args)
+
+            mocked_get_user_profile.assert_called_once_with(refresh=True)
+            mocked_logger.info.assert_called_once()
+
+    def test_login__rememberMeIsTrue(self):
+        with patch.object(synapseclient.client, "cached_sessions") as mocked_cached_sessions:
+            syn.login(silent=True, rememberMe=True)
+
+            mocked_cached_sessions.set_api_key.assert_called_once_with(self.synapse_creds.username, self.synapse_creds.api_key)
+            mocked_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
 
 
 @patch('synapseclient.Synapse._getFileHandleDownload')
@@ -67,16 +113,12 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
 
     fileHandle = bundle['fileHandles'][0]['id']
     cacheDir = syn.cache.get_cache_dir(fileHandle)
-    print("cacheDir=", cacheDir)
-
     # Make sure the .cacheMap file does not already exist
     cacheMap = os.path.join(cacheDir, '.cacheMap')
     if os.path.exists(cacheMap):
-        print("removing cacheMap file: ", cacheMap)
         os.remove(cacheMap)
 
     def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5):
-        print("mock downloading file to:", path)
         ## touch file at path
         with open(path, 'a'):
             os.utime(path, None)
@@ -85,7 +127,6 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
         return path
 
     def _getFileHandleDownload(fileHandleId,  objectId, objectType='FileHandle'):
-        print("getting metadata for:", fileHandleId)
         return {'fileHandle':bundle['fileHandles'][0], 'fileHandleId':fileHandleId, 'preSignedURL':'http://example.com'}
 
     download_file_mock.side_effect = _downloadFileHandle
@@ -95,12 +136,10 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     # download file to an alternate location
 
     temp_dir1 = tempfile.mkdtemp()
-    print("temp_dir1=", temp_dir1)
 
     e = syn._getWithEntityBundle(entityBundle=bundle,
                                  downloadLocation=temp_dir1,
                                  ifcollision="overwrite.local")
-    print(e)
 
     assert_equal(e.name , bundle["entity"]["name"])
     assert_equal(e.parentId , bundle["entity"]["parentId"])
@@ -112,7 +151,6 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     # get without specifying downloadLocation
     e = syn._getWithEntityBundle(entityBundle=bundle, ifcollision="overwrite.local")
 
-    print(e)
 
     assert_equal(e.name , bundle["entity"]["name"])
     assert_equal(e.parentId , bundle["entity"]["parentId"])
@@ -125,8 +163,6 @@ def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock)
     e = syn._getWithEntityBundle(entityBundle=bundle,
                                  downloadLocation=temp_dir2,
                                  ifcollision="overwrite.local")
-    print("temp_dir2=", temp_dir2)
-    print(e)
 
     assert_in(bundle["fileHandles"][0]["fileName"], e.files)
     assert e.path is not None
@@ -183,8 +219,6 @@ def test_submit(*mocks):
     assert_equal(submission.name , 'George')
     assert_equal(submission.submitterAlias , 'Team X')
 
-    print(submission)
-
 
 def test_send_message():
     with patch("synapseclient.multipart_upload._multipart_upload") as up_mock, patch("synapseclient.client.Synapse.restPOST") as post_mock:
@@ -210,36 +244,6 @@ def test_send_message():
             assert_equal(msg["subject"] , "Xanadu", msg)
 
 
-def test_readSessionCache_bad_file_data():
-    with patch("os.path.isfile", return_value=True), \
-         patch("os.path.join"):
-
-        bad_cache_file_data = [
-                            '[]\n', # empty array
-                            '["dis"]\n', # array w/ element
-                            '{"is"}\n', # set with element ( '{}' defaults to empty map so no case for that)
-                            '[{}]\n', # array with empty set inside.
-                            '[{"snek"}]\n', # array with nonempty set inside
-                            'hissss\n' # string
-                            ]
-        expectedDict = {} # empty map
-        # read each bad input and makes sure an empty map is returned instead
-        for bad_data in bad_cache_file_data:
-            with patch("synapseclient.client.open", mock_open(read_data=bad_data), create=True):
-                assert_equal(expectedDict, syn._readSessionCache())
-
-
-def test_readSessionCache_good_file_data():
-    with patch("os.path.isfile", return_value=True), \
-         patch("os.path.join"):
-
-        expectedDict = {'AzureDiamond': 'hunter2',
-                        'ayy': 'lmao'}
-        good_data = json.dumps(expectedDict)
-        with patch("synapseclient.client.open", mock_open(read_data=good_data), create=True):
-            assert_equal(expectedDict, syn._readSessionCache())
-
- 
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
 def test__uploadExternallyStoringProjects_external_user(mock_upload_destination):
     # setup
@@ -266,37 +270,6 @@ def test__uploadExternallyStoringProjects_external_user(mock_upload_destination)
         mocked_getFileHandle.assert_called_once_with(expected_file_handle_id)
         #test
 
-def test_login__only_username_config_file_username_mismatch():
-    if (sys.version < '3'):
-        configparser_package_name = 'ConfigParser'
-    else:
-        configparser_package_name = 'configparser'
-    with patch("%s.ConfigParser.items" % configparser_package_name) as config_items_mock,\
-         patch("synapseclient.Synapse._readSessionCache") as read_session_mock:
-            read_session_mock.return_value = {}  #empty session cache
-            config_items_mock.return_value = [('username', 'shrek'), ('apikey', base64.b64encode(b'thisIsMySwamp'))]
-            mismatch_username = "someBodyOnceToldMeTheWorldWasGonnaRollMe"
-
-            #should throw exception
-            assert_raises(SynapseAuthenticationError, syn.login, mismatch_username)
-
-            read_session_mock.assert_called_once()
-            config_items_mock.assert_called_once_with('authentication')
-
-
-def test_login__no_username_no_password_no_session_cache_no_config_file():
-    old_config_path = syn.configPath
-    old_session_filename = synapseclient.client.SESSION_FILENAME
-
-    #make client point to nonexistant session and config
-    syn.configPath = "~/" + str(uuid.uuid1())
-    synapseclient.client.SESSION_FILENAME = str(uuid.uuid1())
-
-    assert_raises(SynapseAuthenticationError, syn.login)
-
-    #revert changes
-    syn.configPath = old_config_path
-    synapseclient.client.SESSION_FILENAME = old_session_filename
 
 def test_findEntityIdByNameAndParent__None_parent():
     entity_name = "Kappa 123"
@@ -393,3 +366,13 @@ def test_check_entity_restrictions__unmet_restriction_downloadFile_is_False():
         syn._check_entity_restrictions(restriction_requirements, "syn123", False)
 
         mocked_warn.assert_called_once()
+
+
+class TestGetColumns(object):
+    def test_input_is_SchemaBase(self):
+        get_table_colums_results = [Column(name='A'),Column(name='B')]
+        with patch.object(syn, "getTableColumns", return_value=iter(get_table_colums_results)) as mock_get_table_coulmns:
+            schema = EntityViewSchema(parentId="syn123")
+            results = list(syn.getColumns(schema))
+            assert_equal(get_table_colums_results, results)
+            mock_get_table_coulmns.assert_called_with(schema)

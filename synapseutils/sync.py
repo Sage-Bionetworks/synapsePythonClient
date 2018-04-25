@@ -11,7 +11,7 @@ from synapseclient import File, table
 from synapseclient.exceptions import *
 import os
 from sys import stderr
-import six
+import io
 import sys
 from backports import csv
 
@@ -20,6 +20,8 @@ FILE_CONSTRUCTOR_FIELDS  = ['name', 'synapseStore', 'contentType']
 STORE_FUNCTION_FIELDS =  ['used', 'executed', 'activityName', 'activityDescription', 'forceVersion']
 MAX_RETRIES = 4
 MANIFEST_FILENAME = 'SYNAPSE_METADATA_MANIFEST.tsv'
+DEFAULT_GENERATED_MANIFEST_KEYS = ['path', 'parent', 'name', 'synapseStore', 'contentType', 'used',
+            'executed', 'activityName', 'activityDescription']
 
 def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFiles = None, followLink=False):
     """Synchronizes all the files in a folder (including subfolders) from Synapse and adds a readme manifest with file metadata.
@@ -111,32 +113,59 @@ def generateManifest(syn, allFiles, filename):
 
     :param filename: file where manifest will be written
     """
-    keys = ['path', 'parent', 'name', 'synapseStore', 'contentType', 'used',
-            'executed', 'activityName', 'activityDescription']
+    keys, data = _extract_file_entity_metadata(syn, allFiles)
+    _write_manifest_data(filename, keys, data)
+
+
+def _extract_file_entity_metadata(syn, allFiles):
+    """
+    Extracts metadata from the list of File Entities and returns them in a form usable by csv.DictWriter
+    :param syn: instance of the Synapse client
+    :param allFiles: an iterable that provides File entities
+    :return: (keys: a list column headers, data: a list of dicts containing data from each row)
+    """
+    keys = list(DEFAULT_GENERATED_MANIFEST_KEYS)
     annotKeys = set()
     data = []
     for entity in allFiles:
         row = {'parent': entity['parentId'], 'path': entity.get("path"), 'name': entity.name,
-               'synapseStore': entity.synapseStore, 'contentType': allFiles[0]['contentType']}
-        row.update({key:(val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
+               'synapseStore': entity.synapseStore, 'contentType': entity['contentType']}
+        row.update({key: (val[0] if len(val) > 0 else "") for key, val in entity.annotations.items()})
+
+        row.update(_get_file_entity_provenance_dict(syn, entity))
 
         annotKeys.update(set(entity.annotations.keys()))
-        try:
-            prov = syn.getProvenance(entity)
-            row['used'] = ';'.join(prov._getUsedStringList())
-            row['executed'] = ';'.join(prov._getExecutedStringList())
-            row['activityName'] = prov.get('name', '')
-            row['activityDescription'] = prov.get('description', '')
-        except SynapseHTTPError:
-            pass # No provenance present
+
         data.append(row)
     keys.extend(annotKeys)
+    return keys, data
 
-    with open(filename, 'w') as fp:
+
+def _get_file_entity_provenance_dict(syn, entity):
+    """
+    Returns a dict with a subset of the provenance metadata for the entity.
+    An empty dict is returned if the metadata does not have a provenance record.
+    """
+    try:
+        prov = syn.getProvenance(entity)
+        return { 'used' : ';'.join(prov._getUsedStringList()),
+                'executed' : ';'.join(prov._getExecutedStringList()),
+                'activityName' : prov.get('name', ''),
+                'activityDescription' : prov.get('description', '') }
+    except SynapseHTTPError as e:
+        if e.response.status_code == 404:
+            return {}  # No provenance present return empty dict
+        else:
+            raise # unexpected error so we re-raise the exception
+
+
+def _write_manifest_data(filename, keys, data):
+    with io.open(filename, 'w', encoding='utf8') as fp:
         csvWriter = csv.DictWriter(fp, keys, restval='', extrasaction='ignore', delimiter='\t')
         csvWriter.writeheader()
-        for  row in data:
+        for row in data:
             csvWriter.writerow(row)
+
 
 def _sortAndFixProvenance(syn, df):
     df = df.set_index('path')

@@ -42,12 +42,14 @@ setup(name='synapseclient',
         'requests>=1.2',
         'six',
         'future',
-        'backports.csv'
+        'backports.csv',
+        'keyring',
     ],
     extras_require = {
         'pandas':  ["pandas"],
         'pysftp': ["pysftp>=0.2.8"],
-        'boto3' : ["boto3"]
+        'boto3' : ["boto3"],
+        ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt'],
     },
     test_suite='nose.collector',
     tests_require=['nose', 'mock'],

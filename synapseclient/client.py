@@ -35,7 +35,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from builtins import input
-from builtins import str
 
 try:
     import configparser
@@ -43,8 +42,8 @@ except ImportError:
     import ConfigParser as configparser
 
 import collections
-import os, sys, re, json, time
-import base64, hashlib, hmac
+import os, sys, re, time
+import hashlib
 import six
 
 try:
@@ -72,9 +71,11 @@ from collections import OrderedDict
 import logging
 
 import synapseclient
-from . import concrete_types
 from . import cache
 from . import exceptions
+from .constants import concrete_types, config_file_constants
+from .credentials import cached_sessions, UserLoginArgs, get_default_credential_chain
+from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from .exceptions import *
 from .version_check import version_check
 from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_directory, _is_integer
@@ -83,7 +84,7 @@ from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, Column, TableQueryResult, CsvFileTable
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
@@ -91,6 +92,7 @@ from .multipart_upload import multipart_upload, multipart_upload_string
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from .upload_functions import upload_file_handle, upload_synapse_s3
 from .dozer import doze
+
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
                         'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
@@ -188,8 +190,9 @@ class Synapse(object):
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
                  debug=None, skip_checks=False, configPath=CONFIG_FILE):
+        self._requests_session = requests.Session()
 
-        cache_root_dir = synapseclient.cache.CACHE_ROOT_DIR
+        cache_root_dir = cache.CACHE_ROOT_DIR
 
         config_debug = None
         # Check for a config file
@@ -204,20 +207,22 @@ class Synapse(object):
         if debug is None:
             debug = config_debug if config_debug is not None else DEBUG_DEFAULT
 
-        self.cache = synapseclient.cache.Cache(cache_root_dir)
+        self.cache = cache.Cache(cache_root_dir)
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
 
         self.default_headers = {'content-type': 'application/json; charset=UTF-8', 'Accept': 'application/json; charset=UTF-8'}
-        self.username = None
-        self.apiKey = None
-        self.debug = debug #setter for debug initializes syn.logger also
+        self.credentials = None
+        self.debug = debug #setter for debug initializes self.logger also
         self.skip_checks = skip_checks
 
         self.table_query_sleep = 2
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600 # in seconds
+
+        # TODO: remove once most clients are no longer on versions <= 1.7.5
+        cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
 
 
     @property
@@ -229,10 +234,15 @@ class Synapse(object):
     def debug(self, value):
         if not isinstance(value, bool):
             raise ValueError("debug must be set to a bool (either True or False)")
-        logger_name = synapseclient.DEBUG_LOGGER_NAME if value else synapseclient.DEFAULT_LOGGER_NAME
+        logger_name = DEBUG_LOGGER_NAME if value else DEFAULT_LOGGER_NAME
         self.logger = logging.getLogger(logger_name)
         self._debug = value
         logging.getLogger('py.warnings').handlers = self.logger.handlers
+
+
+    @property
+    def username(self): #for backwards compatability when username was a part of the Synapse object and not in credentials
+        return self.credentials.username
 
 
     def getConfigFile(self, configPath):
@@ -288,7 +298,7 @@ class Synapse(object):
 
             # Update endpoints if we get redirected
             if not skip_checks:
-                response = requests.get(endpoints[point], allow_redirects=False, headers=synapseclient.USER_AGENT)
+                response = self._requests_session.get(endpoints[point], allow_redirects=False, headers=synapseclient.USER_AGENT)
                 if response.status_code == 301:
                     endpoints[point] = response.headers['location']
 
@@ -300,30 +310,51 @@ class Synapse(object):
 
     def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
         """
-        Authenticates the user using the given credentials (in order of preference):
+        Valid combinations of login() arguments:
 
-        - supplied synapse user name (or email) and password
-        - supplied email and API key (base 64 encoded)
-        - supplied session token
-        - supplied email and cached API key
-        - most recent cached email and API key
-        - email in the configuration file and cached API key
-        - email and API key in the configuration file
-        - email and password in the configuraton file
-        - session token in the configuration file
+        - email/username and password
 
-        :param email:      Synapse user name (or an email address associated with a Synapse account)
+        - email/username and apiKey (Base64 encoded string)
+
+        - sessionToken (**DEPRECATED**)
+
+        If no login arguments are provided or only username is provided, login() will attempt to log in using information from these sources (in order of preference):
+
+        #. .synapseConfig file (in user home folder unless configured otherwise)
+
+        #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
+
+        :param email:   Synapse user name (or an email address associated with a Synapse account)
         :param password:   password
         :param apiKey:     Base64 encoded Synapse API key
-        :param sessionToken: A previously obtained session token
-        :param rememberMe: Whether the authentication information should be cached 
-        						locally for usage across sessions and clients.
+        :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the following fields: email, password, apiKey
+        :param rememberMe: Whether the authentication information should be cached in your operating system's credential storage.
+        **GNOME Keyring** (recommended) or **KWallet** is recommonded to be installed for credential storage on **Linux** systems.
+        If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for the current user only (chmod 600).
+        On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
+        To install GNOME Keyring on Ubuntu::
+
+
+            sudo apt-get install gnome-keyring
+
+
+            sudo apt-get install python-dbus  #(for Python 2 installed via apt-get)
+            OR
+            sudo apt-get install python3-dbus #(for Python 3 installed via apt-get)
+            OR
+            sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python or vitualenv)
+            sudo pip install dbus-python #(may take a while to compile C code)
+        If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before running your Python session::
+
+            dbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)
+            echo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon -- unlock
+
         :param silent:     Defaults to False.  Suppresses the "Welcome ...!" message.
         :param forced:     Defaults to False.  Bypass the credential cache if set.
 
         Example::
 
-            syn.login('me@somewhere.com', 'secret-password', rememberMe=True)
+            syn.login('my-username', 'secret-password', rememberMe=True)
             #> Welcome, Me!
 
         After logging in with the *rememberMe* flag set, an API key will be cached and
@@ -336,55 +367,28 @@ class Synapse(object):
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
-        if not self.skip_checks: version_check(synapseclient.__version__)
+        if not self.skip_checks: version_check()
 
         # Make sure to invalidate the existing session
         self.logout()
 
-        self.username, self.apiKey = self._get_login_credentials(email, password, apiKey, sessionToken)
-
-        # If supplied arguments are not enough
-        # Try fetching the information from the API key cache
-        if self.apiKey is None and not forced:
-            cachedSessions = self._readSessionCache()
-
-            #use most recently used username from cache if none provided as an argument
-            cache_username = email if email is not None else cachedSessions.get("<mostRecent>", None)
-            #attempt to retrieve apiKey from cache
-            self.username, self.apiKey = self._get_login_credentials(username=cache_username, apikey=cachedSessions.get(cache_username, None))
-
-            # If still no authentication, resort to reading the configuration file
-            if self.apiKey is None:
-                config_auth_dict = self._get_config_section_dict('authentication')#if no username provided, grab username from config file and check cache first for API key
-                if email is None:
-                    config_username=config_auth_dict.get('username',None)
-                    self.username, self.apiKey = self._get_login_credentials(username=config_username, apikey=cachedSessions.get(config_username, None))
-
-                # Login using configuration file and check against given username if provided
-                if self.apiKey is None:
-                    #NOTE: in the case where sessionkey is the only option defined in the config file,
-                    #we don't know the username until we _get_login_credentials()
-                    config_username, config_apiKey = self._get_login_credentials(**config_auth_dict)
-                    if email == None or email == config_username:
-                        self.username, self.apiKey = config_username, config_apiKey
+        credential_provder_chain = get_default_credential_chain()
+        self.credentials = credential_provder_chain.get_credentials(self, UserLoginArgs(email, password, apiKey, forced, sessionToken)) #TODO: remove deprecated sessionToken when we move to a different solution
 
         # Final check on login success
-        if self.apiKey is None:
+        if self.credentials is None:
             raise SynapseNoCredentialsError("No credentials provided.")
 
         # Save the API key in the cache
         if rememberMe:
-            cachedSessions = self._readSessionCache()
-            cachedSessions[self.username] = base64.b64encode(self.apiKey).decode()
-
-            # Note: make sure this key cannot conflict with usernames by using invalid username characters
-            cachedSessions["<mostRecent>"] = self.username
-            self._writeSessionCache(cachedSessions)
+            cached_sessions.set_api_key(self.credentials.username, self.credentials.api_key)
+            cached_sessions.set_most_recent_user(self.credentials.username)
 
         if not silent:
             profile = self.getUserProfile(refresh=True)
             ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
-            self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.username))
+            self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.credentials.username))
+
 
     def _get_config_section_dict(self, section_name):
         config = self.getConfigFile(self.configPath)
@@ -394,105 +398,46 @@ class Synapse(object):
             # section not present
             return {}
 
+    def _get_config_authentication(self):
+        return self._get_config_section_dict(config_file_constants.AUTHENTICATION_SECTION_NAME)
+
+
     def _get_client_authenticated_s3_profile(self, endpoint, bucket):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
-    def _get_login_credentials(self, username=None, password=None, apikey=None, sessiontoken=None):
-        """
-        :return: username and the api key used for client authenticaiton
-        """
-        #NOTE: variable names are set to match the names of keys in the authentication section in the .synapseConfig files
 
-        # login using email and password
-        if username is not None and password is not None:
-            sessionToken = self._getSessionToken(email=username, password=password)
-            return username, self._getAPIKey(sessionToken)
-
-        # login using email and apiKey
-        elif username is not None and apikey is not None:
-            return username, base64.b64decode(apikey)
-
-        # login using sessionToken
-        elif sessiontoken is not None:
-            sessionToken = self._getSessionToken(sessionToken=sessiontoken)
-            returned_username = self.getUserProfile(sessionToken=sessiontoken)['userName']
-            returned_apiKey = self._getAPIKey(sessionToken)
-            return returned_username, returned_apiKey
-
-        else:
-            return None, None
-
-
-    def _getSessionToken(self, email=None, password=None, sessionToken=None):
+    def _getSessionToken(self, email, password):
         """Returns a validated session token."""
-        if email is not None and password is not None:
-            # Login normally
-            try:
-                req = {'email' : email, 'password' : password}
-                session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint, headers=self.default_headers)
-                return session['sessionToken']
-            except SynapseHTTPError as err:
-                if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
-                    raise SynapseAuthenticationError("Invalid username or password.")
-                raise
+        try:
+            req = {'email': email, 'password': password}
+            session = self.restPOST('/session', body=json.dumps(req), endpoint=self.authEndpoint,
+                                    headers=self.default_headers)
+            return session['sessionToken']
+        except SynapseHTTPError as err:
+            if err.response.status_code == 403 or err.response.status_code == 404 or err.response.status_code == 401:
+                raise SynapseAuthenticationError("Invalid username or password.")
+            raise
 
-        elif sessionToken is not None:
-            # Validate the session token
-            try:
-                token = {'sessionToken' : sessionToken}
-                response = self.restPUT('/session', body=json.dumps(token), endpoint=self.authEndpoint, headers=self.default_headers)
-
-                # Success!
-                return sessionToken
-
-            except SynapseHTTPError as err:
-                if err.response.status_code == 401:
-                    raise SynapseAuthenticationError("Supplied session token (%s) is invalid." % sessionToken)
-                raise
-        else:
-            raise SynapseNoCredentialsError("No credentials provided.")
 
     def _getAPIKey(self, sessionToken):
         """Uses a session token to fetch an API key."""
 
         headers = {'sessionToken' : sessionToken, 'Accept': 'application/json'}
         secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
-        return base64.b64decode(secret['secretKey'])
-
-
-    def _readSessionCache(self):
-        """Returns the JSON contents of CACHE_DIR/SESSION_FILENAME."""
-        sessionFile = os.path.join(self.cache.cache_root_dir, SESSION_FILENAME)
-        if os.path.isfile(sessionFile):
-            try:
-                file = open(sessionFile, 'r')
-                result = json.load(file)
-                if isinstance(result, dict):
-                    return result
-            except: pass
-        return {}
-
-
-    def _writeSessionCache(self, data):
-        """Dumps the JSON data into CACHE_DIR/SESSION_FILENAME."""
-        sessionFile = os.path.join(self.cache.cache_root_dir, SESSION_FILENAME)
-        with open(sessionFile, 'w') as file:
-            json.dump(data, file)
-            file.write('\n') # For compatibility with R's JSON parser
+        return secret['secretKey']
 
 
     def _loggedIn(self):
         """Test whether the user is logged in to Synapse."""
 
-        if self.apiKey is None or self.username is None:
+        if self.credentials is None:
             return False
 
         try:
             user = self.restGET('/userProfile')
             if 'displayName' in user:
                 if user['displayName'] == 'Anonymous':
-                    # No session token, not logged in
                     return False
                 return user['displayName']
         except SynapseHTTPError as err:
@@ -508,20 +453,12 @@ class Synapse(object):
         :param forgetMe: Set as True to clear any local storage of authentication information.
                          See the flag "rememberMe" in :py:func:`synapseclient.Synapse.login`.
         """
-
-        # Since this client does not store the session token,
-        # it cannot REST DELETE /session
-
         # Delete the user's API key from the cache
         if forgetMe:
-            cachedSessions = self._readSessionCache()
-            if self.username in cachedSessions:
-                del cachedSessions[self.username]
-                self._writeSessionCache(cachedSessions)
+            cached_sessions.remove_api_key(self.credentials.username)
 
         # Remove the authentication information from memory
-        self.username = None
-        self.apiKey = None
+        self.credentials = None
 
 
     def invalidateAPIKey(self):
@@ -531,25 +468,20 @@ class Synapse(object):
         if self._loggedIn():
             self.restDELETE('/secretKey', endpoint=self.authEndpoint)
 
+
     @memoize
     def getUserProfile(self, id=None, sessionToken=None, refresh=False):
         """
         Get the details about a Synapse user.
         Retrieves information on the current user if 'id' is omitted.
-
         :param id:           The 'userId' (aka 'ownerId') of a user or the userName
         :param sessionToken: The session token to use to find the user profile
         :param refresh:  If set to True will always fetch the data from Synape otherwise
                          will use cached information
-
         :returns: The user profile for the user of interest.
-
         Example::
-
             my_profile = syn.getUserProfile()
-
             freds_profile = syn.getUserProfile('fredcommo')
-
         """
 
         try:
@@ -566,13 +498,14 @@ class Synapse(object):
                     id = principals[0]['ownerId']
                 else:
                     for principal in principals:
-                        if principal.get('userName', None).lower()==id.lower():
+                        if principal.get('userName', None).lower() == id.lower():
                             id = principal['ownerId']
                             break
-                    else: # no break
+                    else:  # no break
                         raise ValueError('Can\'t find user "%s": ' % id)
         uri = '/userProfile/%s' % id
-        return UserProfile(**self.restGET(uri, headers={'sessionToken' : sessionToken} if sessionToken else None))
+
+        return UserProfile(**self.restGET(uri, headers={'sessionToken': sessionToken} if sessionToken else None))
 
 
     def _findPrincipals(self, query_string):
@@ -1243,7 +1176,7 @@ class Synapse(object):
                 self._list(result['entity.id'], recursive=recursive, long_format=long_format, show_modified=show_modified, indent=indent+2, out=out)
 
         if indent==0 and not results_found:
-            out.write('No results visible to {username} found for id {id}\n'.format(username=self.username, id=id_of(parent)))
+            out.write('No results visible to {username} found for id {id}\n'.format(username=self.credentials.username, id=id_of(parent)))
 
 
     ############################################################
@@ -1882,10 +1815,16 @@ class Synapse(object):
                 'requestedFiles':[{'fileHandleId':fileHandleId,
                                    'associateObjectId': objectId,
                                    'associateObjectType':objectType}]}
-        results = self.restPOST('/fileHandle/batch', body=json.dumps(body),
+        response = self.restPOST('/fileHandle/batch', body=json.dumps(body),
                                 endpoint=self.fileHandleEndpoint)
-        return results['requestedFiles'][0]
+        result = response['requestedFiles'][0]
+        failure = result.get('failureCode')
+        if failure == 'NOT_FOUND':
+            raise exceptions.SynapseFileNotFoundError("The fileHandleId %s could not be found" % fileHandleId)
+        elif failure == "UNAUTHORIZED":
+            raise exceptions.SynapseError("You are not authorized to access fileHandleId %s associated with the Synapse %s: %s" % (fileHandleId, objectType, objectId))
 
+        return result
 
     def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
@@ -1973,7 +1912,7 @@ class Synapse(object):
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                                 if os.path.exists(temp_destination) else {}
                 response = _with_retry(
-                    lambda: requests.get(url, headers=self._generateSignedHeaders(url, range_header),
+                    lambda: self._requests_session.get(url, headers=self._generateSignedHeaders(url, range_header),
                                                                                   stream=True, allow_redirects=False),
                                         verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
@@ -2343,7 +2282,7 @@ class Synapse(object):
                 else:
                     raise ValueError("Can't find team \"{}\"".format(id))
             else:
-                raise ValueError("Can't find team \"{}\"".format(u(id)))
+                raise ValueError("Can't find team \"{}\"".format(id))
         return Team(**self.restGET('/team/%s' % id))
 
 
@@ -2753,7 +2692,7 @@ class Synapse(object):
             wiki['attachmentFileHandleIds'] = []
 
         # Convert all attachments into file handles
-        if 'attachments' in wiki:
+        if wiki.get('attachments') is not None:
             for attachment in wiki['attachments']:
                 fileHandle = self.uploadSynapseManagedFileHandle(attachment)
                 wiki['attachmentFileHandleIds'].append(fileHandle['id'])
@@ -2859,7 +2798,7 @@ class Synapse(object):
         Get the columns defined in Synapse either (1) corresponding to a set of column
         headers, (2) those for a given schema, or (3) those whose names start with a given prefix.
 
-        :param x: a list of column headers, a Schema, a TableSchema's Synapse ID, or a string prefix
+        :param x: a list of column headers, a Table Entity object (Schema/EntityViewSchema), a Table's Synapse ID, or a string prefix
         :param limit: maximum number of columns to return (pagination parameter)
         :param offset: the index of the first column to return (pagination parameter)
         :return: a generator of Column objects
@@ -2877,10 +2816,9 @@ class Synapse(object):
                     yield self.getColumn(header)
                 except ValueError:
                     pass
-        elif isinstance(x, Schema) or utils.is_synapse_id(x):
-            uri = '/entity/{id}/column'.format(id=id_of(x))
-            for result in self._GET_paginated(uri, limit=limit, offset=offset):
-                yield Column(**result)
+        elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
+            for col in self.getTableColumns(x):
+                yield col
         elif isinstance(x, six.string_types):
             uri = '/column?prefix=' + x
             for result in self._GET_paginated(uri, limit=limit, offset=offset):
@@ -3180,7 +3118,7 @@ class Synapse(object):
         ## get table ID, given a string, Table or Schema
         if isinstance(table, six.string_types):
             table_id = table
-        elif isinstance(table, synapseclient.table.TableAbstractBaseClass):
+        elif isinstance(table, TableAbstractBaseClass):
             table_id = table.tableId
         elif isinstance(table, Schema):
             table_id = table.id
@@ -3501,7 +3439,7 @@ class Synapse(object):
     def _generateSignedHeaders(self, url, headers=None):
         """Generate headers signed with the API key."""
 
-        if self.username is None or self.apiKey is None:
+        if self.credentials is None:
             raise SynapseAuthenticationError("Please login")
 
         if headers is None:
@@ -3509,18 +3447,7 @@ class Synapse(object):
 
         headers.update(synapseclient.USER_AGENT)
 
-        sig_timestamp = time.strftime(utils.ISO_FORMAT, time.gmtime())
-        url = urlparse(url).path
-        sig_data = self.username + url + sig_timestamp
-        signature = base64.b64encode(hmac.new(self.apiKey,
-            sig_data.encode('utf-8'),
-            hashlib.sha1).digest())
-
-        sig_header = {'userId'             : self.username,
-                      'signatureTimestamp' : sig_timestamp,
-                      'signature'          : signature}
-
-        headers.update(sig_header)
+        headers.update(self.credentials.get_signed_headers(url))
         return headers
 
 
@@ -3539,7 +3466,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.get(uri, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
+        response = _with_retry(lambda: self._requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3559,7 +3486,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.post(uri, data=body, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
+        response = _with_retry(lambda: self._requests_session.post(uri, data=body, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3580,7 +3507,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.put(uri, data=body, headers=headers, **kwargs),
+        response = _with_retry(lambda: self._requests_session.put(uri, data=body, headers=headers, **kwargs),
                                verbose = self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
@@ -3599,7 +3526,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: requests.delete(uri, headers=headers, **kwargs),
+        response = _with_retry(lambda: self._requests_session.delete(uri, headers=headers, **kwargs),
                                verbose = self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
 
