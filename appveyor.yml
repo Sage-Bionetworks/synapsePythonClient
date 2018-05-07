@@ -18,7 +18,7 @@ test_script:
     - ps: |
         if ( -Not $env:APPVEYOR_PULL_REQUEST_NUMBER ){
           openssl aes-256-cbc -K $env:encrypted_d17283647768_key -iv $env:encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
-          move test.synapseConfig ${env:userprofile}\\.synapseConfig
+          move -force test.synapseConfig ${env:userprofile}\\.synapseConfig
           openssl aes-256-cbc -K $env:encrypted_d17283647768_key -iv $env:encrypted_d17283647768_iv -in test.awscredentials.enc -out test.awscredentials -d
           mkdir ${env:userprofile}\\.aws
           move test.awscredentials ${env:userprofile}\\.aws\\credentials

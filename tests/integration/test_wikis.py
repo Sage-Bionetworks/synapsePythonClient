@@ -19,10 +19,7 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
 
@@ -116,4 +113,3 @@ def test_wiki_version():
     w2 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=1)
     assert "version 2" in w2.title
     assert "version 2" in w2.markdown
-

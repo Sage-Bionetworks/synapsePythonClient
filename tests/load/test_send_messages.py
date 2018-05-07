@@ -6,10 +6,7 @@ syn = None
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = synapseclient.Synapse()
     module.syn.login()
 

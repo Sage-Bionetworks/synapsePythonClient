@@ -43,10 +43,7 @@ DESTINATIONS =  [{"uploadType": "SFTP",
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
     #Create the upload destinations
@@ -83,7 +80,6 @@ def test_synGet_sftpIntegration():
     #Create file by uploading directly to sftp and creating entity from URL
     serverURL='sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/'+str(uuid.uuid1())
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
-    print('\n\tMade bogus file: ', filepath)
 
     username, password = syn._getUserCredentials(serverURL)
 
@@ -91,7 +87,6 @@ def test_synGet_sftpIntegration():
     url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
     file = syn.store(File(path=url, parent=project, synapseStore=False))
 
-    print('\nDownloading file', os.getcwd(), filepath)
     junk = syn.get(file, downloadLocation=os.getcwd(), downloadFile=True)
     filecmp.cmp(filepath, junk.path)
 
@@ -106,23 +101,16 @@ def test_utils_sftp_upload_and_download():
     username, password = syn._getUserCredentials(serverURL)
 
     try:
-        print('\n\tMade bogus file: ', filepath)
         url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
-        print('\tStored URL:', url)
-        print('\tDownloading',)
+
         #Get with a specified localpath
         junk = SFTPWrapper.download_file(url, tempdir, username=username, password=password)
-        print('\tComparing:', junk, filepath)
         filecmp.cmp(filepath, junk)
         #Get without specifying path
-        print('\tDownloading',)
         junk2 = SFTPWrapper.download_file(url, username=username, password=password)
-        print('\tComparing:', junk2, filepath)
         filecmp.cmp(filepath, junk2)
         #Get with a specified localpath as file
-        print('\tDownloading',)
         junk3 = SFTPWrapper.download_file(url, os.path.join(tempdir, 'bar.dat'), username=username, password=password)
-        print('\tComparing:', junk3, filepath)
         filecmp.cmp(filepath, junk3)
     finally:
         try:

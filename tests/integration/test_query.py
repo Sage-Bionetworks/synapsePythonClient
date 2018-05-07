@@ -17,10 +17,7 @@ from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
 
@@ -88,12 +85,15 @@ def test_chunked_query_giant_row():
 
     normal = syn.store(Folder('normal', description='A file with a normal length description', parentId=project['id']))
     absurd = syn.store(Folder('absurd', description=absurdly_long_desription, parentId=project['id']))
-    time.sleep(5)
-    resultgen = syn.chunkedQuery('select * from entity where parentId=="%s"' % project['id'])
-    ids = [result['entity.id'] for result in resultgen]
 
     ## the expected behavior is that the absurdly long row will be skipped
     ## but the normal row will be returned
+    start_time = time.time()
+    ids = []
+    while normal.id not in ids:
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        time.sleep(2)
+        resultgen = syn.chunkedQuery('select * from entity where parentId=="%s"' % project['id'])
+        ids = [result['entity.id'] for result in resultgen]
 
-    assert normal.id in ids
 

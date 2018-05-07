@@ -32,12 +32,8 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
      as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset, SchemaBase
 from mock import patch
 from collections import OrderedDict
-
+from .unit_utils import StringIOContextManager
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
     module.syn = unit.syn
 
 
@@ -56,10 +52,13 @@ def test_cast_values():
                       'columnType': 'INTEGER'},
                      {'id': '357',
                       'name': 'bonk',
-                      'columnType': 'BOOLEAN'}]
+                      'columnType': 'BOOLEAN'},
+                     {'id': '358',
+                      'name': 'boom',
+                      'columnType': 'LINK'}]
 
-    row = ('Finklestein', 'bat', '3.14159', '65535', 'true')
-    assert cast_values(row, selectColumns)==['Finklestein', 'bat', 3.14159, 65535, True]
+    row = ('Finklestein', 'bat', '3.14159', '65535', 'true', 'https://www.synapse.org/')
+    assert cast_values(row, selectColumns)==['Finklestein', 'bat', 3.14159, 65535, True, 'https://www.synapse.org/']
 
     ## group by
     selectColumns = [{'name': 'bonk',
@@ -215,13 +214,11 @@ def test_pandas_to_table():
 
     df = pd.DataFrame(dict(a=[1,2,3], b=["c", "d", "e"]))
     schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
-    print("\n", df, "\n\n")
 
     ## A dataframe with no row id and version
     table = Table(schema, df)
 
     for i, row in enumerate(table):
-        print(row)
         assert row[0]==(i+1)
         assert row[1]==["c", "d", "e"][i]
 
@@ -234,18 +231,15 @@ def test_pandas_to_table():
     ## ,,3,e
     table = Table(schema, df, includeRowIdAndRowVersion=True)
     for i, row in enumerate(table):
-        print(row)
         assert row[0] is None
         assert row[1] is None
         assert row[2]==(i+1)
 
     ## A dataframe with no row id and version
     df = pd.DataFrame(index=["1_7","2_7","3_8"], data=dict(a=[100,200,300], b=["c", "d", "e"]))
-    print("\n", df, "\n\n")
 
     table = Table(schema, df)
     for i, row in enumerate(table):
-        print(row)
         assert row[0]==["1","2","3"][i]
         assert row[1]==["7","7","8"][i]
         assert row[2]==(i+1)*100
@@ -253,11 +247,9 @@ def test_pandas_to_table():
 
     ## A dataframe with row id and version in columns
     df = pd.DataFrame(dict(ROW_ID=["0","1","2"], ROW_VERSION=["8","9","9"], a=[100,200,300], b=["c", "d", "e"]))
-    print("\n", df, "\n\n")
 
     table = Table(schema, df)
     for i, row in enumerate(table):
-        print(row)
         assert row[0]==["0","1","2"][i]
         assert row[1]==["8","9","9"][i]
         assert row[2]==(i+1)*100
@@ -296,7 +288,6 @@ def test_csv_table():
             headers = ['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols]
             writer.writerow(headers)
             for row in data:
-                print(row)
                 writer.writerow(row)
 
         table = Table(schema1, filename)
@@ -309,15 +300,12 @@ def test_csv_table():
             [SelectColumn.from_column(col) for col in cols])
 
         ## test iterator
-        # print("\n\nJazz Guys")
         for table_row, expected_row in zip(table, data):
-            # print(table_row, expected_row)
             assert table_row==expected_row
 
         ## test asRowSet
         rowset = table.asRowSet()
         for rowset_row, expected_row in zip(rowset.rows, data):
-            #print(rowset_row, expected_row)
             assert rowset_row['values']==expected_row[2:]
             assert rowset_row['rowId']==expected_row[0]
             assert rowset_row['versionNumber']==expected_row[1]
@@ -665,6 +653,8 @@ def test_EntityViewSchema__repeated_columnName_same_type():
 
 
 def test_rowset_asDataFrame__with_ROW_ETAG_column():
+    _try_import_pandas('test_rowset_asDataFrame__with_ROW_ETAG_column')
+
     query_result = {
                    'concreteType':'org.sagebionetworks.repo.model.table.QueryResultBundle',
                    'maxRowsPerPage':6990,
@@ -716,31 +706,47 @@ def test_RowSetTable_len():
     row_set_table = RowSetTable(schema, rowset)
     assert_equals(2, len(row_set_table))
 
+class TestTableQueryResult():
+    def setup(self):
+        self.rows = [{'rowId':1, 'versionNumber':2, 'values': ['first_row']},
+                    {'rowId':5, 'versionNumber':1, 'values': ['second_row']}]
+        self.query_result_dict = {'queryResult': {
+            'queryResults': {
+                'headers': [
+                    {'columnType': 'STRING', 'name': 'col_name'}],
+                'rows': self.rows,
+                'tableId': 'syn123'}},
+            'selectColumns': [{
+                'columnType': 'STRING',
+                'id': '1337',
+                'name': 'col_name'}]}
 
-def test_TableQueryResult_len():
-    # schema = Schema(parentId="syn123", id='syn456', columns=[Column(name='column_name', id='123')])
-    # rowset =  RowSet(schema=schema, rows=[Row(['first row']), Row(['second row'])])
+        self.query_string = "SELECT whatever FROM some_table WHERE sky=blue"
 
-    query_result_dict =  {'queryResult': {
-                         'queryResults': {
-                         'headers': [
-                          {'columnType': 'STRING',  'name': 'col_name'}],
-                          'rows': [
-                           {'values': ['first_row']},
-                           {'values': ['second_row']}],
-                          'tableId': 'syn123'}},
-                        'selectColumns': [{
-                         'columnType': 'STRING',
-                         'id': '1337',
-                         'name': 'col_name'}]}
+    def test_len(self):
+        with patch.object(syn, "_queryTable", return_value =  self.query_result_dict) as mocked_table_query:
+            query_result_table = TableQueryResult(syn, self.query_string)
+            args, kwargs = mocked_table_query.call_args
+            assert_equals(self.query_string, kwargs['query'])
+            assert_equals(2, len(query_result_table))
 
-    query_string = "SELECT whatever FROM some_table WHERE sky=blue"
-    with patch.object(syn, "_queryTable", return_value =  query_result_dict) as mocked_table_query:
-        query_result_table = TableQueryResult(syn, query_string)
-        args, kwargs = mocked_table_query.call_args
-        assert_equals(query_string, kwargs['query'])
-        assert_equals(2, len(query_result_table))
+    def test_iter_metadata__no_etag(self):
+        with patch.object(syn, "_queryTable", return_value =  self.query_result_dict) as mocked_table_query:
+            query_result_table = TableQueryResult(syn, self.query_string)
+            metadata = [x for x in query_result_table.iter_row_metadata()]
+            assert_equals(2, len(metadata))
+            assert_equals((1,2, None), metadata[0])
+            assert_equals((5, 1, None), metadata[1])
 
+    def test_iter_metadata__has_etag(self):
+        self.rows[0].update({'etag':'etag1'})
+        self.rows[1].update({'etag':'etag2'})
+        with patch.object(syn, "_queryTable", return_value =  self.query_result_dict) as mocked_table_query:
+            query_result_table = TableQueryResult(syn, self.query_string)
+            metadata = [x for x in query_result_table.iter_row_metadata()]
+            assert_equals(2, len(metadata))
+            assert_equals((1,2, 'etag1'), metadata[0])
+            assert_equals((5, 1, 'etag2'), metadata[1])
 
 class TestPartialRow():
     """
@@ -807,3 +813,27 @@ class TestPartialRowSet():
         partial_rowset = PartialRowset("syn123", partial_row)
         assert_equals([partial_row], partial_rowset.rows)
 
+
+class TestCsvFileTable():
+    def test_iter_metadata__has_etag(self):
+        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,asdf\n"
+                   "1,2,etag1,\"I like trains\"\n"
+                   "5,1,etag2,\"weeeeeeeeeeee\"\n")
+        with patch.object(io, "open", return_value=string_io):
+            csv_file_table = CsvFileTable("syn123","/fake/file/path")
+            metadata = [x for x in csv_file_table.iter_row_metadata()]
+            assert_equals(2, len(metadata))
+            assert_equals((1,2,"etag1"), metadata[0])
+            assert_equals((5, 1, "etag2"), metadata[1])
+
+
+    def test_iter_metadata__no_etag(self):
+        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,asdf\n"
+                   "1,2,\"I like trains\"\n"
+                   "5,1,\"weeeeeeeeeeee\"\n")
+        with patch.object(io, "open", return_value=string_io):
+            csv_file_table = CsvFileTable("syn123","/fake/file/path")
+            metadata = [x for x in csv_file_table.iter_row_metadata()]
+            assert_equals(2, len(metadata))
+            assert_equals((1,2, None), metadata[0])
+            assert_equals((5, 1, None), metadata[1])

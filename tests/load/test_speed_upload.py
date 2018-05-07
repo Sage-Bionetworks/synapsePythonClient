@@ -13,10 +13,7 @@ syn = None
 
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = synapseclient.Synapse()
     module.syn.login()
 
@@ -27,7 +24,6 @@ def test_upload_speed(uploadSize=60 + 777771, threadCount=5):
     import time
     fh = None
     filepath = utils.make_bogus_binary_file(uploadSize*MB)
-    print('Made bogus file: ', filepath)
     try:
         t0 = time.time()
         fh = syn._uploadToFileHandleService(filepath, threadCount=threadCount)

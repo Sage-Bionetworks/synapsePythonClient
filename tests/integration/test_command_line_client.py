@@ -34,10 +34,7 @@ else:
 
 
 def setup_module(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = integration.syn
     module.project = integration.project
 
@@ -59,7 +56,6 @@ def run(*command, **kwargs):
     :returns: The STDOUT output of the command.
     """
 
-    print(' '.join(command))
     old_stdout = sys.stdout
     capturedSTDOUT = StringIO()
     syn_client = kwargs.get('syn', syn)
@@ -80,7 +76,6 @@ def run(*command, **kwargs):
 
 
     capturedSTDOUT = capturedSTDOUT.getvalue()
-    # print(capturedSTDOUT)
     return capturedSTDOUT
 
 
@@ -160,12 +155,15 @@ def test_command_line_client():
     assert filecmp.cmp(filename, downloaded_filename)
 
     # Test query
-    output = run('synapse',
+    output = ""
+    start_time = time.time()
+    while not ('BogusFileEntity' in output and file_entity_id in output):
+        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
+        output = run('synapse',
                  '--skip-checks',
                  'query',
                  'select id, name from entity where parentId=="%s"' % project_id)
-    assert 'BogusFileEntity' in output
-    assert file_entity_id in output
+
 
 
     # Move the file to new folder
@@ -584,7 +582,6 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -600,7 +597,6 @@ def test_command_get_recursive_and_query():
     #Verify that we downloaded files from folder_entity2
     new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
     for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
-        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -617,8 +613,6 @@ def test_command_get_recursive_and_query():
 
     data1 =[[x.id] for x in file_entities]
 
-    print(data1)
-
     row_reference_set1 = syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
@@ -631,7 +625,6 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        print(uploaded, downloaded)
         assert os.path.exists(downloaded)
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
@@ -726,7 +719,6 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'get',
                  '--limitSearch', folder_entity.id,
                  filename)
-    print("output = \"", output, "\"")
     id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
     name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
     assert_equals(file_entity.id, id)
@@ -816,19 +808,17 @@ def test_table_query():
 def test_login():
     if not other_user['username']:
         raise SkipTest("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
-
-    with patch("synapseclient.client.Synapse._writeSessionCache") as write_session_cache_mock:
-        alt_syn = synapseclient.Synapse()
+    alt_syn = synapseclient.Synapse()
+    with patch.object(alt_syn, "login") as mock_login, patch.object(alt_syn, "getUserProfile", return_value={"userName":"test_user","ownerId":"ownerId"}) as mock_get_user_profile:
         output = run('synapse', '--skip-checks', 'login',
                      '-u', other_user['username'],
                      '-p', other_user['password'],
                      '--rememberMe',
                      syn=alt_syn)
-        cached_sessions = write_session_cache_mock.call_args[0][0]
-        assert cached_sessions["<mostRecent>"] == other_user['username']
-        assert other_user['username'] in cached_sessions
-        assert alt_syn.username == other_user['username']
-        assert alt_syn.apiKey is not None
+        mock_login.assert_called_once_with(other_user['username'], other_user['password'], forced=True, rememberMe=True, silent=False)
+        mock_get_user_profile.assert_called_once_with()
+
+
 
 
 def test_configPath():

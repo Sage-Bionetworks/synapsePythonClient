@@ -44,10 +44,7 @@ else:
     from io import StringIO
 
 def setup(module):
-    print('\n')
-    print('~' * 60)
-    print(os.path.basename(__file__))
-    print('~' * 60)
+
     module.syn = unit.syn
 
 def test_command_sync():
