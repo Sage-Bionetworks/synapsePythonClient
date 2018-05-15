@@ -14,7 +14,7 @@ from nose.tools import assert_dict_equal, assert_raises, assert_equals
 from builtins import str
 
 import synapseutils
-from synapseclient import Project, Schema, File
+from synapseclient import Project, Schema, File, Folder
 from synapseclient.exceptions import SynapseHTTPError
 
 try:
@@ -123,6 +123,19 @@ def test_syncFromSynapse__non_file_Entity():
     with patch.object(syn, "getChildren", return_value = []),\
          patch.object(syn, "get", return_value = Schema(name="asssdfa", parent="whatever")):
         assert_raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
+
+def test_syncFromSynapse__empty_folder():
+    folder = Folder(name="the folder", parent="whatever", id="syn123")
+    with patch.object(syn, "getChildren", return_value = []),\
+         patch.object(syn, "get", return_value = Folder(name="asssdfa", parent="whatever")):
+        assert_equals(list(), synapseutils.syncFromSynapse(syn, folder))
+
+def test_syncFromSynapse__folder_contains_one_file():
+    folder = Folder(name="the folder", parent="whatever", id="syn123")
+    file = File(name="a file", parent=folder, id="syn456")
+    with patch.object(syn, "getChildren", return_value = [file]),\
+         patch.object(syn, "get", return_value = file):
+        assert_equals([file], synapseutils.syncFromSynapse(syn, folder))
 
 
 def test_extract_file_entity_metadata__ensure_correct_row_metadata():

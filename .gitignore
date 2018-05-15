@@ -15,3 +15,6 @@ notes.md
 notes/
 examples/
 jenkins/
+
+.idea/*
+
