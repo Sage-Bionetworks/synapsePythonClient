@@ -137,6 +137,14 @@ def test_syncFromSynapse__folder_contains_one_file():
          patch.object(syn, "get", return_value = file):
         assert_equals([file], synapseutils.syncFromSynapse(syn, folder))
 
+def test_syncFromSynapse__project_contains_empty_folder():
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+    with patch.object(syn, "getChildren", side_effect=[[folder, file], []]),\
+         patch.object(syn, "get", side_effect=[folder, file]):
+        assert_equals([file], synapseutils.syncFromSynapse(syn, project))
+
 
 def test_extract_file_entity_metadata__ensure_correct_row_metadata():
     #Test for SYNPY-692, where 'contentType' was incorrectly set on all rows except for the very first row.
