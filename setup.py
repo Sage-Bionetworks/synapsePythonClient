@@ -26,8 +26,7 @@ data analysis tools such as R, python, Galaxy and Java.
 __version__=json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
 
 #make sure not to overwrite existing .synapseConfig with our example one
-data_files = [(expanduser('~'), ['.synapseConfig'])] if not exists(expanduser('~/.synapseConfig')) else []
-
+data_files = [(expanduser('~'), ['synapseclient/.synapseConfig'])] if not exists(expanduser('~/.synapseConfig')) else []
 setup(name='synapseclient',
     version=__version__,
     description=description,
@@ -57,7 +56,7 @@ setup(name='synapseclient',
         'console_scripts': ['synapse = synapseclient.__main__:main']
     },
     zip_safe=False,
-    package_data={'synapseclient': ['synapsePythonClient']},
+    package_data={'synapseclient': ['synapsePythonClient', '.synapseConfig']},
     data_files=data_files,
     classifiers=[
         'Development Status :: 5 - Production/Stable',

@@ -376,3 +376,8 @@ class TestGetColumns(object):
             results = list(syn.getColumns(schema))
             assert_equal(get_table_colums_results, results)
             mock_get_table_coulmns.assert_called_with(schema)
+
+def test_username_property__credentials_is_None():
+    syn.credentials = None
+    assert_is_none(syn.username)
+

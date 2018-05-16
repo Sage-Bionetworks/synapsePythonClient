@@ -242,7 +242,7 @@ class Synapse(object):
 
     @property
     def username(self): #for backwards compatability when username was a part of the Synapse object and not in credentials
-        return self.credentials.username
+        return self.credentials.username if self.credentials is not None else None
 
 
     def getConfigFile(self, configPath):
