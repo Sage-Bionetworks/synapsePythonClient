@@ -80,7 +80,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     id = id_of(entity)
     if not is_container(entity):
-        raise ValueError("The provided id: %s is was neither a container nor a File" % id)
+        raise ValueError("The provided id: %s is neither a container nor a File" % id)
 
     # get the immediate children as iterator
     children = syn.getChildren(id)
