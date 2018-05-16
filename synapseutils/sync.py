@@ -72,9 +72,14 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     # perform validation check on user input
     if is_synapse_id(entity):
-        entity = syn.get(entity)
+        entity = syn.get(entity, downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
 
     id = id_of(entity)
+
+    if isinstance(entity, File):
+        allFiles.append(entity)
+        return allFiles
+
     if not is_container(entity):
         raise ValueError("The provided id: %s is was neither a container nor a File" % id)
 

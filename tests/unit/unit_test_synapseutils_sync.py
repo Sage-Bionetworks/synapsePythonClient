@@ -118,7 +118,7 @@ def test_readManifestFile__synapseStore_values_are_set():
         assert_dict_equal(expected_synapseStore, actual_synapseStore)
 
 
-def test_syncFromSynapse__non_file_Entity():
+def test_syncFromSynapse__non_file_entity():
     table_schema = "syn12345"
     with patch.object(syn, "getChildren", return_value = []),\
          patch.object(syn, "get", return_value = Schema(name="asssdfa", parent="whatever")):
@@ -129,6 +129,13 @@ def test_syncFromSynapse__empty_folder():
     with patch.object(syn, "getChildren", return_value = []),\
          patch.object(syn, "get", return_value = Folder(name="asssdfa", parent="whatever")):
         assert_equals(list(), synapseutils.syncFromSynapse(syn, folder))
+
+def test_syncFromSynapse__file_entity():
+    file = File(name="a file", parent="some parent", id="syn456")
+    with patch.object(syn, "getChildren", return_value = [file]) as patch_syn_get_children,\
+         patch.object(syn, "get", return_value = file):
+        assert_equals([file], synapseutils.syncFromSynapse(syn, file))
+        patch_syn_get_children.assert_not_called()
 
 def test_syncFromSynapse__folder_contains_one_file():
     folder = Folder(name="the folder", parent="whatever", id="syn123")
