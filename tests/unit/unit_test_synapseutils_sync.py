@@ -8,13 +8,13 @@ import os
 import tempfile
 
 import unit
-from mock import patch, create_autospec, Mock
+from mock import patch, create_autospec, Mock, call
 from nose import SkipTest
-from nose.tools import assert_dict_equal, assert_raises, assert_equals
+from nose.tools import assert_dict_equal, assert_raises, assert_equals, assert_list_equal
 from builtins import str
 
 import synapseutils
-from synapseclient import Project, Schema, File
+from synapseclient import Project, Schema, File, Folder
 from synapseclient.exceptions import SynapseHTTPError
 
 try:
@@ -118,11 +118,46 @@ def test_readManifestFile__synapseStore_values_are_set():
         assert_dict_equal(expected_synapseStore, actual_synapseStore)
 
 
-def test_syncFromSynapse__non_file_Entity():
+def test_syncFromSynapse__non_file_entity():
     table_schema = "syn12345"
     with patch.object(syn, "getChildren", return_value = []),\
          patch.object(syn, "get", return_value = Schema(name="asssdfa", parent="whatever")):
         assert_raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
+
+def test_syncFromSynapse__empty_folder():
+    folder = Folder(name="the folder", parent="whatever", id="syn123")
+    with patch.object(syn, "getChildren", return_value = []),\
+         patch.object(syn, "get", return_value = Folder(name="asssdfa", parent="whatever")):
+        assert_equals(list(), synapseutils.syncFromSynapse(syn, folder))
+
+def test_syncFromSynapse__file_entity():
+    file = File(name="a file", parent="some parent", id="syn456")
+    with patch.object(syn, "getChildren", return_value = [file]) as patch_syn_get_children,\
+         patch.object(syn, "get", return_value = file):
+        assert_equals([file], synapseutils.syncFromSynapse(syn, file))
+        patch_syn_get_children.assert_not_called()
+
+def test_syncFromSynapse__folder_contains_one_file():
+    folder = Folder(name="the folder", parent="whatever", id="syn123")
+    file = File(name="a file", parent=folder, id="syn456")
+    with patch.object(syn, "getChildren", return_value = [file]) as patch_syn_get_children,\
+         patch.object(syn, "get", return_value = file):
+        assert_equals([file], synapseutils.syncFromSynapse(syn, folder))
+        patch_syn_get_children.called_with(folder['id'])
+
+def test_syncFromSynapse__project_contains_empty_folder():
+    project = Project(name="the project", parent="whatever", id="syn123")
+    file = File(name="a file", parent=project, id="syn456")
+    folder = Folder(name="a folder", parent=project, id="syn789")
+    with patch.object(syn, "getChildren", side_effect=[[folder, file], []]) as patch_syn_get_children,\
+         patch.object(syn, "get", side_effect=[folder, file]) as patch_syn_get:
+        assert_equals([file], synapseutils.syncFromSynapse(syn, project))
+        expected_get_children_agrs = [call(project['id']), call(folder['id'])]
+        assert_list_equal(expected_get_children_agrs, patch_syn_get_children.call_args_list)
+        expected_get_args = [
+            call(folder['id'], downloadLocation=None, ifcollision='overwrite.local', followLink=False),
+            call(file['id'], downloadLocation=None, ifcollision='overwrite.local', followLink=False)]
+        assert_list_equal(expected_get_args, patch_syn_get.call_args_list)
 
 
 def test_extract_file_entity_metadata__ensure_correct_row_metadata():

@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 import errno
 from .monitor import notifyMe
 from synapseclient.entity import is_container
-from synapseclient.utils import id_of, topolgical_sort, is_url
+from synapseclient.utils import id_of, topolgical_sort, is_url, is_synapse_id
 from synapseclient import File, table
 from synapseclient.exceptions import *
 import os
@@ -28,7 +28,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     :param syn:    A synapse object as obtained with syn = synapseclient.login()
 
-    :param entity:  A Synapse ID, a Synapse Entity object of type folder or project.
+    :param entity:  A Synapse ID, a Synapse Entity object of type file, folder or project.
 
     :param path: An optional path where the file hierarchy will be
                  reproduced.  If not specified the files will by default
@@ -67,36 +67,44 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
             print(f.path)
 
     """
+    # initialize the result list
     if allFiles is None: allFiles = list()
+
+    # perform validation check on user input
+    if is_synapse_id(entity):
+        entity = syn.get(entity, downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
+
+    if isinstance(entity, File):
+        allFiles.append(entity)
+        return allFiles
+
     id = id_of(entity)
-    results = syn.getChildren(id)
-    zero_results = True
-    for result in results:
-        zero_results = False
-        if is_container(result):
-            if path is not None:  #If we are downloading outside cache create directory.
-                new_path = os.path.join(path, result['name'])
+    if not is_container(entity):
+        raise ValueError("The provided id: %s is neither a container nor a File" % id)
+
+    # get the immediate children as iterator
+    children = syn.getChildren(id)
+
+    # process each child
+    for child in children:
+        if is_container(child):
+            # If we are downloading outside cache create directory
+            if path is not None:
+                new_path = os.path.join(path, child['name'])
                 try:
                     os.makedirs(new_path)
                 except OSError as err:
                     if err.errno!=errno.EEXIST:
                         raise
-                print('making dir', new_path)
             else:
                 new_path = None
-            syncFromSynapse(syn, result['id'], new_path, ifcollision, allFiles, followLink=followLink)
+            # recursively explore this container's children
+            syncFromSynapse(syn, child['id'], new_path, ifcollision, allFiles, followLink=followLink)
         else:
-            ent = syn.get(result['id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
+            # getting the child
+            ent = syn.get(child['id'], downloadLocation = path, ifcollision = ifcollision, followLink=followLink)
             if isinstance(ent, File):
                 allFiles.append(ent)
-    if zero_results:
-        #a http error would be raised if the synapse Id was not valid (404) or no permission (403) so at this point the entity should be get-able
-        stderr.write("The synapse id %s is not a container (Project/Folder), attempting to get the entity anyways" % id)
-        ent = syn.get(id, downloadLocation=path, ifcollision=ifcollision, followLink=followLink)
-        if isinstance(ent, File):
-            allFiles.append(ent)
-        else:
-            raise ValueError("The provided id: %s is was neither a container nor a File" % id)
 
     if path is not None:  #If path is None files are stored in cache.
         filename = os.path.join(path, MANIFEST_FILENAME)
