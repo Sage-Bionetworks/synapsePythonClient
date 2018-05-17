@@ -1,5 +1,5 @@
 import os, json, tempfile, base64
-from mock import patch, call, create_autospec
+from mock import patch, call, create_autospec, MagicMock
 
 import unit
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none
@@ -381,3 +381,21 @@ def test_username_property__credentials_is_None():
     syn.credentials = None
     assert_is_none(syn.username)
 
+
+def test_get__with_version_as_number():
+    file = File(name="test", parentId="syn10101")
+    bundle = {
+        'entity': {
+            'id': 'syn10101',
+            'name': 'anonymous',
+            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+            'parentId': 'syn12345'},
+        'restrictionInformation': {
+            'hasUnmetAccessRequirement': {}
+        }}
+    syn._getEntityBundle = MagicMock(return_value = bundle)
+    syn._getWithEntityBundle = MagicMock(return_value = file)
+    assert_equal(file, syn.get("syn1234567890", version=6, downloadFile=False))
+
+def test_get__with_version_as_string():
+    assert_raises(ValueError, syn.get, "syn1234567890", version='6', downloadFile=False)
