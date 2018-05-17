@@ -28,7 +28,7 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
 
     :param syn:    A synapse object as obtained with syn = synapseclient.login()
 
-    :param entity:  A Synapse ID, a Synapse Entity object of type folder or project.
+    :param entity:  A Synapse ID, a Synapse Entity object of type file, folder or project.
 
     :param path: An optional path where the file hierarchy will be
                  reproduced.  If not specified the files will by default
@@ -96,10 +96,9 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
                 except OSError as err:
                     if err.errno!=errno.EEXIST:
                         raise
-                print('making dir', new_path)
             else:
                 new_path = None
-            # recursively explore this child's children
+            # recursively explore this container's children
             syncFromSynapse(syn, child['id'], new_path, ifcollision, allFiles, followLink=followLink)
         else:
             # getting the child
