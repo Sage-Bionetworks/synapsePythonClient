@@ -381,9 +381,8 @@ def test_username_property__credentials_is_None():
     syn.credentials = None
     assert_is_none(syn.username)
 
-
 def test_get__with_version_as_number():
-    file = File(name="test", parentId="syn10101")
+    file = File(name="anonymous", parentId='syn12345')
     bundle = {
         'entity': {
             'id': 'syn10101',

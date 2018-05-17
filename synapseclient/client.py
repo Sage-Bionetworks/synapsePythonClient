@@ -623,11 +623,11 @@ class Synapse(object):
         elif isinstance(entity, six.string_types) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
                                             ' or a valid entity id' %entity))
-
-        version = kwargs.get('version', None)
-        if version is not None and not isinstance(version, Number):
-            raise ValueError("version must be a number")
-        bundle = self._getEntityBundle(entity, version)
+        else:
+            version = kwargs.get('version', None)
+            if version is not None and not isinstance(version, Number):
+                raise ValueError("version must be a number")
+            bundle = self._getEntityBundle(entity, version)
         # Check and warn for unmet access requirements
         self._check_entity_restrictions(bundle['restrictionInformation'], entity, kwargs.get('downloadFile', True))
 
