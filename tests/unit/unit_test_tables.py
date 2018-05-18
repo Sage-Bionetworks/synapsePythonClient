@@ -29,7 +29,7 @@ from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
 from synapseclient.entity import split_entity_namespaces
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
-     as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset, SchemaBase
+     as_table_columns, Table, BuildTable, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset, SchemaBase
 from mock import patch
 from collections import OrderedDict
 from .unit_utils import StringIOContextManager
@@ -705,6 +705,23 @@ def test_RowSetTable_len():
     rowset =  RowSet(schema=schema, rows=[Row(['first row']), Row(['second row'])])
     row_set_table = RowSetTable(schema, rowset)
     assert_equals(2, len(row_set_table))
+
+def test_BuildTable__with_pandas_DataFrame():
+    df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
+    table = BuildTable("test", "syn123", df)
+    for i, row in enumerate(table):
+        assert row[0]==(i+1)
+        assert row[1]==["c", "d", "e"][i]
+    assert len(table)==3
+    headers = [
+        {'name': 'a', 'columnType': 'INTEGER'},
+        {'name': 'b', 'columnType': 'STRING'}
+    ]
+    assert_equals(headers, table.headers)
+
+def test_BuildTable__with_non_pandas_DataFrame():
+    assert_raises(ValueError, BuildTable, "test", "syn123", [])
+
 
 class TestTableQueryResult():
     def setup(self):

@@ -1028,6 +1028,32 @@ class PartialRow(DictObject):
             self.etag = etag
 
 
+def BuildTable(name, parent, values):
+    """
+    Build a Table object
+
+    :param name: the name for the Table Schema object
+    :param parent: the project in Synapse to which this table belongs
+    :param values: an object that holds the content of the tables
+      - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+
+    :return: a Table object suitable for storing
+    """
+    try:
+        import pandas as pd
+        pandas_available = True
+    except:
+        pandas_available = False
+
+    if not isinstance(values, pd.DataFrame):
+        raise ValueError("Values of type %s is not yet supported." % type(values))
+    if not pandas_available:
+        raise ValueError("pandas package is required.")
+    cols = as_table_columns(values)
+    schema = Schema(name=name, columns=cols, parent=parent)
+    return Table(schema, values)
+
+
 def Table(schema, values, **kwargs):
     """
     Combine a table schema and a set of values into some type of Table object
