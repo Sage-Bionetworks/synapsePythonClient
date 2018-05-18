@@ -625,8 +625,6 @@ class Synapse(object):
                                             ' or a valid entity id' %entity))
         else:
             version = kwargs.get('version', None)
-            if version is not None and not isinstance(version, Number):
-                raise ValueError("version must be a number")
             bundle = self._getEntityBundle(entity, version)
         # Check and warn for unmet access requirements
         self._check_entity_restrictions(bundle['restrictionInformation'], entity, kwargs.get('downloadFile', True))
@@ -1096,7 +1094,7 @@ class Synapse(object):
             return None
 
         if version is not None:
-            uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), version, bitFlags)
+            uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), int(version), bitFlags)
         else:
             uri = '/entity/%s/bundle?mask=%d' %(id_of(entity), bitFlags)
         bundle = self.restGET(uri)

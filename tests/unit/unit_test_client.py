@@ -389,12 +389,10 @@ def test_username_property__credentials_is_None():
     syn.credentials = None
     assert_is_none(syn.username)
 
-@patch('synapseclient.Synapse._getEntityBundle')
-@patch('synapseclient.Synapse._getWithEntityBundle')
-class TestGet():
-    def test_get__with_version_as_number(self, patch_getWithEntityBundle, patch_getEntityBundle):
-        file = File(name="anonymous", parentId='syn12345')
-        bundle = {
+
+class TestPrivateGetEntityBundle():
+    def setup(self):
+        self.bundle = {
             'entity': {
                 'id': 'syn10101',
                 'name': 'anonymous',
@@ -403,9 +401,15 @@ class TestGet():
             'restrictionInformation': {
                 'hasUnmetAccessRequirement': {}
             }}
-        patch_getEntityBundle.return_value = bundle
-        patch_getWithEntityBundle.return_value = file
-        assert_equal(file, syn.get("syn10101", version=6, downloadFile=False))
+        self.patch_restGET = patch.object(syn, 'restGET', return_value = self.bundle)
+        self.patch_restGET.start()
 
-    def test_get__with_version_as_string(self, patch_getWithEntityBundle, patch_getEntityBundle):
-        assert_raises(ValueError, syn.get, "syn10101", version='6', downloadFile=False)
+    def teardown(self):
+        self.patch_restGET.stop()
+
+    def test__getEntityBundle__with_version_as_number(self):
+        assert_equal(self.bundle, syn._getEntityBundle("syn10101", 6))
+
+    def test__getEntityBundle__with_version_as_string(self):
+        assert_equal(self.bundle, syn._getEntityBundle("syn10101", '6'))
+        assert_raises(ValueError, syn._getEntityBundle, "syn10101", 'current')
