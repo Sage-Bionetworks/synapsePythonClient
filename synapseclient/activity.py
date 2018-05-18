@@ -76,9 +76,10 @@ from __future__ import unicode_literals
 import six
 import collections
 
-from synapseclient.utils import is_url, id_of, is_synapse_id
-from synapseclient.entity import is_synapse_entity
-from synapseclient.exceptions import *
+from .dict_object import DictObject
+from .utils import is_url, id_of, is_synapse_id
+from .entity import is_synapse_entity
+from .exceptions import *
 
 
 def is_used_entity(x):
@@ -133,7 +134,7 @@ def _raise_incorrect_used_usage(badargs, message):
                    message))
 
 
-class Activity(dict):
+class Activity(DictObject):
     """
     Represents the provenance of a Synapse Entity.
 
