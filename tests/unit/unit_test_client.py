@@ -406,11 +406,6 @@ class TestGet():
         patch_getEntityBundle.return_value = bundle
         patch_getWithEntityBundle.return_value = file
         assert_equal(file, syn.get("syn10101", version=6, downloadFile=False))
-        # with patch.object(syn, "_getEntityBundle", return_values = bundle) as patch_getEntityBundle,\
-        #      patch.object(syn, "_getWithEntityBundle", return_values = file) as patch_getWithEntityBundle:
-        #     assert_equal(file, syn.get("syn10101", version=6, downloadFile=False))
-        #     patch_getEntityBundle.assert_call_once_with("syn10101", "6")
-        #     patch_getWithEntityBundle.assert_call_once_with(bundle, "syn10101")
 
     def test_get__with_version_as_string(self, patch_getWithEntityBundle, patch_getEntityBundle):
         assert_raises(ValueError, syn.get, "syn10101", version='6', downloadFile=False)
