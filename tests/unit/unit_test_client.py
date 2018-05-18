@@ -1,5 +1,5 @@
 import os, json, tempfile, base64
-from mock import patch, call, create_autospec, MagicMock
+from mock import patch, call, create_autospec
 
 import unit
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none
@@ -87,137 +87,143 @@ class TestLogin():
             mocked_cached_sessions.set_most_recent_user.assert_called_once_with(self.synapse_creds.username)
 
 
+
 @patch('synapseclient.Synapse._getFileHandleDownload')
 @patch('synapseclient.Synapse._downloadFileHandle')
-def test_getWithEntityBundle(download_file_mock, get_file_URL_and_metadata_mock):
-    ## Note: one thing that remains unexplained is why the previous version of
-    ## this test worked if you had a .cacheMap file of the form:
-    ## {"/Users/chris/.synapseCache/663/-1337/anonymous": "2014-09-15T22:54:57.000Z",
-    ##  "/var/folders/ym/p7cr7rrx4z7fw36sxv04pqh00000gq/T/tmpJ4nz8U": "2014-09-15T23:27:25.000Z"}
-    ## ...but failed if you didn't.
+class TestPrivateGetWithEntityBundle():
 
-    bundle = {
-        'entity': {
-            'id': 'syn10101',
-            'name': 'anonymous',
-            'dataFileHandleId': '-1337',
-            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
-            'parentId': 'syn12345'},
-        'fileHandles': [{
-            'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle',
-            'fileName': 'anonymous',
-            'contentType': 'application/flapdoodle',
-            'contentMd5': '1698d26000d60816caab15169efcd23a',
-            'id': '-1337'}],
-        'annotations': {}}
+    def test_getWithEntityBundle(self, download_file_mock, get_file_URL_and_metadata_mock):
+        ## Note: one thing that remains unexplained is why the previous version of
+        ## this test worked if you had a .cacheMap file of the form:
+        ## {"/Users/chris/.synapseCache/663/-1337/anonymous": "2014-09-15T22:54:57.000Z",
+        ##  "/var/folders/ym/p7cr7rrx4z7fw36sxv04pqh00000gq/T/tmpJ4nz8U": "2014-09-15T23:27:25.000Z"}
+        ## ...but failed if you didn't.
 
-    fileHandle = bundle['fileHandles'][0]['id']
-    cacheDir = syn.cache.get_cache_dir(fileHandle)
-    # Make sure the .cacheMap file does not already exist
-    cacheMap = os.path.join(cacheDir, '.cacheMap')
-    if os.path.exists(cacheMap):
-        os.remove(cacheMap)
+        bundle = {
+            'entity': {
+                'id': 'syn10101',
+                'name': 'anonymous',
+                'dataFileHandleId': '-1337',
+                'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                'parentId': 'syn12345'},
+            'fileHandles': [{
+                'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle',
+                'fileName': 'anonymous',
+                'contentType': 'application/flapdoodle',
+                'contentMd5': '1698d26000d60816caab15169efcd23a',
+                'id': '-1337'}],
+            'annotations': {}}
 
-    def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5):
-        ## touch file at path
-        with open(path, 'a'):
-            os.utime(path, None)
-        dest_dir, filename = os.path.split(path)
-        syn.cache.add(fileHandle, path)
-        return path
+        fileHandle = bundle['fileHandles'][0]['id']
+        cacheDir = syn.cache.get_cache_dir(fileHandle)
+        # Make sure the .cacheMap file does not already exist
+        cacheMap = os.path.join(cacheDir, '.cacheMap')
+        if os.path.exists(cacheMap):
+            os.remove(cacheMap)
 
-    def _getFileHandleDownload(fileHandleId,  objectId, objectType='FileHandle'):
-        return {'fileHandle':bundle['fileHandles'][0], 'fileHandleId':fileHandleId, 'preSignedURL':'http://example.com'}
+        def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5):
+            ## touch file at path
+            with open(path, 'a'):
+                os.utime(path, None)
+            dest_dir, filename = os.path.split(path)
+            syn.cache.add(fileHandle, path)
+            return path
 
-    download_file_mock.side_effect = _downloadFileHandle
-    get_file_URL_and_metadata_mock.side_effect = _getFileHandleDownload
+        def _getFileHandleDownload(fileHandleId,  objectId, objectType='FileHandle'):
+            return {'fileHandle':bundle['fileHandles'][0], 'fileHandleId':fileHandleId, 'preSignedURL':'http://example.com'}
 
-    # 1. ----------------------------------------------------------------------
-    # download file to an alternate location
+        download_file_mock.side_effect = _downloadFileHandle
+        get_file_URL_and_metadata_mock.side_effect = _getFileHandleDownload
 
-    temp_dir1 = tempfile.mkdtemp()
+        # 1. ----------------------------------------------------------------------
+        # download file to an alternate location
 
-    e = syn._getWithEntityBundle(entityBundle=bundle,
-                                 downloadLocation=temp_dir1,
-                                 ifcollision="overwrite.local")
+        temp_dir1 = tempfile.mkdtemp()
 
-    assert_equal(e.name , bundle["entity"]["name"])
-    assert_equal(e.parentId , bundle["entity"]["parentId"])
-    assert_equal(utils.normalize_path(os.path.abspath(os.path.dirname(e.path))), utils.normalize_path(temp_dir1))
-    assert_equal(bundle["fileHandles"][0]["fileName"] , os.path.basename(e.path))
-    assert_equal(utils.normalize_path(os.path.abspath(e.path)), utils.normalize_path(os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])))
+        e = syn._getWithEntityBundle(entityBundle=bundle,
+                                     downloadLocation=temp_dir1,
+                                     ifcollision="overwrite.local")
 
-    # 2. ----------------------------------------------------------------------
-    # get without specifying downloadLocation
-    e = syn._getWithEntityBundle(entityBundle=bundle, ifcollision="overwrite.local")
+        assert_equal(e.name , bundle["entity"]["name"])
+        assert_equal(e.parentId , bundle["entity"]["parentId"])
+        assert_equal(utils.normalize_path(os.path.abspath(os.path.dirname(e.path))), utils.normalize_path(temp_dir1))
+        assert_equal(bundle["fileHandles"][0]["fileName"] , os.path.basename(e.path))
+        assert_equal(utils.normalize_path(os.path.abspath(e.path)), utils.normalize_path(os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])))
+
+        # 2. ----------------------------------------------------------------------
+        # get without specifying downloadLocation
+        e = syn._getWithEntityBundle(entityBundle=bundle, ifcollision="overwrite.local")
 
 
-    assert_equal(e.name , bundle["entity"]["name"])
-    assert_equal(e.parentId , bundle["entity"]["parentId"])
-    assert bundle["fileHandles"][0]["fileName"] in e.files
+        assert_equal(e.name , bundle["entity"]["name"])
+        assert_equal(e.parentId , bundle["entity"]["parentId"])
+        assert bundle["fileHandles"][0]["fileName"] in e.files
 
-    # 3. ----------------------------------------------------------------------
-    # download to another location
-    temp_dir2 = tempfile.mkdtemp()
-    assert temp_dir2 != temp_dir1
-    e = syn._getWithEntityBundle(entityBundle=bundle,
-                                 downloadLocation=temp_dir2,
-                                 ifcollision="overwrite.local")
+        # 3. ----------------------------------------------------------------------
+        # download to another location
+        temp_dir2 = tempfile.mkdtemp()
+        assert temp_dir2 != temp_dir1
+        e = syn._getWithEntityBundle(entityBundle=bundle,
+                                     downloadLocation=temp_dir2,
+                                     ifcollision="overwrite.local")
 
-    assert_in(bundle["fileHandles"][0]["fileName"], e.files)
-    assert e.path is not None
-    assert utils.equal_paths( os.path.dirname(e.path), temp_dir2 )
+        assert_in(bundle["fileHandles"][0]["fileName"], e.files)
+        assert e.path is not None
+        assert utils.equal_paths( os.path.dirname(e.path), temp_dir2 )
 
-    # 4. ----------------------------------------------------------------------
-    ## test preservation of local state
-    url = 'http://foo.com/secretstuff.txt'
-    #need to create a bundle with externalURL
-    externalURLBundle = dict(bundle)
-    externalURLBundle['fileHandles'][0]['externalURL'] = url
-    e = File(name='anonymous', parentId="syn12345", synapseStore=False, externalURL=url)
-    e.local_state({'zap':'pow'})
-    e = syn._getWithEntityBundle(entityBundle=externalURLBundle, entity=e)
-    assert_equal(e.local_state()['zap'] , 'pow')
-    assert_equal(e.synapseStore , False)
-    assert_equal(e.externalURL , url)
+        # 4. ----------------------------------------------------------------------
+        ## test preservation of local state
+        url = 'http://foo.com/secretstuff.txt'
+        #need to create a bundle with externalURL
+        externalURLBundle = dict(bundle)
+        externalURLBundle['fileHandles'][0]['externalURL'] = url
+        e = File(name='anonymous', parentId="syn12345", synapseStore=False, externalURL=url)
+        e.local_state({'zap':'pow'})
+        e = syn._getWithEntityBundle(entityBundle=externalURLBundle, entity=e)
+        assert_equal(e.local_state()['zap'] , 'pow')
+        assert_equal(e.synapseStore , False)
+        assert_equal(e.externalURL , url)
 
-    ## TODO: add more test cases for flag combination of this method
-    ## TODO: separate into another test?
+        ## TODO: add more test cases for flag combination of this method
+        ## TODO: separate into another test?
+
 
 
 @patch('synapseclient.Synapse.restPOST')
 @patch('synapseclient.Synapse.getEvaluation')
-def test_submit(*mocks):
-    mocks = [item for item in mocks]
-    POST_mock       = mocks.pop()
-    getEvaluation_mock = mocks.pop()
-    
-    # -- Unmet access rights --
-    getEvaluation_mock.return_value = Evaluation(**{u'contentSource': u'syn1001',
-                                                    u'createdOn': u'2013-11-06T06:04:26.789Z',
-                                                    u'etag': u'86485ea1-8c89-4f24-a0a4-2f63bc011091',
-                                                    u'id': u'9090',
-                                                    u'name': u'test evaluation',
-                                                    u'ownerId': u'1560252',
-                                                    u'status': u'OPEN',
-                                                    u'submissionReceiptMessage': u'mmmm yummy!'})
+class TestSubmit():
 
-    
-    # -- Normal submission --
-    # insert a shim that returns the dictionary it was passed after adding a bogus id
-    def shim(*args):
-        assert_equal(args[0] , '/evaluation/submission?etag=Fake eTag')
-        submission = json.loads(args[1])
-        submission['id'] = 1234
-        return submission
-    POST_mock.side_effect = shim
-    
-    submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', submitterAlias='Team X')
+    def test_submit(self, *mocks):
+        mocks = [item for item in mocks]
+        POST_mock       = mocks.pop()
+        getEvaluation_mock = mocks.pop()
 
-    assert_equal(submission.id , 1234)
-    assert_equal(submission.evaluationId , '9090')
-    assert_equal(submission.name , 'George')
-    assert_equal(submission.submitterAlias , 'Team X')
+        # -- Unmet access rights --
+        getEvaluation_mock.return_value = Evaluation(**{u'contentSource': u'syn1001',
+                                                        u'createdOn': u'2013-11-06T06:04:26.789Z',
+                                                        u'etag': u'86485ea1-8c89-4f24-a0a4-2f63bc011091',
+                                                        u'id': u'9090',
+                                                        u'name': u'test evaluation',
+                                                        u'ownerId': u'1560252',
+                                                        u'status': u'OPEN',
+                                                        u'submissionReceiptMessage': u'mmmm yummy!'})
+
+
+        # -- Normal submission --
+        # insert a shim that returns the dictionary it was passed after adding a bogus id
+        def shim(*args):
+            assert_equal(args[0] , '/evaluation/submission?etag=Fake eTag')
+            submission = json.loads(args[1])
+            submission['id'] = 1234
+            return submission
+        POST_mock.side_effect = shim
+
+        submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George', submitterAlias='Team X')
+
+        assert_equal(submission.id , 1234)
+        assert_equal(submission.evaluationId , '9090')
+        assert_equal(submission.name , 'George')
+        assert_equal(submission.submitterAlias , 'Team X')
 
 
 def test_send_message():
@@ -245,30 +251,32 @@ def test_send_message():
 
 
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
-def test__uploadExternallyStoringProjects_external_user(mock_upload_destination):
-    # setup
-    expected_storage_location_id = "1234567"
-    expected_local_state = {'_file_handle':{}, 'synapseStore':True}
-    expected_path = "~/fake/path/file.txt"
-    expected_path_expanded = os.path.expanduser(expected_path)
-    expected_file_handle_id = "8786"
-    mock_upload_destination.return_value = {'storageLocationId' : expected_storage_location_id,
-                                            'concreteType' : concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
+class TestPrivateUploadExternallyStoringProjects():
 
-    test_file = File(expected_path, parent="syn12345")
+    def test__uploadExternallyStoringProjects_external_user(self, mock_upload_destination):
+        # setup
+        expected_storage_location_id = "1234567"
+        expected_local_state = {'_file_handle':{}, 'synapseStore':True}
+        expected_path = "~/fake/path/file.txt"
+        expected_path_expanded = os.path.expanduser(expected_path)
+        expected_file_handle_id = "8786"
+        mock_upload_destination.return_value = {'storageLocationId' : expected_storage_location_id,
+                                                'concreteType' : concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
+
+        test_file = File(expected_path, parent="syn12345")
 
 
-    # method under test
-    with patch.object(synapseclient.upload_functions, "multipart_upload", return_value=expected_file_handle_id) as mocked_multipart_upload, \
-         patch.object(syn.cache, "add") as mocked_cache_add,\
-         patch.object(syn, "_getFileHandle") as mocked_getFileHandle:
-        file_handle = upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path']) #dotn care about filehandle for this test
+        # method under test
+        with patch.object(synapseclient.upload_functions, "multipart_upload", return_value=expected_file_handle_id) as mocked_multipart_upload, \
+             patch.object(syn.cache, "add") as mocked_cache_add,\
+             patch.object(syn, "_getFileHandle") as mocked_getFileHandle:
+            file_handle = upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path']) #dotn care about filehandle for this test
 
-        mock_upload_destination.assert_called_once_with(test_file['parentId'])
-        mocked_multipart_upload.assert_called_once_with(syn, expected_path_expanded, contentType=None, storageLocationId=expected_storage_location_id)
-        mocked_cache_add.assert_called_once_with(expected_file_handle_id,expected_path_expanded)
-        mocked_getFileHandle.assert_called_once_with(expected_file_handle_id)
-        #test
+            mock_upload_destination.assert_called_once_with(test_file['parentId'])
+            mocked_multipart_upload.assert_called_once_with(syn, expected_path_expanded, contentType=None, storageLocationId=expected_storage_location_id)
+            mocked_cache_add.assert_called_once_with(expected_file_handle_id,expected_path_expanded)
+            mocked_getFileHandle.assert_called_once_with(expected_file_handle_id)
+            #test
 
 
 def test_findEntityIdByNameAndParent__None_parent():
@@ -381,20 +389,28 @@ def test_username_property__credentials_is_None():
     syn.credentials = None
     assert_is_none(syn.username)
 
-def test_get__with_version_as_number():
-    file = File(name="anonymous", parentId='syn12345')
-    bundle = {
-        'entity': {
-            'id': 'syn10101',
-            'name': 'anonymous',
-            'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
-            'parentId': 'syn12345'},
-        'restrictionInformation': {
-            'hasUnmetAccessRequirement': {}
-        }}
-    syn._getEntityBundle = MagicMock(return_value = bundle)
-    syn._getWithEntityBundle = MagicMock(return_value = file)
-    assert_equal(file, syn.get("syn1234567890", version=6, downloadFile=False))
+@patch('synapseclient.Synapse._getEntityBundle')
+@patch('synapseclient.Synapse._getWithEntityBundle')
+class TestGet():
+    def test_get__with_version_as_number(self, patch_getWithEntityBundle, patch_getEntityBundle):
+        file = File(name="anonymous", parentId='syn12345')
+        bundle = {
+            'entity': {
+                'id': 'syn10101',
+                'name': 'anonymous',
+                'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                'parentId': 'syn12345'},
+            'restrictionInformation': {
+                'hasUnmetAccessRequirement': {}
+            }}
+        patch_getEntityBundle.return_value = bundle
+        patch_getWithEntityBundle.return_value = file
+        assert_equal(file, syn.get("syn10101", version=6, downloadFile=False))
+        # with patch.object(syn, "_getEntityBundle", return_values = bundle) as patch_getEntityBundle,\
+        #      patch.object(syn, "_getWithEntityBundle", return_values = file) as patch_getWithEntityBundle:
+        #     assert_equal(file, syn.get("syn10101", version=6, downloadFile=False))
+        #     patch_getEntityBundle.assert_call_once_with("syn10101", "6")
+        #     patch_getWithEntityBundle.assert_call_once_with(bundle, "syn10101")
 
-def test_get__with_version_as_string():
-    assert_raises(ValueError, syn.get, "syn1234567890", version='6', downloadFile=False)
+    def test_get__with_version_as_string(self, patch_getWithEntityBundle, patch_getEntityBundle):
+        assert_raises(ValueError, syn.get, "syn10101", version='6', downloadFile=False)
