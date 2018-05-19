@@ -69,7 +69,6 @@ import getpass
 import json
 from collections import OrderedDict
 import logging
-from numbers import Number
 
 import synapseclient
 from . import cache
