@@ -1093,7 +1093,7 @@ class Synapse(object):
             return None
 
         if version is not None:
-            uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), version, bitFlags)
+            uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), int(version), bitFlags)
         else:
             uri = '/entity/%s/bundle?mask=%d' %(id_of(entity), bitFlags)
         bundle = self.restGET(uri)
