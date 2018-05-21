@@ -81,6 +81,12 @@ Create a Synapse Table from a `DataFrame <http://pandas.pydata.org/pandas-docs/s
     import pandas as pd
 
     df = pd.read_csv("/path/to/genes.csv", index_col=False)
+    table = build_table('My Favorite Genes', project, df)
+    table = syn.store(table)
+
+:py:func:`build_table` uses pandas DataFrame dtype to set the Table :py:class:`Schema`.
+To create a table with a custom :py:class:`Schema`, first create the :py:class:`Schema`::
+
     schema = Schema(name='My Favorite Genes', columns=as_table_columns(df), parent=project)
     table = syn.store(Table(schema, df))
 
@@ -267,6 +273,8 @@ Module level methods
 ~~~~~~~~~~~~~~~~~~~~
 
 .. autofunction:: as_table_columns
+
+.. autofunction:: build_table
 
 .. autofunction:: Table
 
@@ -1028,7 +1036,7 @@ class PartialRow(DictObject):
             self.etag = etag
 
 
-def BuildTable(name, parent, values):
+def build_table(name, parent, values):
     """
     Build a Table object
 
@@ -1038,6 +1046,14 @@ def BuildTable(name, parent, values):
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
 
     :return: a Table object suitable for storing
+
+    Example::
+
+        import pandas as pd
+
+        df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
+        table = build_table("simple_table", "syn123", df)
+        table = syn.store(table)
     """
     try:
         import pandas as pd
