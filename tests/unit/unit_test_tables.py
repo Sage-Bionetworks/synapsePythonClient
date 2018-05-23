@@ -193,42 +193,21 @@ def test_as_table_columns__with_csv_file():
     try:
         import pandas as pd
 
-        data = [["1", "1", "John Coltrane", 1926, 8.65, False],
-                ["2", "1", "Miles Davis", 1926, 9.87, False],
-                ["3", "1", "Bill Evans", 1929, 7.65, False],
-                ["4", "1", "Paul Chambers", 1935, 5.14, False],
-                ["5", "1", "Jimmy Cobb", 1929, 5.78, True],
-                ["6", "1", "Scott LaFaro", 1936, 4.21, False],
-                ["7", "1", "Sonny Rollins", 1930, 8.99, True],
-                ["8", "1", "Kenny Burrel", 1931, 4.37, True]]
+        string_io = StringIOContextManager(
+            'ROW_ID,ROW_VERSION,Name,Born,Hipness,Living\n'
+            '"1", "1", "John Coltrane", 1926, 8.65, False"\n'
+            '"2", "1", "Miles Davis", 1926, 9.87, False'
+        )
+        cols = as_table_columns(string_io)
 
-        cols = []
-        cols.append(Column(id='1', name='Name', columnType='STRING'))
-        cols.append(Column(id='2', name='Born', columnType='INTEGER'))
-        cols.append(Column(id='3', name='Hipness', columnType='DOUBLE'))
-        cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
-
-        ## create CSV file
-        with tempfile.NamedTemporaryFile(mode='w', encoding="utf-8") as temp:
-            filename = temp.name
-
-            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=str(os.linesep))
-            headers = ['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols]
-            writer.writerow(headers)
-            for row in data:
-                writer.writerow(row)
-
-            temp.flush()
-            cols = as_table_columns(filename)
-
-            cols[0]['name'] == 'Name'
-            cols[0]['columnType'] == 'STRING'
-            cols[1]['name'] == 'Born'
-            cols[1]['columnType'] == 'INTEGER'
-            cols[2]['name'] == 'Hipness'
-            cols[2]['columnType'] == 'DOUBLE'
-            cols[3]['name'] == 'Living'
-            cols[3]['columnType'] == 'BOOLEAN'
+        cols[0]['name'] == 'Name'
+        cols[0]['columnType'] == 'STRING'
+        cols[1]['name'] == 'Born'
+        cols[1]['columnType'] == 'INTEGER'
+        cols[2]['name'] == 'Hipness'
+        cols[2]['columnType'] == 'DOUBLE'
+        cols[3]['name'] == 'Living'
+        cols[3]['columnType'] == 'BOOLEAN'
 
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns__with_csv_file.\n\n')

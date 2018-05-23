@@ -370,7 +370,7 @@ def as_table_columns(values):
     the columns in the given values.
 
     :params values: an object that holds the content of the tables
-      - a string holding the path to a CSV file
+      - a string holding the path to a CSV file, a filehandle, or StringIO containing valid csv content
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
 
     :returns: A list of Synapse table :py:class:`Column` objects
@@ -388,7 +388,7 @@ def as_table_columns(values):
     df = None
 
     ## filename of a csv file
-    if isinstance(values, six.string_types):
+    if isinstance(values, six.string_types) or isinstance(values, io.IOBase):
         df = _csv_to_pandas_df(values)
     ## pandas DataFrame
     if isinstance(values, pd.DataFrame):
