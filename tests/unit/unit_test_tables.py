@@ -158,7 +158,7 @@ def test_RowSetTable():
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_RowSetTable.\n\n')
 
 
-def test_as_table_columns():
+def test_as_table_columns__with_pandas_DataFrame():
     try:
         import pandas as pd
 
@@ -184,7 +184,69 @@ def test_as_table_columns():
         cols[1]['columnType'] == 'STRING'
 
     except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns.\n\n')
+        sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns__with_pandas_DataFrame.\n\n')
+
+def test_as_table_columns__with_non_supported_input_type():
+    assert_raises(ValueError, as_table_columns, dict(a=[1, 2, 3], b=["c", "d", "e"]))
+
+def test_as_table_columns__with_csv_file():
+    try:
+        import pandas as pd
+
+        data = [["1", "1", "John Coltrane", 1926, 8.65, False],
+                ["2", "1", "Miles Davis", 1926, 9.87, False],
+                ["3", "1", "Bill Evans", 1929, 7.65, False],
+                ["4", "1", "Paul Chambers", 1935, 5.14, False],
+                ["5", "1", "Jimmy Cobb", 1929, 5.78, True],
+                ["6", "1", "Scott LaFaro", 1936, 4.21, False],
+                ["7", "1", "Sonny Rollins", 1930, 8.99, True],
+                ["8", "1", "Kenny Burrel", 1931, 4.37, True]]
+
+        cols = []
+        cols.append(Column(id='1', name='Name', columnType='STRING'))
+        cols.append(Column(id='2', name='Born', columnType='INTEGER'))
+        cols.append(Column(id='3', name='Hipness', columnType='DOUBLE'))
+        cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
+
+        ## create CSV file
+        with tempfile.NamedTemporaryFile(delete=False) as temp:
+            filename = temp.name
+
+        with io.open(filename, mode='w', encoding="utf-8", newline='') as temp:
+            writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=str(os.linesep))
+            headers = ['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols]
+            writer.writerow(headers)
+            for row in data:
+                writer.writerow(row)
+
+        cols = as_table_columns(filename)
+
+        cols[0]['name'] == 'ROW_ID'
+        cols[0]['columnType'] == 'INTEGER'
+        cols[1]['name'] == 'ROW_VERION'
+        cols[1]['columnType'] == 'INTEGER'
+        cols[2]['name'] == 'Name'
+        cols[2]['columnType'] == 'STRING'
+        cols[3]['name'] == 'Born'
+        cols[3]['columnType'] == 'INTEGER'
+        cols[4]['name'] == 'Hipness'
+        cols[3]['columnType'] == 'DOUBLE'
+        cols[5]['name'] == 'Living'
+        cols[5]['columnType'] == 'BOOLEAN'
+
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns__with_csv_file.\n\n')
+    except Exception as ex1:
+        if filename:
+            try:
+                if os.path.isdir(filename):
+                    shutil.rmtree(filename)
+                else:
+                    os.remove(filename)
+            except Exception as ex:
+                print(ex)
+        raise
+
 
 def _try_import_pandas(test):
     try:

@@ -294,7 +294,6 @@ from future.utils import bytes_to_native_str
 
 from backports import csv
 import io
-import json
 import os
 import re
 import six
@@ -323,6 +322,11 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
 MAX_NUM_TABLE_COLUMNS = 152
+
+## allowed column types
+## see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
+ColumnTypes = {'STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK', 'LARGETEXT', 'USERID'}
+
 
 def test_import_pandas():
     try:
@@ -355,15 +359,39 @@ def encode_param_in_python2(a, encoding=None):
         return a
 
 
-def as_table_columns(df):
+def as_table_columns(values):
     """
     Return a list of Synapse table :py:class:`Column` objects that correspond to
-    the columns in the given `Pandas DataFrame <http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html>`_.
+    the columns in the given values.
 
-    :params df: `Pandas DataFrame <http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html>`_
+    :params values: an object that holds the content of the tables
+      - a string holding the path to a CSV file
+      - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+
     :returns: A list of Synapse table :py:class:`Column` objects
+
+    Example::
+
+        import pandas as pd
+
+        df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
+        cols = as_table_columns(df)
     """
-    # TODO: support Categorical when fully supported in Pandas Data Frames
+    test_import_pandas()
+    import pandas as pd
+
+    df = None
+
+    ## filename of a csv file
+    if isinstance(values, six.string_types):
+        df = pd.read_csv(values)
+    ## pandas DataFrame
+    if isinstance(values, pd.DataFrame):
+        df = values
+
+    if df is None:
+        raise ValueError("Values of type %s is not yet supported." % type(values))
+
     cols = list()
     for col in df:
         columnType = DTYPE_2_TABLETYPE[df[col].dtype.char]
@@ -740,12 +768,6 @@ class EntityViewSchema(SchemaBase):
 ## add Schema to the map of synapse entity types to their Python representations
 _entity_type_to_class[Schema._synapse_entity_type] = Schema
 _entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
-
-
-## allowed column types
-## see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
-ColumnTypes = {'STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK', 'LARGETEXT', 'USERID'}
-
 
 class SelectColumn(DictObject):
     """
