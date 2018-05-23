@@ -209,7 +209,7 @@ def test_as_table_columns__with_csv_file():
         cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
 
         ## create CSV file
-        with tempfile.NamedTemporaryFile(mode='w') as temp:
+        with tempfile.NamedTemporaryFile(mode='w', encoding="utf-8") as temp:
             filename = temp.name
 
             writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=str(os.linesep))
