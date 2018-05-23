@@ -195,7 +195,7 @@ def test_as_table_columns__with_csv_file():
 
         string_io = StringIOContextManager(
             'ROW_ID,ROW_VERSION,Name,Born,Hipness,Living\n'
-            '"1", "1", "John Coltrane", 1926, 8.65, False"\n'
+            '"1", "1", "John Coltrane", 1926, 8.65, False\n'
             '"2", "1", "Miles Davis", 1926, 9.87, False'
         )
         cols = as_table_columns(string_io)
