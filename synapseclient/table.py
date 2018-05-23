@@ -1754,7 +1754,8 @@ class CsvFileTable(TableAbstractBaseClass):
                                      escape_char=self.escapeCharacter,
                                      contain_headers=self.header,
                                      lines_to_skip=self.linesToSkip,
-                                     date_columns=date_columns)
+                                     date_columns=date_columns,
+                                     rowIdAndVersionInIndex=rowIdAndVersionInIndex)
         except pd.parser.CParserError as ex1:
             return pd.DataFrame()
 
