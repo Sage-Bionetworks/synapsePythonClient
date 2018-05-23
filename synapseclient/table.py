@@ -388,7 +388,9 @@ def as_table_columns(values):
     df = None
 
     ## filename of a csv file
-    if isinstance(values, six.string_types) or isinstance(values, io.IOBase):
+    ## in Python 3, we can check that the values is instanceof io.IOBase
+    ## for now, check if values has attr `read`
+    if isinstance(values, six.string_types) or hasattr(values, "read"):
         df = _csv_to_pandas_df(values)
     ## pandas DataFrame
     if isinstance(values, pd.DataFrame):

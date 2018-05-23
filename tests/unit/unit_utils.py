@@ -4,7 +4,7 @@ try:
 except ImportError:
     from io import StringIO
 
-class StringIOContextManager(StringIO, io.IOBase):
+class StringIOContextManager(StringIO):
     """
     A StringIO that can be used as a context manager
     """
