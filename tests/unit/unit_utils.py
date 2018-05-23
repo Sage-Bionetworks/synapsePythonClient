@@ -1,4 +1,3 @@
-import io
 try:
     from StringIO import StringIO
 except ImportError:
