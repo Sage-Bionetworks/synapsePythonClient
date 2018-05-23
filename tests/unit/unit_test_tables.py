@@ -209,43 +209,29 @@ def test_as_table_columns__with_csv_file():
         cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
 
         ## create CSV file
-        with tempfile.NamedTemporaryFile(delete=False) as temp:
+        with tempfile.NamedTemporaryFile(mode='w') as temp:
             filename = temp.name
 
-        with io.open(filename, mode='w', encoding="utf-8", newline='') as temp:
             writer = csv.writer(temp, quoting=csv.QUOTE_NONNUMERIC, lineterminator=str(os.linesep))
             headers = ['ROW_ID', 'ROW_VERSION'] + [col.name for col in cols]
             writer.writerow(headers)
             for row in data:
                 writer.writerow(row)
 
-        cols = as_table_columns(filename)
+            temp.flush()
+            cols = as_table_columns(filename)
 
-        cols[0]['name'] == 'ROW_ID'
-        cols[0]['columnType'] == 'INTEGER'
-        cols[1]['name'] == 'ROW_VERION'
-        cols[1]['columnType'] == 'INTEGER'
-        cols[2]['name'] == 'Name'
-        cols[2]['columnType'] == 'STRING'
-        cols[3]['name'] == 'Born'
-        cols[3]['columnType'] == 'INTEGER'
-        cols[4]['name'] == 'Hipness'
-        cols[3]['columnType'] == 'DOUBLE'
-        cols[5]['name'] == 'Living'
-        cols[5]['columnType'] == 'BOOLEAN'
+            cols[0]['name'] == 'Name'
+            cols[0]['columnType'] == 'STRING'
+            cols[1]['name'] == 'Born'
+            cols[1]['columnType'] == 'INTEGER'
+            cols[2]['name'] == 'Hipness'
+            cols[2]['columnType'] == 'DOUBLE'
+            cols[3]['name'] == 'Living'
+            cols[3]['columnType'] == 'BOOLEAN'
 
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns__with_csv_file.\n\n')
-    except Exception as ex1:
-        if filename:
-            try:
-                if os.path.isdir(filename):
-                    shutil.rmtree(filename)
-                else:
-                    os.remove(filename)
-            except Exception as ex:
-                print(ex)
-        raise
 
 
 def _try_import_pandas(test):

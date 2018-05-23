@@ -328,6 +328,11 @@ MAX_NUM_TABLE_COLUMNS = 152
 ColumnTypes = {'STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK', 'LARGETEXT', 'USERID'}
 
 
+DEFAULT_QUOTE_CHARACTER = '"'
+DEFAULT_SEPARATOR = ","
+DEFAULT_ESCAPSE_CHAR = "\\"
+
+
 def test_import_pandas():
     try:
         import pandas as pd
@@ -384,7 +389,7 @@ def as_table_columns(values):
 
     ## filename of a csv file
     if isinstance(values, six.string_types):
-        df = pd.read_csv(values)
+        df = _csv_to_pandas_df(values)
     ## pandas DataFrame
     if isinstance(values, pd.DataFrame):
         df = values
@@ -509,6 +514,50 @@ def cast_row_set(rowset):
         rowset['rows'][i]['values'] = cast_row(row, rowset['headers'])
     return rowset
 
+
+def _csv_to_pandas_df(filepath,
+                      separator = DEFAULT_SEPARATOR,
+                      quote_char = DEFAULT_QUOTE_CHARACTER,
+                      escape_char = DEFAULT_ESCAPSE_CHAR,
+                      contain_headers = True,
+                      lines_to_skip = 0,
+                      date_columns = None,
+                      rowIdAndVersionInIndex = True):
+    test_import_pandas()
+    import pandas as pd
+
+    # DATEs are stored in csv as unix timestamp in milliseconds
+    datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms', utc=True)
+
+    if not date_columns:
+        date_columns = []
+
+    line_terminator = str(os.linesep)
+
+    df = pd.read_csv(filepath,
+                     sep=separator,
+                     lineterminator=line_terminator if len(line_terminator) == 1 else None,
+                     quotechar=quote_char,
+                     escapechar=escape_char,
+                     header=0 if contain_headers else None,
+                     skiprows=lines_to_skip,
+                     parse_dates=date_columns,
+                     date_parser=datetime_millisecond_parser)
+    if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
+        ## combine row-ids (in index) and row-versions (in column 0) to
+        ## make new row labels consisting of the row id and version
+        ## separated by a dash.
+        zip_args = [df["ROW_ID"], df["ROW_VERSION"]]
+        if "ROW_ETAG" in df.columns:
+            zip_args.append(df['ROW_ETAG'])
+
+        df.index = row_labels_from_id_and_version(zip(*zip_args))
+        del df["ROW_ID"]
+        del df["ROW_VERSION"]
+        if "ROW_ETAG" in df.columns:
+            del df['ROW_ETAG']
+
+    return df
 
 def _create_row_delete_csv(row_id_vers_iterable):
     """
@@ -1625,7 +1674,7 @@ class CsvFileTable(TableAbstractBaseClass):
             includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
 
-    def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
+    def __init__(self, schema, filepath, etag=None, quoteCharacter=DEFAULT_QUOTE_CHARACTER, escapeCharacter=DEFAULT_ESCAPSE_CHAR, lineEnd=str(os.linesep), separator=DEFAULT_SEPARATOR, header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
         self.filepath = filepath
 
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
@@ -1688,7 +1737,6 @@ class CsvFileTable(TableAbstractBaseClass):
 
             #determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
             date_columns = []
-            datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms', utc=True) #DATEs are stored in csv as unix timestamp in milliseconds
             if convert_to_datetime:
                 for select_column in self.headers:
                     if select_column.columnType == "DATE":
@@ -1700,33 +1748,15 @@ class CsvFileTable(TableAbstractBaseClass):
             ## longer line terminators. See:
             ##    https://github.com/pydata/pandas/issues/3501
             ## "ValueError: Only length-1 line terminators supported"
-            df = pd.read_csv(self.filepath,
-                    sep=self.separator,
-                    lineterminator=self.lineEnd if len(self.lineEnd) == 1 else None,
-                    quotechar=quoteChar,
-                    escapechar=self.escapeCharacter,
-                    header = 0 if self.header else None,
-                    skiprows=self.linesToSkip,
-                    parse_dates=date_columns,
-                    date_parser=datetime_millisecond_parser)
+            return _csv_to_pandas_df(self.filepath,
+                                     separator=self.separator,
+                                     quote_char=quoteChar,
+                                     escape_char=self.escapeCharacter,
+                                     contain_headers=self.header,
+                                     lines_to_skip=self.linesToSkip,
+                                     date_columns=date_columns)
         except pd.parser.CParserError as ex1:
-            df = pd.DataFrame()
-
-        if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
-            ## combine row-ids (in index) and row-versions (in column 0) to
-            ## make new row labels consisting of the row id and version
-            ## separated by a dash.
-            zip_args = [df["ROW_ID"], df["ROW_VERSION"]]
-            if "ROW_ETAG" in df.columns:
-                zip_args.append(df['ROW_ETAG'])
-
-            df.index = row_labels_from_id_and_version(zip(*zip_args))
-            del df["ROW_ID"]
-            del df["ROW_VERSION"]
-            if "ROW_ETAG" in df.columns:
-                del df['ROW_ETAG']
-
-        return df
+            return pd.DataFrame()
 
     def asRowSet(self):
         ## Extract row id and version, if present in rows
