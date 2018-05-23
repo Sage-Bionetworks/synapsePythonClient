@@ -158,7 +158,7 @@ def test_RowSetTable():
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_RowSetTable.\n\n')
 
 
-def test_as_table_columns():
+def test_as_table_columns__with_pandas_DataFrame():
     try:
         import pandas as pd
 
@@ -184,7 +184,34 @@ def test_as_table_columns():
         cols[1]['columnType'] == 'STRING'
 
     except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns.\n\n')
+        sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns__with_pandas_DataFrame.\n\n')
+
+def test_as_table_columns__with_non_supported_input_type():
+    assert_raises(ValueError, as_table_columns, dict(a=[1, 2, 3], b=["c", "d", "e"]))
+
+def test_as_table_columns__with_csv_file():
+    try:
+        import pandas as pd
+
+        string_io = StringIOContextManager(
+            'ROW_ID,ROW_VERSION,Name,Born,Hipness,Living\n'
+            '"1", "1", "John Coltrane", 1926, 8.65, False\n'
+            '"2", "1", "Miles Davis", 1926, 9.87, False'
+        )
+        cols = as_table_columns(string_io)
+
+        cols[0]['name'] == 'Name'
+        cols[0]['columnType'] == 'STRING'
+        cols[1]['name'] == 'Born'
+        cols[1]['columnType'] == 'INTEGER'
+        cols[2]['name'] == 'Hipness'
+        cols[2]['columnType'] == 'DOUBLE'
+        cols[3]['name'] == 'Living'
+        cols[3]['columnType'] == 'BOOLEAN'
+
+    except ImportError as e1:
+        sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns__with_csv_file.\n\n')
+
 
 def _try_import_pandas(test):
     try:

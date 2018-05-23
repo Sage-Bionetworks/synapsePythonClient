@@ -294,7 +294,6 @@ from future.utils import bytes_to_native_str
 
 from backports import csv
 import io
-import json
 import os
 import re
 import six
@@ -323,6 +322,16 @@ DTYPE_2_TABLETYPE = {'?':'BOOLEAN',
                      'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
 MAX_NUM_TABLE_COLUMNS = 152
+
+## allowed column types
+## see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
+ColumnTypes = {'STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK', 'LARGETEXT', 'USERID'}
+
+
+DEFAULT_QUOTE_CHARACTER = '"'
+DEFAULT_SEPARATOR = ","
+DEFAULT_ESCAPSE_CHAR = "\\"
+
 
 def test_import_pandas():
     try:
@@ -355,15 +364,41 @@ def encode_param_in_python2(a, encoding=None):
         return a
 
 
-def as_table_columns(df):
+def as_table_columns(values):
     """
     Return a list of Synapse table :py:class:`Column` objects that correspond to
-    the columns in the given `Pandas DataFrame <http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html>`_.
+    the columns in the given values.
 
-    :params df: `Pandas DataFrame <http://pandas.pydata.org/pandas-docs/stable/generated/pandas.DataFrame.html>`_
+    :params values: an object that holds the content of the tables
+      - a string holding the path to a CSV file, a filehandle, or StringIO containing valid csv content
+      - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
+
     :returns: A list of Synapse table :py:class:`Column` objects
+
+    Example::
+
+        import pandas as pd
+
+        df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
+        cols = as_table_columns(df)
     """
-    # TODO: support Categorical when fully supported in Pandas Data Frames
+    test_import_pandas()
+    import pandas as pd
+
+    df = None
+
+    ## filename of a csv file
+    ## in Python 3, we can check that the values is instanceof io.IOBase
+    ## for now, check if values has attr `read`
+    if isinstance(values, six.string_types) or hasattr(values, "read"):
+        df = _csv_to_pandas_df(values)
+    ## pandas DataFrame
+    if isinstance(values, pd.DataFrame):
+        df = values
+
+    if df is None:
+        raise ValueError("Values of type %s is not yet supported." % type(values))
+
     cols = list()
     for col in df:
         columnType = DTYPE_2_TABLETYPE[df[col].dtype.char]
@@ -481,6 +516,50 @@ def cast_row_set(rowset):
         rowset['rows'][i]['values'] = cast_row(row, rowset['headers'])
     return rowset
 
+
+def _csv_to_pandas_df(filepath,
+                      separator = DEFAULT_SEPARATOR,
+                      quote_char = DEFAULT_QUOTE_CHARACTER,
+                      escape_char = DEFAULT_ESCAPSE_CHAR,
+                      contain_headers = True,
+                      lines_to_skip = 0,
+                      date_columns = None,
+                      rowIdAndVersionInIndex = True):
+    test_import_pandas()
+    import pandas as pd
+
+    # DATEs are stored in csv as unix timestamp in milliseconds
+    datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms', utc=True)
+
+    if not date_columns:
+        date_columns = []
+
+    line_terminator = str(os.linesep)
+
+    df = pd.read_csv(filepath,
+                     sep=separator,
+                     lineterminator=line_terminator if len(line_terminator) == 1 else None,
+                     quotechar=quote_char,
+                     escapechar=escape_char,
+                     header=0 if contain_headers else None,
+                     skiprows=lines_to_skip,
+                     parse_dates=date_columns,
+                     date_parser=datetime_millisecond_parser)
+    if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
+        ## combine row-ids (in index) and row-versions (in column 0) to
+        ## make new row labels consisting of the row id and version
+        ## separated by a dash.
+        zip_args = [df["ROW_ID"], df["ROW_VERSION"]]
+        if "ROW_ETAG" in df.columns:
+            zip_args.append(df['ROW_ETAG'])
+
+        df.index = row_labels_from_id_and_version(zip(*zip_args))
+        del df["ROW_ID"]
+        del df["ROW_VERSION"]
+        if "ROW_ETAG" in df.columns:
+            del df['ROW_ETAG']
+
+    return df
 
 def _create_row_delete_csv(row_id_vers_iterable):
     """
@@ -740,12 +819,6 @@ class EntityViewSchema(SchemaBase):
 ## add Schema to the map of synapse entity types to their Python representations
 _entity_type_to_class[Schema._synapse_entity_type] = Schema
 _entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
-
-
-## allowed column types
-## see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
-ColumnTypes = {'STRING','DOUBLE','INTEGER','BOOLEAN','DATE','FILEHANDLEID','ENTITYID','LINK', 'LARGETEXT', 'USERID'}
-
 
 class SelectColumn(DictObject):
     """
@@ -1603,7 +1676,7 @@ class CsvFileTable(TableAbstractBaseClass):
             includeRowIdAndRowVersion=includeRowIdAndRowVersion)
 
 
-    def __init__(self, schema, filepath, etag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=str(os.linesep), separator=",", header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
+    def __init__(self, schema, filepath, etag=None, quoteCharacter=DEFAULT_QUOTE_CHARACTER, escapeCharacter=DEFAULT_ESCAPSE_CHAR, lineEnd=str(os.linesep), separator=DEFAULT_SEPARATOR, header=True, linesToSkip=0, includeRowIdAndRowVersion=None, headers=None):
         self.filepath = filepath
 
         self.includeRowIdAndRowVersion = includeRowIdAndRowVersion
@@ -1666,7 +1739,6 @@ class CsvFileTable(TableAbstractBaseClass):
 
             #determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
             date_columns = []
-            datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms', utc=True) #DATEs are stored in csv as unix timestamp in milliseconds
             if convert_to_datetime:
                 for select_column in self.headers:
                     if select_column.columnType == "DATE":
@@ -1678,33 +1750,16 @@ class CsvFileTable(TableAbstractBaseClass):
             ## longer line terminators. See:
             ##    https://github.com/pydata/pandas/issues/3501
             ## "ValueError: Only length-1 line terminators supported"
-            df = pd.read_csv(self.filepath,
-                    sep=self.separator,
-                    lineterminator=self.lineEnd if len(self.lineEnd) == 1 else None,
-                    quotechar=quoteChar,
-                    escapechar=self.escapeCharacter,
-                    header = 0 if self.header else None,
-                    skiprows=self.linesToSkip,
-                    parse_dates=date_columns,
-                    date_parser=datetime_millisecond_parser)
+            return _csv_to_pandas_df(self.filepath,
+                                     separator=self.separator,
+                                     quote_char=quoteChar,
+                                     escape_char=self.escapeCharacter,
+                                     contain_headers=self.header,
+                                     lines_to_skip=self.linesToSkip,
+                                     date_columns=date_columns,
+                                     rowIdAndVersionInIndex=rowIdAndVersionInIndex)
         except pd.parser.CParserError as ex1:
-            df = pd.DataFrame()
-
-        if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
-            ## combine row-ids (in index) and row-versions (in column 0) to
-            ## make new row labels consisting of the row id and version
-            ## separated by a dash.
-            zip_args = [df["ROW_ID"], df["ROW_VERSION"]]
-            if "ROW_ETAG" in df.columns:
-                zip_args.append(df['ROW_ETAG'])
-
-            df.index = row_labels_from_id_and_version(zip(*zip_args))
-            del df["ROW_ID"]
-            del df["ROW_VERSION"]
-            if "ROW_ETAG" in df.columns:
-                del df['ROW_ETAG']
-
-        return df
+            return pd.DataFrame()
 
     def asRowSet(self):
         ## Extract row id and version, if present in rows
