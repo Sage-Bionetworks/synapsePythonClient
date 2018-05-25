@@ -736,11 +736,11 @@ def test_RowSetTable_len():
 def test_build_table__with_pandas_DataFrame():
     df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
     table = build_table("test", "syn123", df)
-    assert len(table)==3
+
     for i, row in enumerate(table):
         assert row[0]==(i+1)
         assert row[1]==["c", "d", "e"][i]
-
+    assert len(table) == 3
     headers = [
         {'name': 'a', 'columnType': 'INTEGER'},
         {'name': 'b', 'columnType': 'STRING'}
@@ -757,10 +757,10 @@ def test_build_table__with_csv():
                                       Column(name = "b", columnType = "STRING")]),\
         patch.object(io, "open", return_value = string_io):
         table = build_table("test", "syn123", "some_file_name")
-        assert len(table) == 3
         for col, row in enumerate(table):
             assert row[0] == (col + 1)
             assert row[1] == ["c", "d", "e"][col]
+        assert len(table) == 3
         headers = [
             {'name': 'a', 'columnType': 'INTEGER'},
             {'name': 'b', 'columnType': 'STRING'}
