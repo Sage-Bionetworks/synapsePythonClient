@@ -26,8 +26,23 @@ Preliminaries::
 
     project = syn.get('syn123')
 
-To create a Table, you first need to create a Table :py:class:`Schema`. This
-defines the columns of the table::
+First, let's load some data. Let's say we had a file, genes.csv::
+
+    Name,Chromosome,Start,End,Strand,TranscriptionFactor
+    foo,1,12345,12600,+,False
+    arg,2,20001,20200,+,False
+    zap,2,30033,30999,-,False
+    bah,1,40444,41444,-,False
+    bnk,1,51234,54567,+,True
+    xyz,1,61234,68686,+,False
+
+To create a Table::
+
+    table = build_table('My Favorite Genes', project, "/path/to/genes.csv")
+    syn.store(table)
+
+:py:func:`build_table` will set the Table :py:class:`Schema` which defines the columns of the table.
+To create a table with a custom :py:class:`Schema`, first create the :py:class:`Schema`::
 
     cols = [
         Column(name='Name', columnType='STRING', maximumSize=20),
@@ -38,16 +53,6 @@ defines the columns of the table::
         Column(name='TranscriptionFactor', columnType='BOOLEAN')]
 
     schema = Schema(name='My Favorite Genes', columns=cols, parent=project)
-
-Next, let's load some data. Let's say we had a file, genes.csv::
-
-    Name,Chromosome,Start,End,Strand,TranscriptionFactor
-    foo,1,12345,12600,+,False
-    arg,2,20001,20200,+,False
-    zap,2,30033,30999,-,False
-    bah,1,40444,41444,-,False
-    bnk,1,51234,54567,+,True
-    xyz,1,61234,68686,+,False
 
 Let's store that in Synapse::
 
@@ -1116,11 +1121,16 @@ def build_table(name, parent, values):
     :param name: the name for the Table Schema object
     :param parent: the project in Synapse to which this table belongs
     :param values: an object that holds the content of the tables
+      - a string holding the path to a CSV file
       - a Pandas `DataFrame <http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe>`_
 
     :return: a Table object suitable for storing
 
     Example::
+
+        path = "\path\to\file.csv"
+        table = build_table("simple_table", "syn123", path)
+        table = syn.store(table)
 
         import pandas as pd
 
@@ -1134,13 +1144,14 @@ def build_table(name, parent, values):
     except:
         pandas_available = False
 
-    if not isinstance(values, pd.DataFrame):
+    if not isinstance(values, pd.DataFrame) and not isinstance(values, six.string_types):
         raise ValueError("Values of type %s is not yet supported." % type(values))
     if not pandas_available:
         raise ValueError("pandas package is required.")
     cols = as_table_columns(values)
     schema = Schema(name=name, columns=cols, parent=parent)
-    return Table(schema, values)
+    headers = [SelectColumn.from_column(col) for col in cols]
+    return Table(schema, values, headers = headers)
 
 
 def Table(schema, values, **kwargs):

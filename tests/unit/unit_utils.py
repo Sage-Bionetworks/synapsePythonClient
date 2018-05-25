@@ -10,4 +10,6 @@ class StringIOContextManager(StringIO):
     def __enter__(self):
         return self
     def __exit__(self, *args):
+        # reset the pointer to the beginning of the string, so that we can read it again
+        self.seek(0)
         pass

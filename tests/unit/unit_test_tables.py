@@ -736,18 +736,39 @@ def test_RowSetTable_len():
 def test_build_table__with_pandas_DataFrame():
     df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
     table = build_table("test", "syn123", df)
+
     for i, row in enumerate(table):
         assert row[0]==(i+1)
         assert row[1]==["c", "d", "e"][i]
-    assert len(table)==3
+    assert len(table) == 3
     headers = [
         {'name': 'a', 'columnType': 'INTEGER'},
         {'name': 'b', 'columnType': 'STRING'}
     ]
     assert_equals(headers, table.headers)
 
-def test_build_table__with_non_pandas_DataFrame():
-    assert_raises(ValueError, build_table, "test", "syn123", [])
+def test_build_table__with_csv():
+    string_io = StringIOContextManager('a,b\n'
+                                       '1,c\n'
+                                       '2,d\n'
+                                       '3,e')
+    with patch.object(synapseclient.table, "as_table_columns",
+                      return_value = [Column(name = "a", columnType = "INTEGER"),
+                                      Column(name = "b", columnType = "STRING")]),\
+        patch.object(io, "open", return_value = string_io):
+        table = build_table("test", "syn123", "some_file_name")
+        for col, row in enumerate(table):
+            assert row[0] == (col + 1)
+            assert row[1] == ["c", "d", "e"][col]
+        assert len(table) == 3
+        headers = [
+            {'name': 'a', 'columnType': 'INTEGER'},
+            {'name': 'b', 'columnType': 'STRING'}
+        ]
+        assert_equals(headers, table.headers)
+
+def test_build_table__with_dict():
+    assert_raises(ValueError, build_table, "test", "syn123", dict(a=[1, 2, 3], b=["c", "d", "e"]))
 
 
 class TestTableQueryResult():
