@@ -1144,10 +1144,10 @@ def build_table(name, parent, values):
     except:
         pandas_available = False
 
-    if not isinstance(values, pd.DataFrame) and not isinstance(values, six.string_types):
-        raise ValueError("Values of type %s is not yet supported." % type(values))
     if not pandas_available:
         raise ValueError("pandas package is required.")
+    if not isinstance(values, pd.DataFrame) and not isinstance(values, six.string_types):
+        raise ValueError("Values of type %s is not yet supported." % type(values))
     cols = as_table_columns(values)
     schema = Schema(name=name, columns=cols, parent=parent)
     headers = [SelectColumn.from_column(col) for col in cols]
