@@ -248,7 +248,7 @@ class Synapse(object):
     def getConfigFile(self, configPath):
         """
         Retrieves the client configuration information.
-        
+
         :param configPath:  Path to configuration file on local file system
         :return: a ConfigParser populated with properties from the user's configuration file.
         """
@@ -552,7 +552,7 @@ class Synapse(object):
     def printEntity(self, entity, ensure_ascii=True):
         """
         Pretty prints an Entity.
-        
+
         :param entity:  The entity to be printed.
         :param ensure_ascii:  If True, escapes all non-ASCII characters
         """
@@ -674,6 +674,23 @@ class Synapse(object):
         self.cache.add(bundle['entity']['dataFileHandleId'], filepath)
 
         return bundle
+
+    def move(self, entity, parent):
+        """Gets a Synapse entity from the repository service.
+
+        :param entity:           A Synapse ID, a Synapse Entity object,
+                                 a plain dictionary in which 'id' maps to a Synapse ID or
+                                 a local file that is stored in Synapse (found by hash of file)
+        :param parent:           The new parent container (Folder or Project)
+                                 to which the entity should be moved.
+
+        ent = self.get(entity, downloadFile=False)
+        originalParentId = ent.parentId
+        ent.parentId = id_of(parent)
+        ent = self.store(ent, forceVersion=False)
+        # sys.stderr.write('Moved %s from %s to %s\n' %(ent.id, originalParentId, ent.parentId))
+
+        return ent
 
 
     def _getWithEntityBundle(self, entityBundle, entity=None, **kwargs):
@@ -1385,7 +1402,7 @@ class Synapse(object):
     def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo"], sortBy="NAME", sortDirection="ASC"):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
-        
+
         :param parent:       An id or an object of a Synapse container or None to retrieve all projects
 
         :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
@@ -1422,7 +1439,7 @@ class Synapse(object):
         See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
 		:param queryStr:  the query to execute
-		
+
         :returns: an array of query results
 
         Example::
@@ -1441,7 +1458,7 @@ class Synapse(object):
         See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
 		:param queryStr: the query to execute
-		
+
         :returns: An iterator that will break up large queries into managable pieces.
 
         Example::
@@ -1779,7 +1796,7 @@ class Synapse(object):
         Modifies an existing Activity.
 
         :param activity:  The Activity to be updated.
-        
+
         :returns: An updated Activity object
         """
 
@@ -1866,7 +1883,7 @@ class Synapse(object):
                 if retries <= 0:
                     ## Re-raise exception
                     raise exc_info[0](exc_info[1])
-                
+
         raise Exception("should not reach this line")
 
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
@@ -2128,7 +2145,7 @@ class Synapse(object):
 
         :param storage_type: the type of the StorageLocationSetting to create
         :param kwargs: fields necessary for creation of the specified storage_type
-        
+
         :return: a dict of the created StorageLocationSetting
         """
         upload_type_dict = {"ExternalObjectStorage": "S3",
@@ -2150,7 +2167,7 @@ class Synapse(object):
     def getMyStorageLocationSetting(self, storage_location_id):
         """
         Get a StorageLocationSetting by its id.
-        :param storage_location_id: id of the StorageLocationSetting to retrieve. 
+        :param storage_location_id: id of the StorageLocationSetting to retrieve.
         The corresponding StorageLocationSetting must have been created by this user.
         :return: a dict describing the StorageLocationSetting retrieved by its id
         """
@@ -2186,10 +2203,10 @@ class Synapse(object):
     def getProjectSetting(self, project, setting_type):
         """
         Gets the ProjectSetting for a project.
-        
+
         :param project: Project entity or its id as a string
         :param setting_type: type of setting. Choose from: {'upload', 'external_sync', 'requester_pays'}
-        
+
         :return: The ProjectSetting as a dict or None if no settings of the specified type exist.
         """
         if setting_type not in {'upload', 'external_sync', 'requester_pays'}:
@@ -2206,9 +2223,9 @@ class Synapse(object):
     def getEvaluation(self, id):
         """
         Gets an Evaluation object from Synapse.
-        
+
         :param id:  The ID of the :py:class:`synapseclient.evaluation.Evaluation` to return.
-        
+
         :return: an :py:class:`synapseclient.evaluation.Evaluation` object
 
         See: :py:mod:`synapseclient.evaluation`
@@ -2229,7 +2246,7 @@ class Synapse(object):
         Gets an Evaluation object from Synapse.
 
         :param name:  The name of the :py:class:`synapseclient.evaluation.Evaluation` to return.
-        
+
         :return: an :py:class:`synapseclient.evaluation.Evaluation` object
 
         See: :py:mod:`synapseclient.evaluation`
@@ -2241,9 +2258,9 @@ class Synapse(object):
     def getEvaluationByContentSource(self, entity):
         """
         Returns a generator over evaluations that derive their content from the given entity
-        
+
         :param entity:  The :py:class:`synapseclient.entity.Project` whose Evaluations are to be fetched.
-        
+
         :return: a Generator over the :py:class:`synapseclient.evaluation.Evaluation` objects for the given :py:class:`synapseclient.entity.Project`
 
         """
@@ -2266,9 +2283,9 @@ class Synapse(object):
     def getTeam(self, id):
         """
         Finds a team with a given ID or name.
-        
+
         :param id:  The ID or name of the team to retrieve
-        
+
         :return:  An object of type :py:class:`synapseclient.team.Team`
         """
         try:
@@ -2289,7 +2306,7 @@ class Synapse(object):
     def getTeamMembers(self, team):
         """
         Lists the members of the given team.
-        
+
         :parameter team: A :py:class:`synapseclient.team.Team` object or a team's ID.
         :returns: a generator over :py:class:`synapseclient.team.TeamMember` objects.
         """
@@ -2518,9 +2535,9 @@ class Synapse(object):
 
     def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
-        Retrieve submission bundles (submission and submissions status) for an evaluation queue, optionally 
+        Retrieve submission bundles (submission and submissions status) for an evaluation queue, optionally
         filtered by submission status and/or owner.
-        
+
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
                            One of {OPEN, CLOSED, SCORED, INVALID}
@@ -2580,9 +2597,9 @@ class Synapse(object):
     def getSubmission(self, id, **kwargs):
         """
         Gets a :py:class:`synapseclient.evaluation.Submission` object by its id.
-        
+
         :param id:  The id of the submission to retrieve
-        
+
         :return:  a :py:class:`synapseclient.evaluation.Submission` object
 
         See: :py:func:`synapseclient.Synapse.get` for information
@@ -2629,11 +2646,11 @@ class Synapse(object):
         """
         Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2
         API which supports versioning.
-        
+
         :param owner: The entity to which the Wiki is attached
         :param subpageId:  The id of the specific sub-page or None to get the root Wiki page
         :param version:  The version of the page to retrieve or None to retrieve the latest
-        
+
         :return: a :py:class:`synapseclient.wiki.Wiki` object
         """
         uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
@@ -2726,9 +2743,9 @@ class Synapse(object):
     def getWikiAttachments(self, wiki):
         """
         Retrieve the attachments to a wiki page.
-        
+
         :param wiki: the Wiki object for which the attachments are to be returned.
-        
+
         :return: A list of file handles for the files attached to the Wiki.
         """
         uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
@@ -2781,9 +2798,9 @@ class Synapse(object):
         Gets a Column object from Synapse by ID.
 
         See: :py:mod:`synapseclient.table.Column`
-        
+
         :param id: the ID of the column to retrieve
-        
+
         :return: an object of type :py:class:`synapseclient.table.Column`
 
         Example::
@@ -2830,9 +2847,9 @@ class Synapse(object):
     def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
-        
+
         :param table:  the schema of the Table whose columns are to be retrieved
-        
+
         :return:  a Generator over the Table's columns
         """
         uri = '/entity/{id}/column'.format(id=id_of(table))
@@ -2848,7 +2865,7 @@ class Synapse(object):
 
         :param query: query string in a `SQL-like syntax <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_, for example
             "SELECT * from syn12345"
-            
+
         :param resultsAs: select whether results are returned as a CSV file ("csv") or incrementally
                           downloaded as sets of rows ("rowset").
 
@@ -3065,9 +3082,9 @@ class Synapse(object):
     def createColumns(self, columns):
         """
         Creates a batch of :py:class:`synapseclient.table.Column` s within a single request.
-        
+
         :param columns: a list of :py:class:`synapseclient.table.Column` objects
-        
+
         :return: a list of :py:class:`synapseclient.table.Column` objects that have been created in Synapse
         """
         request_body = {'concreteType':'org.sagebionetworks.repo.model.ListWrapper',
