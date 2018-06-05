@@ -688,7 +688,6 @@ class Synapse(object):
         originalParentId = ent.parentId
         ent.parentId = id_of(parent)
         ent = self.store(ent, forceVersion=False)
-        # sys.stderr.write('Moved %s from %s to %s\n' %(ent.id, originalParentId, ent.parentId))
 
         return ent
 
