@@ -522,3 +522,9 @@ def testSetStorageLocation__existing_storage_location():
     new_retrieved_setting = syn.getProjectSetting(proj, 'upload')
     assert_equals(new_storage_setting, new_retrieved_setting)
 
+def testMoveProject():
+    proj1 = syn.store(Project(name=str(uuid.uuid4()) + "testMoveProject-child"))
+    proj2 = syn.store(Project(name=str(uuid.uuid4()) + "testMoveProject-newParent"))
+    assert_raises(SynapseHTTPError, syn.move, proj1, proj2)
+    schedule_for_cleanup(proj1)
+    schedule_for_cleanup(proj2)

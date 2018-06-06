@@ -50,9 +50,8 @@ Commands
   * **get-provenance**   - show provenance records
   * **set-annotations**  - create annotations
   * **get-annotations**  - show annotations
-  * **show**             - show metadata for an entity
   * **onweb**            - opens Synapse website for Entity
-  * **show**             - Displays information about a Entity
+  * **show**             - displays information about a Entity
 
 A few more commands (cat, create, update, associate)
 
@@ -61,7 +60,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 from builtins import input
 import six
 
@@ -231,10 +229,8 @@ def _descriptionFile_arg_check(args):
 
 def move(args, syn):
     """Moves an entity specified by args.id to args.parentId"""
-    ent = syn.get(args.id, downloadFile=False)
-    ent.parentId= args.parentid
-    ent = syn.store(ent, forceVersion=False)
-    print('Moved %s to %s' %(ent.id, ent.parentId))
+    entity = syn.move(args.id, args.parentid)
+    print('Moved %s to %s' % (entity.id, entity.parentId))
 
 def associate(args, syn):
     files = []

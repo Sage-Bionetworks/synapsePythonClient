@@ -7,20 +7,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
-import six
 
-import filecmp
-import os
-import re
-import sys
-import uuid
-import json
-import time
-from nose.plugins.attrib import attr
-from nose.tools import assert_raises, assert_equals, assert_less
-import tempfile
-import shutil
+from nose.tools import assert_raises, assert_equals
 import unit
 from mock import patch
 
@@ -34,14 +22,7 @@ import synapseclient.client as client
 import synapseclient.utils as utils
 import synapseclient.__main__ as cmdline
 
-from synapseclient.evaluation import Evaluation
-
 import synapseutils
-
-if six.PY2:
-    from StringIO import StringIO
-else:
-    from io import StringIO
 
 def setup(module):
 
