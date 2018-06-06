@@ -413,3 +413,16 @@ class TestPrivateGetEntityBundle():
     def test__getEntityBundle__with_version_as_string(self):
         assert_equal(self.bundle, syn._getEntityBundle("syn10101", '6'))
         assert_raises(ValueError, syn._getEntityBundle, "syn10101", 'current')
+
+def test_move():
+    assert_raises(SynapseFileNotFoundError, syn.move, "abc", "syn123")
+
+    entity = Folder(name="folder", parent="syn456")
+    moved_entity = entity
+    moved_entity.parentId = "syn789"
+    with patch.object(syn, "get", return_value=entity) as syn_get_patch,\
+         patch.object(syn, "store", return_value=moved_entity) as syn_store_patch:
+        assert_equal(moved_entity, syn.move("syn123", "syn789"))
+        syn_get_patch.assert_called_once_with("syn123", downloadFile=False)
+        syn_store_patch.assert_called_once_with(moved_entity, forceVersion=False)
+
