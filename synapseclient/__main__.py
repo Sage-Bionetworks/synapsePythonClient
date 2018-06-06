@@ -229,7 +229,8 @@ def _descriptionFile_arg_check(args):
 
 def move(args, syn):
     """Moves an entity specified by args.id to args.parentId"""
-    ent = syn.move(args.id, args.parent)
+    entity = syn.move(args.id, args.parentid)
+    print('Moved %s to %s' % (entity.id, entity.parentId))
 
 def associate(args, syn):
     files = []
