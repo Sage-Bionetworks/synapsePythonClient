@@ -675,21 +675,27 @@ class Synapse(object):
 
         return bundle
 
-    def move(self, entity, parent):
-        """Gets a Synapse entity from the repository service.
+    def move(self, entity, new_parent):
+        """
+        Move a Synapse entity to a new container.
 
-        :param entity:           A Synapse ID, a Synapse Entity object,
-                                 a plain dictionary in which 'id' maps to a Synapse ID or
+        :param entity:           A Synapse ID, a Synapse Entity object, or
                                  a local file that is stored in Synapse (found by hash of file)
-        :param parent:           The new parent container (Folder or Project)
+        :param new_parent:       The new parent container (Folder or Project)
                                  to which the entity should be moved.
 
-        ent = self.get(entity, downloadFile=False)
-        originalParentId = ent.parentId
-        ent.parentId = id_of(parent)
-        ent = self.store(ent, forceVersion=False)
+        :returns: The Synapse Entity object that has been moved.
 
-        return ent
+        Example::
+
+            entity = syn.move('syn456', 'syn123')
+        """
+
+        entity = self.get(entity, downloadFile=False)
+        entity.parentId = id_of(new_parent)
+        entity = self.store(entity, forceVersion=False)
+
+        return entity
 
 
     def _getWithEntityBundle(self, entityBundle, entity=None, **kwargs):
