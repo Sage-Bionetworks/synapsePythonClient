@@ -5,7 +5,7 @@ import unit
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none
 
 import synapseclient
-from synapseclient import Evaluation, File, Folder, Project
+from synapseclient import Evaluation, File, Folder
 from synapseclient.constants import concrete_types
 from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArgs
 from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
