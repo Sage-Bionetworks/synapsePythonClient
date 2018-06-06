@@ -680,7 +680,7 @@ class Synapse(object):
         Move a Synapse entity to a new container.
 
         :param entity:           A Synapse ID, a Synapse Entity object, or
-                                 a local file that is stored in Synapse (found by hash of file)
+                                 a local file that is stored in Synapse
         :param new_parent:       The new parent container (Folder or Project)
                                  to which the entity should be moved.
 
