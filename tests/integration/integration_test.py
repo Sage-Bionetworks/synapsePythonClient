@@ -526,3 +526,5 @@ def testMoveProject():
     proj1 = syn.store(Project(name=str(uuid.uuid4()) + "testMoveProject-child"))
     proj2 = syn.store(Project(name=str(uuid.uuid4()) + "testMoveProject-newParent"))
     assert_raises(SynapseHTTPError, syn.move, proj1, proj2)
+    schedule_for_cleanup(proj1)
+    schedule_for_cleanup(proj2)
