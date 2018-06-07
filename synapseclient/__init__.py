@@ -305,6 +305,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import json
+import pkg_resources
+__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient').decode())['latestVersion']
+
 from .client import Synapse, login
 from .client import PUBLIC, AUTHENTICATED_USERS
 from .client import ROOT_ENTITY
@@ -319,10 +323,7 @@ from .wiki import Wiki
 from .version_check import check_for_updates
 from .version_check import release_notes
 
-import json
 from . import custom_json
-import pkg_resources
-__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient').decode())['latestVersion']
 
 import requests
 USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
