@@ -1441,7 +1441,6 @@ class Synapse(object):
 
     @deprecation.deprecated(deprecated_in="1.8.2",
                             removed_in="1.9.0",
-                            current_verion=synapseclient.__version__,
                             details="Use getChildren instead")
     def query(self, queryStr):
         """
@@ -1463,7 +1462,6 @@ class Synapse(object):
 
     @deprecation.deprecated(deprecated_in="1.8.2",
                             removed_in="1.9.0",
-                            current_verion=synapseclient.__version__,
                             details="Use getChildren instead")
     def chunkedQuery(self, queryStr):
         """
