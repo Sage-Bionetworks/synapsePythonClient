@@ -69,6 +69,7 @@ import getpass
 import json
 from collections import OrderedDict
 import logging
+import deprecation
 
 import synapseclient
 from . import cache
@@ -1437,6 +1438,10 @@ class Synapse(object):
             if entityChildrenResponse.get('nextPageToken') is not None:
                 entityChildrenRequest['nextPageToken'] = entityChildrenResponse['nextPageToken']
 
+    @deprecation.deprecated(deprecated_in="1.8.2",
+                            removed_in="1.9.0",
+                            current_verion=synapseclient.__version__,
+                            details="Use getChildren instead")
     def query(self, queryStr):
         """
         Query for Synapse entities.
@@ -1455,7 +1460,10 @@ class Synapse(object):
         """
         return self.restGET('/query?query=' + quote(queryStr))
 
-
+    @deprecation.deprecated(deprecated_in="1.8.2",
+                            removed_in="1.9.0",
+                            current_verion=synapseclient.__version__,
+                            details="Use getChildren instead")
     def chunkedQuery(self, queryStr):
         """
         Query for Synapse Entities.
