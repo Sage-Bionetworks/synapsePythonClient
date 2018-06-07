@@ -98,6 +98,9 @@ def query(args, syn):
         for row in reader:
             sys.stdout.write("%s\n" % ("\t".join(row)))
     else:
+        # chunkedQuery will be removed in 1.9.0
+        sys.stdout.write('This query is deprecated. Query should only be used for table and view.'
+                         ' Please consider using the ls function.')
         results = syn.chunkedQuery(' '.join(args.queryString))
         headings = collections.OrderedDict()
         temp = [] # Since query returns a generator, the results must be stored locally

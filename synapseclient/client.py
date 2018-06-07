@@ -1168,6 +1168,7 @@ class Synapse(object):
             fields.extend(['createdByPrincipalId','createdOn','versionNumber'])
         if show_modified:
             fields.extend(['modifiedByPrincipalId', 'modifiedOn'])
+        # we will convert this to use the new service in SYNPY-473
         query = 'select ' + ','.join(fields) + \
                 ' from entity where %s=="%s"' % ('id' if indent==0 else 'parentId', id_of(parent))
         results = self.chunkedQuery(query)
