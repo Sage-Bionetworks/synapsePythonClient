@@ -3,11 +3,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 
 from backports import csv
 import io
-import json
 import filecmp
 import math
 import os
@@ -25,7 +23,7 @@ from collections import namedtuple
 
 import synapseclient
 from synapseclient.exceptions import *
-from synapseclient import File, Folder, Schema, EntityViewSchema, Project
+from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.utils import id_of
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, PartialRow
 
@@ -180,15 +178,6 @@ def test_rowset_tables():
 
     schema1 = syn.store(Schema(name='Foo Table', columns=cols, parent=project))
 
-    ## Get columns associated with the given table
-    retrieved_cols = list(syn.getTableColumns(schema1))
-
-    ## Test that the columns we get are the same as the ones we stored
-    assert len(retrieved_cols) == len(cols)
-    for retrieved_col, col in zip(retrieved_cols, cols):
-        assert retrieved_col.name == col.name
-        assert retrieved_col.columnType == col.columnType
-
     data1 =[['Chris',  'bar', 11.23, 45, False, 'a'],
             ['Jen',    'bat', 14.56, 40, False, 'b'],
             ['Jane',   'bat', 17.89,  6, False, 'c'*1002],
@@ -196,106 +185,6 @@ def test_rowset_tables():
     row_reference_set1 = syn.store(
         RowSet(schema=schema1, rows=[Row(r) for r in data1]))
     assert len(row_reference_set1['rows']) == 4
-
-    ## add more new rows
-    data2 =[['Fred',   'bat', 21.45, 20, True, 'e'],
-            ['Daphne', 'foo', 27.89, 20, True, 'f'],
-            ['Shaggy', 'foo', 23.45, 20, True, 'g'],
-            ['Velma',  'bar', 25.67, 20, True, 'h']]
-    syn.store(RowSet(schema=schema1, rows=[Row(r) for r in data2]))
-
-    results = syn.tableQuery("select * from %s order by name" % schema1.id, resultsAs="rowset")
-
-    assert results.count==8
-    assert results.tableId==schema1.id
-
-    ## test that the values made the round trip
-    expected = sorted(data1 + data2)
-    for expected_values, row in zip(expected, results):
-        assert expected_values == row['values'], 'got %s but expected %s' % (row['values'], expected_values)
-
-    ## To modify rows, we have to select then first.
-    result2 = syn.tableQuery('select * from %s where age>18 and age<30'%schema1.id, resultsAs="rowset")
-
-    ## make a change
-    rs = result2.asRowSet()
-    for row in rs['rows']:
-        row['values'][2] = 88.888
-
-    ## store it
-    row_reference_set = syn.store(rs)
-
-    ## check if the change sticks
-    result3 = syn.tableQuery('select name, x, age from %s'%schema1.id, resultsAs="rowset")
-    for row in result3:
-        if int(row['values'][2]) == 20:
-            assert row['values'][1] == 88.888
-
-    ## Add a column
-    bday_column = syn.store(Column(name='birthday', columnType='DATE'))
-
-    column = syn.getColumn(bday_column.id)
-    assert column.name=="birthday"
-    assert column.columnType=="DATE"
-
-    schema1.addColumn(bday_column)
-    schema1 = syn.store(schema1)
-
-    results = syn.tableQuery('select * from %s where cartoon=false order by age'%schema1.id, resultsAs="rowset")
-    rs = results.asRowSet()
-
-    ## put data in new column
-    bdays = ('2013-3-15', '2008-1-3', '1973-12-8', '1969-4-28')
-    for bday, row in zip(bdays, rs.rows):
-        row['values'][6] = bday
-    row_reference_set = syn.store(rs)
-
-    ## query by date and check that we get back two kids
-    date_2008_jan_1 = utils.to_unix_epoch_time(datetime(2008,1,1))
-    results = syn.tableQuery('select name from %s where birthday > %d order by birthday' % (schema1.id, date_2008_jan_1), resultsAs="rowset")
-    assert ["Jane", "Henry"] == [row['values'][0] for row in results]
-
-    try:
-        import pandas as pd
-        df = results.asDataFrame()
-        assert all(df.ix[:,"name"] == ["Jane", "Henry"])
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
-
-    results = syn.tableQuery('select birthday from %s where cartoon=false order by age' % schema1.id, resultsAs="rowset")
-    for bday, row in zip(bdays, results):
-        assert row['values'][0] == datetime.strptime(bday, "%Y-%m-%d"), "got %s but expected %s" % (row['values'][0], bday)
-
-    try:
-        import pandas as pd
-        results = syn.tableQuery("select foo, MAX(x), COUNT(foo), MIN(age) from %s group by foo order by foo" % schema1.id, resultsAs="rowset")
-        df = results.asDataFrame()
-        assert df.shape == (3,4)
-        assert all(df.iloc[:,0] == ["bar", "bat", "foo"])
-        assert all(df.iloc[:,1] == [88.888, 88.888, 88.888])
-        assert all(df.iloc[:,2] == [3, 3, 2])
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
-
-    ## test delete rows by deleting cartoon characters
-    syn.delete(syn.tableQuery('select name from %s where cartoon = true'%schema1.id, resultsAs="rowset"))
-
-    results = syn.tableQuery('select name from %s order by birthday' % schema1.id, resultsAs="rowset")
-    assert ["Chris", "Jen", "Jane", "Henry"] == [row['values'][0] for row in results]
-
-    ## check what happens when query result is empty
-    results = syn.tableQuery('select * from %s where age > 1000' % schema1.id, resultsAs="rowset")
-    assert len(list(results)) == 0
-
-    try:
-        import pandas as pd
-        results = syn.tableQuery('select * from %s where age > 1000' % schema1.id, resultsAs="rowset")
-        df = results.asDataFrame()
-        assert df.shape[0] == 0
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping part of test_rowset_tables.\n\n')
-
-
 
 def test_tables_csv():
 
