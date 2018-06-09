@@ -4,10 +4,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import os
 import time
 
 from nose.tools import assert_less
+
+import deprecation
 
 import synapseclient
 from synapseclient.entity import Project, Folder, File
@@ -21,7 +22,7 @@ def setup(module):
     module.syn = integration.syn
     module.project = integration.project
 
-
+@deprecation.fail_if_not_removed
 def test_query():
     ## TODO: replace this test with the one below when query() is replaced
     query_str = "select id from entity where entity.parentId=='%s'" % project['id']
@@ -45,7 +46,8 @@ def test_query():
             qry = syn.query(query_str)
 
         assert len(qry['results']) == i + 1
-        
+
+@deprecation.fail_if_not_removed
 def test_chunked_query():
     oldLimit = synapseclient.client.QUERY_LIMIT
     try:
@@ -77,7 +79,7 @@ def test_chunked_query():
     finally:
         synapseclient.client.QUERY_LIMIT = oldLimit
 
-
+@deprecation.fail_if_not_removed
 def test_chunked_query_giant_row():
     import synapseclient.utils as utils
 

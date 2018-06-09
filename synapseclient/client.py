@@ -69,6 +69,7 @@ import getpass
 import json
 from collections import OrderedDict
 import logging
+import deprecation
 
 import synapseclient
 from . import cache
@@ -1167,6 +1168,7 @@ class Synapse(object):
             fields.extend(['createdByPrincipalId','createdOn','versionNumber'])
         if show_modified:
             fields.extend(['modifiedByPrincipalId', 'modifiedOn'])
+        # we will convert this to use the new service in SYNPY-473
         query = 'select ' + ','.join(fields) + \
                 ' from entity where %s=="%s"' % ('id' if indent==0 else 'parentId', id_of(parent))
         results = self.chunkedQuery(query)
@@ -1437,14 +1439,15 @@ class Synapse(object):
             if entityChildrenResponse.get('nextPageToken') is not None:
                 entityChildrenRequest['nextPageToken'] = entityChildrenResponse['nextPageToken']
 
+    @deprecation.deprecated(deprecated_in="1.8.2",
+                            removed_in="1.9.0",
+                            details="Please use getChildren instead.")
     def query(self, queryStr):
         """
         Query for Synapse entities.
-        **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
         See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
-		:param queryStr:  the query to execute
-
+        :param queryStr:  the query to execute
         :returns: an array of query results
 
         Example::
@@ -1455,14 +1458,15 @@ class Synapse(object):
         """
         return self.restGET('/query?query=' + quote(queryStr))
 
-
+    @deprecation.deprecated(deprecated_in="1.8.2",
+                            removed_in="1.9.0",
+                            details="Please use getChildren instead.")
     def chunkedQuery(self, queryStr):
         """
         Query for Synapse Entities.
-        More robust than :py:func:`synapseclient.Synapse.query`.
         See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
-		:param queryStr: the query to execute
+        :param queryStr: the query to execute
 
         :returns: An iterator that will break up large queries into managable pieces.
 
