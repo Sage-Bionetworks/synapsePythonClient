@@ -325,7 +325,10 @@ class Activity(dict):
         usedList = []
         for source in [source for source in self['used'] if source.get('wasExecuted', False)==wasExecuted]:
             if source['concreteType'].endswith('UsedURL'):
-                usedList.append(source['name'])
+                if source.get('name'):
+                    usedList.append(source.get('name'))
+                else:
+                    usedList.append(source.get('url'))
             else: #It is an entity for now
                 tmpstr = source['reference']['targetId']
                 if 'targetVersionNumber' in source['reference']:
