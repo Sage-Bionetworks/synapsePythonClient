@@ -1441,15 +1441,13 @@ class Synapse(object):
 
     @deprecation.deprecated(deprecated_in="1.8.2",
                             removed_in="1.9.0",
-                            details="Use getChildren instead")
+                            details="Please use getChildren instead.")
     def query(self, queryStr):
         """
         Query for Synapse entities.
-        **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
         See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
-		:param queryStr:  the query to execute
-
+        :param queryStr:  the query to execute
         :returns: an array of query results
 
         Example::
@@ -1462,14 +1460,13 @@ class Synapse(object):
 
     @deprecation.deprecated(deprecated_in="1.8.2",
                             removed_in="1.9.0",
-                            details="Use getChildren instead")
+                            details="Please use getChildren instead.")
     def chunkedQuery(self, queryStr):
         """
         Query for Synapse Entities.
-        More robust than :py:func:`synapseclient.Synapse.query`.
         See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
-		:param queryStr: the query to execute
+        :param queryStr: the query to execute
 
         :returns: An iterator that will break up large queries into managable pieces.
 
