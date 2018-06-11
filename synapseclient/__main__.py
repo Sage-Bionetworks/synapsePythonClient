@@ -154,19 +154,19 @@ def get(args, syn):
         if isinstance(args.id, six.string_types) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
+                syn.logger.info("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
         ## normal syn.get operation
         else:
             entity = syn.get(args.id, version=args.version, # limitSearch=args.limitSearch,
                              followLink=args.followLink,
                              downloadLocation=args.downloadLocation)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
-                print("Downloaded file: %s" % os.path.basename(entity.path))
+                syn.logger.info("Downloaded file: %s" % os.path.basename(entity.path))
             else:
-                print('WARNING: No files associated with entity %s\n' % entity.id)
-                print(entity)
+                sys.stderr.write('WARNING: No files associated with entity %s\n' % entity.id)
+                sys.stdout.write(entity)
 
-        print('Creating %s' % entity.path)
+        syn.logger.info('Creating %s' % entity.path)
 
 def sync(args, syn):
     synapseutils.syncToSynapse(syn, manifestFile=args.manifestFile,
@@ -204,7 +204,7 @@ def store(args, syn):
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
-    print('Created/Updated entity: %s\t%s' %(entity['id'], entity['name']))
+    syn.logger.info('Created/Updated entity: %s\t%s' %(entity['id'], entity['name']))
 
     # After creating/updating, if there are annotations to add then
     # add them
@@ -233,7 +233,7 @@ def _descriptionFile_arg_check(args):
 def move(args, syn):
     """Moves an entity specified by args.id to args.parentId"""
     entity = syn.move(args.id, args.parentid)
-    print('Moved %s to %s' % (entity.id, entity.parentId))
+    syn.logger.info('Moved %s to %s' % (entity.id, entity.parentId))
 
 def associate(args, syn):
     files = []
@@ -249,9 +249,9 @@ def associate(args, syn):
         try:
             ent = syn.get(fp, limitSearch=args.limitSearch)
         except SynapseFileNotFoundError:
-            print('WARNING: The file %s is not available in Synapse' %fp)
+            sys.stderr.write('WARNING: The file %s is not available in Synapse' %fp)
         else:
-            print('%s.%i\t%s' %(ent.id, ent.versionNumber, fp))
+            syn.logger.info('%s.%i\t%s' %(ent.id, ent.versionNumber, fp))
 
 def copy(args,syn):
     mappings = synapseutils.copy(syn, args.id, args.destinationId,
@@ -260,7 +260,7 @@ def copy(args,syn):
                          excludeTypes=args.excludeTypes,
                          version=args.version, updateExisting=args.updateExisting,
                          setProvenance=args.setProvenance)
-    print(mappings)
+    syn.logger.info(mappings)
 
 def cat(args, syn):
     try:
@@ -292,18 +292,18 @@ def show(args, syn):
     sys.stdout.write('Provenance:\n')
     try:
         prov = syn.getProvenance(ent)
-        print(prov)
+        sys.stdout.write(prov)
     except SynapseHTTPError:
-        print('  No Activity specified.\n')
+        sys.stderr.write('  No Activity specified.\n')
 
 
 def delete(args, syn):
-	if args.version:
-	    syn.delete(args.id, args.version)
-	    print('Deleted entity %s, version %s' % (args.id, args.version))
-	else:
-	    syn.delete(args.id)
-	    print('Deleted entity: %s' % args.id)
+    if args.version:
+        syn.delete(args.id, args.version)
+        syn.logger.info('Deleted entity %s, version %s' % (args.id, args.version))
+    else:
+        syn.delete(args.id)
+        syn.logger.info('Deleted entity: %s' % args.id)
 
 
 def create(args, syn):
@@ -316,7 +316,7 @@ def create(args, syn):
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
-    print('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
+    syn.logger.info('Created entity: %s\t%s\n' %(entity['id'],entity['name']))
 
 
 def onweb(args, syn):
@@ -346,14 +346,14 @@ def setProvenance(args, syn):
                 f.write(json.dumps(activity))
                 f.write('\n')
     else:
-        print('Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id)))
+        syn.logger.info('Set provenance record %s on entity %s\n' % (str(activity['id']), str(args.id)))
 
 
 def getProvenance(args, syn):
     activity = syn.getProvenance(args.id, args.version)
 
     if args.output is None or args.output=='STDOUT':
-        print(json.dumps(activity, sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(activity, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(activity))
@@ -394,7 +394,7 @@ def getAnnotations(args, syn):
     annotations = syn.getAnnotations(args.id)
 
     if args.output is None or args.output=='STDOUT':
-        print(json.dumps(annotations, sort_keys=True, indent=2))
+        sys.stdout.write(json.dumps(annotations, sort_keys=True, indent=2))
     else:
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
@@ -451,20 +451,20 @@ def login(args, syn):
     """Log in to Synapse, optionally caching credentials"""
     login_with_prompt(syn, args.synapseUser, args.synapsePassword, rememberMe=args.rememberMe, forced=True)
     profile = syn.getUserProfile()
-    print("Logged in as: {userName} ({ownerId})".format(**profile))
+    syn.logger.info("Logged in as: {userName} ({ownerId})".format(**profile))
 
 
 def test_encoding(args, syn):
     import locale
     import platform
-    print("python version =               ", platform.python_version())
-    print("sys.stdout.encoding =          ", sys.stdout.encoding if hasattr(sys.stdout, 'encoding') else 'no encoding attribute')
-    print("sys.stdout.isatty() =          ", sys.stdout.isatty())
-    print("locale.getpreferredencoding() =", locale.getpreferredencoding())
-    print("sys.getfilesystemencoding() =  ", sys.getfilesystemencoding())
-    print("PYTHONIOENCODING =             ", os.environ.get("PYTHONIOENCODING", None))
-    print("latin1 chars =                 D\xe9j\xe0 vu, \xfcml\xf8\xfats")
-    print("Some non-ascii chars =         '\u0227\u0188\u0188\u1e17\u019e\u0167\u1e17\u1e13 u\u028dop-\u01ddp\u0131sdn \u0167\u1e17\u1e8b\u0167 \u0192\u01ff\u0159 \u0167\u1e17\u015f\u0167\u012b\u019e\u0260'", )
+    sys.stdout.write("python version =               ", platform.python_version())
+    sys.stdout.write("sys.stdout.encoding =          ", sys.stdout.encoding if hasattr(sys.stdout, 'encoding') else 'no encoding attribute')
+    sys.stdout.write("sys.stdout.isatty() =          ", sys.stdout.isatty())
+    sys.stdout.write("locale.getpreferredencoding() =", locale.getpreferredencoding())
+    sys.stdout.write("sys.getfilesystemencoding() =  ", sys.getfilesystemencoding())
+    sys.stdout.write("PYTHONIOENCODING =             ", os.environ.get("PYTHONIOENCODING", None))
+    sys.stdout.write("latin1 chars =                 D\xe9j\xe0 vu, \xfcml\xf8\xfats")
+    sys.stdout.write("Some non-ascii chars =         '\u0227\u0188\u0188\u1e17\u019e\u0167\u1e17\u1e13 u\u028dop-\u01ddp\u0131sdn \u0167\u1e17\u1e8b\u0167 \u0192\u01ff\u0159 \u0167\u1e17\u015f\u0167\u012b\u019e\u0260'", )
 
 
 def build_parser():
