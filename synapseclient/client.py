@@ -1441,7 +1441,8 @@ class Synapse(object):
 
     @deprecation.deprecated(deprecated_in="1.8.2",
                             removed_in="1.9.0",
-                            details="Please use getChildren instead.")
+                            details="Please use :py:func:`synapseclient.Synapse.getChildren` or "
+                                    ":py:class:`synapseclient.table.EntityViewSchema` instead.")
     def query(self, queryStr):
         """
         Query for Synapse entities.
@@ -1460,7 +1461,8 @@ class Synapse(object):
 
     @deprecation.deprecated(deprecated_in="1.8.2",
                             removed_in="1.9.0",
-                            details="Please use getChildren instead.")
+                            details="Please use :py:func:`synapseclient.Synapse.getChildren` or "
+                                    ":py:class:`synapseclient.table.EntityViewSchema` instead.")
     def chunkedQuery(self, queryStr):
         """
         Query for Synapse Entities.
