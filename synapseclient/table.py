@@ -1811,22 +1811,26 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def __iter__(self):
         def iterate_rows(filepath, headers):
+            header_name = []
+            for header in headers:
+                header_name.append(header['name'])
+
             with io.open(filepath, encoding='utf-8') as f:
                 reader = csv.reader(f,
                     delimiter=self.separator,
                     escapechar=self.escapeCharacter,
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
-                num_metadata_cols = 0
+                num_metadata_cols_diff = 0
                 header = next(reader)
-                if 'ROW_ID' in header:
-                    num_metadata_cols += 1
-                if 'ROW_VERSION' in header:
-                    num_metadata_cols += 1
-                if 'ROW_ETAG' in header:
-                    num_metadata_cols += 1
+                if 'ROW_ID' in header and 'ROW_ID' not in header_name:
+                    num_metadata_cols_diff += 1
+                if 'ROW_VERSION' in header and 'ROW_VERSION' not in header_name:
+                    num_metadata_cols_diff += 1
+                if 'ROW_ETAG' in header and 'ROW_ETAG' not in header_name:
+                    num_metadata_cols_diff += 1
                 for row in reader:
-                    yield cast_values(row[num_metadata_cols:], headers)
+                    yield cast_values(row[num_metadata_cols_diff:], headers)
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):

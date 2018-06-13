@@ -941,3 +941,18 @@ class TestCsvFileTable():
             for row in table:
                 assert_equals(1, row.__len__())
 
+    def test_iter_with_row_metadata_in_header(self):
+        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
+                   "1,2,etag1,\"I like trains\"\n"
+                   "5,1,etag2,\"weeeeeeeeeeee\"\n")
+        cols = as_table_columns(string_io)
+        headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                   SelectColumn(name="ROW_VERSION", columnType="STRING")] + \
+                  [SelectColumn.from_column(col) for col in cols]
+        # reset the string to read it again
+        string_io.__exit__()
+        with patch.object(io, "open", return_value=string_io):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            for row in table:
+                assert_equals(3, row.__len__())
+
