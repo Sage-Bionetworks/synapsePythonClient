@@ -1817,11 +1817,16 @@ class CsvFileTable(TableAbstractBaseClass):
                     escapechar=self.escapeCharacter,
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
-                if self.header:
-                    header = next(reader)
-
+                num_metadata_cols = 0
+                header = next(reader)
+                if 'ROW_ID' in header:
+                    num_metadata_cols += 1
+                if 'ROW_VERSION' in header:
+                    num_metadata_cols += 1
+                if 'ROW_ETAG' in header:
+                    num_metadata_cols += 1
                 for row in reader:
-                    yield cast_values(row, headers)
+                    yield cast_values(row[num_metadata_cols:], headers)
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):

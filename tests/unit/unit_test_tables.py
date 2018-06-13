@@ -891,7 +891,6 @@ class TestCsvFileTable():
             assert_equals((1,2,"etag1"), metadata[0])
             assert_equals((5, 1, "etag2"), metadata[1])
 
-
     def test_iter_metadata__no_etag(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,asdf\n"
                    "1,2,\"I like trains\"\n"
@@ -902,3 +901,43 @@ class TestCsvFileTable():
             assert_equals(2, len(metadata))
             assert_equals((1,2, None), metadata[0])
             assert_equals((5, 1, None), metadata[1])
+
+    def test_iter_no_row_metadata(self):
+        string_io = StringIOContextManager("col1,col2\n"
+                   "1,2\n"
+                   "2,1\n")
+        cols = as_table_columns(string_io)
+        headers = [SelectColumn.from_column(col) for col in cols]
+        #reset the string to read it again
+        string_io.__exit__()
+        with patch.object(io, "open", return_value=string_io):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            for row in table:
+                assert_equals(2, row.__len__())
+
+    def test_iter_with_table_row_metadata(self):
+        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,col\n"
+                   "1,2,\"I like trains\"\n"
+                   "5,1,\"weeeeeeeeeeee\"\n")
+        cols = as_table_columns(string_io)
+        headers = [SelectColumn.from_column(col) for col in cols]
+        # reset the string to read it again
+        string_io.__exit__()
+        with patch.object(io, "open", return_value=string_io):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            for row in table:
+                assert_equals(1, row.__len__())
+
+    def test_iter_with_file_view_row_metadata(self):
+        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
+                   "1,2,etag1,\"I like trains\"\n"
+                   "5,1,etag2,\"weeeeeeeeeeee\"\n")
+        cols = as_table_columns(string_io)
+        headers = [SelectColumn.from_column(col) for col in cols]
+        # reset the string to read it again
+        string_io.__exit__()
+        with patch.object(io, "open", return_value=string_io):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            for row in table:
+                assert_equals(1, row.__len__())
+
