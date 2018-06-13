@@ -1811,6 +1811,9 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def __iter__(self):
         def iterate_rows(filepath, headers):
+            if not self.header or not self.headers:
+                raise ValueError("Iteration not supported for table without headers.")
+
             header_name = {header.name for header in headers}
             row_metadata_headers = {'ROW_ID', 'ROW_VERSION', 'ROW_ETAG'}
             with io.open(filepath, encoding='utf-8') as f:
@@ -1819,13 +1822,11 @@ class CsvFileTable(TableAbstractBaseClass):
                     escapechar=self.escapeCharacter,
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
-                if self.header:
-                    csv_header = set(next(reader))
-                    num_metadata_cols_diff = len(csv_header & row_metadata_headers) - len(header_name & row_metadata_headers)
-                    for row in reader:
-                        yield cast_values(row[num_metadata_cols_diff:], headers)
-                else:
-                    raise ValueError("Iteration not supported for table without headers.")
+                csv_header = set(next(reader))
+                num_metadata_cols_diff = len(csv_header & row_metadata_headers) - len(header_name & row_metadata_headers)
+                for row in reader:
+                    yield cast_values(row[num_metadata_cols_diff:], headers)
+
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):
