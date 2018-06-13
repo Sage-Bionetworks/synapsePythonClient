@@ -913,7 +913,7 @@ class TestCsvFileTable():
         with patch.object(io, "open", return_value=string_io):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             for row in table:
-                assert_equals(2, row.__len__())
+                assert_equals(2, len(row))
 
     def test_iter_with_table_row_metadata(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,col\n"
@@ -926,7 +926,7 @@ class TestCsvFileTable():
         with patch.object(io, "open", return_value=string_io):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             for row in table:
-                assert_equals(1, row.__len__())
+                assert_equals(1, len(row))
 
     def test_iter_with_file_view_row_metadata(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
@@ -939,7 +939,7 @@ class TestCsvFileTable():
         with patch.object(io, "open", return_value=string_io):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             for row in table:
-                assert_equals(1, row.__len__())
+                assert_equals(1, len(row))
 
     def test_iter_with_row_metadata_in_header(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
@@ -954,7 +954,7 @@ class TestCsvFileTable():
         with patch.object(io, "open", return_value=string_io):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             for row in table:
-                assert_equals(3, row.__len__())
+                assert_equals(3, len(row))
 
     def test_iter_with_no_headers(selfself):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
@@ -963,7 +963,7 @@ class TestCsvFileTable():
         with patch.object(io, "open", return_value=string_io):
             table = CsvFileTable("syn123", "/fake/file/path")
             iter = table.__iter__()
-            assert_raises(ValueError, iter.__next__)
+            assert_raises(ValueError, next, iter)
 
     def test_iter_with_no_headers_in_csv(selfself):
         string_io = StringIOContextManager("1,2,etag1,\"I like trains\"\n"
@@ -971,4 +971,4 @@ class TestCsvFileTable():
         with patch.object(io, "open", return_value=string_io):
             table = CsvFileTable("syn123", "/fake/file/path", header=False)
             iter = table.__iter__()
-            assert_raises(ValueError, iter.__next__)
+            assert_raises(ValueError, next, iter)
