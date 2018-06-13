@@ -1828,6 +1828,9 @@ class CsvFileTable(TableAbstractBaseClass):
                     num_metadata_cols_diff += 1
                 if 'ROW_ETAG' in header and 'ROW_ETAG' not in header_name:
                     num_metadata_cols_diff += 1
+                print(header)
+                print(headers)
+                print(num_metadata_cols_diff)
                 for row in reader:
                     yield cast_values(row[num_metadata_cols_diff:], headers)
         return iterate_rows(self.filepath, self.headers)
