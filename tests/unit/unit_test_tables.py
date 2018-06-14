@@ -903,14 +903,12 @@ class TestCsvFileTable():
             assert_equals((5, 1, None), metadata[1])
 
     def test_iter_no_row_metadata(self):
-        string_io = StringIOContextManager("col1,col2\n"
-                   "1,2\n"
-                   "2,1\n")
-        cols = as_table_columns(string_io)
+        data = "col1,col2\n" \
+               "1,2\n" \
+               "2,1\n"
+        cols = as_table_columns(StringIOContextManager(data))
         headers = [SelectColumn.from_column(col) for col in cols]
-        #reset the string to read it again
-        string_io.__exit__()
-        with patch.object(io, "open", return_value=string_io):
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             for row in table:
                 assert_equals(2, len(row))
