@@ -649,3 +649,4 @@ class TestPartialRowSet(object):
         return syn.store(
             EntityViewSchema(name='PartialRowTestViews' + str(uuid.uuid4()), columns=cols, addDefaultViewColumns=False,
                              parent=project, scopes=[folder]))
+
