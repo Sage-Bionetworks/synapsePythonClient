@@ -939,7 +939,7 @@ class TestCsvFileTable():
                 assert_equals([["I like trains"], ["weeeeeeeeeeee"]][i], row)
                 i += 1
 
-    def test_iter_with_row_metadata_in_header(self):
+    def test_iter_with_mismatch_row_metadata(self):
         data = "ROW_ID,ROW_VERSION,ROW_ETAG,col\n" \
                "1,2,etag1,\"I like trains\"\n" \
                 "5,1,etag2,\"weeeeeeeeeeee\"\n"
