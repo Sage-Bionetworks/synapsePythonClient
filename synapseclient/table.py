@@ -1816,7 +1816,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
             header_name = {header.name for header in headers}
             row_metadata_headers = {'ROW_ID', 'ROW_VERSION', 'ROW_ETAG'}
-            with io.open(filepath, encoding='utf-8') as f:
+            with io.open(filepath, encoding='utf-8', newline=self.lineEnd) as f:
                 reader = csv.reader(f,
                     delimiter=self.separator,
                     escapechar=self.escapeCharacter,
@@ -1830,7 +1830,7 @@ class CsvFileTable(TableAbstractBaseClass):
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):
-        with io.open(self.filepath, encoding='utf-8') as f:
+        with io.open(self.filepath, encoding='utf-8', newline=self.lineEnd) as f:
             if self.header:  #ignore the header line
                 f.readline()
 
@@ -1842,7 +1842,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
         :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
         """
-        with io.open(self.filepath, encoding='utf-8') as f:
+        with io.open(self.filepath, encoding='utf-8', newline=self.lineEnd) as f:
             reader = csv.reader(f,
                                 delimiter=self.separator,
                                 escapechar=self.escapeCharacter,
