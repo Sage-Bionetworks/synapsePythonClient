@@ -1816,6 +1816,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
             header_name = {header.name for header in headers}
             row_metadata_headers = {'ROW_ID', 'ROW_VERSION', 'ROW_ETAG'}
+            num_row_metadata_in_headers = len(header_name & row_metadata_headers)
             with io.open(filepath, encoding='utf-8', newline=self.lineEnd) as f:
                 reader = csv.reader(f,
                     delimiter=self.separator,
@@ -1823,7 +1824,11 @@ class CsvFileTable(TableAbstractBaseClass):
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
                 csv_header = set(next(reader))
-                num_metadata_cols_diff = len(csv_header & row_metadata_headers) - len(header_name & row_metadata_headers)
+                num_metadata_cols_diff = len(csv_header & row_metadata_headers) - num_row_metadata_in_headers
+                # the number of row metadata in csv file and the number of row medatada in headers are different
+                # and there are some row metadata in headers
+                if num_metadata_cols_diff > 0 and num_row_metadata_in_headers > 0:
+                    raise ValueError("There is mismatching row metadata in the csv file and in headers.")
                 for row in reader:
                     yield cast_values(row[num_metadata_cols_diff:], headers)
 
