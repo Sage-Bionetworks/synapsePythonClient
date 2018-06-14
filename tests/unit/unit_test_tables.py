@@ -914,47 +914,41 @@ class TestCsvFileTable():
                 assert_equals(2, len(row))
 
     def test_iter_with_table_row_metadata(self):
-        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,col\n"
-                   "1,2,\"I like trains\"\n"
-                   "5,1,\"weeeeeeeeeeee\"\n")
-        cols = as_table_columns(string_io)
+        data = "ROW_ID,ROW_VERSION,col\n" \
+               "1,2,\"I like trains\"\n" \
+               "5,1,\"weeeeeeeeeeee\"\n"
+        cols = as_table_columns(StringIOContextManager(data))
         headers = [SelectColumn.from_column(col) for col in cols]
-        # reset the string to read it again
-        string_io.__exit__()
-        with patch.object(io, "open", return_value=string_io):
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             for row in table:
                 assert_equals(1, len(row))
 
     def test_iter_with_file_view_row_metadata(self):
-        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
-                   "1,2,etag1,\"I like trains\"\n"
-                   "5,1,etag2,\"weeeeeeeeeeee\"\n")
-        cols = as_table_columns(string_io)
+        data = "ROW_ID,ROW_VERSION,ROW_ETAG,col\n" \
+               "1,2,etag1,\"I like trains\"\n" \
+                "5,1,etag2,\"weeeeeeeeeeee\"\n"
+        cols = as_table_columns(StringIOContextManager(data))
         headers = [SelectColumn.from_column(col) for col in cols]
-        # reset the string to read it again
-        string_io.__exit__()
-        with patch.object(io, "open", return_value=string_io):
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             for row in table:
                 assert_equals(1, len(row))
 
     def test_iter_with_row_metadata_in_header(self):
-        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
-                   "1,2,etag1,\"I like trains\"\n"
-                   "5,1,etag2,\"weeeeeeeeeeee\"\n")
-        cols = as_table_columns(string_io)
+        data = "ROW_ID,ROW_VERSION,ROW_ETAG,col\n" \
+               "1,2,etag1,\"I like trains\"\n" \
+                "5,1,etag2,\"weeeeeeeeeeee\"\n"
+        cols = as_table_columns(StringIOContextManager(data))
         headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
                    SelectColumn(name="ROW_VERSION", columnType="STRING")] + \
                   [SelectColumn.from_column(col) for col in cols]
-        # reset the string to read it again
-        string_io.__exit__()
-        with patch.object(io, "open", return_value=string_io):
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
             for row in table:
                 assert_equals(3, len(row))
 
-    def test_iter_with_no_headers(selfself):
+    def test_iter_with_no_headers(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
                                            "1,2,etag1,\"I like trains\"\n"
                                            "5,1,etag2,\"weeeeeeeeeeee\"\n")
@@ -963,7 +957,7 @@ class TestCsvFileTable():
             iter = table.__iter__()
             assert_raises(ValueError, next, iter)
 
-    def test_iter_with_no_headers_in_csv(selfself):
+    def test_iter_with_no_headers_in_csv(self):
         string_io = StringIOContextManager("1,2,etag1,\"I like trains\"\n"
                                            "5,1,etag2,\"weeeeeeeeeeee\"\n")
         with patch.object(io, "open", return_value=string_io):
