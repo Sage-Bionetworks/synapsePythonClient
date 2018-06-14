@@ -1825,7 +1825,7 @@ class CsvFileTable(TableAbstractBaseClass):
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):
-        with io.open(self.filepath, encoding='utf-8') as f:
+        with io.open(self.filepath, encoding='utf-8', newline=self.lineEnd) as f:
             if self.header:  #ignore the header line
                 f.readline()
 
