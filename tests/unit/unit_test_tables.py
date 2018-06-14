@@ -910,8 +910,10 @@ class TestCsvFileTable():
         headers = [SelectColumn.from_column(col) for col in cols]
         with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            i = 0
             for row in table:
-                assert_equals(2, len(row))
+                assert_equals([[1,2], [2,1]][i], row)
+                i += 1
 
     def test_iter_with_table_row_metadata(self):
         data = "ROW_ID,ROW_VERSION,col\n" \
