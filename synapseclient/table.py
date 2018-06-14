@@ -1811,7 +1811,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def __iter__(self):
         def iterate_rows(filepath, headers):
-            with io.open(filepath, encoding='utf-8') as f:
+            with io.open(filepath, encoding='utf-8', newline=self.lineEnd) as f:
                 reader = csv.reader(f,
                     delimiter=self.separator,
                     escapechar=self.escapeCharacter,
@@ -1837,7 +1837,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
         :return: a generator that gives :py:class::`collections.namedtuple` with format (row_id, row_etag)
         """
-        with io.open(self.filepath, encoding='utf-8') as f:
+        with io.open(self.filepath, encoding='utf-8', newline=self.lineEnd) as f:
             reader = csv.reader(f,
                                 delimiter=self.separator,
                                 escapechar=self.escapeCharacter,
