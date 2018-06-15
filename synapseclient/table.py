@@ -1829,7 +1829,7 @@ class CsvFileTable(TableAbstractBaseClass):
                 # we only process 2 cases:
                 # 1. matching row metadata
                 # 2. if metadata does not match, self.headers must not contains row metadata
-                if num_metadata_cols_diff == 0 or (num_metadata_cols_diff > 0 and num_row_metadata_in_headers == 0):
+                if num_metadata_cols_diff == 0 or num_row_metadata_in_headers == 0:
                     for row in reader:
                         yield cast_values(row[num_metadata_cols_diff:], headers)
                 else:
