@@ -915,6 +915,19 @@ class TestCsvFileTable():
                 assert_equals([[1,2], [2,1]][i], row)
                 i += 1
 
+    def test_iter_row_metadata_mismatch_in_headers(self):
+        data = "col1,col2\n" \
+               "1,2\n" \
+               "2,1\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                   SelectColumn(name="ROW_VERSION", columnType="STRING")] + \
+                  [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            iter = table.__iter__()
+            assert_raises(ValueError, next, iter)
+
     def test_iter_with_table_row_metadata(self):
         data = "ROW_ID,ROW_VERSION,col\n" \
                "1,2,\"I like trains\"\n" \

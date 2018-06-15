@@ -1825,13 +1825,11 @@ class CsvFileTable(TableAbstractBaseClass):
                     quotechar=self.quoteCharacter)
                 csv_header = set(next(reader))
                 num_metadata_cols_diff = len(csv_header & row_metadata_headers) - num_row_metadata_in_headers
-                # the number of row metadata in csv file and the number of row medatada in headers are different
-                # and there are some row metadata in headers
-                if num_metadata_cols_diff > 0 and num_row_metadata_in_headers > 0:
+                if num_metadata_cols_diff == 0 or (num_metadata_cols_diff > 0 and num_row_metadata_in_headers == 0):
+                    for row in reader:
+                        yield cast_values(row[num_metadata_cols_diff:], headers)
+                else:
                     raise ValueError("There is mismatching row metadata in the csv file and in headers.")
-                for row in reader:
-                    yield cast_values(row[num_metadata_cols_diff:], headers)
-
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):
