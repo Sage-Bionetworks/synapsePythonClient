@@ -1824,7 +1824,11 @@ class CsvFileTable(TableAbstractBaseClass):
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
                 csv_header = set(next(reader))
+                # the number of row metadata differences between the csv headers and self.headers
                 num_metadata_cols_diff = len(csv_header & row_metadata_headers) - num_row_metadata_in_headers
+                # we only process 2 cases:
+                # 1. matching row metadata
+                # 2. if metadata does not match, self.headers must not contains row metadata
                 if num_metadata_cols_diff == 0 or (num_metadata_cols_diff > 0 and num_row_metadata_in_headers == 0):
                     for row in reader:
                         yield cast_values(row[num_metadata_cols_diff:], headers)
