@@ -3214,7 +3214,7 @@ class Synapse(object):
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
-        For example, consider a Synapse table whose ID is "syn12345" with two columns of type File
+        For example, consider a Synapse table whose ID is "syn12345" with two columns of type FILEHANDLEID
         named 'foo' and 'bar'. The associated files are JSON encoded, so we might retrieve the
         files from Synapse and load for the second 100 of those rows as shown here::
 

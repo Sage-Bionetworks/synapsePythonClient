@@ -891,7 +891,6 @@ class TestCsvFileTable():
             assert_equals((1,2,"etag1"), metadata[0])
             assert_equals((5, 1, "etag2"), metadata[1])
 
-
     def test_iter_metadata__no_etag(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,asdf\n"
                    "1,2,\"I like trains\"\n"
@@ -902,3 +901,94 @@ class TestCsvFileTable():
             assert_equals(2, len(metadata))
             assert_equals((1,2, None), metadata[0])
             assert_equals((5, 1, None), metadata[1])
+
+#test __iter__
+    def test_iter_with_no_headers(self):
+        # self.headers is None
+        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
+                                           "1,2,etag1,\"I like trains\"\n"
+                                           "5,1,etag2,\"weeeeeeeeeeee\"\n")
+        with patch.object(io, "open", return_value=string_io):
+            table = CsvFileTable("syn123", "/fake/file/path")
+            iter = table.__iter__()
+            assert_raises(ValueError, next, iter)
+
+    def test_iter_with_no_headers_in_csv(self):
+        # csv file does not have headers
+        string_io = StringIOContextManager("1,2,etag1,\"I like trains\"\n"
+                                           "5,1,etag2,\"weeeeeeeeeeee\"\n")
+        with patch.object(io, "open", return_value=string_io):
+            table = CsvFileTable("syn123", "/fake/file/path", header=False)
+            iter = table.__iter__()
+            assert_raises(ValueError, next, iter)
+
+    def test_iter_row_metadata_mismatch_in_headers(self):
+        # csv file does not contain row metadata, self.headers does
+        data = "col1,col2\n" \
+               "1,2\n" \
+               "2,1\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                   SelectColumn(name="ROW_VERSION", columnType="STRING")] + \
+                  [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            iter = table.__iter__()
+            assert_raises(ValueError, next, iter)
+
+    def test_iter_with_table_row_metadata(self):
+        # csv file has row metadata, self.headers does not
+        data = "ROW_ID,ROW_VERSION,col\n" \
+               "1,2,\"I like trains\"\n" \
+               "5,1,\"weeeeeeeeeeee\"\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            expected_rows = [["I like trains"], ["weeeeeeeeeeee"]]
+            for expected_row, table_row in zip(expected_rows, table):
+                assert_equals(expected_row, table_row)
+
+    def test_iter_with_mismatch_row_metadata(self):
+        # self.headers and csv file headers contains mismatch row metadata
+        data = "ROW_ID,ROW_VERSION,ROW_ETAG,col\n" \
+               "1,2,etag1,\"I like trains\"\n" \
+                "5,1,etag2,\"weeeeeeeeeeee\"\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                   SelectColumn(name="ROW_VERSION", columnType="STRING")] + \
+                  [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            iter = table.__iter__()
+            assert_raises(ValueError, next, iter)
+
+    def test_iter_no_row_metadata(self):
+        # both csv headers and self.headers do not contains row metadata
+        data = "col1,col2\n" \
+               "1,2\n" \
+               "2,1\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            expected_rows = [[1,2], [2,1]]
+            for expected_row, table_row in zip(expected_rows, table):
+                assert_equals(expected_row, table_row)
+
+    def test_iter_with_file_view_row_metadata(self):
+        # csv file and self.headers contain matching row metadata
+        data = "ROW_ID,ROW_VERSION,ROW_ETAG,col\n" \
+               "1,2,etag1,\"I like trains\"\n" \
+               "5,1,etag2,\"weeeeeeeeeeee\"\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                   SelectColumn(name="ROW_VERSION", columnType="STRING"),
+                   SelectColumn(name="ROW_ETAG", columnType="STRING")] + \
+                  [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            expected_rows = [['1','2',"etag1","I like trains"],
+                            ['5','1',"etag2","weeeeeeeeeeee"]]
+            for expected_row, table_row in zip(expected_rows, table):
+                assert_equals(expected_row, table_row)

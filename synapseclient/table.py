@@ -485,7 +485,7 @@ def cast_values(values, headers):
     See: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     """
     if len(values) != len(headers):
-        raise ValueError('Each field in the row must have a matching column header. %d fields, %d headers' % (len(values), len(headers)))
+        raise ValueError('The number of columns in the csv file does not match the given headers. %d fields, %d headers' % (len(values), len(headers)))
 
     result = []
     for header, field in zip(headers, values):
@@ -1811,17 +1811,29 @@ class CsvFileTable(TableAbstractBaseClass):
 
     def __iter__(self):
         def iterate_rows(filepath, headers):
+            if not self.header or not self.headers:
+                raise ValueError("Iteration not supported for table without headers.")
+
+            header_name = {header.name for header in headers}
+            row_metadata_headers = {'ROW_ID', 'ROW_VERSION', 'ROW_ETAG'}
+            num_row_metadata_in_headers = len(header_name & row_metadata_headers)
             with io.open(filepath, encoding='utf-8', newline=self.lineEnd) as f:
                 reader = csv.reader(f,
                     delimiter=self.separator,
                     escapechar=self.escapeCharacter,
                     lineterminator=self.lineEnd,
                     quotechar=self.quoteCharacter)
-                if self.header:
-                    header = next(reader)
-
-                for row in reader:
-                    yield cast_values(row, headers)
+                csv_header = set(next(reader))
+                # the number of row metadata differences between the csv headers and self.headers
+                num_metadata_cols_diff = len(csv_header & row_metadata_headers) - num_row_metadata_in_headers
+                # we only process 2 cases:
+                # 1. matching row metadata
+                # 2. if metadata does not match, self.headers must not contains row metadata
+                if num_metadata_cols_diff == 0 or num_row_metadata_in_headers == 0:
+                    for row in reader:
+                        yield cast_values(row[num_metadata_cols_diff:], headers)
+                else:
+                    raise ValueError("There is mismatching row metadata in the csv file and in headers.")
         return iterate_rows(self.filepath, self.headers)
 
     def __len__(self):
