@@ -945,10 +945,9 @@ class TestCsvFileTable():
         headers = [SelectColumn.from_column(col) for col in cols]
         with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
-            i = 0
-            for row in table:
-                assert_equals([["I like trains"], ["weeeeeeeeeeee"]][i], row)
-                i += 1
+            expected_rows = [["I like trains"], ["weeeeeeeeeeee"]]
+            for expected_row, table_row in zip(expected_rows, table):
+                assert_equals(expected_row, table_row)
 
     def test_iter_with_mismatch_row_metadata(self):
         # self.headers and csv file headers contains mismatch row metadata
@@ -973,10 +972,9 @@ class TestCsvFileTable():
         headers = [SelectColumn.from_column(col) for col in cols]
         with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
-            i = 0
-            for row in table:
-                assert_equals([[1,2], [2,1]][i], row)
-                i += 1
+            expected_rows = [[1,2], [2,1]]
+            for expected_row, table_row in zip(expected_rows, table):
+                assert_equals(expected_row, table_row)
 
     def test_iter_with_file_view_row_metadata(self):
         # csv file and self.headers contain matching row metadata
@@ -990,8 +988,7 @@ class TestCsvFileTable():
                   [SelectColumn.from_column(col) for col in cols]
         with patch.object(io, "open", return_value=StringIOContextManager(data)):
             table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
-            i = 0
-            for row in table:
-                assert_equals([['1','2',"etag1","I like trains"],
-                               ['5','1',"etag2","weeeeeeeeeeee"]][i], row)
-                i += 1
+            expected_rows = [['1','2',"etag1","I like trains"],
+                            ['5','1',"etag2","weeeeeeeeeeee"]]
+            for expected_row, table_row in zip(expected_rows, table):
+                assert_equals(expected_row, table_row)
