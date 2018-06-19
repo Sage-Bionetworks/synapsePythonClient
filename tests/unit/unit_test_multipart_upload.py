@@ -96,7 +96,7 @@ def test_upload_chunk__expired_url():
         assert_true(expired.value)
 
         # assert warnings.warn was only called once
-        mocked_warn.assert_called_once_with("The presigned upload URL has expired. Restarting upload...\n")
+        mocked_warn.assert_called_once_with("The pre-signed upload URL has expired. Restarting upload...\n")
 
         # assert _put_chunk was called at least once
         assert_greater_equal(len(mocked_put_chunk.call_args_list), 1)

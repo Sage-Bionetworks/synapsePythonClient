@@ -131,7 +131,7 @@ def _raise_for_status(response, verbose=False):
             except: message += "\nCould not append all request info"
 
             try:
-                # Append the response recieved
+                # Append the response received
                 message += "\n\n>>>>>> Response <<<<<<\n%s" % str(response)
                 message += "\n>>> Headers: %s" % response.headers
                 message += "\n>>> Body: %s\n\n" % response.text

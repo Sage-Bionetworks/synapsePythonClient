@@ -42,15 +42,15 @@ def test_copy():
 
     # Annotations and provenance
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
-    annots = {'test':['hello_world']}
+    annos = {'test':['hello_world']}
     prov = Activity(name = "test",used = repo_url)
     # Create, upload, and set annotations/provenance on a file in Folder
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     file_entity = syn.store(File(filename, parent=folder_entity))
     externalURL_entity = syn.store(File(repo_url,name='rand',parent=folder_entity,synapseStore=False))
-    syn.setAnnotations(file_entity,annots)
-    syn.setAnnotations(externalURL_entity,annots)
+    syn.setAnnotations(file_entity,annos)
+    syn.setAnnotations(externalURL_entity,annos)
     syn.setProvenance(externalURL_entity.id, prov)
     schedule_for_cleanup(file_entity.id)
     schedule_for_cleanup(externalURL_entity.id)
@@ -76,7 +76,7 @@ def test_copy():
     assert copied_url_prov['used'][0]['reference']['targetId'] == externalURL_entity.id
 
     # TEST: Make sure copied files are the same
-    assert copied_ent_annot == annots
+    assert copied_ent_annot == annos
     assert copied_ent.dataFileHandleId == file_entity.dataFileHandleId
 
     # TEST: Make sure copied URLs are the same
@@ -123,7 +123,7 @@ def test_copy():
         new_copied_URL = syn.get(output[copied_URL_ent.id],downloadFile=False)
         schedule_for_cleanup(new_copied_URL.id)
 
-        assert new_copied_ent_annot == annots
+        assert new_copied_ent_annot == annos
         assert new_copied_ent.dataFileHandleId != copied_ent.dataFileHandleId
         #Test if copying different versions gets you the correct file
         assert new_copied_URL.versionNumber == 1

@@ -274,7 +274,7 @@ See:
 - :py:func:`synapseclient.Synapse.restDELETE`
 
 
-Synapse utilites
+Synapse utilities
 ================
 
 There is a companion module called synapseutils that provide higher

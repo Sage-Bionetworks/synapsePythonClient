@@ -412,7 +412,7 @@ def as_table_columns(values):
             if maxStrLen>1000:
                 cols.append(Column(name=col, columnType='LARGETEXT', defaultValue=''))
             else:
-                size = int(round(min(1000, max(30, maxStrLen*1.5))))  #Determine lenght of longest string
+                size = int(round(min(1000, max(30, maxStrLen*1.5))))  #Determine the length of the longest string
                 cols.append(Column(name=col, columnType=columnType, maximumSize=size, defaultValue=''))
         else:
             cols.append(Column(name=col, columnType=columnType))
@@ -932,7 +932,7 @@ class PartialRowset(AppendableRowset):
         query_results = syn.tableQuery("SELECT * FROM syn123")
 
         # The easiest way to know the rowId of the row you wish to change
-        # is by converting the table to a pandas Dataframe with rowIdAndVersionInIndex=False
+        # is by converting the table to a pandas DataFrame with rowIdAndVersionInIndex=False
         df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
 
         partial_changes = {df['ROW_ID'][0]: {'fooCol': 'foo foo 1'},

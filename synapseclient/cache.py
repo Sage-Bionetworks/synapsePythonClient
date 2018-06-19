@@ -198,7 +198,7 @@ class Cache():
                                 removed_entry_from_cache = True
                                 
                     if removed_entry_from_cache:
-                        # write cache_map with non-existant entries removed
+                        # write cache_map with non-existent entries removed
                         self._write_cache_map(cache_dir, cache_map)
 
                     if matching_unmodified_directory is not None:

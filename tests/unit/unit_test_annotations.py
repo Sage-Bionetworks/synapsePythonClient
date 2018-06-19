@@ -137,7 +137,7 @@ def test_submission_status_annotations_round_trip():
 def test_submission_status_double_annos():
     ssa = {'longAnnos':   [{'isPrivate': False, 'value':13, 'key':'lucky'}],
            'doubleAnnos': [{'isPrivate': False, 'value':3, 'key': 'three'}, {'isPrivate': False, 'value':pi, 'key': 'pi'}]}
-    ## test that the double annotation 'three':3 is interpretted as a floating
+    ## test that the double annotation 'three':3 is interpreted as a floating
     ## point 3.0 rather than an integer 3
     annotations = from_submission_status_annotations(ssa)
     assert isinstance(annotations['three'], float)

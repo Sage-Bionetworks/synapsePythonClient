@@ -66,7 +66,7 @@ def count_completed_parts(part_status):
 
 def calculate_part_size(fileSize, partSize=None, min_part_size=MIN_PART_SIZE, max_parts=MAX_NUMBER_OF_PARTS):
     """
-    Parts for mutipart upload must be at least 5 MB and there must
+    Parts for multipart upload must be at least 5 MB and there must
     be at most 10,000 parts
     """
     if partSize is None:
@@ -292,13 +292,13 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
                 completed.value += len(chunk)
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0, previouslyTransferred=bytes_already_uploaded)
         else:
-            syn.logger.debug("did not sucessfuly add part %s" % partNumber)
+            syn.logger.debug("did not successfully add part %s" % partNumber)
     except Exception as ex1:
         if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403:
-            syn.logger.debug("The presigned upload URL for part %s has expired. Restarting upload...\n" % partNumber)
+            syn.logger.debug("The pre-signed upload URL for part %s has expired. Restarting upload...\n" % partNumber)
             with expired.get_lock():
                 if not expired.value:
-                    warnings.warn("The presigned upload URL has expired. Restarting upload...\n")
+                    warnings.warn("The pre-signed upload URL has expired. Restarting upload...\n")
                     expired.value = True
             return
         #If we are not in verbose debug mode we will swallow the error and retry.
@@ -357,7 +357,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                                                       fileSize=fileSize, partSize=partSize, t0=time_upload_started,
                                                       expired=expired, bytes_already_uploaded=previously_completed_bytes)
 
-            syn.logger.debug("fetching presigned urls and mapping to Pool")
+            syn.logger.debug("fetching pre-signed urls and mapping to Pool")
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
             mp.map(chunk_upload, url_generator)
             syn.logger.debug("completed pooled upload")
