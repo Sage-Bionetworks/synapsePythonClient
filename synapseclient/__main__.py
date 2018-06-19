@@ -299,11 +299,11 @@ def show(args, syn):
 
 def delete(args, syn):
     if args.version:
-	    syn.delete(args.id, args.version)
-	    print('Deleted entity %s, version %s' % (args.id, args.version))
-	else:
-	    syn.delete(args.id)
-	    print('Deleted entity: %s' % args.id)
+        syn.delete(args.id, args.version)
+        print('Deleted entity %s, version %s' % (args.id, args.version))
+    else:
+        syn.delete(args.id)
+        print('Deleted entity: %s' % args.id)
 
 
 def create(args, syn):
