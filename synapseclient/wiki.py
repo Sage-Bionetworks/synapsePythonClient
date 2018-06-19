@@ -4,7 +4,7 @@ Wiki
 ****
 
 A Wiki page requires a title, markdown and an owner object and can
-alse include images.
+also include images.
 
 ~~~~~~~~~~~~~~~
 Creating a Wiki
@@ -106,7 +106,7 @@ class Wiki(DictObject):
     :param markdownFile: Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
     :param attachments: List of paths to files to attach
     :param fileHandles: List of file handle IDs representing files to be attached
-    :param parentWikiId: (optional) For subpages, specify parent wiki page
+    :param parentWikiId: (optional) For sub-pages, specify parent wiki page
     """
 
     __PROPERTIES = ('title', 'markdown', 'attachmentFileHandleIds', 'id', 'etag', 'createdBy', 'createdOn', 'modifiedBy', 'modifiedOn', 'parentWikiId')

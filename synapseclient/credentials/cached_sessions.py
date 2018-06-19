@@ -67,7 +67,7 @@ def migrate_old_session_file_credentials_if_necessary(syn):
     # only migrate if the download cache is in the default location (i.e. user did not set its location)
     # we don't want to migrate credentials if they were a part of a cache shared by multiple people
     if equal_paths(syn.cache.cache_root_dir, os.path.expanduser(_DEFAULT_CACHE_ROOT_DIR)):
-        #iterate throught the old file and place in new credential storage
+        #iterate through the old file and place in new credential storage
         old_session_dict = _read_session_cache(old_session_file_path)
         for key, value in six.iteritems(old_session_dict):
             if key == "<mostRecent>":

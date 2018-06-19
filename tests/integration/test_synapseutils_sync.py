@@ -186,7 +186,7 @@ def test_syncFromSynapse_Links():
 
     # Create a Folder in Project
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-    # Create a Folder hiearchy in folder_entity
+    # Create a Folder hierarchy in folder_entity
     inner_folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
 
     second_folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))

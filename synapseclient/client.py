@@ -330,7 +330,7 @@ class Synapse(object):
         :param apiKey:     Base64 encoded Synapse API key
         :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the following fields: email, password, apiKey
         :param rememberMe: Whether the authentication information should be cached in your operating system's credential storage.
-        **GNOME Keyring** (recommended) or **KWallet** is recommonded to be installed for credential storage on **Linux** systems.
+        **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on **Linux** systems.
         If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for the current user only (chmod 600).
         On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
         To install GNOME Keyring on Ubuntu::
@@ -2243,7 +2243,7 @@ class Synapse(object):
 
         Example::
 
-            evaluation = syn.getEvalutation(2005090)
+            evaluation = syn.getEvaluation(2005090)
         """
 
         evaluation_id = id_of(id)
@@ -2365,7 +2365,7 @@ class Synapse(object):
         entity_version = entity.get('versionNumber', 1)
         entity_id = entity['id']
 
-        ## if teanName given, find matching team object
+        ## if teamName given, find matching team object
         if isinstance(team, six.string_types):
             matching_teams = list(self._findTeam(team))
             if len(matching_teams)>0:
@@ -3019,7 +3019,7 @@ class Synapse(object):
                 pass
             elif result_type == concrete_types.ENTITY_UPDATE_RESULTS:
                 # TODO: output full response to error file when the logging JIRA issue gets pulled in
-                sucessful_updates = []
+                successful_updates = []
                 failed_updates = []
                 for update_result in result['updateResults']:
                     failure_code = update_result.get('failureCode')
@@ -3028,7 +3028,7 @@ class Synapse(object):
                     if failure_code or failure_message:
                         failed_updates.append(update_result)
                     else:
-                        sucessful_updates.append(entity_id)
+                        successful_updates.append(entity_id)
 
                 if failed_updates:
                     raise SynapseError("Not all of the entities were updated."
@@ -3345,7 +3345,7 @@ class Synapse(object):
                       'viewType': view_type}
         columns = []
         next_page_token = None
-        while True: # why does python not havea do-while loop??????????
+        while True:
             next_page_query = '' if next_page_token is None else '?nextPageToken=%s' % next_page_token
             response = self.restPOST('/column/view/scope', json.dumps(view_scope))
             columns.extend(Column(**column) for column in response['results'])

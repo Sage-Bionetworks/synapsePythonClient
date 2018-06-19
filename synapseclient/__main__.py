@@ -243,7 +243,7 @@ def associate(args, syn):
     if os.path.isfile(args.path):
         files = [args.path]
     if len(files) == 0:
-        raise Exception(("The path specified is innacurate. "
+        raise Exception(("The path specified is inaccurate. "
                          "If it is a directory try using 'associate -r'"))
     for fp in files:
         try:
@@ -627,7 +627,7 @@ def build_parser():
 
     parser_associate = subparsers.add_parser('associate',
             help=('Associate local files with the files stored in Synapse so that calls to '
-                  '"synapse get" and "synapse show" don\'t redownload the files but use the '
+                  '"synapse get" and "synapse show" don\'t re-download the files but use the '
                   'already existing file.'))
     parser_associate.add_argument('path', metavar='path', type=str,
             help='local file path')

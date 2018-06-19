@@ -3,8 +3,8 @@
 Overview
 ********
 
-The ``synapseutils`` package provides both higher level functions as well as utilites for 
-interacting with `Synapse <http://www.synapse.org>`_.  These funtionalities include:
+The ``synapseutils`` package provides both higher level functions as well as utilities for
+interacting with `Synapse <http://www.synapse.org>`_.  These functionalities include:
 
 - :py:func:`copy.copy`
 - :py:func:`copy.copyWiki`
