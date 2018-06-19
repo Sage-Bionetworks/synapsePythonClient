@@ -743,9 +743,9 @@ class EntityViewSchema(SchemaBase):
 
         #set default values after constructor so we don't overwrite the values defined in properties
         #using .get() because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
-        if self.get('type') == None:
+        if self.get('type') is None:
             self.type = 'file'
-        if self.get('scopeIds') == None:
+        if self.get('scopeIds') is None:
             self.scopeIds = []
 
         #add the scopes last so that we can append the passed in scopes to those defined in properties

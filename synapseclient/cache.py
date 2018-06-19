@@ -306,7 +306,7 @@ class Cache():
             ## exist and n > None evaluates to True in python 2.7(wtf?). I'm guessing it's
             ## OK to purge directories in the cache that have no .cacheMap file
             last_modified_time = _get_modified_time(os.path.join(cache_dir, self.cache_map_file_name))
-            if last_modified_time == None or before_date > last_modified_time:
+            if last_modified_time is None or before_date > last_modified_time:
                 if dry_run:
                     print(cache_dir)
                 else:

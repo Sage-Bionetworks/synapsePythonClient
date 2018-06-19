@@ -2499,7 +2499,7 @@ class Synapse(object):
         evaluation_id = id_of(evaluation)
         uri = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
 
-        if status != None:
+        if status is not None:
 #            if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
 #                raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
             uri += "?status=%s" % status
@@ -2538,7 +2538,7 @@ class Synapse(object):
 
         evaluation_id = id_of(evaluation)
         url = "/evaluation/%s/submission/bundle%s" % (evaluation_id, "" if myOwn else "/all")
-        if status != None:
+        if status is not None:
             url += "?status=%s" % status
 
         return self._GET_paginated(url, limit=limit, offset=offset)
@@ -3562,7 +3562,7 @@ class Synapse(object):
     def _build_uri_and_headers(self, uri, endpoint=None, headers=None):
         """Returns a tuple of the URI and headers to request with."""
 
-        if endpoint == None:
+        if endpoint is None:
             endpoint = self.repoEndpoint
 
         # Check to see if the URI is incomplete (i.e. a Synapse URL)
