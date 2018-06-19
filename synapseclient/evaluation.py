@@ -126,37 +126,33 @@ class Evaluation(DictObject):
 
     @classmethod
     def getByNameURI(cls, name):
-        return '/evaluation/name/%s' %name
-    
-    
+        return '/evaluation/name/%s' % name
+
     @classmethod
     def getURI(cls, id):
-        return '/evaluation/%s' %id
-
+        return '/evaluation/%s' % id
 
     def __init__(self, **kwargs):
         kwargs['status'] = kwargs.get('status', 'OPEN')
         kwargs['contentSource'] = kwargs.get('contentSource', '')
-        if  kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
+        if kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
             raise ValueError('Evaluation Status must be one of [OPEN, PLANNED, CLOSED, COMPLETED]')
-        if not kwargs['contentSource'].startswith('syn'):   #Verify that synapse Id given
-            raise ValueError('The "contentSource" parameter must be specified as a Synapse Entity when creating an Evaluation')
+        if not kwargs['contentSource'].startswith('syn'):  # Verify that synapse Id given
+            raise ValueError('The "contentSource" parameter must be specified as a Synapse Entity when creating an'
+                             ' Evaluation')
         super(Evaluation, self).__init__(kwargs)
-
 
     def postURI(self):
         return '/evaluation'
 
-        
     def putURI(self):
-        return '/evaluation/%s' %self.id
+        return '/evaluation/%s' % self.id
 
-        
     def deleteURI(self):
-        return '/evaluation/%s' %self.id
+        return '/evaluation/%s' % self.id
 
     def getACLURI(self):
-        return '/evaluation/%s/acl' %self.id
+        return '/evaluation/%s/acl' % self.id
 
     def putACLURI(self):
         return '/evaluation/acl'
@@ -175,8 +171,7 @@ class Submission(DictObject):
 
     @classmethod
     def getURI(cls, id):
-        return '/evaluation/submission/%s' %id
-
+        return '/evaluation/submission/%s' % id
 
     def __init__(self, **kwargs):
         if not ('evaluationId' in kwargs and 
@@ -186,17 +181,14 @@ class Submission(DictObject):
 
         super(Submission, self).__init__(kwargs)
 
-        
     def postURI(self):
-        return '/evaluation/submission?etag=%s' %self.etag
+        return '/evaluation/submission?etag=%s' % self.etag
 
-        
     def putURI(self):
-        return '/evaluation/submission/%s' %self.id
+        return '/evaluation/submission/%s' % self.id
 
-        
     def deleteURI(self):
-        return '/evaluation/submission/%s' %self.id
+        return '/evaluation/submission/%s' % self.id
 
 
 class SubmissionStatus(DictObject):
@@ -209,22 +201,17 @@ class SubmissionStatus(DictObject):
 
     @classmethod
     def getURI(cls, id):
-        return '/evaluation/submission/%s/status' %id
-
+        return '/evaluation/submission/%s/status' % id
 
     def __init__(self, **kwargs):
         super(SubmissionStatus, self).__init__(kwargs)
 
-        
     def postURI(self):
-        return '/evaluation/submission/%s/status' %self.id
+        return '/evaluation/submission/%s/status' % self.id
 
-        
     def putURI(self):
-        return '/evaluation/submission/%s/status' %self.id
+        return '/evaluation/submission/%s/status' % self.id
 
-        
     def deleteURI(self):
-        return '/evaluation/submission/%s/status' %self.id
-        
-        
+        return '/evaluation/submission/%s/status' % self.id
+

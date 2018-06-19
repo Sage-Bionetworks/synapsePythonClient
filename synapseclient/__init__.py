@@ -27,7 +27,8 @@ and `the Python client <http://docs.synapse.org/python/>`_.
 Good example projects are:
 
 - `TCGA Pan-cancer (syn300013) <https://www.synapse.org/#!Synapse:syn300013>`_
-- `Development of a Prognostic Model for Breast Cancer Survival in an Open Challenge Environment (syn1721874) <https://www.synapse.org/#!Synapse:syn1721874>`_
+- `Development of a Prognostic Model for Breast Cancer Survival in an Open Challenge Environment (syn1721874)
+ <https://www.synapse.org/#!Synapse:syn1721874>`_
 - `Demo projects (syn1899339) <https://www.synapse.org/#!Synapse:syn1899339>`_
 
 Installation
@@ -42,17 +43,20 @@ The dependencies on pandas and pysftp are optional. The Synapse :py:mod:`synapse
 feature integrates with Pandas. Support for sftp is required for users of SFTP file storage.
 Both require native libraries to be compiled or installed separately from prebuilt binaries.
 
-Source code and development versions are `available on Github <https://github.com/Sage-Bionetworks/synapsePythonClient>`_.
+Source code and development versions are `available on Github
+ <https://github.com/Sage-Bionetworks/synapsePythonClient>`_.
 Installing from source::
 
     git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
     cd synapsePythonClient
 
-You can stay on the master branch to get the latest stable release or check out the develop branch or a tagged revision::
+You can stay on the master branch to get the latest stable release or check out the develop branch or a tagged
+ revision::
 
     git checkout <branch or tag>
 
-Next, either install the package in the site-packages directory ``python setup.py install`` or ``python setup.py develop`` to make the installation follow the head without having to reinstall::
+Next, either install the package in the site-packages directory ``python setup.py install`` or
+ ``python setup.py develop`` to make the installation follow the head without having to reinstall::
 
     python setup.py <install or develop>
 
@@ -226,7 +230,8 @@ See:
 Querying
 ========
 
-Synapse supports a `SQL-like query language <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_::
+Synapse supports a `SQL-like query language
+ <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_::
 
     results = syn.query('SELECT id, name FROM entity WHERE parentId=="syn1899495"')
 
@@ -297,7 +302,8 @@ Getting updates
 ===============
 
 To get information about new versions of the client including development versions
-see `synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_ and `synapseclient.release_notes() <Versions.html#synapseclient.version_check.release_notes>`_.
+see `synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_ and
+ `synapseclient.release_notes() <Versions.html#synapseclient.version_check.release_notes>`_.
 
 """
 
@@ -307,7 +313,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import deprecation
-deprecation.message_location='top'
+deprecation.message_location = 'top'
 
 from .client import Synapse, login
 from .client import PUBLIC, AUTHENTICATED_USERS
@@ -326,10 +332,11 @@ from .version_check import release_notes
 import json
 from . import custom_json
 import pkg_resources
-__version__ = json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient').decode())['latestVersion']
+__version__ = json.loads(pkg_resources.resource_string('synapseclient',
+                                                       'synapsePythonClient').decode())['latestVersion']
 
 import requests
-USER_AGENT = {'User-Agent':'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
+USER_AGENT = {'User-Agent': 'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
 from . import logging_setup as __logingsetup
 from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME

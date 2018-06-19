@@ -35,7 +35,8 @@ Alternatively, you can build an activity up piecemeal::
 
     act = Activity(name='clustering', description='whizzy clustering')
     act.used(['syn12345', 'syn12346'])
-    act.executed('https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/develop/tests/unit/unit_test_client.py')
+    act.executed(
+        'https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/develop/tests/unit/unit_test_client.py')
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Storing entities with provenance
@@ -52,8 +53,8 @@ applied to the data stored in syn1234 and syn1235.
 Recording data source
 ~~~~~~~~~~~~~~~~~~~~~
 
-The :py:meth:`synapseclient.Synapse.store` has shortcuts for specifying the used and executed lists directly. For example, when
-storing a data entity, it's a good idea to record its source::
+The :py:meth:`synapseclient.Synapse.store` has shortcuts for specifying the used and executed lists directly.
+For example, when storing a data entity, it's a good idea to record its source::
 
     excellent_data = syn.store(excellent_data,
                                activityName='data-r-us'
@@ -118,7 +119,7 @@ def is_used_url(x):
 def _get_any_bad_args(badargs, dictionary):
     """Returns the intersection of 'badargs' and the non-Null keys of 'dictionary'."""
 
-    return list(illegal for illegal in badargs \
+    return list(illegal for illegal in badargs
                 if illegal in dictionary and dictionary[illegal] is not None)
 
 
@@ -126,11 +127,11 @@ def _raise_incorrect_used_usage(badargs, message):
     """Raises an informative exception about Activity.used()."""
 
     if any(badargs):
-        raise SynapseMalformedEntityError("The parameter%s '%s' %s not allowed in combination with a %s." \
-                % ("s" if len(badargs) > 1 else "", \
-                   badargs, \
-                   "are" if len(badargs) > 1 else "is", \
-                   message))
+        raise SynapseMalformedEntityError("The parameter%s '%s' %s not allowed in combination with a %s."
+                                          % ("s" if len(badargs) > 1 else "",
+                                             badargs,
+                                             "are" if len(badargs) > 1 else "is",
+                                             message))
 
 
 class Activity(dict):
@@ -140,7 +141,9 @@ class Activity(dict):
     :param name:        name of the Activity
     :param description: a short text description of the Activity
     :param used:        Either a list of:
-                        - `reference objects <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Reference.html>`_ (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``)
+                        - `reference objects
+                         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Reference.html>`_
+                         (e.g. ``[{'targetId':'syn123456', 'targetVersionNumber':1}]``)
                         - a list of Synapse Entities or Entity IDs
                         - a list of URL's
     :param executed:    A code resource that was executed to generate the Entity.
@@ -148,11 +151,12 @@ class Activity(dict):
                         with fields 'name', 'description' and 'used'
                         (a list of reference objects)
 
-    See also: `Provenance in Synapse <https://sagebionetworks.jira.com/wiki/display/PLFM/Analysis+Provenance+in+Synapse>`_
-        and the `W3C's provenance ontology <http://www.w3.org/TR/prov-o/>`_
+    See also: `Provenance in Synapse
+     <https://sagebionetworks.jira.com/wiki/display/PLFM/Analysis+Provenance+in+Synapse>`_
+     and the `W3C's provenance ontology <http://www.w3.org/TR/prov-o/>`_
     """
 
-    ## TODO: make constructors from JSON consistent across objects
+    # TODO: make constructors from JSON consistent across objects
     def __init__(self, name=None, description=None, used=None, executed=None, data={}):
         super(Activity, self).__init__(data)
         if 'used' not in self:
@@ -166,7 +170,6 @@ class Activity(dict):
             self.used(used)
         if executed is not None:
             self.executed(executed)
-
 
     def used(self, target=None, targetVersion=None, wasExecuted=None, url=None, name=None):
         """
@@ -243,40 +246,43 @@ class Activity(dict):
             badargs = _get_any_bad_args(['url', 'name'], locals())
             _raise_incorrect_used_usage(badargs, 'Synapse entity')
 
-            reference = {'targetId':target['id']}
+            reference = {'targetId': target['id']}
             if 'versionNumber' in target:
                 reference['targetVersionNumber'] = target['versionNumber']
             if targetVersion:
                 reference['targetVersionNumber'] = int(targetVersion)
-            resource = {'reference':reference, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
+            resource = {'reference': reference,
+                        'concreteType': 'org.sagebionetworks.repo.model.provenance.UsedEntity'}
         # -- URL parameter
         elif url:
             badargs = _get_any_bad_args(['target', 'targetVersion'], locals())
             _raise_incorrect_used_usage(badargs, 'URL')
 
-            resource = {'url':url, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
+            resource = {'url': url, 'name': name if name else target,
+                        'concreteType': 'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
         # -- URL as a string
         elif is_url(target):
             badargs = _get_any_bad_args(['targetVersion'], locals())
             _raise_incorrect_used_usage(badargs, 'URL')
-            resource = {'url':target, 'name':name if name else target, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedURL'}
+            resource = {'url': target, 'name': name if name else target,
+                        'concreteType': 'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
         # -- Synapse Entity ID (assuming the string is an ID)
         elif isinstance(target, six.string_types):
             badargs = _get_any_bad_args(['url', 'name'], locals())
             _raise_incorrect_used_usage(badargs, 'Synapse entity')            
-            vals = target.split('.')   #Handle synapseIds of from syn234.4
+            vals = target.split('.')  # Handle synapseIds of from syn234.4
             if not is_synapse_id(vals[0]):
-                raise ValueError('%s is not a valid Synapse id' %target)
-            if len(vals)==2:
-                if targetVersion and int(targetVersion)!=int(vals[1]):
-                    raise ValueError('Two conflicting versions for %s were specified' %target)
+                raise ValueError('%s is not a valid Synapse id' % target)
+            if len(vals) == 2:
+                if targetVersion and int(targetVersion) != int(vals[1]):
+                    raise ValueError('Two conflicting versions for %s were specified' % target)
                 targetVersion = int(vals[1])
-            reference = {'targetId':vals[0]}
+            reference = {'targetId': vals[0]}
             if targetVersion:
                 reference['targetVersionNumber'] = int(targetVersion)
-            resource = {'reference':reference, 'concreteType':'org.sagebionetworks.repo.model.provenance.UsedEntity'}
+            resource = {'reference': reference, 'concreteType': 'org.sagebionetworks.repo.model.provenance.UsedEntity'}
 
         else:
             raise SynapseError('Unexpected parameters in call to Activity.used().')
@@ -293,7 +299,6 @@ class Activity(dict):
         # Add the used resource to the activity
         self['used'].append(resource)
 
-
     def usedEntity(self, target, targetVersion=None, wasExecuted=False):
         """
         **Deprecated**
@@ -303,7 +308,6 @@ class Activity(dict):
 
         self.used(target=target, targetVersion=targetVersion, wasExecuted=wasExecuted)
 
-
     def usedURL(self, url, name=None, wasExecuted=False):
         """
         **Deprecated**
@@ -312,7 +316,6 @@ class Activity(dict):
         """
         self.used(url=url, name=name, wasExecuted=wasExecuted)
 
-
     def executed(self, target=None, targetVersion=None, url=None, name=None):
         """
         Add a code resource that was executed during the activity.
@@ -320,34 +323,28 @@ class Activity(dict):
         """
         self.used(target=target, targetVersion=targetVersion, url=url, name=name, wasExecuted=True)
 
-
     def _getStringList(self, wasExecuted=True):
         usedList = []
-        for source in [source for source in self['used'] if source.get('wasExecuted', False)==wasExecuted]:
+        for source in [source for source in self['used'] if source.get('wasExecuted', False) == wasExecuted]:
             if source['concreteType'].endswith('UsedURL'):
                 if source.get('name'):
                     usedList.append(source.get('name'))
                 else:
                     usedList.append(source.get('url'))
-            else: #It is an entity for now
+            else:  # It is an entity for now
                 tmpstr = source['reference']['targetId']
                 if 'targetVersionNumber' in source['reference']:
                     tmpstr += '.%i' % source['reference']['targetVersionNumber']
                 usedList.append(tmpstr)
         return usedList
 
-
     def _getExecutedStringList(self):
         return self._getStringList(wasExecuted=True)
-
 
     def _getUsedStringList(self):
         return self._getStringList(wasExecuted=False)
 
-
     def __str__(self):
-        #user = syn.getUserProfile(self['createdBy'])
-        #str = '  Added by: %s %s (%s)' %(user['firstName'], user['lastName'], user['userName']))
         str = '%s\n  Executed:\n' % self.get('name', '')
         str += '\n'.join(self._getExecutedStringList())
         str += '  Used:\n'
