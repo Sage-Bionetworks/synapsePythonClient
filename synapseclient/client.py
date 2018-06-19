@@ -2008,7 +2008,7 @@ class Synapse(object):
 
                     # verify that the file was completely downloaded and retry if it is not complete
                     if toBeTransferred > 0 and transferred < toBeTransferred:
-                        self.logger.warn("\nRetrying download because the connection ended early.\n")
+                        self.logger.warning("\nRetrying download because the connection ended early.\n")
                         continue
 
                     actual_md5 = sig.hexdigest()

@@ -298,7 +298,7 @@ def show(args, syn):
 
 
 def delete(args, syn):
-	if args.version:
+    if args.version:
 	    syn.delete(args.id, args.version)
 	    print('Deleted entity %s, version %s' % (args.id, args.version))
 	else:
