@@ -511,8 +511,8 @@ def itersubclasses(cls, _seen=None):
         if sub not in _seen:
             _seen.add(sub)
             yield sub
-            for sub in itersubclasses(sub, _seen):
-                yield sub
+            for inner_sub in itersubclasses(sub, _seen):
+                yield inner_sub
 
 
 def normalize_whitespace(s):
