@@ -606,7 +606,7 @@ def query_limit_and_offset(query, hard_limit=1000):
     query = query[:len(tempQueryStr)].strip()
 
     # Continue querying until the entire query has been fetched (or crash out)
-    limit = min(options.get('limit',hard_limit), hard_limit)
+    limit = min(options.get('limit', hard_limit), hard_limit)
     offset = options.get('offset', 1)
 
     return query, limit, offset
@@ -679,7 +679,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix='', postfix='', i
     nbytes = humanizeBytes(transferred) if isBytes else transferred
     if toBeTransferred > 0:
         outOf = "/%s" % (humanizeBytes(toBeTransferred) if isBytes else toBeTransferred)
-        percentage = "%4.2f%%"%(progress*100)
+        percentage = "%4.2f%%" % (progress*100)
     else:
         outOf = ""
         percentage = ""

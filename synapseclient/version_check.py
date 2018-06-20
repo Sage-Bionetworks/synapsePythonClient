@@ -29,9 +29,9 @@ import synapseclient
 import sys
 
 
-_VERSION_URL     = 'http://versions.synapse.sagebase.org/synapsePythonClient'
+_VERSION_URL = 'http://versions.synapse.sagebase.org/synapsePythonClient'
 _DEV_VERSION_URL = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient'
-_GITHUB_URL      = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+_GITHUB_URL = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
 
 
 def version_check(current_version=None, version_url=_VERSION_URL, check_for_point_releases=False):
@@ -64,7 +64,8 @@ def version_check(current_version=None, version_url=_VERSION_URL, check_for_poin
         levels = 3 if check_for_point_releases else 2
 
         # Compare with latest version
-        if _version_tuple(current_version, levels=levels) < _version_tuple(version_info['latestVersion'], levels=levels):
+        if _version_tuple(current_version, levels=levels) < _version_tuple(version_info['latestVersion'],
+                                                                           levels=levels):
             sys.stderr.write("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) "
                              "is available. Your version (%s) can be upgraded by typing:\n"
                              "    pip install --upgrade synapseclient\n\n" %
@@ -100,10 +101,12 @@ def check_for_updates():
     dev_version_info = _get_version_info(_DEV_VERSION_URL)
     sys.stderr.write('latest development version: %s\n' % dev_version_info['latestVersion'])
 
-    if _version_tuple(synapseclient.__version__, levels=3) < _version_tuple(release_version_info['latestVersion'], levels=3):
+    if _version_tuple(synapseclient.__version__, levels=3) < _version_tuple(release_version_info['latestVersion'],
+                                                                            levels=3):
         print(("\nUPGRADE AVAILABLE\n\nA more recent version of the Synapse Client (%s) is available. "
                "Your version (%s) can be upgraded by typing:\n"
-               "    pip install --upgrade synapseclient\n\n") % (release_version_info['latestVersion'], synapseclient.__version__,))
+               "    pip install --upgrade synapseclient\n\n") % (release_version_info['latestVersion'],
+                                                                 synapseclient.__version__,))
     else:
         sys.stderr.write('\nYour Synapse client is up to date!\n')
 
@@ -137,7 +140,7 @@ def _version_tuple(version, levels=2):
         ('0', '5')
     """
     v = _strip_dev_suffix(version).split('.')
-    v = v[0:min(len(v),levels)]
+    v = v[0:min(len(v), levels)]
     if len(v) < levels:
         v = v + ['0'] * (levels-len(v))
     return tuple(v)
@@ -147,7 +150,7 @@ def _get_version_info(version_url=_VERSION_URL):
     if version_url is None:
         return json.loads(pkg_resources.resource_string('synapseclient', 'synapsePythonClient').decode())
     else:
-        headers = { 'Accept': 'application/json; charset=UTF-8' }
+        headers = {'Accept': 'application/json; charset=UTF-8'}
         headers.update(synapseclient.USER_AGENT)
         return requests.get(version_url, headers=headers).json()
 

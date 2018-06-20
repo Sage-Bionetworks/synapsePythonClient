@@ -621,8 +621,7 @@ class File(Entity, Versionable):
         self.__dict__['_file_handle'] = fh_dict
 
         if file_handle_update_dict is not None\
-                and file_handle_update_dict.get('concreteType') \
-                        == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
+                and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
                 and utils.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
             self.__dict__['synapseStore'] = False
 
@@ -640,7 +639,7 @@ class File(Entity, Versionable):
             expand_and_convert_to_URL = lambda path: utils.as_url(os.path.expandvars(os.path.expanduser(path)))
             # hacky solution to allowing immediate switching into a ExternalFileHandle pointing to the current path
             # yes, there is boolean zen but I feel like it is easier to read/understand this way
-            if key == 'synapseStore' and value is False and self['synapseStore'] == True \
+            if key == 'synapseStore' and value is False and self['synapseStore'] is True \
                     and utils.caller_module_name(inspect.currentframe()) != 'client':
                 self['externalURL'] = expand_and_convert_to_URL(self['path'])
 
