@@ -113,7 +113,7 @@ def _raise_for_status(response, verbose=False):
         message = '%s Client Error: %s' % (response.status_code, response.reason)
 
     elif 500 <= response.status_code < 600:
-        # TODOS:
+        # TODOs:
         # 500: 'internal_server_error'
         # 501: 'not_implemented'
         # 502: 'bad_gateway'

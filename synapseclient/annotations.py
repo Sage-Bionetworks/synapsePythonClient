@@ -3,8 +3,8 @@
 Annotations
 ***********
 
-Annotations are arbitrary metadata attached to Synapse entities. They can be
-accessed like ordinary object properties or like dictionary keys::
+Annotations are arbitrary metadata attached to Synapse entities. They can be accessed like ordinary object properties
+or like dictionary keys::
 
     entity.my_annotation = 'This is one way to do it'
     entity['other_annotation'] = 'This is another'
@@ -37,12 +37,11 @@ Data sources are best recorded using Synapse's `provenance <Activity.html>`_ too
 Implementation details
 ~~~~~~~~~~~~~~~~~~~~~~
 
-In Synapse, entities have both properties and annotations. Properties are used by
-the system, whereas annotations are completely user defined. In the Python client,
-we try to present this situation as a normal object, with one set of properties.
+In Synapse, entities have both properties and annotations. Properties are used by the system, whereas annotations are
+completely user defined. In the Python client, we try to present this situation as a normal object, with one set of
+properties.
 
-For more on the implementation and a few gotchas, see the documentation on
-:py:mod:`synapseclient.entity`.
+For more on the implementation and a few gotchas, see the documentation on :py:mod:`synapseclient.entity`.
 
 See also:
 
@@ -155,13 +154,13 @@ def is_submission_status_annotations(annotations):
 
 def to_submission_status_annotations(annotations, is_private=True):
     """
-    Converts a normal dictionary to the format used to annotate submission
-    statuses, which is different from the format used to annotate entities.
+    Converts a normal dictionary to the format used to annotate submission statuses, which is different from the format
+    used to annotate entities.
 
     :param annotations: A normal Python dictionary whose values are strings, floats, ints or doubles
 
     :param is_private: Set privacy on all annotations at once. These can be set individually using
-     :py:func:`set_privacy`.
+                       :py:func:`set_privacy`.
 
     Example::
 
@@ -180,9 +179,7 @@ def to_submission_status_annotations(annotations, is_private=True):
         submission_status = syn.store(submission_status)
 
 
-    Synapse categorizes these annotations by: stringAnnos, doubleAnnos,
-    longAnnos. If date or blob annotations are supported, they are not
-    `documented <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
+    Synapse categorizes these annotations by: stringAnnos, doubleAnnos, longAnnos.
     """
     if is_submission_status_annotations(annotations):
         return annotations
@@ -233,10 +230,10 @@ def from_submission_status_annotations(annotations):
 
 def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'doubleAnnos', 'stringAnnos']):
     """
-    Set privacy of individual annotations, where annotations are in the format used by Synapse
-    SubmissionStatus objects. See the `Annotations documentation
-     <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
-    and the docs regarding `querying annotations <http://docs.synapse.org/rest/GET/evaluation/submission/query.html>`_.
+    Set privacy of individual annotations, where annotations are in the format used by Synapse SubmissionStatus objects.
+    See the `Annotations documentation \
+    <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_ and the docs regarding
+    `querying annotations <http://docs.synapse.org/rest/GET/evaluation/submission/query.html>`_.
 
     :param annotations: Annotations that have already been converted to Synapse format using
                         :py:func:`to_submission_status_annotations`.
@@ -260,16 +257,15 @@ def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'do
 
 class Annotations(dict):
     """
-    Represent Synapse Entity annotations as a flat dictionary with the system
-    assigned properties id, etag, creationDate and uri as object attributes.
+    Represent Synapse Entity annotations as a flat dictionary with the system assigned properties id, etag, creationDate
+    and uri as object attributes.
     """
     system_properties = ['id', 'etag', 'creationDate', 'uri']
 
     def __init__(self, *args, **kwargs):
         """
-        Create an Annotations object taking key value pairs from a dictionary or
-        from keyword arguments. System properties id, etag, creationDate and uri
-        become attributes of the object.
+        Create an Annotations object taking key value pairs from a dictionary or from keyword arguments.
+        System properties id, etag, creationDate and uri become attributes of the object.
         """
         # make sure all system properties exist
         for key in Annotations.system_properties:

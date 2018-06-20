@@ -8,7 +8,8 @@ from six import add_metaclass
 from datetime import datetime as Datetime
 from .utils import datetime_to_iso
 
-#monkey-patching JSONEncoder from https://stackoverflow.com/questions/18478287/making-object-json-serializable-with-regular-encoder
+# monkey-patching JSONEncoder from
+# https://stackoverflow.com/questions/18478287/making-object-json-serializable-with-regular-encoder
 def _json_encoder(self, obj):
     if isinstance(obj,Datetime):
         # backend takes date string format of "yy-M-d H:m:s.SSS" with the time zone being UTC

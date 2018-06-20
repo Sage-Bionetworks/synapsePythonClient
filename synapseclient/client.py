@@ -3,9 +3,8 @@
 Synapse Client
 **************
 
-The `Synapse` object encapsulates a connection to the Synapse service and is
-used for building projects, uploading and retrieving data, and recording
-provenance of data analysis.
+The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
+retrieving data, and recording provenance of data analysis.
 
 ~~~~~
 Login
@@ -120,8 +119,7 @@ REDIRECT_LIMIT = 5
 
 
 # Defines the standard retry policy applied to the rest methods
-# The retry period needs to span a minute because sending
-# messages is limited to 10 per 60 seconds.
+# The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
 STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
                          "retry_errors": ["proxy error", "slow down", "timeout", "timed out",
                                           "connection reset by peer", "unknown ssl protocol error",
@@ -327,23 +325,21 @@ class Synapse(object):
 
         #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
 
-        :param email:   Synapse user name (or an email address associated with a Synapse account)
-        :param password:   password
-        :param apiKey:     Base64 encoded Synapse API key
+        :param email:        Synapse user name (or an email address associated with a Synapse account)
+        :param password:     password
+        :param apiKey:       Base64 encoded Synapse API key
         :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the
-         following fields: email, password, apiKey
-        :param rememberMe: Whether the authentication information should be cached in your operating system's
-         credential storage.
-         **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
-         **Linux** systems.
-         If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
-         the current user only (chmod 600).
-         On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
-         To install GNOME Keyring on Ubuntu::
-
+                             following fields: email, password, apiKey
+        :param rememberMe:   Whether the authentication information should be cached in your operating system's
+                             credential storage.
+        **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
+        **Linux** systems.
+        If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
+        the current user only (chmod 600).
+        On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
+        To install GNOME Keyring on Ubuntu::
 
             sudo apt-get install gnome-keyring
-
 
             sudo apt-get install python-dbus  #(for Python 2 installed via apt-get)
             OR
@@ -352,7 +348,7 @@ class Synapse(object):
             sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python or vitualenv)
             sudo pip install dbus-python #(may take a while to compile C code)
         If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before
-         running your Python session::
+        running your Python session::
 
             dbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)
             echo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon -- unlock
@@ -480,9 +476,9 @@ class Synapse(object):
         Retrieves information on the current user if 'id' is omitted.
         :param id:           The 'userId' (aka 'ownerId') of a user or the userName
         :param sessionToken: The session token to use to find the user profile
-        :param refresh:  If set to True will always fetch the data from Synape otherwise
-                         will use cached information
+        :param refresh:      If set to True will always fetch the data from Synape otherwise will use cached information
         :returns: The user profile for the user of interest.
+
         Example::
             my_profile = syn.getUserProfile()
             freds_profile = syn.getUserProfile('fredcommo')
@@ -516,7 +512,7 @@ class Synapse(object):
         Find users or groups by name or email.
 
         :returns: A list of userGroupHeader objects with fields displayName, email, firstName, lastName, isIndividual,
-         ownerId
+                  ownerId
 
         Example::
 
@@ -574,9 +570,8 @@ class Synapse(object):
         """
         Gets a Synapse entity from the repository service.
 
-        :param entity:           A Synapse ID, a Synapse Entity object,
-                                 a plain dictionary in which 'id' maps to a Synapse ID or
-                                 a local file that is stored in Synapse (found by hash of file)
+        :param entity:           A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a
+                                 Synapse ID or a local file that is stored in Synapse (found by the file MD5)
         :param version:          The specific version to get.
                                  Defaults to the most recent version.
         :param downloadFile:     Whether associated files(s) should be downloaded.
@@ -588,26 +583,25 @@ class Synapse(object):
         :param ifcollision:      Determines how to handle file collisions.
                                  May be "overwrite.local", "keep.local", or "keep.both".
                                  Defaults to "keep.both".
-        :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is
-                                 specified as a local file.  That is, if the file is stored in multiple
-                                 locations in Synapse only the ones in the specified folder/project will be
-                                 returned.
+        :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is specified as a local
+                                 file.  That is, if the file is stored in multiple locations in Synapse only the ones
+                                 in the specified folder/project will be returned.
 
         :returns: A new Synapse Entity object of the appropriate type
 
         Example::
 
-            ## download file into cache
+            # download file into cache
             entity = syn.get('syn1906479')
             print(entity.name)
             print(entity.path)
 
-            ## download file into current working directory
+            # download file into current working directory
             entity = syn.get('syn1906479', downloadLocation='.')
             print(entity.name)
             print(entity.path)
 
-           ## Determine the provenance of a localy stored file as indicated in Synapse
+           # Determine the provenance of a locally stored file as indicated in Synapse
            entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
            print(syn.getProvenance(entity))
 
@@ -644,8 +638,8 @@ class Synapse(object):
         Gets a Synapse entityBundle based on the md5 of a local file
         See :py:func:`synapseclient.Synapse.get`.
 
-        :param filepath: path to local file
-        :param limitSearch:   Limits the places in Synapse where the file is searched for.
+        :param filepath:        path to local file
+        :param limitSearch:     Limits the places in Synapse where the file is searched for.
         """
         results = self.restGET('/entity/md5/%s' % utils.md5_for_file(filepath).hexdigest())['results']
         if limitSearch is not None:
@@ -674,10 +668,8 @@ class Synapse(object):
         """
         Move a Synapse entity to a new container.
 
-        :param entity:           A Synapse ID, a Synapse Entity object, or
-                                 a local file that is stored in Synapse
-        :param new_parent:       The new parent container (Folder or Project)
-                                 to which the entity should be moved.
+        :param entity:           A Synapse ID, a Synapse Entity object, or a local file that is stored in Synapse
+        :param new_parent:       The new parent container (Folder or Project) to which the entity should be moved.
 
         :returns: The Synapse Entity object that has been moved.
 
@@ -761,8 +753,8 @@ class Synapse(object):
         entity.cacheDir = None
 
         # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
-        # this location could be either in .synapseCache
-        # or a user specified location to which the user previously downloaded the file
+        # this location could be either in .synapseCache or a user specified location to which the user previously
+        # downloaded the file
         cached_file_path = self.cache.get(entity.dataFileHandleId, downloadLocation)
 
         # location in .synapseCache where the file would be corresponding to its FileHandleId
@@ -843,14 +835,13 @@ class Synapse(object):
 
     def store(self, obj, **kwargs):
         """
-        Creates a new Entity or updates an existing Entity,
-        uploading any files in the process.
+        Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
         :param obj:                 A Synapse Entity, Evaluation, or Wiki
-        :param used:                The Entity, Synapse ID, or URL
-                                    used to create the object (can also be a list of these)
-        :param executed:            The Entity, Synapse ID, or URL representing code executed
-                                    to create the object (can also be a list of these)
+        :param used:                The Entity, Synapse ID, or URL used to create the object (can also be a list of
+                                    these)
+        :param executed:            The Entity, Synapse ID, or URL representing code executed to create the object
+                                    (can also be a list of these)
         :param activity:            Activity object specifying the user's provenance
         :param activityName:        Activity name to be used in conjunction with *used* and *executed*.
         :param activityDescription: Activity description to be used in conjunction with *used* and *executed*.
@@ -859,11 +850,10 @@ class Synapse(object):
         :param forceVersion:        Indicates whether the method should increment the version of the object even if
                                     nothing has changed.  Defaults to True.
         :param versionLabel:        Arbitrary string used to label the version.
-        :param isRestricted:        If set to true, an email will be sent to the Synapse access control team
-                                    to start the process of adding terms-of-use
-                                    or review board approval for this entity.
-                                    You will be contacted with regards to the specific data being restricted
-                                    and the requirements of access.
+        :param isRestricted:        If set to true, an email will be sent to the Synapse access control team to start
+                                    the process of adding terms-of-use or review board approval for this entity.
+                                    You will be contacted with regards to the specific data being restricted and the
+                                    requirements of access.
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
@@ -878,8 +868,8 @@ class Synapse(object):
 
             from synapseclient import File, Activity
 
-            ## A synapse entity *syn1906480* contains data
-            ## entity *syn1917825* contains code
+            # A synapse entity *syn1906480* contains data
+            # entity *syn1917825* contains code
             activity = Activity(
                 'Fancy Processing',
                 description='No seriously, really fancy processing',
@@ -1079,9 +1069,9 @@ class Synapse(object):
         """
         Gets some information about the Entity.
 
-        :parameter entity: a Synapse Entity or Synapse ID
-        :parameter version: the entity's version (defaults to None meaning most recent version)
-        :parameter bitFlags: Bit flags representing which entity components to return
+        :parameter entity:      a Synapse Entity or Synapse ID
+        :parameter version:     the entity's version (defaults to None meaning most recent version)
+        :parameter bitFlags:    Bit flags representing which entity components to return
 
         EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)::
 
@@ -1133,10 +1123,8 @@ class Synapse(object):
         """
         Removes an object from Synapse.
 
-        :param obj: An existing object stored on Synapse
-                    such as Evaluation, File, Project, or Wiki
-
-        :param version: For entities, specify a particular version to delete.
+        :param obj:         An existing object stored on Synapse such as Evaluation, File, Project, or Wiki
+        :param version:     For entities, specify a particular version to delete.
 
         """
         # Handle all strings as the Entity ID for backward compatibility
@@ -1289,19 +1277,19 @@ class Synapse(object):
         """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
         Returns a new FileHandle as a dict to represent the stored file.
 
-        :param parent: parent of the entity to which we upload.
-        :param path: file path to the file being uploaded
-        :param synapseStore: If False, will not upload the file, but instead create an ExternalFileHandle that
-         references the file on the local machine.
-                             If True, will upload the file based on StorageLocation determined by the entity_parent_id
-        :param mimetype: The MIME type metadata for the uploaded file
-        :param md5: The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be
-         calculated automatically.
-        :param file_size: The size the file, if known. Otherwise if the file is a local file, it will be calculated
-         automatically.
-        :param file_type: The MIME type the file, if known. Otherwise if the file is a local file, it will be
-         calculated automatically.
-
+        :param parent:          parent of the entity to which we upload.
+        :param path:            file path to the file being uploaded
+        :param synapseStore:    If False, will not upload the file, but instead create an ExternalFileHandle that
+                                references the file on the local machine.
+                                If True, will upload the file based on StorageLocation determined by the
+                                entity_parent_id
+        :param mimetype:        The MIME type metadata for the uploaded file
+        :param md5:             The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will
+                                be calculated automatically.
+        :param file_size:       The size the file, if known. Otherwise if the file is a local file, it will be
+                                calculated automatically.
+        :param file_type:       The MIME type the file, if known. Otherwise if the file is a local file, it will be
+                                calculated automatically.
 
         :returns: a dict of a new FileHandle as a dict that represents the uploaded file
         """
@@ -1324,8 +1312,7 @@ class Synapse(object):
         **Deprecated**
 
 
-        Create and return a fileHandle, by either uploading a local file or
-        linking to an external URL.
+        Create and return a fileHandle, by either uploading a local file or linking to an external URL.
 
         :param synapseStore: Indicates whether the file should be stored or just its URL.
                              Defaults to True.
@@ -1376,9 +1363,8 @@ class Synapse(object):
         """
         Retrieve annotations for an Entity from the Synapse Repository as a Python dict.
 
-        Note that collapsing annotations from the native Synapse format to a Python dict
-        may involve some loss of information. See :py:func:`_getRawAnnotations` to get
-        annotations in the native format.
+        Note that collapsing annotations from the native Synapse format to a Python dict may involve some loss of
+        information. See :py:func:`_getRawAnnotations` to get annotations in the native format.
 
         :param entity:  An Entity or Synapse ID to lookup
         :param version: The version of the Entity to retrieve.
@@ -1420,16 +1406,16 @@ class Synapse(object):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
 
-        :param parent:       An id or an object of a Synapse container or None to retrieve all projects
+        :param parent:          An id or an object of a Synapse container or None to retrieve all projects
 
-        :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
-                               http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
+        :param includeTypes:    Must be a list of entity types (ie. ["folder","file"]) which can be found here:
+                                http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
 
-        :param sortBy:         How results should be sorted.  Can be NAME, or CREATED_ON
+        :param sortBy:          How results should be sorted.  Can be NAME, or CREATED_ON
 
-        :param sortDirection:  The direction of the result sort.  Can be ASC, or DESC
+        :param sortDirection:   The direction of the result sort.  Can be ASC, or DESC
 
-        :returns:              An iterator that shows all the children of the container.
+        :returns:                An iterator that shows all the children of the container.
 
         Also see:
 
@@ -1456,7 +1442,7 @@ class Synapse(object):
     def query(self, queryStr):
         """
         Query for Synapse entities.
-        See the `query language documentation
+        See the `query language documentation \
          <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
         :param queryStr:  the query to execute
@@ -1477,7 +1463,7 @@ class Synapse(object):
     def chunkedQuery(self, queryStr):
         """
         Query for Synapse Entities.
-        See the `query language documentation
+        See the `query language documentation \
          <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
         :param queryStr: the query to execute
@@ -1630,9 +1616,7 @@ class Synapse(object):
 
     def _getUserbyPrincipalIdOrName(self, principalId=None):
         """
-        Given either a string, int or None
-        finds the corresponding user
-        where None implies PUBLIC
+        Given either a string, int or None finds the corresponding user where None implies PUBLIC
 
         :param principalId: Identifier of a user or group
 
@@ -1682,17 +1666,15 @@ class Synapse(object):
         Sets permission that a user or group has on an Entity.
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
-        :param entity:            An Entity or Synapse ID to modify
-        :param principalId:       Identifier of a user or group
-        :param accessType:        Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
-         DELETE, CHANGE_PERMISSIONS
-        :param modify_benefactor: Set as True when modifying a benefactor's ACL
-        :param warn_if_inherits:  Set as False, when creating a new ACL.
-                                  Trying to modify the ACL of an Entity that
-                                  inherits its ACL will result in a warning
-        :param overwrite:         By default this function overwrites existing
-                                  permissions for the specified user. Set this
-                                  flag to False to add new permissions nondestructively.
+        :param entity:              An Entity or Synapse ID to modify
+        :param principalId:         Identifier of a user or group
+        :param accessType:          Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
+                                    DELETE, CHANGE_PERMISSIONS
+        :param modify_benefactor:   Set as True when modifying a benefactor's ACL
+        :param warn_if_inherits:    Set as False, when creating a new ACL.
+                                    Trying to modify the ACL of an Entity that inherits its ACL will result in a warning
+        :param overwrite:           By default this function overwrites existing permissions for the specified user.
+                                    Set this flag to False to add new permissions non-destructively.
 
         :returns: an Access Control List object
 
@@ -1786,8 +1768,7 @@ class Synapse(object):
 
     def deleteProvenance(self, entity):
         """
-        Removes provenance information from an Entity
-        and deletes the associated Activity.
+        Removes provenance information from an Entity and deletes the associated Activity.
 
         :param entity: An Entity or Synapse ID to modify
         """
@@ -1861,9 +1842,8 @@ class Synapse(object):
         :param fileHandleId: id of the FileHandle to download
         :param objectId:     id of the Synapse object that uses the FileHandle e.g. "syn123"
         :param objectType:   type of the Synapse object that uses the FileHandle e.g. "FileEntity"
-        :param destination: destination on local file system
-        :param retries:     (default=5) Number of download retries attempted before
-                            throwing an exception.
+        :param destination:  destination on local file system
+        :param retries:      (default=5) Number of download retries attempted before throwing an exception.
 
         :returns: path to downloaded file
         """
@@ -1903,14 +1883,12 @@ class Synapse(object):
         """
         Download a file from the given URL to the local file system.
 
-        :param url: source of download
-        :param destination: destination on local file system
-        :param fileHandleId: (optional) if given, the file will be given a
-                               temporary name that includes the file handle id
-                               which allows resuming partial downloads of the same
-                               file from previous sessions
-        :param expected_md5:   (optional) if given, check that the MD5 of the
-                               downloaded file matched the expected MD5
+        :param url:             source of download
+        :param destination:     destination on local file system
+        :param fileHandleId:    (optional) if given, the file will be given a temporary name that includes the file
+                                handle id which allows resuming partial downloads of the same file from previous
+                                sessions
+        :param expected_md5:    (optional) if given, check that the MD5 of the downloaded file matched the expected MD5
 
         :returns: path to downloaded file
         """
@@ -2079,8 +2057,8 @@ class Synapse(object):
         """
         Delete the given file handle.
 
-        Note: Only the user that created the FileHandle can delete it. Also, a
-        FileHandle cannot be deleted if it is associated with a FileEntity or WikiPage
+        Note: Only the user that created the FileHandle can delete it. Also, a FileHandle cannot be deleted if it is
+        associated with a FileEntity or WikiPage
         """
 
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
@@ -2096,11 +2074,9 @@ class Synapse(object):
                             endpoint=self.fileHandleEndpoint)
 
     def _getUserCredentials(self, url, username=None, password=None):
-        """Get user credentials for a specified URL by either looking in the configFile
-        or querying the user.
+        """Get user credentials for a specified URL by either looking in the configFile or querying the user.
 
         :param username: username on server (optionally specified)
-
         :param password: password for authentication on the server (optionally specified)
 
         :returns: tuple of username, password
@@ -2154,8 +2130,8 @@ class Synapse(object):
         - description: The description to show the user when the user has to choose which upload destination to use
 
 
-        :param storage_type: the type of the StorageLocationSetting to create
-        :param kwargs: fields necessary for creation of the specified storage_type
+        :param storage_type:    the type of the StorageLocationSetting to create
+        :param kwargs:          fields necessary for creation of the specified storage_type
 
         :return: a dict of the created StorageLocationSetting
         """
@@ -2178,7 +2154,7 @@ class Synapse(object):
         """
         Get a StorageLocationSetting by its id.
         :param storage_location_id: id of the StorageLocationSetting to retrieve.
-        The corresponding StorageLocationSetting must have been created by this user.
+                                    The corresponding StorageLocationSetting must have been created by this user.
         :return: a dict describing the StorageLocationSetting retrieved by its id
         """
         return self.restGET('/storageLocation/%s' % storage_location_id)
@@ -2186,9 +2162,9 @@ class Synapse(object):
     def setStorageLocation(self, entity, storage_location_id):
         """
         Sets the storage location for a Project or Folder
-        :param entity: a Project or Folder to which the StorageLocationSetting is set
+        :param entity:              a Project or Folder to which the StorageLocationSetting is set
         :param storage_location_id: a StorageLocation id or a list of StorageLocation ids. Pass in None for the default
-         Synapse storage.
+                                    Synapse storage.
         :return: The created or updated settings as a dict
         """
         if storage_location_id is None:
@@ -2214,8 +2190,8 @@ class Synapse(object):
         """
         Gets the ProjectSetting for a project.
 
-        :param project: Project entity or its id as a string
-        :param setting_type: type of setting. Choose from: {'upload', 'external_sync', 'requester_pays'}
+        :param project:         Project entity or its id as a string
+        :param setting_type:    type of setting. Choose from: {'upload', 'external_sync', 'requester_pays'}
 
         :return: The ProjectSetting as a dict or None if no settings of the specified type exist.
         """
@@ -2323,21 +2299,20 @@ class Synapse(object):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
-        :param evaluation: Evaluation queue to submit to
-        :param entity:     The Entity containing the Submission
-        :param name:       A name for this submission
-        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered
-                           for the challenge
-        :param silent:	Suppress output.
-        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's
-         name
-        :param teamName: (deprecated) A synonym for submitterAlias
+        :param evaluation:      Evaluation queue to submit to
+        :param entity:          The Entity containing the Submission
+        :param name:             A name for this submission
+        :param team:            (optional) A :py:class:`Team` object or name of a Team that is registered for the
+                                challenge
+        :param silent:          Suppress output.
+        :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
+                                name
+        :param teamName:        (deprecated) A synonym for submitterAlias
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
 
-        In the case of challenges, a team can optionally be provided to give
-        credit to members of the team that contributed to the submission. The team
-        must be registered for the challenge with which the given evaluation is
+        In the case of challenges, a team can optionally be provided to give credit to members of the team that
+        contributed to the submission. The team must be registered for the challenge with which the given evaluation is
         associated. The caller must be a member of the submitting team.
 
         Example::
@@ -2524,8 +2499,8 @@ class Synapse(object):
                       sb['submissionStatus']['status'], \\
                       sb['submissionStatus']['score'])
 
-        This may later be changed to return objects, pending some thought on how submissions
-        along with related status and annotations should be represented in the clients.
+        This may later be changed to return objects, pending some thought on how submissions along with related status
+        and annotations should be represented in the clients.
 
         See: :py:mod:`synapseclient.evaluation`
         """
@@ -2539,8 +2514,8 @@ class Synapse(object):
 
     def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
-        Retrieve submission bundles (submission and submissions status) for an evaluation queue, optionally
-        filtered by submission status and/or owner.
+        Retrieve submission bundles (submission and submissions status) for an evaluation queue, optionally filtered by
+        submission status and/or owner.
 
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
@@ -2563,8 +2538,8 @@ class Synapse(object):
                       status.status, \\
                       status.score)
 
-        This may later be changed to return objects, pending some thought on how submissions
-        along with related status and annotations should be represented in the clients.
+        This may later be changed to return objects, pending some thought on how submissions along with related status
+        and annotations should be represented in the clients.
 
         See: :py:mod:`synapseclient.evaluation`
         """
@@ -2573,16 +2548,14 @@ class Synapse(object):
 
     def _GET_paginated(self, uri, limit=20, offset=0):
         """
-        :param uri: A URI that returns paginated results
-        :param limit: How many records should be returned per request
-        :param offset: At what record offset from the first should
-                       iteration start
+        :param uri:     A URI that returns paginated results
+        :param limit:   How many records should be returned per request
+        :param offset:  At what record offset from the first should iteration start
 
         :returns: A generator over some paginated results
 
-        The limit parameter is set at 20 by default. Using a larger limit
-        results in fewer calls to the service, but if responses are large
-        enough to be a burden on the service they may be truncated.
+        The limit parameter is set at 20 by default. Using a larger limit results in fewer calls to the service, but if
+        responses are large enough to be a burden on the service they may be truncated.
         """
 
         prev_num_results = sys.maxsize
@@ -2643,12 +2616,11 @@ class Synapse(object):
 
     def getWiki(self, owner, subpageId=None, version=None):
         """
-        Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2
-        API which supports versioning.
+        Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2 API which supports versioning.
 
-        :param owner: The entity to which the Wiki is attached
-        :param subpageId:  The id of the specific sub-page or None to get the root Wiki page
-        :param version:  The version of the page to retrieve or None to retrieve the latest
+        :param owner:       The entity to which the Wiki is attached
+        :param subpageId:   The id of the specific sub-page or None to get the root Wiki page
+        :param version:     The version of the page to retrieve or None to retrieve the latest
 
         :return: a :py:class:`synapseclient.wiki.Wiki` object
         """
@@ -2808,14 +2780,14 @@ class Synapse(object):
 
     def getColumns(self, x, limit=100, offset=0):
         """
-        Get the columns defined in Synapse either (1) corresponding to a set of column
-        headers, (2) those for a given schema, or (3) those whose names start with a given prefix.
+        Get the columns defined in Synapse either (1) corresponding to a set of column headers, (2) those for a given
+        schema, or (3) those whose names start with a given prefix.
 
-        :param x: a list of column headers, a Table Entity object (Schema/EntityViewSchema), a Table's Synapse ID, or a
-         string prefix
-        :param limit: maximum number of columns to return (pagination parameter)
-        :param offset: the index of the first column to return (pagination parameter)
-        :return: a generator of Column objects
+        :param x:       a list of column headers, a Table Entity object (Schema/EntityViewSchema), a Table's Synapse ID,
+                        or a string prefix
+        :param limit:   maximum number of columns to return (pagination parameter)
+        :param offset:  the index of the first column to return (pagination parameter)
+        :return:        a generator of Column objects
         """
         if x is None:
             uri = '/column'
@@ -2849,7 +2821,7 @@ class Synapse(object):
         """
         uri = '/entity/{id}/column'.format(id=id_of(table))
         # The returned object type for this service, PaginatedColumnModels, is a misnomer.
-        # This service always returns the full list of results so the pagincation does not not actually matter.
+        # This service always returns the full list of results so the pagination does not not actually matter.
         for result in self.restGET(uri)['results']:
             yield Column(**result)
 
@@ -2857,44 +2829,40 @@ class Synapse(object):
         """
         Query a Synapse Table.
 
-        :param query: query string in a `SQL-like syntax
+        :param query: query string in a `SQL-like syntax \
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_, for example
             "SELECT * from syn12345"
 
-        :param resultsAs: select whether results are returned as a CSV file ("csv") or incrementally
-                          downloaded as sets of rows ("rowset").
+        :param resultsAs:   select whether results are returned as a CSV file ("csv") or incrementally downloaded as
+                            sets of rows ("rowset").
 
-        You can receive query results either as a generator over rows or as a CSV file. For
-        smallish tables, either method will work equally well. Use of a "rowset" generator allows
-        rows to be processed one at a time and processing may be stopped before downloading
-        the entire table.
+        You can receive query results either as a generator over rows or as a CSV file. For smallish tables, either
+        method will work equally well. Use of a "rowset" generator allows rows to be processed one at a time and
+        processing may be stopped before downloading the entire table.
 
         Optional keyword arguments differ for the two return types. For the "rowset" option,
 
-        :param  limit: specify the maximum number of rows to be returned, defaults to None
-        :param offset: don't return the first n rows, defaults to None
-        :param isConsistent: defaults to True. If set to False, return results based on current
-                             state of the index without waiting for pending writes to complete.
-                             Only use this if you know what you're doing.
+        :param  limit:          specify the maximum number of rows to be returned, defaults to None
+        :param offset:          don't return the first n rows, defaults to None
+        :param isConsistent:    defaults to True. If set to False, return results based on current state of the index
+                                without waiting for pending writes to complete.
+                                Only use this if you know what you're doing.
 
         For CSV files, there are several parameters to control the format of the resulting file:
 
-        :param quoteCharacter: default double quote
+        :param quoteCharacter:  default double quote
         :param escapeCharacter: default backslash
-        :param lineEnd: defaults to os.linesep
-        :param separator: defaults to comma
-        :param header: True by default
+        :param lineEnd:         defaults to os.linesep
+        :param separator:       defaults to comma
+        :param header:          True by default
         :param includeRowIdAndRowVersion: True by default
 
-        :return: A Table object that serves as a wrapper around a CSV file (or generator over
-                 Row objects if resultsAs="rowset").
+        :return: A Table object that serves as a wrapper around a CSV file (or generator over Row objects if
+                 resultsAs="rowset").
 
-        NOTE: When performing queries on frequently updated tables,
-              the table can be inaccessible for a period leading to a
-              timeout of the query.  Since the results are guaranteed
-              to eventually be returned you can change the max timeout
-              by setting the table_query_timeout variable of the Synapse
-              object:
+        NOTE: When performing queries on frequently updated tables, the table can be inaccessible for a period leading
+              to a timeout of the query.  Since the results are guaranteed to eventually be returned you can change the
+              max timeout by setting the table_query_timeout variable of the Synapse object:
 
               syn.table_query_timeout = 300  #Sets the max timeout to 5 minutes.
 
@@ -2908,10 +2876,9 @@ class Synapse(object):
 
     def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
         """
-        Query a table and return the first page of results as a `QueryResultBundle
+        Query a table and return the first page of results as a `QueryResultBundle \
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
-        If the result contains a *nextPageToken*, following pages a retrieved
-        by calling :py:meth:`~._queryTableNext`.
+        If the result contains a *nextPageToken*, following pages a retrieved by calling :py:meth:`~._queryTableNext`.
 
         :param partMask: Optional, default all. The 'partsMask' is a bit field for requesting
                          different elements in the resulting JSON bundle.
@@ -2950,15 +2917,15 @@ class Synapse(object):
     def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\",
                    lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
         """
-        Send an `UploadToTableRequest
+        Send an `UploadToTableRequest \
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
 
-        :param filepath: Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
-        :param schema: A table entity or its Synapse ID.
-        :param updateEtag: Any RowSet returned from Synapse will contain the current etag of the change set.
-         To update any rows from a RowSet the etag must be provided with the POST.
+        :param filepath:    Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
+        :param schema:      A table entity or its Synapse ID.
+        :param updateEtag:  Any RowSet returned from Synapse will contain the current etag of the change set.
+                            To update any rows from a RowSet the etag must be provided with the POST.
 
-        :returns: `UploadToTableResult
+        :returns: `UploadToTableResult \
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
@@ -3029,20 +2996,21 @@ class Synapse(object):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
-        Sends a `DownloadFromTableRequest
+        Sends a `DownloadFromTableRequest \
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
 
-        :return: a tuple containing a `DownloadFromTableResult
+        :return: a tuple containing a `DownloadFromTableResult \
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
 
         The DownloadFromTableResult object contains these fields:
-         * headers: ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
+         * headers:             ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
          * resultsFileHandleId: STRING, The resulting file handle ID can be used to download the CSV file created by
-          this query.
-         * concreteType: STRING
-         * etag: STRING, Any RowSet returned from Synapse will contain the current etag of the change set.
-          To update any rows from a RowSet the etag must be provided with the POST.
-         * tableId: STRING, The ID of the table identified in the from clause of the table query.
+                                this query.
+         * concreteType:        STRING
+         * etag:                STRING, Any RowSet returned from Synapse will contain the current etag of the change
+                                set.
+                                To update any rows from a RowSet the etag must be provided with the POST.
+         * tableId:             STRING, The ID of the table identified in the from clause of the table query.
         """
 
         download_from_table_request = {
@@ -3202,9 +3170,9 @@ class Synapse(object):
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
-        For example, consider a Synapse table whose ID is "syn12345" with two columns of type FILEHANDLEID
-        named 'foo' and 'bar'. The associated files are JSON encoded, so we might retrieve the
-        files from Synapse and load for the second 100 of those rows as shown here::
+        For example, consider a Synapse table whose ID is "syn12345" with two columns of type FILEHANDLEID named 'foo'
+        and 'bar'. The associated files are JSON encoded, so we might retrieve the files from Synapse and load for the
+        second 100 of those rows as shown here::
 
             import json
 
@@ -3400,8 +3368,9 @@ class Synapse(object):
         """
         Find an Entity given its name and parent.
 
-        :param name: name of the entity to find
-        :param parent: An Entity object or the Id of an entity as a string. Omit if searching for a Project by name
+        :param name:    name of the entity to find
+        :param parent:  An Entity object or the Id of an entity as a string. Omit if searching for a Project by name
+
         :return: the Entity ID or None if not found
         """
         # when we want to search for a project by name. set parentId as None instead of ROOT_ENTITY
@@ -3421,14 +3390,11 @@ class Synapse(object):
         """
         send a message via Synapse.
 
-        :param userIds: A list of user IDs to which the message is to be sent
-
-        :param messageSubject: The subject for the message
-
-        :param messageBody: The body of the message
-
-        :param contentType: optional contentType of message body (default="text/plain")
-                  Should be one of "text/plain" or "text/html"
+        :param userIds:         A list of user IDs to which the message is to be sent
+        :param messageSubject:  The subject for the message
+        :param messageBody:     The body of the message
+        :param contentType:     optional contentType of message body (default="text/plain")
+                                Should be one of "text/plain" or "text/html"
 
         :returns: The metadata of the created message
         """

@@ -121,8 +121,7 @@ def extract_filename(content_disposition_header, default_filename=None):
     """
     Extract a filename from an HTTP content-disposition header field.
 
-    See `this memo <http://tools.ietf.org/html/rfc6266>`_
-    and `this package <http://pypi.python.org/pypi/rfc6266>`_
+    See `this memo <http://tools.ietf.org/html/rfc6266>`_ and `this package <http://pypi.python.org/pypi/rfc6266>`_
     for cryptic details.
     """
 
@@ -195,8 +194,8 @@ def id_of(obj):
 def is_in_path(id, path):
     """Determines whether id is in the path as returned from /entity/{id}/path
 
-    :param id: synapse id string
-    :param path: object as returned from '/entity/{id}/path'
+    :param id:      synapse id string
+    :param path:    object as returned from '/entity/{id}/path'
 
     :returns: True or False
     """
@@ -270,9 +269,9 @@ def file_url_to_path(url, verify_exists=False):
     """
     Convert a file URL to a path, handling some odd cases around Windows paths.
 
-    :param url: a file URL
-    :param verify_exists: If true, return an populated dict only if the
-                          resulting file path exists on the local file system.
+    :param url:             a file URL
+    :param verify_exists:   If true, return an populated dict only if the resulting file path exists on the local file
+                            system.
 
     :returns: a path or None if the URL is not a file URL.
     """
@@ -337,8 +336,7 @@ def _to_iterable(value):
 
 def make_bogus_data_file(n=100, seed=None):
     """
-    Makes a bogus data file for testing.
-    It is the caller's responsibility to clean up the file when finished.
+    Makes a bogus data file for testing. It is the caller's responsibility to clean up the file when finished.
 
     :param n:    How many random floating point numbers to be written into the file, separated by commas
     :param seed: Random seed for the random numbers
@@ -362,8 +360,7 @@ def make_bogus_data_file(n=100, seed=None):
 
 def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
     """
-    Makes a bogus binary data file for testing.
-    It is the caller's responsibility to clean up the file when finished.
+    Makes a bogus binary data file for testing. It is the caller's responsibility to clean up the file when finished.
 
     :param n:       How many bytes to write
 
@@ -387,8 +384,8 @@ def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
 
 def to_unix_epoch_time(dt):
     """
-    Convert either `datetime.date or datetime.datetime objects
-    <http://docs.python.org/2/library/datetime.html>`_ to UNIX time.
+    Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
+    to UNIX time.
     """
 
     if type(dt) == Date:
@@ -398,8 +395,8 @@ def to_unix_epoch_time(dt):
 
 def to_unix_epoch_time_secs(dt):
     """
-    Convert either `datetime.date or datetime.datetime objects 
-    <http://docs.python.org/2/library/datetime.html>`_ to UNIX time.
+    Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
+    to UNIX time.
     """
 
     if type(dt) == Date:
@@ -523,8 +520,7 @@ def itersubclasses(cls, _seen=None):
 
 def normalize_whitespace(s):
     """
-    Strips the string and replace all whitespace sequences and other
-    non-printable characters with a single space.
+    Strips the string and replace all whitespace sequences and other non-printable characters with a single space.
     """
     assert isinstance(s, six.string_types)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
@@ -586,9 +582,9 @@ def query_limit_and_offset(query, hard_limit=1000):
     """
     Extract limit and offset from the end of a query string.
 
-    :returns: A triple containing the query with limit and offset removed, the
-              limit at most equal to the hard_limit, and the offset which
-              defaults to 1
+    :returns:   A triple containing the query with limit and offset removed, the limit at most equal to the hard_limit,
+                and the offset which
+                defaults to 1
     """
     # Regex a lower-case string to simplify matching
     tempQueryStr = query.lower()
@@ -614,9 +610,8 @@ def query_limit_and_offset(query, hard_limit=1000):
 
 def _extract_synapse_id_from_query(query):
     """
-    An unfortunate hack to pull the synapse ID out of a table query of the
-    form "select column1, column2 from syn12345 where...." needed to build
-    URLs for table services.
+    An unfortunate hack to pull the synapse ID out of a table query of the form "select column1, column2 from syn12345
+    where...." needed to build URLs for table services.
     """
     m = re.search(r"from\s+(syn\d+)", query, re.IGNORECASE)
     if m:
@@ -643,14 +638,14 @@ def printTransferProgress(transferred, toBeTransferred, prefix='', postfix='', i
                           previouslyTransferred=0):
     """Prints a progress bar
 
-    :param transferred: a number of items/bytes completed
-    :param toBeTransferred: total number of items/bytes when completed
-    :param prefix: String printed before progress bar
-    :param prefix: String printed after progress bar
-    :param isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
-    :param dt: The time in seconds that has passed since transfer started is used to calculate rate.
-    :param previouslyTransferred: the number of bytes that were already transferred before this transfer began
-     (e.g. someone ctrl+c'd out of an upload and restarted it later)
+    :param transferred:             a number of items/bytes completed
+    :param toBeTransferred:         total number of items/bytes when completed
+    :param prefix:                  String printed before progress bar
+    :param prefix:                  String printed after progress bar
+    :param isBytes:                 A boolean indicating whether to convert bytes to kB, MB, GB etc.
+    :param dt:                      The time in seconds that has passed since transfer started is used to calculate rate
+    :param previouslyTransferred:   the number of bytes that were already transferred before this transfer began
+                                    (e.g. someone ctrl+c'd out of an upload and restarted it later)
 
     """
     if not sys.stdout.isatty():
@@ -750,8 +745,8 @@ def unique_filename(path):
 
 @implements_iterator
 class threadsafe_iter:
-    """Takes an iterator/generator and makes it thread-safe by
-    serializing call to the `next` method of given iterator/generator.
+    """Takes an iterator/generator and makes it thread-safe by serializing call to the `next` method of given
+    iterator/generator.
     See: http://anandology.com/blog/using-iterators-and-generators/
     """
     def __init__(self, it):
@@ -778,8 +773,8 @@ def threadsafe_generator(f):
 def extract_prefix(keys):
     """
     Takes a list of strings and extracts a common prefix delimited by a dot,
-    for example:
-    >>> extract_prefix(["entity.bang", "entity.bar", "entity.bat"])
+    for example::
+        extract_prefix(["entity.bang", "entity.bar", "entity.bat"])
     entity.
     """
     prefixes = set()
@@ -806,9 +801,9 @@ def temp_download_filename(destination, file_handle_id):
 def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
     """
     Extracts a specified file in a zip to the specified directory
-    :param zip_file: an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
-    :param zip_entry_name: the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
-    :param target_dir: the directory to which the file will be extracted
+    :param zip_file:        an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
+    :param zip_entry_name:  the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
+    :param target_dir:      the directory to which the file will be extracted
 
     :return: full path to the extracted file
     """

@@ -124,14 +124,11 @@ class SFTPWrapper:
         """
         Performs upload of a local file to an sftp server.
 
-        :param filepath: The file to be uploaded
-
-        :param url: URL where file will be deposited. Should include path and protocol. e.g.
-                    sftp://sftp.example.com/path/to/file/store
-
-        :param username: username on sftp server
-
-        :param password: password for authentication on the sftp server
+        :param filepath:    The file to be uploaded
+        :param url:         URL where file will be deposited. Should include path and protocol. e.g.
+                            sftp://sftp.example.com/path/to/file/store
+        :param username:    username on sftp server
+        :param password:    password for authentication on the sftp server
 
         :returns: A URL where file is stored
         """
@@ -153,10 +150,10 @@ class SFTPWrapper:
         """
         Performs download of a file from an sftp server.
 
-        :param url: URL where file will be deposited.  Path will be chopped out.
-        :param localFilepath: location where to store file
-        :param username: username on server
-        :param password: password for authentication on  server
+        :param url:             URL where file will be deposited.  Path will be chopped out.
+        :param localFilepath:   location where to store file
+        :param username:        username on server
+        :param password:        password for authentication on  server
 
         :returns: localFilePath
 

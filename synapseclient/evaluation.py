@@ -3,9 +3,8 @@
 Evaluations
 ***********
 
-An evaluation_ object represents a collection of Synapse Entities that will be
-processed in a particular way.  This could mean scoring Entries in a challenge
-or executing a processing pipeline.
+An evaluation_ object represents a collection of Synapse Entities that will be processed in a particular way.  This
+could mean scoring Entries in a challenge or executing a processing pipeline.
 
 Imports::
 
@@ -15,8 +14,7 @@ Evaluations can be retrieved by ID::
 
     evaluation = syn.getEvaluation(1901877)
 
-Like entities, evaluations are access controlled via ACLs. The
-:py:func:`synapseclient.Synapse.getPermissions` and
+Like entities, evaluations are access controlled via ACLs. The :py:func:`synapseclient.Synapse.getPermissions` and
 :py:func:`synapseclient.Synapse.setPermissions` methods work for evaluations:
 
     access = syn.getPermissions(evaluation, user_id)
@@ -36,8 +34,8 @@ The status of a submission may be:
     - **OPEN** indicating processing *has not* completed
     - **CLOSED** indicating processing *has* completed
 
-Submission status objects can be updated, usually by changing the *status* and *score*
-fields, and stored back to Synapse using :py:func:`synapseclient.Synapse.store`::
+Submission status objects can be updated, usually by changing the *status* and *score* fields, and stored back to
+Synapse using :py:func:`synapseclient.Synapse.store`::
 
     status.score = 0.99
     status.status = 'SCORED'
@@ -92,11 +90,11 @@ class Evaluation(DictObject):
     """
     An Evaluation Submission queue, allowing submissions, retrieval and scoring.
     
-    :param name:          Name of the evaluation
-    :param description:   A short description of the evaluation
-    :param contentSource: Synapse Project associated with the evaluation
-    :param submissionReceiptMessage: Message to display to users upon submission
-    :param submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions.
+    :param name:                            Name of the evaluation
+    :param description:                     A short description of the evaluation
+    :param contentSource:                   Synapse Project associated with the evaluation
+    :param submissionReceiptMessage:        Message to display to users upon submission
+    :param submissionInstructionsMessage:   Message to display to users detailing acceptable formatting for submissions.
 
     `To create an Evaluation <http://docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_
     and store it in Synapse::
@@ -109,8 +107,8 @@ class Evaluation(DictObject):
     The contentSource field links the evaluation to its :py:class:`synapseclient.entity.Project`.
     (Or, really, any synapse ID, but sticking to projects is a good idea.)
 
-    `Evaluations <http://docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_
-    can be retrieved from Synapse by ID::
+    `Evaluations <http://docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_ can be retrieved
+    from Synapse by ID::
 
         evaluation = syn.getEvaluation(1901877)
 

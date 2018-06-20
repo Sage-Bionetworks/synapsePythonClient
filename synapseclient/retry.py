@@ -109,8 +109,8 @@ def _with_retry(function, verbose=False,
 
 def _get_message(response):
     """
-    Extracts the message body or a response object by checking for a
-    json response and returning the reason otherwise getting body.
+    Extracts the message body or a response object by checking for a json response and returning the reason otherwise
+    getting body.
     """
     if _is_json(response.headers.get('content-type', None)):
         try:

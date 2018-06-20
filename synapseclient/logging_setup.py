@@ -48,7 +48,7 @@ class LoggingIgnoreInfoFilter(logging.Filter):
 #
 # see https://docs.python.org/2/library/logging.html
 ######################################################
-#TODO: debug file also or only write errors to log?
+# TODO: debug file also or only write errors to log?
 logging_config.dictConfig({
     'version': 1,
     'disable_existing_loggers': False,

@@ -1,10 +1,10 @@
-'''
+"""
 Created on Sep 21, 2017
 
 @author: bhoff
 
 sleep while checking registered _listeners
-'''
+"""
 import time
 
 _listeners=[]
@@ -23,5 +23,3 @@ def doze(secs, listener_check_interval_secs=0.1):
         for listener in _listeners:
             listener()
         time.sleep(listener_check_interval_secs)
-        
-    

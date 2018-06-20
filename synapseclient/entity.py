@@ -3,12 +3,11 @@
 Entity
 ******
 
-The Entity class is the base class for all entities, including Project, Folder
-and File, Link, as well as deprecated entity types such as Data, Study, Summary,
-etc.
+The Entity class is the base class for all entities, including Project, Folder and File, Link, as well as deprecated
+entity types such as Data, Study, Summary, etc.
 
-Entities are dictionary-like objects in which both object and dictionary
-notation (entity.foo or entity['foo']) can be used interchangeably.
+Entities are dictionary-like objects in which both object and dictionary notation (entity.foo or entity['foo']) can be
+used interchangeably.
 
 Imports::
 
@@ -37,12 +36,10 @@ File
 Changing File Names
 -------------------
 
-A Synapse File Entity has a name separate from the name of the actual file
-it represents. When a file is uploaded to Synapse, its filename is fixed,
-even though the name of the entity can be changed at any time. Synapse provides
-a way to change this filename and the content-type of the file for future downloads
-by creating a new version of the file with a modified copy of itself.  This can be 
-done with the synapseutils.copy.changeFileMetaData function.
+A Synapse File Entity has a name separate from the name of the actual file it represents. When a file is uploaded to
+Synapse, its filename is fixed, even though the name of the entity can be changed at any time. Synapse provides a way
+to change this filename and the content-type of the file for future downloads by creating a new version of the file
+with a modified copy of itself.  This can be done with the synapseutils.copy.changeFileMetaData function.
 
 >>> import synapseutils
 >>> e = syn.get(synid)
@@ -87,19 +84,17 @@ DockerRepository
 Properties and annotations, implementation details
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In Synapse, entities have both properties and annotations. Properties are used
-by the system, whereas annotations are completely user defined. In the Python
-client, we try to present this situation as a normal object, with one set of
+In Synapse, entities have both properties and annotations. Properties are used by the system, whereas annotations are
+completely user defined. In the Python client, we try to present this situation as a normal object, with one set of
 properties.
 
 Printing an entity will show the division between properties and annotations.::
 
     print(entity)
 
-Under the covers, an Entity object has two dictionaries, one for properties and one
-for annotations. These two namespaces are distinct, so there is a possibility of
-collisions. It is recommended to avoid defining annotations with names that collide
-with properties, but this is not enforced.::
+Under the covers, an Entity object has two dictionaries, one for properties and one for annotations. These two
+namespaces are distinct, so there is a possibility of collisions. It is recommended to avoid defining annotations with
+names that collide with properties, but this is not enforced.::
 
     ## don't do this!
     entity.properties['description'] = 'One thing'
@@ -110,22 +105,17 @@ In case of conflict, properties will take precedence.::
     print(entity.description)
     #> One thing
 
-Some additional ambiguity is entailed in the use of dot notation. Entity
-objects have their own internal properties which are not persisted to Synapse.
-As in all Python objects, these properties are held in object.__dict__. For
-example, this dictionary holds the keys 'properties' and 'annotations' whose
-values are both dictionaries themselves.
+Some additional ambiguity is entailed in the use of dot notation. Entity objects have their own internal properties
+which are not persisted to Synapse. As in all Python objects, these properties are held in object.__dict__. For
+example, this dictionary holds the keys 'properties' and 'annotations' whose values are both dictionaries themselves.
 
-The rule, for either getting or setting is: first look in the object then look
-in properties, then look in annotations. If the key is not found in any of
-these three, a get results in a ``KeyError`` and a set results in a new
-annotation being created. Thus, the following results in a new annotation that
-will be persisted in Synapse::
+The rule, for either getting or setting is: first look in the object then look in properties, then look in annotations.
+If the key is not found in any of these three, a get results in a ``KeyError`` and a set results in a new annotation
+being created. Thus, the following results in a new annotation that will be persisted in Synapse::
 
     entity.foo = 'bar'
 
-To create an object member variable, which will *not* be persisted in
-Synapse, this unfortunate notation is required::
+To create an object member variable, which will *not* be persisted in Synapse, this unfortunate notation is required::
 
     entity.__dict__['foo'] = 'bar'
 
@@ -140,9 +130,8 @@ Keys in the three namespaces can be referred to unambiguously like so::
     entity.annotations.key
     entity.annotations['key']
 
-Most of the time, users should be able to ignore these distinctions and treat
-Entities like normal Python objects. End users should never need to manipulate
-items in __dict__.
+Most of the time, users should be able to ignore these distinctions and treat Entities like normal Python objects.
+End users should never need to manipulate items in __dict__.
 
 See also:
 
@@ -193,12 +182,10 @@ class Versionable(object):
 @python_2_unicode_compatible
 class Entity(collections.MutableMapping):
     """
-    A Synapse entity is an object that has metadata, access control, and
-    potentially a file. It can represent data, source code, or a folder
-    that contains other entities.
+    A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,
+    source code, or a folder that contains other entities.
 
-    Entities should typically be created using the constructors for specific
-    subclasses such as Project, Folder or File.
+    Entities should typically be created using the constructors for specific subclasses such as Project, Folder or File.
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.Entity'
@@ -211,16 +198,15 @@ class Entity(collections.MutableMapping):
     @classmethod
     def create(cls, properties=None, annotations=None, local_state=None):
         """
-        Create an Entity or a subclass given dictionaries of properties
-        and annotations, as might be received from the Synapse Repository.
+        Create an Entity or a subclass given dictionaries of properties and annotations, as might be received from the
+        Synapse Repository.
 
         :param properties:  A map of Synapse properties
 
-            If 'concreteType' is defined in properties, we create the proper subclass
-            of Entity. If not, give back the type whose constructor was called:
+            If 'concreteType' is defined in properties, we create the proper subclass of Entity. If not, give back the
+            type whose constructor was called:
 
-            If passed an Entity as input, create a new Entity using the input
-            entity as a prototype.
+            If passed an Entity as input, create a new Entity using the input entity as a prototype.
 
         :param annotations: A map of user defined annotations
         :param local_state: Internal use only
@@ -300,16 +286,15 @@ class Entity(collections.MutableMapping):
                     else:
                         raise SynapseMalformedEntityError("Couldn't find 'id' of parent.")
 
-        # Note: that this will work properly if derived classes declare their
-        # internal state variable *before* invoking super(...).__init__(...)
+        # Note: that this will work properly if derived classes declare their internal state variable *before* invoking
+        # super(...).__init__(...)
         for key, value in six.iteritems(kwargs):
             self.__setitem__(key, value)
 
         if 'concreteType' not in self:
             self['concreteType'] = self.__class__._synapse_entity_type
 
-        # Only project can be top-level. All other entity types require parentId
-        # don't enforce this for generic Entity
+        # Only project can be top-level. All other entity types require parentId don't enforce this for generic Entity
         if 'parentId' not in self \
                 and not isinstance(self, Project) \
                 and not type(self) == Entity:
@@ -433,7 +418,7 @@ class Entity(collections.MutableMapping):
 
     def _str_localstate(self, f):  # type: (StringIO) -> None
         """
-        helper method for writing the string representation of the local state to a StringIO object
+        Helper method for writing the string representation of the local state to a StringIO object
         :param f: a StringIO object to which the local state string will be written
         """
         self._write_kvps(f, self.__dict__,
@@ -460,8 +445,8 @@ class Project(Entity):
     """
     Represents a project in Synapse.
 
-    Projects in Synapse must be uniquely named. Trying to create a project with
-    a name that's already taken, say 'My project', will result in an error
+    Projects in Synapse must be uniquely named. Trying to create a project with a name that's already taken, say
+    'My project', will result in an error
 
     :param name:            The name of the project
     :param properties:      A map of Synapse properties
@@ -551,23 +536,23 @@ class File(Entity, Versionable):
     """
     Represents a file in Synapse.
 
-    When a File object is stored, the associated local file or its URL will be
-    stored in Synapse. A File must have a path (or URL) and a parent.
+    When a File object is stored, the associated local file or its URL will be stored in Synapse. A File must have a
+    path (or URL) and a parent.
 
-    :param path:             Location to be represented by this File
-    :param name:             Name of the file in Synapse, not to be confused with the name within the path
-    :param parent:           Project or Folder where this File is stored
-    :param synapseStore:     Whether the File should be uploaded or if only the path should be stored when
-     :py:func:`synapseclient.Synapse.store`
-                            is called on the File object. Defaults to True (file should be uploaded)
-    :param contentType:      Manually specify Content-type header, for example "application/png" or
-     "application/json; charset=UTF-8"
-    :param dataFileHandleId: Defining an existing dataFileHandleId will use the existing dataFileHandleId
-                             The creator of the file must also be the owner of the dataFileHandleId to have permission
-                             to store the file
-    :param properties:      A map of Synapse properties
-    :param annotations:     A map of user defined annotations
-    :param local_state:     Internal use only
+    :param path:                Location to be represented by this File
+    :param name:                Name of the file in Synapse, not to be confused with the name within the path
+    :param parent:              Project or Folder where this File is stored
+    :param synapseStore:        Whether the File should be uploaded or if only the path should be stored when
+                                :py:func:`synapseclient.Synapse.store` is called on the File object.
+                                Defaults to True (file should be uploaded)
+    :param contentType:         Manually specify Content-type header, for example "application/png" or
+                                "application/json; charset=UTF-8"
+    :param dataFileHandleId:    Defining an existing dataFileHandleId will use the existing dataFileHandleId
+                                The creator of the file must also be the owner of the dataFileHandleId to have
+                                permission to store the file
+    :param properties:          A map of Synapse properties
+    :param annotations:         A map of user defined annotations
+    :param local_state:         Internal use only
     
     Example::
 
@@ -708,11 +693,9 @@ _entity_types = ["project", "folder", "file", "table", "link", "entityview", "do
 
 def split_entity_namespaces(entity):
     """
-    Given a plain dictionary or an Entity object,
-    splits the object into properties, annotations and local state.
-    A dictionary will be processed as a specific type of Entity
-    if it has a valid 'concreteType' field,
-    otherwise it is treated as a generic Entity.
+    Given a plain dictionary or an Entity object, splits the object into properties, annotations and local state.
+    A dictionary will be processed as a specific type of Entity if it has a valid 'concreteType' field, otherwise it is
+    treated as a generic Entity.
 
     :returns: a 3-tuple (properties, annotations, local_state).
     """

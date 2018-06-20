@@ -3,9 +3,8 @@
 Synapse Multipart Upload
 ************************
 
-Implements the client side of `Synapse multipart upload`_, which provides
-a robust means of uploading large files (into the 10s of GB). End users
-should not need to call any of these functions directly.
+Implements the client side of `Synapse multipart upload`_, which provides a robust means of uploading large files (into
+the 10s of GB). End users should not need to call any of these functions directly.
 
 .. _Synapse multipart upload:
  http://docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController
@@ -51,24 +50,23 @@ MAX_RETRIES = 7
 
 def find_parts_to_upload(part_status):
     """
-    Given a string of the form "1001110", where 1 and 0 indicate a status of
-    completed or not, return the part numbers that aren't completed.
+    Given a string of the form "1001110", where 1 and 0 indicate a status of completed or not, return the part numbers
+    that aren't completed.
     """
     return [i+1 for i, c in enumerate(part_status) if c == '0']
 
 
 def count_completed_parts(part_status):
     """
-    Given a string of the form "1001110", where 1 and 0 indicate a status of
-    completed or not, return the count of parts already completed.
+    Given a string of the form "1001110", where 1 and 0 indicate a status of completed or not, return the count of
+    parts already completed.
     """
     return len([c for c in part_status if c == '1'])
 
 
 def calculate_part_size(fileSize, partSize=None, min_part_size=MIN_PART_SIZE, max_parts=MAX_NUMBER_OF_PARTS):
     """
-    Parts for multipart upload must be at least 5 MB and there must
-    be at most 10,000 parts
+    Parts for multipart upload must be at least 5 MB and there must be at most 10,000 parts
     """
     if partSize is None:
         partSize = max(min_part_size, int(math.ceil(fileSize/float(max_parts))))
@@ -123,8 +121,8 @@ def _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType,
 def _get_presigned_urls(syn, uploadId, parts_to_upload):
     """Returns list of urls to upload parts to.
 
-    :param syn: a Synapse object
-    :param uploadId: The id of the multipart upload
+    :param syn:             a Synapse object
+    :param uploadId:        The id of the multipart upload
     :param parts_to_upload: A list of integers corresponding to the parts that need to be uploaded
 
 
@@ -146,8 +144,8 @@ def _get_presigned_urls(syn, uploadId, parts_to_upload):
 
 def _add_part(syn, uploadId, partNumber, partMD5Hex):
     """
-    :returns: An AddPartResponse_ with fields for an errorMessage and addPartState containing
-              either 'ADD_SUCCESS' or 'ADD_FAILED'.
+    :returns: An AddPartResponse_ with fields for an errorMessage and addPartState containing either 'ADD_SUCCESS' or
+              'ADD_FAILED'.
 
     .. AddPartResponse: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/AddPartResponse.html
     """
@@ -182,18 +180,17 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, storageLoca
     """
     Upload a file to a Synapse upload destination in chunks.
 
-    :param syn: a Synapse object
-    :param filepath: the file to upload
-    :param filename: upload as a different filename
-    :param contentType: `contentType`_
-    :param partSize: number of bytes per part. Minimum 5MB.
-    :param storageLocationId: a id indicating where the file should be stored.
-     Retrieved from Synapse's UploadDestination
+    :param syn:                 a Synapse object
+    :param filepath:            the file to upload
+    :param filename:            upload as a different filename
+    :param contentType:         `contentType`_
+    :param partSize:            number of bytes per part. Minimum 5MB.
+    :param storageLocationId:   a id indicating where the file should be stored.
+                                Retrieved from Synapse's UploadDestination
 
     :return: a File Handle ID
 
-    Keyword arguments are passed down to :py:func:`_multipart_upload` and
-    :py:func:`_start_multipart_upload`.
+    Keyword arguments are passed down to :py:func:`_multipart_upload` and :py:func:`_start_multipart_upload`.
 
     .. _contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
@@ -231,18 +228,17 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, storageL
     """
     Upload a string using the multipart file upload.
 
-    :param syn: a Synapse object
-    :param text: a string to upload as a file.
-    :param filename: a string containing the base filename
-    :param contentType: `contentType`_
-    :param partSize: number of bytes per part. Minimum 5MB.
-    :param storageLocationId: a id indicating where the text should be stored.
-     Retrieved from Synapse's UploadDestination
+    :param syn:                 a Synapse object
+    :param text:                a string to upload as a file.
+    :param filename:            a string containing the base filename
+    :param contentType:         `contentType`_
+    :param partSize:            number of bytes per part. Minimum 5MB.
+    :param storageLocationId:   a id indicating where the text should be stored.
+                                Retrieved from Synapse's UploadDestination
 
     :return: a File Handle ID
 
-    Keyword arguments are passed down to :py:func:`_multipart_upload` and
-    :py:func:`_start_multipart_upload`.
+    Keyword arguments are passed down to :py:func:`_multipart_upload` and :py:func:`_start_multipart_upload`.
 
     .. _contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
@@ -321,16 +317,16 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     """
     Multipart Upload.
 
-    :param syn: a Synapse object
-    :param filename: a string containing the base filename
-    :param contentType: contentType_
-    :param get_chunk_function: a function that takes a part number and size
-                               and returns the bytes of that chunk of the file
-    :param md5: the part's MD5 as hex.
-    :param fileSize: total number of bytes
-    :param partSize: number of bytes per part. Minimum 5MB.
-    :param storageLocationId: a id indicating where the file should be stored. retrieved from Synapse's
-     UploadDestination
+    :param syn:                 a Synapse object
+    :param filename:            a string containing the base filename
+    :param contentType:         contentType_
+    :param get_chunk_function:  a function that takes a part number and size and returns the bytes of that chunk of the
+                                file
+    :param md5:                 the part's MD5 as hex.
+    :param fileSize:            total number of bytes
+    :param partSize:            number of bytes per part. Minimum 5MB.
+    :param storageLocationId:   a id indicating where the file should be stored. retrieved from Synapse's
+                                UploadDestination
 
     :return: a MultipartUploadStatus_ object
 

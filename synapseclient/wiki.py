@@ -36,12 +36,10 @@ Creating a Wiki
 Embedding images
 ~~~~~~~~~~~~~~~~
 
-Note that in the above example, we've **attached** a logo graphic and embedded it
-in the web page.
+Note that in the above example, we've **attached** a logo graphic and embedded it in the web page.
 
-Figures that are more than just decoration can be stored as Synapse entities
-allowing versioning and provenance information to be recorded. This is a better
-choice for figures with data behind them.
+Figures that are more than just decoration can be stored as Synapse entities allowing versioning and provenance
+information to be recorded. This is a better choice for figures with data behind them.
 
 ~~~~~~~~~~~~~~~
 Updating a Wiki
@@ -101,13 +99,13 @@ class Wiki(DictObject):
     """
     Represents a wiki page in Synapse with content specified in markdown.
 
-    :param title:       Title of the Wiki
-    :param owner:       Parent Entity that the Wiki will belong to
-    :param markdown:    Content of the Wiki (cannot be defined if markdownFile is defined)
-    :param markdownFile: Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
-    :param attachments: List of paths to files to attach
-    :param fileHandles: List of file handle IDs representing files to be attached
-    :param parentWikiId: (optional) For sub-pages, specify parent wiki page
+    :param title:           Title of the Wiki
+    :param owner:           Parent Entity that the Wiki will belong to
+    :param markdown:        Content of the Wiki (cannot be defined if markdownFile is defined)
+    :param markdownFile:    Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
+    :param attachments:     List of paths to files to attach
+    :param fileHandles:     List of file handle IDs representing files to be attached
+    :param parentWikiId:    (optional) For sub-pages, specify parent wiki page
     """
 
     __PROPERTIES = ('title', 'markdown', 'attachmentFileHandleIds', 'id', 'etag', 'createdBy', 'createdOn',
@@ -162,8 +160,8 @@ class Wiki(DictObject):
     def update_markdown(self, markdown=None, markdown_file=None):
         """
         Updates the wiki's markdown. Specify only one of markdown or markdown_file
-        :param markdown: text that will become the markdown
-        :param markdown_file: path to a file. Its contents will be the markdown
+        :param markdown:        text that will become the markdown
+        :param markdown_file:   path to a file. Its contents will be the markdown
         """
         if markdown and markdown_file:
             raise ValueError("Please use only one argument: markdown or markdownFile")

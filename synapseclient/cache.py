@@ -5,10 +5,9 @@
 File Caching
 ************
 
-Implements a cache on local disk for Synapse file entities and other objects
-with a `FileHandle <https://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html>`_.
-This is part of the internal implementation of the client and should not be
-accessed directly by users of the client.
+Implements a cache on local disk for Synapse file entities and other objects with a
+`FileHandle <https://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html>`_.
+This is part of the internal implementation of the client and should not be accessed directly by users of the client.
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -49,12 +48,11 @@ def iso_time_to_epoch(iso_time):
 
 def compare_timestamps(modified_time, cached_time):
     """
-    Compare two ISO formatted timestamps, with a special case when cached_time
-    ends in .000Z.
+    Compare two ISO formatted timestamps, with a special case when cached_time ends in .000Z.
 
     For backward compatibility, we always write .000 for milliseconds into the cache.
-    We then match a cached time ending in .000Z, meaning zero milliseconds
-    with a modified time with any number of milliseconds.
+    We then match a cached time ending in .000Z, meaning zero milliseconds with a modified time with any number of
+    milliseconds.
 
     :param modified_time: float representing seconds since unix epoch
     :param cached_time: string holding a ISO formatted time
@@ -287,8 +285,8 @@ class Cache():
         """
         Purge the cache. Use with caution. Delete files whose cache maps were last updated prior to the given date.
 
-        Deletes .cacheMap files and files stored in the cache.cache_root_dir, but does not delete
-        files stored outside the cache.
+        Deletes .cacheMap files and files stored in the cache.cache_root_dir, but does not delete files stored outside
+        the cache.
         """
         if isinstance(before_date, datetime.datetime):
             before_date = utils.to_unix_epoch_time_secs(before_date)
