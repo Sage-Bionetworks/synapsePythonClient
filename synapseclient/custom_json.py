@@ -3,8 +3,6 @@ When imported, monkey-patches the 'json' module's encoder with a custom json enc
 """
 
 from json import JSONEncoder
-from abc import ABCMeta, abstractmethod
-from six import add_metaclass
 from datetime import datetime as Datetime
 from .utils import datetime_to_iso
 

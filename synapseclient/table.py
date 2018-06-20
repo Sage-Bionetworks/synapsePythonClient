@@ -432,7 +432,7 @@ def df2Table(df, syn, tableName, parentProject):
         end = min((i+1)*1200, df.shape[0])
         rowset1 = RowSet(columns=cols, schema=schema1,
                          rows=[Row(list(df.ix[j, :])) for j in range(start, end)])
-        rowset1 = syn.store(rowset1)
+        syn.store(rowset1)
 
     return schema1
 
@@ -590,10 +590,10 @@ def _delete_rows(syn, schema, row_id_vers_list):
 
 @six.add_metaclass(ABCMeta)
 class SchemaBase(Entity, Versionable):
-    '''
-    This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both
-    You can not create an object of this type
-    '''
+    """
+    This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both.
+    You can not create an object of this type.
+    """
 
     _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
     _local_keys = Entity._local_keys + ['columns_to_store']
@@ -968,7 +968,7 @@ class PartialRowset(AppendableRowset):
 
         try:
             name_to_column_id = {col.name: col.id for col in originalQueryResult.headers if 'id' in col}
-        except AttributeError as e:
+        except AttributeError:
             raise ValueError('originalQueryResult must be the result of a syn.tableQuery()')
 
         row_ids = set(int(id) for id in six.iterkeys(mapping))
@@ -1253,7 +1253,7 @@ class TableAbstractBaseClass(Iterable, Sized):
         try:
             first_row = next(iter(self))
             return int(first_row[0])
-        except (KeyError, TypeError) as ex1:
+        except (KeyError, TypeError):
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an"
                              " integer.")
 
@@ -1321,7 +1321,7 @@ class RowSetTable(TableAbstractBaseClass):
     def asInteger(self):
         try:
             return int(self.rowset['rows'][0]['values'][0])
-        except (KeyError, TypeError) as ex1:
+        except (KeyError, TypeError):
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an"
                              " integer.")
 
@@ -1467,7 +1467,7 @@ class TableQueryResult(TableAbstractBaseClass):
     def asInteger(self):
         try:
             return int(self.rowset['rows'][0]['values'][0])
-        except (KeyError, TypeError) as ex1:
+        except (KeyError, TypeError):
             raise ValueError("asInteger is only valid for queries such as count queries whose first value is an"
                              " integer.")
 
@@ -1561,8 +1561,8 @@ class CsvFileTable(TableAbstractBaseClass):
 
     @classmethod
     def from_data_frame(cls, schema, df, filepath=None, etag=None, quoteCharacter='"', escapeCharacter="\\",
-                        lineEnd=str(os.linesep), separator=",", header=True, linesToSkip=0,
-                        includeRowIdAndRowVersion=None, headers=None, **kwargs):
+                        lineEnd=str(os.linesep), separator=",", header=True, includeRowIdAndRowVersion=None,
+                        headers=None, **kwargs):
         # infer columns from data frame if not specified
         if not headers:
             cols = as_table_columns(df)
@@ -1794,7 +1794,7 @@ class CsvFileTable(TableAbstractBaseClass):
                                      lines_to_skip=self.linesToSkip,
                                      date_columns=date_columns,
                                      rowIdAndVersionInIndex=rowIdAndVersionInIndex)
-        except pd.parser.CParserError as ex1:
+        except pd.parser.CParserError:
             return pd.DataFrame()
 
     def asRowSet(self):

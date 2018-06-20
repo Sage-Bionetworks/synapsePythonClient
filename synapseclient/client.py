@@ -703,7 +703,7 @@ class Synapse(object):
         """
 
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
-        version = kwargs.pop('version', None)
+        kwargs.pop('version', None)
         downloadFile = kwargs.pop('downloadFile', True)
         downloadLocation = kwargs.pop('downloadLocation', None)
         ifcollision = kwargs.pop('ifcollision', None)
@@ -1051,7 +1051,7 @@ class Synapse(object):
 
         # If we have an Activity, set it as the Entity's provenance record
         if activity:
-            activity = self.setProvenance(properties, activity)
+            self.setProvenance(properties, activity)
 
             # 'etag' has changed, so get the new Entity
             properties = self._getEntity(properties)
@@ -1144,7 +1144,7 @@ class Synapse(object):
                     self.restDELETE(obj.deleteURI(versionNumber=version))
                 else:
                     self.restDELETE(obj.deleteURI())
-            except AttributeError as ex1:
+            except AttributeError:
                 SynapseError("Can't delete a %s" % type(obj))
 
     _user_name_cache = {}
@@ -2647,7 +2647,7 @@ class Synapse(object):
             import gzip
             with gzip.open(path) as f:
                 markdown = f.read().decode('utf-8')
-        except IOError as ex1:
+        except IOError:
             with open(path) as f:
                 markdown = f.read().decode('utf-8')
 
@@ -3305,7 +3305,6 @@ class Synapse(object):
         columns = []
         next_page_token = None
         while True:
-            next_page_query = '' if next_page_token is None else '?nextPageToken=%s' % next_page_token
             response = self.restPOST('/column/view/scope', json.dumps(view_scope))
             columns.extend(Column(**column) for column in response['results'])
             next_page_token = response.get('nextPageToken')

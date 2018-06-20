@@ -90,7 +90,6 @@ import six
 import os
 import json
 
-from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.utils import id_of
 

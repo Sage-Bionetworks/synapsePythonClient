@@ -67,11 +67,11 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
 
     :return:              Synapse Entity
 
-    Can be used to change the fileaname or the file content-type without downloading.
+    Can be used to change the fileaname or the file content-type without downloading::
 
-    >>> e = syn.get(synid)
-    >>> print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
-    >>> e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
+        e = syn.get(synid)
+        print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
+        e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
     """
     ent = syn.get(entity, downloadFile=False)
     fileResult = syn._getFileHandleDownload(ent.dataFileHandleId, ent.id)
@@ -151,9 +151,9 @@ def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations
     mapping = _copyRecursive(syn, entity, destinationId, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
     if not skipCopyWikiPage:
         for oldEnt in mapping:
-            newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId=entitySubPageId,
-                                destinationSubPageId=destinationSubPageId, updateLinks=updateLinks,
-                                updateSynIds=updateSynIds, entityMap=mapping)
+            copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId=entitySubPageId,
+                     destinationSubPageId=destinationSubPageId, updateLinks=updateLinks,
+                     updateSynIds=updateSynIds, entityMap=mapping)
     return mapping
 
 
@@ -250,8 +250,7 @@ def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=Fa
     newFolder = syn.store(newFolder)
     entities = syn.getChildren(entity)
     for ent in entities:
-        copied = _copyRecursive(syn, ent['id'], newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations,
-                                **kwargs)
+        _copyRecursive(syn, ent['id'], newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
     return newFolder.id
 
 

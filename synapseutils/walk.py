@@ -1,7 +1,5 @@
-import synapseclient
 from synapseclient.entity import is_container
 import os
-import json
 
 
 def walk(syn, synId):

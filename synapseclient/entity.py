@@ -155,7 +155,6 @@ else:
     from io import StringIO
 
 from synapseclient.dict_object import DictObject
-import synapseclient.utils as utils
 from synapseclient.utils import id_of, itersubclasses
 from synapseclient.exceptions import *
 import os

@@ -6,11 +6,10 @@ from __future__ import unicode_literals
 import errno
 from .monitor import notifyMe
 from synapseclient.entity import is_container
-from synapseclient.utils import id_of, topolgical_sort, is_url, is_synapse_id
+from synapseclient.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
 from synapseclient.exceptions import *
 import os
-from sys import stderr
 import io
 import sys
 from backports import csv
@@ -74,12 +73,12 @@ def syncFromSynapse(syn, entity, path=None, ifcollision='overwrite.local', allFi
         allFiles.append(entity)
         return allFiles
 
-    id = id_of(entity)
+    entity_id = id_of(entity)
     if not is_container(entity):
-        raise ValueError("The provided id: %s is neither a container nor a File" % id)
+        raise ValueError("The provided id: %s is neither a container nor a File" % entity_id)
 
     # get the immediate children as iterator
-    children = syn.getChildren(id)
+    children = syn.getChildren(entity_id)
 
     # process each child
     for child in children:
@@ -405,5 +404,5 @@ def _manifest_upload(syn, df):
         if 'executed' in row:
             row['executed'] = syn._convertProvenanceList(row['executed'])
         kwargs = {key: row[key] for key in STORE_FUNCTION_FIELDS if key in row}
-        entity = syn.store(entity, **kwargs)
+        syn.store(entity, **kwargs)
     return True

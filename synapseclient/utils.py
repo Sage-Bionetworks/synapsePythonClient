@@ -222,7 +222,7 @@ def is_url(s):
             if url_parts.scheme == 'file' and bool(url_parts.path):
                 return True
             return bool(url_parts.scheme) and bool(url_parts.netloc)
-        except Exception as e:
+        except Exception:
             return False
     return False
 
