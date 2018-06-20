@@ -336,7 +336,8 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
     Keyword arguments are passed down to :py:func:`_start_multipart_upload`.
 
-    .. MultipartUploadStatus: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
+    .. MultipartUploadStatus:
+     http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
     .. contentType: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17
     """
     partSize = calculate_part_size(fileSize, partSize, MIN_PART_SIZE, MAX_NUMBER_OF_PARTS)
@@ -394,7 +395,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                         break
                 except Exception as ex1:
                     syn.logger.error("Attempt to complete the multipart upload failed with exception %s %s"
-                                     % (type(ex1),ex1))
+                                     % (type(ex1), ex1))
                     syn.logger.debug("multipart upload failed:", exc_info=True)
     finally:
         mp.terminate()

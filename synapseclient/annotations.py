@@ -67,8 +67,10 @@ from .exceptions import SynapseError
 
 def is_synapse_annotations(annotations):
     """Tests if the given object is a Synapse-style Annotations object."""
-    keys=['id', 'etag', 'creationDate', 'uri', 'stringAnnotations','longAnnotations','doubleAnnotations','dateAnnotations', 'blobAnnotations']
-    if not isinstance(annotations, collections.Mapping): return False
+    keys = ['id', 'etag', 'creationDate', 'uri', 'stringAnnotations', 'longAnnotations', 'doubleAnnotations',
+            'dateAnnotations', 'blobAnnotations']
+    if not isinstance(annotations, collections.Mapping):
+        return False
     return all([key in keys for key in annotations.keys()])
 
 
@@ -84,8 +86,9 @@ def to_synapse_annotations(annotations):
     for key, value in six.iteritems(annotations):
         if key in ['id', 'etag', 'blobAnnotations', 'creationDate', 'uri']:
             synapseAnnos[key] = value
-        elif key in ['stringAnnotations','longAnnotations','doubleAnnotations','dateAnnotations'] and isinstance(value, collections.Mapping):
-            synapseAnnos.setdefault(key, {}).update({k:_to_list(v) for k,v in six.iteritems(value)})
+        elif key in ['stringAnnotations', 'longAnnotations', 'doubleAnnotations', 'dateAnnotations']\
+                and isinstance(value, collections.Mapping):
+            synapseAnnos.setdefault(key, {}).update({k: _to_list(v) for k, v in six.iteritems(value)})
         else:
             elements = _to_list(value)
             if all((isinstance(elem, six.string_types) for elem in elements)):
@@ -98,7 +101,7 @@ def to_synapse_annotations(annotations):
                 synapseAnnos.setdefault('doubleAnnotations', {})[key] = elements
             elif all((_is_date(elem) for elem in elements)):
                 synapseAnnos.setdefault('dateAnnotations', {})[key] = [to_unix_epoch_time(elem) for elem in elements]
-            ## TODO: support blob annotations
+            # TODO: support blob annotations
             # elif all((isinstance(elem, ???) for elem in elements)):
             #     synapseAnnos.setdefault('blobAnnotations', {})[key] = [???(elem) for elem in elements]
             else:
@@ -115,11 +118,13 @@ def from_synapse_annotations(annotations):
         annotation with the given function and add it to the dict 'annos'.
         """
         for k,v in six.iteritems(kvps):
-            ## don't overwrite system keys which won't be lists
+            # don't overwrite system keys which won't be lists
             if k in Annotations.system_properties:
-                warnings.warn('A user defined annotation, "%s", has the same name as a system defined annotation and will be dropped. Try syn._getRawAnnotations to get annotations in native Synapse format.' % k)
+                warnings.warn('A user defined annotation, "%s", has the same name as a system defined annotation and'
+                              ' will be dropped. Try syn._getRawAnnotations to get annotations in native Synapse'
+                              ' format.' % k)
             else:
-                annos.setdefault(k,[]).extend([func(elem) for elem in v])
+                annos.setdefault(k, []).extend([func(elem) for elem in v])
 
     # Flatten the raw annotations to consolidate doubleAnnotations, longAnnotations,
     # stringAnnotations and dateAnnotations into one dictionary
@@ -127,13 +132,13 @@ def from_synapse_annotations(annotations):
     for key, value in annotations.items():
         if key in Annotations.system_properties:
             setattr(annos, key, value)
-        elif key=='dateAnnotations':
+        elif key == 'dateAnnotations':
             process_user_defined_annotations(value, annos, lambda x: from_unix_epoch_time(float(x)))
-        elif key in ['stringAnnotations','longAnnotations']:
+        elif key in ['stringAnnotations', 'longAnnotations']:
             process_user_defined_annotations(value, annos, lambda x: x)
         elif key == 'doubleAnnotations':
             process_user_defined_annotations(value, annos, lambda x: float(x))
-        elif key=='blobAnnotations':
+        elif key == 'blobAnnotations':
             process_user_defined_annotations(value, annos, lambda x: x)
         else:
             warnings.warn('Unknown key in annotations response: %s' % key)
@@ -142,8 +147,9 @@ def from_synapse_annotations(annotations):
 
 def is_submission_status_annotations(annotations):
     """Tests if the given dictionary is in the form of annotations to submission status"""
-    keys = ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']
-    if not isinstance(annotations, collections.Mapping): return False
+    keys = ['objectId', 'scopeId', 'stringAnnos', 'longAnnos', 'doubleAnnos']
+    if not isinstance(annotations, collections.Mapping):
+        return False
     return all([key in keys for key in annotations.keys()])
 
 
@@ -154,7 +160,8 @@ def to_submission_status_annotations(annotations, is_private=True):
 
     :param annotations: A normal Python dictionary whose values are strings, floats, ints or doubles
 
-    :param is_private: Set privacy on all annotations at once. These can be set individually using :py:func:`set_privacy`.
+    :param is_private: Set privacy on all annotations at once. These can be set individually using
+     :py:func:`set_privacy`.
 
     Example::
 
@@ -181,23 +188,30 @@ def to_submission_status_annotations(annotations, is_private=True):
         return annotations
     synapseAnnos = {}
     for key, value in six.iteritems(annotations):
-        if key in ['objectId', 'scopeId', 'stringAnnos','longAnnos','doubleAnnos']:
+        if key in ['objectId', 'scopeId', 'stringAnnos', 'longAnnos', 'doubleAnnos']:
             synapseAnnos[key] = value
         elif isinstance(value, bool):
-            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':str(value).lower(), 'isPrivate':is_private })
+            synapseAnnos.setdefault('stringAnnos', [])\
+                .append({'key': key, 'value': str(value).lower(), 'isPrivate': is_private})
         elif isinstance(value, int):
-            synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
+            synapseAnnos.setdefault('longAnnos', [])\
+                .append({'key': key, 'value': value, 'isPrivate': is_private})
         elif isinstance(value, float):
-            synapseAnnos.setdefault('doubleAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
+            synapseAnnos.setdefault('doubleAnnos', [])\
+                .append({'key': key, 'value': value, 'isPrivate': is_private})
         elif isinstance(value, six.string_types):
-            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':value, 'isPrivate':is_private })
+            synapseAnnos.setdefault('stringAnnos', [])\
+                .append({'key': key, 'value': value, 'isPrivate': is_private})
         elif _is_date(value):
-            synapseAnnos.setdefault('longAnnos', []).append({ 'key':key, 'value':to_unix_epoch_time(value), 'isPrivate':is_private })
+            synapseAnnos.setdefault('longAnnos', [])\
+                .append({'key': key, 'value': to_unix_epoch_time(value), 'isPrivate': is_private})
         else:
-            synapseAnnos.setdefault('stringAnnos', []).append({ 'key':key, 'value':str(value), 'isPrivate':is_private })
+            synapseAnnos.setdefault('stringAnnos', [])\
+                .append({'key': key, 'value': str(value), 'isPrivate': is_private})
     return synapseAnnos
 
-## TODO: this should accept a status object and return its annotations or an empty dict if there are none
+
+# TODO: this should accept a status object and return its annotations or an empty dict if there are none
 def from_submission_status_annotations(annotations):
     """
     Convert back from submission status annotation format to a normal dictionary.
@@ -208,18 +222,20 @@ def from_submission_status_annotations(annotations):
     """
     dictionary = {}
     for key, value in six.iteritems(annotations):
-        if key in ['stringAnnos','longAnnos']:
-            dictionary.update( { kvp['key']:kvp['value'] for kvp in value } )
+        if key in ['stringAnnos', 'longAnnos']:
+            dictionary.update({kvp['key']: kvp['value'] for kvp in value})
         elif key == 'doubleAnnos':
-            dictionary.update( { kvp['key']:float(kvp['value']) for kvp in value } )
+            dictionary.update({kvp['key']: float(kvp['value']) for kvp in value})
         else:
             dictionary[key] = value
     return dictionary
 
+
 def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'doubleAnnos', 'stringAnnos']):
     """
     Set privacy of individual annotations, where annotations are in the format used by Synapse
-    SubmissionStatus objects. See the `Annotations documentation <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
+    SubmissionStatus objects. See the `Annotations documentation
+     <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/Annotations.html>`_
     and the docs regarding `querying annotations <http://docs.synapse.org/rest/GET/evaluation/submission/query.html>`_.
 
     :param annotations: Annotations that have already been converted to Synapse format using
@@ -255,7 +271,7 @@ class Annotations(dict):
         from keyword arguments. System properties id, etag, creationDate and uri
         become attributes of the object.
         """
-        ## make sure all system properties exist
+        # make sure all system properties exist
         for key in Annotations.system_properties:
             self.__dict__[key] = None
 
@@ -273,7 +289,7 @@ class Annotations(dict):
         return self[key]
 
     def __setattr__(self, key, value):
-        if hasattr(self,key):
+        if hasattr(self, key):
             return super(Annotations, self).__setattr__(key, value)
         else:
             return self.__setitem__(key, value)
