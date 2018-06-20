@@ -7,7 +7,7 @@ import os
 from .utils import is_url, md5_for_file, as_url, file_url_to_path, id_of
 from .constants import concrete_types
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from .multipart_upload import  multipart_upload
+from .multipart_upload import multipart_upload
 from .exceptions import SynapseMd5MismatchError
 try:
     from urllib.parse import urlparse
@@ -21,6 +21,7 @@ except ImportError:
     from urllib import quote
     from urllib import unquote
     from urllib import urlretrieve
+
 
 def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, file_size=None, mimetype=None):
     """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
@@ -47,48 +48,47 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
     if not synapseStore:
         return create_external_file_handle(syn, path, mimetype=mimetype, md5=md5, file_size=file_size)
 
-    #expand the path because past this point an upload is required and some upload functions require an absolute path
+    # expand the path because past this point an upload is required and some upload functions require an absolute path
     expanded_upload_path = os.path.expandvars(os.path.expanduser(path))
 
     entity_parent_id = id_of(parent_entity)
 
-    #determine the upload function based on the UploadDestination
+    # determine the upload function based on the UploadDestination
     location = syn._getDefaultUploadDestination(entity_parent_id)
     upload_destination_type = location['concreteType']
     # synapse managed S3
-    if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION or \
-                    upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
-        storageString = 'Synapse' if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION else 'your external S3'
+    if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION \
+            or upload_destination_type == concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION:
+        storageString = 'Synapse' \
+            if upload_destination_type == concrete_types.SYNAPSE_S3_UPLOAD_DESTINATION \
+            else 'your external S3'
         syn.logger.info('\n' + '#' * 50 + '\n Uploading file to ' + storageString + ' storage \n' + '#' * 50 + '\n')
 
         return upload_synapse_s3(syn, expanded_upload_path, location['storageLocationId'], mimetype=mimetype)
-    #external file handle (sftp)
+    # external file handle (sftp)
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
         if location['uploadType'] == 'SFTP':
-            syn.logger.info('\n%s\n%s\nUploading to: %s\n%s\n' % ('#' * 50,
-                                                                   location.get('banner', ''),
-                                                                   urlparse(location['url']).netloc,
-                                                                   '#' * 50))
+            syn.logger.info('\n%s\n%s\nUploading to: %s\n%s\n' % ('#' * 50, location.get('banner', ''),
+                                                                  urlparse(location['url']).netloc,
+                                                                  '#' * 50))
             return upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'], mimetype=mimetype)
         else:
             raise NotImplementedError('Can only handle SFTP upload locations.')
-    #client authenticated S3
+    # client authenticated S3
     elif upload_destination_type == concrete_types.EXTERNAL_OBJECT_STORE_UPLOAD_DESTINATION:
-        syn.logger.info('\n%s\n%s\nUploading to endpoint: [%s] bucket: [%s]\n%s\n' % ('#' * 50,
-                                                               location.get('banner', ''),
-                                                               location.get('endpointUrl'),
-                                                               location.get('bucket'),
-                                                               '#' * 50))
-        return upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'], location['keyPrefixUUID'], location['storageLocationId'], mimetype=mimetype)
-    else: #unknown storage location
-        syn.logger.info('\n%s\n%s\nUNKNOWN STORAGE LOCATION. Defaulting upload to Synapse.\n%s\n' % ('!' * 50,
-                                                               location.get('banner', ''),
-                                                               '!' * 50))
+        syn.logger.info('\n%s\n%s\nUploading to endpoint: [%s] bucket: [%s]\n%s\n'
+                        % ('#' * 50, location.get('banner', ''), location.get('endpointUrl'), location.get('bucket'),
+                           '#' * 50))
+        return upload_client_auth_s3(syn, expanded_upload_path, location['bucket'], location['endpointUrl'],
+                                     location['keyPrefixUUID'], location['storageLocationId'], mimetype=mimetype)
+    else:  # unknown storage location
+        syn.logger.info('\n%s\n%s\nUNKNOWN STORAGE LOCATION. Defaulting upload to Synapse.\n%s\n'
+                        % ('!' * 50, location.get('banner', ''), '!' * 50))
         return upload_synapse_s3(syn, expanded_upload_path, None, mimetype=mimetype)
 
 
 def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=None):
-    is_local_file = False #defaults to false
+    is_local_file = False  # defaults to false
     url = as_url(os.path.expandvars(os.path.expanduser(path)))
     if is_url(url):
         parsed_url = urlparse(url)
@@ -104,8 +104,8 @@ def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=No
     else:
         raise ValueError('externalUrl [%s] is not a valid url', url)
 
-    #just creates the file handle because there is nothing to upload
-    file_handle =  syn._createExternalFileHandle(url, mimetype=mimetype, md5=md5, fileSize=file_size)
+    # just creates the file handle because there is nothing to upload
+    file_handle = syn._createExternalFileHandle(url, mimetype=mimetype, md5=md5, fileSize=file_size)
     if is_local_file:
         syn.cache.add(file_handle['id'], file_url_to_path(url))
     return file_handle
@@ -115,9 +115,12 @@ def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
     username, password = syn._getUserCredentials(sftp_url)
     uploaded_url = SFTPWrapper.upload_file(file_path, unquote(sftp_url), username, password)
 
-    file_handle = syn._createExternalFileHandle(uploaded_url, mimetype=mimetype, md5=md5_for_file(file_path).hexdigest(), fileSize=os.stat(file_path).st_size)
+    file_handle = syn._createExternalFileHandle(uploaded_url, mimetype=mimetype,
+                                                md5=md5_for_file(file_path).hexdigest(),
+                                                fileSize=os.stat(file_path).st_size)
     syn.cache.add(file_handle['id'], file_path)
     return file_handle
+
 
 def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
     file_handle_id = multipart_upload(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)

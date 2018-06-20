@@ -212,7 +212,7 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, storageLoca
     syn.logger.debug("Initiating multi-part upload for file: [{path}] size={size} md5={md5}, contentType={contentType}"
                      .format(path=filepath, size=fileSize, md5=md5, contentType=contentType))
 
-    get_chunk_function = lambda n, partSize: get_file_chunk(filepath, n, partSize)
+    def get_chunk_function(n, partSize): return get_file_chunk(filepath, n, partSize)
 
     status = _multipart_upload(syn, filename, contentType,
                                get_chunk_function=get_chunk_function,
@@ -253,7 +253,7 @@ def multipart_upload_string(syn, text, filename=None, contentType=None, storageL
     if not contentType:
         contentType = "text/plain; charset=utf-8"
 
-    get_chunk_function = lambda n, partSize: get_data_chunk(data, n, partSize)
+    def get_chunk_function(n, partSize): return get_data_chunk(data, n, partSize)
 
     status = _multipart_upload(syn, filename, contentType,
                                get_chunk_function=get_chunk_function,
@@ -362,11 +362,13 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             expired = Value(c_bool, False)
 
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
-            chunk_upload = lambda part: _upload_chunk(part, completed=completed, status=status,
-                                                      syn=syn, filename=filename, get_chunk_function=get_chunk_function,
-                                                      fileSize=fileSize, partSize=partSize, t0=time_upload_started,
-                                                      expired=expired,
-                                                      bytes_already_uploaded=previously_completed_bytes)
+
+            def chunk_upload(part): return _upload_chunk(part, completed=completed, status=status,
+                                                         syn=syn, filename=filename,
+                                                         get_chunk_function=get_chunk_function,
+                                                         fileSize=fileSize, partSize=partSize, t0=time_upload_started,
+                                                         expired=expired,
+                                                         bytes_already_uploaded=previously_completed_bytes)
 
             syn.logger.debug("fetching pre-signed urls and mapping to Pool")
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))

@@ -116,7 +116,7 @@ def from_synapse_annotations(annotations):
         for each annotation of a given class (date, string, double, ...), process the
         annotation with the given function and add it to the dict 'annos'.
         """
-        for k,v in six.iteritems(kvps):
+        for k, v in six.iteritems(kvps):
             # don't overwrite system keys which won't be lists
             if k in Annotations.system_properties:
                 warnings.warn('A user defined annotation, "%s", has the same name as a system defined annotation and'

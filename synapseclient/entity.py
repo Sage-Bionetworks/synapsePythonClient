@@ -605,7 +605,7 @@ class File(Entity, Versionable):
         fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
         self.__dict__['_file_handle'] = fh_dict
 
-        if file_handle_update_dict is not None\
+        if file_handle_update_dict is not None \
                 and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
                 and utils.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
             self.__dict__['synapseStore'] = False
@@ -621,7 +621,7 @@ class File(Entity, Versionable):
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
-            expand_and_convert_to_URL = lambda path: utils.as_url(os.path.expandvars(os.path.expanduser(path)))
+            def expand_and_convert_to_URL(path): return utils.as_url(os.path.expandvars(os.path.expanduser(path)))
             # hacky solution to allowing immediate switching into a ExternalFileHandle pointing to the current path
             # yes, there is boolean zen but I feel like it is easier to read/understand this way
             if key == 'synapseStore' and value is False and self['synapseStore'] is True \

@@ -529,7 +529,7 @@ def _csv_to_pandas_df(filepath,
     import pandas as pd
 
     # DATEs are stored in csv as unix timestamp in milliseconds
-    datetime_millisecond_parser = lambda milliseconds: pd.to_datetime(milliseconds, unit='ms', utc=True)
+    def datetime_millisecond_parser(milliseconds): return pd.to_datetime(milliseconds, unit='ms', utc=True)
 
     if not date_columns:
         date_columns = []
