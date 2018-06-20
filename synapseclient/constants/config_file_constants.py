@@ -1,1 +1,1 @@
-AUTHENTICATION_SECTION_NAME='authentication'
+AUTHENTICATION_SECTION_NAME = 'authentication'

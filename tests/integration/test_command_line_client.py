@@ -605,8 +605,7 @@ def test_command_get_recursive_and_query():
 
     ### Test query get using a Table with an entity column
     ### This should be replaced when Table File Views are implemented in the client
-    cols = []
-    cols.append(synapseclient.Column(name='id', columnType='ENTITYID'))
+    cols = [synapseclient.Column(name='id', columnType='ENTITYID')]
 
     schema1 = syn.store(synapseclient.Schema(name='Foo Table', columns=cols, parent=project_entity))
     schedule_for_cleanup(schema1.id)
@@ -770,12 +769,11 @@ def test_table_query():
 
     """
 
-    cols = []
-    cols.append(synapseclient.Column(name='name', columnType='STRING', maximumSize=1000))
-    cols.append(synapseclient.Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
-    cols.append(synapseclient.Column(name='x', columnType='DOUBLE'))
-    cols.append(synapseclient.Column(name='age', columnType='INTEGER'))
-    cols.append(synapseclient.Column(name='cartoon', columnType='BOOLEAN'))
+    cols = [synapseclient.Column(name='name', columnType='STRING', maximumSize=1000),
+            synapseclient.Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']),
+            synapseclient.Column(name='x', columnType='DOUBLE'),
+            synapseclient.Column(name='age', columnType='INTEGER'),
+            synapseclient.Column(name='cartoon', columnType='BOOLEAN')]
 
     project_entity = project
 

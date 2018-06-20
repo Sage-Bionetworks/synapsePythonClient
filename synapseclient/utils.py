@@ -29,12 +29,15 @@ except ImportError:
     from urlparse import urlsplit
 
 try:
-    import urllib.request, urllib.error
+    import urllib.request
+    import urllib.error
 except ImportError:
     import urllib
 
-import os, sys
-import hashlib, re
+import os
+import sys
+import hashlib
+import re
 import cgi
 import errno
 import inspect
