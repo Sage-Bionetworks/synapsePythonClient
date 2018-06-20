@@ -162,9 +162,9 @@ def test_entity_constructors():
 
 
 def test_property_keys():
-    assert_equals('parentId' in File._property_keys)
-    assert_equals('versionNumber' in File._property_keys)
-    assert_equals('dataFileHandleId' in File._property_keys)
+    assert_true('parentId' in File._property_keys)
+    assert_true('versionNumber' in File._property_keys)
+    assert_true('dataFileHandleId' in File._property_keys)
 
 
 def test_keys():
@@ -181,9 +181,9 @@ def test_keys():
 
 def test_attrs():
     f = File('foo.xyz', parent='syn1234', foo='bar')
-    assert_equals(hasattr(f, 'parentId'))
-    assert_equals(hasattr(f, 'foo'))
-    assert_equals(hasattr(f, 'path'))
+    assert_true(hasattr(f, 'parentId'))
+    assert_true(hasattr(f, 'foo'))
+    assert_true(hasattr(f, 'path'))
 
 
 def test_split_entity_namespaces():
