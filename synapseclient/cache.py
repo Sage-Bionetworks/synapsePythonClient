@@ -71,7 +71,7 @@ def _get_modified_time(path):
     return None
 
 
-class Cache():
+class Cache:
     """
     Represent a cache in which files are accessed by file handle ID.
     """

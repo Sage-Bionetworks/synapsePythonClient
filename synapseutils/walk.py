@@ -22,7 +22,7 @@ def walk(syn, synId):
             print(filename) #All the files in the directory path
 
     """
-    return(_helpWalk(syn, synId))
+    return _helpWalk(syn, synId)
 
 
 # Helper function to hide the newpath parameter

@@ -44,7 +44,7 @@ def version_check(current_version=None, version_url=_VERSION_URL, check_for_poin
     """
 
     try:
-        if (not current_version):
+        if not current_version:
             current_version = synapseclient.__version__
 
         version_info = _get_version_info(version_url)

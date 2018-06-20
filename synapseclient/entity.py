@@ -616,7 +616,7 @@ class File(Entity, Versionable):
                 fh_dict[key] = None
 
     def __setitem__(self, key, value):
-        if (key == '_file_handle'):
+        if key == '_file_handle':
             self._update_file_handle(value)
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
@@ -701,7 +701,7 @@ def split_entity_namespaces(entity):
     """
     if isinstance(entity, Entity):
         # Defensive programming: return copies
-        return (entity.properties.copy(), entity.annotations.copy(), entity.local_state())
+        return entity.properties.copy(), entity.annotations.copy(), entity.local_state()
 
     if not isinstance(entity, collections.Mapping):
         raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
@@ -725,7 +725,7 @@ def split_entity_namespaces(entity):
         else:
             annotations[key] = value
 
-    return (properties, annotations, local_state)
+    return properties, annotations, local_state
 
 
 ENTITY_TYPES = [

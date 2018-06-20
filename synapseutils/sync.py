@@ -201,11 +201,11 @@ def _sortAndFixProvenance(syn, df):
 
     for path, row in df.iterrows():
         allRefs = []
-        if ('used' in row):
+        if 'used' in row:
             used = row['used'].split(';') if (row['used'].strip() != '') else []  # Get None or split if string
             df.set_value(path, 'used', [_checkProvenace(item, path) for item in used])
             allRefs.extend(df.loc[path, 'used'])
-        if ('executed' in row):
+        if 'executed' in row:
             # Get None or split if string
             executed = row['executed'].split(';') if (row['executed'].strip() != '') else []
             df.set_value(path, 'executed', [_checkProvenace(item, path) for item in executed])
@@ -268,7 +268,7 @@ def readManifestFile(syn, manifestFile):
     sys.stdout.write('OK\n')
 
     sys.stdout.write('Validating that all files are unique...')
-    if (len(df.path) != len(set(df.path))):
+    if len(df.path) != len(set(df.path)):
         raise ValueError("All rows in manifest must contain a unique file to upload")
     sys.stdout.write('OK\n')
 
@@ -283,7 +283,7 @@ def readManifestFile(syn, manifestFile):
             container = syn.get(synId, downloadFile=False)
         except SynapseHTTPError as e:
             sys.stdout.write('\n%s in the parent column is not a valid Synapse Id\n' % synId)
-            raise(e)
+            raise e
         if not is_container(container):
             sys.stdout.write('\n%s in the parent column is is not a Folder or Project\n' % synId)
             raise SynapseHTTPError

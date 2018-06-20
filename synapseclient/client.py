@@ -1514,7 +1514,7 @@ class Synapse(object):
 
             # Handle the case where a query was skipped due to size and now no items remain
             if remaining <= 0:
-                raise(StopIteration)
+                raise StopIteration
 
             # Build the sub-query
             subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
@@ -1541,7 +1541,7 @@ class Synapse(object):
                 # Shrink the query size when appropriate
                 if err.response.status_code == 400 \
                         and ('The results of this query exceeded the max' in err.response.json()['reason']):
-                    if (limit == 1):
+                    if limit == 1:
                         self.logger.warning("A single row (offset %s) of this query exceeds the maximum size."
                                             " Consider limiting the columns returned in the select clause."
                                             " Skipping...\n" % offset)
@@ -3035,14 +3035,14 @@ class Synapse(object):
         file_handle_id = download_from_table_result['resultsFileHandleId']
         cached_file_path = self.cache.get(file_handle_id=file_handle_id)
         if cached_file_path is not None:
-            return (download_from_table_result, cached_file_path)
+            return download_from_table_result, cached_file_path
         else:
             cache_dir = self.cache.get_cache_dir(file_handle_id)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
             path = self._downloadFileHandle(file_handle_id, _extract_synapse_id_from_query(query),
                                             'TableEntity', cache_dir)
-        return (download_from_table_result, path)
+        return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
     def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):

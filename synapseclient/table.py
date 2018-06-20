@@ -1334,9 +1334,6 @@ class RowSetTable(TableAbstractBaseClass):
     def __len__(self):
         return len(self.rowset['rows'])
 
-    def __len__(self):
-        return len(self.rowset['rows'])
-
     def iter_row_metadata(self):
         raise NotImplementedError("iter_metadata is not supported for RowSetTable")
 
@@ -1497,9 +1494,6 @@ class TableQueryResult(TableAbstractBaseClass):
         Python 3 iterator
         """
         return self.next()
-
-    def __len__(self):
-        return len(self.rowset['rows'])
 
     def __len__(self):
         return len(self.rowset['rows'])

@@ -84,7 +84,7 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
         raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"], copyResult['originalFileHandleId']))
     ent.dataFileHandleId = copyResult['newFileHandle']['id']
     ent = syn.store(ent)
-    return(ent)
+    return ent
 
 
 def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
@@ -154,7 +154,7 @@ def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations
             newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId=entitySubPageId,
                                 destinationSubPageId=destinationSubPageId, updateLinks=updateLinks,
                                 updateSynIds=updateSynIds, entityMap=mapping)
-    return(mapping)
+    return mapping
 
 
 def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs):
@@ -218,7 +218,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         print("Copied %s to %s" % (ent.id, copiedId))
     else:
         print("%s not copied" % ent.id)
-    return(mapping)
+    return mapping
 
 
 def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs):
@@ -252,7 +252,7 @@ def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=Fa
     for ent in entities:
         copied = _copyRecursive(syn, ent['id'], newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations,
                                 **kwargs)
-    return(newFolder.id)
+    return newFolder.id
 
 
 def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback",
@@ -361,7 +361,7 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
     print("Created new table using schema %s" % newTableSchema.name)
     newTable = Table(schema=newTableSchema, values=d.filepath)
     newTable = syn.store(newTable)
-    return(newTable.schema.id)
+    return newTable.schema.id
 
 
 def _copyLink(syn, entity, destinationId, updateExisting=False):
@@ -386,11 +386,11 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
                    targetVersion=ent.linksTo.get('targetVersionNumber'))
     try:
         newLink = syn.store(newLink)
-        return(newLink.id)
+        return newLink.id
     except SynapseHTTPError as e:
         if e.response.status_code == 404:
             print("WARNING: The target of this link %s no longer exists" % ent.id)
-            return(None)
+            return None
         else:
             raise e
 
@@ -411,7 +411,7 @@ def _getSubWikiHeaders(wikiHeaders, subPageId, mapping=None):
                 mapping.append(i)
         elif i.get('parentId') == subPageId:
             mapping = _getSubWikiHeaders(wikiHeaders, subPageId=i['id'], mapping=mapping)
-    return(mapping)
+    return mapping
 
 
 def _updateSynIds(newWikis, wikiIdMap, entityMap):
@@ -430,7 +430,7 @@ def _updateSynIds(newWikis, wikiIdMap, entityMap):
             s = re.sub(oldSynId, newSynId, s)
         print("Done updating Synpase IDs.\n")
         newWikis[newWikiId].markdown = s
-    return(newWikis)
+    return newWikis
 
 
 def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
@@ -451,7 +451,7 @@ def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
         # now replace any last references to entity with destinationId
         s = re.sub(entity, destinationId, s)
         newWikis[newWikiId].markdown = s
-    return(newWikis)
+    return newWikis
 
 
 def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPageId=None, updateLinks=True,
@@ -491,7 +491,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         oldWikiHeaders = syn.getWikiHeaders(oldOwn)
     except SynapseHTTPError as e:
         if e.response.status_code == 404:
-            return([])
+            return []
         else:
             raise e
 
@@ -563,4 +563,4 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         newWikis[newWikiId] = syn.store(newWikis[newWikiId])
         print("\tStored: %s\n" % newWikiId)
     newWh = syn.getWikiHeaders(newOwn)
-    return(newWh)
+    return newWh

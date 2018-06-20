@@ -83,7 +83,7 @@ def md5_for_file(filename, block_size=2*MB):
             if not data:
                 break
             md5.update(data)
-    return(md5)
+    return md5
 
 
 def download_file(url, localFilepath=None):
@@ -330,11 +330,9 @@ def _to_list(value):
 
 def _to_iterable(value):
     """Convert the value (an iterable or a scalar value) to an iterable."""
-    if isinstance(value, six.string_types):
-        return (value,)
     if isinstance(value, collections.Iterable):
         return value
-    return (value,)
+    return value,
 
 
 def make_bogus_data_file(n=100, seed=None):
@@ -417,7 +415,7 @@ def from_unix_epoch_time_secs(secs):
     # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!
     if platform.system() == 'Windows' and secs < 0:
         mirror_date = Datetime.utcfromtimestamp(abs(secs))
-        return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
+        return UNIX_EPOCH - (mirror_date - UNIX_EPOCH)
     return Datetime.utcfromtimestamp(secs)
 
 
@@ -899,7 +897,7 @@ def caller_module_name(current_frame):
 
     # find the first frame that does not have the same filename. this ensures that we don't consider functions within
     # the same module as foo() that use foo() as a helper function
-    while(caller_filename == current_frame_filename):
+    while caller_filename == current_frame_filename:
         caller_frame = caller_frame.f_back
         caller_filename = caller_frame.f_code.co_filename
 
