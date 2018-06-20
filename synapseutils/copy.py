@@ -184,7 +184,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     elif not all([i in ["file", "link", "table"] for i in excludeTypes]):
         raise ValueError("Excluded types can only be a list of these values: file, table, and link") 
 
-    ent = syn.get(entity,downloadFile=False)
+    ent = syn.get(entity, downloadFile=False)
     if ent.id == destinationId:
         raise ValueError("destinationId cannot be the same as entity id")
 
@@ -542,7 +542,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
                 newWikiPage.attachmentFileHandleIds = new_file_handles
                 newWikiPage.markdown = wiki.markdown
                 newWikiPage.title = wiki.get('title', '')
-                #Need to add logic to update titles here
+                # Need to add logic to update titles here
                 newWikiPage = syn.store(newWikiPage)
             else:
                 newWikiPage = Wiki(owner=newOwn, title=wiki.get('title', ''), markdown=wiki.markdown,

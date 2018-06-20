@@ -231,11 +231,11 @@ class Entity(collections.MutableMapping):
         return cls(properties=properties, annotations=annotations, local_state=local_state)
 
     @classmethod
-    def getURI(self, id):
+    def getURI(cls, id):
         return '/entity/%s' % id
 
-    def __new__(typ, *args, **kwargs):
-        obj = object.__new__(typ)
+    def __new__(cls, *args, **kwargs):
+        obj = object.__new__(cls)
 
         # Make really sure that properties and annotations exist before
         # any object methods get invoked. This is important because the
