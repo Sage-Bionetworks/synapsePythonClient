@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 
 from collections import OrderedDict
 from datetime import datetime as Datetime
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals, assert_false, assert_true
 from math import pi
 import os
 
@@ -101,38 +101,38 @@ def test_submission_status_annotations_round_trip():
     april_28_1969 = Datetime(1969,4,28)
     a = dict(screen_name='Bullwinkle', species='Moose', lucky=13, pi=pi, birthday=april_28_1969)
     sa = to_submission_status_annotations(a)
-    assert set(['screen_name','species']) == set([kvp['key'] for kvp in sa['stringAnnos']])
-    assert set(['Bullwinkle','Moose']) == set([kvp['value'] for kvp in sa['stringAnnos']])
+    assert_equals({'screen_name','species'}, set([kvp['key'] for kvp in sa['stringAnnos']]))
+    assert_equals({'Bullwinkle','Moose'}, set([kvp['value'] for kvp in sa['stringAnnos']]))
 
-    ## test idempotence
-    assert sa == to_submission_status_annotations(sa)
+    # test idempotence
+    assert_equals(sa, to_submission_status_annotations(sa))
 
-    assert set(['lucky', 'birthday']) == set([kvp['key'] for kvp in sa['longAnnos']])
+    assert_equals({'lucky', 'birthday'}, set([kvp['key'] for kvp in sa['longAnnos']]))
     for kvp in sa['longAnnos']:
         key = kvp['key']
         value = kvp['value']
         if key=='lucky':
-            assert value == 13
+            assert_equals(value, 13)
         if key=='birthday':
             assert utils.from_unix_epoch_time(value) == april_28_1969
 
-    assert set(['pi']) == set([kvp['key'] for kvp in sa['doubleAnnos']])
-    assert set([pi]) == set([kvp['value'] for kvp in sa['doubleAnnos']])
+    assert_equals({'pi'}, set([kvp['key'] for kvp in sa['doubleAnnos']]))
+    assert_equals({pi}, set([kvp['value'] for kvp in sa['doubleAnnos']]))
 
     set_privacy(sa, key='screen_name', is_private=False)
     assert_raises(KeyError, set_privacy, sa, key='this_key_does_not_exist', is_private=False)
 
     for kvp in sa['stringAnnos']:
         if kvp['key'] == 'screen_name':
-            assert kvp['isPrivate'] == False
+            assert_false(kvp['isPrivate'])
 
     a2 = from_submission_status_annotations(sa)
     # TODO: is there a way to convert dates back from longs automatically?
     a2['birthday'] = utils.from_unix_epoch_time(a2['birthday'])
-    assert a == a2
+    assert_equals(a, a2)
 
-    ## test idempotence
-    assert a == from_submission_status_annotations(a)
+    # test idempotence
+    assert_equals(a, from_submission_status_annotations(a))
 
 def test_submission_status_double_annos():
     ssa = {'longAnnos':   [{'isPrivate': False, 'value':13, 'key':'lucky'}],
@@ -140,7 +140,7 @@ def test_submission_status_double_annos():
     ## test that the double annotation 'three':3 is interpreted as a floating
     ## point 3.0 rather than an integer 3
     annotations = from_submission_status_annotations(ssa)
-    assert isinstance(annotations['three'], float)
+    assert_true(isinstance(annotations['three'], float))
     ssa2 = to_submission_status_annotations(annotations)
-    assert set(['three', 'pi']) == set([kvp['key'] for kvp in ssa2['doubleAnnos']])
-    assert set(['lucky']) == set([kvp['key'] for kvp in ssa2['longAnnos']])
+    assert_equals({'three', 'pi'}, set([kvp['key'] for kvp in ssa2['doubleAnnos']]))
+    assert_equals({'lucky'}, set([kvp['key'] for kvp in ssa2['longAnnos']]))

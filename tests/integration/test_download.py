@@ -80,13 +80,12 @@ def test_ftp_download():
     # Another test with an external reference. This is because we only need to test FTP download; not upload. Also so we don't have to maintain an FTP server just for this purpose.
     # Make an entity that points to an FTP server file.
     entity = File(parent=project['id'], name = '1KB.zip')
-    fileHandle = {}
-    fileHandle['externalURL'] = 'ftp://speedtest.tele2.net/1KB.zip'
-    fileHandle["fileName"] = entity.name
-    fileHandle["contentType"] = "application/zip"
-    fileHandle["contentMd5"] = '0f343b0931126a20f133d67c2b018a3b'
-    fileHandle["contentSize"] = 1024
-    fileHandle["concreteType"] = "org.sagebionetworks.repo.model.file.ExternalFileHandle"
+    fileHandle = {'externalURL': 'ftp://speedtest.tele2.net/1KB.zip',
+                  "fileName": entity.name,
+                  "contentType": "application/zip",
+                  "contentMd5": '0f343b0931126a20f133d67c2b018a3b',
+                  "contentSize": 1024,
+                  "concreteType": "org.sagebionetworks.repo.model.file.ExternalFileHandle"}
     fileHandle = syn.restPOST('/externalFileHandle', json.dumps(fileHandle), syn.fileHandleEndpoint)
     entity.dataFileHandleId = fileHandle['id']
     entity = syn.store(entity)

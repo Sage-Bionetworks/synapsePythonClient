@@ -296,11 +296,10 @@ def test_csv_table():
 
     filename = None
 
-    cols = []
-    cols.append(Column(id='1', name='Name', columnType='STRING'))
-    cols.append(Column(id='2', name='Born', columnType='INTEGER'))
-    cols.append(Column(id='3', name='Hipness', columnType='DOUBLE'))
-    cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
+    cols = [Column(id='1', name='Name', columnType='STRING'),
+            Column(id='2', name='Born', columnType='INTEGER'),
+            Column(id='3', name='Hipness', columnType='DOUBLE'),
+            Column(id='4', name='Living', columnType='BOOLEAN')]
 
     schema1 = Schema(id='syn1234', name='Jazz Guys', columns=cols, parent="syn1000001")
 
@@ -373,15 +372,14 @@ def test_list_of_rows_table():
             ["Sonny Rollins",  1930, 8.99, True],
             ["Kenny Burrel",   1931, 4.37, True]]
 
-    cols = []
-    cols.append(Column(id='1', name='Name', columnType='STRING'))
-    cols.append(Column(id='2', name='Born', columnType='INTEGER'))
-    cols.append(Column(id='3', name='Hipness', columnType='DOUBLE'))
-    cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
+    cols = [Column(id='1', name='Name', columnType='STRING'),
+            Column(id='2', name='Born', columnType='INTEGER'),
+            Column(id='3', name='Hipness', columnType='DOUBLE'),
+            Column(id='4', name='Living', columnType='BOOLEAN')]
 
     schema1 = Schema(name='Jazz Guys', columns=cols, id="syn1000002", parent="syn1000001")
 
-    ## need columns to do cast_values w/o storing
+    # need columns to do cast_values w/o storing
     table = Table(schema1, data, headers=[SelectColumn.from_column(col) for col in cols])
 
     for table_row, expected_row in zip(table, data):

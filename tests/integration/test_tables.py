@@ -167,14 +167,12 @@ def test_entity_view_add_annotation_columns():
 
 
 def test_rowset_tables():
-    cols = []
-    cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
-    cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
-    cols.append(Column(name='x', columnType='DOUBLE'))
-    cols.append(Column(name='age', columnType='INTEGER'))
-    cols.append(Column(name='cartoon', columnType='BOOLEAN'))
-    cols.append(Column(name='description', columnType='LARGETEXT'))
-
+    cols = [Column(name='name', columnType='STRING', maximumSize=1000),
+            Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']),
+            Column(name='x', columnType='DOUBLE'),
+            Column(name='age', columnType='INTEGER'),
+            Column(name='cartoon', columnType='BOOLEAN'),
+            Column(name='description', columnType='LARGETEXT')]
 
     schema1 = syn.store(Schema(name='Foo Table', columns=cols, parent=project))
 
@@ -189,11 +187,10 @@ def test_rowset_tables():
 def test_tables_csv():
 
     ## Define schema
-    cols = []
-    cols.append(Column(name='Name', columnType='STRING'))
-    cols.append(Column(name='Born', columnType='INTEGER'))
-    cols.append(Column(name='Hipness', columnType='DOUBLE'))
-    cols.append(Column(name='Living', columnType='BOOLEAN'))
+    cols = [Column(id='1', name='Name', columnType='STRING'),
+            Column(id='2', name='Born', columnType='INTEGER'),
+            Column(id='3', name='Hipness', columnType='DOUBLE'),
+            Column(id='4', name='Living', columnType='BOOLEAN')]
 
     schema = Schema(name='Jazz Guys', columns=cols, parent=project)
 
@@ -422,12 +419,11 @@ def test_download_table_files():
 
 
 def dontruntest_big_tables():
-    cols = []
-    cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
-    cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
-    cols.append(Column(name='x', columnType='DOUBLE'))
-    cols.append(Column(name='n', columnType='INTEGER'))
-    cols.append(Column(name='is_bogus', columnType='BOOLEAN'))
+    cols = [Column(name='name', columnType='STRING', maximumSize=1000),
+            Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']),
+            Column(name='x', columnType='DOUBLE'),
+            Column(name='n', columnType='INTEGER'),
+            Column(name='is_bogus', columnType='BOOLEAN')]
 
     table1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
@@ -448,12 +444,11 @@ def dontruntest_big_tables():
 
 
 def dontruntest_big_csvs():
-    cols = []
-    cols.append(Column(name='name', columnType='STRING', maximumSize=1000))
-    cols.append(Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']))
-    cols.append(Column(name='x', columnType='DOUBLE'))
-    cols.append(Column(name='n', columnType='INTEGER'))
-    cols.append(Column(name='is_bogus', columnType='BOOLEAN'))
+    cols = [Column(name='name', columnType='STRING', maximumSize=1000),
+            Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']),
+            Column(name='x', columnType='DOUBLE'),
+            Column(name='n', columnType='INTEGER'),
+            Column(name='is_bogus', columnType='BOOLEAN')]
 
     schema1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 

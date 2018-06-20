@@ -96,7 +96,7 @@ def test_get_entity_owned_by_another_user():
         syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'DOWNLOAD'], modify_benefactor=True)
 
         # Test whether the benefactor's ACL was modified
-        assert_equals(set(syn_other.getPermissions(project, current_user_id)),  set(['READ', 'DOWNLOAD']))
+        assert_equals(set(syn_other.getPermissions(project, current_user_id)), {'READ', 'DOWNLOAD'})
 
         # Add a new permission to a user with existing permissions
         # make this change on the entity itself, not its benefactor
@@ -107,7 +107,7 @@ def test_get_entity_owned_by_another_user():
         assert len(permissions) == 3
 
         syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'DOWNLOAD'])
-        assert_equals(set(syn_other.getPermissions(a_file, current_user_id)), set(['DOWNLOAD', 'READ']))
+        assert_equals(set(syn_other.getPermissions(a_file, current_user_id)), {'DOWNLOAD', 'READ'})
 
         other_users_file = syn.get(a_file.id)
         a_file = syn_other.get(a_file.id)
@@ -129,7 +129,6 @@ def test_access_restrictions():
             'entity': {
               'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
               'createdBy': 'Miles Dewey Davis',
-              'dataFileHandleId': '1234',
               'entityType': 'org.sagebionetworks.repo.model.FileEntity',
               'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
               'id': 'syn1000002',
@@ -163,5 +162,5 @@ def test_setPermissions__default_permissions():
     syn.setPermissions(temp_proj, other_user['username'])
     permissions = syn.getPermissions(temp_proj, other_user['username'])
 
-    assert_equals(set(['READ', 'DOWNLOAD']), set(permissions))
+    assert_equals({'READ', 'DOWNLOAD'}, set(permissions))
 
