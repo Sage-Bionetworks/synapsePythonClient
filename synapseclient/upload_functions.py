@@ -26,14 +26,17 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
     """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
     Returns a new FileHandle as a dict to represent the stored file.
 
-    :param parent_entity: Entity object or id of the parent entity.
-    :param path: file path to the file being uploaded
-    :param synapseStore: If False, will not upload the file, but instead create an ExternalFileHandle that references the file on the local machine.
-                         If True, will upload the file based on StorageLocation determined by the entity_parent_id
-    :param md5: The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
-    :param file_size: The size the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
-    :param file_size: The MIME type the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
-
+    :param parent_entity:   Entity object or id of the parent entity.
+    :param path:            file path to the file being uploaded
+    :param synapseStore:    If False, will not upload the file, but instead create an ExternalFileHandle that references
+                            the file on the local machine.
+                            If True, will upload the file based on StorageLocation determined by the entity_parent_id
+    :param md5:             The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be
+                            calculated automatically.
+    :param file_size:       The size the file, if known. Otherwise if the file is a local file, it will be calculated
+                            automatically.
+    :param file_size:       The MIME type the file, if known. Otherwise if the file is a local file, it will be
+                            calculated automatically.
 
     :returns: a dict of a new FileHandle as a dict that represents the uploaded file 
     """

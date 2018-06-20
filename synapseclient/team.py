@@ -11,13 +11,16 @@ from __future__ import unicode_literals
 
 from .dict_object import DictObject
 
+
 class UserProfile(DictObject):
     """
     Information about a Synapse user.  In practice the constructor is not called directly by the client.
     
     :param ownerId: A foreign key to the ID of the 'principal' object for the user.
     :param uri: The Uniform Resource Identifier (URI) for this entity.
-    :param etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates. Since the E-Tag changes every time an entity is updated it is used to detect when a client's current representation of an entity is out-of-date.
+    :param etag: Synapse employs an Optimistic Concurrency Control (OCC) scheme to handle concurrent updates.
+     Since the E-Tag changes every time an entity is updated it is used to detect when a client's current representation
+     of an entity is out-of-date.
     :param firstName: This person's given name (forename)
     :param lastName: This person's family name (surname)
     :param emails: The list of user email addresses registered to this user.
@@ -29,7 +32,8 @@ class UserProfile(DictObject):
     :param company: This person's current affiliation
     :param profilePicureFileHandleId: The File Handle ID of the user's profile picture.
     :param url: A link to more information about this person
-    :param notificationSettings: An object of type :py:class:`org.sagebionetworks.repo.model.message.Settings` containing the user's preferences regarding when email notifications should be sent
+    :param notificationSettings: An object of type :py:class:`org.sagebionetworks.repo.model.message.Settings`
+     containing the user's preferences regarding when email notifications should be sent
     """
     def __init__(self, **kwargs):
         super(UserProfile, self).__init__(kwargs)
@@ -49,9 +53,11 @@ class UserGroupHeader(DictObject):
     def __init__(self, **kwargs):
         super(UserGroupHeader, self).__init__(kwargs)
 
+
 class Team(DictObject):
     """
-    Represents a `Synapse Team <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html>`_. User definable fields are:
+    Represents a `Synapse Team <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html>`_.
+    User definable fields are:
     
     :param icon:          fileHandleId for icon image of the Team
     :param description:   A short description of this Team.
@@ -63,7 +69,7 @@ class Team(DictObject):
 
     @classmethod
     def getURI(cls, id):
-        return '/team/%s' %id
+        return '/team/%s' % id
 
     def postURI(self):
         return '/team'
@@ -72,10 +78,10 @@ class Team(DictObject):
         return '/team'
 
     def deleteURI(self):
-        return '/team/%s' %self.id
+        return '/team/%s' % self.id
 
     def getACLURI(self):
-        return '/team/%s/acl' %self.id
+        return '/team/%s/acl' % self.id
 
     def putACLURI(self):
         return '/team/acl'
@@ -83,10 +89,11 @@ class Team(DictObject):
 
 class TeamMember(DictObject):
     """
-    Contains information about a user's membership in a Team.  In practice the constructor is not called directly by the client.
+    Contains information about a user's membership in a Team.  In practice the constructor is not called directly by
+     the client.
     
     :param teamId:  the ID of the team
-    :param member: An object of type :py:class:`org.sagebionetworks.repo.model.UserGroupHeader` describing the member
+    :param member:  An object of type :py:class:`org.sagebionetworks.repo.model.UserGroupHeader` describing the member
     :param isAdmin: Whether the given member is an administrator of the team
     
    """

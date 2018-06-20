@@ -84,7 +84,8 @@ class Lock(object):
             else:
                 doze(CACHE_UNLOCK_WAIT_TIME)
         if not lock_acquired:
-            raise SynapseFileCacheError("Could not obtain a lock on the file cache within timeout: %s  Please try again later" % str(timeout))
+            raise SynapseFileCacheError("Could not obtain a lock on the file cache within timeout: %s  "
+                                        "Please try again later" % str(timeout))
 
     def release(self):
         """Release lock or do nothing if lock is not held"""
@@ -96,7 +97,7 @@ class Lock(object):
                 if err.errno != errno.ENOENT:
                     raise
 
-    ## Make the lock object a Context Manager
+    # Make the lock object a Context Manager
     def __enter__(self):
         self.blocking_acquire()
 
