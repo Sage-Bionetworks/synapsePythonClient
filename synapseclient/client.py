@@ -41,7 +41,10 @@ except ImportError:
     import ConfigParser as configparser
 
 import collections
-import os, sys, re, time
+import os
+import sys
+import re
+import time
 import hashlib
 import six
 

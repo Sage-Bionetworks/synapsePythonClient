@@ -420,9 +420,9 @@ def submit(args, syn):
     Method to allow challenge participants to submit to an evaluation queue.
 
     Examples::
-    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --parentId syn2345030
+    synapse submit --evaluation 'ra_challenge_Q1_leaderboard' -f ~/testing/testing.txt --parentId syn2345030 \
     --used syn2351967 --executed syn2351968
-    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --parentId syn2345030 --used syn2351967
+    synapse submit --evaluation 2343117 -f ~/testing/testing.txt --parentId syn2345030 --used syn2351967 \
     --executed syn2351968
     """
     # check if evaluation is a number, if so it is assumed to be a evaluationId else it is a evaluationName
