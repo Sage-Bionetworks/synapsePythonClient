@@ -586,23 +586,6 @@ def test_command_get_recursive_and_query():
         assert filecmp.cmp(downloaded, uploaded)
         schedule_for_cleanup(downloaded)
 
-
-    time.sleep(3) # get -q uses chunkedQuery which are eventually consistent
-    ### Test query get
-    ### Note: We're not querying on annotations because tests can fail if there
-    ###       are lots of jobs queued as happens when staging is syncing
-    output = run('synapse', '--skip-checks',
-                 'get', '-q', "select id from file where parentId=='%s'" %
-                 folder_entity2.id)
-    #Verify that we downloaded files from folder_entity2
-    new_paths = [os.path.join('.', os.path.basename(f)) for f in uploaded_paths[:-1]]
-    for downloaded, uploaded in zip(new_paths, uploaded_paths[:-1]):
-        assert os.path.exists(downloaded)
-        assert filecmp.cmp(downloaded, uploaded)
-        schedule_for_cleanup(downloaded)
-
-    schedule_for_cleanup(new_paths[0])
-
     ### Test query get using a Table with an entity column
     ### This should be replaced when Table File Views are implemented in the client
     cols = [synapseclient.Column(name='id', columnType='ENTITYID')]

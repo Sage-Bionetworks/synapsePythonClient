@@ -386,7 +386,7 @@ class Synapse(object):
                                                                                         sessionToken))
 
         # Final check on login success
-        if self.credentials is None:
+        if not self.credentials:
             raise SynapseNoCredentialsError("No credentials provided.")
 
         # Save the API key in the cache
