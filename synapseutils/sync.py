@@ -280,9 +280,9 @@ def readManifestFile(syn, manifestFile):
     for synId in parents:
         try:
             container = syn.get(synId, downloadFile=False)
-        except SynapseHTTPError as e:
+        except SynapseHTTPError:
             sys.stdout.write('\n%s in the parent column is not a valid Synapse Id\n' % synId)
-            raise e
+            raise
         if not is_container(container):
             sys.stdout.write('\n%s in the parent column is is not a Folder or Project\n' % synId)
             raise SynapseHTTPError
