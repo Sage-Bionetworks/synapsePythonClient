@@ -6,7 +6,6 @@ from builtins import str
 
 import random
 import sys
-import time
 import logging
 import six
 from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
@@ -116,7 +115,7 @@ def _get_message(response):
         try:
             json = response.json()
             return json.get('reason', None)
-        except (AttributeError, ValueError) as ex:
+        except (AttributeError, ValueError):
             pass
     else:
         # if the response is not JSON, return the text content

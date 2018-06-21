@@ -22,7 +22,6 @@ import math
 import mimetypes
 import os
 import requests
-import sys
 import time
 import warnings
 from ctypes import c_bool
@@ -170,7 +169,7 @@ def _put_chunk(url, chunk, verbose=False):
         # Make sure requests closes response stream?:
         # see: http://docs.python-requests.org/en/latest/user/advanced/#keep-alive
         if response is not None:
-            throw_away = response.content
+            response.content
     except Exception as ex:
         warnings.warn('error reading response: '+str(ex))
     exceptions._raise_for_status(response, verbose=verbose)
@@ -350,7 +349,6 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     syn.logger.debug("current multipart-upload status: %s" % status)
     syn.logger.debug("previously completed %d parts, estimated %d bytes" % (completedParts, previously_completed_bytes))
     time_upload_started = time.time()
-    progress = True
     retries = 0
     mp = Pool(8)
     try:

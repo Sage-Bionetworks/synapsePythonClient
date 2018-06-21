@@ -187,10 +187,10 @@ def test_rowset_tables():
 def test_tables_csv():
 
     ## Define schema
-    cols = [Column(id='1', name='Name', columnType='STRING'),
-            Column(id='2', name='Born', columnType='INTEGER'),
-            Column(id='3', name='Hipness', columnType='DOUBLE'),
-            Column(id='4', name='Living', columnType='BOOLEAN')]
+    cols = [Column(name='Name', columnType='STRING'),
+            Column(name='Born', columnType='INTEGER'),
+            Column(name='Hipness', columnType='DOUBLE'),
+            Column(name='Living', columnType='BOOLEAN')]
 
     schema = Schema(name='Jazz Guys', columns=cols, parent=project)
 

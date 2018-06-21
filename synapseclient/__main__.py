@@ -121,8 +121,6 @@ def query(args, syn):
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
 
-    queryType = 'synapse'
-
     ids = []
 
     if re.search('from syn\d', queryString.lower()):

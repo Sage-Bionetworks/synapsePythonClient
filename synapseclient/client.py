@@ -386,7 +386,7 @@ class Synapse(object):
                                                                                         sessionToken))
 
         # Final check on login success
-        if self.credentials is None:
+        if not self.credentials:
             raise SynapseNoCredentialsError("No credentials provided.")
 
         # Save the API key in the cache
@@ -703,7 +703,7 @@ class Synapse(object):
         """
 
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
-        version = kwargs.pop('version', None)
+        kwargs.pop('version', None)
         downloadFile = kwargs.pop('downloadFile', True)
         downloadLocation = kwargs.pop('downloadLocation', None)
         ifcollision = kwargs.pop('ifcollision', None)
@@ -1051,7 +1051,7 @@ class Synapse(object):
 
         # If we have an Activity, set it as the Entity's provenance record
         if activity:
-            activity = self.setProvenance(properties, activity)
+            self.setProvenance(properties, activity)
 
             # 'etag' has changed, so get the new Entity
             properties = self._getEntity(properties)
@@ -1144,7 +1144,7 @@ class Synapse(object):
                     self.restDELETE(obj.deleteURI(versionNumber=version))
                 else:
                     self.restDELETE(obj.deleteURI())
-            except AttributeError as ex1:
+            except AttributeError:
                 SynapseError("Can't delete a %s" % type(obj))
 
     _user_name_cache = {}
@@ -1514,7 +1514,7 @@ class Synapse(object):
 
             # Handle the case where a query was skipped due to size and now no items remain
             if remaining <= 0:
-                raise(StopIteration)
+                raise StopIteration
 
             # Build the sub-query
             subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
@@ -1541,7 +1541,7 @@ class Synapse(object):
                 # Shrink the query size when appropriate
                 if err.response.status_code == 400 \
                         and ('The results of this query exceeded the max' in err.response.json()['reason']):
-                    if (limit == 1):
+                    if limit == 1:
                         self.logger.warning("A single row (offset %s) of this query exceeds the maximum size."
                                             " Consider limiting the columns returned in the select clause."
                                             " Skipping...\n" % offset)
@@ -2647,7 +2647,7 @@ class Synapse(object):
             import gzip
             with gzip.open(path) as f:
                 markdown = f.read().decode('utf-8')
-        except IOError as ex1:
+        except IOError:
             with open(path) as f:
                 markdown = f.read().decode('utf-8')
 
@@ -3035,14 +3035,14 @@ class Synapse(object):
         file_handle_id = download_from_table_result['resultsFileHandleId']
         cached_file_path = self.cache.get(file_handle_id=file_handle_id)
         if cached_file_path is not None:
-            return (download_from_table_result, cached_file_path)
+            return download_from_table_result, cached_file_path
         else:
             cache_dir = self.cache.get_cache_dir(file_handle_id)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
             path = self._downloadFileHandle(file_handle_id, _extract_synapse_id_from_query(query),
                                             'TableEntity', cache_dir)
-        return (download_from_table_result, path)
+        return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
     def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):
@@ -3305,7 +3305,6 @@ class Synapse(object):
         columns = []
         next_page_token = None
         while True:
-            next_page_query = '' if next_page_token is None else '?nextPageToken=%s' % next_page_token
             response = self.restPOST('/column/view/scope', json.dumps(view_scope))
             columns.extend(Column(**column) for column in response['results'])
             next_page_token = response.get('nextPageToken')
