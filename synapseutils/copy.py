@@ -513,7 +513,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     for wikiHeader in oldWikiHeaders:
         wiki = syn.getWiki(oldOwn, wikiHeader.id)
         print('Got wiki %s' % wikiHeader.id)
-        if not len(wiki['attachmentFileHandleIds']):
+        if not wiki['attachmentFileHandleIds']:
             new_file_handles = []
         else:
             results = [syn._getFileHandleDownload(filehandleId, wiki.id, objectType='WikiAttachment')
