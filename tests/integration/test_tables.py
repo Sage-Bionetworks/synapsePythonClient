@@ -539,7 +539,7 @@ class TestPartialRowSet(object):
 
 
     def _test_method(self, schema, resultsAs, partial_changes, expected_results):
-        #anything starting with "test" will be considered a test case by nosetests so I had to append '_' to it
+        # anything starting with "test" will be considered a test case by nosetests so I had to append '_' to it
 
         import pandas as pd
         query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
@@ -577,24 +577,24 @@ class TestPartialRowSet(object):
         cls.table_schema = cls._table_setup()
         cls.view_schema = cls._view_setup()
 
-        cls.table_changes = [{'foo': 'foo foo 1'}, {'bar': 'bar bar 2'}]
-        cls.view_changes = [{'bar': 'bar bar 1'}, {'foo': 'foo foo 2'}]
+        cls.table_changes = [{'foo': 4}, {'bar': 5}]
+        cls.view_changes = [{'bar': 6}, {'foo': 7}]
 
         #class used to in asserts for cell values
         ExpectedTableCell = namedtuple('ExpectedTableCell', ['col_index', 'value'])
 
-        cls.expected_table_cells = [[ExpectedTableCell(0, 'foo foo 1')],
-                                    [ExpectedTableCell(1, 'bar bar 2')]]
-        cls.expected_view_cells = [[ExpectedTableCell(1, 'bar bar 1')],
-                                   [ExpectedTableCell(0, 'foo foo 2')]]
+        cls.expected_table_cells = [[ExpectedTableCell(0, 4)],
+                                    [ExpectedTableCell(1, 5)]]
+        cls.expected_view_cells = [[ExpectedTableCell(1, 6)],
+                                   [ExpectedTableCell(0, 7)]]
 
 
     @classmethod
     def _table_setup(cls):
         # set up a table
-        cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
+        cols = [Column(name='foo', columnType='INTEGER'), Column(name='bar', columnType='INTEGER')]
         schema = syn.store(Schema(name='PartialRowTest' + str(uuid.uuid4()), columns=cols, parent=project))
-        data = [['foo1', None],[None,'bar2']]
+        data = [[1, None],[None, 2]]
         syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
         return schema
 
@@ -606,7 +606,7 @@ class TestPartialRowSet(object):
         syn.store(File("~/path/doesnt/matter", name="f1", parent=folder, synapseStore=False))
         syn.store(File("~/path/doesnt/matter/again", name="f2", parent=folder, synapseStore=False))
 
-        cols = [Column(name='foo', columnType='STRING', maximumSize=1000), Column(name='bar', columnType='STRING')]
+        cols = [Column(name='foo', columnType='INTEGER'), Column(name='bar', columnType='INTEGER')]
         return syn.store(
             EntityViewSchema(name='PartialRowTestViews' + str(uuid.uuid4()), columns=cols, addDefaultViewColumns=False,
                              parent=project, scopes=[folder]))
