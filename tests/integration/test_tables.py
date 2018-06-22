@@ -124,47 +124,13 @@ def test_create_and_update_file_view():
 
 def test_entity_view_add_annotation_columns():
     folder1 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', parent=project, annotations={'strAnno':'str1', 'intAnno':1, 'floatAnno':1.1}))
-    folder2 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', parent=project,annotations={'dateAnno':datetime.now(), 'strAnno':'str2', 'intAnno':2}))
+    folder2 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', parent=project, annotations={'dateAnno':datetime.now(), 'strAnno':'str2', 'intAnno':2}))
     schedule_for_cleanup(folder1)
     schedule_for_cleanup(folder2)
     scopeIds = [utils.id_of(folder1), utils.id_of(folder2)]
 
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False, addAnnotationColumns=True, type='project', parent=project)
-    assert_true(entity_view['addAnnotationColumns'])
-
-    #For some reason this call is eventually consistent but not immediately consistent. so we just wait till the size returned is correct
-    expected_column_types = {'dateAnno': 'DATE', 'intAnno': 'INTEGER', 'strAnno': 'STRING', 'floatAnno': 'DOUBLE'}
-    columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
-
-    start_time = time.time()
-    while len(columns) != len(expected_column_types):
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-
-        columns = syn._get_annotation_entity_view_columns(scopeIds, 'project')
-        time.sleep(2)
-
-    entity_view = syn.store(entity_view)
-    assert_false(entity_view['addAnnotationColumns'])
-
-    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view)}
-    assert_dict_equal(expected_column_types, view_column_types)
-
-    #add another annotation to the project and make sure that EntityViewSchema only adds one moe column
-    folder1['anotherAnnotation'] = 'I need healing!'
-    folder1 = syn.store(folder1)
-
-    prev_columns = list(entity_view.columnIds)
-    # sometimes annotation columns are not immediately updated so we wait for it to update in a loop
-    start_time = time.time()
-    while len(entity_view.columnIds) != len(prev_columns) + 1:
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        entity_view.addAnnotationColumns = True
-        entity_view = syn.store(entity_view)
-
-    expected_column_types.update({'anotherAnnotation': 'STRING'})
-    view_column_types = {column['name']:column['columnType'] for column in syn.getColumns(entity_view)}
-    assert_dict_equal(expected_column_types, view_column_types)
-
+    syn.store(entity_view)
 
 def test_rowset_tables():
     cols = [Column(name='name', columnType='STRING', maximumSize=1000),
