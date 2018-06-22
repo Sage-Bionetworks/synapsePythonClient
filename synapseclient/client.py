@@ -3303,7 +3303,6 @@ class Synapse(object):
         view_scope = {'scope': scope_ids,
                       'viewType': view_type}
         columns = []
-        next_page_token = None
         while True:
             response = self.restPOST('/column/view/scope', json.dumps(view_scope))
             columns.extend(Column(**column) for column in response['results'])

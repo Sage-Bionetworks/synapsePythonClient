@@ -154,18 +154,6 @@ def test_command_line_client():
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
 
-    # Test query
-    output = ""
-    start_time = time.time()
-    while not ('BogusFileEntity' in output and file_entity_id in output):
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        output = run('synapse',
-                 '--skip-checks',
-                 'query',
-                 'select id, name from entity where parentId=="%s"' % project_id)
-
-
-
     # Move the file to new folder
     folder = syn.store(synapseclient.Folder(parentId=project_id))
     output = run('synapse',
