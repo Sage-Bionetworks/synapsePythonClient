@@ -16,7 +16,7 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal, assert_dict_equal, assert_false, assert_true
+from nose.tools import assert_equals, assert_less, assert_not_equal
 from datetime import datetime
 from mock import patch
 from collections import namedtuple
@@ -25,7 +25,7 @@ import synapseclient
 from synapseclient.exceptions import *
 from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.utils import id_of
-from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, PartialRow
+from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset
 
 import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
@@ -39,11 +39,11 @@ def setup(module):
 
 def test_create_and_update_file_view():
 
-    ## Create a folder
+    # Create a folder
     folder = Folder(str(uuid.uuid4()), parent=project, description='creating a file-view')
     folder = syn.store(folder)
 
-    ## Create dummy file with annotations in our folder
+    # Create dummy file with annotations in our folder
     path = utils.make_bogus_data_file()
     file_annotations = dict(fileFormat='jpg', dataType='image', artist='Banksy',
                             medium='print', title='Girl With Ballon')
@@ -59,7 +59,7 @@ def test_create_and_update_file_view():
     col_ids = my_added_cols_ids + view_default_ids
     scopeIds = [folder['id'].lstrip('syn')]
 
-    ## Create an empty entity-view with defined scope as folder
+    # Create an empty entity-view with defined scope as folder
 
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=True, addAnnotationColumns=False, type='file', columns=my_added_cols, parent=project)
 
@@ -70,7 +70,7 @@ def test_create_and_update_file_view():
     assert_equals(set(col_ids), set(entity_view.columnIds))
     assert_equals('file', entity_view.type)
 
-    ## get the current view-schema
+    # get the current view-schema
     view = syn.tableQuery("select * from %s" % entity_view.id)
     schedule_for_cleanup(view.filepath)
 
@@ -101,24 +101,24 @@ def test_create_and_update_file_view():
         dw.writeheader()
         dw.writerows(view_dict)
         temp_file.flush()
-    new_view = syn.store(synapseclient.Table(entity_view.id, temp_filename))
+    syn.store(synapseclient.Table(entity_view.id, temp_filename))
     new_view_dict = list(csv.DictReader(io.open(temp_filename, encoding="utf-8", newline='')))
     assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
 
-    #query for the change
+    # query for the change
     start_time = time.time()
 
     new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
     schedule_for_cleanup(new_view_results.filepath)
     new_view_dict = list(csv.DictReader(io.open(new_view_results.filepath, encoding="utf-8", newline='')))
-    #query until change is seen.
+    # query until change is seen.
     while new_view_dict[0]['fileFormat'] != 'PNG':
-        #check timeout
+        # check timeout
         assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        #query again
+        # query again
         new_view_results = syn.tableQuery("select * from %s" % entity_view.id)
         new_view_dict = list(csv.DictReader(io.open(new_view_results.filepath, encoding="utf-8", newline='')))
-    #paranoid check
+    # paranoid check
     assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
 
 
@@ -152,7 +152,7 @@ def test_rowset_tables():
 
 def test_tables_csv():
 
-    ## Define schema
+    # Define schema
     cols = [Column(name='Name', columnType='STRING'),
             Column(name='Born', columnType='INTEGER'),
             Column(name='Hipness', columnType='DOUBLE'),
@@ -169,18 +169,18 @@ def test_tables_csv():
             ["Sonny Rollins",  1930, 8.99, True],
             ["Kenny Burrel",   1931, 4.37, True]]
 
-    ## the following creates a CSV file and uploads it to create a new table
+    # the following creates a CSV file and uploads it to create a new table
     table = syn.store(Table(schema, data))
 
-    ## Query and download an identical CSV
+    # Query and download an identical CSV
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
 
-    ## Test that CSV file came back as expected
+    # Test that CSV file came back as expected
     for expected_row, row in zip(data, results):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
     try:
-        ## check if we have pandas
+        # check if we have pandas
         import pandas as pd
 
         df = results.asDataFrame()
@@ -190,7 +190,7 @@ def test_tables_csv():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for CSV tables.\n\n')
 
-    ## Aggregate query
+    # Aggregate query
     expected = {
          True: [True, 1929, 3, 6.38],
         False: [False, 1926, 5, 7.104]}
@@ -202,9 +202,9 @@ def test_tables_csv():
         assert expected[living][2] == row[2]
         assert abs(expected[living][3] - row[3]) < 0.0001
 
-    ## Aggregate query results to DataFrame
+    # Aggregate query results to DataFrame
     try:
-        ## check if we have pandas
+        # check if we have pandas
         import pandas as pd
 
         df = results.asDataFrame()
@@ -213,14 +213,14 @@ def test_tables_csv():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for aggregate queries as CSV tables.\n\n')
 
-    ## Append rows
+    # Append rows
     more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
                       ["Hank Mobley", 1930, 5.67, False],
                       ["Freddie Hubbard", 1938, float('nan'), False],
                       ["Thelonious Monk", 1917, float('inf'), False]]
     table = syn.store(Table(table.schema, more_jazz_guys))
 
-    ## test that CSV file now has more jazz guys
+    # test that CSV file now has more jazz guys
     results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
     for expected_row, row in zip(data+more_jazz_guys, results):
         for field, expected_field in zip(row[2:], expected_row):
@@ -231,15 +231,15 @@ def test_tables_csv():
             else:
                 assert expected_field == field
 
-    ## Update as a RowSet
+    # Update as a RowSet
     rowset = results.asRowSet()
     for row in rowset['rows']:
         if row['values'][1] == 1930:
             row['values'][2] = 8.5
     row_reference_set = syn.store(rowset)
 
-    ## aggregate queries won't return row id and version, so we need to
-    ## handle this correctly
+    # aggregate queries won't return row id and version, so we need to
+    # handle this correctly
     results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id, resultsAs="csv")
     assert results.includeRowIdAndRowVersion == False
     for i,row in enumerate(results):
@@ -253,7 +253,7 @@ def test_tables_csv():
         all(df['Born'].values == 1930)
         all(df['Hipness'].values == 8.5)
 
-        ## Update via a Data Frame
+        # Update via a Data Frame
         df['Hipness'] = 9.75
         table = syn.store(Table(table.tableId, df, etag=results.etag))
 
@@ -263,7 +263,7 @@ def test_tables_csv():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
 
-    ## check what happens when query result is empty
+    # check what happens when query result is empty
     results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
     assert len(list(results)) == 0
 
@@ -275,20 +275,20 @@ def test_tables_csv():
     except ImportError as e1:
         sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
 
-    ## delete some rows
+    # delete some rows
     results = syn.tableQuery('select * from %s where Hipness < 7' % table.tableId, resultsAs="csv")
     syn.delete(results)
 
 
 def test_tables_pandas():
     try:
-        ## check if we have pandas
+        # check if we have pandas
         import pandas as pd
 
-        #import numpy for datatypes
+        # import numpy for datatypes
         import numpy as np
 
-        ## create a pandas DataFrame
+        # create a pandas DataFrame
         df = pd.DataFrame({
             'A' : ("foo", "bar", "baz", "qux", "asdf"),
             'B' : tuple(0.42*i for i in range(5)),
@@ -303,17 +303,17 @@ def test_tables_pandas():
         cols[0].maximumSize = 20
         schema = Schema(name="Nifty Table", columns=cols, parent=project)
 
-        ## store in Synapse
+        # store in Synapse
         table = syn.store(Table(schema, df))
 
-        ## retrieve the table and verify
+        # retrieve the table and verify
         results = syn.tableQuery('select * from %s'%table.schema.id, resultsAs='csv')
         df2 = results.asDataFrame(convert_to_datetime=True)
 
-        ## simulate rowId-version rownames for comparison
+        # simulate rowId-version rownames for comparison
         df.index = ['%s_0'%i for i in range(5)]
 
-        #for python3 we need to convert from numpy.bytes_ to str or the equivalence comparision fails
+        # for python3 we need to convert from numpy.bytes_ to str or the equivalence comparision fails
         if six.PY3: df['string_']=df['string_'].transform(str)
 
         # SYNPY-717
@@ -342,7 +342,7 @@ def test_download_table_files():
             ["Sonny Rollins",  "Newk's Time",  1958, "BLP 4001", "rollinsBN4001.jpg"],
             ["Kenny Burrel",   "Kenny Burrel", 1956, "BLP 1543", "burrellWarholBN1543.jpg"]]
 
-    ## upload files and store file handle ids
+    # upload files and store file handle ids
     original_files = []
     for row in data:
         path = utils.make_bogus_data_file()
@@ -351,16 +351,16 @@ def test_download_table_files():
         file_handle = syn.uploadFileHandle(path, project)
         row[4] = file_handle['id']
 
-    row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
+    syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
-    ## retrieve the files for each row and verify that they are identical to the originals
+    # retrieve the files for each row and verify that they are identical to the originals
     results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s" % schema.id, resultsAs="rowset")
     for i, row in enumerate(results):
         path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
         assert filecmp.cmp(original_files[i], path)
         schedule_for_cleanup(path)
 
-    ## test that cached copies are returned for already downloaded files
+    # test that cached copies are returned for already downloaded files
     original_downloadFile_method = syn._downloadFileHandle
     with patch("synapseclient.Synapse._downloadFileHandle") as _downloadFile_mock:
         _downloadFile_mock.side_effect = original_downloadFile_method
@@ -372,9 +372,9 @@ def test_download_table_files():
 
         assert not _downloadFile_mock.called, "Should have used cached copy of file and not called _downloadFile"
 
-    ## test download table column
+    # test download table column
     results = syn.tableQuery('select * from %s' % schema.id)
-    ## uncache 2 out of 4 files
+    # uncache 2 out of 4 files
     for i, row in enumerate(results):
         if i % 2 == 0:
             syn.cache.remove(row[6])
@@ -400,13 +400,13 @@ def dontruntest_big_tables():
         for j in range(rows_per_append):
             foo = cols[1].enumValues[random.randint(0,2)]
             rows.append(Row(('Robot ' + str(i*rows_per_append + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
-        rowset1 = syn.store(RowSet(columns=cols, schema=table1, rows=rows))
+        syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
-    results = syn.tableQuery("select * from %s" % table1.id)
+    syn.tableQuery("select * from %s" % table1.id)
 
 
     results = syn.tableQuery("select n, COUNT(n), MIN(x), AVG(x), MAX(x), SUM(x) from %s group by n" % table1.id)
-    df = results.asDataFrame()
+    results.asDataFrame()
 
 
 def dontruntest_big_csvs():
@@ -418,7 +418,7 @@ def dontruntest_big_csvs():
 
     schema1 = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
-    ## write rows to CSV file
+    # write rows to CSV file
     with tempfile.NamedTemporaryFile(delete=False) as temp:
         schedule_for_cleanup(temp.name)
         filename = temp.name
@@ -431,33 +431,33 @@ def dontruntest_big_csvs():
             for j in range(100):
                 foo = cols[1].enumValues[random.randint(0,2)]
                 writer.writerow(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5))
-    ## upload CSV
-    UploadToTableResult = syn._uploadCsv(filepath=temp.name, schema=schema1)
+    # upload CSV
+    syn._uploadCsv(filepath=temp.name, schema=schema1)
 
     from synapseclient.table import CsvFileTable
-    results = CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
+    CsvFileTable.from_table_query(syn, "select * from %s" % schema1.id)
 
 
 def test_synapse_integer_columns_with_missing_values_from_dataframe():
-    #SYNPY-267
+    # SYNPY-267
     cols = [Column(name='x', columnType='STRING'),Column(name='y', columnType='INTEGER'), Column(name='z', columnType='DOUBLE')]
     schema = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
-    ## write rows to CSV file
+    # write rows to CSV file
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as temp:
         schedule_for_cleanup(temp.name)
-        #2nd row is missing a value in its integer column
+        # 2nd row is missing a value in its integer column
         temp.write('x,y,z\na,1,0.9\nb,,0.8\nc,3,0.7\n')
         temp.flush()
         filename = temp.name
 
-    #create a table from csv
+    # create a table from csv
     table = Table(schema, filename)
     df = table.asDataFrame()
 
     table_from_dataframe = Table(schema, df)
     assert_not_equal(table.filepath, table_from_dataframe.filepath)
-    #compare to make sure no .0's were appended to the integers
+    # compare to make sure no .0's were appended to the integers
     assert filecmp.cmp(table.filepath, table_from_dataframe.filepath)
 
 
@@ -465,7 +465,7 @@ def test_store_table_datetime():
     current_datetime = datetime.fromtimestamp(round(time.time(),3))
     schema = syn.store(Schema("testTable",[Column(name="testerino", columnType='DATE')], project))
     rowset = RowSet(rows=[Row([current_datetime])], schema=schema)
-    rowset_table = syn.store(Table(schema, rowset))
+    syn.store(Table(schema, rowset))
 
     query_result = syn.tableQuery("select * from %s" % id_of(schema), resultsAs="rowset")
     assert_equals(current_datetime, query_result.rowset['rows'][0]['values'][0])
@@ -484,21 +484,21 @@ def test_table_file_view_csv_update_annotations__includeEntityEtag():
 
     query_str = "SELECT {anno1}, {anno2} FROM {proj_id}".format(anno1=anno1_name, anno2=anno2_name, proj_id=utils.id_of(entity_view))
 
-    #modify first annotation using rowset
+    # modify first annotation using rowset
     rowset_query_result = syn.tableQuery(query_str, resultsAs="rowset")
     rowset = rowset_query_result.asRowSet()
     rowset_changed_anno_value = "rowset_value_change"
     rowset.rows[0].values[0] = rowset_changed_anno_value
     syn.store(rowset)
 
-    #modify second annotation using csv
+    # modify second annotation using csv
     csv_query_result = syn.tableQuery(query_str, resultsAs="csv")
     dataframe = csv_query_result.asDataFrame()
     csv_changed_anno_value = "csv_value_change"
     dataframe.ix[0, anno2_name] = csv_changed_anno_value
     syn.store(Table(utils.id_of(entity_view), dataframe))
 
-    #check annotations in the file entity. Annotations may not be immediately updated so we wait in while loop
+    # check annotations in the file entity. Annotations may not be immediately updated so we wait in while loop
     expected_annotations = {anno1_name: [rowset_changed_anno_value], anno2_name: [csv_changed_anno_value]}
     start_time = time.time()
     while(expected_annotations != file_entity.annotations):
@@ -580,7 +580,7 @@ class TestPartialRowSet(object):
         cls.table_changes = [{'foo': 4}, {'bar': 5}]
         cls.view_changes = [{'bar': 6}, {'foo': 7}]
 
-        #class used to in asserts for cell values
+        # class used to in asserts for cell values
         ExpectedTableCell = namedtuple('ExpectedTableCell', ['col_index', 'value'])
 
         cls.expected_table_cells = [[ExpectedTableCell(0, 4)],

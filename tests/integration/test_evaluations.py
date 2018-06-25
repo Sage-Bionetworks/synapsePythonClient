@@ -3,22 +3,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-import six
-from builtins import str
 
-import tempfile, time, os, re, sys, filecmp, shutil, requests, json
-import uuid, random, base64
-from datetime import datetime
+import tempfile, time, os, re, filecmp
+import uuid, random
 from nose.tools import assert_raises
 from nose import SkipTest
 
 import synapseclient.client as client
-import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
 from synapseclient.entity import Project, File
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
-from synapseclient.team import Team, TeamMember
+from synapseclient.team import Team
 
 import integration
 from integration import schedule_for_cleanup
@@ -68,7 +64,7 @@ def test_evaluations():
         ev = syn.store(ev, createOrUpdate=True)
         assert ev.status == 'OPEN'
 
-        # # Add the current user as a participant
+        # Add the current user as a participant
         myOwnerId = int(syn.getUserProfile()['ownerId'])
         syn._allowParticipation(ev, myOwnerId)
 
@@ -114,7 +110,7 @@ def test_evaluations():
                      description ="Haha!  I'm inaccessible...")
             entity = testSyn.store(f)
 
-            ## test submission by evaluation ID
+            # test submission by evaluation ID
             submission = testSyn.submit(ev.id, entity, submitterAlias="My Nickname")
 
             # Mess up the cached file so that syn._getWithEntityBundle must download again
@@ -197,7 +193,7 @@ def test_evaluations():
             else:
                 attempts = 0
 
-        ## Test that we can retrieve submissions with a specific status
+        # Test that we can retrieve submissions with a specific status
         invalid_submissions = list(syn.getSubmissions(ev, status='INVALID'))
         assert len(invalid_submissions) == 1, len(invalid_submissions)
         assert invalid_submissions[0]['name'] == 'Submission 01'
@@ -214,7 +210,7 @@ def test_evaluations():
                 ## remove team
                 testSyn.delete(team)
 
-    ## Just deleted it. Shouldn't be able to get it.
+    # Just deleted it. Shouldn't be able to get it.
     assert_raises(SynapseHTTPError, syn.getEvaluation, ev)
 
 
@@ -235,7 +231,7 @@ def test_teams():
 
     assert found is not None, "Couldn't find user {} in team".format(p.username)
 
-    ## needs to be retried 'cause appending to the search index is asynchronous
+    # needs to be retried 'cause appending to the search index is asynchronous
     tries = 10
     found_team = None
     while tries > 0:

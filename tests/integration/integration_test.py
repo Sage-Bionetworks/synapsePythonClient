@@ -3,19 +3,18 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 
-import tempfile, os, sys, filecmp, shutil, json, time
-import uuid, base64
+import tempfile, os, filecmp, shutil, json, time
+import uuid
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_false
+from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none
 from nose.plugins.skip import SkipTest
-from mock import MagicMock, patch, call
+from mock import patch
 
 import synapseclient
 import synapseclient.client as client
@@ -196,8 +195,7 @@ def test_uploadFile_given_dictionary():
     entity = syn.store(rareCase)
     assert entity.description == rareCase['description']
     assert entity.name == 'fooDictionary'
-    entity = syn.get(entity['id'])
-    
+    syn.get(entity['id'])
 
 def test_uploadFileEntity():
     # Create a FileEntity
@@ -387,7 +385,7 @@ def _set_up_external_s3_project():
                            'locations': [destination['storageLocationId']],
                            'projectId' : project_ext_s3.id}
 
-    project_destination = syn.restPOST('/projectSettings', body=json.dumps(project_destination))
+    syn.restPOST('/projectSettings', body=json.dumps(project_destination))
     schedule_for_cleanup(project_ext_s3)
     return project_ext_s3.id, destination['storageLocationId']
 
@@ -446,7 +444,7 @@ def test_getChildren():
     project_name = str(uuid.uuid1())
     test_project = syn.store(Project(name=project_name))
     folder = syn.store(Folder(name="firstFolder", parent=test_project))
-    nested_file = syn.store(File(path="~/doesntMatter.txt", name="file inside folders", parent=folder, synapseStore=False))
+    syn.store(File(path="~/doesntMatter.txt", name="file inside folders", parent=folder, synapseStore=False))
     project_file = syn.store(File(path="~/doesntMatterAgain.txt", name="file inside project", parent=test_project, synapseStore=False))
     schedule_for_cleanup(test_project)
 

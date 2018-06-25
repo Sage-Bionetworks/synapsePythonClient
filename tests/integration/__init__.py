@@ -24,7 +24,7 @@ import shutil
 import six
 import tempfile
 
-from synapseclient import Entity, Project, Folder, File, Evaluation
+from synapseclient import Entity, Project
 from synapseclient.logging_setup import SILENT_LOGGER_NAME
 import synapseclient
 import synapseclient.utils as utils
@@ -102,7 +102,7 @@ def cleanup(items):
                 try:
                     if os.path.isdir(item):
                         shutil.rmtree(item)
-                    else: #Assum that remove will work on antyhing besides folders
+                    else:  # Assume that remove will work on anything besides folders
                         os.remove(item)
                 except Exception as ex:
                     print(ex)

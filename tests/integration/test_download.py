@@ -3,17 +3,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 from nose.tools import assert_raises, assert_not_equal
 
 import filecmp, os, tempfile, shutil
 
-import synapseclient
-import synapseclient.utils as utils
-import synapseclient.cache as cache
 from synapseclient.exceptions import *
-from synapseclient.utils import MB, GB
-from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient import File
 
 import integration
 from integration import schedule_for_cleanup
@@ -77,7 +72,8 @@ def test_resume_partial_download():
 def test_ftp_download():
     """Test downloading an Entity that points to a file on an FTP server. """
     
-    # Another test with an external reference. This is because we only need to test FTP download; not upload. Also so we don't have to maintain an FTP server just for this purpose.
+    # Another test with an external reference. This is because we only need to test FTP download; not upload.
+    # Also so we don't have to maintain an FTP server just for this purpose.
     # Make an entity that points to an FTP server file.
     entity = File(parent=project['id'], name = '1KB.zip')
     fileHandle = {'externalURL': 'ftp://speedtest.tele2.net/1KB.zip',
@@ -104,7 +100,7 @@ def test_http_download__range_request_error():
     file_entity = syn.store(File(file_path,parent=project))
 
     syn.cache.purge(time.time())
-    #download once and rename to temp file to simulate range exceed
+    # download once and rename to temp file to simulate range exceed
     file_entity = syn.get(file_entity)
     shutil.move(file_entity.path, utils.temp_download_filename(file_entity.path, file_entity.dataFileHandleId))
     file_entity = syn.get(file_entity)

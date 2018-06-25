@@ -3,11 +3,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 
-import uuid, filecmp, os, sys, time, tempfile
+import uuid, os, sys, time
 
-from nose.tools import assert_raises, assert_equals, assert_is_none, assert_less
+from nose.tools import assert_raises, assert_equals, assert_is_none
 
 import synapseclient
 from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
@@ -24,8 +23,8 @@ def setup(module):
     module.other_user = integration.other_user
 
 
-###Add Test for UPDATE
-###Add test for existing provenance but the orig doesn't have provenance
+# Add Test for UPDATE
+# Add test for existing provenance but the orig doesn't have provenance
 def test_copy():
     """Tests the copy function"""
     # Create a Project
@@ -60,7 +59,7 @@ def test_copy():
     output = synapseutils.copy(syn,file_entity.id,destinationId=project_entity.id)
     output_URL = synapseutils.copy(syn,externalURL_entity.id,destinationId=project_entity.id,skipCopyAnnotations=True)
 
-    #Verify that our copied files are identical
+    # Verify that our copied files are identical
     copied_ent = syn.get(output[file_entity.id])
     copied_URL_ent = syn.get(output_URL[externalURL_entity.id],downloadFile=False)
 
@@ -91,12 +90,12 @@ def test_copy():
     assert_raises(ValueError,synapseutils.copy,syn,file_entity.id,destinationId = third_folder.id,setProvenance = "gib")
     assert_raises(ValueError,synapseutils.copy,syn,file_entity.id,destinationId = file_entity.id)
 
-    #Test: setProvenance = None
+    # Test: setProvenance = None
     output = synapseutils.copy(syn,file_entity.id,destinationId=second_folder.id,setProvenance = None)
     assert_raises(SynapseHTTPError,syn.getProvenance,output[file_entity.id])
     schedule_for_cleanup(output[file_entity.id])
 
-    #Test: setProvenance = Existing
+    # Test: setProvenance = Existing
     output_URL = synapseutils.copy(syn,externalURL_entity.id,destinationId=second_folder.id,setProvenance = "existing")
     output_prov = syn.getProvenance(output_URL[externalURL_entity.id])
     schedule_for_cleanup(output_URL[externalURL_entity.id])
@@ -108,7 +107,7 @@ def test_copy():
         return
 
     try:
-        #Test: Other user copy should result in different data file handle
+        # Test: Other user copy should result in different data file handle
         syn_other = synapseclient.Synapse(skip_checks=True)
         syn_other.login(other_user['username'], other_user['password'])
 
@@ -125,7 +124,7 @@ def test_copy():
 
         assert new_copied_ent_annot == annos
         assert new_copied_ent.dataFileHandleId != copied_ent.dataFileHandleId
-        #Test if copying different versions gets you the correct file
+        # Test if copying different versions gets you the correct file
         assert new_copied_URL.versionNumber == 1
         assert new_copied_URL.externalURL == repo_url
         assert new_copied_URL.dataFileHandleId != copied_URL_ent.dataFileHandleId
@@ -136,7 +135,7 @@ def test_copy():
     # TEST COPY LINKS
     # ------------------------------------
     second_file = utils.make_bogus_data_file()
-    #schedule_for_cleanup(filename)
+    # schedule_for_cleanup(filename)
     second_file_entity = syn.store(File(second_file, parent=project_entity))
     link_entity = Link(second_file_entity.id,parent=folder_entity.id)
     link_entity = syn.store(link_entity)
@@ -256,7 +255,7 @@ def test_copyWiki():
     fileWiki = syn.store(fileWiki)
 
     
-    #Create mock wiki
+    # Create mock wiki
     md = """
     This is a test wiki
     =======================
@@ -295,7 +294,7 @@ def test_copyWiki():
 
     fileMapping = synapseutils.copy(syn, project_entity, second_project.id, skipCopyWikiPage=True)
     
-    #Test: copyWikiPage = False
+    # Test: copyWikiPage = False
     assert_raises(SynapseHTTPError,syn.getWiki,second_project.id)
 
     first_headers = syn.getWikiHeaders(project_entity)
@@ -303,7 +302,7 @@ def test_copyWiki():
 
     mapping = dict()
 
-    #Test: Check that all wikis were copied correctly with the correct mapping
+    # Test: Check that all wikis were copied correctly with the correct mapping
     for index,info in enumerate(second_headers):
         mapping[first_headers[index]['id']] = info['id']
         assert first_headers[index]['title'] == info['title']
@@ -311,7 +310,7 @@ def test_copyWiki():
             #Check if parent Ids are mapping correctly in the copied Wikis
             assert info['parentId'] == mapping[first_headers[index]['parentId']]
 
-    #Test: Check that all wikis have the correct attachments and have correct internal synapse link/file mapping
+    # Test: Check that all wikis have the correct attachments and have correct internal synapse link/file mapping
     for index,info in enumerate(second_headers):
         #Check if markdown is the correctly mapped
         orig_wikiPage= syn.getWiki(project_entity, first_headers[index]['id'])
@@ -333,7 +332,7 @@ def test_copyWiki():
         #check that attachment file names are the same
         assert orig_file == new_file
 
-    #Test: copyWikiPage = True (Default) (Should copy all wikis including wikis on files)
+    # Test: copyWikiPage = True (Default) (Should copy all wikis including wikis on files)
     third_project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(third_project.id)
 
@@ -342,15 +341,15 @@ def test_copyWiki():
     assert copiedWiki.title == fileWiki.title
     assert copiedWiki.markdown == fileWiki.markdown
 
-    #Test: entitySubPageId
+    # Test: entitySubPageId
     third_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=sub_subwiki.id, destinationSubPageId=None, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
     test_ent_subpage = syn.getWiki(third_project.id,third_header[0]['id'])
 
-    #Test: No internal links updated
+    # Test: No internal links updated
     assert test_ent_subpage.markdown == sub_subwiki.markdown
     assert test_ent_subpage.title == sub_subwiki.title
 
-    #Test: destinationSubPageId
+    # Test: destinationSubPageId
     fourth_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=subwiki.id, destinationSubPageId=test_ent_subpage.id, updateLinks=False, updateSynIds=False,entityMap=fileMapping)
     temp = syn.getWiki(third_project.id, fourth_header[0]['id'])
     #There are issues where some title pages are blank.  This is an issue that needs to be addressed
@@ -404,8 +403,8 @@ def test_walk():
 
     temp = synapseutils.walk(syn, project_entity.id)
     temp = list(temp)
-    #Must sort the tuples returned, because order matters for the assert
-    #Folders are returned in a different ordering depending on the name
+    # Must sort the tuples returned, because order matters for the assert
+    # Folders are returned in a different ordering depending on the name
     for i in walked:
         for x in i:
             if type(x) == list:
@@ -441,13 +440,13 @@ def test_syncFromSynapse():
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = syn.store(File(f, parent=folder_entity))
-    #Add a file in the project level as well
+    # Add a file in the project level as well
     f  = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = syn.store(File(f, parent=project_entity))
 
-    ### Test recursive get
+    # Test recursive get
     output = synapseutils.syncFromSynapse(syn, project_entity)
 
     assert len(output) == len(uploaded_paths)
@@ -475,7 +474,7 @@ def test_copyFileHandleAndchangeFileMetadata():
                 attachments=[attachname])
     wiki = syn.store(wiki)
     wikiattachments = syn._getFileHandle(wiki.attachmentFileHandleIds[0])
-    #CHECK: Can batch copy two file handles (wiki attachments and file entity)
+    # CHECK: Can batch copy two file handles (wiki attachments and file entity)
     copiedFileHandles = synapseutils.copyFileHandles(syn, [file_entity.dataFileHandleId, wiki.attachmentFileHandleIds[0]], [file_entity.concreteType.split(".")[-1], "WikiAttachment"], [file_entity.id, wiki.id], [file_entity.contentType, wikiattachments['contentType']], [file_entity.name, wikiattachments['fileName']])
     assert all([results.get("failureCode") is None for results in copiedFileHandles['copyResults']]), "NOT FOUND and UNAUTHORIZED failure codes."
 
@@ -497,10 +496,10 @@ def test_copyFileHandleAndchangeFileMetadata():
 
     syn_other = synapseclient.Synapse(skip_checks=True)
     syn_other.login(other_user['username'], other_user['password'])
-    #CHECK: UNAUTHORIZED failure code should be returned
+    # CHECK: UNAUTHORIZED failure code should be returned
     output = synapseutils.copyFileHandles(syn_other,[file_entity.dataFileHandleId, wiki.attachmentFileHandleIds[0]], [file_entity.concreteType.split(".")[-1], "WikiAttachment"], [file_entity.id, wiki.id], [file_entity.contentType, wikiattachments['contentType']], [file_entity.name, wikiattachments['fileName']])
     assert all([results.get("failureCode") == "UNAUTHORIZED" for results in output['copyResults']]), "UNAUTHORIZED codes."
-    #CHECK: Changing content type and downloadAs
+    # CHECK: Changing content type and downloadAs
     new_entity = synapseutils.changeFileMetaData(syn, file_entity, contentType="application/x-tar", downloadAs="newName.txt")
     schedule_for_cleanup(new_entity.id)
     assert file_entity.md5 == new_entity.md5, "Md5s must be equal after copying"
@@ -513,34 +512,34 @@ def test_copyFileHandles__copying_cached_file_handles():
     num_files = 3
     file_entities = []
 
-    #upload temp files to synapse
+    # upload temp files to synapse
     for i in range(num_files):
         file_path = utils.make_bogus_data_file();
         schedule_for_cleanup(file_path)
         file_entities.append(syn.store(File(file_path,name=str(uuid.uuid1()), parent=project)))
 
-    #a bunch of setup for arguments to the function under test
+    # a bunch of setup for arguments to the function under test
     file_handles = [file_entity['_file_handle'] for file_entity in file_entities ]
     file_entity_ids = [file_entity['id'] for file_entity in file_entities]
     content_types = [file_handle['contentType'] for file_handle in file_handles]
     filenames = [file_handle['fileName'] for file_handle in file_handles]
 
-    #remove every other FileHandle from the cache (at even indicies)
+    # remove every other FileHandle from the cache (at even indicies)
     for i in range(num_files):
         if i % 2 == 0:
             syn.cache.remove(file_handles[i]["id"])
 
-    #get the new list of file_handles
+    # get the new list of file_handles
     copiedFileHandles = synapseutils.copyFileHandles(syn, file_handles , ["FileEntity"] * num_files, file_entity_ids,content_types , filenames)
     new_file_handle_ids = [copy_result['newFileHandle']['id'] for copy_result in copiedFileHandles['copyResults']]
 
-    #verify that the cached paths are the same
+    # verify that the cached paths are the same
     for i in range(num_files):
         original_path = syn.cache.get(file_handles[i]['id'])
         new_path = syn.cache.get(new_file_handle_ids[i])
-        if i % 2 == 0: # since even indicies are not cached, both should be none
+        if i % 2 == 0:  # since even indicies are not cached, both should be none
             assert_is_none(original_path)
             assert_is_none(new_path)
-        else: # at odd indicies, the file path should have been copied
+        else:  # at odd indicies, the file path should have been copied
             assert_equals(original_path, new_path)
 

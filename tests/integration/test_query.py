@@ -11,7 +11,7 @@ from nose.tools import assert_less
 import deprecation
 
 import synapseclient
-from synapseclient.entity import Project, Folder, File
+from synapseclient.entity import Folder
 
 import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
@@ -24,7 +24,7 @@ def setup(module):
 
 @deprecation.fail_if_not_removed
 def test_query():
-    ## TODO: replace this test with the one below when query() is replaced
+    # TODO: replace this test with the one below when query() is replaced
     query_str = "select id from entity where entity.parentId=='%s'" % project['id']
     # Remove all the Entities that are in the project
     qry = syn.query(query_str)
@@ -81,15 +81,13 @@ def test_chunked_query():
 
 @deprecation.fail_if_not_removed
 def test_chunked_query_giant_row():
-    import synapseclient.utils as utils
-
     absurdly_long_desription = 'This is an absurdly long description!' + '~'*512000
 
     normal = syn.store(Folder('normal', description='A file with a normal length description', parentId=project['id']))
     absurd = syn.store(Folder('absurd', description=absurdly_long_desription, parentId=project['id']))
 
-    ## the expected behavior is that the absurdly long row will be skipped
-    ## but the normal row will be returned
+    # the expected behavior is that the absurdly long row will be skipped
+    # but the normal row will be returned
     start_time = time.time()
     ids = []
     while normal.id not in ids:

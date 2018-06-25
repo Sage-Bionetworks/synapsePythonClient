@@ -5,13 +5,12 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import filecmp
-import os, random, sys, traceback
+import os, random, traceback
 from io import open
 
-import synapseclient
 import synapseclient.utils as utils
 from synapseclient.utils import MB, GB
-from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient import File
 from synapseclient.multipart_upload import multipart_upload, multipart_upload_string
 import synapseclient.multipart_upload as multipart_upload_module
 import tempfile
@@ -67,7 +66,7 @@ def test_randomly_failing_parts():
         else:
             return normal_put_chunk(url, chunk, verbose)
 
-    ## Mock _put_chunk to fail randomly
+    # Mock _put_chunk to fail randomly
     normal_put_chunk = multipart_upload_module._put_chunk
     multipart_upload_module._put_chunk = _put_chunk_or_fail_randomly
 
@@ -84,7 +83,7 @@ def test_randomly_failing_parts():
         assert filecmp.cmp(filepath, junk.path)
 
     finally:
-        ## Un-mock _put_chunk
+        # Un-mock _put_chunk
         if normal_put_chunk:
             multipart_upload_module._put_chunk = normal_put_chunk
 

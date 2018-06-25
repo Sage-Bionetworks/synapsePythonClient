@@ -3,11 +3,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 
-import uuid, filecmp, os, tempfile, time
+import uuid, filecmp, os, tempfile
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_greater, assert_less
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance
 from nose import SkipTest
 from mock import patch
 
@@ -174,23 +173,23 @@ def test_get_local_file():
     folder = Folder('TestFindFileFolder', parent=project, description='A place to put my junk')
     folder = syn.createEntity(folder)
 
-    #Get an nonexistent file in Synapse
+    # Get an nonexistent file in Synapse
     assert_raises(SynapseError, syn.get, new_path)
 
-    #Get a file really stored in Synapse
+    # Get a file really stored in Synapse
     ent_folder = syn.store(File(new_path, parent=folder))
     ent2 = syn.get(new_path)
     assert ent_folder.id==ent2.id and ent_folder.versionNumber==ent2.versionNumber
 
-    #Get a file stored in Multiple locations #should display warning
-    ent = syn.store(File(new_path, parent=project))
-    ent = syn.get(new_path)
+    # Get a file stored in Multiple locations #should display warning
+    syn.store(File(new_path, parent=project))
+    syn.get(new_path)
 
-    #Get a file stored in multiple locations with limit set
+    # Get a file stored in multiple locations with limit set
     ent = syn.get(new_path, limitSearch=folder.id)
-    assert ent.id == ent_folder.id and ent.versionNumber==ent_folder.versionNumber
+    assert ent.id == ent_folder.id and ent.versionNumber == ent_folder.versionNumber
 
-    #Get a file that exists but such that limitSearch removes them and raises error
+    # Get a file that exists but such that limitSearch removes them and raises error
     assert_raises(SynapseError, syn.get, new_path, limitSearch='syn1')
 
 
@@ -591,7 +590,7 @@ def test_store__changing_externalURL_by_changing_path():
 
 
 def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
-    #create a temp file
+    # create a temp file
     temp_path = utils.make_bogus_data_file()
     schedule_for_cleanup(temp_path)
 
@@ -602,16 +601,16 @@ def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
     ext.synapseStore = False
     ext = syn.store(ext)
 
-    #do a get to make sure filehandle has been updated correctly
+    # do a get to make sure filehandle has been updated correctly
     ext = syn.get(ext.id, downloadFile=True)
     assert_equal("org.sagebionetworks.repo.model.file.ExternalFileHandle", ext._file_handle.concreteType)
     assert_equal(utils.as_url(temp_path), ext.externalURL)
     assert_equal(False, ext.synapseStore)
 
-    #swap back to synapse storage
+    # swap back to synapse storage
     ext.synapseStore=True
     ext = syn.store(ext)
-    #do a get to make sure filehandle has been updated correctly
+    # do a get to make sure filehandle has been updated correctly
     ext = syn.get(ext.id, downloadFile=True)
     assert_equal("org.sagebionetworks.repo.model.file.S3FileHandle", ext._file_handle.concreteType)
     assert_equal(None, ext.externalURL)

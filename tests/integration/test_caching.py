@@ -3,9 +3,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 
-import filecmp, os, sys, traceback, logging, requests, uuid
+import os, traceback, logging, uuid
 import time, random
 from threading import Lock
 import six
@@ -17,12 +16,8 @@ else:
     import _thread as thread
     from queue import Queue
 
-import synapseclient
-import synapseclient.utils as utils
-import synapseclient.cache as cache
 from synapseclient.exceptions import *
-from synapseclient.utils import MB, GB
-from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient import Project, File
 
 import integration
 from integration import schedule_for_cleanup
@@ -51,8 +46,8 @@ def teardown(module):
 
 def test_threaded_access():
     """Starts multiple threads to perform store and get calls randomly."""
-    ## Doesn't this test look like a DOS attack on Synapse?
-    ## Maybe it should be called explicity...
+    # Doesn't this test look like a DOS attack on Synapse?
+    # Maybe it should be called explicity...
     
     # Suppress most of the output from the many REST calls
     #   Otherwise, it flood the screen with irrelevant data upon error
@@ -87,7 +82,7 @@ def test_threaded_access():
     collect_errors_and_fail()
   
 #############
-## Helpers ##
+#  Helpers  #
 #############
 
 def wrap_function_as_child_thread(function):
@@ -118,7 +113,7 @@ def collect_errors_and_fail():
         raise SynapseError('\n' + '\n'.join(failures))
     
 ######################
-## Thread Behaviors ##    
+#  Thread Behaviors  #
 ######################
 
 def thread_keep_storing_one_File():
@@ -170,7 +165,7 @@ def thread_get_and_update_file_from_Project():
         sleep_for_a_bit()
     
 ####################
-## Thread Helpers ##
+#  Thread Helpers  #
 ####################
     
 def sleep_for_a_bit():
