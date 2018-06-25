@@ -1,4 +1,3 @@
-import os
 from synapseclient.dict_object import DictObject
 
 

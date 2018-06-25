@@ -1,11 +1,8 @@
-import os
 import random
 import time
 from threading import Thread
 from datetime import timedelta
-import synapseclient.utils as utils
 from synapseclient.lock import Lock
-
 
 
 def test_lock():
@@ -50,8 +47,9 @@ def test_lock_timeout():
         assert user2_lock.acquire(break_old_locks=True)
 
 
-## Try to hammer away at the locking mechanism from multiple threads
+# Try to hammer away at the locking mechanism from multiple threads
 NUMBER_OF_TIMES_PER_THREAD = 3
+
 
 def do_stuff_with_a_locked_resource(name, event_log):
     lock = Lock("foo", max_age=timedelta(seconds=5))
@@ -59,6 +57,7 @@ def do_stuff_with_a_locked_resource(name, event_log):
         with lock:
             event_log.append( (name, i) )
         time.sleep(random.betavariate(2, 5))
+
 
 def test_multithreaded():
     event_log = []

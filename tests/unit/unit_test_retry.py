@@ -1,8 +1,6 @@
-import os, json, tempfile, filecmp
 from nose.tools import assert_raises
-from mock import MagicMock, patch
+from mock import MagicMock
 import unit
-import synapseclient
 from synapseclient.retry import _with_retry
 from synapseclient.exceptions import *
 
@@ -53,7 +51,8 @@ def test_with_retry():
     
     # -- Propagate an error up --
     print("Expect a SynapseError: Bar")
-    def foo(): raise SynapseError("Bar")
+    def foo():
+        raise SynapseError("Bar")
     function.side_effect = foo
     assert_raises(SynapseError, _with_retry, function, **retryParams)
     assert function.call_count == 1 + 4 + 3 + 4 + 1

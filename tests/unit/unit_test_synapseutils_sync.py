@@ -5,7 +5,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import os
-import tempfile
 
 import unit
 from mock import patch, create_autospec, Mock, call
@@ -22,12 +21,8 @@ try:
 except ImportError:
     from io import StringIO
 
-try:
-    import pandas as pd
-    import pandas.util.testing as pdt
-    pandas_available=True
-except:
-    pandas_available=False
+import pandas as pd
+import pandas.util.testing as pdt
 
 def setup(module):
 
@@ -35,10 +30,8 @@ def setup(module):
 
 def test_readManifest__sync_order_with_home_directory():
     """SYNPY-508"""
-    if not pandas_available:
-        raise SkipTest("pandas was not found. Skipping test.")
 
-    #row1's file depends on row2's file but is listed first
+    # row1's file depends on row2's file but is listed first
     file_path1 = '~/file1.txt'
     file_path2 = '~/file2.txt'
     project_id = "syn123"
@@ -48,7 +41,7 @@ def test_readManifest__sync_order_with_home_directory():
 
     manifest = StringIO(header+row1+row2)
     # mock syn.get() to return a project because the final check is making sure parent is a container
-    #mock isfile() to always return true to avoid having to create files in the home directory
+    # mock isfile() to always return true to avoid having to create files in the home directory
     with patch.object(syn, "get", return_value=Project()),\
          patch.object(os.path, "isfile", side_effect=[True,True,True,False]): #side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
@@ -57,8 +50,6 @@ def test_readManifest__sync_order_with_home_directory():
 
 
 def test_readManifestFile__synapseStore_values_not_set():
-    if not pandas_available:
-        raise SkipTest("pandas was not found. Skipping test.")
 
     project_id = "syn123"
     header = 'path\tparent\n'
@@ -81,8 +72,6 @@ def test_readManifestFile__synapseStore_values_not_set():
 
 
 def test_readManifestFile__synapseStore_values_are_set():
-    if not pandas_available:
-        raise SkipTest("pandas was not found. Skipping test.")
 
     project_id = "syn123"
     header = 'path\tparent\tsynapseStore\n'
@@ -161,9 +150,9 @@ def test_syncFromSynapse__project_contains_empty_folder():
 
 
 def test_extract_file_entity_metadata__ensure_correct_row_metadata():
-    #Test for SYNPY-692, where 'contentType' was incorrectly set on all rows except for the very first row.
+    # Test for SYNPY-692, where 'contentType' was incorrectly set on all rows except for the very first row.
 
-    #create 2 file entities with different metadata
+    # create 2 file entities with different metadata
     entity1 = File(parent='syn123', id='syn456', contentType='text/json', path='path1', name='entity1', synapseStore=True)
     entity2 = File(parent='syn789', id='syn890', contentType='text/html', path='path2', name='entity2', synapseStore=False)
     files = [entity1, entity2]
@@ -171,10 +160,10 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata():
     # we don't care about provenance metadata in this case
     patch.object(synapseutils.sync, "_get_file_entity_provenance_dict", return_value={}).start()
 
-    #method under test
+    # method under test
     keys, data = synapseutils.sync._extract_file_entity_metadata(syn, files)
 
-    #compare source entity metadata gainst the extracted metadata
+    # compare source entity metadata gainst the extracted metadata
     for file_entity, file_row_data in zip(files, data):
         for key in keys:
             if key == 'parent': #workaroundd for parent/parentId inconsistency. (SYNPY-697)

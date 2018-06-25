@@ -6,7 +6,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from datetime import datetime as Datetime
 from nose.tools import assert_raises, assert_equal
 import os, re, sys, inspect
 
@@ -20,8 +19,6 @@ from nose import SkipTest
 from mock import patch, mock_open
 import tempfile
 from shutil import rmtree
-
-
 
 
 def test_activity_creation_from_dict():
@@ -54,7 +51,6 @@ def test_activity_used_execute_methods():
     assert a['name'] == 'Fuzz'
     assert a['description'] == 'hipster beard dataset'
 
-    ## ??? are activities supposed to come back in order? Let's not count on it
     used_syn101 = _find_used(a, lambda res: res['reference']['targetId'] == 'syn101')
     assert used_syn101['reference']['targetVersionNumber'] == 42
     assert used_syn101['wasExecuted'] == False
@@ -156,7 +152,7 @@ def test_windows_file_urls():
 
 
 def test_is_in_path():
-    #Path as returned form syn.restGET('entity/{}/path')
+    # Path as returned form syn.restGET('entity/{}/path')
     path = {u'path': [{u'id': u'syn4489',  u'name': u'root', u'type': u'org.sagebionetworks.repo.model.Folder'},
                       {u'id': u'syn537704', u'name': u'my Test project', u'type': u'org.sagebionetworks.repo.model.Project'},
                       {u'id': u'syn2385356',u'name': u'.emacs', u'type': u'org.sagebionetworks.repo.model.FileEntity'}]}
@@ -214,18 +210,18 @@ def test_version_check():
     assert _version_tuple('1.6', levels=3) == ('1', '6', '0')
 
 def test_normalize_path():
-    ## tests should pass on reasonable OSes and also on windows
+    # tests should pass on reasonable OSes and also on windows
 
-    ## resolves relative paths
+    # resolves relative paths
     assert len(utils.normalize_path('asdf.txt')) > 8
 
-    ## doesn't resolve home directory references
-    #assert '~' not in utils.normalize_path('~/asdf.txt')
+    # doesn't resolve home directory references
+    # assert '~' not in utils.normalize_path('~/asdf.txt')
 
-    ## converts back slashes to forward slashes
+    # converts back slashes to forward slashes
     assert utils.normalize_path('\\windows\\why\\why\\why.txt')
 
-    ## what's the right thing to do for None?
+    # what's the right thing to do for None?
     assert utils.normalize_path(None) is None
 
 def test_limit_and_offset():
@@ -333,14 +329,14 @@ def test_time_manipulation():
                                         utils.iso_to_datetime("1969-04-28T23:48:34.123Z"))))
     assert "1969-04-28T23:48:34.123Z" == round_tripped_datetime, round_tripped_datetime
 
-    ## check that rounding to milliseconds works
+    # check that rounding to milliseconds works
     round_tripped_datetime = utils.datetime_to_iso(
                                 utils.from_unix_epoch_time_secs(
                                     utils.to_unix_epoch_time_secs(
                                         utils.iso_to_datetime("1969-04-28T23:48:34.999499Z"))))
     assert "1969-04-28T23:48:34.999Z" == round_tripped_datetime, round_tripped_datetime
 
-    ## check that rounding to milliseconds works
+    # check that rounding to milliseconds works
     round_tripped_datetime = utils.datetime_to_iso(
                                 utils.from_unix_epoch_time_secs(
                                     utils.to_unix_epoch_time_secs(
@@ -402,17 +398,17 @@ def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocke
     expected_filepath = os.path.join(target_dir, file_base_name)
 
     try:
-        #call the method and make sure correct values are being used
+        # call the method and make sure correct values are being used
         with patch('synapseclient.utils.open', mock_open(), create=True) as mocked_open:
             actual_filepath = utils._extract_zip_file_to_directory(mocked_zipfile, file_dir + file_base_name, target_dir)
 
-            #make sure it returns the correct cache path
+            # make sure it returns the correct cache path
             assert_equal(expected_filepath, actual_filepath)
 
-            #make sure it created the cache folders
+            # make sure it created the cache folders
             mocked_makedir.assert_called_once_with(target_dir)
 
-            #make sure zip was read and file was witten
+            # make sure zip was read and file was witten
             mocked_open.assert_called_once_with(expected_filepath, 'wb')
             mocked_zipfile.read.assert_called_once_with(file_dir + file_base_name)
             mocked_open().write.assert_called_once_with(mocked_zipfile.read())

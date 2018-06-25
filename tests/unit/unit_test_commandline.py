@@ -8,7 +8,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from nose.tools import assert_raises, assert_equals
+from nose.tools import assert_equals
 import unit
 from mock import patch
 
@@ -17,9 +17,6 @@ try:
 except:
     import configparser as ConfigParser
 
-import synapseclient
-import synapseclient.client as client
-import synapseclient.utils as utils
 import synapseclient.__main__ as cmdline
 
 import synapseutils

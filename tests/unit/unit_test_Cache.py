@@ -4,14 +4,13 @@ from __future__ import print_function
 from __future__ import unicode_literals
 import six
 
-import re, os, tempfile, json
-import time, datetime, random
-from mock import MagicMock, patch
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_is_not_none, assert_in, assert_false, assert_true
+import re, os, tempfile
+import time, random
+from mock import patch
+from nose.tools import assert_equal, assert_is_none, assert_is_not_none, assert_in, assert_false, assert_true
 from collections import OrderedDict
 from multiprocessing import Process
 
-import synapseclient
 import synapseclient.cache as cache
 import synapseclient.utils as utils
 
@@ -75,7 +74,7 @@ def test_parse_cache_entry_into_seconds():
 
 
 def test_get_modification_time():
-    ALLOWABLE_TIME_ERROR = 0.01 # seconds
+    ALLOWABLE_TIME_ERROR = 0.01  # seconds
 
     # Non existent files return None
     assert_is_none(cache._get_modified_time("A:/I/h0pe/th1s/k0mput3r/haz/n0/fl0ppy.disk"))
@@ -90,7 +89,7 @@ def test_get_modification_time():
 
 
 def test_cache_timestamps():
-    ## test conversion to epoch time to ISO with proper rounding to millisecond
+    # test conversion to epoch time to ISO with proper rounding to millisecond
     assert_equal(cache.epoch_time_to_iso(1433544108.080841), '2015-06-05T22:41:48.081Z')
 
 
@@ -115,14 +114,14 @@ def test_subsecond_timestamps():
     with patch("synapseclient.cache._get_modified_time") as _get_modified_time_mock, \
          patch("synapseclient.cache.Cache._read_cache_map") as _read_cache_map_mock:
 
-        ## this should be a match, 'cause we round microseconds to milliseconds
+        # this should be a match, 'cause we round microseconds to milliseconds
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.001Z"}
         _get_modified_time_mock.return_value = 1430861695.001111
 
         assert_equal(path, my_cache.get(file_handle_id=1234, path=path))
 
-        ## The R client always writes .000 for milliseconds, for compatibility,
-        ## we should match .000 with any number of milliseconds
+        # The R client always writes .000 for milliseconds, for compatibility,
+        # we should match .000 with any number of milliseconds
         _read_cache_map_mock.return_value = {path: "2015-05-05T21:34:55.000Z"}
 
         assert_equal(path, my_cache.get(file_handle_id=1234, path=path))
@@ -138,7 +137,7 @@ def test_cache_store_get():
     path2 = utils.touch(os.path.join(my_cache.get_cache_dir(101202), "file2.ext"))
     my_cache.add(file_handle_id=101202, path=path2)
 
-    ## set path3's mtime to be later than path2's
+    # set path3's mtime to be later than path2's
     new_time_stamp = cache._get_modified_time(path2)+2
 
     path3 = utils.touch(os.path.join(tmp_dir, "foo", "file2.ext"), (new_time_stamp, new_time_stamp))
@@ -204,7 +203,7 @@ def test_cache_remove():
     path2 = utils.touch(os.path.join(alt_dir, "file2.ext"))
     my_cache.add(file_handle_id=101201, path=path2)
 
-    ## remove the cached copy at path1
+    # remove the cached copy at path1
     rp = my_cache.remove({'dataFileHandleId':101201, 'path':path1})
 
     assert len(rp) == 1
@@ -216,21 +215,21 @@ def test_cache_remove():
 
 
 def test_cache_rules():
-# Cache should (in order of preference):
-#
-# 1. DownloadLocation specified:
-#   a. return exact match (unmodified file at the same path)
-#   b. return an unmodified file at another location,
-#      copy to downloadLocation subject to ifcollision
-#   c. download file to downloadLocation subject to ifcollision
-#
-# 2. DownloadLocation *not* specified:
-#   a. return an unmodified file at another location
-#   b. download file to cache_dir overwritting any existing file
+    # Cache should (in order of preference):
+    #
+    # 1. DownloadLocation specified:
+    #   a. return exact match (unmodified file at the same path)
+    #   b. return an unmodified file at another location,
+    #      copy to downloadLocation subject to ifcollision
+    #   c. download file to downloadLocation subject to ifcollision
+    #
+    # 2. DownloadLocation *not* specified:
+    #   a. return an unmodified file at another location
+    #   b. download file to cache_dir overwritting any existing file
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
 
-    ## put file in cache dir
+    # put file in cache dir
     path1 = utils.touch(os.path.join(my_cache.get_cache_dir(101201), "file1.ext"))
     my_cache.add(file_handle_id=101201, path=path1)
 
@@ -242,47 +241,47 @@ def test_cache_rules():
     path3 = utils.touch(os.path.join(tmp_dir, "also_not_in_cache", "file1.ext"), (new_time_stamp, new_time_stamp))
     my_cache.add(file_handle_id=101201, path=path3)
 
-    ## DownloadLocation specified, found exact match
+    # DownloadLocation specified, found exact match
     assert utils.equal_paths( my_cache.get(file_handle_id=101201, path=path2), path2 )
 
-    ## DownloadLocation specified, no match, get most recent
+    # DownloadLocation specified, no match, get most recent
     path = my_cache.get(file_handle_id=101201, path=os.path.join(tmp_dir, "file_is_not_here", "file1.ext"))
     assert utils.equal_paths(path, path3)
 
-    ## DownloadLocation specified as a directory, not in cache, get most recent
+    # DownloadLocation specified as a directory, not in cache, get most recent
     empty_dir = os.path.join(tmp_dir, "empty_directory")
     os.makedirs(empty_dir)
     path = my_cache.get(file_handle_id=101201, path=empty_dir)
     assert utils.equal_paths(path, path3)
 
-    ## path2 is now modified
+    # path2 is now modified
     new_time_stamp = cache._get_modified_time(path2)+2
     utils.touch(path2, (new_time_stamp, new_time_stamp))
 
-    ## test cache.contains
+    # test cache.contains
     assert_false(my_cache.contains(file_handle_id=101201, path=empty_dir))
     assert_false(my_cache.contains(file_handle_id=101201, path=path2))
     assert_false(my_cache.contains(file_handle_id=101999, path=path2))
     assert_true(my_cache.contains(file_handle_id=101201, path=path1))
     assert_true(my_cache.contains(file_handle_id=101201, path=path3))
 
-    ## Get file from alternate location. Do we care which file we get?
+    # Get file from alternate location. Do we care which file we get?
     assert_is_none(my_cache.get(file_handle_id=101201, path=path2))
     assert_in(my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)] )
 
-    ## Download uncached file to a specified download location
+    # Download uncached file to a specified download location
     assert_is_none( my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache")) )
 
-    ## No downloadLocation specified, get file from alternate location. Do we care which file we get?
+    # No downloadLocation specified, get file from alternate location. Do we care which file we get?
     assert_is_not_none(my_cache.get(file_handle_id=101201))
     assert_in( my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)] )
 
-    ## test case 2b.
+    # test case 2b.
     assert_is_none( my_cache.get(file_handle_id=101202) )
 
 
 def test_set_cache_root_dir():
-    #set up an environment variable for the path
+    # set up an environment variable for the path
     enviornment_variable_name = "_SYNAPSE_PYTHON_CLIENT_TEST_ENV"
     enviornment_variable_value = "asdf/qwerty"
     os.environ[enviornment_variable_name] = enviornment_variable_value
@@ -292,10 +291,10 @@ def test_set_cache_root_dir():
     expanded_path = os.path.expandvars(os.path.expanduser(os.path.join("~", enviornment_variable_value , path_suffix)))
     non_expanded_path = os.path.join("~", '$' + enviornment_variable_name, path_suffix)
 
-    #test that the constructor correctly expands the path
+    # test that the constructor correctly expands the path
     my_cache = cache.Cache(cache_root_dir=non_expanded_path)
     assert_equal(expanded_path, my_cache.cache_root_dir)
 
-    #test that manually assigning cache_root_dir expands the path
+    # test that manually assigning cache_root_dir expands the path
     my_cache.cache_root_dir = non_expanded_path + "2"
     assert_equal(expanded_path + "2", my_cache.cache_root_dir)

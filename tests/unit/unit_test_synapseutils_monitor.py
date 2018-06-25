@@ -3,16 +3,11 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import os
-
 import unit
-from mock import patch, MagicMock, ANY, call
-from nose import SkipTest
+from mock import patch, MagicMock, call
 from nose.tools import assert_equal, assert_in, assert_tuple_equal
-from builtins import str
 
 import synapseutils
-from synapseclient import utils as synapseclientutils
 from synapseutils import notifyMe, with_progress_bar
 
 try:
@@ -51,7 +46,7 @@ def test_notifyMe__exception_thrown_and_retry_fail():
     owner_id = '12434'
     user_profile = {'ownerId':owner_id}
     with patch.object(syn, "sendMessage") as mocked_send_message,\
-         patch.object(syn, "getUserProfile", return_value=user_profile) as mocked_get_user_profile:
+         patch.object(syn, "getUserProfile", return_value=user_profile):
         mocked_func = MagicMock(side_effect=[Exception('first time fails'), 'second time is Fine'])
         @notifyMe(syn, messageSubject=subject, retries=1)
         def test_function():
@@ -60,7 +55,7 @@ def test_notifyMe__exception_thrown_and_retry_fail():
         test_function()
         assert_equal(2, mocked_send_message.call_count)
 
-        #call_args_list is a list of tuples, each tuple in the form (args,kwargs)
+        # call_args_list is a list of tuples, each tuple in the form (args,kwargs)
         first_call_args = mocked_send_message.call_args_list[0][0]
         first_call_kwargs = mocked_send_message.call_args_list[0][1]
 

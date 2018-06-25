@@ -12,15 +12,10 @@ import sys
 import tempfile
 from builtins import zip
 from mock import MagicMock
-from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false, assert_not_in, assert_sequence_equal
+from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_sequence_equal
 from nose import SkipTest
-import unit
 
-try:
-    import pandas as pd
-    pandas_found = False
-except ImportError:
-    pandas_found = True
+import pandas as pd
 
 from nose.tools import raises, assert_equals
 import unit
@@ -60,7 +55,7 @@ def test_cast_values():
     row = ('Finklestein', 'bat', '3.14159', '65535', 'true', 'https://www.synapse.org/')
     assert cast_values(row, selectColumns)==['Finklestein', 'bat', 3.14159, 65535, True, 'https://www.synapse.org/']
 
-    ## group by
+    # group by
     selectColumns = [{'name': 'bonk',
                       'columnType': 'BOOLEAN'},
                      {'name': 'COUNT(name)',
@@ -147,82 +142,56 @@ def test_RowSetTable():
     assert len(table.headers) == 4
     assert len(table.asRowSet().rows) == 4
 
-    try:
-        import pandas as pd
-
-        df = table.asDataFrame()
-        assert df.shape == (4,4)
-        assert all(df['name'] == ['foo', 'bar', 'foo', 'qux'])
-
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping part of test_RowSetTable.\n\n')
+    df = table.asDataFrame()
+    assert df.shape == (4,4)
+    assert all(df['name'] == ['foo', 'bar', 'foo', 'qux'])
 
 
 def test_as_table_columns__with_pandas_DataFrame():
-    try:
-        import pandas as pd
+    df = pd.DataFrame({
+        'foobar' : ("foo", "bar", "baz", "qux", "asdf"),
+        'x' : tuple(math.pi*i for i in range(5)),
+        'n' : (101, 202, 303, 404, 505),
+        'really' : (False, True, False, True, False),
+        'size' : ('small', 'large', 'medium', 'medium', 'large')})
 
-        df = pd.DataFrame({
-            'foobar' : ("foo", "bar", "baz", "qux", "asdf"),
-            'x' : tuple(math.pi*i for i in range(5)),
-            'n' : (101, 202, 303, 404, 505),
-            'really' : (False, True, False, True, False),
-            'size' : ('small', 'large', 'medium', 'medium', 'large')})
+    cols = as_table_columns(df)
 
-        cols = as_table_columns(df)
+    cols[0]['name'] == 'foobar'
+    cols[0]['columnType'] == 'STRING'
+    cols[1]['name'] == 'x'
+    cols[1]['columnType'] == 'DOUBLE'
+    cols[1]['name'] == 'n'
+    cols[1]['columnType'] == 'INTEGER'
+    cols[1]['name'] == 'really'
+    cols[1]['columnType'] == 'BOOLEAN'
+    cols[1]['name'] == 'size'
+    # TODO: support Categorical when fully supported in Pandas Data Frames
+    cols[1]['columnType'] == 'STRING'
 
-        cols[0]['name'] == 'foobar'
-        cols[0]['columnType'] == 'STRING'
-        cols[1]['name'] == 'x'
-        cols[1]['columnType'] == 'DOUBLE'
-        cols[1]['name'] == 'n'
-        cols[1]['columnType'] == 'INTEGER'
-        cols[1]['name'] == 'really'
-        cols[1]['columnType'] == 'BOOLEAN'
-        cols[1]['name'] == 'size'
-        # TODO: support Categorical when fully supported in Pandas Data Frames
-        cols[1]['columnType'] == 'STRING'
-
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns__with_pandas_DataFrame.\n\n')
 
 def test_as_table_columns__with_non_supported_input_type():
     assert_raises(ValueError, as_table_columns, dict(a=[1, 2, 3], b=["c", "d", "e"]))
 
 def test_as_table_columns__with_csv_file():
-    try:
-        import pandas as pd
+    string_io = StringIOContextManager(
+        'ROW_ID,ROW_VERSION,Name,Born,Hipness,Living\n'
+        '"1", "1", "John Coltrane", 1926, 8.65, False\n'
+        '"2", "1", "Miles Davis", 1926, 9.87, False'
+    )
+    cols = as_table_columns(string_io)
 
-        string_io = StringIOContextManager(
-            'ROW_ID,ROW_VERSION,Name,Born,Hipness,Living\n'
-            '"1", "1", "John Coltrane", 1926, 8.65, False\n'
-            '"2", "1", "Miles Davis", 1926, 9.87, False'
-        )
-        cols = as_table_columns(string_io)
+    cols[0]['name'] == 'Name'
+    cols[0]['columnType'] == 'STRING'
+    cols[1]['name'] == 'Born'
+    cols[1]['columnType'] == 'INTEGER'
+    cols[2]['name'] == 'Hipness'
+    cols[2]['columnType'] == 'DOUBLE'
+    cols[3]['name'] == 'Living'
+    cols[3]['columnType'] == 'BOOLEAN'
 
-        cols[0]['name'] == 'Name'
-        cols[0]['columnType'] == 'STRING'
-        cols[1]['name'] == 'Born'
-        cols[1]['columnType'] == 'INTEGER'
-        cols[2]['name'] == 'Hipness'
-        cols[2]['columnType'] == 'DOUBLE'
-        cols[3]['name'] == 'Living'
-        cols[3]['columnType'] == 'BOOLEAN'
-
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns__with_csv_file.\n\n')
-
-
-def _try_import_pandas(test):
-    try:
-        import pandas as pd
-        return pd
-    except ImportError:
-        raise SkipTest('Pandas is not installed, skipping '+test+'.\n\n')
 
 def test_dict_to_table():
-    pd = _try_import_pandas('test_dict_to_table')
-
     d = dict(a=[1,2,3], b=["c", "d", "e"])
     df = pd.DataFrame(d)
     schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
@@ -237,12 +206,10 @@ def test_dict_to_table():
     assert df_agr.equals(df)
 
 def test_pandas_to_table():
-    pd = _try_import_pandas('test_pandas_to_table')
-
     df = pd.DataFrame(dict(a=[1,2,3], b=["c", "d", "e"]))
     schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
 
-    ## A dataframe with no row id and version
+    # A dataframe with no row id and version
     table = Table(schema, df)
 
     for i, row in enumerate(table):
@@ -251,18 +218,18 @@ def test_pandas_to_table():
 
     assert len(table)==3
 
-    ## If includeRowIdAndRowVersion=True, include empty row id an versions
-    ## ROW_ID,ROW_VERSION,a,b
-    ## ,,1,c
-    ## ,,2,d
-    ## ,,3,e
+    # If includeRowIdAndRowVersion=True, include empty row id an versions
+    # ROW_ID,ROW_VERSION,a,b
+    # ,,1,c
+    # ,,2,d
+    # ,,3,e
     table = Table(schema, df, includeRowIdAndRowVersion=True)
     for i, row in enumerate(table):
         assert row[0] is None
         assert row[1] is None
         assert row[2]==(i+1)
 
-    ## A dataframe with no row id and version
+    # A dataframe with no row id and version
     df = pd.DataFrame(index=["1_7","2_7","3_8"], data=dict(a=[100,200,300], b=["c", "d", "e"]))
 
     table = Table(schema, df)
@@ -272,7 +239,7 @@ def test_pandas_to_table():
         assert row[2]==(i+1)*100
         assert row[3]==["c", "d", "e"][i]
 
-    ## A dataframe with row id and version in columns
+    # A dataframe with row id and version in columns
     df = pd.DataFrame(dict(ROW_ID=["0","1","2"], ROW_VERSION=["8","9","9"], a=[100,200,300], b=["c", "d", "e"]))
 
     table = Table(schema, df)
@@ -282,9 +249,10 @@ def test_pandas_to_table():
         assert row[2]==(i+1)*100
         assert row[3]==["c", "d", "e"][i]
 
+
 def test_csv_table():
-    ## Maybe not truly a unit test, but here because it doesn't do
-    ## network IO to synapse
+    # Maybe not truly a unit test, but here because it doesn't do
+    # network IO to synapse
     data = [["1", "1", "John Coltrane",  1926, 8.65, False],
             ["2", "1", "Miles Davis",    1926, 9.87, False],
             ["3", "1", "Bill Evans",     1929, 7.65, False],
@@ -303,9 +271,9 @@ def test_csv_table():
 
     schema1 = Schema(id='syn1234', name='Jazz Guys', columns=cols, parent="syn1000001")
 
-    #TODO: use StringIO.StringIO(data) rather than writing files
+    # TODO: use StringIO.StringIO(data) rather than writing files
     try:
-        ## create CSV file
+        # create CSV file
         with tempfile.NamedTemporaryFile(delete=False) as temp:
             filename = temp.name
 
@@ -319,36 +287,29 @@ def test_csv_table():
         table = Table(schema1, filename)
         assert isinstance(table, CsvFileTable)
 
-        ## need to set column headers to read a CSV file
+        # need to set column headers to read a CSV file
         table.setColumnHeaders(
             [SelectColumn(name="ROW_ID", columnType="STRING"),
              SelectColumn(name="ROW_VERSION", columnType="STRING")] +
             [SelectColumn.from_column(col) for col in cols])
 
-        ## test iterator
+        # test iterator
         for table_row, expected_row in zip(table, data):
             assert table_row==expected_row
 
-        ## test asRowSet
+        # test asRowSet
         rowset = table.asRowSet()
         for rowset_row, expected_row in zip(rowset.rows, data):
             assert rowset_row['values']==expected_row[2:]
             assert rowset_row['rowId']==expected_row[0]
             assert rowset_row['versionNumber']==expected_row[1]
 
-        ## test asDataFrame
-        try:
-            import pandas as pd
-
-            df = table.asDataFrame()
-            assert all(df['Name'] == [row[2] for row in data])
-            assert all(df['Born'] == [row[3] for row in data])
-            assert all(df['Living'] == [row[5] for row in data])
-            assert all(df.index == ['%s_%s'%tuple(row[0:2]) for row in data])
-            assert df.shape == (8,4)
-
-        except ImportError as e1:
-            sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_csv_table.\n\n')
+        df = table.asDataFrame()
+        assert all(df['Name'] == [row[2] for row in data])
+        assert all(df['Born'] == [row[3] for row in data])
+        assert all(df['Living'] == [row[5] for row in data])
+        assert all(df.index == ['%s_%s'%tuple(row[0:2]) for row in data])
+        assert df.shape == (8,4)
 
     except Exception as ex1:
         if filename:
@@ -391,79 +352,66 @@ def test_list_of_rows_table():
 
     table.columns = cols
 
-    ## test asDataFrame
-    try:
-        import pandas as pd
-
-        df = table.asDataFrame()
-        assert all(df['Name'] == [r[0] for r in data])
-
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_list_of_rows_table.\n\n')
+    df = table.asDataFrame()
+    assert all(df['Name'] == [r[0] for r in data])
 
 
 def test_aggregate_query_result_to_data_frame():
 
-    try:
-        import pandas as pd
+    class MockSynapse(object):
+        def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+            return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
+                    'maxRowsPerPage': 2,
+                    'queryCount': 4,
+                    'queryResult': {
+                     'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                     'nextPageToken': 'aaaaaaaa',
+                     'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                     'headers': [
+                      {'columnType': 'STRING',  'name': 'State'},
+                      {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
+                      {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
+                      {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
+                      'rows': [
+                       {'values': ['PA', '1935', '2', '1.1']},
+                       {'values': ['MO', '1928', '3', '2.38']}],
+                      'tableId': 'syn2757980'}},
+                    'selectColumns': [{
+                     'columnType': 'STRING',
+                     'id': '1387',
+                     'name': 'State'}]}
+        def _queryTableNext(self, nextPageToken, tableId):
+            return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                    'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                     'headers': [
+                      {'columnType': 'STRING',  'name': 'State'},
+                      {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
+                      {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
+                      {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
+                     'rows': [
+                      {'values': ['DC', '1929', '1', '3.14']},
+                      {'values': ['NC', '1926', '1', '4.38']}],
+                     'tableId': 'syn2757980'}}
 
-        class MockSynapse(object):
-            def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
-                return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
-                        'maxRowsPerPage': 2,
-                        'queryCount': 4,
-                        'queryResult': {
-                         'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
-                         'nextPageToken': 'aaaaaaaa',
-                         'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-                         'headers': [
-                          {'columnType': 'STRING',  'name': 'State'},
-                          {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
-                          {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
-                          {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
-                          'rows': [
-                           {'values': ['PA', '1935', '2', '1.1']},
-                           {'values': ['MO', '1928', '3', '2.38']}],
-                          'tableId': 'syn2757980'}},
-                        'selectColumns': [{
-                         'columnType': 'STRING',
-                         'id': '1387',
-                         'name': 'State'}]}
-            def _queryTableNext(self, nextPageToken, tableId):
-                return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
-                        'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-                         'headers': [
-                          {'columnType': 'STRING',  'name': 'State'},
-                          {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
-                          {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
-                          {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
-                         'rows': [
-                          {'values': ['DC', '1929', '1', '3.14']},
-                          {'values': ['NC', '1926', '1', '4.38']}],
-                         'tableId': 'syn2757980'}}
+    result = TableQueryResult(synapse=MockSynapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
 
-        result = TableQueryResult(synapse=MockSynapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
+    assert result.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+    assert result.tableId == 'syn2757980'
+    assert len(result.headers) == 4
 
-        assert result.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-        assert result.tableId == 'syn2757980'
-        assert len(result.headers) == 4
+    rs = result.asRowSet()
+    assert len(rs.rows) == 4
 
-        rs = result.asRowSet()
-        assert len(rs.rows) == 4
+    result = TableQueryResult(synapse=MockSynapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
+    df = result.asDataFrame()
 
-        result = TableQueryResult(synapse=MockSynapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
-        df = result.asDataFrame()
+    assert df.shape == (4,4)
+    assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
 
-        assert df.shape == (4,4)
-        assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
-
-        ## check integer, double and boolean types after PLFM-3073 is fixed
-        assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + str(df['MIN(Born)'].values)
-        assert all(df['COUNT(State)'].values == [2,3,1,1])
-        assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
-
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_aggregate_query_result_to_data_frame.\n\n')
+    # check integer, double and boolean types after PLFM-3073 is fixed
+    assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + str(df['MIN(Born)'].values)
+    assert all(df['COUNT(State)'].values == [2,3,1,1])
+    assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
 
 
 def test_waitForAsync():
@@ -492,54 +440,47 @@ def _insert_dataframe_column_if_not_exist__setup():
 
 
 def test_insert_dataframe_column_if_not_exist__nonexistent_column():
-    if pandas_found:
-        raise SkipTest("pandas could not be found. please let the pandas into your library.")
-
     df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
 
-    #method under test
+    # method under test
     CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
 
-    #make sure the data was inserted
+    # make sure the data was inserted
     assert_equals(data, df[column_name].tolist())
 
 
 def test_insert_dataframe_column_if_not_exist__existing_column_matching():
-    if pandas_found:
-        raise SkipTest("pandas could not be found. please let the pandas into your library.")
 
     df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
 
-    #add the same data to the DataFrame prior to calling our method
+    # add the same data to the DataFrame prior to calling our method
     df.insert(0,column_name, data)
 
-    #method under test
+    # method under test
     CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
 
-    #make sure the data has not changed
+    # make sure the data has not changed
     assert_equals(data, df[column_name].tolist())
 
 
 @raises(SynapseError)
 def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
-    if pandas_found:
-        raise SkipTest("pandas could not be found. please let the pandas into your library.")
     df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
 
-    #add different data to the DataFrame prior to calling our method
+    # add different data to the DataFrame prior to calling our method
     df.insert(0,column_name, ['mercy', 'main', 'btw'])
 
-    #make sure the data is different
+    # make sure the data is different
     assert_not_equals(data, df[column_name].tolist())
 
-    #method under test should raise exception
+    # method under test should raise exception
     CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
 
 
 def test_build_table_download_file_handle_list__repeated_file_handles():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
 
-    #patch the cache so we don't look there in case FileHandle ids actually exist there
+    # patch the cache so we don't look there in case FileHandle ids actually exist there
     patch.object(syn.cache, "get", return_value = None)
 
     cols = [
@@ -548,20 +489,20 @@ def test_build_table_download_file_handle_list__repeated_file_handles():
 
     schema = Schema(name='FileHandleTest', columns=cols, parent='syn420')
 
-    #using some large filehandle numbers so i don
+    # using some large filehandle numbers so i don
     data = [["ayy lmao", 5318008],
             ["large numberino", 0x5f3759df],
             ["repeated file handle", 5318008],
             ["repeated file handle also", 0x5f3759df]]
 
-    ## need columns to do cast_values w/o storing
+    # need columns to do cast_values w/o storing
     table = Table(schema, data, headers=[SelectColumn.from_column(col) for col in cols])
 
     file_handle_associations, file_handle_to_path_map = syn._build_table_download_file_handle_list(table, ['filehandle'])
 
-    #verify only 2 file_handles are added (repeats were ignored)
+    # verify only 2 file_handles are added (repeats were ignored)
     assert_equals(2, len(file_handle_associations))
-    assert_equals(0, len(file_handle_to_path_map)) #might as well check anyways
+    assert_equals(0, len(file_handle_to_path_map))
 
 
 def test_EntityViewSchema__default_params():
@@ -592,8 +533,6 @@ def test_entityViewSchema__add_default_columns_when_from_Synapse():
     properties = {u'concreteType': u'org.sagebionetworks.repo.model.table.EntityView'}
     entity_view = EntityViewSchema(parent="idk", addDefaultViewColumns=True, properties=properties)
     assert_false(entity_view.addDefaultViewColumns)
-
-
 
 
 def test_entityViewSchema__add_scope():
@@ -678,8 +617,6 @@ def test_EntityViewSchema__repeated_columnName_same_type():
 
 
 def test_rowset_asDataFrame__with_ROW_ETAG_column():
-    _try_import_pandas('test_rowset_asDataFrame__with_ROW_ETAG_column')
-
     query_result = {
                    'concreteType':'org.sagebionetworks.repo.model.table.QueryResultBundle',
                    'maxRowsPerPage':6990,
@@ -900,7 +837,7 @@ class TestCsvFileTable():
             assert_equals((1,2, None), metadata[0])
             assert_equals((5, 1, None), metadata[1])
 
-#test __iter__
+    # test __iter__
     def test_iter_with_no_headers(self):
         # self.headers is None
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"

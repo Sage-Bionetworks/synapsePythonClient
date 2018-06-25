@@ -36,18 +36,18 @@ def test_calculate_part_size():
     assert 5*MB <= calculate_part_size(fileSize=11*MB+777,  partSize=None, min_part_size=5*MB, max_parts=2) >= (11*MB+777) / 2.0
     assert 5*MB <= calculate_part_size(fileSize=101*GB+777, partSize=None, min_part_size=5*MB, max_parts=10000) >= (101*GB+777) / 10000.0
 
-    ## return value should always be an integer (SYNPY-372)
+    # return value should always be an integer (SYNPY-372)
     assert type(calculate_part_size(fileSize=3*MB+3391)) is int
     assert type(calculate_part_size(fileSize=50*GB+4999)) is int
     assert type(calculate_part_size(fileSize=101*GB+7717, min_part_size=8*MB)) is int
 
-    ## OK
+    # OK
     assert calculate_part_size(6*MB, partSize=10*MB, min_part_size=5*MB, max_parts=10000) == 10*MB
 
-    ## partSize too small
+    # partSize too small
     assert_raises(ValueError, calculate_part_size, fileSize=100*MB, partSize=1*MB, min_part_size=5*MB, max_parts=10000)
 
-    ## too many parts
+    # too many parts
     assert_raises(ValueError, calculate_part_size, fileSize=21*MB, partSize=1*MB, min_part_size=1*MB, max_parts=20)
 
 def test_chunks():

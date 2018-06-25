@@ -56,14 +56,14 @@ class TestLogin():
     def test_login__no_credentials(self):
         self.mocked_credential_chain.get_credentials.return_value = None
 
-        #method under test
+        # method under test
         assert_raises(SynapseAuthenticationError, syn.login, **self.login_args)
 
         self.mocked_get_credential_chain.assert_called_once_with()
         self.mocked_credential_chain.get_credentials.assert_called_once_with(syn, self.expected_user_args)
 
     def test_login__credentials_returned(self):
-        #method under test
+        # method under test
         syn.login(silent=True, **self.login_args)
 
         self.mocked_get_credential_chain.assert_called_once_with()
@@ -73,7 +73,7 @@ class TestLogin():
     def test_login__silentIsFalse(self):
         with patch.object(syn, "getUserProfile") as mocked_get_user_profile, \
              patch.object(syn, "logger") as mocked_logger:
-            #method under test
+            # method under test
             syn.login(silent=False, **self.login_args)
 
             mocked_get_user_profile.assert_called_once_with(refresh=True)
@@ -93,11 +93,11 @@ class TestLogin():
 class TestPrivateGetWithEntityBundle():
 
     def test_getWithEntityBundle(self, download_file_mock, get_file_URL_and_metadata_mock):
-        ## Note: one thing that remains unexplained is why the previous version of
-        ## this test worked if you had a .cacheMap file of the form:
-        ## {"/Users/chris/.synapseCache/663/-1337/anonymous": "2014-09-15T22:54:57.000Z",
-        ##  "/var/folders/ym/p7cr7rrx4z7fw36sxv04pqh00000gq/T/tmpJ4nz8U": "2014-09-15T23:27:25.000Z"}
-        ## ...but failed if you didn't.
+        # Note: one thing that remains unexplained is why the previous version of
+        # this test worked if you had a .cacheMap file of the form:
+        # {"/Users/chris/.synapseCache/663/-1337/anonymous": "2014-09-15T22:54:57.000Z",
+        #  "/var/folders/ym/p7cr7rrx4z7fw36sxv04pqh00000gq/T/tmpJ4nz8U": "2014-09-15T23:27:25.000Z"}
+        # ...but failed if you didn't.
 
         bundle = {
             'entity': {
@@ -122,10 +122,10 @@ class TestPrivateGetWithEntityBundle():
             os.remove(cacheMap)
 
         def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5):
-            ## touch file at path
+            # touch file at path
             with open(path, 'a'):
                 os.utime(path, None)
-            dest_dir, filename = os.path.split(path)
+            os.path.split(path)
             syn.cache.add(fileHandle, path)
             return path
 
@@ -172,9 +172,9 @@ class TestPrivateGetWithEntityBundle():
         assert utils.equal_paths( os.path.dirname(e.path), temp_dir2 )
 
         # 4. ----------------------------------------------------------------------
-        ## test preservation of local state
+        # test preservation of local state
         url = 'http://foo.com/secretstuff.txt'
-        #need to create a bundle with externalURL
+        # need to create a bundle with externalURL
         externalURLBundle = dict(bundle)
         externalURLBundle['fileHandles'][0]['externalURL'] = url
         e = File(name='anonymous', parentId="syn12345", synapseStore=False, externalURL=url)
@@ -184,8 +184,8 @@ class TestPrivateGetWithEntityBundle():
         assert_equal(e.synapseStore , False)
         assert_equal(e.externalURL , url)
 
-        ## TODO: add more test cases for flag combination of this method
-        ## TODO: separate into another test?
+        # TODO: add more test cases for flag combination of this method
+        # TODO: separate into another test?
 
 
 
@@ -270,13 +270,13 @@ class TestPrivateUploadExternallyStoringProjects():
         with patch.object(synapseclient.upload_functions, "multipart_upload", return_value=expected_file_handle_id) as mocked_multipart_upload, \
              patch.object(syn.cache, "add") as mocked_cache_add,\
              patch.object(syn, "_getFileHandle") as mocked_getFileHandle:
-            file_handle = upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path']) #dotn care about filehandle for this test
+            upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path']) #dotn care about filehandle for this test
 
             mock_upload_destination.assert_called_once_with(test_file['parentId'])
             mocked_multipart_upload.assert_called_once_with(syn, expected_path_expanded, contentType=None, storageLocationId=expected_storage_location_id)
             mocked_cache_add.assert_called_once_with(expected_file_handle_id,expected_path_expanded)
             mocked_getFileHandle.assert_called_once_with(expected_file_handle_id)
-            #test
+            # test
 
 
 def test_findEntityIdByNameAndParent__None_parent():
@@ -306,15 +306,13 @@ def test_findEntityIdByNameAndParent__with_parent():
 
 def test_findEntityIdByNameAndParent__404_error_no_result():
     entity_name = "Kappa 123"
-    expected_uri = "/entity/child"
-    expected_body = json.dumps({"parentId": None, "entityName": entity_name})
     fake_response = DictObject({"status_code": 404})
-    with patch.object(syn, "restPOST", side_effect=SynapseHTTPError(response=fake_response)) as mocked_POST:
+    with patch.object(syn, "restPOST", side_effect=SynapseHTTPError(response=fake_response)):
         assert_is_none(syn.findEntityId(entity_name))
 
 
 def test_getChildren__nextPageToken():
-    #setup
+    # setup
     nextPageToken = "T O K E N"
     parent_project_id_int = 42690
     first_page = {'versionLabel': '1',
@@ -333,18 +331,18 @@ def test_getChildren__nextPageToken():
                        {'page': [second_page], 'nextPageToken': None}]
 
     with patch.object(syn, "restPOST", side_effect=mock_responses) as mocked_POST:
-        #method under test
+        # method under test
         children_generator = syn.getChildren('syn'+str(parent_project_id_int))
 
-        #assert check the results of the generator
+        # assert check the results of the generator
         result = next(children_generator)
         assert_equal(first_page, result)
         result = next(children_generator)
         assert_equal(second_page, result)
         assert_raises(StopIteration, next, children_generator)
 
-        #check that the correct POST requests were sent
-        #genrates JSOn for the expected request body
+        # check that the correct POST requests were sent
+        # genrates JSOn for the expected request body
         expected_request_JSON = lambda token: json.dumps({'parentId':'syn'+str(parent_project_id_int), 'includeTypes':["folder","file","table","link","entityview","dockerrepo"], 'sortBy':'NAME','sortDirection':'ASC', 'nextPageToken':token})
         expected_POST_url = '/entity/children'
         mocked_POST.assert_has_calls([call(expected_POST_url, body=expected_request_JSON(None)), call(expected_POST_url, body=expected_request_JSON(nextPageToken))])

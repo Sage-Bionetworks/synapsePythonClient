@@ -6,13 +6,13 @@ from synapseclient.wiki import Wiki
 def test_Wiki():
     """Test the construction and accessors of Wiki objects."""
 
-    #Wiki contstuctor only takes certain values
+    # Wiki contstuctor only takes certain values
     assert_raises(ValueError, Wiki, title='foo')
 
-    #Construct a wiki and test uri's
-    wiki = Wiki(title ='foobar2', markdown='bar', owner={'id':'5'})
-    
-    
+    # Construct a wiki and test uri's
+    Wiki(title ='foobar2', markdown='bar', owner={'id':'5'})
+
+
 if __name__ == '__main__':
     test_Wiki()
 
@@ -26,7 +26,7 @@ def test_Wiki__with_markdown_file():
     markdown_path = "/somewhere/over/the/rainbow.txt"
     with patch("synapseclient.wiki.open", mock_open(read_data=markdown_data), create=True) as mocked_open,\
          patch("os.path.isfile", return_value=True):
-        #method under test
+        # method under test
         wiki = Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
         mocked_open.assert_called_once_with(markdown_path, 'r')
@@ -41,7 +41,7 @@ def test_Wiki__markdown_is_None_markdownFile_defined():
     markdown_path = "/somewhere/over/the/rainbow.txt"
     with patch("synapseclient.wiki.open", mock_open(), create=True) as mocked_open,\
          patch("os.path.isfile", return_value=True):
-        #method under test
+        # method under test
         wiki = Wiki(owner="doesn't matter", markdownFile=markdown_path)
 
         mocked_open.assert_called_once_with(markdown_path, 'r')

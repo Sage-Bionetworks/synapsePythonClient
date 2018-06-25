@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str, ascii
 
 import collections
-import os, sys
 from synapseclient.entity import Entity, Project, Folder, File, DockerRepository, split_entity_namespaces, is_container
 from synapseclient.exceptions import *
 from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises
@@ -79,7 +77,7 @@ def test_Entity():
         assert_equals(e.properties['annotations'], '/repo/v1/entity/syn1234/annotations')
         assert_equals(e.properties.annotations, '/repo/v1/entity/syn1234/annotations')
 
-        ## test unicode properties
+        # test unicode properties
         e.train = '時刻表には記載されない　月への列車が来ると聞いて'
         e.band = "Motörhead"
         e.lunch = "すし"
@@ -88,8 +86,8 @@ def test_Entity():
 def test_subclassing():
     """Test ability to subclass and add a member variable"""
     
-    ## define a subclass of Entity to make sure subclassing and creating
-    ## a new member variable works
+    # define a subclass of Entity to make sure subclassing and creating
+    # a new member variable works
     class FoobarEntity(Entity):
         def __init__(self, x):
             self.__dict__['x'] = x
@@ -119,7 +117,7 @@ def test_entity_creation():
     assert_equals(folder.name, 'Testing123')
     assert_equals(folder.testing, 123)
 
-    ## In case of unknown concreteType, fall back on generic Entity object
+    # In case of unknown concreteType, fall back on generic Entity object
     props = {
         "id": "syn123456",
         "concreteType": "org.sagebionetworks.repo.model.DoesntExist",
@@ -235,8 +233,8 @@ def test_concrete_type():
 
 
 def test_is_container():
-    ## result from a Synapse entity annotation query
-    ## Note: prefix may be capitalized or not, depending on the from clause of the query
+    # result from a Synapse entity annotation query
+    # Note: prefix may be capitalized or not, depending on the from clause of the query
     result = {'entity.versionNumber': 1,
               'entity.nodeType': 'project',
               'entity.concreteType': ['org.sagebionetworks.repo.model.Project'],
@@ -297,10 +295,10 @@ def test_File_update_file_handle__External_sftp():
 
 
 def test_File_update_file_handle__External_non_sftp():
-        external_file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
-                            'externalURL': "https://some.website"}
-        f = File(parent="idk")
-        assert_true(f.synapseStore)
-        f._update_file_handle(external_file_handle)
-        assert_false(f.synapseStore)
+    external_file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
+                        'externalURL': "https://some.website"}
+    f = File(parent="idk")
+    assert_true(f.synapseStore)
+    f._update_file_handle(external_file_handle)
+    assert_false(f.synapseStore)
 
