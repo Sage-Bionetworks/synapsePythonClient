@@ -13,16 +13,16 @@ class TestSynapseCredentials():
         self.credentials = SynapseCredentials(self.username, self.api_key_b64)
 
     def test_api_key_property(self):
-        #test exposed variable
+        # test exposed variable
         assert_equals(self.api_key_b64, self.credentials.api_key)
 
-        #test actual internal representation
+        # test actual internal representation
         assert_equals(self.api_key, self.credentials._api_key)
 
     def test_get_signed_headers(self):
         url = "https://www.synapse.org/fake_url"
 
-        #mock the 'time' module so the result is always the same instead of dependent upon current time
+        # mock the 'time' module so the result is always the same instead of dependent upon current time
         fake_time_string = "It is Wednesday, my dudes"
         with patch.object(time, "strftime", return_value=fake_time_string):
             headers = self.credentials.get_signed_headers(url)

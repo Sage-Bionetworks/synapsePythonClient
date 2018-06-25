@@ -9,9 +9,7 @@ from collections import OrderedDict
 from datetime import datetime as Datetime
 from nose.tools import assert_raises, assert_equals, assert_false, assert_true
 from math import pi
-import os
 
-import synapseclient.utils as utils
 from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations, to_submission_status_annotations, from_submission_status_annotations, set_privacy
 from synapseclient.exceptions import *
 
@@ -29,7 +27,7 @@ def test_annotation_name_collision():
     """Test handling of a name collisions between typed user generated and untyped
        system generated annotations, see SYNPY-203 and PLFM-3248"""
 
-    ## order is important: to repro the erro, the key uri has to come before stringAnnotations
+    # order is important: to repro the erro, the key uri has to come before stringAnnotations
     sa = OrderedDict()
     sa[u'uri'] = u'/entity/syn47396/annotations'
     sa[u'doubleAnnotations'] = {}
@@ -42,7 +40,6 @@ def test_annotation_name_collision():
 
     a = from_synapse_annotations(sa)
     assert a['tissueType'] == ['Blood']
-##    assert a['uri'] == u'/entity/syn47396/annotations'
 
 
 def test_more_annotations():
@@ -60,7 +57,7 @@ def test_more_annotations():
     assert sa['stringAnnotations']['test_boolean'] == ['true']
     assert sa['stringAnnotations']['test_mo_booleans'] == ['false', 'true', 'true', 'false']
 
-    ## this part of the test is kinda fragile. It it breaks again, it should be removed
+    # this part of the test is kinda fragile. It it breaks again, it should be removed
     bdays = [utils.from_unix_epoch_time(t) for t in sa['dateAnnotations']['birthdays']]
     assert all([t in bdays for t in [Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3)]])
 
@@ -70,8 +67,7 @@ def test_annotations_unicode():
     assert sa['stringAnnotations']['cacheDir'] == [u'/Users/chris/.synapseCache/python/syn1809087']
 
 def test_round_trip_annotations():
-    """Test that annotations can make the round trip from a simple dictionary
-    to the synapse format and back"""
+    """Test that annotations can make the round trip from a simple dictionary to the synapse format and back"""
     a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose', birthdays=[Datetime(1969,4,28), Datetime(1973,12,8), Datetime(2008,1,3), Datetime(2013,3,15)])
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
@@ -88,8 +84,7 @@ def test_mixed_annotations():
 
 
 def test_idempotent_annotations():
-    """test that to_synapse_annotations won't mess up a dictionary that's already
-    in the synapse format"""
+    """test that to_synapse_annotations won't mess up a dictionary that's already in the synapse format"""
     a = dict(species='Moose', n=42, birthday=Datetime(1969,4,28))
     sa = to_synapse_annotations(a)
     a2 = dict()
@@ -137,8 +132,8 @@ def test_submission_status_annotations_round_trip():
 def test_submission_status_double_annos():
     ssa = {'longAnnos':   [{'isPrivate': False, 'value':13, 'key':'lucky'}],
            'doubleAnnos': [{'isPrivate': False, 'value':3, 'key': 'three'}, {'isPrivate': False, 'value':pi, 'key': 'pi'}]}
-    ## test that the double annotation 'three':3 is interpreted as a floating
-    ## point 3.0 rather than an integer 3
+    # test that the double annotation 'three':3 is interpreted as a floating
+    # point 3.0 rather than an integer 3
     annotations = from_submission_status_annotations(ssa)
     assert_true(isinstance(annotations['three'], float))
     ssa2 = to_submission_status_annotations(annotations)

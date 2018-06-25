@@ -1,6 +1,6 @@
 import json
 from mock import patch, mock_open, create_autospec, call
-from nose.tools import assert_false, assert_equals
+from nose.tools import assert_equals
 
 import synapseclient.credentials.cached_sessions as cached_sessions
 from synapseclient import Synapse
@@ -17,7 +17,7 @@ class TestCachedSessionsKeyring():
         key = "asdf"
         mocked_keyring.get_password.return_value = key
 
-        #functionu under test
+        # function under test
         returned_key = cached_sessions.get_api_key(self.username)
 
         assert_equals(key, returned_key)
@@ -28,7 +28,7 @@ class TestCachedSessionsKeyring():
         key = "asdf"
         mocked_keyring.get_password.return_value = key
 
-        #functionu under test
+        # function under test
         returned_key = cached_sessions.get_api_key(None)
 
         assert_equals(None, returned_key)
@@ -36,14 +36,14 @@ class TestCachedSessionsKeyring():
 
 
     def test_get_remove_api_key(self, mocked_keyring):
-        #function under test
+        # function under test
         cached_sessions.remove_api_key(self.username)
 
         mocked_keyring.delete_password.assert_called_once_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username)
 
 
     def test_set_api_key(self, mocked_keyring):
-            #function under test
+            # function under test
             cached_sessions.set_api_key(self.username, self.api_key)
 
             mocked_keyring.set_password.assert_called_with(cached_sessions.SYNAPSE_CACHED_SESSION_APLICATION_NAME, self.username, self.api_key)

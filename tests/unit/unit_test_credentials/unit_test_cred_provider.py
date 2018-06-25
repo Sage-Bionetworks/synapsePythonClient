@@ -2,8 +2,7 @@ import base64
 
 import unit
 import mock
-import synapseclient
-from mock import patch, MagicMock
+from mock import patch
 from nose.tools import assert_equals, assert_is_none, assert_is_instance
 from synapseclient.credentials.credential_provider import *
 from synapseclient.credentials.cred_data import UserLoginArgs, SynapseCredentials
@@ -15,7 +14,7 @@ def setup_module(module):
 class TestSynapseCredentialsProviderChain(object):
     def setup(self):
         self.cred_provider = mock.create_autospec(SynapseCredentialsProvider)
-        self.user_login_args = UserLoginArgs(*(None,) * 4) #user login args don't matter for these tests
+        self.user_login_args = UserLoginArgs(*(None,) * 4)  # user login args don't matter for these tests
         self.credential_provider_chain = SynapseCredentialsProviderChain([self.cred_provider])
 
 
@@ -49,7 +48,7 @@ class TestSynapseCredentialsProviderChain(object):
         cred_provider2.get_synapse_credentials.return_value = SynapseCredentials("asdf", base64.b64encode(b"api_key").decode())
         cred_provider3.get_synapse_credentials.return_value = None
 
-        #change the credential providers
+        # change the credential providers
         self.credential_provider_chain.cred_providers = [self.cred_provider, cred_provider2, cred_provider3]
 
         creds = self.credential_provider_chain.get_credentials(syn, self.user_login_args)
@@ -66,7 +65,8 @@ class TestSynapseCredentialProvider(object):
         self.password = "password"
         self.api_key = base64.b64encode(b"api_key").decode()
         self.user_login_args = UserLoginArgs(self.username, self.password, self.api_key, False)
-        class SynapseCredProviderTester(SynapseCredentialsProvider): #SynapseCredentialsProvider has abstractmethod so we can't instantiate it unless we overwrite it
+        # SynapseCredentialsProvider has abstractmethod so we can't instantiate it unless we overwrite it
+        class SynapseCredProviderTester(SynapseCredentialsProvider):
             def _get_auth_info(self, syn, user_login_args):
                 pass
         self.provider = SynapseCredProviderTester()
