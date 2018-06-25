@@ -30,6 +30,9 @@ from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, Pa
 import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
+import pandas as pd
+import numpy as np
+
 
 def setup(module):
     module.syn = integration.syn
@@ -179,16 +182,10 @@ def test_tables_csv():
     for expected_row, row in zip(data, results):
         assert expected_row == row, "expected %s but got %s" % (expected_row, row)
 
-    try:
-        # check if we have pandas
-        import pandas as pd
-
-        df = results.asDataFrame()
-        assert all(df.columns.values == ['Name', 'Born', 'Hipness', 'Living'])
-        assert list(df.iloc[1,[0,1,3]]) == ['Miles Davis', 1926, False]
-        assert df.iloc[1,2] - 9.87 < 0.0001
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for CSV tables.\n\n')
+    df = results.asDataFrame()
+    assert all(df.columns.values == ['Name', 'Born', 'Hipness', 'Living'])
+    assert list(df.iloc[1,[0,1,3]]) == ['Miles Davis', 1926, False]
+    assert df.iloc[1,2] - 9.87 < 0.0001
 
     # Aggregate query
     expected = {
@@ -203,15 +200,9 @@ def test_tables_csv():
         assert abs(expected[living][3] - row[3]) < 0.0001
 
     # Aggregate query results to DataFrame
-    try:
-        # check if we have pandas
-        import pandas as pd
-
-        df = results.asDataFrame()
-        assert all(expected[df.iloc[0,0]][0:3] == df.iloc[0,0:3])
-        assert abs(expected[df.iloc[1,0]][3] - df.iloc[1,3]) < 0.0001
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test of .asDataFrame for aggregate queries as CSV tables.\n\n')
+    df = results.asDataFrame()
+    assert all(expected[df.iloc[0,0]][0:3] == df.iloc[0,0:3])
+    assert abs(expected[df.iloc[1,0]][3] - df.iloc[1,3]) < 0.0001
 
     # Append rows
     more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
@@ -236,7 +227,7 @@ def test_tables_csv():
     for row in rowset['rows']:
         if row['values'][1] == 1930:
             row['values'][2] = 8.5
-    row_reference_set = syn.store(rowset)
+    syn.store(rowset)
 
     # aggregate queries won't return row id and version, so we need to
     # handle this correctly
@@ -246,34 +237,26 @@ def test_tables_csv():
         assert row[0] == [1917,1926,1929,1930,1931,1935,1936,1938][i]
         assert row[1] == [1,2,2,2,2,1,1,1][i]
 
-    try:
-        import pandas as pd
-        results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
-        df = results.asDataFrame()
-        all(df['Born'].values == 1930)
-        all(df['Hipness'].values == 8.5)
+    results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
+    df = results.asDataFrame()
+    all(df['Born'].values == 1930)
+    all(df['Hipness'].values == 8.5)
 
-        # Update via a Data Frame
-        df['Hipness'] = 9.75
-        table = syn.store(Table(table.tableId, df, etag=results.etag))
+    # Update via a Data Frame
+    df['Hipness'] = 9.75
+    table = syn.store(Table(table.tableId, df, etag=results.etag))
 
-        results = syn.tableQuery("select * from %s where Born=1930" % table.tableId, resultsAs="csv")
-        for row in results:
-            assert row[4] == 9.75
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
+    results = syn.tableQuery("select * from %s where Born=1930" % table.tableId, resultsAs="csv")
+    for row in results:
+        assert row[4] == 9.75
 
     # check what happens when query result is empty
     results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
     assert len(list(results)) == 0
 
-    try:
-        import pandas as pd
-        results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
-        df = results.asDataFrame()
-        assert df.shape[0] == 0
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping part of test_tables_csv.\n\n')
+    results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
+    df = results.asDataFrame()
+    assert df.shape[0] == 0
 
     # delete some rows
     results = syn.tableQuery('select * from %s where Hipness < 7' % table.tableId, resultsAs="csv")
@@ -281,49 +264,39 @@ def test_tables_csv():
 
 
 def test_tables_pandas():
-    try:
-        # check if we have pandas
-        import pandas as pd
+    # create a pandas DataFrame
+    df = pd.DataFrame({
+        'A' : ("foo", "bar", "baz", "qux", "asdf"),
+        'B' : tuple(0.42*i for i in range(5)),
+        'C' : (101, 202, 303, 404, 505),
+        'D' : (False, True, False, True, False),
+        # additional data types supported since SYNPY-347
+        'int64' : tuple(np.int64(range(5))),
+        'datetime64': tuple(np.datetime64(d) for d in ['2005-02-01', '2005-02-02', '2005-02-03', '2005-02-04', '2005-02-05']),
+        'string_': tuple(np.string_(s) for s in ['urgot', 'has', 'dark', 'mysterious', 'past'])})
 
-        # import numpy for datatypes
-        import numpy as np
+    cols = as_table_columns(df)
+    cols[0].maximumSize = 20
+    schema = Schema(name="Nifty Table", columns=cols, parent=project)
 
-        # create a pandas DataFrame
-        df = pd.DataFrame({
-            'A' : ("foo", "bar", "baz", "qux", "asdf"),
-            'B' : tuple(0.42*i for i in range(5)),
-            'C' : (101, 202, 303, 404, 505),
-            'D' : (False, True, False, True, False),
-            # additional data types supported since SYNPY-347
-            'int64' : tuple(np.int64(range(5))),
-            'datetime64': tuple(np.datetime64(d) for d in ['2005-02-01', '2005-02-02', '2005-02-03', '2005-02-04', '2005-02-05']),
-            'string_': tuple(np.string_(s) for s in ['urgot', 'has', 'dark', 'mysterious', 'past'])})
+    # store in Synapse
+    table = syn.store(Table(schema, df))
 
-        cols = as_table_columns(df)
-        cols[0].maximumSize = 20
-        schema = Schema(name="Nifty Table", columns=cols, parent=project)
+    # retrieve the table and verify
+    results = syn.tableQuery('select * from %s'%table.schema.id, resultsAs='csv')
+    df2 = results.asDataFrame(convert_to_datetime=True)
 
-        # store in Synapse
-        table = syn.store(Table(schema, df))
+    # simulate rowId-version rownames for comparison
+    df.index = ['%s_0'%i for i in range(5)]
 
-        # retrieve the table and verify
-        results = syn.tableQuery('select * from %s'%table.schema.id, resultsAs='csv')
-        df2 = results.asDataFrame(convert_to_datetime=True)
+    # for python3 we need to convert from numpy.bytes_ to str or the equivalence comparision fails
+    if six.PY3: df['string_']=df['string_'].transform(str)
 
-        # simulate rowId-version rownames for comparison
-        df.index = ['%s_0'%i for i in range(5)]
+    # SYNPY-717
+    df['datetime64'] = df['datetime64'].apply(lambda x: pd.Timestamp(x).tz_localize('UTC'))
 
-        # for python3 we need to convert from numpy.bytes_ to str or the equivalence comparision fails
-        if six.PY3: df['string_']=df['string_'].transform(str)
-
-        # SYNPY-717
-        df['datetime64'] = df['datetime64'].apply(lambda x: pd.Timestamp(x).tz_localize('UTC'))
-
-        # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column; second .all() gives a bool that is ANDed value of that Series
-        assert (df2 == df).all().all()
-
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test_tables_pandas.\n\n')
+    # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column; second .all() gives a bool that is ANDed value of that Series
+    assert (df2 == df).all().all()
 
 
 def test_download_table_files():
