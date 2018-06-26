@@ -14,7 +14,7 @@ import uuid
 import json
 import time
 import tempfile
-from nose.tools import assert_raises, assert_equals
+from nose.tools import assert_raises, assert_equals, assert_true
 import shutil
 from mock import patch
 import synapseclient
@@ -43,9 +43,9 @@ def setup_module(module):
     module.upload_filename = _create_temp_file_with_cleanup()
     module.description_text = "'some description text'"
     module.desc_filename = _create_temp_file_with_cleanup(module.description_text)
-    module.update_description_text = "'SOMEBODY ONCE TOLD ME THE WORLD WAS GONNA ROLL ME I AINT THE SHARPEST TOOL IN THE SHED'"
+    module.update_description_text = \
+        "'SOMEBODY ONCE TOLD ME THE WORLD WAS GONNA ROLL ME I AINT THE SHARPEST TOOL IN THE SHED'"
     module.other_user = integration.other_user
-
 
 
 def run(*command, **kwargs):
@@ -68,11 +68,10 @@ def run(*command, **kwargs):
         args.debug = True
         cmdline.perform_main(args, syn_client)
     except SystemExit:
-        pass # Prevent the test from quitting prematurely
+        pass  # Prevent the test from quitting prematurely
     finally:
         sys.stdout = old_stdout
         syn_client.logger.handlers.remove(stream_handler)
-
 
     capturedSTDOUT = capturedSTDOUT.getvalue()
     return capturedSTDOUT
@@ -131,7 +130,6 @@ def test_command_line_client():
     assert os.path.exists(downloaded_filename)
     assert filecmp.cmp(filename, downloaded_filename)
 
-
     # Update the File
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
@@ -162,7 +160,6 @@ def test_command_line_client():
                  folder.id)
     movedFile = syn.get(file_entity_id, downloadFile=False)
     assert movedFile.parentId == folder.id
-
 
     # Test Provenance
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
@@ -195,7 +192,7 @@ def test_command_line_client():
 
     used = utils._find_used(activity, lambda used: 'url' in used)
     assert used['url'] == repo_url
-    assert used['wasExecuted'] == True
+    assert_true(used['wasExecuted'])
 
     # Note: Tests shouldn't have external dependencies
     #       but this is a pretty picture of Singapore
@@ -262,14 +259,13 @@ def test_command_line_client_annotations():
     file_entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
 
     # Test setting annotations
-    output = run('synapse',
-                 '--skip-checks',
-                 'set-annotations',
-                 '--id',
-                 file_entity_id,
-                 '--annotations',
-                 '{"foo": 1, "bar": "1", "baz": [1, 2, 3]}',
-    )
+    run('synapse',
+        '--skip-checks',
+        'set-annotations',
+        '--id',
+        file_entity_id,
+        '--annotations',
+        '{"foo": 1, "bar": "1", "baz": [1, 2, 3]}')
 
     # Test getting annotations
     # check that the three things set are correct
@@ -282,8 +278,7 @@ def test_command_line_client_annotations():
                  '--skip-checks',
                  'get-annotations',
                  '--id',
-                 file_entity_id
-             )
+                 file_entity_id)
 
     annotations = json.loads(output)
     assert annotations['foo'] == [1]
@@ -298,16 +293,14 @@ def test_command_line_client_annotations():
                  file_entity_id,
                  '--annotations',
                  '{"foo": 2}',
-                 '--replace'
-    )
+                 '--replace')
 
     # Test that the annotation was updated
     output = run('synapse',
                  '--skip-checks',
                  'get-annotations',
                  '--id',
-                 file_entity_id
-             )
+                 file_entity_id)
 
     annotations = json.loads(output)
 
@@ -341,8 +334,7 @@ def test_command_line_client_annotations():
                  '--skip-checks',
                  'get-annotations',
                  '--id',
-                 file_entity_id
-             )
+                 file_entity_id)
 
     annotations = json.loads(output)
     assert annotations['foo'] == [123]
@@ -370,8 +362,7 @@ def test_command_line_client_annotations():
                  '--skip-checks',
                  'get-annotations',
                  '--id',
-                 file_entity_id
-             )
+                 file_entity_id)
 
     annotations = json.loads(output)
     assert annotations['foo'] == [456]
@@ -445,7 +436,6 @@ def test_command_line_store_and_submit():
                  file_entity_id)
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
-
     # Update the file
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
@@ -495,26 +485,15 @@ def test_command_line_store_and_submit():
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
-    output = run('synapse',
-                 '--skip-checks',
-                 'submit',
-                 '--evalID',
-                 eval.id,
-                 '--file',
-                 filename,
-                 '--parent',
-                 project_id,
-                 '--used',
-                 exteral_entity_id,
-                 '--executed',
-                 repo_url
-                 )
+    run('synapse', '--skip-checks', 'submit',
+         '--evalID', eval.id,
+         '--file', filename,
+         '--parent', project_id,
+         '--used', exteral_entity_id,
+         '--executed', repo_url)
 
     # Delete project
-    output = run('synapse',
-                 '--skip-checks',
-                 'delete',
-                 project_id)
+    run('synapse', '--skip-checks', 'delete', project_id)
 
 
 def test_command_get_recursive_and_query():
@@ -534,7 +513,7 @@ def test_command_get_recursive_and_query():
     file_entities = []
 
     for i in range(2):
-        f  = utils.make_bogus_data_file()
+        f = utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = synapseclient.File(f, parent=folder_entity2)
@@ -542,20 +521,19 @@ def test_command_get_recursive_and_query():
         file_entities.append(file_entity)
         schedule_for_cleanup(f)
 
-
     # Add a file in the Folder as well
-    f  = utils.make_bogus_data_file()
+    f = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = synapseclient.File(f, parent=folder_entity)
     file_entity = syn.store(file_entity)
     file_entities.append(file_entity)
 
-    time.sleep(2) # get -r uses syncFromSynapse() which uses getChildren(), which is not immediately consistent, but faster than chunked queries.
+    # get -r uses syncFromSynapse() which uses getChildren(), which is not immediately consistent,
+    # but faster than chunked queries.
+    time.sleep(2)
     # Test recursive get
-    output = run('synapse', '--skip-checks',
-                 'get', '-r',
-                 folder_entity.id)
+    run('synapse', '--skip-checks', 'get', '-r', folder_entity.id)
     # Verify that we downloaded files:
     new_paths = [os.path.join('.', folder_entity2.name, os.path.basename(f)) for f in uploaded_paths[:-1]]
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
@@ -572,12 +550,12 @@ def test_command_get_recursive_and_query():
     schema1 = syn.store(synapseclient.Schema(name='Foo Table', columns=cols, parent=project_entity))
     schedule_for_cleanup(schema1.id)
 
-    data1 =[[x.id] for x in file_entities]
+    data1 = [[x.id] for x in file_entities]
 
     syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
-    time.sleep(3) # get -q uses chunkedQuery which are eventually consistent
+    time.sleep(3)  # get -q uses chunkedQuery which are eventually consistent
     # Test Table/View query get
     output = run('synapse', '--skip-checks', 'get', '-q',
                  "select id from %s" % schema1.id)
@@ -592,6 +570,7 @@ def test_command_get_recursive_and_query():
 
     schedule_for_cleanup(new_paths[0])
 
+
 def test_command_copy():
     """Tests the 'synapse cp' function"""
 
@@ -605,31 +584,27 @@ def test_command_copy():
     schedule_for_cleanup(folder_entity.id)
     # Create and upload a file in Folder
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
-    annots = {'test':['hello_world']}
+    annots = {'test': ['hello_world']}
     # Create, upload, and set annotations on a file in Folder
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     file_entity = syn.store(synapseclient.File(filename, parent=folder_entity))
-    externalURL_entity = syn.store(synapseclient.File(repo_url,name='rand',parent=folder_entity,synapseStore=False))
-    syn.setAnnotations(file_entity,annots)
-    syn.setAnnotations(externalURL_entity,annots)
+    externalURL_entity = syn.store(synapseclient.File(repo_url, name='rand', parent=folder_entity, synapseStore=False))
+    syn.setAnnotations(file_entity, annots)
+    syn.setAnnotations(externalURL_entity, annots)
     schedule_for_cleanup(file_entity.id)
     schedule_for_cleanup(externalURL_entity.id)
 
     # Test cp function
-    output = run('synapse', '--skip-checks',
-                 'cp',file_entity.id,
-                 '--destinationId',project_entity.id)
-    output_URL = run('synapse', '--skip-checks',
-                 'cp',externalURL_entity.id,
-                 '--destinationId',project_entity.id)
+    output = run('synapse', '--skip-checks', 'cp', file_entity.id, '--destinationId', project_entity.id)
+    output_URL = run('synapse', '--skip-checks', 'cp', externalURL_entity.id, '--destinationId', project_entity.id)
 
-    copied_id = parse(r'Copied syn\d+ to (syn\d+)',output)
-    copied_URL_id = parse(r'Copied syn\d+ to (syn\d+)',output_URL)
+    copied_id = parse(r'Copied syn\d+ to (syn\d+)', output)
+    copied_URL_id = parse(r'Copied syn\d+ to (syn\d+)', output_URL)
 
     # Verify that our copied files are identical
     copied_ent = syn.get(copied_id)
-    copied_URL_ent = syn.get(copied_URL_id,downloadFile=False)
+    copied_URL_ent = syn.get(copied_URL_id, downloadFile=False)
     schedule_for_cleanup(copied_id)
     schedule_for_cleanup(copied_URL_id)
     copied_ent_annot = syn.getAnnotations(copied_id)
@@ -650,11 +625,11 @@ def test_command_copy():
     assert copied_URL_ent.name == 'rand'
     assert copied_URL_ent.properties.dataFileHandleId == externalURL_entity.properties.dataFileHandleId
 
-    #Verify that errors are being thrown when a
-    #file is copied to a folder/project that has a file with the same filename
-    assert_raises(ValueError,run, 'synapse', '--debug', '--skip-checks',
-                 'cp',file_entity.id,
-                 '--destinationId',project_entity.id)
+    # Verify that errors are being thrown when a
+    # file is copied to a folder/project that has a file with the same filename
+    assert_raises(ValueError, run, 'synapse', '--debug', '--skip-checks', 'cp', file_entity.id,
+                  '--destinationId', project_entity.id)
+
 
 def test_command_line_using_paths():
     # Create a Project
@@ -671,7 +646,7 @@ def test_command_line_using_paths():
 
     # Verify that we can use show with a filename
     output = run('synapse', '--skip-checks', 'show', filename)
-    id = parse(r'File: %s\s+\((syn\d+)\)\s+' %os.path.split(filename)[1], output)
+    id = parse(r'File: %s\s+\((syn\d+)\)\s+' % os.path.split(filename)[1], output)
     assert file_entity.id == id
 
     # Verify that limitSearch works by making sure we get the file entity
@@ -709,12 +684,12 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'add', filename2,
                  '-parentid', project_entity.id,
                  '-used', filename,
-                 '-executed', '%s %s' %(repo_url, filename))
+                 '-executed', '%s %s' % (repo_url, filename))
     entity_id = parse(r'Created/Updated entity:\s+(syn\d+)\s+', output)
     output = run('synapse', '--skip-checks', 'get-provenance',
                  '-id', entity_id)
     activity = json.loads(output)
-    a = [a for a in activity['used'] if a['wasExecuted']==False]
+    a = [a for a in activity['used'] if not a['wasExecuted']]
     assert a[0]['reference']['targetId'] in [file_entity.id, file_entity2.id]
 
     # Test associate command
@@ -725,6 +700,7 @@ def test_command_line_using_paths():
     shutil.copy(filename2, path)
     run('synapse', '--skip-checks', 'associate', path, '-r')
     run('synapse', '--skip-checks', 'show', filename)
+
 
 def test_table_query():
     """Test command line ability to do table query."""
@@ -740,10 +716,10 @@ def test_table_query():
     schema1 = syn.store(synapseclient.Schema(name=str(uuid.uuid4()), columns=cols, parent=project_entity))
     schedule_for_cleanup(schema1.id)
 
-    data1 =[['Chris',  'bar', 11.23, 45, False],
-            ['Jen',    'bat', 14.56, 40, False],
-            ['Jane',   'bat', 17.89,  6, False],
-            ['Henry',  'bar', 10.12,  1, False]]
+    data1 = [['Chris',  'bar', 11.23, 45, False],
+             ['Jen',    'bat', 14.56, 40, False],
+             ['Jane',   'bat', 17.89,  6, False],
+             ['Henry',  'bar', 10.12,  1, False]]
 
     syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
@@ -763,20 +739,22 @@ def test_table_query():
     expected_headers_set = ["ROW_ID", "ROW_VERSION"] + list(map(lambda x: x.name, cols))
     assert my_headers_set == expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set)
 
+
 def test_login():
     if not other_user['username']:
         raise SkipTest("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
     alt_syn = synapseclient.Synapse()
-    with patch.object(alt_syn, "login") as mock_login, patch.object(alt_syn, "getUserProfile", return_value={"userName":"test_user","ownerId":"ownerId"}) as mock_get_user_profile:
+    with patch.object(alt_syn, "login") as mock_login, \
+            patch.object(alt_syn, "getUserProfile", return_value={"userName": "test_user", "ownerId": "ownerId"})\
+                    as mock_get_user_profile:
         run('synapse', '--skip-checks', 'login',
             '-u', other_user['username'],
             '-p', other_user['password'],
             '--rememberMe',
             syn=alt_syn)
-        mock_login.assert_called_once_with(other_user['username'], other_user['password'], forced=True, rememberMe=True, silent=False)
+        mock_login.assert_called_once_with(other_user['username'], other_user['password'], forced=True, rememberMe=True,
+                                           silent=False)
         mock_get_user_profile.assert_called_once_with()
-
-
 
 
 def test_configPath():
@@ -814,7 +792,7 @@ def _description_wiki_check(run_output, expected_description):
     assert_equals(expected_description, wiki.markdown)
 
 
-def _create_temp_file_with_cleanup(specific_file_text = None):
+def _create_temp_file_with_cleanup(specific_file_text=None):
     if specific_file_text:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as file:
             file.write(specific_file_text)
@@ -934,6 +912,7 @@ def test_create__update_description():
                  )
     _description_wiki_check(output, update_description_text)
 
+
 def test_store__update_description():
     name = str(uuid.uuid4())
     output = run('synapse',
@@ -958,6 +937,7 @@ def test_store__update_description():
                  update_description_text
                  )
     _description_wiki_check(output, update_description_text)
+
 
 def test_add__update_description():
     name = str(uuid.uuid4())

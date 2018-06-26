@@ -9,7 +9,7 @@ import mock
 import sys
 import uuid
 
-from nose.tools import assert_raises, assert_equals, raises
+from nose.tools import assert_raises, assert_equals
 
 import synapseclient
 import synapseclient.utils as utils
@@ -60,7 +60,7 @@ def test_ACL():
     username = other_user['username']
     syn.setPermissions(project, username, accessType=['READ'])
     permissions = syn.getPermissions(project, username)
-    assert 'READ' in permissions and len(permissions)==1
+    assert 'READ' in permissions and len(permissions) == 1
 
     # test remove user from ACL
     syn.setPermissions(project, username, None)
@@ -69,7 +69,7 @@ def test_ACL():
 
     # Get permissions of PUBLIC user
     permissions = syn.getPermissions(project)
-    assert len(permissions)==0
+    assert len(permissions) == 0
 
 
 def test_get_entity_owned_by_another_user():
@@ -98,7 +98,8 @@ def test_get_entity_owned_by_another_user():
 
         # Add a new permission to a user with existing permissions
         # make this change on the entity itself, not its benefactor
-        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'UPDATE', 'DOWNLOAD'], modify_benefactor=False, warn_if_inherits=False)
+        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'UPDATE', 'DOWNLOAD'],
+                                 modify_benefactor=False, warn_if_inherits=False)
         permissions = syn_other.getPermissions(a_file, current_user_id)
         assert 'READ' in permissions
         assert 'UPDATE' in permissions

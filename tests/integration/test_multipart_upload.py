@@ -5,11 +5,13 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import filecmp
-import os, random, traceback
+import os
+import random
+import traceback
 from io import open
 
 import synapseclient.utils as utils
-from synapseclient.utils import MB, GB
+from synapseclient.utils import MB
 from synapseclient import File
 from synapseclient.multipart_upload import multipart_upload, multipart_upload_string
 import synapseclient.multipart_upload as multipart_upload_module
@@ -22,6 +24,7 @@ from integration import schedule_for_cleanup
 def setup(module):
     module.syn = integration.syn
     module.project = integration.project
+
 
 def test_round_trip():
     fhid = None
@@ -111,7 +114,7 @@ def test_multipart_upload_big_string():
 
     text = "Places I wanna go:\n"
     while len(text.encode('utf-8')) < multipart_upload_module.MIN_PART_SIZE:
-        text += ", ".join( random.choice(cities) for i in range(5000) ) + "\n"
+        text += ", ".join(random.choice(cities) for i in range(5000)) + "\n"
 
     fhid = multipart_upload_string(syn, text)
 
@@ -121,7 +124,7 @@ def test_multipart_upload_big_string():
     (tmp_f, tmp_path) = tempfile.mkstemp()
     schedule_for_cleanup(tmp_path)
 
-    junk['path'] = syn._downloadFileHandle(fhid, junk['id'], "FileEntity" ,tmp_path)
+    junk['path'] = syn._downloadFileHandle(fhid, junk['id'], "FileEntity", tmp_path)
 
     with open(junk.path, encoding='utf-8') as f:
         retrieved_text = f.read()

@@ -22,6 +22,7 @@ def setup(module):
     module.syn = integration.syn
     module.project = integration.project
 
+
 @deprecation.fail_if_not_removed
 def test_query():
     # TODO: replace this test with the one below when query() is replaced
@@ -33,7 +34,6 @@ def test_query():
             syn.delete(res['entity.id'])
         qry = syn.query(query_str)
 
-    
     # Add entities and verify that I can find them with a query
     for i in range(2):
         syn.store(Folder(parent=project['id']))
@@ -46,6 +46,7 @@ def test_query():
             qry = syn.query(query_str)
 
         assert len(qry['results']) == i + 1
+
 
 @deprecation.fail_if_not_removed
 def test_chunked_query():
@@ -65,7 +66,8 @@ def test_chunked_query():
         time.sleep(3)
 
         # Give a bunch of limits/offsets to be ignored (except for the first ones)
-        queryString = "select * from entity where entity.parentId=='%s' offset  1 limit 9999999999999    offset 2345   limit 6789 offset 3456    limit 5689" % project['id']
+        queryString = "select * from entity where entity.parentId=='%s' offset  1 limit 9999999999999" \
+                      "    offset 2345   limit 6789 offset 3456    limit 5689" % project['id']
         count = 0
         start_time = time.time()
         while count != (synapseclient.client.QUERY_LIMIT * 5):
@@ -78,6 +80,7 @@ def test_chunked_query():
         assert count == (synapseclient.client.QUERY_LIMIT * 5)
     finally:
         synapseclient.client.QUERY_LIMIT = oldLimit
+
 
 @deprecation.fail_if_not_removed
 def test_chunked_query_giant_row():

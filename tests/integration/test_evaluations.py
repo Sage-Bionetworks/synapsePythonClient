@@ -4,9 +4,14 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import tempfile, time, os, re, filecmp
-import uuid, random
-from nose.tools import assert_raises
+import tempfile
+import time
+import os
+import re
+import filecmp
+import uuid
+import random
+from nose.tools import assert_raises, assert_false
 from nose import SkipTest
 
 import synapseclient.client as client
@@ -78,7 +83,8 @@ def test_evaluations():
         assert ['READ'] == permissions
 
         permissions = syn.getPermissions(ev, syn.getUserProfile()['ownerId'])
-        assert [p in permissions for p in ['READ', 'CREATE', 'DELETE', 'UPDATE', 'CHANGE_PERMISSIONS', 'READ_PRIVATE_SUBMISSION']]
+        assert [p in permissions for p in ['READ', 'CREATE', 'DELETE', 'UPDATE', 'CHANGE_PERMISSIONS',
+                                           'READ_PRIVATE_SUBMISSION']]
 
         # Test getSubmissions with no Submissions (SYNR-453)
         submissions = syn.getSubmissions(ev)
@@ -103,11 +109,11 @@ def test_evaluations():
             # Make a file to submit
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
                 filename = f.name
-                f.write(str(random.gauss(0,1)) + '\n')
+                f.write(str(random.gauss(0, 1)) + '\n')
 
             f = File(filename, parentId=other_project.id,
                      name='Submission 999',
-                     description ="Haha!  I'm inaccessible...")
+                     description="Haha!  I'm inaccessible...")
             entity = testSyn.store(f)
 
             # test submission by evaluation ID
@@ -133,11 +139,11 @@ def test_evaluations():
         for i in range(num_of_submissions):
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
                 filename = f.name
-                f.write(str(random.gauss(0,1)) + '\n')
+                f.write(str(random.gauss(0, 1)) + '\n')
 
             f = File(filename, parentId=project.id, name='entry-%02d' % i,
                      description='An entry for testing evaluation')
-            entity=syn.store(f)
+            entity = syn.store(f)
             syn.submit(ev, entity, name='Submission %02d' % i, submitterAlias='My Team')
 
         # Score the submissions
@@ -173,7 +179,7 @@ def test_evaluations():
             assert a['bogosity'] == bogosity[submission.id]
             for kvp in status.annotations['longAnnos']:
                 if kvp['key'] == 'bogosity':
-                    assert kvp['isPrivate'] == False
+                    assert_false(kvp['isPrivate'])
 
         # test query by submission annotations
         # These queries run against an eventually consistent index table which is
@@ -185,7 +191,8 @@ def test_evaluations():
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s" % ev.id)
                 assert len(results['rows']) == num_of_submissions+1
 
-                results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
+                results = syn.restGET(
+                    "/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
                 assert len(results['rows']) == num_of_submissions
             except AssertionError as ex1:
                 attempts -= 1
@@ -207,7 +214,7 @@ def test_evaluations():
                 # This also removes references to the submitted object :)
                 testSyn.delete(other_project)
             if 'team' in locals():
-                ## remove team
+                # remove team
                 testSyn.delete(team)
 
     # Just deleted it. Shouldn't be able to get it.
@@ -240,7 +247,8 @@ def test_teams():
             break
         except ValueError:
             tries -= 1
-            if tries > 0: time.sleep(1)
+            if tries > 0:
+                time.sleep(1)
     assert team == found_team
 
 

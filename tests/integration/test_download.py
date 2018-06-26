@@ -5,7 +5,10 @@ from __future__ import print_function
 from __future__ import unicode_literals
 from nose.tools import assert_raises, assert_not_equal
 
-import filecmp, os, tempfile, shutil
+import filecmp
+import os
+import tempfile
+import shutil
 
 from synapseclient.exceptions import *
 from synapseclient import File
@@ -14,6 +17,7 @@ import integration
 from integration import schedule_for_cleanup
 import json
 import time
+
 
 def setup(module):
 
@@ -32,9 +36,10 @@ def test_download_check_md5():
 
     tempfile_path2 = utils.make_bogus_data_file()
     schedule_for_cleanup(tempfile_path2)
-    entity_bad_md5 = syn.store(File(path = tempfile_path2, parent=project['id'], synapseStore=False))
+    entity_bad_md5 = syn.store(File(path=tempfile_path2, parent=project['id'], synapseStore=False))
 
-    assert_raises(SynapseMd5MismatchError, syn._download_from_URL, entity_bad_md5['externalURL'], tempfile.gettempdir(), entity_bad_md5['dataFileHandleId'], expected_md5="2345a")
+    assert_raises(SynapseMd5MismatchError, syn._download_from_URL, entity_bad_md5['externalURL'], tempfile.gettempdir(),
+                  entity_bad_md5['dataFileHandleId'], expected_md5="2345a")
 
 
 def test_resume_partial_download():
@@ -44,7 +49,7 @@ def test_resume_partial_download():
     entity = File(original_file, parent=project['id'])
     entity = syn.store(entity)
 
-    ## stash the original file for comparison later
+    # stash the original file for comparison later
     shutil.move(original_file, original_file+'.original')
     original_file += '.original'
     schedule_for_cleanup(original_file)
@@ -52,19 +57,21 @@ def test_resume_partial_download():
     temp_dir = tempfile.gettempdir()
 
     url = '%s/entity/%s/file' % (syn.repoEndpoint, entity.id)
-    path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
+    path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId,
+                                  expected_md5=entity.md5)
 
-    ## simulate an imcomplete download by putting the
-    ## complete file back into its temporary location
+    # simulate an imcomplete download by putting the
+    # complete file back into its temporary location
     tmp_path = utils.temp_download_filename(temp_dir, entity.dataFileHandleId)
     shutil.move(path, tmp_path)
 
-    ## ...and truncating it to some fraction of its original size
+    # ...and truncating it to some fraction of its original size
     with open(tmp_path, 'r+') as f:
         f.truncate(3*os.path.getsize(original_file)//7)
 
-    ## this should complete the partial download
-    path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId, expected_md5=entity.md5)
+    # this should complete the partial download
+    path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId,
+                                  expected_md5=entity.md5)
 
     assert filecmp.cmp(original_file, path), "File comparison failed"
 
@@ -75,7 +82,7 @@ def test_ftp_download():
     # Another test with an external reference. This is because we only need to test FTP download; not upload.
     # Also so we don't have to maintain an FTP server just for this purpose.
     # Make an entity that points to an FTP server file.
-    entity = File(parent=project['id'], name = '1KB.zip')
+    entity = File(parent=project['id'], name='1KB.zip')
     fileHandle = {'externalURL': 'ftp://speedtest.tele2.net/1KB.zip',
                   "fileName": entity.name,
                   "contentType": "application/zip",
@@ -88,7 +95,7 @@ def test_ftp_download():
 
     # Download the entity and check that MD5 matches expected
     FTPfile = syn.get(entity.id, downloadLocation=os.getcwd(), downloadFile=True)
-    assert FTPfile.md5==utils.md5_for_file(FTPfile.path).hexdigest()
+    assert FTPfile.md5 == utils.md5_for_file(FTPfile.path).hexdigest()
     schedule_for_cleanup(entity)
     os.remove(FTPfile.path)
 
@@ -97,7 +104,7 @@ def test_http_download__range_request_error():
     # SYNPY-525
 
     file_path = utils.make_bogus_data_file()
-    file_entity = syn.store(File(file_path,parent=project))
+    file_entity = syn.store(File(file_path, parent=project))
 
     syn.cache.purge(time.time())
     # download once and rename to temp file to simulate range exceed

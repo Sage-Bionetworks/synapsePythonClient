@@ -16,7 +16,7 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false
 from datetime import datetime
 from mock import patch
 from collections import namedtuple
@@ -39,6 +39,7 @@ def setup(module):
     module.project = integration.project
 
     module.syn.table_query_timeout = 423
+
 
 def test_create_and_update_file_view():
 
@@ -64,7 +65,8 @@ def test_create_and_update_file_view():
 
     # Create an empty entity-view with defined scope as folder
 
-    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=True, addAnnotationColumns=False, type='file', columns=my_added_cols, parent=project)
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=True,
+                                   addAnnotationColumns=False, type='file', columns=my_added_cols, parent=project)
 
     entity_view = syn.store(entity_view)
     schedule_for_cleanup(entity_view)
@@ -126,14 +128,18 @@ def test_create_and_update_file_view():
 
 
 def test_entity_view_add_annotation_columns():
-    folder1 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', parent=project, annotations={'strAnno':'str1', 'intAnno':1, 'floatAnno':1.1}))
-    folder2 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', parent=project, annotations={'dateAnno':datetime.now(), 'strAnno':'str2', 'intAnno':2}))
+    folder1 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj1', parent=project,
+                               annotations={'strAnno': 'str1', 'intAnno': 1, 'floatAnno': 1.1}))
+    folder2 = syn.store(Folder(name=str(uuid.uuid4()) + 'test_entity_view_add_annotation_columns_proj2', parent=project,
+                               annotations={'dateAnno': datetime.now(), 'strAnno': 'str2', 'intAnno': 2}))
     schedule_for_cleanup(folder1)
     schedule_for_cleanup(folder2)
     scopeIds = [utils.id_of(folder1), utils.id_of(folder2)]
 
-    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False, addAnnotationColumns=True, type='project', parent=project)
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False,
+                                   addAnnotationColumns=True, type='project', parent=project)
     syn.store(entity_view)
+
 
 def test_rowset_tables():
     cols = [Column(name='name', columnType='STRING', maximumSize=1000),
@@ -145,13 +151,14 @@ def test_rowset_tables():
 
     schema1 = syn.store(Schema(name='Foo Table', columns=cols, parent=project))
 
-    data1 =[['Chris',  'bar', 11.23, 45, False, 'a'],
-            ['Jen',    'bat', 14.56, 40, False, 'b'],
-            ['Jane',   'bat', 17.89,  6, False, 'c'*1002],
-            ['Henry',  'bar', 10.12,  1, False, 'd']]
+    data1 = [['Chris',  'bar', 11.23, 45, False, 'a'],
+             ['Jen',    'bat', 14.56, 40, False, 'b'],
+             ['Jane',   'bat', 17.89,  6, False, 'c'*1002],
+             ['Henry',  'bar', 10.12,  1, False, 'd']]
     row_reference_set1 = syn.store(
         RowSet(schema=schema1, rows=[Row(r) for r in data1]))
     assert len(row_reference_set1['rows']) == 4
+
 
 def test_tables_csv():
 
@@ -184,15 +191,16 @@ def test_tables_csv():
 
     df = results.asDataFrame()
     assert all(df.columns.values == ['Name', 'Born', 'Hipness', 'Living'])
-    assert list(df.iloc[1,[0,1,3]]) == ['Miles Davis', 1926, False]
-    assert df.iloc[1,2] - 9.87 < 0.0001
+    assert list(df.iloc[1, [0, 1, 3]]) == ['Miles Davis', 1926, False]
+    assert df.iloc[1, 2] - 9.87 < 0.0001
 
     # Aggregate query
     expected = {
          True: [True, 1929, 3, 6.38],
-        False: [False, 1926, 5, 7.104]}
+         False: [False, 1926, 5, 7.104]}
 
-    results = syn.tableQuery('select Living, min(Born), count(Living), avg(Hipness) from %s group by Living' % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
+    results = syn.tableQuery('select Living, min(Born), count(Living), avg(Hipness) from %s group by Living'
+                             % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
     for row in results:
         living = row[0]
         assert expected[living][1] == row[1]
@@ -201,8 +209,8 @@ def test_tables_csv():
 
     # Aggregate query results to DataFrame
     df = results.asDataFrame()
-    assert all(expected[df.iloc[0,0]][0:3] == df.iloc[0,0:3])
-    assert abs(expected[df.iloc[1,0]][3] - df.iloc[1,3]) < 0.0001
+    assert all(expected[df.iloc[0, 0]][0: 3] == df.iloc[0, 0: 3])
+    assert abs(expected[df.iloc[1, 0]][3] - df.iloc[1, 3]) < 0.0001
 
     # Append rows
     more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
@@ -231,11 +239,12 @@ def test_tables_csv():
 
     # aggregate queries won't return row id and version, so we need to
     # handle this correctly
-    results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id, resultsAs="csv")
-    assert results.includeRowIdAndRowVersion == False
-    for i,row in enumerate(results):
-        assert row[0] == [1917,1926,1929,1930,1931,1935,1936,1938][i]
-        assert row[1] == [1,2,2,2,2,1,1,1][i]
+    results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id,
+                             resultsAs="csv")
+    assert_false(results.includeRowIdAndRowVersion)
+    for i, row in enumerate(results):
+        assert row[0] == [1917, 1926, 1929, 1930, 1931, 1935, 1936, 1938][i]
+        assert row[1] == [1, 2, 2, 2, 2, 1, 1, 1][i]
 
     results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
     df = results.asDataFrame()
@@ -266,13 +275,14 @@ def test_tables_csv():
 def test_tables_pandas():
     # create a pandas DataFrame
     df = pd.DataFrame({
-        'A' : ("foo", "bar", "baz", "qux", "asdf"),
-        'B' : tuple(0.42*i for i in range(5)),
-        'C' : (101, 202, 303, 404, 505),
-        'D' : (False, True, False, True, False),
+        'A': ("foo", "bar", "baz", "qux", "asdf"),
+        'B': tuple(0.42*i for i in range(5)),
+        'C': (101, 202, 303, 404, 505),
+        'D': (False, True, False, True, False),
         # additional data types supported since SYNPY-347
-        'int64' : tuple(np.int64(range(5))),
-        'datetime64': tuple(np.datetime64(d) for d in ['2005-02-01', '2005-02-02', '2005-02-03', '2005-02-04', '2005-02-05']),
+        'int64': tuple(np.int64(range(5))),
+        'datetime64': tuple(np.datetime64(d) for d in ['2005-02-01', '2005-02-02', '2005-02-03', '2005-02-04',
+                                                       '2005-02-05']),
         'string_': tuple(np.string_(s) for s in ['urgot', 'has', 'dark', 'mysterious', 'past'])})
 
     cols = as_table_columns(df)
@@ -283,19 +293,21 @@ def test_tables_pandas():
     table = syn.store(Table(schema, df))
 
     # retrieve the table and verify
-    results = syn.tableQuery('select * from %s'%table.schema.id, resultsAs='csv')
+    results = syn.tableQuery('select * from %s' % table.schema.id, resultsAs='csv')
     df2 = results.asDataFrame(convert_to_datetime=True)
 
     # simulate rowId-version rownames for comparison
-    df.index = ['%s_0'%i for i in range(5)]
+    df.index = ['%s_0' % i for i in range(5)]
 
     # for python3 we need to convert from numpy.bytes_ to str or the equivalence comparision fails
-    if six.PY3: df['string_']=df['string_'].transform(str)
+    if six.PY3:
+        df['string_'] = df['string_'].transform(str)
 
     # SYNPY-717
     df['datetime64'] = df['datetime64'].apply(lambda x: pd.Timestamp(x).tz_localize('UTC'))
 
-    # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column; second .all() gives a bool that is ANDed value of that Series
+    # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column;
+    # second .all() gives a bool that is ANDed value of that Series
     assert (df2 == df).all().all()
 
 
@@ -338,7 +350,8 @@ def test_download_table_files():
     with patch("synapseclient.Synapse._downloadFileHandle") as _downloadFile_mock:
         _downloadFile_mock.side_effect = original_downloadFile_method
 
-        results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s where artist = 'John Coltrane'"%schema.id, resultsAs="rowset")
+        results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s where artist = 'John Coltrane'"
+                                 % schema.id, resultsAs="rowset")
         for i, row in enumerate(results):
             file_path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
             assert filecmp.cmp(original_files[i], file_path)
@@ -371,12 +384,12 @@ def dontruntest_big_tables():
     for i in range(1000):
         rows = []
         for j in range(rows_per_append):
-            foo = cols[1].enumValues[random.randint(0,2)]
-            rows.append(Row(('Robot ' + str(i*rows_per_append + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5)))
+            foo = cols[1].enumValues[random.randint(0, 2)]
+            rows.append(Row(('Robot ' + str(i*rows_per_append + j), foo, random.random()*200.0, random.randint(0, 100),
+                             random.random() >= 0.5)))
         syn.store(RowSet(columns=cols, schema=table1, rows=rows))
 
     syn.tableQuery("select * from %s" % table1.id)
-
 
     results = syn.tableQuery("select n, COUNT(n), MIN(x), AVG(x), MAX(x), SUM(x) from %s group by n" % table1.id)
     results.asDataFrame()
@@ -402,8 +415,9 @@ def dontruntest_big_csvs():
 
         for i in range(10):
             for j in range(100):
-                foo = cols[1].enumValues[random.randint(0,2)]
-                writer.writerow(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0,100), random.random()>=0.5))
+                foo = cols[1].enumValues[random.randint(0, 2)]
+                writer.writerow(('Robot ' + str(i*100 + j), foo, random.random()*200.0, random.randint(0, 100),
+                                 random.random() >= 0.5))
     # upload CSV
     syn._uploadCsv(filepath=temp.name, schema=schema1)
 
@@ -413,7 +427,9 @@ def dontruntest_big_csvs():
 
 def test_synapse_integer_columns_with_missing_values_from_dataframe():
     # SYNPY-267
-    cols = [Column(name='x', columnType='STRING'),Column(name='y', columnType='INTEGER'), Column(name='z', columnType='DOUBLE')]
+    cols = [Column(name='x', columnType='STRING'),
+            Column(name='y', columnType='INTEGER'),
+            Column(name='z', columnType='DOUBLE')]
     schema = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
     # write rows to CSV file
@@ -435,8 +451,8 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
 
 
 def test_store_table_datetime():
-    current_datetime = datetime.fromtimestamp(round(time.time(),3))
-    schema = syn.store(Schema("testTable",[Column(name="testerino", columnType='DATE')], project))
+    current_datetime = datetime.fromtimestamp(round(time.time(), 3))
+    schema = syn.store(Schema("testTable", [Column(name="testerino", columnType='DATE')], project))
     rowset = RowSet(rows=[Row([current_datetime])], schema=schema)
     syn.store(Table(schema, rowset))
 
@@ -448,14 +464,16 @@ def test_table_file_view_csv_update_annotations__includeEntityEtag():
     folder = syn.store(synapseclient.Folder(name="updateAnnoFolder" + str(uuid.uuid4()), parent=project))
     anno1_name = "annotationColumn1"
     anno2_name = "annotationColumn2"
-    initial_annotations = {anno1_name:"initial_value1",
-                           anno2_name:"initial_value2"}
-    file_entity = syn.store(File(name="test_table_file_view_csv_update_annotations__includeEntityEtag", path="~/fakepath" ,synapseStore=False, parent=folder, annotations=initial_annotations))
+    initial_annotations = {anno1_name: "initial_value1", anno2_name: "initial_value2"}
+    file_entity = syn.store(File(name="test_table_file_view_csv_update_annotations__includeEntityEtag",
+                                 path="~/fakepath", synapseStore=False, parent=folder, annotations=initial_annotations))
 
-    annotation_columns = [Column(name=anno1_name,columnType='STRING'), Column(name=anno2_name,columnType='STRING')]
-    entity_view = syn.store(EntityViewSchema(name="TestEntityViewSchemaUpdateAnnotation"+str(uuid.uuid4()), parent=project, scopes=[folder], columns=annotation_columns))
+    annotation_columns = [Column(name=anno1_name, columnType='STRING'), Column(name=anno2_name, columnType='STRING')]
+    entity_view = syn.store(EntityViewSchema(name="TestEntityViewSchemaUpdateAnnotation"+str(uuid.uuid4()),
+                                             parent=project, scopes=[folder], columns=annotation_columns))
 
-    query_str = "SELECT {anno1}, {anno2} FROM {proj_id}".format(anno1=anno1_name, anno2=anno2_name, proj_id=utils.id_of(entity_view))
+    query_str = "SELECT {anno1}, {anno2} FROM {proj_id}".format(anno1=anno1_name, anno2=anno2_name,
+                                                                proj_id=utils.id_of(entity_view))
 
     # modify first annotation using rowset
     rowset_query_result = syn.tableQuery(query_str, resultsAs="rowset")
@@ -510,7 +528,6 @@ class TestPartialRowSet(object):
         cls = type(self)
         self._test_method(cls.view_schema, "rowset", cls.view_changes, cls.expected_view_cells)
 
-
     def _test_method(self, schema, resultsAs, partial_changes, expected_results):
         # anything starting with "test" will be considered a test case by nosetests so I had to append '_' to it
 
@@ -561,16 +578,14 @@ class TestPartialRowSet(object):
         cls.expected_view_cells = [[ExpectedTableCell(1, 6)],
                                    [ExpectedTableCell(0, 7)]]
 
-
     @classmethod
     def _table_setup(cls):
         # set up a table
         cols = [Column(name='foo', columnType='INTEGER'), Column(name='bar', columnType='INTEGER')]
         schema = syn.store(Schema(name='PartialRowTest' + str(uuid.uuid4()), columns=cols, parent=project))
-        data = [[1, None],[None, 2]]
+        data = [[1, None], [None, 2]]
         syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
         return schema
-
 
     @classmethod
     def _view_setup(cls):

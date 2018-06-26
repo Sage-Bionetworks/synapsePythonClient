@@ -4,7 +4,10 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import uuid, os, time, tempfile
+import uuid
+import os
+import time
+import tempfile
 
 from nose.tools import assert_raises, assert_equals, assert_less
 
@@ -16,6 +19,7 @@ import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 import pandas as pd
 
+
 def setup(module):
 
     module.syn = integration.syn
@@ -24,7 +28,6 @@ def setup(module):
     schedule_for_cleanup(module.project)
     module.folder = syn.store(Folder(name=str(uuid.uuid4()), parent=module.project))
 
-    
     # Create testfiles for upload
     module.f1 = utils.make_bogus_data_file(n=10)
     module.f2 = utils.make_bogus_data_file(n=10)
@@ -34,11 +37,11 @@ def setup(module):
     schedule_for_cleanup(module.f2)
 
     module.header = 'path	parent	used	executed	activityName	synapseStore	foo\n'
-    module.row1 =   '%s	%s	%s	"%s;https://www.example.com"	provName		bar\n'  %(f1, project.id, f2, f3)
-    module.row2 =   '%s	%s	"syn12"	"syn123;https://www.example.com"	provName2		bar\n' %(f2, folder.id)
-    module.row3 =   '%s	%s	"syn12"		prov2	False	baz\n' %(f3, folder.id)
-    module.row4 =   '%s	%s	%s		act		2\n'  %(f3, project.id, f1)  # Circular reference
-    module.row5 =   '%s	syn12					\n'  %(f3)  # Wrong parent
+    module.row1 = '%s	%s	%s	"%s;https://www.example.com"	provName		bar\n' % (f1, project.id, f2, f3)
+    module.row2 = '%s	%s	"syn12"	"syn123;https://www.example.com"	provName2		bar\n' % (f2, folder.id)
+    module.row3 = '%s	%s	"syn12"		prov2	False	baz\n' % (f3, folder.id)
+    module.row4 = '%s	%s	%s		act		2\n' % (f3, project.id, f1)  # Circular reference
+    module.row5 = '%s	syn12					\n' % (f3)  # Wrong parent
 
 
 def _makeManifest(content):
@@ -52,7 +55,7 @@ def _makeManifest(content):
 def test_readManifest():
     """Creates multiple manifests and verifies that they validate correctly"""
     # Test manifest with missing columns
-    manifest =  _makeManifest('"path"\t"foo"\n#"result_data.txt"\t"syn123"')
+    manifest = _makeManifest('"path"\t"foo"\n#"result_data.txt"\t"syn123"')
     assert_raises(ValueError, synapseutils.sync.readManifestFile, syn, manifest)
 
     # Test that there are no circular references in file and that Provenance is correct
@@ -93,10 +96,11 @@ def test_syncToSynapse():
     assert new_df.parent.equals(orig_df.parent), 'Downloaded files not stored in same location'
 
     # Validate that annotations were set
-    cols = synapseutils.sync.REQUIRED_FIELDS+ synapseutils.sync.FILE_CONSTRUCTOR_FIELDS+synapseutils.sync.STORE_FUNCTION_FIELDS
+    cols = synapseutils.sync.REQUIRED_FIELDS + synapseutils.sync.FILE_CONSTRUCTOR_FIELDS\
+           + synapseutils.sync.STORE_FUNCTION_FIELDS
     orig_anots = orig_df.drop(cols, axis=1, errors='ignore')
     new_anots = new_df.drop(cols, axis=1, errors='ignore')
-    assert_equals(orig_anots.shape[1], new_anots.shape[1])  #Verify that we have the same number of cols
+    assert_equals(orig_anots.shape[1], new_anots.shape[1])  # Verify that we have the same number of cols
     assert new_anots.equals(orig_anots.loc[:, new_anots.columns]), 'Annotations different'
     
     # Validate that provenance is correct
@@ -105,9 +109,9 @@ def test_syncToSynapse():
         for orig, new in zip(orig_df[provenanceType], new_df[provenanceType]):
             if not pd.isnull(orig) and not pd.isnull(new):
                 # Convert local file paths into synId.versionNumber strings
-                orig_list = ['%s.%s'%(i.id, i.versionNumber) if isinstance(i, Entity) else i
+                orig_list = ['%s.%s' % (i.id, i.versionNumber) if isinstance(i, Entity) else i
                              for i in syn._convertProvenanceList(orig.split(';'))]
-                new_list =  ['%s.%s' %(i.id, i.versionNumber) if isinstance(i, Entity) else i
+                new_list = ['%s.%s' % (i.id, i.versionNumber) if isinstance(i, Entity) else i
                              for i in syn._convertProvenanceList(new.split(';'))]
                 assert_equals(set(orig_list), set(new_list))
 
@@ -129,17 +133,18 @@ def test_syncFromSynapse():
     # Create and upload two files in Folder
     uploaded_paths = []
     for i in range(2):
-        f  = utils.make_bogus_data_file()
+        f = utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         syn.store(File(f, parent=folder_entity))
     # Add a file in the project level as well
-    f  = utils.make_bogus_data_file()
+    f = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     syn.store(File(f, parent=project_entity))
 
-    # syncFromSynapse() uses chunkedQuery() which will return results that are eventually consistent but not always right after the entity is created.
+    # syncFromSynapse() uses chunkedQuery() which will return results that are eventually consistent
+    # but not always right after the entity is created.
     start_time = time.time()
     while len(list(syn.getChildren(project_entity))) != 2:
         assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
@@ -159,7 +164,8 @@ def test_syncFromSynapse__children_contain_non_file():
 
     temp_file = utils.make_bogus_data_file()
     schedule_for_cleanup(temp_file)
-    file_entity = syn.store(File(temp_file, name="temp_file_test_syncFromSynapse_children_non_file" + str(uuid.uuid4()), parent=proj))
+    file_entity = syn.store(File(temp_file, name="temp_file_test_syncFromSynapse_children_non_file" + str(uuid.uuid4()),
+                                 parent=proj))
 
     syn.store(Schema(name="table_test_syncFromSynapse", parent=proj))
 
@@ -189,18 +195,17 @@ def test_syncFromSynapse_Links():
 
     second_folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
 
-
     # Create and upload two files in Folder
     uploaded_paths = []
     for i in range(2):
-        f  = utils.make_bogus_data_file()
+        f = utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = syn.store(File(f, parent=project_entity))
         # Create links to inner folder
         syn.store(Link(file_entity.id, parent=folder_entity))
-    #Add a file in the project level as well
-    f  = utils.make_bogus_data_file()
+    # Add a file in the project level as well
+    f = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = syn.store(File(f, parent=second_folder_entity))

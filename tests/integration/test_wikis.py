@@ -4,7 +4,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import os, uuid
+import os
+import uuid
 from nose.tools import assert_raises, assert_equal
 
 from synapseclient.exceptions import *
@@ -49,9 +50,9 @@ def test_wikiAttachment():
     
     # Retrieve the root Wiki from Synapse
     wiki2 = syn.getWiki(project)
-    ## due to the new wiki api, we'll get back some new properties,
-    ## namely markdownFileHandleId and markdown_path, so only compare
-    ## properties that are in the first object
+    # due to the new wiki api, we'll get back some new properties,
+    # namely markdownFileHandleId and markdown_path, so only compare
+    # properties that are in the first object
     for property_name in wiki:
         assert_equal(wiki[property_name], wiki2[property_name])
 
@@ -75,7 +76,7 @@ def test_wikiAttachment():
 
     file_handles = syn.getWikiAttachments(wiki)
     file_names = [fh['fileName'] for fh in file_handles]
-    assert all( os.path.basename(fn) in file_names for fn in [filename, attachname] )
+    assert all(os.path.basename(fn) in file_names for fn in [filename, attachname])
 
     syn.delete(subwiki)
     syn.delete(wiki)
@@ -84,19 +85,22 @@ def test_wikiAttachment():
 
 def test_create_or_update_wiki():
     # create wiki once
-    syn.store(Wiki(title='This is the title', owner=project, markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!"))
+    syn.store(Wiki(title='This is the title', owner=project,
+                   markdown="#Wikis are OK\n\nBlabber jabber blah blah blither blather bonk!"))
 
     # for now, creating it again it will be updated
     new_title = 'This is a different title'
-    wiki = syn.store(Wiki(title=new_title, owner=project, markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!"), createOrUpdate=True)
+    wiki = syn.store(Wiki(title=new_title, owner=project,
+                          markdown="#Wikis are awesome\n\nNew babble boo flabble gibber wiggle sproing!"),
+                     createOrUpdate=True)
     assert_equal(new_title, syn.getWiki(wiki.ownerId)['title'])
-
 
 
 def test_wiki_version():
     # create a new project to avoid artifacts from previous tests
     project = syn.store(Project(name=str(uuid.uuid4())))
-    wiki = syn.store(Wiki(title='Title version 1', owner=project, markdown="##A heading\n\nThis is version 1 of the wiki page!\n"))
+    wiki = syn.store(Wiki(title='Title version 1', owner=project,
+                          markdown="##A heading\n\nThis is version 1 of the wiki page!\n"))
 
     wiki.title = "Title version 2"
     wiki.markdown = "##A heading\n\nThis is version 2 of the wiki page!\n"
