@@ -1,12 +1,7 @@
 import synapseclient
-from synapseclient import Project, File
 import synapseclient.utils as utils
-from datetime import datetime
-import filecmp
 import os, traceback
-import argparse
-import random
-from synapseclient.utils import MB, GB
+from synapseclient.utils import MB
 
 
 syn = None
@@ -16,8 +11,6 @@ def setup(module):
 
     module.syn = synapseclient.Synapse()
     module.syn.login()
-
-
 
 
 def test_upload_speed(uploadSize=60 + 777771, threadCount=5):
@@ -36,7 +29,6 @@ def test_upload_speed(uploadSize=60 + 777771, threadCount=5):
         if fh:
             syn._deleteFileHandle(fh)
     return dt
-
 
 
 def main():

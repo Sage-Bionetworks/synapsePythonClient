@@ -2,11 +2,8 @@ import synapseclient
 from synapseclient import Project, File
 import synapseclient.utils as utils
 from datetime import datetime
-import filecmp
 import os, traceback
 import argparse
-import random
-
 
 syn = None
 
@@ -24,11 +21,11 @@ def test_large_file_upload(file_to_upload_size=11*utils.KB, filepath=None):
         project = syn.store(Project("File Upload Load Test " +  datetime.now().strftime("%Y-%m-%d %H%M%S%f")))
 
         if filepath:
-            ## keep a file around so we don't have to regenerate it.
+            # keep a file around so we don't have to regenerate it.
             if not os.path.exists(filepath):
                 filepath = utils.make_bogus_binary_file(file_to_upload_size, filepath=filepath, printprogress=True)
         else:
-            ## generate a temporary file and clean it up when we're done
+            # generate a temporary file and clean it up when we're done
             clean_up_file = True
             filepath = utils.make_bogus_binary_file(file_to_upload_size, printprogress=True)
 
