@@ -156,21 +156,21 @@ def test_mock_download():
     # 3. recover from partial download
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
-        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_end=len(contents)//7*3,
+        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_end=len(contents) // 7 * 3,
                              status_code=200),
-        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents)//7*3,
-                             partial_end=len(contents)//7*5, status_code=206),
-        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents)//7*5,
+        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents) // 7 * 3,
+                             partial_end=len(contents) // 7 * 5, status_code=206),
+        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents) // 7 * 5,
                              status_code=206)
     ])
 
     _getFileHandleDownload_return_value = {'preSignedURL': url,
                                            'fileHandle': {'id': 12345, 'contentMd5': contents_md5,
-                                                                       'concreteType': concrete_types.S3_FILE_HANDLE}}
+                                                          'concreteType': concrete_types.S3_FILE_HANDLE}}
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders),\
+         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
          patch.object(synapseclient.client.Synapse, '_getFileHandleDownload',
                       return_value=_getFileHandleDownload_return_value):
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
@@ -179,18 +179,19 @@ def test_mock_download():
     responses = [
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=0,
-                             partial_end=len(contents)//11, status_code=200)
+                             partial_end=len(contents) // 11, status_code=200)
     ]
     for i in range(1, 12):
         responses.append(
-            create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents)//11*i,
-                                 partial_end=len(contents)//11*(i+1), status_code=206))
+            create_mock_response(url, "stream", contents=contents, buffer_size=1024,
+                                 partial_start=len(contents) // 11 * i,
+                                 partial_end=len(contents) // 11 * (i + 1), status_code=206))
     mock_requests_get = MockRequestGetFunction(responses)
 
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders),\
+         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
          patch.object(synapseclient.client.Synapse, '_getFileHandleDownload',
                       return_value=_getFileHandleDownload_return_value):
 
@@ -201,18 +202,18 @@ def test_mock_download():
     responses = [
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=0,
-                             partial_end=len(contents)//11, status_code=200),
+                             partial_end=len(contents) // 11, status_code=200),
     ]
     for i in range(1, 10):
         responses.append(
-            create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents)//11,
-                                 partial_end=len(contents)//11, status_code=200))
+            create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial_start=len(contents) // 11,
+                                 partial_end=len(contents) // 11, status_code=200))
     mock_requests_get = MockRequestGetFunction(responses)
 
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders),\
+         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
          patch.object(synapseclient.client.Synapse, '_getFileHandleDownload',
                       return_value=_getFileHandleDownload_return_value):
 
@@ -222,7 +223,7 @@ def test_mock_download():
     # 6. 206 Range header not supported, respond with 200 and full file
     mock_requests_get = MockRequestGetFunction([
         create_mock_response(url, "redirect", location="https://fakeurl.com/asdf"),
-        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial=len(contents)//7*3,
+        create_mock_response(url, "stream", contents=contents, buffer_size=1024, partial=len(contents) // 7 * 3,
                              status_code=200),
         create_mock_response(url, "stream", contents=contents, buffer_size=1024, status_code=200)
     ])
@@ -230,7 +231,7 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders),\
+         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
          patch.object(synapseclient.client.Synapse, '_getFileHandleDownload',
                       return_value=_getFileHandleDownload_return_value):
         syn._downloadFileHandle(fileHandleId, objectId, objectType, destination=temp_dir)
@@ -242,9 +243,9 @@ def test_mock_download():
     # patch requests.get and also the method that generates signed
     # headers (to avoid having to be logged in to Synapse)
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
-         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders),\
-            patch.object(synapseclient.client.Synapse, '_getFileHandleDownload',
-                         return_value=_getFileHandleDownload_return_value):
+         patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
+         patch.object(synapseclient.client.Synapse, '_getFileHandleDownload',
+                      return_value=_getFileHandleDownload_return_value):
         assert_raises(SynapseHTTPError, syn._downloadFileHandle, fileHandleId, objectId, objectType,
                       destination=temp_dir)
 
@@ -276,12 +277,11 @@ def test_download_end_early_retry():
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
          patch('synapseclient.utils.temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
-         patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
-         patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
-         patch('os.path.getsize', return_value=partial_content_break) as mocked_getsize, \
-         patch('synapseclient.utils.md5_for_file'), \
-         patch('shutil.move') as mocked_move:
-
+            patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
+            patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
+            patch('os.path.getsize', return_value=partial_content_break) as mocked_getsize, \
+            patch('synapseclient.utils.md5_for_file'), \
+            patch('shutil.move') as mocked_move:
         # function under test
         syn._download_from_URL(url, destination)
 
@@ -319,11 +319,10 @@ def test_download_md5_mismatch__not_local_file():
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
          patch('synapseclient.utils.temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
-         patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
-         patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
-         patch('shutil.move') as mocked_move, \
-         patch('os.remove') as mocked_remove:
-
+            patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
+            patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
+            patch('shutil.move') as mocked_move, \
+            patch('os.remove') as mocked_remove:
         # function under test
         assert_raises(SynapseMd5MismatchError, syn._download_from_URL, url, destination,
                       expected_md5="fake md5 is fake")
@@ -353,8 +352,8 @@ def test_download_md5_mismatch_local_file():
 
     with patch.object(synapseclient.client.Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
          patch.object(synapseclient.utils, 'file_url_to_path', return_value=destination) as mocked_file_url_to_path, \
-         patch.object(synapseclient.utils, 'md5_for_file', return_value=hashlib.md5()) as mocked_md5_for_file, \
-         patch('os.remove') as mocked_remove:
+            patch.object(synapseclient.utils, 'md5_for_file', return_value=hashlib.md5()) as mocked_md5_for_file, \
+            patch('os.remove') as mocked_remove:
         # function under test
         assert_raises(SynapseMd5MismatchError, syn._download_from_URL, url, destination,
                       expected_md5="fake md5 is fake")

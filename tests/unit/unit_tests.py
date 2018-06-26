@@ -85,6 +85,7 @@ def test_activity_creation_by_constructor():
     used_syn103 = _find_used(a, lambda res: res['reference']['targetId'] == 'syn103')
     assert_is_not_none(used_syn103)
 
+
 def test_activity_used_url():
     """test activity creation with UsedURLs"""
     u1 = 'http://xkcd.com'
@@ -151,6 +152,7 @@ def test_is_url():
     assert_true(utils.is_url('file:c:/WINDOWS/clock.avi'))
     assert_false(utils.is_url('c:/WINDOWS/ugh/ugh.ugh'))
 
+
 def test_windows_file_urls():
     url = 'file:///c:/WINDOWS/clock.avi'
     assert_true(utils.is_url(url))
@@ -160,30 +162,34 @@ def test_windows_file_urls():
 def test_is_in_path():
     # Path as returned form syn.restGET('entity/{}/path')
     path = {u'path': [{u'id': u'syn4489',  u'name': u'root', u'type': u'org.sagebionetworks.repo.model.Folder'},
-                      {u'id': u'syn537704', u'name': u'my Test project', u'type': u'org.sagebionetworks.repo.model.Project'},
-                      {u'id': u'syn2385356',u'name': u'.emacs', u'type': u'org.sagebionetworks.repo.model.FileEntity'}]}
+                      {u'id': u'syn537704', u'name': u'my Test project',
+                       u'type': u'org.sagebionetworks.repo.model.Project'},
+                      {u'id': u'syn2385356', u'name': u'.emacs',
+                       u'type': u'org.sagebionetworks.repo.model.FileEntity'}]}
 
     assert_true(utils.is_in_path('syn537704', path))
     assert_false(utils.is_in_path('syn123', path))
 
+
 def test_id_of():
     assert_equals(utils.id_of(1), '1')
     assert_equals(utils.id_of('syn12345'), 'syn12345')
-    assert_equals(utils.id_of({'foo':1, 'id':123}), '123')
-    assert_raises(ValueError, utils.id_of, {'foo':1, 'idzz':123})
-    assert_equals(utils.id_of({'properties':{'id':123}}), '123')
-    assert_raises(ValueError, utils.id_of, {'properties':{'qq':123}})
+    assert_equals(utils.id_of({'foo': 1, 'id': 123}), '123')
+    assert_raises(ValueError, utils.id_of, {'foo': 1, 'idzz': 123})
+    assert_equals(utils.id_of({'properties': {'id': 123}}), '123')
+    assert_raises(ValueError, utils.id_of, {'properties': {'qq': 123}})
     assert_raises(ValueError, utils.id_of, object())
 
     class Foo:
-        def __init__(self, id_attr_name,id):
-            self.properties = {id_attr_name:id}
+        def __init__(self, id_attr_name, id):
+            self.properties = {id_attr_name: id}
 
     id_attr_names = ['id', 'ownerId', 'tableId']
 
     for attr_name in id_attr_names:
         foo = Foo(attr_name, 123)
         assert_equals(utils.id_of(foo), '123')
+
 
 def test_guess_file_name():
     assert_equals(utils.guess_file_name('a/b'), 'b')
@@ -203,17 +209,20 @@ def test_guess_file_name():
     assert_equals(utils.guess_file_name('http://www.a.com/b?foo=bar&arga=barga'), 'b')
     assert_equals(utils.guess_file_name('http://www.a.com/b/?foo=bar&arga=barga'), 'b')
 
+
 def test_extract_filename():
     assert_equals(utils.extract_filename('attachment; filename="fname.ext"'), "fname.ext")
     assert_equals(utils.extract_filename('attachment; filename=fname.ext'), "fname.ext")
     assert_is_none(utils.extract_filename(None))
     assert_equals(utils.extract_filename(None, "fname.ext"), "fname.ext")
 
+
 def test_version_check():
     from synapseclient.version_check import _version_tuple
     assert_equals(_version_tuple('0.5.1.dev200', levels=2), ('0', '5'))
     assert_equals(_version_tuple('0.5.1.dev200', levels=3), ('0', '5', '1'))
     assert_equals(_version_tuple('1.6', levels=3), ('1', '6', '0'))
+
 
 def test_normalize_path():
     # tests should pass on reasonable OSes and also on windows
@@ -229,6 +238,7 @@ def test_normalize_path():
 
     # what's the right thing to do for None?
     assert_is_none(utils.normalize_path(None))
+
 
 def test_limit_and_offset():
     def query_params(uri):
@@ -259,9 +269,9 @@ def test_limit_and_offset():
 
 
 def test_utils_extract_user_name():
-    profile = {'firstName':'Madonna'}
+    profile = {'firstName': 'Madonna'}
     assert_equals(utils.extract_user_name(profile), 'Madonna')
-    profile = {'firstName':'Oscar', 'lastName':'the Grouch'}
+    profile = {'firstName': 'Oscar', 'lastName': 'the Grouch'}
     assert_equals(utils.extract_user_name(profile), 'Oscar the Grouch')
     profile['displayName'] = None
     assert_equals(utils.extract_user_name(profile), 'Oscar the Grouch')
@@ -272,12 +282,14 @@ def test_utils_extract_user_name():
     profile['userName'] = 'otg'
     assert_equals(utils.extract_user_name(profile), 'otg')
 
+
 def test_is_json():
     assert_true(utils._is_json('application/json'))
     assert_true(utils._is_json('application/json;charset=ISO-8859-1'))
     assert_false(utils._is_json('application/flapdoodle;charset=ISO-8859-1'))
     assert_false(utils._is_json(None))
     assert_false(utils._is_json(''))
+
 
 def test_unicode_output():
     encoding = sys.stdout.encoding if hasattr(sys.stdout, 'encoding') else 'no encoding'
@@ -286,6 +298,7 @@ def test_unicode_output():
         print("ȧƈƈḗƞŧḗḓ uʍop-ǝpısdn ŧḗẋŧ ƒǿř ŧḗşŧīƞɠ")
     else:
         raise SkipTest("can't display unicode, skipping test_unicode_output...")
+
 
 def test_normalize_whitespace():
     assert_equals("zip tang pow a = 2", utils.normalize_whitespace("   zip\ttang   pow   \n    a = 2   "))
@@ -309,7 +322,8 @@ def test_query_limit_and_offset():
     assert_equals(limit, 123)
     assert_equals(offset, 1)
 
-    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 65535", hard_limit=1000)
+    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 65535",
+                                                        hard_limit=1000)
     assert_equals(query, "select foo from bar where zap > 2")
     assert_equals(limit, 1000)
     assert_equals(offset, 1)
@@ -359,13 +373,13 @@ def test_raise_for_status():
 
     response = FakeResponse(
         status_code=501,
-        headers={"content-type":"application/json;charset=utf-8"},
+        headers={"content-type": "application/json;charset=utf-8"},
         reason="SchlumpError",
         text='{"reason":"it schlumped"}',
-        _json={"reason":"it schlumped"},
+        _json={"reason": "it schlumped"},
         request=DictObject(
             url="http://foo.com/bar/bat",
-            headers={"xyz":"pdq"},
+            headers={"xyz": "pdq"},
             method="PUT",
             body="body"))
 
@@ -398,17 +412,18 @@ def test_temp_download_filename():
 
 @patch('zipfile.ZipFile')
 @patch('os.makedirs')
-@patch('os.path.exists', return_value = False)
+@patch('os.path.exists', return_value=False)
 def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocked_zipfile):
     file_base_name = 'test.txt'
     file_dir = 'some/folders/'
-    target_dir = tempfile.mkdtemp() #TODO rename
+    target_dir = tempfile.mkdtemp()  # TODO rename
     expected_filepath = os.path.join(target_dir, file_base_name)
 
     try:
         # call the method and make sure correct values are being used
         with patch('synapseclient.utils.open', mock_open(), create=True) as mocked_open:
-            actual_filepath = utils._extract_zip_file_to_directory(mocked_zipfile, file_dir + file_base_name, target_dir)
+            actual_filepath = utils._extract_zip_file_to_directory(mocked_zipfile, file_dir + file_base_name,
+                                                                   target_dir)
 
             # make sure it returns the correct cache path
             assert_equals(expected_filepath, actual_filepath)
@@ -423,12 +438,16 @@ def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocke
     finally:
         rmtree(target_dir, ignore_errors=True)
 
+
 def _calling_module_test_helper():
     return utils.caller_module_name(inspect.currentframe())
+
 
 def test_calling_module():
     # 'case' is the name of the module with which nosetests runs these tests
     # 'unit_test' is the name of the module in which this test resides
-    # we made a helper so that the call order is: case.some_function_for_running_tests() -> unit_test.test_calling_module() -> unit_test._calling_module_test_helper()
-    # since both _calling_module_test_helper and test_calling_module are a part of the unit_test module, we can test that callers of the same module do indeed are skipped
+    # we made a helper so that the call order is: case.some_function_for_running_tests()
+    # -> unit_test.test_calling_module() -> unit_test._calling_module_test_helper()
+    # since both _calling_module_test_helper and test_calling_module are a part of the unit_test module,
+    # we can test that callers of the same module do indeed are skipped
     assert_equals("case", _calling_module_test_helper())

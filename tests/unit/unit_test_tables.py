@@ -146,7 +146,7 @@ def test_RowSetTable():
     assert len(table.asRowSet().rows) == 4
 
     df = table.asDataFrame()
-    assert df.shape == (4,4)
+    assert df.shape == (4, 4)
     assert all(df['name'] == ['foo', 'bar', 'foo', 'qux'])
 
 
@@ -232,7 +232,7 @@ def test_pandas_to_table():
     for i, row in enumerate(table):
         assert row[0] is None
         assert row[1] is None
-        assert row[2]==(i+1)
+        assert row[2] == (i+1)
 
     # A dataframe with no row id and version
     df = pd.DataFrame(index=["1_7", "2_7", "3_8"], data=dict(a=[100, 200, 300], b=["c", "d", "e"]))
@@ -428,7 +428,7 @@ def test_waitForAsync():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
     syn.table_query_timeout = 0.05
     syn.table_query_max_sleep = 0.001
-    syn.restPOST = MagicMock(return_value={"token":"1234567"})
+    syn.restPOST = MagicMock(return_value={"token": "1234567"})
 
     # return a mocked http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
     syn.restGET = MagicMock(return_value={
@@ -665,9 +665,9 @@ def test_rowset_asDataFrame__with_ROW_ETAG_column():
                                       {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
                                       {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
                                   'rows': [{'values': ['initial_value3', 'initial_value4'],
-                                  'etag': '7de0f326-9ef7-4fde-9e4a-ac0babca73f7',
-                                  'rowId': 789,
-                                  'versionNumber': 101112}],
+                                            'etag': '7de0f326-9ef7-4fde-9e4a-ac0babca73f7',
+                                            'rowId': 789,
+                                            'versionNumber': 101112}],
                                   'tableId': 'syn11363411'}}
 
     with patch.object(syn, "_queryTable", return_value=query_result),\
@@ -727,7 +727,7 @@ def test_build_table__with_dict():
     assert_raises(ValueError, build_table, "test", "syn123", dict(a=[1, 2, 3], b=["c", "d", "e"]))
 
 
-class TestTableQueryResult():
+class TestTableQueryResult:
     def setup(self):
         self.rows = [{'rowId': 1, 'versionNumber': 2, 'values': ['first_row']},
                      {'rowId': 5, 'versionNumber': 1, 'values': ['second_row']}]
@@ -756,7 +756,7 @@ class TestTableQueryResult():
             query_result_table = TableQueryResult(syn, self.query_string)
             metadata = [x for x in query_result_table.iter_row_metadata()]
             assert_equals(2, len(metadata))
-            assert_equals((1,2, None), metadata[0])
+            assert_equals((1, 2, None), metadata[0])
             assert_equals((5, 1, None), metadata[1])
 
     def test_iter_metadata__has_etag(self):
@@ -770,7 +770,7 @@ class TestTableQueryResult():
             assert_equals((5, 1, 'etag2'), metadata[1])
 
 
-class TestPartialRow():
+class TestPartialRow:
     """
     Testing PartialRow class
     """
@@ -819,7 +819,7 @@ class TestPartialRow():
         assert_equals(711, partial_row.rowId)
 
 
-class TestPartialRowSet():
+class TestPartialRowSet:
     @raises(ValueError)
     def test_constructor__not_all_rows_of_type_PartialRow(self):
         rows = [PartialRow({}, 123), "some string instead"]
@@ -831,7 +831,7 @@ class TestPartialRowSet():
         assert_equals([partial_row], partial_rowset.rows)
 
 
-class TestCsvFileTable():
+class TestCsvFileTable:
     def test_iter_metadata__has_etag(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,asdf\n"
                                            "1,2,etag1,\"I like trains\"\n"
@@ -840,7 +840,7 @@ class TestCsvFileTable():
             csv_file_table = CsvFileTable("syn123", "/fake/file/path")
             metadata = [x for x in csv_file_table.iter_row_metadata()]
             assert_equals(2, len(metadata))
-            assert_equals((1, 2,"etag1"), metadata[0])
+            assert_equals((1, 2, "etag1"), metadata[0])
             assert_equals((5, 1, "etag2"), metadata[1])
 
     def test_iter_metadata__no_etag(self):

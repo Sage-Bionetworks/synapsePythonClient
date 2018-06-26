@@ -100,12 +100,11 @@ def test_upload_chunk__expired_url():
                       side_effect=SynapseHTTPError("useless message",
                                                    response=MagicMock(status_code=403))) as mocked_put_chunk, \
          patch.object(warnings, "warn") as mocked_warn:
-        chunk_upload = lambda part: _upload_chunk(part, completed=value_doesnt_matter, status=value_doesnt_matter,
-                                                  syn=syn, filename=value_doesnt_matter,
-                                                  get_chunk_function=mocked_get_chunk_function,
-                                                  fileSize=value_doesnt_matter, partSize=value_doesnt_matter,
-                                                  t0=value_doesnt_matter,
-                                                  expired=expired, bytes_already_uploaded=value_doesnt_matter)
+        def chunk_upload(part):
+            return _upload_chunk(part, completed=value_doesnt_matter, status=value_doesnt_matter, syn=syn,
+                                 filename=value_doesnt_matter, get_chunk_function=mocked_get_chunk_function,
+                                 fileSize=value_doesnt_matter, partSize=value_doesnt_matter,
+                                 t0=value_doesnt_matter, expired=expired, bytes_already_uploaded=value_doesnt_matter)
         # 2 threads both with urls that have expired
         mp = Pool(4)
         mp.map(chunk_upload, upload_parts)

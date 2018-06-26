@@ -21,9 +21,10 @@ import synapseclient.__main__ as cmdline
 
 import synapseutils
 
-def setup(module):
 
+def setup(module):
     module.syn = unit.syn
+
 
 def test_command_sync():
     """Test the sync fuction.

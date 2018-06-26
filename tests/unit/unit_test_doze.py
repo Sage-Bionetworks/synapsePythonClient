@@ -5,6 +5,7 @@ Created on Sep 21, 2017
 """
 import synapseclient.dozer as doze
 
+
 def teardown():
     doze.clear_listeners()
 

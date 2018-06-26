@@ -4,8 +4,11 @@ from __future__ import print_function
 from __future__ import unicode_literals
 import six
 
-import re, os, tempfile
-import time, random
+import re
+import os
+import tempfile
+import time
+import random
 from mock import patch
 from nose.tools import assert_equal, assert_is_none, assert_is_not_none, assert_in, assert_false, assert_true
 from collections import OrderedDict
@@ -13,7 +16,6 @@ from multiprocessing import Process
 
 import synapseclient.cache as cache
 import synapseclient.utils as utils
-
 
 
 def add_file_to_cache(i, cache_root_dir):
@@ -204,7 +206,7 @@ def test_cache_remove():
     my_cache.add(file_handle_id=101201, path=path2)
 
     # remove the cached copy at path1
-    rp = my_cache.remove({'dataFileHandleId':101201, 'path':path1})
+    rp = my_cache.remove({'dataFileHandleId': 101201, 'path': path1})
 
     assert len(rp) == 1
     assert utils.equal_paths(rp[0], path1)
@@ -242,7 +244,7 @@ def test_cache_rules():
     my_cache.add(file_handle_id=101201, path=path3)
 
     # DownloadLocation specified, found exact match
-    assert utils.equal_paths( my_cache.get(file_handle_id=101201, path=path2), path2 )
+    assert utils.equal_paths(my_cache.get(file_handle_id=101201, path=path2), path2)
 
     # DownloadLocation specified, no match, get most recent
     path = my_cache.get(file_handle_id=101201, path=os.path.join(tmp_dir, "file_is_not_here", "file1.ext"))
@@ -267,17 +269,17 @@ def test_cache_rules():
 
     # Get file from alternate location. Do we care which file we get?
     assert_is_none(my_cache.get(file_handle_id=101201, path=path2))
-    assert_in(my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)] )
+    assert_in(my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)])
 
     # Download uncached file to a specified download location
-    assert_is_none( my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache")) )
+    assert_is_none(my_cache.get(file_handle_id=101202, path=os.path.join(tmp_dir, "not_in_cache")))
 
     # No downloadLocation specified, get file from alternate location. Do we care which file we get?
     assert_is_not_none(my_cache.get(file_handle_id=101201))
-    assert_in( my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)] )
+    assert_in(my_cache.get(file_handle_id=101201), [utils.normalize_path(path1), utils.normalize_path(path3)])
 
     # test case 2b.
-    assert_is_none( my_cache.get(file_handle_id=101202) )
+    assert_is_none(my_cache.get(file_handle_id=101202))
 
 
 def test_set_cache_root_dir():
@@ -288,7 +290,7 @@ def test_set_cache_root_dir():
 
     path_suffix = "GrayFaceNoSpace"
 
-    expanded_path = os.path.expandvars(os.path.expanduser(os.path.join("~", enviornment_variable_value , path_suffix)))
+    expanded_path = os.path.expandvars(os.path.expanduser(os.path.join("~", enviornment_variable_value, path_suffix)))
     non_expanded_path = os.path.join("~", '$' + enviornment_variable_name, path_suffix)
 
     # test that the constructor correctly expands the path

@@ -109,7 +109,7 @@ def test_entity_creation():
         "parentId": "syn445566",
         "name": "Testing123"
     }
-    annos = {'testing':123}
+    annos = {'testing': 123}
     folder = Entity.create(props, annos)
 
     assert_equals(folder.concreteType, 'org.sagebionetworks.repo.model.Folder')
@@ -192,7 +192,7 @@ def test_split_entity_namespaces():
          'color': 'blue',
          'foo': 1234,
          'parentId': 'syn1234'}
-    (properties,annotations,local_state) = split_entity_namespaces(e)
+    (properties, annotations, local_state) = split_entity_namespaces(e)
 
     assert_equals(set(properties.keys()), {'concreteType', 'name', 'parentId'})
     assert_equals(properties['name'], 'Henry')
@@ -209,7 +209,7 @@ def test_split_entity_namespaces():
          'cacheDir': '/foo/bar/bat',
          'files': ['foo.xyz'],
          'path': '/foo/bar/bat/foo.xyz'}
-    (properties,annotations,local_state) = split_entity_namespaces(e)
+    (properties, annotations, local_state) = split_entity_namespaces(e)
 
     assert_equals(set(properties.keys()), {'concreteType', 'name', 'parentId', 'dataFileHandleId'})
     assert_equals(properties['name'], 'Henry')
@@ -219,7 +219,7 @@ def test_split_entity_namespaces():
     assert_equals(set(local_state.keys()), {'cacheDir', 'files', 'path'})
     assert_equals(local_state['cacheDir'], '/foo/bar/bat')
 
-    f = Entity.create(properties,annotations, local_state)
+    f = Entity.create(properties, annotations, local_state)
     assert_equals(f.properties.dataFileHandleId, 54321)
     assert_equals(f.properties.name, 'Henry')
     assert_equals(f.annotations.foo, 1234)
@@ -278,11 +278,11 @@ def test_is_container__getChildren_results():
                    'id': 'syn123'}
     assert_false(is_container(file_result))
     folder_result = {'versionLabel': '1',
-                    'name': 'secondPageResult',
-                    'versionNumber': 1,
-                    'benefactorId': 654,
-                    'type': 'org.sagebionetworks.repo.model.Folder',
-                    'id': 'syn456'}
+                     'name': 'secondPageResult',
+                     'versionNumber': 1,
+                     'benefactorId': 654,
+                     'type': 'org.sagebionetworks.repo.model.Folder',
+                     'id': 'syn456'}
     assert_true(is_container(folder_result))
 
 

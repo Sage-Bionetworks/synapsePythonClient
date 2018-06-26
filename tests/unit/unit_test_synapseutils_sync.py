@@ -181,7 +181,7 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata():
                 assert_equals(file_entity.get(key), file_row_data.get(key))
 
 
-class TestGetFileEntityProvenanceDict():
+class TestGetFileEntityProvenanceDict:
     """
     test synapseutils.sync._get_file_entity_provenance_dict
     """

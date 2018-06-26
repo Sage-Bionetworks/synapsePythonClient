@@ -15,39 +15,37 @@ try:
 except ImportError:
     from io import StringIO
 
-try:
-    import pandas as pd
-    import pandas.util.testing as pdt
-    pandas_available=True
-except:
-    pandas_available=False
 
 def setup(module):
-
     module.syn = unit.syn
+
 
 def test_notifyMe__successful_call():
     subject = "some message subject"
     owner_id = '12434'
-    user_profile = {'ownerId':owner_id}
+    user_profile = {'ownerId': owner_id}
     with patch.object(syn, "sendMessage") as mocked_send_message,\
          patch.object(syn, "getUserProfile", return_value=user_profile) as mocked_get_user_profile:
         mocked_func = MagicMock()
+
         @notifyMe(syn, messageSubject=subject)
         def test_function():
             mocked_func()
 
         test_function()
         mocked_get_user_profile.assert_called_once()
-        mocked_send_message.assert_called_once_with([owner_id],subject, messageBody='Call to test_function completed successfully!')
+        mocked_send_message.assert_called_once_with([owner_id], subject,
+                                                    messageBody='Call to test_function completed successfully!')
+
 
 def test_notifyMe__exception_thrown_and_retry_fail():
     subject = "some message subject"
     owner_id = '12434'
-    user_profile = {'ownerId':owner_id}
+    user_profile = {'ownerId': owner_id}
     with patch.object(syn, "sendMessage") as mocked_send_message,\
          patch.object(syn, "getUserProfile", return_value=user_profile):
         mocked_func = MagicMock(side_effect=[Exception('first time fails'), 'second time is Fine'])
+
         @notifyMe(syn, messageSubject=subject, retries=1)
         def test_function():
             mocked_func()
@@ -61,7 +59,6 @@ def test_notifyMe__exception_thrown_and_retry_fail():
 
         second_call_args = mocked_send_message.call_args_list[1][0]
         second_call_kwargs = mocked_send_message.call_args_list[1][1]
-
 
         assert_tuple_equal(([owner_id], subject), first_call_args)
         assert_in('Encountered a temporary Failure during upload', first_call_kwargs['messageBody'])

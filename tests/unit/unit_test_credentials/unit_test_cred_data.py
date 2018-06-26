@@ -5,7 +5,8 @@ from mock import patch
 
 from synapseclient.credentials.cred_data import SynapseCredentials
 
-class TestSynapseCredentials():
+
+class TestSynapseCredentials:
     def setup(self):
         self.api_key = b"I am api key"
         self.api_key_b64 = base64.b64encode(self.api_key).decode()
@@ -32,4 +33,5 @@ class TestSynapseCredentials():
                           headers)
 
     def test_repr(self):
-        assert_equals("SynapseCredentials(username='ahhhhhhhhhhhhhh', api_key_string='SSBhbSBhcGkga2V5')",repr(self.credentials))
+        assert_equals("SynapseCredentials(username='ahhhhhhhhhhhhhh', api_key_string='SSBhbSBhcGkga2V5')",
+                      repr(self.credentials))

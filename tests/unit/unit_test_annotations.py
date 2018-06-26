@@ -90,7 +90,7 @@ def test_mixed_annotations():
 
 def test_idempotent_annotations():
     """test that to_synapse_annotations won't mess up a dictionary that's already in the synapse format"""
-    a = dict(species='Moose', n=42, birthday=Datetime(1969,4,28))
+    a = dict(species='Moose', n=42, birthday=Datetime(1969, 4, 28))
     sa = to_synapse_annotations(a)
     a2 = dict()
     a2.update(sa)

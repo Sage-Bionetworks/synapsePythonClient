@@ -22,7 +22,7 @@ def setup(module):
     module.syn = unit.syn
 
 
-class TestLogout():
+class TestLogout:
     def setup(self):
         self.username = "asdf"
         self.credentials = SynapseCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
@@ -42,7 +42,7 @@ class TestLogout():
             mock_cached_session.remove_api_key.assert_not_called()
 
 
-class TestLogin():
+class TestLogin:
     def setup(self):
         self.login_args = {'email': "AzureDiamond", "password": "hunter2"}
         self.expected_user_args = UserLoginArgs(username="AzureDiamond", password="hunter2", api_key=None,
@@ -95,7 +95,7 @@ class TestLogin():
 
 @patch('synapseclient.Synapse._getFileHandleDownload')
 @patch('synapseclient.Synapse._downloadFileHandle')
-class TestPrivateGetWithEntityBundle():
+class TestPrivateGetWithEntityBundle:
 
     def test_getWithEntityBundle(self, download_file_mock, get_file_URL_and_metadata_mock):
         # Note: one thing that remains unexplained is why the previous version of
@@ -196,7 +196,7 @@ class TestPrivateGetWithEntityBundle():
 
 @patch('synapseclient.Synapse.restPOST')
 @patch('synapseclient.Synapse.getEvaluation')
-class TestSubmit():
+class TestSubmit:
 
     def test_submit(self, *mocks):
         mocks = [item for item in mocks]
@@ -257,7 +257,7 @@ def test_send_message():
 
 
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
-class TestPrivateUploadExternallyStoringProjects():
+class TestPrivateUploadExternallyStoringProjects:
 
     def test__uploadExternallyStoringProjects_external_user(self, mock_upload_destination):
         # setup
@@ -352,8 +352,8 @@ def test_getChildren__nextPageToken():
         # genrates JSOn for the expected request body
         def expected_request_JSON(token):
             return json.dumps({'parentId': 'syn' + str(parent_project_id_int),
-                        'includeTypes': ["folder", "file", "table", "link", "entityview", "dockerrepo"],
-                        'sortBy': 'NAME', 'sortDirection': 'ASC', 'nextPageToken': token})
+                               'includeTypes': ["folder", "file", "table", "link", "entityview", "dockerrepo"],
+                               'sortBy': 'NAME', 'sortDirection': 'ASC', 'nextPageToken': token})
         expected_POST_url = '/entity/children'
         mocked_POST.assert_has_calls([call(expected_POST_url, body=expected_request_JSON(None)),
                                       call(expected_POST_url, body=expected_request_JSON(nextPageToken))])
@@ -403,7 +403,7 @@ def test_username_property__credentials_is_None():
     assert_is_none(syn.username)
 
 
-class TestPrivateGetEntityBundle():
+class TestPrivateGetEntityBundle:
     def setup(self):
         self.bundle = {
             'entity': {
