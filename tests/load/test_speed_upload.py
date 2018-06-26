@@ -1,6 +1,7 @@
 import synapseclient
 import synapseclient.utils as utils
-import os, traceback
+import os
+import traceback
 from synapseclient.utils import MB
 
 
@@ -20,7 +21,7 @@ def test_upload_speed(uploadSize=60 + 777771, threadCount=5):
     try:
         t0 = time.time()
         fh = syn._uploadToFileHandleService(filepath, threadCount=threadCount)
-        dt =  time.time()-t0
+        dt = time.time()-t0
     finally:
         try:
             os.remove(filepath)
@@ -37,8 +38,8 @@ def main():
     global syn
     syn = synapseclient.Synapse()
     syn.login(silent=True)
-    sizes = [1,5,10,100,500,1000]
-    threads =  [1,2,4,6,8,16]
+    sizes = [1, 5, 10, 100, 500, 1000]
+    threads = [1, 2, 4, 6, 8, 16]
 
     results = pd.DataFrame(np.zeros((len(sizes), len(threads))), columns=threads, index=sizes)
     results.index.aname = 'Size (Mb)'

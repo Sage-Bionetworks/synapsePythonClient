@@ -7,14 +7,14 @@ from synapseclient.entity import Entity, Project, Folder, File, DockerRepository
 from synapseclient.exceptions import *
 from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises
 
+
 def test_Entity():
     # Test the basics of creating and accessing properties on an entity
     for i in range(2):
         e = Entity(name='Test object', description='I hope this works',
-                   annotations = dict(foo=123, nerds=['chris','jen','janey'], annotations='How confusing!'),
-                   properties  = dict(annotations='/repo/v1/entity/syn1234/annotations',
-                                      md5='cdef636522577fc8fb2de4d95875b27c',
-                                      parentId='syn1234'),
+                   annotations=dict(foo=123, nerds=['chris', 'jen', 'janey'], annotations='How confusing!'),
+                   properties=dict(annotations='/repo/v1/entity/syn1234/annotations',
+                                   md5='cdef636522577fc8fb2de4d95875b27c', parentId='syn1234'),
                    concreteType='org.sagebionetworks.repo.model.Data')
 
         # Should be able to create an Entity from an Entity
@@ -46,8 +46,8 @@ def test_Entity():
         assert_equals(e.properties.annotations, '/repo/v1/entity/syn1234/annotations')
         assert_equals(e.annotations.annotations, 'How confusing!')
         assert_equals(e.annotations['annotations'], 'How confusing!')
-        assert_equals(e.nerds, ['chris','jen','janey'])
-        assert_true(all([ k in e for k in ['name', 'description', 'foo', 'nerds', 'annotations', 'md5', 'parentId']]))
+        assert_equals(e.nerds, ['chris', 'jen', 'janey'])
+        assert_true(all([k in e for k in ['name', 'description', 'foo', 'nerds', 'annotations', 'md5', 'parentId']]))
 
         # Test modifying properties
         e.description = 'Working, so far'
@@ -68,7 +68,7 @@ def test_Entity():
         assert_equals(e.annotations['bat'], 7788)
 
         # Test replacing annotations object
-        e.annotations = {'splat':'a totally new set of annotations', 'foo':456}
+        e.annotations = {'splat': 'a totally new set of annotations', 'foo': 456}
         assert_equals(e.foo, 456)
         assert_equals(e['foo'], 456)
         assert_true(isinstance(e.annotations, collections.Mapping))
@@ -187,11 +187,11 @@ def test_attrs():
 def test_split_entity_namespaces():
     """Test split_entity_namespaces"""
 
-    e = {'concreteType':'org.sagebionetworks.repo.model.Folder',
-         'name':'Henry',
-         'color':'blue',
-         'foo':1234,
-         'parentId':'syn1234'}
+    e = {'concreteType': 'org.sagebionetworks.repo.model.Folder',
+         'name': 'Henry',
+         'color': 'blue',
+         'foo': 1234,
+         'parentId': 'syn1234'}
     (properties,annotations,local_state) = split_entity_namespaces(e)
 
     assert_equals(set(properties.keys()), {'concreteType', 'name', 'parentId'})
@@ -200,15 +200,15 @@ def test_split_entity_namespaces():
     assert_equals(annotations['foo'], 1234)
     assert_equals(len(local_state), 0)
 
-    e = {'concreteType':'org.sagebionetworks.repo.model.FileEntity',
-         'name':'Henry',
-         'color':'blue',
-         'foo':1234,
-         'parentId':'syn1234',
-         'dataFileHandleId':54321,
-         'cacheDir':'/foo/bar/bat',
-         'files':['foo.xyz'],
-         'path':'/foo/bar/bat/foo.xyz'}
+    e = {'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+         'name': 'Henry',
+         'color': 'blue',
+         'foo': 1234,
+         'parentId': 'syn1234',
+         'dataFileHandleId': 54321,
+         'cacheDir': '/foo/bar/bat',
+         'files': ['foo.xyz'],
+         'path': '/foo/bar/bat/foo.xyz'}
     (properties,annotations,local_state) = split_entity_namespaces(e)
 
     assert_equals(set(properties.keys()), {'concreteType', 'name', 'parentId', 'dataFileHandleId'})
@@ -219,7 +219,7 @@ def test_split_entity_namespaces():
     assert_equals(set(local_state.keys()), {'cacheDir', 'files', 'path'})
     assert_equals(local_state['cacheDir'], '/foo/bar/bat')
 
-    f = Entity.create(properties,annotations,local_state)
+    f = Entity.create(properties,annotations, local_state)
     assert_equals(f.properties.dataFileHandleId, 54321)
     assert_equals(f.properties.name, 'Henry')
     assert_equals(f.annotations.foo, 1234)
@@ -228,7 +228,8 @@ def test_split_entity_namespaces():
 
 
 def test_concrete_type():
-    f1 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent='syn1234567', synapseStore=False)
+    f1 = File('http://en.wikipedia.org/wiki/File:Nettlebed_cave.jpg', name='Nettlebed Cave', parent='syn1234567',
+              synapseStore=False)
     assert_equals(f1.concreteType, 'org.sagebionetworks.repo.model.FileEntity')
 
 
@@ -286,8 +287,8 @@ def test_is_container__getChildren_results():
 
 
 def test_File_update_file_handle__External_sftp():
-    sftp_file_handle = { 'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
-                         'externalURL' : "sftp://some.website"}
+    sftp_file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
+                        'externalURL': "sftp://some.website"}
     f = File(parent="idk")
     assert_true(f.synapseStore)
     f._update_file_handle(sftp_file_handle)
@@ -296,7 +297,7 @@ def test_File_update_file_handle__External_sftp():
 
 def test_File_update_file_handle__External_non_sftp():
     external_file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
-                        'externalURL': "https://some.website"}
+                            'externalURL': "https://some.website"}
     f = File(parent="idk")
     assert_true(f.synapseStore)
     f._update_file_handle(external_file_handle)

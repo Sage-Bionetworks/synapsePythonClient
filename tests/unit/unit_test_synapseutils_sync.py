@@ -24,9 +24,10 @@ except ImportError:
 import pandas as pd
 import pandas.util.testing as pdt
 
-def setup(module):
 
+def setup(module):
     module.syn = unit.syn
+
 
 def test_readManifest__sync_order_with_home_directory():
     """SYNPY-508"""
@@ -42,10 +43,12 @@ def test_readManifest__sync_order_with_home_directory():
     manifest = StringIO(header+row1+row2)
     # mock syn.get() to return a project because the final check is making sure parent is a container
     # mock isfile() to always return true to avoid having to create files in the home directory
-    with patch.object(syn, "get", return_value=Project()),\
-         patch.object(os.path, "isfile", side_effect=[True,True,True,False]): #side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
+    # side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
+    with patch.object(syn, "get", return_value=Project()), \
+         patch.object(os.path, "isfile", side_effect=[True, True, True, False]):
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
-        expected_order = pd.Series([os.path.normpath(os.path.expanduser(file_path2)), os.path.normpath(os.path.expanduser(file_path1))])
+        expected_order = pd.Series([os.path.normpath(os.path.expanduser(file_path2)),
+                                    os.path.normpath(os.path.expanduser(file_path1))])
         pdt.assert_series_equal(expected_order, manifest_dataframe.path, check_names=False)
 
 
@@ -56,7 +59,7 @@ def test_readManifestFile__synapseStore_values_not_set():
     path1 = os.path.abspath(os.path.expanduser('~/file1.txt'))
     path2 = 'http://www.synapse.org'
     row1 = '%s\t%s\n' % (path1, project_id)
-    row2 = '%s\t%s\n' % (path2,project_id)
+    row2 = '%s\t%s\n' % (path2, project_id)
 
     expected_synapseStore = {
         str(path1): True,
@@ -65,7 +68,7 @@ def test_readManifestFile__synapseStore_values_not_set():
 
     manifest = StringIO(header+row1+row2)
     with patch.object(syn, "get", return_value=Project()),\
-         patch.object(os.path, "isfile", return_value=True): #side effect mocks values for: file1.txt
+         patch.object(os.path, "isfile", return_value=True):  # side effect mocks values for: file1.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
         actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
         assert_dict_equal(expected_synapseStore, actual_synapseStore)
@@ -100,7 +103,7 @@ def test_readManifestFile__synapseStore_values_are_set():
 
     manifest = StringIO(header+row1+row2+row3+row4+row5+row6)
     with patch.object(syn, "get", return_value=Project()),\
-         patch.object(os.path, "isfile", return_value=True): #mocks values for: file1.txt, file3.txt, file5.txt
+         patch.object(os.path, "isfile", return_value=True):  # mocks values for: file1.txt, file3.txt, file5.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
 
         actual_synapseStore = (manifest_dataframe.set_index('path')['synapseStore'].to_dict())
@@ -109,30 +112,34 @@ def test_readManifestFile__synapseStore_values_are_set():
 
 def test_syncFromSynapse__non_file_entity():
     table_schema = "syn12345"
-    with patch.object(syn, "getChildren", return_value = []),\
-         patch.object(syn, "get", return_value = Schema(name="asssdfa", parent="whatever")):
+    with patch.object(syn, "getChildren", return_value=[]),\
+         patch.object(syn, "get", return_value=Schema(name="asssdfa", parent="whatever")):
         assert_raises(ValueError, synapseutils.syncFromSynapse, syn, table_schema)
+
 
 def test_syncFromSynapse__empty_folder():
     folder = Folder(name="the folder", parent="whatever", id="syn123")
-    with patch.object(syn, "getChildren", return_value = []),\
-         patch.object(syn, "get", return_value = Folder(name="asssdfa", parent="whatever")):
+    with patch.object(syn, "getChildren", return_value=[]),\
+         patch.object(syn, "get", return_value=Folder(name="asssdfa", parent="whatever")):
         assert_equals(list(), synapseutils.syncFromSynapse(syn, folder))
+
 
 def test_syncFromSynapse__file_entity():
     file = File(name="a file", parent="some parent", id="syn456")
-    with patch.object(syn, "getChildren", return_value = [file]) as patch_syn_get_children,\
-         patch.object(syn, "get", return_value = file):
+    with patch.object(syn, "getChildren", return_value=[file]) as patch_syn_get_children,\
+         patch.object(syn, "get", return_value=file):
         assert_equals([file], synapseutils.syncFromSynapse(syn, file))
         patch_syn_get_children.assert_not_called()
+
 
 def test_syncFromSynapse__folder_contains_one_file():
     folder = Folder(name="the folder", parent="whatever", id="syn123")
     file = File(name="a file", parent=folder, id="syn456")
-    with patch.object(syn, "getChildren", return_value = [file]) as patch_syn_get_children,\
-         patch.object(syn, "get", return_value = file):
+    with patch.object(syn, "getChildren", return_value=[file]) as patch_syn_get_children,\
+         patch.object(syn, "get", return_value=file):
         assert_equals([file], synapseutils.syncFromSynapse(syn, folder))
         patch_syn_get_children.called_with(folder['id'])
+
 
 def test_syncFromSynapse__project_contains_empty_folder():
     project = Project(name="the project", parent="whatever", id="syn123")
@@ -153,8 +160,10 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata():
     # Test for SYNPY-692, where 'contentType' was incorrectly set on all rows except for the very first row.
 
     # create 2 file entities with different metadata
-    entity1 = File(parent='syn123', id='syn456', contentType='text/json', path='path1', name='entity1', synapseStore=True)
-    entity2 = File(parent='syn789', id='syn890', contentType='text/html', path='path2', name='entity2', synapseStore=False)
+    entity1 = File(parent='syn123', id='syn456', contentType='text/json', path='path1', name='entity1',
+                   synapseStore=True)
+    entity2 = File(parent='syn789', id='syn890', contentType='text/html', path='path2', name='entity2',
+                   synapseStore=False)
     files = [entity1, entity2]
 
     # we don't care about provenance metadata in this case
@@ -166,7 +175,7 @@ def test_extract_file_entity_metadata__ensure_correct_row_metadata():
     # compare source entity metadata gainst the extracted metadata
     for file_entity, file_row_data in zip(files, data):
         for key in keys:
-            if key == 'parent': #workaroundd for parent/parentId inconsistency. (SYNPY-697)
+            if key == 'parent':  # workaroundd for parent/parentId inconsistency. (SYNPY-697)
                 assert_equals(file_entity.get('parentId'), file_row_data.get(key))
             else:
                 assert_equals(file_entity.get(key), file_row_data.get(key))
@@ -179,13 +188,11 @@ class TestGetFileEntityProvenanceDict():
     def setup(self):
         self.mock_syn = create_autospec(syn)
 
-
     def test_get_file_entity_provenance_dict__error_is_404(self):
         self.mock_syn.getProvenance.side_effect = SynapseHTTPError(response=Mock(status_code=404))
 
         result_dict = synapseutils.sync._get_file_entity_provenance_dict(self.mock_syn, "syn123")
         assert_dict_equal({}, result_dict)
-
 
     def test_get_file_entity_provenance_dict__error_not_404(self):
         self.mock_syn.getProvenance.side_effect = SynapseHTTPError(response=Mock(status_code=400))

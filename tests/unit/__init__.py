@@ -9,6 +9,7 @@ import sys
 import synapseclient
 from synapseclient.logging_setup import SILENT_LOGGER_NAME
 
+
 def setup_module(module):
     print("Python version:", sys.version)
 
