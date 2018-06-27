@@ -3,10 +3,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 
-import filecmp, os, sys, traceback, logging, requests, uuid
-import time, random
+import os
+import traceback
+import logging
+import uuid
+import time
+import random
 from threading import Lock
 import six
 
@@ -17,15 +20,12 @@ else:
     import _thread as thread
     from queue import Queue
 
-import synapseclient
-import synapseclient.utils as utils
-import synapseclient.cache as cache
 from synapseclient.exceptions import *
-from synapseclient.utils import MB, GB
-from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient import Project, File
 
 import integration
 from integration import schedule_for_cleanup
+
 
 def setup(module):
     module.syn = integration.syn
@@ -42,6 +42,7 @@ def setup(module):
     module.syn.test_runCountMutex = Lock()
     module.syn.test_threadsRunning = 0
     
+
 def teardown(module):
     del module.syn.test_parent
     del module.syn.test_keepRunning
@@ -49,10 +50,11 @@ def teardown(module):
     del module.syn.test_runCountMutex
     del module.syn.test_threadsRunning
 
+
 def test_threaded_access():
     """Starts multiple threads to perform store and get calls randomly."""
-    ## Doesn't this test look like a DOS attack on Synapse?
-    ## Maybe it should be called explicity...
+    # Doesn't this test look like a DOS attack on Synapse?
+    # Maybe it should be called explicity...
     
     # Suppress most of the output from the many REST calls
     #   Otherwise, it flood the screen with irrelevant data upon error
@@ -87,8 +89,9 @@ def test_threaded_access():
     collect_errors_and_fail()
   
 #############
-## Helpers ##
+#  Helpers  #
 #############
+
 
 def wrap_function_as_child_thread(function):
     """Wraps the given function so that it ties into the main thread."""
@@ -109,6 +112,7 @@ def wrap_function_as_child_thread(function):
         
     return child_thread
     
+
 def collect_errors_and_fail():
     """Pulls error traces from the error queue and fails if the queue is not empty."""
     failures = []
@@ -118,8 +122,9 @@ def collect_errors_and_fail():
         raise SynapseError('\n' + '\n'.join(failures))
     
 ######################
-## Thread Behaviors ##    
+#  Thread Behaviors  #
 ######################
+
 
 def thread_keep_storing_one_File():
     """Makes one file and stores it over and over again."""
@@ -148,6 +153,7 @@ def thread_get_files_from_Project():
             
         sleep_for_a_bit()
         
+
 def thread_get_and_update_file_from_Project():
     """Fetches one item from the Project and updates it with a new file."""
     
@@ -170,13 +176,15 @@ def thread_get_and_update_file_from_Project():
         sleep_for_a_bit()
     
 ####################
-## Thread Helpers ##
+#  Thread Helpers  #
 ####################
     
+
 def sleep_for_a_bit():
     """Sleeps for a random amount of seconds between 1 and 5 inclusive."""
     
     time.sleep(random.randint(1, 5))
+
 
 def get_all_ids_from_Project():
     """Fetches all currently available Synapse IDs from the parent Project."""
@@ -184,6 +192,7 @@ def get_all_ids_from_Project():
     others = syn.chunkedQuery('select id from entity where parentId=="%s"' % syn.test_parent.id)
     return [result['entity.id'] for result in others]
     
+
 def store_catch_412_HTTPError(entity):
     """Returns the stored Entity if the function succeeds or None if the 412 is caught."""
     try:

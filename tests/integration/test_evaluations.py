@@ -3,22 +3,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-import six
-from builtins import str
 
-import tempfile, time, os, re, sys, filecmp, shutil, requests, json
-import uuid, random, base64
-from datetime import datetime
-from nose.tools import assert_raises
+import tempfile
+import time
+import os
+import re
+import filecmp
+import uuid
+import random
+from nose.tools import assert_raises, assert_false
 from nose import SkipTest
 
 import synapseclient.client as client
-import synapseclient.utils as utils
 from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
 from synapseclient.entity import Project, File
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
-from synapseclient.team import Team, TeamMember
+from synapseclient.team import Team
 
 import integration
 from integration import schedule_for_cleanup
@@ -68,7 +69,7 @@ def test_evaluations():
         ev = syn.store(ev, createOrUpdate=True)
         assert ev.status == 'OPEN'
 
-        # # Add the current user as a participant
+        # Add the current user as a participant
         myOwnerId = int(syn.getUserProfile()['ownerId'])
         syn._allowParticipation(ev, myOwnerId)
 
@@ -82,7 +83,8 @@ def test_evaluations():
         assert ['READ'] == permissions
 
         permissions = syn.getPermissions(ev, syn.getUserProfile()['ownerId'])
-        assert [p in permissions for p in ['READ', 'CREATE', 'DELETE', 'UPDATE', 'CHANGE_PERMISSIONS', 'READ_PRIVATE_SUBMISSION']]
+        assert [p in permissions for p in ['READ', 'CREATE', 'DELETE', 'UPDATE', 'CHANGE_PERMISSIONS',
+                                           'READ_PRIVATE_SUBMISSION']]
 
         # Test getSubmissions with no Submissions (SYNR-453)
         submissions = syn.getSubmissions(ev)
@@ -107,14 +109,14 @@ def test_evaluations():
             # Make a file to submit
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
                 filename = f.name
-                f.write(str(random.gauss(0,1)) + '\n')
+                f.write(str(random.gauss(0, 1)) + '\n')
 
             f = File(filename, parentId=other_project.id,
                      name='Submission 999',
-                     description ="Haha!  I'm inaccessible...")
+                     description="Haha!  I'm inaccessible...")
             entity = testSyn.store(f)
 
-            ## test submission by evaluation ID
+            # test submission by evaluation ID
             submission = testSyn.submit(ev.id, entity, submitterAlias="My Nickname")
 
             # Mess up the cached file so that syn._getWithEntityBundle must download again
@@ -137,11 +139,11 @@ def test_evaluations():
         for i in range(num_of_submissions):
             with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
                 filename = f.name
-                f.write(str(random.gauss(0,1)) + '\n')
+                f.write(str(random.gauss(0, 1)) + '\n')
 
             f = File(filename, parentId=project.id, name='entry-%02d' % i,
                      description='An entry for testing evaluation')
-            entity=syn.store(f)
+            entity = syn.store(f)
             syn.submit(ev, entity, name='Submission %02d' % i, submitterAlias='My Team')
 
         # Score the submissions
@@ -177,7 +179,7 @@ def test_evaluations():
             assert a['bogosity'] == bogosity[submission.id]
             for kvp in status.annotations['longAnnos']:
                 if kvp['key'] == 'bogosity':
-                    assert kvp['isPrivate'] == False
+                    assert_false(kvp['isPrivate'])
 
         # test query by submission annotations
         # These queries run against an eventually consistent index table which is
@@ -189,7 +191,8 @@ def test_evaluations():
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s" % ev.id)
                 assert len(results['rows']) == num_of_submissions+1
 
-                results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
+                results = syn.restGET(
+                    "/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
                 assert len(results['rows']) == num_of_submissions
             except AssertionError as ex1:
                 attempts -= 1
@@ -197,7 +200,7 @@ def test_evaluations():
             else:
                 attempts = 0
 
-        ## Test that we can retrieve submissions with a specific status
+        # Test that we can retrieve submissions with a specific status
         invalid_submissions = list(syn.getSubmissions(ev, status='INVALID'))
         assert len(invalid_submissions) == 1, len(invalid_submissions)
         assert invalid_submissions[0]['name'] == 'Submission 01'
@@ -211,10 +214,10 @@ def test_evaluations():
                 # This also removes references to the submitted object :)
                 testSyn.delete(other_project)
             if 'team' in locals():
-                ## remove team
+                # remove team
                 testSyn.delete(team)
 
-    ## Just deleted it. Shouldn't be able to get it.
+    # Just deleted it. Shouldn't be able to get it.
     assert_raises(SynapseHTTPError, syn.getEvaluation, ev)
 
 
@@ -235,7 +238,7 @@ def test_teams():
 
     assert found is not None, "Couldn't find user {} in team".format(p.username)
 
-    ## needs to be retried 'cause appending to the search index is asynchronous
+    # needs to be retried 'cause appending to the search index is asynchronous
     tries = 10
     found_team = None
     while tries > 0:
@@ -244,7 +247,8 @@ def test_teams():
             break
         except ValueError:
             tries -= 1
-            if tries > 0: time.sleep(1)
+            if tries > 0:
+                time.sleep(1)
     assert team == found_team
 
 
