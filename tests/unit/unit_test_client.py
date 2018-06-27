@@ -461,11 +461,12 @@ def test_move():
 def test_setPermissions__default_permissions():
     entity = Folder(name="folder", parent="syn456", id="syn1")
     principalId = 123
-    update_acl = acl = {
+    acl = {
         'resourceAccess': []
     }
-    permissions_to_update = {u'accessType': ["READ", "DOWNLOAD"], u'principalId': principalId}
-    update_acl['resourceAccess'].append(permissions_to_update)
+    update_acl = {
+        'resourceAccess': [{u'accessType': ["READ", "DOWNLOAD"], u'principalId': principalId}]
+    }
     with patch.object(syn, "_getBenefactor", return_value=entity), \
          patch.object(syn, "_getACL", return_value=acl), \
          patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl:
