@@ -21,10 +21,8 @@ from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
-
     module.syn = integration.syn
     module.project = integration.project
-    module.other_user = integration.other_user
 
 
 # Add Test for UPDATE
@@ -34,8 +32,6 @@ def test_copy():
     # Create a Project
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
-    acl = syn.setPermissions(project_entity, other_user['principalId'],
-                             accessType=['READ', 'CREATE', 'UPDATE', 'DOWNLOAD'])
     # Create two Folders in Project
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
     second_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
@@ -109,36 +105,6 @@ def test_copy():
     assert output_prov['name'] == prov['name']
     assert output_prov['used'] == prov['used']
 
-    if 'username' not in other_user or 'password' not in other_user:
-        sys.stderr.write('\nWarning: no test-authentication configured. skipping testing copy function'
-                         ' when trying to copy file made by another user.\n')
-        return
-
-    try:
-        # Test: Other user copy should result in different data file handle
-        syn_other = synapseclient.Synapse(skip_checks=True)
-        syn_other.login(other_user['username'], other_user['password'])
-
-        output = synapseutils.copy(syn_other, file_entity.id, destinationId=third_folder.id)
-        new_copied_ent = syn.get(output[file_entity.id])
-        new_copied_ent_annot = syn.getAnnotations(new_copied_ent)
-        schedule_for_cleanup(new_copied_ent.id)
-        
-        copied_URL_ent.externalURL = "https://www.google.com"
-        copied_URL_ent = syn.store(copied_URL_ent)
-        output = synapseutils.copy(syn_other, copied_URL_ent.id, destinationId=third_folder.id, version=1)
-        new_copied_URL = syn.get(output[copied_URL_ent.id], downloadFile=False)
-        schedule_for_cleanup(new_copied_URL.id)
-
-        assert new_copied_ent_annot == annos
-        assert new_copied_ent.dataFileHandleId != copied_ent.dataFileHandleId
-        # Test if copying different versions gets you the correct file
-        assert new_copied_URL.versionNumber == 1
-        assert new_copied_URL.externalURL == repo_url
-        assert new_copied_URL.dataFileHandleId != copied_URL_ent.dataFileHandleId
-    finally:
-        syn_other.logout()
-
     # ------------------------------------
     # TEST COPY LINKS
     # ------------------------------------
@@ -174,7 +140,7 @@ def test_copy():
             [2.3, 'baz', 30]]
 
     schema = syn.store(Schema(name='Testing', columns=cols, parent=project_entity.id))
-    row_reference_set = syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
+    syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
 
     table_map = synapseutils.copy(syn, schema.id, destinationId=second_project.id)
     copied_table = syn.tableQuery('select * from %s' % table_map[schema.id])
@@ -507,21 +473,6 @@ def test_copyFileHandleAndchangeFileMetadata():
     assert all([results.get("failureCode") is None for results in copiedFileHandles['copyResults']]),\
         "There should not be NOT FOUND and UNAUTHORIZED failure codes."
 
-    if 'username' not in other_user or 'password' not in other_user:
-        sys.stderr.write('\nWarning: no test-authentication configured. skipping testing copy function'
-                         ' when trying to copy file made by another user.\n')
-        return
-
-    syn_other = synapseclient.Synapse(skip_checks=True)
-    syn_other.login(other_user['username'], other_user['password'])
-    # CHECK: UNAUTHORIZED failure code should be returned
-    output = synapseutils.copyFileHandles(syn_other, [file_entity.dataFileHandleId, wiki.attachmentFileHandleIds[0]],
-                                          [file_entity.concreteType.split(".")[-1], "WikiAttachment"],
-                                          [file_entity.id, wiki.id],
-                                          [file_entity.contentType, wikiattachments['contentType']],
-                                          [file_entity.name, wikiattachments['fileName']])
-    assert all([results.get("failureCode") == "UNAUTHORIZED" for results in output['copyResults']]),\
-        "UNAUTHORIZED codes."
     # CHECK: Changing content type and downloadAs
     new_entity = synapseutils.changeFileMetaData(syn, file_entity, contentType="application/x-tar",
                                                  downloadAs="newName.txt")

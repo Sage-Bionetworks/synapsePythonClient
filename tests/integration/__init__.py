@@ -59,22 +59,22 @@ def setup_module(module):
     working_directory = tempfile.mkdtemp(prefix="someTestFolder")
     schedule_for_cleanup(working_directory)
     os.chdir(working_directory)
-
-    # Some of these tests require a second user
-    config = configparser.ConfigParser()
-    config.read(synapseclient.client.CONFIG_FILE)
-    module.other_user = {}
-    try:
-        other_user['username'] = config.get('test-authentication', 'username')
-        other_user['password'] = config.get('test-authentication', 'password')
-        other_user['principalId'] = config.get('test-authentication', 'principalId')
-    except configparser.Error:
-        print("[test-authentication] section missing from the configuration file")
-
-    if 'principalId' not in other_user:
-        # Fall back on the synapse-test user
-        other_user['principalId'] = 1560252
-        other_user['username'] = 'synapse-test'
+    #
+    # # Some of these tests require a second user
+    # config = configparser.ConfigParser()
+    # config.read(synapseclient.client.CONFIG_FILE)
+    # module.other_user = {}
+    # try:
+    #     other_user['username'] = config.get('test-authentication', 'username')
+    #     other_user['password'] = config.get('test-authentication', 'password')
+    #     other_user['principalId'] = config.get('test-authentication', 'principalId')
+    # except configparser.Error:
+    #     print("[test-authentication] section missing from the configuration file")
+    #
+    # if 'principalId' not in other_user:
+    #     # Fall back on the synapse-test user
+    #     other_user['principalId'] = 1560252
+    #     other_user['username'] = 'synapse-test'
 
 
 def teardown_module(module):
