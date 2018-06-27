@@ -97,6 +97,23 @@ class TestLogin:
 @patch('synapseclient.Synapse._downloadFileHandle')
 class TestPrivateGetWithEntityBundle:
 
+    def test_getWithEntityBundle__no_DOWNLOAD(self, download_file_mock, get_file_URL_and_metadata_mock):
+        bundle = {
+            'entity': {
+                'id': 'syn10101',
+                'name': 'anonymous',
+                'dataFileHandleId': '-1337',
+                'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                'parentId': 'syn12345'},
+            'fileHandles': [],
+            'annotations': {}}
+
+        with patch.object(syn.logger, "warning") as mocked_warn:
+            entity_no_download = syn._getWithEntityBundle(entityBundle=bundle)
+            mocked_warn.assert_called_once()
+            assert_is_none(entity_no_download.path)
+
+
     def test_getWithEntityBundle(self, download_file_mock, get_file_URL_and_metadata_mock):
         # Note: one thing that remains unexplained is why the previous version of
         # this test worked if you had a .cacheMap file of the form:
