@@ -457,3 +457,17 @@ def test_move():
         syn_get_patch.assert_called_once_with("syn123", downloadFile=False)
         syn_store_patch.assert_called_once_with(moved_entity, forceVersion=False)
 
+
+def test_setPermissions__default_permissions():
+    entity = Folder(name="folder", parent="syn456", id="syn1")
+    principalId = 123
+    update_acl = acl = {
+        'resourceAccess': []
+    }
+    permissions_to_update = {u'accessType': ["READ", "DOWNLOAD"], u'principalId': principalId}
+    update_acl['resourceAccess'].append(permissions_to_update)
+    with patch.object(syn, "_getBenefactor", return_value=entity), \
+         patch.object(syn, "_getACL", return_value=acl), \
+         patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl:
+        assert_equal(update_acl, syn.setPermissions(entity, principalId))
+        patch_store_acl.assert_called_once_with(entity, update_acl)

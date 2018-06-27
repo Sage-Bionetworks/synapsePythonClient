@@ -3,117 +3,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 
 import mock
-import sys
-import uuid
 
 from nose.tools import assert_raises, assert_equals
 
 import synapseclient
-import synapseclient.utils as utils
-from synapseclient import Project, File
 from synapseclient.exceptions import SynapseUnmetAccessRestrictions
 import integration
-from integration import schedule_for_cleanup
 
 
 def setup(module):
-
     module.syn = integration.syn
     module.project = integration.project
-    module.other_user = integration.other_user
-
-
-def test_ACL():
-    # Get the user's principalId, which is called ownerId and is
-    # returned as a string, while in the ACL, it's an integer
-    current_user_id = int(syn.getUserProfile()['ownerId'])
-
-    # Verify the validity of the other user
-    profile = syn.getUserProfile(other_user['principalId'])
-
-    # Add permissions on the Project for a new user
-    syn.setPermissions(project, other_user['principalId'], accessType=['READ', 'CREATE', 'UPDATE'])
-
-    # skip this next bit if the other user is the same as the current user
-    assert other_user['principalId'] != current_user_id, \
-        "\nInvalid test: current user and other user are the same. Please run as a " \
-        "different user or modify the [test-authentication] section of .synapseConfig\n"
-
-    # make sure the current user still has a full set of permissions
-    permissions = syn.getPermissions(project, current_user_id)
-    assert 'DELETE' in permissions
-    assert 'CHANGE_PERMISSIONS' in permissions
-    assert 'READ' in permissions
-    assert 'CREATE' in permissions
-    assert 'UPDATE' in permissions
-
-    # check if the permissions granted to the other user stuck
-    permissions = syn.getPermissions(project, other_user['principalId'])
-    assert 'READ' in permissions
-    assert 'CREATE' in permissions
-    assert 'UPDATE' in permissions
-
-    # Make sure it works to set/getPermissions by username (email no longer works)
-    username = other_user['username']
-    syn.setPermissions(project, username, accessType=['READ'])
-    permissions = syn.getPermissions(project, username)
-    assert 'READ' in permissions and len(permissions) == 1
-
-    # test remove user from ACL
-    syn.setPermissions(project, username, None)
-    permissions = syn.getPermissions(project, username)
-    assert permissions == []
-
-    # Get permissions of PUBLIC user
-    permissions = syn.getPermissions(project)
-    assert len(permissions) == 0
-
-
-def test_get_entity_owned_by_another_user():
-    if 'username' not in other_user or 'password' not in other_user:
-        sys.stderr.write('\nWarning: no test-authentication configured. skipping test_get_entity_owned_by_another.\n')
-        return
-
-    try:
-        syn_other = synapseclient.Synapse(skip_checks=True)
-        syn_other.login(other_user['username'], other_user['password'])
-
-        project = Project(name=str(uuid.uuid4()))
-        project = syn_other.store(project)
-
-        filepath = utils.make_bogus_data_file()
-        a_file = File(filepath, parent=project, description='asdf qwer', foo=1234)
-        a_file = syn_other.store(a_file)
-
-        current_user_id = int(syn.getUserProfile()['ownerId'])
-
-        # Update the acl to give the current user read permissions
-        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'DOWNLOAD'], modify_benefactor=True)
-
-        # Test whether the benefactor's ACL was modified
-        assert_equals(set(syn_other.getPermissions(project, current_user_id)), {'READ', 'DOWNLOAD'})
-
-        # Add a new permission to a user with existing permissions
-        # make this change on the entity itself, not its benefactor
-        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'UPDATE', 'DOWNLOAD'],
-                                 modify_benefactor=False, warn_if_inherits=False)
-        permissions = syn_other.getPermissions(a_file, current_user_id)
-        assert 'READ' in permissions
-        assert 'UPDATE' in permissions
-        assert len(permissions) == 3
-
-        syn_other.setPermissions(a_file, current_user_id, accessType=['READ', 'DOWNLOAD'])
-        assert_equals(set(syn_other.getPermissions(a_file, current_user_id)), {'DOWNLOAD', 'READ'})
-
-        other_users_file = syn.get(a_file.id)
-        a_file = syn_other.get(a_file.id)
-
-        assert other_users_file == a_file
-    finally:
-        syn_other.logout()
 
 
 def test_access_restrictions():
@@ -152,14 +54,3 @@ def test_access_restrictions():
 
         # Downloading the file is the default, but is an error if we have unmet access requirements
         assert_raises(synapseclient.exceptions.SynapseUnmetAccessRestrictions, syn.get, 'syn1000002', downloadFile=True)
-
-
-def test_setPermissions__default_permissions():
-    temp_proj = syn.store(Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(temp_proj)
-
-    syn.setPermissions(temp_proj, other_user['username'])
-    permissions = syn.getPermissions(temp_proj, other_user['username'])
-
-    assert_equals({'READ', 'DOWNLOAD'}, set(permissions))
-
