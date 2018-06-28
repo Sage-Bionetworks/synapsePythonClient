@@ -3,7 +3,8 @@ import filecmp
 import math
 import os
 import tempfile
-from nose.tools import assert_raises, assert_true, assert_greater_equal
+from nose.tools import assert_raises, assert_true, assert_greater_equal, assert_less_equal, assert_equals, \
+    assert_is_instance
 from synapseclient.multipart_upload import find_parts_to_upload, count_completed_parts, calculate_part_size,\
     get_file_chunk, _upload_chunk
 from synapseclient.utils import MB, GB, make_bogus_binary_file
@@ -21,40 +22,38 @@ def setup(module):
 
 
 def test_find_parts_to_upload():
-    assert find_parts_to_upload("") == []
-    assert find_parts_to_upload("111111111111111111") == []
-    assert find_parts_to_upload("01010101111111110") == [1, 3, 5, 7, 17]
-    assert find_parts_to_upload("00000") == [1, 2, 3, 4, 5]
+    assert_equals(find_parts_to_upload(""), [])
+    assert_equals(find_parts_to_upload("111111111111111111"), [])
+    assert_equals(find_parts_to_upload("01010101111111110"), [1, 3, 5, 7, 17])
+    assert_equals(find_parts_to_upload("00000"), [1, 2, 3, 4, 5])
 
 
 def test_count_completed_parts():
-    assert count_completed_parts("") == 0
-    assert count_completed_parts("01010101111111110") == 12
-    assert count_completed_parts("00000") == 0
-    assert count_completed_parts("11111") == 5
+    assert_equals(count_completed_parts(""), 0)
+    assert_equals(count_completed_parts("01010101111111110"), 12)
+    assert_equals(count_completed_parts("00000"), 0)
+    assert_equals(count_completed_parts("11111"), 5)
 
 
 def test_calculate_part_size():
-    assert 5*MB <= calculate_part_size(fileSize=3*MB,
-                                       partSize=None, min_part_size=5*MB, max_parts=10000) == 5*MB
-    assert 5*MB <= calculate_part_size(fileSize=6*MB,
-                                       partSize=None, min_part_size=5*MB, max_parts=2) == 5*MB
-    assert 5*MB <= calculate_part_size(fileSize=11*MB,
-                                       partSize=None, min_part_size=5*MB, max_parts=2) == 11*MB / 2.0
-    assert 5*MB <= calculate_part_size(fileSize=100*MB,
-                                       partSize=None, min_part_size=5*MB, max_parts=2) >= (100*MB) / 2.0
-    assert 5*MB <= calculate_part_size(fileSize=11*MB+777,
-                                       partSize=None, min_part_size=5*MB, max_parts=2) >= (11*MB+777) / 2.0
-    assert 5*MB <= calculate_part_size(fileSize=101*GB+777,
-                                       partSize=None, min_part_size=5*MB, max_parts=10000) >= (101*GB+777) / 10000.0
+
+    assert_equals(5*MB, calculate_part_size(fileSize=3*MB, partSize=None, min_part_size=5*MB, max_parts=10000))
+    assert_equals(5*MB, calculate_part_size(fileSize=6*MB, partSize=None, min_part_size=5*MB, max_parts=2))
+    assert_equals(11*MB / 2.0, calculate_part_size(fileSize=11*MB, partSize=None, min_part_size=5*MB, max_parts=2))
+    assert_greater_equal(calculate_part_size(fileSize=100*MB, partSize=None, min_part_size=5*MB, max_parts=2),
+                         (100*MB) / 2.0)
+    assert_greater_equal(calculate_part_size(fileSize=11*MB+777, partSize=None, min_part_size=5*MB, max_parts=2),
+                         (11*MB+777) / 2.0)
+    assert_greater_equal(calculate_part_size(fileSize=101*GB+777, partSize=None, min_part_size=5*MB, max_parts=10000),
+                         (101*GB+777) / 10000.0)
 
     # return value should always be an integer (SYNPY-372)
-    assert type(calculate_part_size(fileSize=3*MB+3391)) is int
-    assert type(calculate_part_size(fileSize=50*GB+4999)) is int
-    assert type(calculate_part_size(fileSize=101*GB+7717, min_part_size=8*MB)) is int
+    assert_is_instance(calculate_part_size(fileSize=3*MB+3391), int)
+    assert_is_instance(calculate_part_size(fileSize=50*GB+4999), int)
+    assert_is_instance(calculate_part_size(fileSize=101*GB+7717, min_part_size=8*MB), int)
 
     # OK
-    assert calculate_part_size(6*MB, partSize=10*MB, min_part_size=5*MB, max_parts=10000) == 10*MB
+    assert_equals(calculate_part_size(6*MB, partSize=10*MB, min_part_size=5*MB, max_parts=10000), 10*MB)
 
     # partSize too small
     assert_raises(ValueError, calculate_part_size, fileSize=100*MB, partSize=1*MB, min_part_size=5*MB, max_parts=10000)
@@ -73,7 +72,7 @@ def test_chunks():
         with tempfile.NamedTemporaryFile(mode='wb', delete=False) as out:
             for i in range(1, nchunks+1):
                 out.write(get_file_chunk(filepath, i, chunksize))
-        assert filecmp.cmp(filepath, out.name)
+        assert_true(filecmp.cmp(filepath, out.name))
     finally:
         if 'filepath' in locals() and filepath:
             os.remove(filepath)

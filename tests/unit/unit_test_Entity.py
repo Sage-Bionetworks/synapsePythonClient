@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 import collections
 from synapseclient.entity import Entity, Project, Folder, File, DockerRepository, split_entity_namespaces, is_container
 from synapseclient.exceptions import *
-from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises
+from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises, assert_in, assert_is_instance
 
 
 def test_Entity():
@@ -40,8 +40,8 @@ def test_Entity():
         # called 'annotations'. Because annotations are open-ended, we
         # might even have an annotations called 'annotations', which gets
         # really confusing.
-        assert_true(isinstance(e.annotations, collections.Mapping))
-        assert_true(isinstance(e['annotations'], collections.Mapping))
+        assert_is_instance(e.annotations, collections.Mapping)
+        assert_is_instance(e['annotations'], collections.Mapping)
         assert_equals(e.properties['annotations'], '/repo/v1/entity/syn1234/annotations')
         assert_equals(e.properties.annotations, '/repo/v1/entity/syn1234/annotations')
         assert_equals(e.annotations.annotations, 'How confusing!')
@@ -71,8 +71,8 @@ def test_Entity():
         e.annotations = {'splat': 'a totally new set of annotations', 'foo': 456}
         assert_equals(e.foo, 456)
         assert_equals(e['foo'], 456)
-        assert_true(isinstance(e.annotations, collections.Mapping))
-        assert_true(isinstance(e['annotations'], collections.Mapping))
+        assert_is_instance(e.annotations, collections.Mapping)
+        assert_is_instance(e['annotations'], collections.Mapping)
         assert_equals(e.annotations.foo, 456)
         assert_equals(e.properties['annotations'], '/repo/v1/entity/syn1234/annotations')
         assert_equals(e.properties.annotations, '/repo/v1/entity/syn1234/annotations')
@@ -94,7 +94,7 @@ def test_subclassing():
 
     foobar = FoobarEntity(123)
     assert_equals(foobar.x, 123)
-    assert_true('x' in foobar.__dict__)
+    assert_in('x', foobar.__dict__)
     assert_equals(foobar.__dict__['x'], 123)
     foobar.id = 'syn999'
     assert_equals(foobar.properties['id'], 'syn999')
@@ -156,13 +156,13 @@ def test_entity_constructors():
     assert_equals(a_file.foo, 'biz')
     assert_equals(a_file.parentId, 'syn1002')
     assert_equals(a_file.contentType, 'application/cattywampus')
-    assert_true('contentType' in a_file._file_handle)
+    assert_in('contentType', a_file._file_handle)
 
 
 def test_property_keys():
-    assert_true('parentId' in File._property_keys)
-    assert_true('versionNumber' in File._property_keys)
-    assert_true('dataFileHandleId' in File._property_keys)
+    assert_in('parentId', File._property_keys)
+    assert_in('versionNumber', File._property_keys)
+    assert_in('dataFileHandleId', File._property_keys)
 
 
 def test_keys():
@@ -171,10 +171,10 @@ def test_keys():
     iter_keys = []
     for key in f:
         iter_keys.append(key)
-    assert_true('parentId' in iter_keys)
-    assert_true('name' in iter_keys)
-    assert_true('foo' in iter_keys)
-    assert_true('concreteType' in iter_keys)
+    assert_in('parentId', iter_keys)
+    assert_in('name', iter_keys)
+    assert_in('foo', iter_keys)
+    assert_in('concreteType', iter_keys)
 
 
 def test_attrs():

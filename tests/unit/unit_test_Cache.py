@@ -10,7 +10,8 @@ import tempfile
 import time
 import random
 from mock import patch
-from nose.tools import assert_equal, assert_is_none, assert_is_not_none, assert_in, assert_false, assert_true
+from nose.tools import assert_equal, assert_is_none, assert_is_not_none, assert_in, assert_false, assert_true,\
+    assert_less
 from collections import OrderedDict
 from multiprocessing import Process
 
@@ -58,8 +59,8 @@ def test_get_cache_dir():
     tmp_dir = tempfile.mkdtemp()
     my_cache = cache.Cache(cache_root_dir=tmp_dir)
     cache_dir = my_cache.get_cache_dir(1234567)
-    assert cache_dir.startswith(tmp_dir)
-    assert cache_dir.endswith("1234567")
+    assert_true(cache_dir.startswith(tmp_dir))
+    assert_true(cache_dir.endswith("1234567"))
 
 
 def test_parse_cache_entry_into_seconds():
@@ -83,11 +84,11 @@ def test_get_modification_time():
 
     # File creation should result in a correct modification time
     _, path = tempfile.mkstemp()
-    assert cache._get_modified_time(path) - time.time() < ALLOWABLE_TIME_ERROR
+    assert_less(cache._get_modified_time(path) - time.time(), ALLOWABLE_TIME_ERROR)
 
     # Directory creation should result in a correct modification time
     path = tempfile.mkdtemp()
-    assert cache._get_modified_time(path) - time.time() < ALLOWABLE_TIME_ERROR
+    assert_less(cache._get_modified_time(path) - time.time(), ALLOWABLE_TIME_ERROR)
 
 
 def test_cache_timestamps():

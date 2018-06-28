@@ -12,12 +12,11 @@ import sys
 import tempfile
 from builtins import zip
 from mock import MagicMock
-from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_sequence_equal
-from nose import SkipTest
+from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_in, assert_sequence_equal,\
+    assert_true, assert_is_none, assert_is_instance, raises, assert_equals
 
 import pandas as pd
 
-from nose.tools import raises, assert_equals
 import unit
 import synapseclient
 from synapseclient import Entity
@@ -56,7 +55,8 @@ def test_cast_values():
                       'columnType': 'LINK'}]
 
     row = ('Finklestein', 'bat', '3.14159', '65535', 'true', 'https://www.synapse.org/')
-    assert cast_values(row, selectColumns) == ['Finklestein', 'bat', 3.14159, 65535, True, 'https://www.synapse.org/']
+    assert_equals(cast_values(row, selectColumns),
+                  ['Finklestein', 'bat', 3.14159, 65535, True, 'https://www.synapse.org/'])
 
     # group by
     selectColumns = [{'name': 'bonk',
@@ -68,22 +68,22 @@ def test_cast_values():
                      {'name': 'SUM(n)',
                       'columnType': 'INTEGER'}]
     row = ('true', '211', '1.61803398875', '1421365')
-    assert cast_values(row, selectColumns) == [True, 211, 1.61803398875, 1421365]
+    assert_equals(cast_values(row, selectColumns), [True, 211, 1.61803398875, 1421365])
 
 
 def test_schema():
     schema = Schema(name='My Table', parent="syn1000001")
 
-    assert not schema.has_columns()
+    assert_false(schema.has_columns())
 
     schema.addColumn(Column(id='1', name='Name', columnType='STRING'))
 
-    assert schema.has_columns()
-    assert schema.properties.columnIds == ['1']
+    assert_true(schema.has_columns())
+    assert_equals(schema.properties.columnIds, ['1'])
 
     schema.removeColumn('1')
-    assert not schema.has_columns()
-    assert schema.properties.columnIds == []
+    assert_false(schema.has_columns())
+    assert_equals(schema.properties.columnIds, [])
 
     schema = Schema(name='Another Table', parent="syn1000001")
 
@@ -92,18 +92,18 @@ def test_schema():
         Column(name='Born', columnType='INTEGER'),
         Column(name='Hipness', columnType='DOUBLE'),
         Column(name='Living', columnType='BOOLEAN')])
-    assert schema.has_columns()
-    assert len(schema.columns_to_store) == 4
-    assert Column(name='Name', columnType='STRING') in schema.columns_to_store
-    assert Column(name='Born', columnType='INTEGER') in schema.columns_to_store
-    assert Column(name='Hipness', columnType='DOUBLE') in schema.columns_to_store
-    assert Column(name='Living', columnType='BOOLEAN') in schema.columns_to_store
+    assert_true(schema.has_columns())
+    assert_equals(len(schema.columns_to_store), 4)
+    assert_in(Column(name='Name', columnType='STRING'), schema.columns_to_store)
+    assert_in(Column(name='Born', columnType='INTEGER'), schema.columns_to_store)
+    assert_in(Column(name='Hipness', columnType='DOUBLE'), schema.columns_to_store)
+    assert_in(Column(name='Living', columnType='BOOLEAN'), schema.columns_to_store)
 
     schema.removeColumn(Column(name='Living', columnType='BOOLEAN'))
-    assert schema.has_columns()
-    assert len(schema.columns_to_store) == 3
-    assert Column(name='Living', columnType='BOOLEAN') not in schema.columns_to_store
-    assert Column(name='Hipness', columnType='DOUBLE') in schema.columns_to_store
+    assert_true(schema.has_columns())
+    assert_equals(len(schema.columns_to_store), 3)
+    assert_not_in(Column(name='Living', columnType='BOOLEAN'), schema.columns_to_store)
+    assert_in(Column(name='Hipness', columnType='DOUBLE'), schema.columns_to_store)
 
 
 def test_RowSetTable():
@@ -131,23 +131,23 @@ def test_RowSetTable():
 
     row_set = RowSet.from_json(row_set_json)
 
-    assert row_set.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    assert row_set.tableId == 'syn2976298'
-    assert len(row_set.headers) == 4
-    assert len(row_set.rows) == 4
+    assert_equals(row_set.etag, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    assert_equals(row_set.tableId, 'syn2976298')
+    assert_equals(len(row_set.headers), 4)
+    assert_equals(len(row_set.rows), 4)
 
     schema = Schema(id="syn2976298", name="Bogus Schema", columns=[353, 355, 3020, 891], parent="syn1000001")
 
     table = Table(schema, row_set)
 
-    assert table.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    assert table.tableId == 'syn2976298'
-    assert len(table.headers) == 4
-    assert len(table.asRowSet().rows) == 4
+    assert_equals(table.etag, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    assert_equals(table.tableId, 'syn2976298')
+    assert_equals(len(table.headers), 4)
+    assert_equals(len(table.asRowSet().rows), 4)
 
     df = table.asDataFrame()
-    assert df.shape == (4, 4)
-    assert all(df['name'] == ['foo', 'bar', 'foo', 'qux'])
+    assert_equals(df.shape, (4, 4))
+    assert_equals(list(df['name']), ['foo', 'bar', 'foo', 'qux'])
 
 
 def test_as_table_columns__with_pandas_DataFrame():
@@ -160,17 +160,17 @@ def test_as_table_columns__with_pandas_DataFrame():
 
     cols = as_table_columns(df)
 
-    cols[0]['name'] == 'foobar'
-    cols[0]['columnType'] == 'STRING'
-    cols[1]['name'] == 'x'
-    cols[1]['columnType'] == 'DOUBLE'
-    cols[1]['name'] == 'n'
-    cols[1]['columnType'] == 'INTEGER'
-    cols[1]['name'] == 'really'
-    cols[1]['columnType'] == 'BOOLEAN'
-    cols[1]['name'] == 'size'
+    assert_equals(cols[0]['name'], 'foobar')
+    assert_equals(cols[0]['columnType'], 'STRING')
+    assert_equals(cols[1]['name'], 'x')
+    assert_equals(cols[1]['columnType'], 'DOUBLE')
+    assert_equals(cols[2]['name'], 'n')
+    assert_equals(cols[2]['columnType'], 'INTEGER')
+    assert_equals(cols[3]['name'], 'really')
+    assert_equals(cols[3]['columnType'], 'BOOLEAN')
+    assert_equals(cols[4]['name'], 'size')
     # TODO: support Categorical when fully supported in Pandas Data Frames
-    cols[1]['columnType'] == 'STRING'
+    assert_equals(cols[4]['columnType'], 'STRING')
 
 
 def test_as_table_columns__with_non_supported_input_type():
@@ -185,14 +185,14 @@ def test_as_table_columns__with_csv_file():
     )
     cols = as_table_columns(string_io)
 
-    cols[0]['name'] == 'Name'
-    cols[0]['columnType'] == 'STRING'
-    cols[1]['name'] == 'Born'
-    cols[1]['columnType'] == 'INTEGER'
-    cols[2]['name'] == 'Hipness'
-    cols[2]['columnType'] == 'DOUBLE'
-    cols[3]['name'] == 'Living'
-    cols[3]['columnType'] == 'BOOLEAN'
+    assert_equals(cols[0]['name'], 'Name')
+    assert_equals(cols[0]['columnType'], 'STRING')
+    assert_equals(cols[1]['name'], 'Born')
+    assert_equals(cols[1]['columnType'], 'INTEGER')
+    assert_equals(cols[2]['name'], 'Hipness')
+    assert_equals(cols[2]['columnType'], 'DOUBLE')
+    assert_equals(cols[3]['name'], 'Living')
+    assert_equals(cols[3]['columnType'], 'STRING')
 
 
 def test_dict_to_table():
@@ -207,7 +207,7 @@ def test_dict_to_table():
     agrs_list = mocked_from_data_frame.call_args[0]
     # getting the second argument
     df_agr = agrs_list[1]
-    assert df_agr.equals(df)
+    assert_true(df_agr.equals(df))
 
 
 def test_pandas_to_table():
@@ -218,10 +218,10 @@ def test_pandas_to_table():
     table = Table(schema, df)
 
     for i, row in enumerate(table):
-        assert row[0] == (i+1)
-        assert row[1] == ["c", "d", "e"][i]
+        assert_equals(row[0], (i+1))
+        assert_equals(row[1], ["c", "d", "e"][i])
 
-    assert len(table) == 3
+        assert_equals(len(table), 3)
 
     # If includeRowIdAndRowVersion=True, include empty row id an versions
     # ROW_ID,ROW_VERSION,a,b
@@ -230,29 +230,29 @@ def test_pandas_to_table():
     # ,,3,e
     table = Table(schema, df, includeRowIdAndRowVersion=True)
     for i, row in enumerate(table):
-        assert row[0] is None
-        assert row[1] is None
-        assert row[2] == (i+1)
+        assert_is_none(row[0])
+        assert_is_none(row[1])
+        assert_equals(row[2], (i+1))
 
     # A dataframe with no row id and version
     df = pd.DataFrame(index=["1_7", "2_7", "3_8"], data=dict(a=[100, 200, 300], b=["c", "d", "e"]))
 
     table = Table(schema, df)
     for i, row in enumerate(table):
-        assert row[0] == ["1", "2", "3"][i]
-        assert row[1] == ["7", "7", "8"][i]
-        assert row[2] == (i+1)*100
-        assert row[3] == ["c", "d", "e"][i]
+        assert_equals(row[0], ["1", "2", "3"][i])
+        assert_equals(row[1], ["7", "7", "8"][i])
+        assert_equals(row[2], (i+1)*100)
+        assert_equals(row[3], ["c", "d", "e"][i])
 
     # A dataframe with row id and version in columns
     df = pd.DataFrame(dict(ROW_ID=["0", "1", "2"], ROW_VERSION=["8", "9", "9"], a=[100, 200, 300], b=["c", "d", "e"]))
 
     table = Table(schema, df)
     for i, row in enumerate(table):
-        assert row[0] == ["0", "1", "2"][i]
-        assert row[1] == ["8", "9", "9"][i]
-        assert row[2] == (i+1)*100
-        assert row[3] == ["c", "d", "e"][i]
+        assert_equals(row[0], ["0", "1", "2"][i])
+        assert_equals(row[1], ["8", "9", "9"][i])
+        assert_equals(row[2], (i+1)*100)
+        assert_equals(row[3], ["c", "d", "e"][i])
 
 
 def test_csv_table():
@@ -290,7 +290,7 @@ def test_csv_table():
                 writer.writerow(row)
 
         table = Table(schema1, filename)
-        assert isinstance(table, CsvFileTable)
+        assert_is_instance(table, CsvFileTable)
 
         # need to set column headers to read a CSV file
         table.setColumnHeaders(
@@ -300,21 +300,21 @@ def test_csv_table():
 
         # test iterator
         for table_row, expected_row in zip(table, data):
-            assert table_row == expected_row
+            assert_equals(table_row, expected_row)
 
         # test asRowSet
         rowset = table.asRowSet()
         for rowset_row, expected_row in zip(rowset.rows, data):
-            assert rowset_row['values'] == expected_row[2:]
-            assert rowset_row['rowId'] == expected_row[0]
-            assert rowset_row['versionNumber'] == expected_row[1]
+            assert_equals(rowset_row['values'], expected_row[2:])
+            assert_equals(rowset_row['rowId'], expected_row[0])
+            assert_equals(rowset_row['versionNumber'], expected_row[1])
 
         df = table.asDataFrame()
-        assert all(df['Name'] == [row[2] for row in data])
-        assert all(df['Born'] == [row[3] for row in data])
-        assert all(df['Living'] == [row[5] for row in data])
-        assert all(df.index == ['%s_%s' % tuple(row[0:2]) for row in data])
-        assert df.shape == (8, 4)
+        assert_equals(list(df['Name']), [row[2] for row in data])
+        assert_equals(list(df['Born']), [row[3] for row in data])
+        assert_equals(list(df['Living']), [row[5] for row in data])
+        assert_equals(list(df.index), ['%s_%s' % tuple(row[0:2]) for row in data])
+        assert_equals(df.shape, (8, 4))
 
     except Exception:
         if filename:
@@ -349,16 +349,16 @@ def test_list_of_rows_table():
     table = Table(schema1, data, headers=[SelectColumn.from_column(col) for col in cols])
 
     for table_row, expected_row in zip(table, data):
-        assert table_row == expected_row
+        assert_equals(table_row, expected_row)
 
     rowset = table.asRowSet()
     for rowset_row, expected_row in zip(rowset.rows, data):
-        assert rowset_row['values'] == expected_row
+        assert_equals(rowset_row['values'], expected_row)
 
     table.columns = cols
 
     df = table.asDataFrame()
-    assert all(df['Name'] == [r[0] for r in data])
+    assert_equals(list(df['Name']), [r[0] for r in data])
 
 
 def test_aggregate_query_result_to_data_frame():
@@ -403,25 +403,26 @@ def test_aggregate_query_result_to_data_frame():
                               query="select State, min(Born), count(State), avg(Hipness) from syn2757980 "
                                     "group by Living")
 
-    assert result.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    assert result.tableId == 'syn2757980'
-    assert len(result.headers) == 4
+    assert_equals(result.etag, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    assert_equals(result.tableId, 'syn2757980')
+    assert_equals(len(result.headers), 4)
 
     rs = result.asRowSet()
-    assert len(rs.rows) == 4
+    assert_equals(len(rs.rows), 4)
 
     result = TableQueryResult(synapse=MockSynapse(),
                               query="select State, min(Born), count(State), avg(Hipness) from syn2757980"
                                     " group by Living")
     df = result.asDataFrame()
 
-    assert df.shape == (4, 4)
-    assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
+    assert_equals(df.shape, (4, 4))
+    assert_equals(list(df['State'].values), ['PA', 'MO', 'DC', 'NC'])
 
     # check integer, double and boolean types after PLFM-3073 is fixed
-    assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + str(df['MIN(Born)'].values)
-    assert all(df['COUNT(State)'].values == [2, 3, 1, 1])
-    assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
+    assert_equals(list(df['MIN(Born)'].values), [1935, 1928, 1929, 1926],
+                  "Unexpected values" + str(df['MIN(Born)'].values))
+    assert_equals(list(df['COUNT(State)'].values), [2, 3, 1, 1])
+    assert_equals(list(df['AVG(Hipness)'].values), [1.1, 2.38, 3.14, 4.38])
 
 
 def test_waitForAsync():
@@ -692,9 +693,9 @@ def test_build_table__with_pandas_DataFrame():
     table = build_table("test", "syn123", df)
 
     for i, row in enumerate(table):
-        assert row[0] == (i+1)
-        assert row[1] == ["c", "d", "e"][i]
-    assert len(table) == 3
+        assert_equals(row[0], (i+1))
+        assert_equals(row[1], ["c", "d", "e"][i])
+    assert_equals(len(table), 3)
     headers = [
         {'name': 'a', 'columnType': 'INTEGER'},
         {'name': 'b', 'columnType': 'STRING'}
@@ -713,9 +714,9 @@ def test_build_table__with_csv():
          patch.object(io, "open", return_value=string_io):
         table = build_table("test", "syn123", "some_file_name")
         for col, row in enumerate(table):
-            assert row[0] == (col + 1)
-            assert row[1] == ["c", "d", "e"][col]
-        assert len(table) == 3
+            assert_equals(row[0], (col + 1))
+            assert_equals(row[1], ["c", "d", "e"][col])
+        assert_equals(len(table), 3)
         headers = [
             {'name': 'a', 'columnType': 'INTEGER'},
             {'name': 'b', 'columnType': 'STRING'}

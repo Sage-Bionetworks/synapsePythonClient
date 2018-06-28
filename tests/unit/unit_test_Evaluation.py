@@ -1,4 +1,4 @@
-from nose.tools import assert_raises
+from nose.tools import assert_raises, assert_equals
 
 from synapseclient.evaluation import Evaluation, Submission
 
@@ -12,9 +12,9 @@ def test_Evaluation():
 
     # Assert that the values are
     ev = Evaluation(name='foobar2', description='bar', status='OPEN', contentSource='syn1234')
-    assert(ev['name'] == ev.name)
-    assert(ev['description'] == ev.description)
-    assert(ev['status'] == ev.status)
+    assert_equals(ev['name'], ev.name)
+    assert_equals(ev['description'], ev.description)
+    assert_equals(ev['status'], ev.status)
 
 
 def test_Submission():

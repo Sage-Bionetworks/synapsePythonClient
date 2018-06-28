@@ -5,7 +5,8 @@ import base64
 from mock import patch, call, create_autospec
 
 import unit
-from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none
+from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
+    assert_not_equals, assert_true
 
 import synapseclient
 from synapseclient import Evaluation, File, Folder
@@ -180,19 +181,19 @@ class TestPrivateGetWithEntityBundle:
 
         assert_equal(e.name, bundle["entity"]["name"])
         assert_equal(e.parentId, bundle["entity"]["parentId"])
-        assert bundle["fileHandles"][0]["fileName"] in e.files
+        assert_in(bundle["fileHandles"][0]["fileName"], e.files)
 
         # 3. ----------------------------------------------------------------------
         # download to another location
         temp_dir2 = tempfile.mkdtemp()
-        assert temp_dir2 != temp_dir1
+        assert_not_equals(temp_dir2, temp_dir1)
         e = syn._getWithEntityBundle(entityBundle=bundle,
                                      downloadLocation=temp_dir2,
                                      ifcollision="overwrite.local")
 
         assert_in(bundle["fileHandles"][0]["fileName"], e.files)
-        assert e.path is not None
-        assert utils.equal_paths(os.path.dirname(e.path), temp_dir2)
+        assert_is_not_none(e.path)
+        assert_true(utils.equal_paths(os.path.dirname(e.path), temp_dir2))
 
         # 4. ----------------------------------------------------------------------
         # test preservation of local state

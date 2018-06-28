@@ -7,7 +7,7 @@ from __future__ import unicode_literals
 
 from collections import OrderedDict
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equals, assert_false, assert_true
+from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_greater, assert_is_instance
 from math import pi
 
 from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations,\
@@ -19,9 +19,9 @@ def test_annotations():
     """Test string annotations"""
     a = dict(foo='bar', zoo=['zing', 'zaboo'], species='Platypus')
     sa = to_synapse_annotations(a)
-    assert sa['stringAnnotations']['foo'] == ['bar']
-    assert sa['stringAnnotations']['zoo'] == ['zing', 'zaboo']
-    assert sa['stringAnnotations']['species'] == ['Platypus']
+    assert_equals(sa['stringAnnotations']['foo'], ['bar'])
+    assert_equals(sa['stringAnnotations']['zoo'], ['zing', 'zaboo'])
+    assert_equals(sa['stringAnnotations']['species'], ['Platypus'])
 
 
 def test_annotation_name_collision():
@@ -40,7 +40,7 @@ def test_annotation_name_collision():
     sa[u'id'] = u'syn47396'
 
     a = from_synapse_annotations(sa)
-    assert a['tissueType'] == ['Blood']
+    assert_equals(a['tissueType'], ['Blood'])
 
 
 def test_more_annotations():
@@ -52,21 +52,21 @@ def test_more_annotations():
              test_boolean=True,
              test_mo_booleans=[False, True, True, False])
     sa = to_synapse_annotations(a)
-    assert sa['longAnnotations']['foo'] == [1234]
-    assert sa['doubleAnnotations']['zoo'] == [123.1, 456.2, 789.3]
-    assert sa['stringAnnotations']['species'] == ['Platypus']
-    assert sa['stringAnnotations']['test_boolean'] == ['true']
-    assert sa['stringAnnotations']['test_mo_booleans'] == ['false', 'true', 'true', 'false']
+    assert_equals(sa['longAnnotations']['foo'], [1234])
+    assert_equals(sa['doubleAnnotations']['zoo'], [123.1, 456.2, 789.3])
+    assert_equals(sa['stringAnnotations']['species'], ['Platypus'])
+    assert_equals(sa['stringAnnotations']['test_boolean'], ['true'])
+    assert_equals(sa['stringAnnotations']['test_mo_booleans'], ['false', 'true', 'true', 'false'])
 
     # this part of the test is kinda fragile. It it breaks again, it should be removed
     bdays = [utils.from_unix_epoch_time(t) for t in sa['dateAnnotations']['birthdays']]
-    assert all([t in bdays for t in [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)]])
+    assert_true(all([t in bdays for t in [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)]]))
 
 
 def test_annotations_unicode():
     a = {'files': [u'tmp6y5tVr.txt'], 'cacheDir': u'/Users/chris/.synapseCache/python/syn1809087', u'foo': 1266}
     sa = to_synapse_annotations(a)
-    assert sa['stringAnnotations']['cacheDir'] == [u'/Users/chris/.synapseCache/python/syn1809087']
+    assert_equals(sa['stringAnnotations']['cacheDir'], [u'/Users/chris/.synapseCache/python/syn1809087'])
 
 
 def test_round_trip_annotations():
@@ -83,9 +83,9 @@ def test_mixed_annotations():
     a = dict(foo=[1, 'a', Datetime(1969, 4, 28, 11, 47)])
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
-    assert a2['foo'][0] == '1'
-    assert a2['foo'][1] == 'a'
-    assert a2['foo'][2].find('1969') > -1
+    assert_equals(a2['foo'][0], '1')
+    assert_equals(a2['foo'][1], 'a')
+    assert_greater(a2['foo'][2].find('1969'), -1)
 
 
 def test_idempotent_annotations():
@@ -95,7 +95,7 @@ def test_idempotent_annotations():
     a2 = dict()
     a2.update(sa)
     sa2 = to_synapse_annotations(a2)
-    assert sa == sa2
+    assert_equals(sa, sa2)
 
 
 def test_submission_status_annotations_round_trip():
@@ -115,7 +115,7 @@ def test_submission_status_annotations_round_trip():
         if key == 'lucky':
             assert_equals(value, 13)
         if key == 'birthday':
-            assert utils.from_unix_epoch_time(value) == april_28_1969
+            assert_equals(utils.from_unix_epoch_time(value), april_28_1969)
 
     assert_equals({'pi'}, set([kvp['key'] for kvp in sa['doubleAnnos']]))
     assert_equals({pi}, set([kvp['value'] for kvp in sa['doubleAnnos']]))
@@ -143,7 +143,7 @@ def test_submission_status_double_annos():
     # test that the double annotation 'three':3 is interpreted as a floating
     # point 3.0 rather than an integer 3
     annotations = from_submission_status_annotations(ssa)
-    assert_true(isinstance(annotations['three'], float))
+    assert_is_instance(annotations['three'], float)
     ssa2 = to_submission_status_annotations(annotations)
     assert_equals({'three', 'pi'}, set([kvp['key'] for kvp in ssa2['doubleAnnos']]))
     assert_equals({'lucky'}, set([kvp['key'] for kvp in ssa2['longAnnos']]))
