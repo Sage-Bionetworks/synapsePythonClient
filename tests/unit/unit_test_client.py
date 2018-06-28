@@ -97,6 +97,23 @@ class TestLogin:
 @patch('synapseclient.Synapse._downloadFileHandle')
 class TestPrivateGetWithEntityBundle:
 
+    def test_getWithEntityBundle__no_DOWNLOAD(self, download_file_mock, get_file_URL_and_metadata_mock):
+        bundle = {
+            'entity': {
+                'id': 'syn10101',
+                'name': 'anonymous',
+                'dataFileHandleId': '-1337',
+                'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                'parentId': 'syn12345'},
+            'fileHandles': [],
+            'annotations': {}}
+
+        with patch.object(syn.logger, "warning") as mocked_warn:
+            entity_no_download = syn._getWithEntityBundle(entityBundle=bundle)
+            mocked_warn.assert_called_once()
+            assert_is_none(entity_no_download.path)
+
+
     def test_getWithEntityBundle(self, download_file_mock, get_file_URL_and_metadata_mock):
         # Note: one thing that remains unexplained is why the previous version of
         # this test worked if you had a .cacheMap file of the form:
@@ -440,3 +457,18 @@ def test_move():
         syn_get_patch.assert_called_once_with("syn123", downloadFile=False)
         syn_store_patch.assert_called_once_with(moved_entity, forceVersion=False)
 
+
+def test_setPermissions__default_permissions():
+    entity = Folder(name="folder", parent="syn456", id="syn1")
+    principalId = 123
+    acl = {
+        'resourceAccess': []
+    }
+    update_acl = {
+        'resourceAccess': [{u'accessType': ["READ", "DOWNLOAD"], u'principalId': principalId}]
+    }
+    with patch.object(syn, "_getBenefactor", return_value=entity), \
+         patch.object(syn, "_getACL", return_value=acl), \
+         patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl:
+        assert_equal(update_acl, syn.setPermissions(entity, principalId))
+        patch_store_acl.assert_called_once_with(entity, update_acl)

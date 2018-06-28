@@ -6,18 +6,14 @@ from __future__ import unicode_literals
 
 import tempfile
 import time
-import os
 import re
-import filecmp
 import uuid
 import random
 from nose.tools import assert_raises, assert_false
-from nose import SkipTest
 
-import synapseclient.client as client
 from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
-from synapseclient.entity import Project, File
+from synapseclient.entity import File
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
 from synapseclient.team import Team
 
@@ -26,10 +22,8 @@ from integration import schedule_for_cleanup
 
 
 def setup(module):
-
     module.syn = integration.syn
     module.project = integration.project
-    module.other_user = integration.other_user
 
 
 def test_evaluations():
@@ -89,47 +83,6 @@ def test_evaluations():
         # Test getSubmissions with no Submissions (SYNR-453)
         submissions = syn.getSubmissions(ev)
         assert len(list(submissions)) == 0
-
-        # -- Get a Submission attachment belonging to another user (SYNR-541) --
-        # See if the configuration contains test authentication
-        if other_user['username']:
-
-            # Login as the test user
-            testSyn = client.Synapse(skip_checks=True)
-            testSyn.login(email=other_user['username'], password=other_user['password'])
-            testOwnerId = int(testSyn.getUserProfile()['ownerId'])
-
-            # Make a project
-            other_project = Project(name=str(uuid.uuid4()))
-            other_project = testSyn.createEntity(other_project)
-
-            # Give the test user permission to read and join the evaluation
-            syn._allowParticipation(ev, testOwnerId)
-
-            # Make a file to submit
-            with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
-                filename = f.name
-                f.write(str(random.gauss(0, 1)) + '\n')
-
-            f = File(filename, parentId=other_project.id,
-                     name='Submission 999',
-                     description="Haha!  I'm inaccessible...")
-            entity = testSyn.store(f)
-
-            # test submission by evaluation ID
-            submission = testSyn.submit(ev.id, entity, submitterAlias="My Nickname")
-
-            # Mess up the cached file so that syn._getWithEntityBundle must download again
-            os.utime(filename, (0, 0))
-
-            # Grab the Submission as the original user
-            fetched = syn.getSubmission(submission['id'])
-            assert os.path.exists(fetched['filePath'])
-
-            # make sure the fetched file is the same as the original (PLFM-2666)
-            assert filecmp.cmp(filename, fetched['filePath'])
-        else:
-            raise SkipTest('Skipping test for SYNR-541: No [test-authentication] in %s' % client.CONFIG_FILE)
 
         # Increase this to fully test paging by getEvaluationSubmissions
         # not to be less than 2

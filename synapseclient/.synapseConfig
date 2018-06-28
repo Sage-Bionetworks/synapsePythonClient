@@ -48,11 +48,6 @@
 ## If this section is specified, then the synapseclient will print out debug information
 #[debug]
 
-## Some integration tests require a second Synapse user. This should only be necessary for developers
-#[test-authentication]
-#username = <username>
-#password = <password>
-#principalid = <userId>
 
 ## Configuring these will cause the Python client to use these as Synapse service endpoints instead of the default prod endpoints.
 #[endpoints]

@@ -15,7 +15,7 @@ from mock import patch
 import synapseclient
 from synapseclient import Activity, Project, Folder, File, Link, DockerRepository
 from synapseclient.exceptions import *
-from synapseclient.upload_functions import create_external_file_handle, upload_synapse_s3
+from synapseclient.upload_functions import create_external_file_handle
 
 import integration
 from nose.tools import assert_false, assert_equals
@@ -25,7 +25,6 @@ from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 def setup(module):
     module.syn = integration.syn
     module.project = integration.project
-    module.other_user = integration.other_user
 
 
 def test_Entity():
@@ -548,24 +547,6 @@ def test_store_DockerRepository():
     assert_is_instance(docker_repo, DockerRepository)
     assert_false(docker_repo.isManaged)
     assert_equals(repo_name, docker_repo.repositoryName)
-
-
-# TODO: this test should be rewritten as unit test to test the warning
-def test_getWithEntityBundle__no_DOWNLOAD_permission_warning():
-    other_syn = synapseclient.login(other_user['username'], other_user['password'])
-
-    # make a temp data file
-    path = utils.make_bogus_data_file()
-    schedule_for_cleanup(path)
-
-    # upload to synapse and set permissions to READ only
-    entity = syn.store(File(path, parent=project))
-    syn.setPermissions(entity, other_user['username'], accessType=['READ'])
-    # try to download and check that nothing wad downloaded and a warning message was printed
-    with patch.object(other_syn.logger, "warning") as mocked_warn:
-        entity_no_download = other_syn.get(entity['id'])
-        mocked_warn.assert_called_once()
-        assert_is_none(entity_no_download.path)
 
 
 def test_store__changing_externalURL_by_changing_path():

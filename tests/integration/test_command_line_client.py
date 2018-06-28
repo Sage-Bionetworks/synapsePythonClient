@@ -18,7 +18,6 @@ from nose.tools import assert_raises, assert_equals, assert_true
 import shutil
 from mock import patch
 import synapseclient
-import synapseclient.client as client
 import synapseclient.utils as utils
 import synapseclient.__main__ as cmdline
 from synapseclient.evaluation import Evaluation
@@ -45,7 +44,6 @@ def setup_module(module):
     module.desc_filename = _create_temp_file_with_cleanup(module.description_text)
     module.update_description_text = \
         "'SOMEBODY ONCE TOLD ME THE WORLD WAS GONNA ROLL ME I AINT THE SHARPEST TOOL IN THE SHED'"
-    module.other_user = integration.other_user
 
 
 def run(*command, **kwargs):
@@ -741,19 +739,18 @@ def test_table_query():
 
 
 def test_login():
-    if not other_user['username']:
-        raise SkipTest("Skipping test for login command: No [test-authentication] in %s" % client.CONFIG_FILE)
     alt_syn = synapseclient.Synapse()
+    username = "username"
+    password = "password"
     with patch.object(alt_syn, "login") as mock_login, \
             patch.object(alt_syn, "getUserProfile", return_value={"userName": "test_user", "ownerId": "ownerId"})\
                     as mock_get_user_profile:
         run('synapse', '--skip-checks', 'login',
-            '-u', other_user['username'],
-            '-p', other_user['password'],
+            '-u', username,
+            '-p', password,
             '--rememberMe',
             syn=alt_syn)
-        mock_login.assert_called_once_with(other_user['username'], other_user['password'], forced=True, rememberMe=True,
-                                           silent=False)
+        mock_login.assert_called_once_with(username, password, forced=True, rememberMe=True, silent=False)
         mock_get_user_profile.assert_called_once_with()
 
 

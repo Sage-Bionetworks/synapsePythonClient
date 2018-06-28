@@ -36,7 +36,6 @@ from integration import schedule_for_cleanup
 def setup(module):
     module.syn = integration.syn
     module.project = integration.project
-    module.other_user = integration.other_user
 
 
 def test_login():
