@@ -161,27 +161,27 @@ def test_as_table_columns__with_pandas_DataFrame():
     cols = as_table_columns(df)
 
     expected_columns = [
-        {'defaultValue': u'',
-         'columnType': u'STRING',
-         'name': u'foobar',
+        {'defaultValue': '',
+         'columnType': 'STRING',
+         'name': 'foobar',
          'maximumSize': 30,
+         'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'columnType': 'DOUBLE',
+         'name': 'x',
          u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
-        {'columnType': u'DOUBLE',
-         'name': u'x',
-         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
-        {'columnType': u'INTEGER',
-         'name': u'n',
-         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
-        {'columnType': u'BOOLEAN',
-         'name': u'really',
-         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
-        {'defaultValue': u'',
-         'columnType': u'STRING',
-         'name': u'size',
+        {'columnType': 'INTEGER',
+         'name': 'n',
+         'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'columnType': 'BOOLEAN',
+         'name': 'really',
+         'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'defaultValue': '',
+         'columnType': 'STRING',
+         'name': 'size',
          'maximumSize': 30,
-         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'}
+         'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'}
     ]
-    assert_equals(set(expected_columns), set(cols))
+    assert_equals(expected_columns, cols)
 
 
 def test_as_table_columns__with_non_supported_input_type():
