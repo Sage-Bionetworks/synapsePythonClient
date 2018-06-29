@@ -159,18 +159,29 @@ def test_as_table_columns__with_pandas_DataFrame():
         'size': ('small', 'large', 'medium', 'medium', 'large')})
 
     cols = as_table_columns(df)
-    print(cols)
-    assert_equals(cols[0]['name'], 'foobar')
-    assert_equals(cols[0]['columnType'], 'STRING')
-    assert_equals(cols[1]['name'], 'x')
-    assert_equals(cols[1]['columnType'], 'DOUBLE')
-    assert_equals(cols[2]['name'], 'n')
-    assert_equals(cols[2]['columnType'], 'INTEGER')
-    assert_equals(cols[3]['name'], 'really')
-    assert_equals(cols[3]['columnType'], 'BOOLEAN')
-    assert_equals(cols[4]['name'], 'size')
-    # TODO: support Categorical when fully supported in Pandas Data Frames
-    assert_equals(cols[4]['columnType'], 'STRING')
+
+    expected_columns = [
+        {'defaultValue': u'',
+         'columnType': u'STRING',
+         'name': u'foobar',
+         'maximumSize': 30,
+         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'columnType': u'DOUBLE',
+         'name': u'x',
+         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'columnType': u'INTEGER',
+         'name': u'n',
+         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'columnType': u'BOOLEAN',
+         'name': u'really',
+         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'defaultValue': u'',
+         'columnType': u'STRING',
+         'name': u'size',
+         'maximumSize': 30,
+         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'}
+    ]
+    assert_equals(set(expected_columns), set(cols))
 
 
 def test_as_table_columns__with_non_supported_input_type():
