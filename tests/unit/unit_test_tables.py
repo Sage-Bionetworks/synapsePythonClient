@@ -160,7 +160,6 @@ def test_as_table_columns__with_pandas_DataFrame():
 
     cols = as_table_columns(df)
     print(cols)
-    print(cols[1])
     assert_equals(cols[0]['name'], 'foobar')
     assert_equals(cols[0]['columnType'], 'STRING')
     assert_equals(cols[1]['name'], 'x')
