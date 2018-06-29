@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 
 import os
 import uuid
-from nose.tools import assert_raises, assert_equal
+from nose.tools import assert_raises, assert_equal, assert_in, assert_equals, assert_true
 
 from synapseclient.exceptions import *
 from synapseclient import Project, Wiki
@@ -66,17 +66,18 @@ def test_wikiAttachment():
     wiki['markdown'] = wiki['markdown'] + "\nNew stuff here!!!\n"
     syn.store(wiki)
     wiki = syn.getWiki(project)
-    assert wiki['title'] == 'A New Title'
-    assert wiki['markdown'].endswith("\nNew stuff here!!!\n")
+    assert_equals(wiki['title'], 'A New Title')
+    assert_true(wiki['markdown'].endswith("\nNew stuff here!!!\n"))
 
     # Check the Wiki's metadata
     headers = syn.getWikiHeaders(project)
-    assert len(headers) == 2
-    assert headers[0]['title'] in (wiki['title'], subwiki['title'])
+    assert_equals(len(headers), 2)
+    assert_in(headers[0]['title'], (wiki['title'], subwiki['title']))
 
     file_handles = syn.getWikiAttachments(wiki)
     file_names = [fh['fileName'] for fh in file_handles]
-    assert all(os.path.basename(fn) in file_names for fn in [filename, attachname])
+    for fn in [filename, attachname]:
+        assert_in(os.path.basename(fn), file_names)
 
     syn.delete(subwiki)
     syn.delete(wiki)
@@ -108,9 +109,9 @@ def test_wiki_version():
     wiki = syn.store(wiki)
 
     w1 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=0)
-    assert "version 1" in w1.title
-    assert "version 1" in w1.markdown
+    assert_in("version 1", w1.title)
+    assert_in("version 1", w1.markdown)
 
     w2 = syn.getWiki(owner=wiki.ownerId, subpageId=wiki.id, version=1)
-    assert "version 2" in w2.title
-    assert "version 2" in w2.markdown
+    assert_in("version 2", w2.title)
+    assert_in("version 2", w2.markdown)

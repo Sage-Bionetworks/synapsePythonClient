@@ -9,7 +9,7 @@ import time
 import re
 import uuid
 import random
-from nose.tools import assert_raises, assert_false
+from nose.tools import assert_raises, assert_false, assert_is_not_none, assert_true, assert_equals, assert_in
 
 from synapseclient.exceptions import *
 from synapseclient.evaluation import Evaluation
@@ -37,31 +37,31 @@ def test_evaluations():
         
         # -- Get the Evaluation by name
         evalNamed = syn.getEvaluationByName(name)
-        assert ev['contentSource'] == evalNamed['contentSource']
-        assert ev['createdOn'] == evalNamed['createdOn']
-        assert ev['description'] == evalNamed['description']
-        assert ev['etag'] == evalNamed['etag']
-        assert ev['id'] == evalNamed['id']
-        assert ev['name'] == evalNamed['name']
-        assert ev['ownerId'] == evalNamed['ownerId']
-        assert ev['status'] == evalNamed['status']
+        assert_equals(ev['contentSource'], evalNamed['contentSource'])
+        assert_equals(ev['createdOn'], evalNamed['createdOn'])
+        assert_equals(ev['description'], evalNamed['description'])
+        assert_equals(ev['etag'], evalNamed['etag'])
+        assert_equals(ev['id'], evalNamed['id'])
+        assert_equals(ev['name'], evalNamed['name'])
+        assert_equals(ev['ownerId'], evalNamed['ownerId'])
+        assert_equals(ev['status'], evalNamed['status'])
         
         # -- Get the Evaluation by project
         evalProj = syn.getEvaluationByContentSource(project)
         evalProj = next(evalProj)
-        assert ev['contentSource'] == evalProj['contentSource']
-        assert ev['createdOn'] == evalProj['createdOn']
-        assert ev['description'] == evalProj['description']
-        assert ev['etag'] == evalProj['etag']
-        assert ev['id'] == evalProj['id']
-        assert ev['name'] == evalProj['name']
-        assert ev['ownerId'] == evalProj['ownerId']
-        assert ev['status'] == evalProj['status']
+        assert_equals(ev['contentSource'], evalProj['contentSource'])
+        assert_equals(ev['createdOn'], evalProj['createdOn'])
+        assert_equals(ev['description'], evalProj['description'])
+        assert_equals(ev['etag'], evalProj['etag'])
+        assert_equals(ev['id'], evalProj['id'])
+        assert_equals(ev['name'], evalProj['name'])
+        assert_equals(ev['ownerId'], evalProj['ownerId'])
+        assert_equals(ev['status'], evalProj['status'])
         
         # Update the Evaluation
         ev['status'] = 'OPEN'
         ev = syn.store(ev, createOrUpdate=True)
-        assert ev.status == 'OPEN'
+        assert_equals(ev.status, 'OPEN')
 
         # Add the current user as a participant
         myOwnerId = int(syn.getUserProfile()['ownerId'])
@@ -74,15 +74,15 @@ def test_evaluations():
 
         # test getPermissions
         permissions = syn.getPermissions(ev, 273949)
-        assert ['READ'] == permissions
+        assert_equals(['READ'], permissions)
 
         permissions = syn.getPermissions(ev, syn.getUserProfile()['ownerId'])
-        assert [p in permissions for p in ['READ', 'CREATE', 'DELETE', 'UPDATE', 'CHANGE_PERMISSIONS',
-                                           'READ_PRIVATE_SUBMISSION']]
+        for p in ['READ', 'CREATE', 'DELETE', 'UPDATE', 'CHANGE_PERMISSIONS', 'READ_PRIVATE_SUBMISSION']:
+            assert_in(p, permissions)
 
         # Test getSubmissions with no Submissions (SYNR-453)
         submissions = syn.getSubmissions(ev)
-        assert len(list(submissions)) == 0
+        assert_equals(len(list(submissions)), 0)
 
         # Increase this to fully test paging by getEvaluationSubmissions
         # not to be less than 2
@@ -102,7 +102,7 @@ def test_evaluations():
         # Score the submissions
         submissions = syn.getSubmissions(ev, limit=num_of_submissions-1)
         for submission in submissions:
-            assert re.match('Submission \d+', submission['name'])
+            assert_true(re.match('Submission \d+', submission['name']))
             status = syn.getSubmissionStatus(submission)
             status.score = random.random()
             if submission['name'] == 'Submission 01':
@@ -128,8 +128,8 @@ def test_evaluations():
         # Test that the annotations stuck
         for submission, status in syn.getSubmissionBundles(ev):
             a = from_submission_status_annotations(status.annotations)
-            assert a['foo'] == 'bar'
-            assert a['bogosity'] == bogosity[submission.id]
+            assert_equals(a['foo'], 'bar')
+            assert_equals(a['bogosity'], bogosity[submission.id])
             for kvp in status.annotations['longAnnos']:
                 if kvp['key'] == 'bogosity':
                     assert_false(kvp['isPrivate'])
@@ -142,11 +142,11 @@ def test_evaluations():
         while attempts > 0:
             try:
                 results = syn.restGET("/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s" % ev.id)
-                assert len(results['rows']) == num_of_submissions+1
+                assert_equals(len(results['rows']), num_of_submissions+1)
 
                 results = syn.restGET(
                     "/evaluation/submission/query?query=SELECT+*+FROM+evaluation_%s where bogosity > 200" % ev.id)
-                assert len(results['rows']) == num_of_submissions
+                assert_equals(len(results['rows']), num_of_submissions)
             except AssertionError as ex1:
                 attempts -= 1
                 time.sleep(2)
@@ -155,8 +155,8 @@ def test_evaluations():
 
         # Test that we can retrieve submissions with a specific status
         invalid_submissions = list(syn.getSubmissions(ev, status='INVALID'))
-        assert len(invalid_submissions) == 1, len(invalid_submissions)
-        assert invalid_submissions[0]['name'] == 'Submission 01'
+        assert_equals(len(invalid_submissions), 1, len(invalid_submissions))
+        assert_equals(invalid_submissions[0]['name'], 'Submission 01')
 
     finally:
         # Clean up
@@ -180,7 +180,7 @@ def test_teams():
     schedule_for_cleanup(team)
 
     found_team = syn.getTeam(team.id)
-    assert team == found_team
+    assert_equals(team, found_team)
 
     p = syn.getUserProfile()
     found = None
@@ -189,7 +189,7 @@ def test_teams():
             found = m
             break
 
-    assert found is not None, "Couldn't find user {} in team".format(p.username)
+    assert_is_not_none(found, "Couldn't find user {} in team".format(p.username))
 
     # needs to be retried 'cause appending to the search index is asynchronous
     tries = 10
@@ -202,6 +202,6 @@ def test_teams():
             tries -= 1
             if tries > 0:
                 time.sleep(1)
-    assert team == found_team
+    assert_equals(team, found_team)
 
 

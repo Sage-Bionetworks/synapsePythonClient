@@ -17,6 +17,8 @@ from synapseclient.multipart_upload import multipart_upload, multipart_upload_st
 import synapseclient.multipart_upload as multipart_upload_module
 import tempfile
 
+from nose.tools import assert_equals, assert_true
+
 import integration
 from integration import schedule_for_cleanup
 
@@ -39,7 +41,7 @@ def test_round_trip():
         schedule_for_cleanup(tmp_path)
 
         junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-        assert filecmp.cmp(filepath, junk.path)
+        assert_true(filecmp.cmp(filepath, junk.path))
 
     finally:
         try:
@@ -83,7 +85,7 @@ def test_randomly_failing_parts():
         schedule_for_cleanup(tmp_path)
 
         junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-        assert filecmp.cmp(filepath, junk.path)
+        assert_true(filecmp.cmp(filepath, junk.path))
 
     finally:
         # Un-mock _put_chunk
@@ -129,5 +131,5 @@ def test_multipart_upload_big_string():
     with open(junk.path, encoding='utf-8') as f:
         retrieved_text = f.read()
 
-    assert retrieved_text == text
+    assert_equals(retrieved_text, text)
 

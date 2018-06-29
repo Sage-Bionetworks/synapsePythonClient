@@ -16,7 +16,8 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true
+from pandas.util.testing import assert_frame_equal
 from datetime import datetime
 from mock import patch
 from collections import namedtuple
@@ -82,7 +83,7 @@ def test_create_and_update_file_view():
     view_dict = list(csv.DictReader(io.open(view.filepath, encoding="utf-8", newline='')))
 
     # check that all of the annotations were retrieved from the view
-    assert set(file_annotations.keys()).issubset(set(view_dict[0].keys()))
+    assert_true(set(file_annotations.keys()).issubset(set(view_dict[0].keys())))
 
     updated_a_file = syn.get(a_file.id, downloadFile=False)
 
@@ -157,7 +158,7 @@ def test_rowset_tables():
              ['Henry',  'bar', 10.12,  1, False, 'd']]
     row_reference_set1 = syn.store(
         RowSet(schema=schema1, rows=[Row(r) for r in data1]))
-    assert len(row_reference_set1['rows']) == 4
+    assert_equals(len(row_reference_set1['rows']), 4)
 
 
 def test_tables_csv():
@@ -187,89 +188,7 @@ def test_tables_csv():
 
     # Test that CSV file came back as expected
     for expected_row, row in zip(data, results):
-        assert expected_row == row, "expected %s but got %s" % (expected_row, row)
-
-    df = results.asDataFrame()
-    assert all(df.columns.values == ['Name', 'Born', 'Hipness', 'Living'])
-    assert list(df.iloc[1, [0, 1, 3]]) == ['Miles Davis', 1926, False]
-    assert df.iloc[1, 2] - 9.87 < 0.0001
-
-    # Aggregate query
-    expected = {
-         True: [True, 1929, 3, 6.38],
-         False: [False, 1926, 5, 7.104]}
-
-    results = syn.tableQuery('select Living, min(Born), count(Living), avg(Hipness) from %s group by Living'
-                             % table.schema.id, resultsAs="csv", includeRowIdAndRowVersion=False)
-    for row in results:
-        living = row[0]
-        assert expected[living][1] == row[1]
-        assert expected[living][2] == row[2]
-        assert abs(expected[living][3] - row[3]) < 0.0001
-
-    # Aggregate query results to DataFrame
-    df = results.asDataFrame()
-    assert all(expected[df.iloc[0, 0]][0: 3] == df.iloc[0, 0: 3])
-    assert abs(expected[df.iloc[1, 0]][3] - df.iloc[1, 3]) < 0.0001
-
-    # Append rows
-    more_jazz_guys = [["Sonny Clark", 1931, 8.43, False],
-                      ["Hank Mobley", 1930, 5.67, False],
-                      ["Freddie Hubbard", 1938, float('nan'), False],
-                      ["Thelonious Monk", 1917, float('inf'), False]]
-    table = syn.store(Table(table.schema, more_jazz_guys))
-
-    # test that CSV file now has more jazz guys
-    results = syn.tableQuery("select * from %s" % table.schema.id, resultsAs="csv")
-    for expected_row, row in zip(data+more_jazz_guys, results):
-        for field, expected_field in zip(row[2:], expected_row):
-            if type(field) is float and math.isnan(field):
-                assert type(expected_field) is float and math.isnan(expected_field)
-            elif type(expected_field) is float and math.isnan(expected_field):
-                assert type(field) is float and math.isnan(field)
-            else:
-                assert expected_field == field
-
-    # Update as a RowSet
-    rowset = results.asRowSet()
-    for row in rowset['rows']:
-        if row['values'][1] == 1930:
-            row['values'][2] = 8.5
-    syn.store(rowset)
-
-    # aggregate queries won't return row id and version, so we need to
-    # handle this correctly
-    results = syn.tableQuery('select Born, COUNT(*) from %s group by Born order by Born' % table.schema.id,
-                             resultsAs="csv")
-    assert_false(results.includeRowIdAndRowVersion)
-    for i, row in enumerate(results):
-        assert row[0] == [1917, 1926, 1929, 1930, 1931, 1935, 1936, 1938][i]
-        assert row[1] == [1, 2, 2, 2, 2, 1, 1, 1][i]
-
-    results = syn.tableQuery("select * from %s where Born=1930" % table.schema.id, resultsAs="csv")
-    df = results.asDataFrame()
-    all(df['Born'].values == 1930)
-    all(df['Hipness'].values == 8.5)
-
-    # Update via a Data Frame
-    df['Hipness'] = 9.75
-    table = syn.store(Table(table.tableId, df, etag=results.etag))
-
-    results = syn.tableQuery("select * from %s where Born=1930" % table.tableId, resultsAs="csv")
-    for row in results:
-        assert row[4] == 9.75
-
-    # check what happens when query result is empty
-    results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
-    assert len(list(results)) == 0
-
-    results = syn.tableQuery('select * from %s where Born=2013' % table.tableId, resultsAs="csv")
-    df = results.asDataFrame()
-    assert df.shape[0] == 0
-
-    # delete some rows
-    results = syn.tableQuery('select * from %s where Hipness < 7' % table.tableId, resultsAs="csv")
-    syn.delete(results)
+        assert_equals(expected_row, row, "expected %s but got %s" % (expected_row, row))
 
 
 def test_tables_pandas():
@@ -308,7 +227,8 @@ def test_tables_pandas():
 
     # df2 == df gives Dataframe of boolean values; first .all() gives a Series object of ANDed booleans of each column;
     # second .all() gives a bool that is ANDed value of that Series
-    assert (df2 == df).all().all()
+
+    assert_frame_equal(df2, df)
 
 
 def test_download_table_files():
@@ -342,7 +262,7 @@ def test_download_table_files():
     results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s" % schema.id, resultsAs="rowset")
     for i, row in enumerate(results):
         path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-        assert filecmp.cmp(original_files[i], path)
+        assert_true(filecmp.cmp(original_files[i], path))
         schedule_for_cleanup(path)
 
     # test that cached copies are returned for already downloaded files
@@ -354,9 +274,9 @@ def test_download_table_files():
                                  % schema.id, resultsAs="rowset")
         for i, row in enumerate(results):
             file_path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-            assert filecmp.cmp(original_files[i], file_path)
+            assert_true(filecmp.cmp(original_files[i], file_path))
 
-        assert not _downloadFile_mock.called, "Should have used cached copy of file and not called _downloadFile"
+        assert_false(_downloadFile_mock.called, "Should have used cached copy of file and not called _downloadFile")
 
     # test download table column
     results = syn.tableQuery('select * from %s' % schema.id)
@@ -365,7 +285,7 @@ def test_download_table_files():
         if i % 2 == 0:
             syn.cache.remove(row[6])
     file_map = syn.downloadTableColumns(results, ['cover'])
-    assert len(file_map) == 4
+    assert_equals(len(file_map), 4)
     for row in results:
         filecmp.cmp(original_files[i], file_map[row[6]])
 
@@ -447,7 +367,7 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
     table_from_dataframe = Table(schema, df)
     assert_not_equal(table.filepath, table_from_dataframe.filepath)
     # compare to make sure no .0's were appended to the integers
-    assert filecmp.cmp(table.filepath, table_from_dataframe.filepath)
+    assert_true(filecmp.cmp(table.filepath, table_from_dataframe.filepath))
 
 
 def test_store_table_datetime():

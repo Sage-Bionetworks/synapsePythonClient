@@ -14,7 +14,7 @@ import uuid
 import json
 import time
 import tempfile
-from nose.tools import assert_raises, assert_equals, assert_true
+from nose.tools import assert_raises, assert_equals, assert_true, assert_in
 import shutil
 from mock import patch
 import synapseclient
@@ -116,7 +116,7 @@ def test_command_line_client():
     # Verify that we stored the file in Synapse
     f1 = syn.get(file_entity_id)
     fh = syn._getFileHandle(f1.dataFileHandleId)
-    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
+    assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
 
     # Get File from the command line
     output = run('synapse',
@@ -125,8 +125,8 @@ def test_command_line_client():
                  file_entity_id)
     downloaded_filename = parse(r'Downloaded file:\s+(.*)', output)
     schedule_for_cleanup(downloaded_filename)
-    assert os.path.exists(downloaded_filename)
-    assert filecmp.cmp(filename, downloaded_filename)
+    assert_true(os.path.exists(downloaded_filename))
+    assert_true(filecmp.cmp(filename, downloaded_filename))
 
     # Update the File
     filename = utils.make_bogus_data_file()
@@ -145,8 +145,8 @@ def test_command_line_client():
                  file_entity_id)
     downloaded_filename = parse(r'Downloaded file:\s+(.*)', output)
     schedule_for_cleanup(downloaded_filename)
-    assert os.path.exists(downloaded_filename)
-    assert filecmp.cmp(filename, downloaded_filename)
+    assert_true(os.path.exists(downloaded_filename))
+    assert_true(filecmp.cmp(filename, downloaded_filename))
 
     # Move the file to new folder
     folder = syn.store(synapseclient.Folder(parentId=project_id))
@@ -157,7 +157,7 @@ def test_command_line_client():
                  '--parentid',
                  folder.id)
     movedFile = syn.get(file_entity_id, downloadFile=False)
-    assert movedFile.parentId == folder.id
+    assert_equals(movedFile.parentId, folder.id)
 
     # Test Provenance
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
@@ -182,14 +182,14 @@ def test_command_line_client():
                  file_entity_id)
 
     activity = json.loads(output)
-    assert activity['name'] == 'TestActivity'
-    assert activity['description'] == 'A very excellent provenance'
+    assert_equals(activity['name'], 'TestActivity')
+    assert_equals(activity['description'], 'A very excellent provenance')
 
     used = utils._find_used(activity, lambda used: 'reference' in used)
-    assert used['reference']['targetId'] == file_entity_id
+    assert_equals(used['reference']['targetId'], file_entity_id)
 
     used = utils._find_used(activity, lambda used: 'url' in used)
-    assert used['url'] == repo_url
+    assert_equals(used['url'], repo_url)
     assert_true(used['wasExecuted'])
 
     # Note: Tests shouldn't have external dependencies
@@ -214,7 +214,7 @@ def test_command_line_client():
     # Verify that we created an external file handle
     f2 = syn.get(exteral_entity_id)
     fh = syn._getFileHandle(f2.dataFileHandleId)
-    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
+    assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
     output = run('synapse',
                  '--skip-checks',
@@ -222,7 +222,7 @@ def test_command_line_client():
                  exteral_entity_id)
     downloaded_filename = parse(r'Downloaded file:\s+(.*)', output)
     schedule_for_cleanup(downloaded_filename)
-    assert os.path.exists(downloaded_filename)
+    assert_true(os.path.exists(downloaded_filename))
 
     # Delete the Project
     run('synapse', '--skip-checks', 'delete', project_id)
@@ -279,9 +279,9 @@ def test_command_line_client_annotations():
                  file_entity_id)
 
     annotations = json.loads(output)
-    assert annotations['foo'] == [1]
-    assert annotations['bar'] == [u"1"]
-    assert annotations['baz'] == [1, 2, 3]
+    assert_equals(annotations['foo'], [1])
+    assert_equals(annotations['bar'], [u"1"])
+    assert_equals(annotations['baz'], [1, 2, 3])
 
     # Test setting annotations by replacing existing ones.
     output = run('synapse',
@@ -302,7 +302,7 @@ def test_command_line_client_annotations():
 
     annotations = json.loads(output)
 
-    assert annotations['foo'] == [2]
+    assert_equals(annotations['foo'], [2])
 
     # Since this replaces the existing annotations, previous values
     # Should not be available.
@@ -335,7 +335,7 @@ def test_command_line_client_annotations():
                  file_entity_id)
 
     annotations = json.loads(output)
-    assert annotations['foo'] == [123]
+    assert_equals(annotations['foo'], [123])
 
     # Test running store command to set annotations on a new object
     filename3 = utils.make_bogus_data_file()
@@ -363,7 +363,7 @@ def test_command_line_client_annotations():
                  file_entity_id)
 
     annotations = json.loads(output)
-    assert annotations['foo'] == [456]
+    assert_equals(annotations['foo'], [456])
 
 
 def test_command_line_store_and_submit():
@@ -397,10 +397,10 @@ def test_command_line_store_and_submit():
     # Verify that we stored the file in Synapse
     f1 = syn.get(file_entity_id)
     fh = syn._getFileHandle(f1.dataFileHandleId)
-    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
+    assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
 
     # Test that entity is named after the file it contains
-    assert f1.name == os.path.basename(filename)
+    assert_equals(f1.name, os.path.basename(filename))
 
     # Create an Evaluation to submit to
     eval = Evaluation(name=str(uuid.uuid4()), contentSource=project_id)
@@ -477,7 +477,7 @@ def test_command_line_store_and_submit():
     # Verify that we created an external file handle
     f2 = syn.get(exteral_entity_id)
     fh = syn._getFileHandle(f2.dataFileHandleId)
-    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
+    assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
     # submit an external file to an evaluation and use provenance
     filename = utils.make_bogus_data_file()
@@ -537,8 +537,8 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        assert os.path.exists(downloaded)
-        assert filecmp.cmp(downloaded, uploaded)
+        assert_true(os.path.exists(downloaded))
+        assert_true(filecmp.cmp(downloaded, uploaded))
         schedule_for_cleanup(downloaded)
 
     # Test query get using a Table with an entity column
@@ -562,8 +562,8 @@ def test_command_get_recursive_and_query():
     new_paths.append(os.path.join('.', os.path.basename(uploaded_paths[-1])))
     schedule_for_cleanup(folder_entity.name)
     for downloaded, uploaded in zip(new_paths, uploaded_paths):
-        assert os.path.exists(downloaded)
-        assert filecmp.cmp(downloaded, uploaded)
+        assert_true(os.path.exists(downloaded))
+        assert_true(filecmp.cmp(downloaded, uploaded))
         schedule_for_cleanup(downloaded)
 
     schedule_for_cleanup(new_paths[0])
@@ -612,16 +612,16 @@ def test_command_copy():
     copied_url_prov = syn.getProvenance(copied_URL_id)['used'][0]['reference']['targetId']
 
     # Make sure copied files are the same
-    assert copied_prov == file_entity.id
-    assert copied_ent_annot == annots
-    assert copied_ent.properties.dataFileHandleId == file_entity.properties.dataFileHandleId
+    assert_equals(copied_prov, file_entity.id)
+    assert_equals(copied_ent_annot, annots)
+    assert_equals(copied_ent.properties.dataFileHandleId, file_entity.properties.dataFileHandleId)
 
     # Make sure copied URLs are the same
-    assert copied_url_prov == externalURL_entity.id
-    assert copied_url_annot == annots
-    assert copied_URL_ent.externalURL == repo_url
-    assert copied_URL_ent.name == 'rand'
-    assert copied_URL_ent.properties.dataFileHandleId == externalURL_entity.properties.dataFileHandleId
+    assert_equals(copied_url_prov, externalURL_entity.id)
+    assert_equals(copied_url_annot, annots)
+    assert_equals(copied_URL_ent.externalURL, repo_url)
+    assert_equals(copied_URL_ent.name, 'rand')
+    assert_equals(copied_URL_ent.properties.dataFileHandleId, externalURL_entity.properties.dataFileHandleId)
 
     # Verify that errors are being thrown when a
     # file is copied to a folder/project that has a file with the same filename
@@ -645,7 +645,7 @@ def test_command_line_using_paths():
     # Verify that we can use show with a filename
     output = run('synapse', '--skip-checks', 'show', filename)
     id = parse(r'File: %s\s+\((syn\d+)\)\s+' % os.path.split(filename)[1], output)
-    assert file_entity.id == id
+    assert_equals(file_entity.id, id)
 
     # Verify that limitSearch works by making sure we get the file entity
     # that's inside the folder
@@ -656,7 +656,7 @@ def test_command_line_using_paths():
     id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
     name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
     assert_equals(file_entity.id, id)
-    assert utils.equal_paths(name, filename)
+    assert_true(utils.equal_paths(name, filename))
 
     # Verify that set-provenance works with filepath
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
@@ -672,8 +672,8 @@ def test_command_line_using_paths():
     output = run('synapse', '--skip-checks', 'get-provenance',
                  '-id', file_entity2.id)
     activity = json.loads(output)
-    assert activity['name'] == 'TestActivity'
-    assert activity['description'] == 'A very excellent provenance'
+    assert_equals(activity['name'], 'TestActivity')
+    assert_equals(activity['description'], 'A very excellent provenance')
 
     # Verify that store works with provenance specified with filepath
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
@@ -688,7 +688,7 @@ def test_command_line_using_paths():
                  '-id', entity_id)
     activity = json.loads(output)
     a = [a for a in activity['used'] if not a['wasExecuted']]
-    assert a[0]['reference']['targetId'] in [file_entity.id, file_entity2.id]
+    assert_in(a[0]['reference']['targetId'], [file_entity.id, file_entity2.id])
 
     # Test associate command
     # I have two files in Synapse filename and filename2
@@ -729,13 +729,13 @@ def test_table_query():
     output_rows = output.rstrip("\n").split("\n")
 
     # Check the length of the output
-    assert len(output_rows) == 5, "got %s rows" % (len(output_rows),)
+    assert_equals(len(output_rows), 5, "got %s rows" % (len(output_rows),))
 
     # Check that headers are correct.
     # Should be column names in schema plus the ROW_ID and ROW_VERSION
     my_headers_set = output_rows[0].split("\t")
     expected_headers_set = ["ROW_ID", "ROW_VERSION"] + list(map(lambda x: x.name, cols))
-    assert my_headers_set == expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set)
+    assert_equals(my_headers_set, expected_headers_set, "%r != %r" % (my_headers_set, expected_headers_set))
 
 
 def test_login():
@@ -780,7 +780,7 @@ def test_configPath():
     # Verify that we stored the file in Synapse
     f1 = syn.get(file_entity_id)
     fh = syn._getFileHandle(f1.dataFileHandleId)
-    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
+    assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
 
 
 def _description_wiki_check(run_output, expected_description):

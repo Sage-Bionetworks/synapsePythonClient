@@ -9,7 +9,7 @@ import os
 import time
 import tempfile
 
-from nose.tools import assert_raises, assert_equals, assert_less
+from nose.tools import assert_raises, assert_equals, assert_less, assert_in, assert_true
 
 import synapseclient
 from synapseclient import Project, Folder, File, Entity, Schema, Link
@@ -93,7 +93,7 @@ def test_syncToSynapse():
     new_df = new_df.loc[orig_df.index]
 
     # Validate what was uploaded is in right location
-    assert new_df.parent.equals(orig_df.parent), 'Downloaded files not stored in same location'
+    assert_true(new_df.parent.equals(orig_df.parent), 'Downloaded files not stored in same location')
 
     # Validate that annotations were set
     cols = synapseutils.sync.REQUIRED_FIELDS + synapseutils.sync.FILE_CONSTRUCTOR_FIELDS\
@@ -101,7 +101,7 @@ def test_syncToSynapse():
     orig_anots = orig_df.drop(cols, axis=1, errors='ignore')
     new_anots = new_df.drop(cols, axis=1, errors='ignore')
     assert_equals(orig_anots.shape[1], new_anots.shape[1])  # Verify that we have the same number of cols
-    assert new_anots.equals(orig_anots.loc[:, new_anots.columns]), 'Annotations different'
+    assert_true(new_anots.equals(orig_anots.loc[:, new_anots.columns]), 'Annotations different')
     
     # Validate that provenance is correct
     for provenanceType in ['executed', 'used']:
@@ -153,9 +153,9 @@ def test_syncFromSynapse():
     # Test recursive get
     output = synapseutils.syncFromSynapse(syn, project_entity)
 
-    assert len(output) == len(uploaded_paths)
+    assert_equals(len(output), len(uploaded_paths))
     for f in output:
-        assert f.path in uploaded_paths
+        assert_in(f.path, uploaded_paths)
 
 
 def test_syncFromSynapse__children_contain_non_file():
@@ -215,9 +215,9 @@ def test_syncFromSynapse_Links():
     # Test recursive get
     output = synapseutils.syncFromSynapse(syn, folder_entity, followLink=True)
 
-    assert len(output) == len(uploaded_paths)
+    assert_equals(len(output), len(uploaded_paths))
     for f in output:
-        assert f.path in uploaded_paths
+        assert_in(f.path, uploaded_paths)
 
 
 def test_write_manifest_data__unicode_characters_in_rows():

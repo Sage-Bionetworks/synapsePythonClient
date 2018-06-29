@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 
 import time
 
-from nose.tools import assert_less
+from nose.tools import assert_less, assert_equals
 
 import deprecation
 
@@ -45,7 +45,7 @@ def test_query():
             time.sleep(2)
             qry = syn.query(query_str)
 
-        assert len(qry['results']) == i + 1
+        assert_equals(len(qry['results']), i + 1)
 
 
 @deprecation.fail_if_not_removed
@@ -77,7 +77,7 @@ def test_chunked_query():
             count = 0
             for res in iter:
                 count += 1
-        assert count == (synapseclient.client.QUERY_LIMIT * 5)
+        assert_equals(count, (synapseclient.client.QUERY_LIMIT * 5))
     finally:
         synapseclient.client.QUERY_LIMIT = oldLimit
 

@@ -13,6 +13,8 @@ import random
 from threading import Lock
 import six
 
+from nose.tools import assert_equals
+
 if six.PY2:
     import thread
     from Queue import Queue
@@ -171,7 +173,7 @@ def thread_get_and_update_file_from_Project():
         entity.path = path
         entity = store_catch_412_HTTPError(entity)
         if entity is not None:
-            assert os.stat(entity.path) == os.stat(path)
+            assert_equals(os.stat(entity.path), os.stat(path))
             
         sleep_for_a_bit()
     

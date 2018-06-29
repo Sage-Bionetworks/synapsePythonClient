@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 
 import mock
 
-from nose.tools import assert_raises, assert_equals
+from nose.tools import assert_raises, assert_is_none, assert_is_not_none
 
 import synapseclient
 from synapseclient.exceptions import SynapseUnmetAccessRestrictions
@@ -49,8 +49,8 @@ def test_access_restrictions():
         }
 
         entity = syn.get('syn1000002', downloadFile=False)
-        assert entity is not None
-        assert entity.path is None
+        assert_is_not_none(entity)
+        assert_is_none(entity.path)
 
         # Downloading the file is the default, but is an error if we have unmet access requirements
         assert_raises(synapseclient.exceptions.SynapseUnmetAccessRestrictions, syn.get, 'syn1000002', downloadFile=True)

@@ -58,7 +58,8 @@ def test_synStore_sftpIntegration():
     try:
         file = syn.store(File(filepath, parent=project))
         file2 = syn.get(file)
-        assert file.externalURL == file2.externalURL and urlparse(file2.externalURL).scheme == 'sftp'
+        assert_equals(file.externalURL, file2.externalURL)
+        assert_equals(urlparse(file2.externalURL).scheme, 'sftp')
 
         tmpdir = tempfile.mkdtemp()
         schedule_for_cleanup(tmpdir)

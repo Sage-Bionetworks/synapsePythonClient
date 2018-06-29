@@ -9,7 +9,8 @@ import filecmp
 import os
 import tempfile
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance
+from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_true,\
+    assert_false, assert_equals, assert_is_not_none
 from mock import patch
 
 import synapseclient
@@ -18,7 +19,6 @@ from synapseclient.exceptions import *
 from synapseclient.upload_functions import create_external_file_handle
 
 import integration
-from nose.tools import assert_false, assert_equals
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
@@ -34,26 +34,26 @@ def test_Entity():
     project = syn.store(project)
     schedule_for_cleanup(project)
     project = syn.getEntity(project)
-    assert project.name == project_name
+    assert_equals(project.name, project_name)
     
     # Create and get a Folder
     folder = Folder('Test Folder', parent=project, description='A place to put my junk', foo=1000)
     folder = syn.createEntity(folder)
     folder = syn.getEntity(folder)
-    assert folder.name == 'Test Folder'
-    assert folder.parentId == project.id
-    assert folder.description == 'A place to put my junk'
-    assert folder.foo[0] == 1000
+    assert_equals(folder.name, 'Test Folder')
+    assert_equals(folder.parentId, project.id)
+    assert_equals(folder.description, 'A place to put my junk')
+    assert_equals(folder.foo[0], 1000)
     
     # Update and get the Folder
     folder.pi = 3.14159265359
     folder.description = 'The rejects from the other folder'
     folder = syn.store(folder)
     folder = syn.get(folder)
-    assert folder.name == 'Test Folder'
-    assert folder.parentId == project.id
-    assert folder.description == 'The rejects from the other folder'
-    assert folder.pi[0] == 3.14159265359
+    assert_equals(folder.name, 'Test Folder')
+    assert_equals(folder.parentId, project.id)
+    assert_equals(folder.description, 'The rejects from the other folder')
+    assert_equals(folder.pi[0], 3.14159265359)
 
     # Test CRUD on Files, check unicode
     path = utils.make_bogus_data_file()
@@ -66,91 +66,92 @@ def test_Entity():
                   band=u"Motörhead",
                   lunch=u"すし")
     a_file = syn.store(a_file)
-    assert a_file.path == path
+    assert_equals(a_file.path, path)
 
     a_file = syn.getEntity(a_file)
-    assert a_file.description == u'Description with funny characters: Déjà vu, ประเทศไทย, 中国', u'description= %s' \
-                                                                                               % a_file.description
-    assert a_file['foo'][0] == 'An arbitrary value', u'foo= %s' % a_file['foo'][0]
-    assert a_file['bar'] == [33, 44, 55]
-    assert a_file['bday'][0] == Datetime(2013, 3, 15)
-    assert a_file.contentType == 'text/flapdoodle', u'contentType= %s' % a_file.contentType
-    assert a_file['band'][0] == u"Motörhead", u'band= %s' % a_file['band'][0]
-    assert a_file['lunch'][0] == u"すし", u'lunch= %s' % a_file['lunch'][0]
+    assert_equals(a_file.description,
+                  u'Description with funny characters: Déjà vu, ประเทศไทย, 中国', u'description= %s'
+                  % a_file.description)
+    assert_equals(a_file['foo'][0], 'An arbitrary value', u'foo= %s' % a_file['foo'][0])
+    assert_equals(a_file['bar'], [33, 44, 55])
+    assert_equals(a_file['bday'][0], Datetime(2013, 3, 15))
+    assert_equals(a_file.contentType, 'text/flapdoodle', u'contentType= %s' % a_file.contentType)
+    assert_equals(a_file['band'][0], u"Motörhead", u'band= %s' % a_file['band'][0])
+    assert_equals(a_file['lunch'][0], u"すし", u'lunch= %s' % a_file['lunch'][0])
     
     a_file = syn.downloadEntity(a_file)
-    assert filecmp.cmp(path, a_file.path)
+    assert_true(filecmp.cmp(path, a_file.path))
 
     b_file = File(name="blah", parent=folder, dataFileHandleId=a_file.dataFileHandleId)
     b_file = syn.store(b_file)
 
-    assert b_file.dataFileHandleId == a_file.dataFileHandleId
+    assert_equals(b_file.dataFileHandleId, a_file.dataFileHandleId)
     # Update the File
     a_file.path = path
     a_file['foo'] = 'Another arbitrary chunk of text data'
     a_file['new_key'] = 'A newly created value'
     a_file = syn.updateEntity(a_file)
-    assert a_file['foo'][0] == 'Another arbitrary chunk of text data'
-    assert a_file['bar'] == [33, 44, 55]
-    assert a_file['bday'][0] == Datetime(2013, 3, 15)
-    assert a_file.new_key[0] == 'A newly created value'
-    assert a_file.path == path
-    assert a_file.versionNumber == 1, "unexpected version number: " + str(a_file.versionNumber)
+    assert_equals(a_file['foo'][0], 'Another arbitrary chunk of text data')
+    assert_equals(a_file['bar'], [33, 44, 55])
+    assert_equals(a_file['bday'][0], Datetime(2013, 3, 15))
+    assert_equals(a_file.new_key[0], 'A newly created value')
+    assert_equals(a_file.path, path)
+    assert_equals(a_file.versionNumber, 1, "unexpected version number: " + str(a_file.versionNumber))
 
     # Test create, store, get Links
     # If version isn't specified, targetVersionNumber should not be set
     link = Link(a_file['id'], 
                 parent=project)
     link = syn.store(link)
-    assert link['linksTo']['targetId'] == a_file['id']
-    assert link['linksTo'].get('targetVersionNumber') is None
-    assert link['linksToClassName'] == a_file['concreteType']
+    assert_equals(link['linksTo']['targetId'], a_file['id'])
+    assert_is_none(link['linksTo'].get('targetVersionNumber'))
+    assert_equals(link['linksToClassName'], a_file['concreteType'])
 
     link = Link(a_file['id'], 
                 targetVersion=a_file.versionNumber,
                 parent=project)
     link = syn.store(link)
-    assert link['linksTo']['targetId'] == a_file['id']
-    assert link['linksTo']['targetVersionNumber'] == a_file.versionNumber
-    assert link['linksToClassName'] == a_file['concreteType']
+    assert_equals(link['linksTo']['targetId'], a_file['id'])
+    assert_equals(link['linksTo']['targetVersionNumber'], a_file.versionNumber)
+    assert_equals(link['linksToClassName'], a_file['concreteType'])
     
     testLink = syn.get(link)
-    assert testLink == link
+    assert_equals(testLink, link)
 
     link = syn.get(link, followLink=True)
-    assert link['foo'][0] == 'Another arbitrary chunk of text data'
-    assert link['bar'] == [33, 44, 55]
-    assert link['bday'][0] == Datetime(2013, 3, 15)
-    assert link.new_key[0] == 'A newly created value'
-    assert utils.equal_paths(link.path, path)
-    assert link.versionNumber == 1, "unexpected version number: " + str(a_file.versionNumber)
+    assert_equals(link['foo'][0], 'Another arbitrary chunk of text data')
+    assert_equals(link['bar'], [33, 44, 55])
+    assert_equals(link['bday'][0], Datetime(2013, 3, 15))
+    assert_equals(link.new_key[0], 'A newly created value')
+    assert_true(utils.equal_paths(link.path, path))
+    assert_equals(link.versionNumber, 1, "unexpected version number: " + str(a_file.versionNumber))
 
     newfolder = Folder('Testing Folder', parent=project)
     newfolder = syn.store(newfolder)
     link = Link(newfolder, parent=folder.id)
     link = syn.store(link)
-    assert link['linksTo']['targetId'] == newfolder.id
-    assert link['linksToClassName'] == newfolder['concreteType']
-    assert link['linksTo'].get('targetVersionNumber') is None
+    assert_equals(link['linksTo']['targetId'], newfolder.id)
+    assert_equals(link['linksToClassName'], newfolder['concreteType'])
+    assert_is_none(link['linksTo'].get('targetVersionNumber'))
 
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
     a_file = syn.uploadFile(a_file, new_path)
     a_file = syn.downloadEntity(a_file)
-    assert filecmp.cmp(new_path, a_file.path)
-    assert a_file.versionNumber == 2
+    assert_true(filecmp.cmp(new_path, a_file.path))
+    assert_equals(a_file.versionNumber, 2)
 
     # Make sure we can still get the older version of file
     old_random_data = syn.get(a_file.id, version=1)
-    assert filecmp.cmp(old_random_data.path, path)
+    assert_true(filecmp.cmp(old_random_data.path, path))
 
     tmpdir = tempfile.mkdtemp()
     schedule_for_cleanup(tmpdir)
 
     # test getting the file from the cache with downloadLocation parameter (SYNPY-330)
     a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
-    assert a_file_cached.path is not None
+    assert_is_not_none(a_file_cached.path)
     assert_equal(os.path.basename(a_file_cached.path), os.path.basename(a_file.path))
 
 
@@ -161,13 +162,13 @@ def test_special_characters():
                               hindi_annotation=u'बंदर बट',
                               russian_annotation=u'Обезьяна прикладом',
                               weird_german_thing=u'Völlerei lässt grüßen'))
-    assert folder.name == u'Special Characters Here'
-    assert folder.parentId == project.id
-    assert folder.description == u'A test for special characters such as Déjà vu, ประเทศไทย, and 中国',\
-        u'description= %s' % folder.description
-    assert folder.weird_german_thing[0] == u'Völlerei lässt grüßen'
-    assert folder.hindi_annotation[0] == u'बंदर बट'
-    assert folder.russian_annotation[0] == u'Обезьяна прикладом'
+    assert_equals(folder.name, u'Special Characters Here')
+    assert_equals(folder.parentId, project.id)
+    assert_equals(folder.description, u'A test for special characters such as Déjà vu, ประเทศไทย, and 中国',
+                  u'description= %s' % folder.description)
+    assert_equals(folder.weird_german_thing[0], u'Völlerei lässt grüßen')
+    assert_equals(folder.hindi_annotation[0], u'बंदर बट')
+    assert_equals(folder.russian_annotation[0], u'Обезьяна прикладом')
 
 
 def test_get_local_file():
@@ -182,7 +183,8 @@ def test_get_local_file():
     # Get a file really stored in Synapse
     ent_folder = syn.store(File(new_path, parent=folder))
     ent2 = syn.get(new_path)
-    assert ent_folder.id == ent2.id and ent_folder.versionNumber == ent2.versionNumber
+    assert_equals(ent_folder.id, ent2.id)
+    assert_equals(ent_folder.versionNumber, ent2.versionNumber)
 
     # Get a file stored in Multiple locations #should display warning
     syn.store(File(new_path, parent=project))
@@ -190,7 +192,8 @@ def test_get_local_file():
 
     # Get a file stored in multiple locations with limit set
     ent = syn.get(new_path, limitSearch=folder.id)
-    assert ent.id == ent_folder.id and ent.versionNumber == ent_folder.versionNumber
+    assert_equals(ent.id, ent_folder.id)
+    assert_equals(ent.versionNumber, ent_folder.versionNumber)
 
     # Get a file that exists but such that limitSearch removes them and raises error
     assert_raises(SynapseError, syn.get, new_path, limitSearch='syn1')
@@ -202,15 +205,15 @@ def test_store_with_flags():
     projUpdate = Project(project.name)
     projUpdate.updatedThing = 'Yep, sho\'nuf it\'s updated!'
     projUpdate = syn.store(projUpdate, createOrUpdate=True)
-    assert project.id == projUpdate.id
-    assert projUpdate.updatedThing == ['Yep, sho\'nuf it\'s updated!']
+    assert_equals(project.id, projUpdate.id)
+    assert_equals(projUpdate.updatedThing, ['Yep, sho\'nuf it\'s updated!'])
 
     # Store a File
     filepath = utils.make_bogus_binary_file()
     schedule_for_cleanup(filepath)
     origBogus = File(filepath, name='Bogus Test File', parent=project)
     origBogus = syn.store(origBogus, createOrUpdate=True)
-    assert origBogus.versionNumber == 1
+    assert_equals(origBogus.versionNumber, 1)
 
     # Modify existing annotations by createOrUpdate
     del projUpdate['parentId']
@@ -218,21 +221,21 @@ def test_store_with_flags():
     projUpdate.updatedThing = 'Updated again'
     projUpdate.addedThing = 'Something new'
     projUpdate = syn.store(projUpdate, createOrUpdate=True)
-    assert project.id == projUpdate.id
-    assert projUpdate.updatedThing == ['Updated again']
+    assert_equals(project.id, projUpdate.id)
+    assert_equals(projUpdate.updatedThing, ['Updated again'])
     
     # -- ForceVersion flag --
     # Re-store the same thing and don't up the version
     mutaBogus = syn.store(origBogus, forceVersion=False)
-    assert mutaBogus.versionNumber == 1
+    assert_equals(mutaBogus.versionNumber, 1)
     
     # Re-store again, essentially the same condition
     mutaBogus = syn.store(mutaBogus, createOrUpdate=True, forceVersion=False)
-    assert mutaBogus.versionNumber == 1, "expected version 1 but got version %s" % mutaBogus.versionNumber
+    assert_equals(mutaBogus.versionNumber, 1, "expected version 1 but got version %s" % mutaBogus.versionNumber)
     
     # And again, but up the version this time
     mutaBogus = syn.store(mutaBogus, forceVersion=True)
-    assert mutaBogus.versionNumber == 2
+    assert_equals(mutaBogus.versionNumber, 2)
 
     # -- CreateOrUpdate flag for files --
     # Store a different file with the same name and parent
@@ -241,15 +244,15 @@ def test_store_with_flags():
     schedule_for_cleanup(new_filepath)
     mutaBogus.path = new_filepath
     mutaBogus = syn.store(mutaBogus, createOrUpdate=True)
-    assert mutaBogus.id == origBogus.id
-    assert mutaBogus.versionNumber == 3
-    assert not filecmp.cmp(mutaBogus.path, filepath)
+    assert_equals(mutaBogus.id, origBogus.id)
+    assert_equals(mutaBogus.versionNumber, 3)
+    assert_false(filecmp.cmp(mutaBogus.path, filepath))
 
     # Make doubly sure the File was uploaded
     checkBogus = syn.get(mutaBogus.id)
-    assert checkBogus.id == origBogus.id
-    assert checkBogus.versionNumber == 3
-    assert filecmp.cmp(mutaBogus.path, checkBogus.path)
+    assert_equals(checkBogus.id, origBogus.id)
+    assert_equals(checkBogus.versionNumber, 3)
+    assert_true(filecmp.cmp(mutaBogus.path, checkBogus.path))
 
     # Create yet another file with the same name and parent
     # Expected behavior is raising an exception with a 409 error
@@ -265,8 +268,8 @@ def test_store_with_flags():
     ephemeralBogus = syn.store(ephemeralBogus)
 
     ephemeralBogus = syn.get(ephemeralBogus, downloadFile=False)
-    assert ephemeralBogus.description == 'Snorklewacker'
-    assert ephemeralBogus.shoe_size == [11.5]
+    assert_equals(ephemeralBogus.description, 'Snorklewacker')
+    assert_equals(ephemeralBogus.shoe_size, [11.5])
 
 
 def test_get_with_downloadLocation_and_ifcollision():
@@ -281,8 +284,8 @@ def test_get_with_downloadLocation_and_ifcollision():
     
     # Download to the temp folder, should be the same
     otherBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath))
-    assert otherBogus.id == normalBogus.id
-    assert filecmp.cmp(otherBogus.path, normalBogus.path)
+    assert_equals(otherBogus.id, normalBogus.id)
+    assert_true(filecmp.cmp(otherBogus.path, normalBogus.path))
     
     # Invalidate the downloaded file's timestamps
     os.utime(otherBogus.path, (0, 0))
@@ -291,7 +294,7 @@ def test_get_with_downloadLocation_and_ifcollision():
     # Download again, should change the modification time
     overwriteBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath), ifcollision="overwrite.local")
     overwriteModTime = os.path.getmtime(overwriteBogus.path)
-    assert badtimestamps != overwriteModTime
+    assert_not_equal(badtimestamps, overwriteModTime)
     
     # Download again, should not change the modification time
     otherBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath), ifcollision="keep.local")
@@ -307,8 +310,8 @@ def test_get_with_downloadLocation_and_ifcollision():
     
     # Download once more, but rename
     renamedBogus = syn.get(bogus, downloadLocation=os.path.dirname(filepath), ifcollision="keep.both")
-    assert overwriteBogus.path != renamedBogus.path
-    assert filecmp.cmp(overwriteBogus.path, renamedBogus.path)
+    assert_not_equal(overwriteBogus.path, renamedBogus.path)
+    assert_true(filecmp.cmp(overwriteBogus.path, renamedBogus.path))
     
     # Clean up
     os.remove(overwriteBogus.path)
@@ -332,12 +335,12 @@ def test_store_activity():
     honking = syn.getProvenance(entity.id)
 
     # Verify the Activity
-    assert honking['name'] == 'Hinkle horn honking'
-    assert len(honking['used']) == 2
-    assert honking['used'][0]['concreteType'] == 'org.sagebionetworks.repo.model.provenance.UsedURL'
+    assert_equals(honking['name'], 'Hinkle horn honking')
+    assert_equals(len(honking['used']), 2)
+    assert_equals(honking['used'][0]['concreteType'], 'org.sagebionetworks.repo.model.provenance.UsedURL')
     assert_false(honking['used'][0]['wasExecuted'])
-    assert honking['used'][0]['url'].startswith('http://www.flickr.com/photos/bevanbfree/3482')
-    assert honking['used'][1]['concreteType'] == 'org.sagebionetworks.repo.model.provenance.UsedURL'
+    assert_true(honking['used'][0]['url'].startswith('http://www.flickr.com/photos/bevanbfree/3482'))
+    assert_equals(honking['used'][1]['concreteType'], 'org.sagebionetworks.repo.model.provenance.UsedURL')
     assert_false(honking['used'][1]['wasExecuted'])
 
     # Store another Entity with the same Activity
@@ -347,7 +350,7 @@ def test_store_activity():
 
     # The Activities should match
     honking2 = syn.getProvenance(entity)
-    assert honking['id'] == honking2['id']
+    assert_equals(honking['id'], honking2['id'])
 
 
 def test_store_isRestricted_flag():
@@ -359,7 +362,7 @@ def test_store_isRestricted_flag():
     # We don't want to spam ACT with test emails
     with patch('synapseclient.client.Synapse._createAccessRequirementIfNone') as intercepted:
         entity = syn.store(entity, isRestricted=True)
-        assert intercepted.called
+        assert_true(intercepted.called)
 
 
 def test_ExternalFileHandle():
@@ -370,14 +373,14 @@ def test_ExternalFileHandle():
 
     # Verify the file handle
     fileHandle = syn._getFileHandle(singapore.dataFileHandleId)
-    assert fileHandle['concreteType'] == 'org.sagebionetworks.repo.model.file.ExternalFileHandle'
-    assert fileHandle['externalURL'] == singapore_url
+    assert_equals(fileHandle['concreteType'], 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
+    assert_equals(fileHandle['externalURL'], singapore_url)
 
     # The download should occur only on the client side
     singapore = syn.get(singapore, downloadFile=True)
-    assert singapore.path is not None
-    assert singapore.externalURL == singapore_url
-    assert os.path.exists(singapore.path)
+    assert_is_not_none(singapore.path)
+    assert_equals(singapore.externalURL, singapore_url)
+    assert_true(os.path.exists(singapore.path))
 
     # Update external URL
     singapore_2_url = 'https://upload.wikimedia.org/wikipedia/commons/a/a2/Singapore_Panorama_v2.jpg'
@@ -396,8 +399,8 @@ def test_synapseStore_flag():
 
     # Verify the thing can be downloaded as a URL
     bogus = syn.get(bogus, downloadFile=False)
-    assert bogus.name == 'Totally bogus data'
-    assert bogus.path == path, "Path: %s\nExpected: %s" % (bogus.path, path)
+    assert_equals(bogus.name, 'Totally bogus data')
+    assert_equals(bogus.path, path, "Path: %s\nExpected: %s" % (bogus.path, path))
     assert_false(bogus.synapseStore)
 
     # Make sure the test runs on Windows and other OS's
@@ -407,7 +410,7 @@ def test_synapseStore_flag():
     else:
         expected_url = 'file://' + path
 
-    assert bogus.externalURL == expected_url, 'URL: %s\nExpected %s' % (bogus.externalURL, expected_url)
+    assert_equals(bogus.externalURL, expected_url, 'URL: %s\nExpected %s' % (bogus.externalURL, expected_url))
 
     # A file path that doesn't exist should still work
     bogus = File('/path/to/local/file1.xyz', parentId=project.id, synapseStore=False)
@@ -432,15 +435,15 @@ def test_create_or_update_project():
     project = Project(name, b=3, c=4)
     project = syn.store(project)
 
-    assert project.a == [1]
-    assert project.b == [3]
-    assert project.c == [4]
+    assert_equals(project.a, [1])
+    assert_equals(project.b, [3])
+    assert_equals(project.c, [4])
 
     project = syn.get(project.id)
 
-    assert project.a == [1]
-    assert project.b == [3]
-    assert project.c == [4]
+    assert_equals(project.a, [1])
+    assert_equals(project.b, [3])
+    assert_equals(project.c, [4])
 
     project = Project(name, c=5, d=6)
     try:
@@ -467,12 +470,12 @@ def test_download_file_false():
     # Change something and reupload the file's metadata
     file.name = "Only change the name, not the file"
     reupload = syn.store(file)
-    assert reupload.path is None, "Path field should be null: %s" % reupload.path
+    assert_is_none(reupload.path, "Path field should be null: %s" % reupload.path)
     
     # This should still get the correct file
     reupload = syn.get(reupload.id)
-    assert filecmp.cmp(filepath + RENAME_SUFFIX, reupload.path)
-    assert reupload.name == file.name
+    assert_true(filecmp.cmp(filepath + RENAME_SUFFIX, reupload.path))
+    assert_equals(reupload.name, file.name)
 
 
 def test_download_file_URL_false():
@@ -485,8 +488,8 @@ def test_download_file_URL_false():
     
     # Reupload and check that the URL and version does not get mangled
     reupload = syn.store(reupload, forceVersion=False)
-    assert reupload.path == fileThatExists, "Entity should still be pointing at a URL"
-    assert originalVersion == reupload.versionNumber
+    assert_equals(reupload.path, fileThatExists, "Entity should still be pointing at a URL")
+    assert_equals(originalVersion, reupload.versionNumber)
 
     # Try a URL with an extra slash at the end
     fileThatDoesntExist = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient/'
@@ -497,8 +500,8 @@ def test_download_file_URL_false():
     originalVersion = reupload.versionNumber
     
     reupload = syn.store(reupload, forceVersion=False)
-    assert reupload.path == fileThatDoesntExist, "Entity should still be pointing at a URL"
-    assert originalVersion == reupload.versionNumber
+    assert_equals(reupload.path, fileThatDoesntExist, "Entity should still be pointing at a URL")
+    assert_equals(originalVersion, reupload.versionNumber)
 
 
 # SYNPY-366

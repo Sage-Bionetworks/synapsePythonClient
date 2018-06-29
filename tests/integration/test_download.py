@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from nose.tools import assert_raises, assert_not_equal
+from nose.tools import assert_raises, assert_not_equal, assert_true, assert_equals
 
 import filecmp
 import os
@@ -73,7 +73,7 @@ def test_resume_partial_download():
     path = syn._download_from_URL(url, destination=temp_dir, fileHandleId=entity.dataFileHandleId,
                                   expected_md5=entity.md5)
 
-    assert filecmp.cmp(original_file, path), "File comparison failed"
+    assert_true(filecmp.cmp(original_file, path), "File comparison failed")
 
 
 def test_ftp_download():
@@ -95,7 +95,7 @@ def test_ftp_download():
 
     # Download the entity and check that MD5 matches expected
     FTPfile = syn.get(entity.id, downloadLocation=os.getcwd(), downloadFile=True)
-    assert FTPfile.md5 == utils.md5_for_file(FTPfile.path).hexdigest()
+    assert_equals(FTPfile.md5, utils.md5_for_file(FTPfile.path).hexdigest())
     schedule_for_cleanup(entity)
     os.remove(FTPfile.path)
 
@@ -113,4 +113,4 @@ def test_http_download__range_request_error():
     file_entity = syn.get(file_entity)
 
     assert_not_equal(file_path, file_entity.path)
-    assert filecmp.cmp(file_path, file_entity.path)
+    assert_true(filecmp.cmp(file_path, file_entity.path))
