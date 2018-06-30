@@ -13,7 +13,7 @@ import tempfile
 from builtins import zip
 from mock import MagicMock
 from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_in, assert_sequence_equal,\
-    assert_true, assert_is_none, assert_is_instance, raises, assert_equals, assert_list_equal
+    assert_true, assert_is_none, assert_is_instance, raises, assert_equals
 
 import pandas as pd
 
@@ -156,7 +156,8 @@ def test_as_table_columns__with_pandas_DataFrame():
         'x': tuple(math.pi*i for i in range(5)),
         'n': (101, 202, 303, 404, 505),
         'really': (False, True, False, True, False),
-        'size': ('small', 'large', 'medium', 'medium', 'large')})
+        'size': ('small', 'large', 'medium', 'medium', 'large')},
+    columns=['foobar', 'x', 'n', 'really', 'size'])
 
     cols = as_table_columns(df)
 
@@ -181,7 +182,7 @@ def test_as_table_columns__with_pandas_DataFrame():
          'maximumSize': 30,
          'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'}
     ]
-    assert_list_equal(expected_columns, cols)
+    assert_equals(expected_columns, cols)
 
 
 def test_as_table_columns__with_non_supported_input_type():
