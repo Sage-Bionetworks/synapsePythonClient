@@ -445,6 +445,42 @@ class TestPrivateGetEntityBundle:
         assert_equal(self.bundle, syn._getEntityBundle("syn10101", '6'))
         assert_raises(ValueError, syn._getEntityBundle, "syn10101", 'current')
 
+    def test_access_restrictions(self):
+        # Bruce gives this test a 'B'. The 'A' solution would be to
+        # construct the mock value from the schemas. -jcb
+        with patch.object(syn, '_getEntityBundle', return_value={
+            'annotations': {
+                'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
+                'id': 'syn1000002',
+                'stringAnnotations': {}},
+            'entity': {
+                'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                'createdBy': 'Miles Dewey Davis',
+                'entityType': 'org.sagebionetworks.repo.model.FileEntity',
+                'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
+                'id': 'syn1000002',
+                'name': 'so_what.mp3',
+                'parentId': 'syn1000001',
+                'versionLabel': '1',
+                'versionNumber': 1,
+                'dataFileHandleId': '42'},
+
+            'entityType': 'org.sagebionetworks.repo.model.FileEntity',
+            'fileHandles': [
+                {
+                    'id': '42'
+                }
+            ],
+            'restrictionInformation': {'hasUnmetAccessRequirement': True}
+        }):
+            entity = syn.get('syn1000002', downloadFile=False)
+            assert_is_not_none(entity)
+            assert_is_none(entity.path)
+
+            # Downloading the file is the default, but is an error if we have unmet access requirements
+            assert_raises(synapseclient.exceptions.SynapseUnmetAccessRestrictions, syn.get, 'syn1000002',
+                          downloadFile=True)
+
 
 def test_move():
     assert_raises(SynapseFileNotFoundError, syn.move, "abc", "syn123")
