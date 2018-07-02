@@ -189,7 +189,7 @@ def test_teams():
             found = m
             break
 
-    assert_is_not_none(found, "Couldn't find user {} in team".format(p.username))
+    assert_is_not_none(found, "Couldn't find user {} in team".format(p.userName))
 
     # needs to be retried 'cause appending to the search index is asynchronous
     tries = 10
