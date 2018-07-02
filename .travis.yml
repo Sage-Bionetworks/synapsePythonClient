@@ -72,7 +72,7 @@ before_script:
 
 
 script:
-- nosetests -vs tests/unit
+- nosetests -s tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
     if [ "$TRAVIS_OS_NAME" == "linux" ]; then
@@ -84,7 +84,7 @@ script:
       /usr/bin/python -c "import gnomekeyring;gnomekeyring.create_sync('login', '');";
     fi
 
-    nosetests -vs tests/integration
+    nosetests -s tests/integration
   else
     echo "Skipping integration tests";
   fi
