@@ -446,8 +446,6 @@ class TestPrivateGetEntityBundle:
         assert_raises(ValueError, syn._getEntityBundle, "syn10101", 'current')
 
     def test_access_restrictions(self):
-        # Bruce gives this test a 'B'. The 'A' solution would be to
-        # construct the mock value from the schemas. -jcb
         with patch.object(syn, '_getEntityBundle', return_value={
             'annotations': {
                 'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
