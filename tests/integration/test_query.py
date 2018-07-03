@@ -7,6 +7,7 @@ from __future__ import unicode_literals
 import time
 
 from nose.tools import assert_less, assert_equals
+import unittest
 
 import deprecation
 
@@ -24,6 +25,7 @@ def setup(module):
 
 
 @deprecation.fail_if_not_removed
+@unittest.skip("Deprecated")
 def test_query():
     # TODO: replace this test with the one below when query() is replaced
     query_str = "select id from entity where entity.parentId=='%s'" % project['id']
@@ -49,6 +51,7 @@ def test_query():
 
 
 @deprecation.fail_if_not_removed
+@unittest.skip("Deprecated")
 def test_chunked_query():
     oldLimit = synapseclient.client.QUERY_LIMIT
     try:
@@ -83,6 +86,7 @@ def test_chunked_query():
 
 
 @deprecation.fail_if_not_removed
+@unittest.skip("Deprecated")
 def test_chunked_query_giant_row():
     absurdly_long_desription = 'This is an absurdly long description!' + '~'*512000
 
