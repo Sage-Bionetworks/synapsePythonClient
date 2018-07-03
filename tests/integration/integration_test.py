@@ -406,7 +406,6 @@ def _set_up_external_s3_project():
 
 
 # TODO: this test should be rewritten as unit test
-@unittest.skip("skipping external s3 bucket test. See SYNPY-685")
 def test_external_s3_upload():
     # setup
     project_id, storage_location_id = _set_up_external_s3_project()
