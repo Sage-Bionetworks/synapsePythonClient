@@ -21,7 +21,6 @@ from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is
     assert_not_in
 from nose.plugins.skip import SkipTest
 from mock import patch
-import unittest
 
 import synapseclient
 import synapseclient.client as client
