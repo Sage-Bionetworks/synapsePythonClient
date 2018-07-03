@@ -21,6 +21,7 @@ from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is
     assert_not_in
 from nose.plugins.skip import SkipTest
 from mock import patch
+import unittest
 
 import synapseclient
 import synapseclient.client as client
@@ -345,9 +346,10 @@ def test_annotations():
 def test_get_user_profile():
     p1 = syn.getUserProfile()
 
+    # skip this test. See SYNPY-685
     # get by name
-    p2 = syn.getUserProfile(p1.userName)
-    assert_equals(p2.userName, p1.userName)
+    # p2 = syn.getUserProfile(p1.userName)
+    # assert_equals(p2.userName, p1.userName)
 
     # get by user ID
     p2 = syn.getUserProfile(p1.ownerId)
@@ -404,6 +406,7 @@ def _set_up_external_s3_project():
 
 
 # TODO: this test should be rewritten as unit test
+@unittest.skip("skipping external s3 bucket test. See SYNPY-685")
 def test_external_s3_upload():
     # setup
     project_id, storage_location_id = _set_up_external_s3_project()
