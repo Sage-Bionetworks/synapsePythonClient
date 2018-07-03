@@ -2987,7 +2987,7 @@ class Synapse(object):
 
                 if failed_updates:
                     raise SynapseError("Not all of the entities were updated."
-                                       " Successful updates: %s.  Failed updates: %s" % (sucessful_updates,
+                                       " Successful updates: %s.  Failed updates: %s" % (successful_updates,
                                                                                          failed_updates))
 
             else:
