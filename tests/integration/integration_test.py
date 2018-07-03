@@ -343,13 +343,13 @@ def test_annotations():
                   annote['present_time'].strftime('%Y-%m-%d %H:%M:%S'))
 
 
-@unittest.skip("skipping userProfile related test. See SYNPY-685")
 def test_get_user_profile():
     p1 = syn.getUserProfile()
 
+    # skip this test. See SYNPY-685
     # get by name
-    p2 = syn.getUserProfile(p1.userName)
-    assert_equals(p2.userName, p1.userName)
+    # p2 = syn.getUserProfile(p1.userName)
+    # assert_equals(p2.userName, p1.userName)
 
     # get by user ID
     p2 = syn.getUserProfile(p1.ownerId)
