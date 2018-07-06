@@ -976,7 +976,7 @@ class Synapse(object):
             if '_file_handle' in local_state \
                     and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
                 local_state['_file_handle'] = self._getFileHandle(properties['dataFileHandleId'])
-                # check if we alredy have the filehandleid cached somewhere
+                # check if we already have the filehandleid cached somewhere
                 cached_path = self.cache.get(properties['dataFileHandleId'])
                 if cached_path is None:
                     local_state['path'] = None
