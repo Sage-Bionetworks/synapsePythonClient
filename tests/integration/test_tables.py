@@ -352,11 +352,15 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
             Column(name='z', columnType='DOUBLE')]
     schema = syn.store(Schema(name='Big Table', columns=cols, parent=project))
 
+    line_terminator = str(os.linesep)
     # write rows to CSV file
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as temp:
         schedule_for_cleanup(temp.name)
         # 2nd row is missing a value in its integer column
-        temp.write('x,y,z\na,1,0.9\nb,,0.8\nc,3,0.7\n')
+        temp.write('x,y,z' + line_terminator
+                   + 'a,1,0.9' + line_terminator
+                   + 'b,,0.8' + line_terminator
+                   + 'c,3,0.7' + line_terminator)
         temp.flush()
         filename = temp.name
 
