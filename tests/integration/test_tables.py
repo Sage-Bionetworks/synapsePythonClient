@@ -370,13 +370,8 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
 
     table_from_dataframe = Table(schema, df)
     assert_not_equal(table.filepath, table_from_dataframe.filepath)
-    with open(table.filepath, 'r') as fin:
-        print(fin.read())
-    with open(table_from_dataframe.filepath, 'r') as fin:
-        print(fin.read())
-    # compare to make sure no .0's were appended to the integers
-    assert_true(filecmp.cmp(table.filepath, table_from_dataframe.filepath))
-
+    df2 = table_from_dataframe.asDataFrame()
+    assert_frame_equal(df, df2)
 
 def test_store_table_datetime():
     current_datetime = datetime.fromtimestamp(round(time.time(), 3))
