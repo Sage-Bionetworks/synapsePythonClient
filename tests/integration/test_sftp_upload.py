@@ -26,15 +26,18 @@ from synapseclient.remote_file_storage_wrappers import SFTPWrapper
 import integration
 from integration import schedule_for_cleanup
 
+SFTP_SERVER_PREFIX = "sftp://ec2-18-209-45-78.compute-1.amazonaws.com"
+SFTP_USER_HOME_PATH = "/home/sftpuser"
+
 DESTINATIONS = [{"uploadType": "SFTP",
                  "description": 'EC2 subfolder A',
                  "supportsSubfolders": True,
-                 "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space",
+                 "url": SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + "/folder_A",
                  "banner": "Uploading file to EC2\n"},
                 {"uploadType": "SFTP",
                  "supportsSubfolders": True,
                  "description": 'EC2 subfolder B',
-                 "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/another_location",
+                 "url": SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + "/folder_B",
                  "banner": "Uploading file to EC2 version 2\n"}
                 ]
 
@@ -78,7 +81,7 @@ def test_synStore_sftpIntegration():
 
 def test_synGet_sftpIntegration():
     # Create file by uploading directly to sftp and creating entity from URL
-    serverURL = 'sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/'+str(uuid.uuid1())
+    serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/' + str(uuid.uuid1())
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
 
     username, password = syn._getUserCredentials(serverURL)
@@ -92,12 +95,12 @@ def test_synGet_sftpIntegration():
 
 def test_utils_sftp_upload_and_download():
     """Tries to upload a file to an sftp file """
-    serverURL = 'sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/'+str(uuid.uuid1())
+    serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/' + str(uuid.uuid1())
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
 
     tempdir = tempfile.mkdtemp()
 
-    username, password = syn._getUserCredentials(serverURL)
+    username, password = syn._getUserCredentials(SFTP_SERVER_PREFIX)
 
     try:
         url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
