@@ -34,7 +34,7 @@ matrix:
 
 addons:
   #This is used for SFTP integration tests
-  ssh_known_hosts: ec2-54-212-85-156.us-west-2.compute.amazonaws.com
+  ssh_known_hosts: ec2-18-209-45-78.compute-1.amazonaws.com
 
 before_install:
 - |

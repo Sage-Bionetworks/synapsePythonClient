@@ -11,7 +11,7 @@ install:
     - "%PYTHON%\\python.exe setup.py install"
 
 before_test:
-    - IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( ssh-keyscan -t ecdsa ec2-54-212-85-156.us-west-2.compute.amazonaws.com >> %userprofile%\\.ssh\\known_hosts )
+    - IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( ssh-keyscan -t ecdsa ec2-18-209-45-78.compute-1.amazonaws.com >> %userprofile%\\.ssh\\known_hosts )
 
 test_script:
     - cmd: "%PYTHON%\\python.exe -m nose -s tests\\unit"
