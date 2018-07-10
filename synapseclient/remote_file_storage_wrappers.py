@@ -137,11 +137,7 @@ class SFTPWrapper:
 
         parsedURL = SFTPWrapper._parse_for_sftp(url)
 
-        # ignore hostkey
-        cnopts = pysftp.CnOpts()
-        cnopts.hostkeys = None
-
-        with pysftp.Connection(parsedURL.hostname, username=username, password=password, cnopts=cnopts) as sftp:
+        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.makedirs(parsedURL.path)
             with sftp.cd(parsedURL.path):
                 sftp.put(filepath, preserve_mtime=True, callback=printTransferProgress)
@@ -178,11 +174,7 @@ class SFTPWrapper:
         if not os.path.exists(dir):
             os.makedirs(dir)
 
-        # ignore hostkey
-        cnopts = pysftp.CnOpts()
-        cnopts.hostkeys = None
-
         # Download file
-        with pysftp.Connection(parsedURL.hostname, username=username, password=password, cnopts=cnopts) as sftp:
+        with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.get(path, localFilepath, preserve_mtime=True, callback=printTransferProgress)
         return localFilepath
