@@ -81,10 +81,11 @@ def test_synStore_sftpIntegration():
 
 def test_synGet_sftpIntegration():
     # Create file by uploading directly to sftp and creating entity from URL
-    serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/' + str(uuid.uuid1())
+    serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_synGet_sftpIntegration/' + str(uuid.uuid1())
+    dirs_to_removed.append(serverURL)
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
 
-    username, password = syn._getUserCredentials(serverURL)
+    username, password = syn._getUserCredentials(SFTP_SERVER_PREFIX)
 
     url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
     file = syn.store(File(path=url, parent=project, synapseStore=False))
@@ -95,7 +96,8 @@ def test_synGet_sftpIntegration():
 
 def test_utils_sftp_upload_and_download():
     """Tries to upload a file to an sftp file """
-    serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/' + str(uuid.uuid1())
+    serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_utils_sftp_upload_and_download/' + str(uuid.uuid1())
+    dirs_to_removed.append(serverURL)
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
 
     tempdir = tempfile.mkdtemp()
