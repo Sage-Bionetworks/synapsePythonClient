@@ -383,44 +383,6 @@ def test_store_table_datetime():
     assert_equals(current_datetime, query_result.rowset['rows'][0]['values'][0])
 
 
-def test_table_file_view_csv_update_annotations__includeEntityEtag():
-    folder = syn.store(synapseclient.Folder(name="updateAnnoFolder" + str(uuid.uuid4()), parent=project))
-    anno1_name = "annotationColumn1"
-    anno2_name = "annotationColumn2"
-    initial_annotations = {anno1_name: "initial_value1", anno2_name: "initial_value2"}
-    file_entity = syn.store(File(name="test_table_file_view_csv_update_annotations__includeEntityEtag",
-                                 path="~/fakepath", synapseStore=False, parent=folder, annotations=initial_annotations))
-
-    annotation_columns = [Column(name=anno1_name, columnType='STRING'), Column(name=anno2_name, columnType='STRING')]
-    entity_view = syn.store(EntityViewSchema(name="TestEntityViewSchemaUpdateAnnotation"+str(uuid.uuid4()),
-                                             parent=project, scopes=[folder], columns=annotation_columns))
-
-    query_str = "SELECT {anno1}, {anno2} FROM {proj_id}".format(anno1=anno1_name, anno2=anno2_name,
-                                                                proj_id=utils.id_of(entity_view))
-
-    # modify first annotation using rowset
-    rowset_query_result = syn.tableQuery(query_str, resultsAs="rowset")
-    rowset = rowset_query_result.asRowSet()
-    rowset_changed_anno_value = "rowset_value_change"
-    rowset.rows[0].values[0] = rowset_changed_anno_value
-    syn.store(rowset)
-
-    # modify second annotation using csv
-    csv_query_result = syn.tableQuery(query_str, resultsAs="csv")
-    dataframe = csv_query_result.asDataFrame()
-    csv_changed_anno_value = "csv_value_change"
-    dataframe.ix[0, anno2_name] = csv_changed_anno_value
-    syn.store(Table(utils.id_of(entity_view), dataframe))
-
-    # check annotations in the file entity. Annotations may not be immediately updated so we wait in while loop
-    expected_annotations = {anno1_name: [rowset_changed_anno_value], anno2_name: [csv_changed_anno_value]}
-    start_time = time.time()
-    while(expected_annotations != file_entity.annotations):
-        assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-        time.sleep(2)
-        file_entity = syn.get(file_entity, downloadFile=False)
-
-
 class TestPartialRowSet(object):
 
     def test_partial_row_view_csv_query_table(self):
