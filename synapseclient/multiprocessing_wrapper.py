@@ -28,7 +28,7 @@ class MultiprocessingWrapper():
     def __init__(self, with_single_thread=False):
         self._with_single_thread = with_single_thread
 
-    def _init_poll(self):
+    def _init_pool(self):
         if not self._with_single_thread and not self._pool:
             self._pool = Pool(DEFAULT_POOL_SIZE)
 
@@ -38,7 +38,7 @@ class MultiprocessingWrapper():
                 func(item)
         else:
             if not self._pool:
-                self._init_poll()
+                self._init_pool()
             self._pool.map(func, iterable)
 
     def terminate(self):
