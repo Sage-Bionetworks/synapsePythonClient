@@ -15,6 +15,7 @@ from multiprocessing.dummy import Pool
 from ctypes import c_bool
 from mock import patch, MagicMock
 import warnings
+import synapseclient.config
 
 
 def setup(module):
@@ -131,8 +132,7 @@ def test__multipart_upload():
 
 
 def test__multipart_upload_with_single_thread():
-    syn = Synapse(with_single_thread=True)
-    thread_wrapper = MagicMock(MultiprocessingWrapper)
+    synapseclient.config.single_threaded = True
     mocked_get_chunk_function = MagicMock(side_effect=[1, 2, 3, 4])
     file_size = 1 * MB
     filepath = make_bogus_binary_file(n=file_size)
