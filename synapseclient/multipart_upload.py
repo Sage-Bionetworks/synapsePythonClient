@@ -26,7 +26,8 @@ import time
 import warnings
 from ctypes import c_bool
 from multiprocessing import Value
-from multiprocessing.dummy import Pool
+
+from synapseclient.multiprocessing_wrapper import MultiprocessingWrapper
 
 try:
     from urllib.parse import urlparse
@@ -350,7 +351,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     syn.logger.debug("previously completed %d parts, estimated %d bytes" % (completedParts, previously_completed_bytes))
     time_upload_started = time.time()
     retries = 0
-    mp = Pool(8)
+    mp = MultiprocessingWrapper(with_single_thread=syn.with_single_thread)
     try:
         while retries < MAX_RETRIES:
             syn.logger.debug("Started retry loop for multipart_upload. Currently %d/%d retries"
@@ -370,7 +371,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
 
             syn.logger.debug("fetching pre-signed urls and mapping to Pool")
             url_generator = _get_presigned_urls(syn, status.uploadId, find_parts_to_upload(status.partsState))
-            mp.map(chunk_upload, url_generator)
+            mp.run(chunk_upload, url_generator)
             syn.logger.debug("completed pooled upload")
 
             # Check if there are still parts

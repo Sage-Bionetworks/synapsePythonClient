@@ -3,13 +3,13 @@ import filecmp
 import math
 import os
 import tempfile
-from nose.tools import assert_raises, assert_true, assert_greater_equal, assert_less_equal, assert_equals, \
-    assert_is_instance
+from nose.tools import assert_raises, assert_true, assert_greater_equal, assert_equals, assert_is_instance
 from synapseclient.multipart_upload import find_parts_to_upload, count_completed_parts, calculate_part_size,\
-    get_file_chunk, _upload_chunk
-from synapseclient.utils import MB, GB, make_bogus_binary_file
+    get_file_chunk, _upload_chunk, _multipart_upload
+from synapseclient.multiprocessing_wrapper import MultiprocessingWrapper
+from synapseclient.utils import MB, GB, make_bogus_binary_file, md5_for_file
 from synapseclient.exceptions import SynapseHTTPError
-from synapseclient import multipart_upload
+from synapseclient import multipart_upload, Synapse
 from multiprocessing import Value
 from multiprocessing.dummy import Pool
 from ctypes import c_bool
@@ -114,3 +114,33 @@ def test_upload_chunk__expired_url():
 
         # assert _put_chunk was called at least once
         assert_greater_equal(len(mocked_put_chunk.call_args_list), 1)
+
+
+def test__multipart_upload():
+    mocked_get_chunk_function = MagicMock(side_effect=[1, 2, 3, 4])
+    file_size = 1*MB
+    filepath = make_bogus_binary_file(n=file_size)
+    md5 = md5_for_file(filepath).hexdigest()
+    status = {'partsState': {},
+              'uploadId': {},
+              'state': 'COMPLETED'}
+    with patch.object(syn, "restPOST", return_value=status),\
+            patch.object(MultiprocessingWrapper, "__init__", return_value=None) as wrapper_init:
+        _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
+        wrapper_init.assert_called_once_with(with_single_thread=False)
+
+
+def test__multipart_upload_with_single_thread():
+    syn = Synapse(with_single_thread=True)
+    thread_wrapper = MagicMock(MultiprocessingWrapper)
+    mocked_get_chunk_function = MagicMock(side_effect=[1, 2, 3, 4])
+    file_size = 1 * MB
+    filepath = make_bogus_binary_file(n=file_size)
+    md5 = md5_for_file(filepath).hexdigest()
+    status = {'partsState': {},
+              'uploadId': {},
+              'state': 'COMPLETED'}
+    with patch.object(syn, "restPOST", return_value = status),\
+            patch.object(MultiprocessingWrapper, "__init__", return_value=None) as wrapper_init:
+        _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
+        wrapper_init.assert_called_once_with(with_single_thread=True)

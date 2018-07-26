@@ -193,7 +193,7 @@ class Synapse(object):
 
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
-                 debug=None, skip_checks=False, configPath=CONFIG_FILE):
+                 debug=None, skip_checks=False, configPath=CONFIG_FILE, with_single_thread=False):
         self._requests_session = requests.Session()
 
         cache_root_dir = cache.CACHE_ROOT_DIR
@@ -228,6 +228,8 @@ class Synapse(object):
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
+
+        self.with_single_thread = with_single_thread
 
     @property
     def debug(self):
