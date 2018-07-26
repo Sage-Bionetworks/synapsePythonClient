@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from mock import MagicMock
 from nose.tools import assert_is_none, assert_false, assert_true, assert_is_not_none
 
 from synapseclient.multiprocessing_wrapper import MultiprocessingWrapper, DEFAULT_POOL_SIZE
