@@ -6,12 +6,13 @@ import tempfile
 from nose.tools import assert_raises, assert_true, assert_greater_equal, assert_equals, assert_is_instance
 from synapseclient.multipart_upload import find_parts_to_upload, count_completed_parts, calculate_part_size,\
     get_file_chunk, _upload_chunk, _multipart_upload
-from synapseclient.multiprocessing_wrapper import MultiprocessingWrapper
+from synapseclient.pool_provider import SingleThreadPool
 from synapseclient.utils import MB, GB, make_bogus_binary_file, md5_for_file
 from synapseclient.exceptions import SynapseHTTPError
-from synapseclient import multipart_upload, Synapse
+from synapseclient import multipart_upload
 from multiprocessing import Value
 from multiprocessing.dummy import Pool
+from multiprocessing.pool import ThreadPool
 from ctypes import c_bool
 from mock import patch, MagicMock
 import warnings
@@ -126,9 +127,11 @@ def test__multipart_upload():
               'uploadId': {},
               'state': 'COMPLETED'}
     with patch.object(syn, "restPOST", return_value=status),\
-            patch.object(MultiprocessingWrapper, "__init__", return_value=None) as wrapper_init:
+            patch.object(SingleThreadPool, "map", return_value=None) as single_thread_pool_map,\
+            patch.object(ThreadPool, "map", return_value=None) as thread_pool_map:
         _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
-        wrapper_init.assert_called_once_with(with_single_thread=False)
+        single_thread_pool_map.assert_not_called()
+        thread_pool_map.assert_called()
 
 
 def test__multipart_upload_with_single_thread():
@@ -141,6 +144,8 @@ def test__multipart_upload_with_single_thread():
               'uploadId': {},
               'state': 'COMPLETED'}
     with patch.object(syn, "restPOST", return_value = status),\
-            patch.object(MultiprocessingWrapper, "__init__", return_value=None) as wrapper_init:
+            patch.object(SingleThreadPool, "map", return_value=None) as single_thread_pool_map,\
+            patch.object(ThreadPool, "map", return_value=None) as thread_pool_map:
         _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
-        wrapper_init.assert_called_once_with(with_single_thread=True)
+        single_thread_pool_map.assert_called()
+        thread_pool_map.assert_not_called()
