@@ -42,7 +42,7 @@ setup(name='synapseclient',
         'six',
         'future',
         'backports.csv',
-        'keyring==11.0.0',
+        'keyring==13.2.1',
         'deprecation',
     ],
     extras_require = {
