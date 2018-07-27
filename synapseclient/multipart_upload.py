@@ -42,7 +42,6 @@ from .dict_object import DictObject
 from .exceptions import SynapseError
 from .exceptions import SynapseHTTPError
 from .utils import threadsafe_generator
-import synapseclient.config
 
 MAX_NUMBER_OF_PARTS = 10000
 MIN_PART_SIZE = 8*MB
@@ -352,7 +351,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     syn.logger.debug("previously completed %d parts, estimated %d bytes" % (completedParts, previously_completed_bytes))
     time_upload_started = time.time()
     retries = 0
-    mp = PoolProvider(single_threaded=synapseclient.config.single_threaded)
+    mp = PoolProvider().get_pool()
     try:
         while retries < MAX_RETRIES:
             syn.logger.debug("Started retry loop for multipart_upload. Currently %d/%d retries"

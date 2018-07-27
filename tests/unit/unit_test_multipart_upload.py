@@ -6,17 +6,15 @@ import tempfile
 from nose.tools import assert_raises, assert_true, assert_greater_equal, assert_equals, assert_is_instance
 from synapseclient.multipart_upload import find_parts_to_upload, count_completed_parts, calculate_part_size,\
     get_file_chunk, _upload_chunk, _multipart_upload
-from synapseclient.pool_provider import SingleThreadPool
 from synapseclient.utils import MB, GB, make_bogus_binary_file, md5_for_file
 from synapseclient.exceptions import SynapseHTTPError
 from synapseclient import multipart_upload
+from synapseclient.pool_provider import PoolProvider
 from multiprocessing import Value
 from multiprocessing.dummy import Pool
-from multiprocessing.pool import ThreadPool
 from ctypes import c_bool
 from mock import patch, MagicMock
 import warnings
-import synapseclient.config
 
 
 def setup(module):
@@ -118,7 +116,7 @@ def test_upload_chunk__expired_url():
         assert_greater_equal(len(mocked_put_chunk.call_args_list), 1)
 
 
-def test__multipart_upload():
+def test_pool_provider_is_used_in__multipart_upload():
     mocked_get_chunk_function = MagicMock(side_effect=[1, 2, 3, 4])
     file_size = 1*MB
     filepath = make_bogus_binary_file(n=file_size)
@@ -126,26 +124,9 @@ def test__multipart_upload():
     status = {'partsState': {},
               'uploadId': {},
               'state': 'COMPLETED'}
+
+    pool = MagicMock()
     with patch.object(syn, "restPOST", return_value=status),\
-            patch.object(SingleThreadPool, "map", return_value=None) as single_thread_pool_map,\
-            patch.object(ThreadPool, "map", return_value=None) as thread_pool_map:
+            patch.object(PoolProvider, "get_pool", return_value=pool):
         _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
-        single_thread_pool_map.assert_not_called()
-        thread_pool_map.assert_called()
-
-
-def test__multipart_upload_with_single_thread():
-    synapseclient.config.single_threaded = True
-    mocked_get_chunk_function = MagicMock(side_effect=[1, 2, 3, 4])
-    file_size = 1 * MB
-    filepath = make_bogus_binary_file(n=file_size)
-    md5 = md5_for_file(filepath).hexdigest()
-    status = {'partsState': {},
-              'uploadId': {},
-              'state': 'COMPLETED'}
-    with patch.object(syn, "restPOST", return_value = status),\
-            patch.object(SingleThreadPool, "map", return_value=None) as single_thread_pool_map,\
-            patch.object(ThreadPool, "map", return_value=None) as thread_pool_map:
-        _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
-        single_thread_pool_map.assert_called()
-        thread_pool_map.assert_not_called()
+        pool.map.assert_called()

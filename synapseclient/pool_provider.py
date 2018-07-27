@@ -15,15 +15,13 @@ To use this wrapper for single thread::
 
 """
 from multiprocessing.dummy import Pool
+import synapseclient.config
 
 
 DEFAULT_POOL_SIZE = 8
 
 
 class SingleThreadPool:
-
-    def __init__(self):
-        pass
 
     def map(self, func, iterable):
         for item in iterable:
@@ -33,8 +31,10 @@ class SingleThreadPool:
         pass
 
 
-def PoolProvider(single_threaded=False):
-    if single_threaded:
-        return SingleThreadPool()
-    else:
-        return Pool(DEFAULT_POOL_SIZE)
+class PoolProvider:
+
+    def get_pool(self):
+        if synapseclient.config.single_threaded:
+            return SingleThreadPool()
+        else:
+            return Pool(DEFAULT_POOL_SIZE)

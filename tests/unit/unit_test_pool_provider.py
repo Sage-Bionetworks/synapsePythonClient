@@ -3,6 +3,7 @@ from nose.tools import assert_is_instance
 
 from multiprocessing.pool import ThreadPool
 from synapseclient.pool_provider import PoolProvider, SingleThreadPool
+import synapseclient
 
 
 class TestSingleThreadPool:
@@ -16,7 +17,8 @@ class TestSingleThreadPool:
 class TestPoolProvider:
 
     def test_single_thread(self):
-        assert_is_instance(PoolProvider(single_threaded=True), SingleThreadPool)
+        synapseclient.config.single_threaded = True
+        assert_is_instance(PoolProvider().get_pool(), SingleThreadPool)
 
     def test_multiple_thread(self):
-        assert_is_instance(PoolProvider(), ThreadPool)
+        assert_is_instance(PoolProvider().get_pool(), ThreadPool)
