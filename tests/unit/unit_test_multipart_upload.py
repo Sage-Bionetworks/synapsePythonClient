@@ -9,7 +9,7 @@ from synapseclient.multipart_upload import find_parts_to_upload, count_completed
 from synapseclient.utils import MB, GB, make_bogus_binary_file, md5_for_file
 from synapseclient.exceptions import SynapseHTTPError
 from synapseclient import multipart_upload
-from synapseclient.pool_provider import PoolProvider
+from synapseclient import pool_provider
 from multiprocessing import Value
 from multiprocessing.dummy import Pool
 from ctypes import c_bool
@@ -127,6 +127,7 @@ def test_pool_provider_is_used_in__multipart_upload():
 
     pool = MagicMock()
     with patch.object(syn, "restPOST", return_value=status),\
-            patch.object(PoolProvider, "get_pool", return_value=pool):
+            patch.object(pool_provider, "get_pool", return_value=pool) as mock_provider:
         _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
+        mock_provider.assert_called()
         pool.map.assert_called()

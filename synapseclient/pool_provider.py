@@ -31,10 +31,8 @@ class SingleThreadPool:
         pass
 
 
-class PoolProvider:
-
-    def get_pool(self):
-        if synapseclient.config.single_threaded:
-            return SingleThreadPool()
-        else:
-            return Pool(DEFAULT_POOL_SIZE)
+def get_pool():
+    if synapseclient.config.single_threaded:
+        return SingleThreadPool()
+    else:
+        return Pool(DEFAULT_POOL_SIZE)
