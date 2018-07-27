@@ -26,7 +26,8 @@ import time
 import warnings
 from ctypes import c_bool
 from multiprocessing import Value
-from multiprocessing.dummy import Pool
+
+from . import pool_provider
 
 try:
     from urllib.parse import urlparse
@@ -350,7 +351,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     syn.logger.debug("previously completed %d parts, estimated %d bytes" % (completedParts, previously_completed_bytes))
     time_upload_started = time.time()
     retries = 0
-    mp = Pool(8)
+    mp = pool_provider.get_pool()
     try:
         while retries < MAX_RETRIES:
             syn.logger.debug("Started retry loop for multipart_upload. Currently %d/%d retries"
