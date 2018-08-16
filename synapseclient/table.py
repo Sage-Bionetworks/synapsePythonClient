@@ -844,7 +844,7 @@ class SelectColumn(DictObject):
     :type columnType:   string
     :type name:         string
     """
-    def __init__(self, id=None, columnType=None, name=None):
+    def __init__(self, id=None, columnType=None, name=None, **kwargs):
         super(SelectColumn, self).__init__()
         if id:
             self.id = id
@@ -856,6 +856,9 @@ class SelectColumn(DictObject):
             if columnType not in ColumnTypes:
                 raise ValueError('Unrecognized columnType: %s' % columnType)
             self.columnType = columnType
+
+        # Notes that this param is only used to support forward compatibility.
+        self.update(kwargs)
 
     @classmethod
     def from_column(cls, column):
@@ -1065,7 +1068,7 @@ class Row(DictObject):
     :param versionNumber:   The version number of this row. Each row version is immutable, so when a row is updated a
                             new version is created.
     """
-    def __init__(self, values, rowId=None, versionNumber=None, etag=None):
+    def __init__(self, values, rowId=None, versionNumber=None, etag=None, **kwargs):
         super(Row, self).__init__()
         self.values = values
         if rowId is not None:
@@ -1074,6 +1077,9 @@ class Row(DictObject):
             self.versionNumber = versionNumber
         if etag is not None:
             self.etag = etag
+
+        # Notes that this param is only used to support forward compatibility.
+        self.update(kwargs)
 
 
 class PartialRow(DictObject):

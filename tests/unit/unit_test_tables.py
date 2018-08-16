@@ -957,3 +957,19 @@ class TestCsvFileTable:
                              ['5', '1', "etag2", "weeeeeeeeeeee"]]
             for expected_row, table_row in zip(expected_rows, table):
                 assert_equals(expected_row, table_row)
+
+def test_Row_forward_compatibility():
+    row = Row("2, 3, 4", rowId=1, versionNumber=1, etag=None, new_field="new")
+    assert_equals("2, 3, 4", row.get("values"))
+    assert_equals(1, row.get("rowId"))
+    assert_equals(1, row.get("versionNumber"))
+    assert_is_none(row.get("etag"))
+    assert_equals("new", row.get("new_field"))
+
+
+def test_SelectColumn_forward_compatibility():
+    sc = SelectColumn(id=1, columnType="STRING", name="my_col", columnSQL="new")
+    assert_equals(1, sc.get("id"))
+    assert_equals("STRING", sc.get("columnType"))
+    assert_equals("my_col", sc.get("name"))
+    assert_equals("new", sc.get("columnSQL"))
