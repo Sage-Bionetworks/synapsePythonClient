@@ -46,7 +46,7 @@ setup(name='synapseclient',
         'deprecation',
     ],
     extras_require = {
-        'pandas': ["pandas==0.23.0"],
+        'pandas':  ["pandas==0.23.0"],
         'pysftp': ["pysftp>=0.2.8"],
         'boto3' : ["boto3"],
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt'],

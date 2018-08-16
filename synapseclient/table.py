@@ -844,9 +844,6 @@ class SelectColumn(DictObject):
     :type columnType:   string
     :type name:         string
     """
-
-    # Please use from_data to read data coming back from the backend.
-    # For more information, please see SYNPY-797
     def __init__(self, id=None, columnType=None, name=None):
         super(SelectColumn, self).__init__()
         if id:
@@ -863,10 +860,6 @@ class SelectColumn(DictObject):
     @classmethod
     def from_column(cls, column):
         return cls(column.get('id', None), column.get('columnType', None), column.get('name', None))
-
-    @classmethod
-    def from_data(cls, data):
-        return cls(data.get('id', None), data.get('columnType', None), data.get('name', None))
 
 
 class Column(DictObject):
@@ -1029,8 +1022,8 @@ class RowSet(AppendableRowset):
 
     @classmethod
     def from_json(cls, json):
-        headers = [SelectColumn.from_data(header) for header in json.get('headers', [])]
-        rows = [cast_row(Row.from_data(row), headers) for row in json.get('rows', [])]
+        headers = [SelectColumn(**header) for header in json.get('headers', [])]
+        rows = [cast_row(Row(**row), headers) for row in json.get('rows', [])]
         return cls(headers=headers, rows=rows,
                    **{key: json[key] for key in json.keys() if key not in ['headers', 'rows']})
 
@@ -1072,9 +1065,6 @@ class Row(DictObject):
     :param versionNumber:   The version number of this row. Each row version is immutable, so when a row is updated a
                             new version is created.
     """
-
-    # Please use from_data to read data coming back from the backend.
-    # For more information, please see SYNPY-797
     def __init__(self, values, rowId=None, versionNumber=None, etag=None):
         super(Row, self).__init__()
         self.values = values
@@ -1084,10 +1074,6 @@ class Row(DictObject):
             self.versionNumber = versionNumber
         if etag is not None:
             self.etag = etag
-
-    @classmethod
-    def from_data(cls, data):
-        return cls(data.get('values'), data.get('rowId', None), data.get('versionNumber', None), data.get('etag', None))
 
 
 class PartialRow(DictObject):
@@ -1569,7 +1555,7 @@ class CsvFileTable(TableAbstractBaseClass):
             separator=separator,
             header=header,
             includeRowIdAndRowVersion=includeRowIdAndRowVersion,
-            headers=[SelectColumn.from_data(header) for header in download_from_table_result['headers']])
+            headers=[SelectColumn(**header) for header in download_from_table_result['headers']])
 
         return self
 
