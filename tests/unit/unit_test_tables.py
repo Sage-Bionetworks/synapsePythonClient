@@ -8,7 +8,6 @@ from backports import csv
 import io
 import math
 import os
-import sys
 import tempfile
 from builtins import zip
 from mock import MagicMock
@@ -104,6 +103,37 @@ def test_schema():
     assert_equals(len(schema.columns_to_store), 3)
     assert_not_in(Column(name='Living', columnType='BOOLEAN'), schema.columns_to_store)
     assert_in(Column(name='Hipness', columnType='DOUBLE'), schema.columns_to_store)
+
+
+# SYNPY-795 & SYNPY-797
+def test_RowSetTable_from_json_with_new_field():
+    row_set_json = {
+        'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+        'headers': [
+         {'columnType': 'STRING', 'id': '353', 'name': 'name', 'columnSQL': 'name'},
+         {'columnType': 'DOUBLE', 'id': '355', 'name': 'x', 'columnSQL': 'x'},
+         {'columnType': 'DOUBLE', 'id': '3020', 'name': 'y', 'columnSQL': 'y'},
+         {'columnType': 'INTEGER', 'id': '891', 'name': 'n', 'columnSQL': 'n'}],
+        'rows': [{
+          'rowId': 5,
+          'values': ['foo', '1.23', '2.2', '101'],
+          'versionNumber': 3,
+          'newField': 'some data'},
+         {'rowId': 6,
+          'values': ['bar', '1.34', '2.4', '101'],
+          'versionNumber': 3,
+          'newField': 'some data'},
+         {'rowId': 7,
+          'values': ['foo', '1.23', '2.2', '101'],
+          'versionNumber': 4,
+          'newField': 'some data'},
+         {'rowId': 8,
+          'values': ['qux', '1.23', '2.2', '102'],
+          'versionNumber': 3,
+          'newField': 'some data'}],
+        'tableId': 'syn2976298'}
+
+    RowSet.from_json(row_set_json)
 
 
 def test_RowSetTable():
@@ -957,3 +987,25 @@ class TestCsvFileTable:
                              ['5', '1', "etag2", "weeeeeeeeeeee"]]
             for expected_row, table_row in zip(expected_rows, table):
                 assert_equals(expected_row, table_row)
+
+    # SYNPY-795
+    def test_from_table_query(self):
+        response = {'headers': [{
+                        'columnType': 'INTEGER',
+                        'name': 'testerino',
+                        'id': '61763',
+                        'columnSQL': '"testerino"'}],
+                    'concreteType': 'org.sagebionetworks.repo.model.table.RowSet',
+                    'tableId': 'syn15665621',
+                    'etag': '2e525ad6-dae6-4926-bcad-2a12385c310f',
+                    'rows': [{
+                        'values': ['1534254873555'],
+                        'versionNumber': 0,
+                        'rowId': 0}]}
+        path = "some/path"
+        data = "ROW_ID,ROW_VERSION,testerino\n"\
+               "1,2,3\n"
+        syn = synapseclient.client.Synapse()
+        with patch.object(syn, "_queryTableCsv", return_value=(response, path)),\
+                patch.object(io, "open", return_value=StringIOContextManager(data)):
+            CsvFileTable.from_table_query(syn, "select * from syn1")
