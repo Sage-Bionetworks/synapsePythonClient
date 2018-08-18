@@ -1,0 +1,826 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Tables &#8212; Synapse Python Client 1.8.2 documentation</title>
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Using the Synapse Python Client with SFTP data storage" href="sftp.html" />
+    <link rel="prev" title="Synapse command line client" href="CommandLineClient.html" /> 
+  </head><body>
+<div class="header">
+  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse'/></a>
+  <h1>Synapse Python Client API</h1>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="sftp.html" title="Using the Synapse Python Client with SFTP data storage"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="CommandLineClient.html" title="Synapse command line client"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Tables</a><ul>
+<li><a class="reference internal" href="#id1">Pandas</a></li>
+<li><a class="reference internal" href="#changing-data">Changing Data</a></li>
+<li><a class="reference internal" href="#changing-table-structure">Changing Table Structure</a></li>
+<li><a class="reference internal" href="#table-attached-files">Table attached files</a></li>
+<li><a class="reference internal" href="#deleting-rows">Deleting rows</a></li>
+<li><a class="reference internal" href="#deleting-the-whole-table">Deleting the whole table</a><ul>
+<li><a class="reference internal" href="#queries">Queries</a></li>
+<li><a class="reference internal" href="#schema">Schema</a></li>
+<li><a class="reference internal" href="#column">Column</a></li>
+<li><a class="reference internal" href="#row">Row</a></li>
+<li><a class="reference internal" href="#rowset">RowSet</a></li>
+<li><a class="reference internal" href="#table">Table</a></li>
+<li><a class="reference internal" href="#module-level-methods">Module level methods</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="CommandLineClient.html"
+                        title="previous chapter">Synapse command line client</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="sftp.html"
+                        title="next chapter">Using the Synapse Python Client with SFTP data storage</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/Table.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <span class="target" id="module-synapseclient.table"></span><div class="section" id="tables">
+<h1>Tables<a class="headerlink" href="#tables" title="Permalink to this headline">¶</a></h1>
+<p>Synapse Tables enable storage of tabular data in Synapse in a form that can be queried using a SQL-like query language.</p>
+<p>A table has a <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> and holds a set of rows conforming to that schema.</p>
+<p>A <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> defines a series of <a class="reference internal" href="#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> of the following types: STRING, DOUBLE, INTEGER, BOOLEAN,
+DATE, ENTITYID, FILEHANDLEID, LINK, LARGETEXT, USERID
+~~~~~~~
+Example
+~~~~~~~</p>
+<p>Preliminaries:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Project</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">Folder</span>
+<span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Schema</span><span class="p">,</span> <span class="n">Column</span><span class="p">,</span> <span class="n">Table</span><span class="p">,</span> <span class="n">Row</span><span class="p">,</span> <span class="n">RowSet</span><span class="p">,</span> <span class="n">as_table_columns</span>
+
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">Synapse</span><span class="p">()</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
+
+<span class="n">project</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;syn123&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>First, let’s load some data. Let’s say we had a file, genes.csv:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Name</span><span class="p">,</span><span class="n">Chromosome</span><span class="p">,</span><span class="n">Start</span><span class="p">,</span><span class="n">End</span><span class="p">,</span><span class="n">Strand</span><span class="p">,</span><span class="n">TranscriptionFactor</span>
+<span class="n">foo</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">12345</span><span class="p">,</span><span class="mi">12600</span><span class="p">,</span><span class="o">+</span><span class="p">,</span><span class="kc">False</span>
+<span class="n">arg</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">20001</span><span class="p">,</span><span class="mi">20200</span><span class="p">,</span><span class="o">+</span><span class="p">,</span><span class="kc">False</span>
+<span class="n">zap</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span><span class="mi">30033</span><span class="p">,</span><span class="mi">30999</span><span class="p">,</span><span class="o">-</span><span class="p">,</span><span class="kc">False</span>
+<span class="n">bah</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">40444</span><span class="p">,</span><span class="mi">41444</span><span class="p">,</span><span class="o">-</span><span class="p">,</span><span class="kc">False</span>
+<span class="n">bnk</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">51234</span><span class="p">,</span><span class="mi">54567</span><span class="p">,</span><span class="o">+</span><span class="p">,</span><span class="kc">True</span>
+<span class="n">xyz</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">61234</span><span class="p">,</span><span class="mi">68686</span><span class="p">,</span><span class="o">+</span><span class="p">,</span><span class="kc">False</span>
+</pre></div>
+</div>
+<p>To create a Table:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">table</span> <span class="o">=</span> <span class="n">build_table</span><span class="p">(</span><span class="s1">&#39;My Favorite Genes&#39;</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="s2">&quot;/path/to/genes.csv&quot;</span><span class="p">)</span>
+<span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><a class="reference internal" href="#synapseclient.table.build_table" title="synapseclient.table.build_table"><code class="xref py py-func docutils literal notranslate"><span class="pre">build_table()</span></code></a> will set the Table <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> which defines the columns of the table.
+To create a table with a custom <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a>, first create the <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cols</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Name&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;STRING&#39;</span><span class="p">,</span> <span class="n">maximumSize</span><span class="o">=</span><span class="mi">20</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Chromosome&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;STRING&#39;</span><span class="p">,</span> <span class="n">maximumSize</span><span class="o">=</span><span class="mi">20</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Start&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;INTEGER&#39;</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;End&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;INTEGER&#39;</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Strand&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;STRING&#39;</span><span class="p">,</span> <span class="n">enumValues</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">],</span> <span class="n">maximumSize</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;TranscriptionFactor&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;BOOLEAN&#39;</span><span class="p">)]</span>
+
+<span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;My Favorite Genes&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Let’s store that in Synapse:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">table</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="s2">&quot;/path/to/genes.csv&quot;</span><span class="p">)</span>
+<span class="n">table</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <a class="reference internal" href="#synapseclient.table.Table" title="synapseclient.table.Table"><code class="xref py py-func docutils literal notranslate"><span class="pre">Table()</span></code></a> function takes two arguments, a schema object and data in some form, which can be:</p>
+<blockquote>
+<div><ul class="simple">
+<li>a path to a CSV file</li>
+<li>a <a class="reference external" href="http://pandas.pydata.org/">Pandas</a>     <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe">DataFrame</a></li>
+<li>a <a class="reference internal" href="#synapseclient.table.RowSet" title="synapseclient.table.RowSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowSet</span></code></a> object</li>
+<li>a list of lists where each of the inner lists is a row</li>
+</ul>
+</div></blockquote>
+<p>With a bit of luck, we now have a table populated with data. Let’s try to query:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select * from </span><span class="si">%s</span><span class="s2"> where Chromosome=&#39;1&#39; and Start &lt; 41000 and End &gt; 20000&quot;</span>
+                         <span class="o">%</span> <span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="id1">
+<h2>Pandas<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
+<p><a class="reference external" href="http://pandas.pydata.org/">Pandas</a> is a popular library for working with tabular data. If you have Pandas installed,
+the goal is that Synapse Tables will play nice with it.</p>
+<p>Create a Synapse Table from a <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe">DataFrame</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;/path/to/genes.csv&quot;</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">table</span> <span class="o">=</span> <span class="n">build_table</span><span class="p">(</span><span class="s1">&#39;My Favorite Genes&#39;</span><span class="p">,</span> <span class="n">project</span><span class="p">,</span> <span class="n">df</span><span class="p">)</span>
+<span class="n">table</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><a class="reference internal" href="#synapseclient.table.build_table" title="synapseclient.table.build_table"><code class="xref py py-func docutils literal notranslate"><span class="pre">build_table()</span></code></a> uses pandas DataFrame dtype to set the Table <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a>.
+To create a table with a custom <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a>, first create the <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">schema</span> <span class="o">=</span> <span class="n">Schema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;My Favorite Genes&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">as_table_columns</span><span class="p">(</span><span class="n">df</span><span class="p">),</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">)</span>
+<span class="n">table</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Table</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">df</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Get query results as a <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe">DataFrame</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select * from </span><span class="si">%s</span><span class="s2"> where Chromosome=&#39;2&#39;&quot;</span> <span class="o">%</span> <span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">asDataFrame</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="changing-data">
+<h2>Changing Data<a class="headerlink" href="#changing-data" title="Permalink to this headline">¶</a></h2>
+<p>Once the schema is settled, changes come in two flavors: appending new rows and updating existing ones.</p>
+<p><strong>Appending</strong> new rows is fairly straightforward. To continue the previous example, we might add some new genes from
+another file:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">table</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Table</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="s2">&quot;/path/to/more_genes.csv&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>To quickly add a few rows, use a list of row data:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">new_rows</span> <span class="o">=</span> <span class="p">[[</span><span class="s2">&quot;Qux1&quot;</span><span class="p">,</span> <span class="s2">&quot;4&quot;</span><span class="p">,</span> <span class="mi">201001</span><span class="p">,</span> <span class="mi">202001</span><span class="p">,</span> <span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">],</span>
+            <span class="p">[</span><span class="s2">&quot;Qux2&quot;</span><span class="p">,</span> <span class="s2">&quot;4&quot;</span><span class="p">,</span> <span class="mi">203001</span><span class="p">,</span> <span class="mi">204001</span><span class="p">,</span> <span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">]]</span>
+<span class="n">table</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Table</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">new_rows</span><span class="p">))</span>
+</pre></div>
+</div>
+<p><strong>Updating</strong> rows requires an etag, which identifies the most recent change set plus row IDs and version numbers for
+each row to be modified. We get those by querying before updating. Minimizing changesets to contain only rows that
+actually change will make processing faster.</p>
+<p>For example, let’s update the names of some of our favorite genes:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select * from </span><span class="si">%s</span><span class="s2"> where Chromosome=&#39;1&#39;&quot;</span> <span class="o">%</span><span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">results</span><span class="o">.</span><span class="n">asDataFrame</span><span class="p">()</span>
+<span class="n">df</span><span class="p">[</span><span class="s1">&#39;Name&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;rzing&#39;</span><span class="p">,</span> <span class="s1">&#39;zing1&#39;</span><span class="p">,</span> <span class="s1">&#39;zing2&#39;</span><span class="p">,</span> <span class="s1">&#39;zing3&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Note that we’re propagating the etag from the query results. Without it, we’d get an error saying something about an
+“Invalid etag”:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">table</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Table</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">df</span><span class="p">,</span> <span class="n">etag</span><span class="o">=</span><span class="n">results</span><span class="o">.</span><span class="n">etag</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>The etag is used by the server to prevent concurrent users from making conflicting changes, a technique called
+optimistic concurrency. In case of a conflict, your update may be rejected. You then have to do another query and
+try your update again.</p>
+</div>
+<div class="section" id="changing-table-structure">
+<h2>Changing Table Structure<a class="headerlink" href="#changing-table-structure" title="Permalink to this headline">¶</a></h2>
+<p>Adding columns can be done using the methods <code class="xref py py-meth docutils literal notranslate"><span class="pre">Schema.addColumn()</span></code> or <code class="xref py py-meth docutils literal notranslate"><span class="pre">addColumns()</span></code> on the
+<a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn000000&quot;</span><span class="p">)</span>
+<span class="n">bday_column</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;birthday&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;DATE&#39;</span><span class="p">))</span>
+<span class="n">schema</span><span class="o">.</span><span class="n">addColumn</span><span class="p">(</span><span class="n">bday_column</span><span class="p">)</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Renaming or otherwise modifying a column involves removing the column and adding a new column:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cols</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">getTableColumns</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">cols</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">col</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="s2">&quot;birthday&quot;</span><span class="p">:</span>
+        <span class="n">schema</span><span class="o">.</span><span class="n">removeColumn</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+<span class="n">bday_column2</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;birthday2&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;DATE&#39;</span><span class="p">))</span>
+<span class="n">schema</span><span class="o">.</span><span class="n">addColumn</span><span class="p">(</span><span class="n">bday_column2</span><span class="p">)</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="table-attached-files">
+<h2>Table attached files<a class="headerlink" href="#table-attached-files" title="Permalink to this headline">¶</a></h2>
+<p>Synapse tables support a special column type called ‘File’ which contain a file handle, an identifier of a file stored
+in Synapse. Here’s an example of how to upload files into Synapse, associate them with a table and read them back
+later:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1"># your synapse project</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+
+<span class="n">covers_dir</span> <span class="o">=</span> <span class="s1">&#39;/path/to/album/covers/&#39;</span>
+
+<span class="c1"># store the table&#39;s schema</span>
+<span class="n">cols</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;artist&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;STRING&#39;</span><span class="p">,</span> <span class="n">maximumSize</span><span class="o">=</span><span class="mi">50</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;album&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;STRING&#39;</span><span class="p">,</span> <span class="n">maximumSize</span><span class="o">=</span><span class="mi">50</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;year&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;INTEGER&#39;</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;catalog&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;STRING&#39;</span><span class="p">,</span> <span class="n">maximumSize</span><span class="o">=</span><span class="mi">50</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;cover&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;FILEHANDLEID&#39;</span><span class="p">)]</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Schema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Jazz Albums&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">))</span>
+
+<span class="c1"># the actual data</span>
+<span class="n">data</span> <span class="o">=</span> <span class="p">[[</span><span class="s2">&quot;John Coltrane&quot;</span><span class="p">,</span>  <span class="s2">&quot;Blue Train&quot;</span><span class="p">,</span>   <span class="mi">1957</span><span class="p">,</span> <span class="s2">&quot;BLP 1577&quot;</span><span class="p">,</span> <span class="s2">&quot;coltraneBlueTrain.jpg&quot;</span><span class="p">],</span>
+        <span class="p">[</span><span class="s2">&quot;Sonny Rollins&quot;</span><span class="p">,</span>  <span class="s2">&quot;Vol. 2&quot;</span><span class="p">,</span>       <span class="mi">1957</span><span class="p">,</span> <span class="s2">&quot;BLP 1558&quot;</span><span class="p">,</span> <span class="s2">&quot;rollinsBN1558.jpg&quot;</span><span class="p">],</span>
+        <span class="p">[</span><span class="s2">&quot;Sonny Rollins&quot;</span><span class="p">,</span>  <span class="s2">&quot;Newk&#39;s Time&quot;</span><span class="p">,</span>  <span class="mi">1958</span><span class="p">,</span> <span class="s2">&quot;BLP 4001&quot;</span><span class="p">,</span> <span class="s2">&quot;rollinsBN4001.jpg&quot;</span><span class="p">],</span>
+        <span class="p">[</span><span class="s2">&quot;Kenny Burrel&quot;</span><span class="p">,</span>   <span class="s2">&quot;Kenny Burrel&quot;</span><span class="p">,</span> <span class="mi">1956</span><span class="p">,</span> <span class="s2">&quot;BLP 1543&quot;</span><span class="p">,</span> <span class="s2">&quot;burrellWarholBN1543.jpg&quot;</span><span class="p">]]</span>
+
+<span class="c1"># upload album covers</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+    <span class="n">file_handle</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">uploadSynapseManagedFileHandle</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">covers_dir</span><span class="p">,</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]))</span>
+    <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="n">file_handle</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>
+
+<span class="c1"># store the table data</span>
+<span class="n">row_reference_set</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">RowSet</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span> <span class="n">rows</span><span class="o">=</span><span class="p">[</span><span class="n">Row</span><span class="p">(</span><span class="n">r</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]))</span>
+
+<span class="c1"># Later, we&#39;ll want to query the table and download our album covers</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select artist, album, year, catalog, cover from </span><span class="si">%s</span><span class="s2"> where artist = &#39;Sonny Rollins&#39;&quot;</span>                              <span class="o">%</span> <span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">cover_files</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">downloadTableColumns</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="p">[</span><span class="s1">&#39;cover&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="deleting-rows">
+<h2>Deleting rows<a class="headerlink" href="#deleting-rows" title="Permalink to this headline">¶</a></h2>
+<p>Query for the rows you want to delete and call syn.delete on the results:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select * from </span><span class="si">%s</span><span class="s2"> where Chromosome=&#39;2&#39;&quot;</span> <span class="o">%</span><span class="n">table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+<span class="n">a</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">results</span><span class="o">.</span><span class="n">asRowSet</span><span class="p">())</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="deleting-the-whole-table">
+<h2>Deleting the whole table<a class="headerlink" href="#deleting-the-whole-table" title="Permalink to this headline">¶</a></h2>
+<p>Deleting the schema deletes the whole table and all rows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="n">schema</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="section" id="queries">
+<h3>Queries<a class="headerlink" href="#queries" title="Permalink to this headline">¶</a></h3>
+<p>The query language is quite similar to SQL select statements, except that joins are not supported. The documentation
+for the Synapse API has lots of <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html">query examples</a>.</p>
+</div>
+<div class="section" id="schema">
+<h3>Schema<a class="headerlink" href="#schema" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">Schema</code><span class="sig-paren">(</span><em>name=None</em>, <em>columns=None</em>, <em>parent=None</em>, <em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>**kwargs</em><span class="sig-paren">)</span></dt>
+<dd><p>A Schema is an <a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that defines a set of columns in a table.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> – the name for the Table Schema object</li>
+<li><strong>description</strong> – User readable description of the schema</li>
+<li><strong>columns</strong> – a list of <a class="reference internal" href="#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects or their IDs</li>
+<li><strong>parent</strong> – the project in Synapse to which this table belongs</li>
+<li><strong>properties</strong> – A map of Synapse properties</li>
+<li><strong>annotations</strong> – A map of user defined annotations</li>
+<li><strong>local_state</strong> – Internal use only</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Isotope&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;STRING&#39;</span><span class="p">),</span>
+        <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Atomic Mass&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;INTEGER&#39;</span><span class="p">),</span>
+        <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Halflife&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;DOUBLE&#39;</span><span class="p">),</span>
+        <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Discovered&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;DATE&#39;</span><span class="p">)]</span>
+
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Schema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="class">
+<dt>
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">EntityViewSchema</code><span class="sig-paren">(</span><em>name=None</em>, <em>columns=None</em>, <em>parent=None</em>, <em>scopes=None</em>, <em>type=None</em>, <em>addDefaultViewColumns=True</em>, <em>addAnnotationColumns=True</em>, <em>ignoredAnnotationColumnNames=[]</em>, <em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>**kwargs</em><span class="sig-paren">)</span></dt>
+<dd><p>A EntityViewSchema is a <a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that displays all files/projects
+(depending on user choice) within a given set of scopes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> – the name of the Entity View Table object</li>
+<li><strong>columns</strong> – a list of <a class="reference internal" href="#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects or their IDs. These are optional.</li>
+<li><strong>parent</strong> – the project in Synapse to which this table belongs</li>
+<li><strong>scopes</strong> – a list of Projects/Folders or their ids</li>
+<li><strong>type</strong> – the type of EntityView to display: either ‘file’,’project’ or
+‘file_and_table’. Defaults to ‘file’.</li>
+<li><strong>addDefaultViewColumns</strong> – If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
+Defaults to True.
+The default columns will be added after a call to
+<a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a>.</li>
+<li><strong>addAnnotationColumns</strong> – If true, adds columns for all annotation keys defined across all Entities in
+the EntityViewSchema’s scope. Defaults to True.
+The annotation columns will be added after a call to
+<a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a>.</li>
+<li><strong>ignoredAnnotationColumnNames</strong> – A list of strings representing annotation names.
+When addAnnotationColumns is True, the names in this list will not be
+automatically added as columns to the EntityViewSchema if they exist in any
+of the defined scopes.</li>
+<li><strong>properties</strong> – A map of Synapse properties</li>
+<li><strong>annotations</strong> – A map of user defined annotations</li>
+<li><strong>local_state</strong> – Internal use only</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">project_or_folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>  
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">EntityViewSchema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="n">project_or_folder_id</span><span class="p">,</span> <span class="s1">&#39;syn123&#39;</span><span class="p">],</span>
+ <span class="n">view_type</span><span class="o">=</span><span class="s1">&#39;file&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt>
+<code class="descname">add_scope</code><span class="sig-paren">(</span><em>entities</em><span class="sig-paren">)</span></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>entities</strong> – a Project or Folder object or its ID, can also be a list of them</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="column">
+<h3>Column<a class="headerlink" href="#column" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="synapseclient.table.Column">
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">Column</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Column" title="Permalink to this definition">¶</a></dt>
+<dd><p>Defines a column to be used in a table <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Schema</span></code></a>
+<a class="reference internal" href="Entity.html#synapseclient.table.EntityViewSchema" title="synapseclient.table.EntityViewSchema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.EntityViewSchema</span></code></a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Variables:</th><td class="field-body"><p class="first"><strong>id</strong> – An immutable ID issued by the platform</p>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>columnType</strong> (<em>string</em>) – Can be any of: “STRING”, “DOUBLE”, “INTEGER”, “BOOLEAN”, “DATE”, “FILEHANDLEID”, “ENTITYID”</li>
+<li><strong>maximumSize</strong> (<em>integer</em>) – A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
+default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
+characters.</li>
+<li><strong>name</strong> (<em>string</em>) – The display name of the column</li>
+<li><strong>enumValues</strong> (<em>array of strings</em>) – Columns type of STRING can be constrained to an enumeration values set on this list.</li>
+<li><strong>defaultValue</strong> (<em>string</em>) – The default value for this column. Columns of type FILEHANDLEID and ENTITYID are not allowed
+to have default values.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="synapseclient.table.Column.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Column.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="row">
+<h3>Row<a class="headerlink" href="#row" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="synapseclient.table.Row">
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">Row</code><span class="sig-paren">(</span><em>values</em>, <em>rowId=None</em>, <em>versionNumber=None</em>, <em>etag=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Row" title="Permalink to this definition">¶</a></dt>
+<dd><p>A <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html">row</a> in a Table.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>values</strong> – A list of values</li>
+<li><strong>rowId</strong> – The immutable ID issued to a new row</li>
+<li><strong>versionNumber</strong> – The version number of this row. Each row version is immutable, so when a row is updated a
+new version is created.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="synapseclient.table.Row.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>values</em>, <em>rowId=None</em>, <em>versionNumber=None</em>, <em>etag=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Row.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="rowset">
+<h3>RowSet<a class="headerlink" href="#rowset" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="synapseclient.table.RowSet">
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">RowSet</code><span class="sig-paren">(</span><em>columns=None</em>, <em>schema=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSet" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Synapse object of type <a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/RowSet.html">org.sagebionetworks.repo.model.table.RowSet</a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>schema</strong> – A <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Schema</span></code></a> object that will be used to set the tableId</li>
+<li><strong>headers</strong> (<em>array of SelectColumns</em>) – The list of SelectColumn objects that describe the fields in each row.</li>
+<li><strong>columns</strong> – An alternative to ‘headers’, a list of column objects that describe the fields in each row.</li>
+<li><strong>tableId</strong> (<em>string</em>) – The ID of the TableEntity that owns these rows</li>
+<li><strong>rows</strong> (<em>array of rows</em>) – The <a class="reference internal" href="#synapseclient.table.Row" title="synapseclient.table.Row"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Row</span></code></a> s of this set. The index of each row value aligns with the
+index of each header.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Variables:</th><td class="field-body"><p class="first last"><strong>etag</strong> – Any RowSet returned from Synapse will contain the current etag of the change set. To update any
+rows from a RowSet the etag must be provided with the POST.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="synapseclient.table.RowSet.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>columns=None</em>, <em>schema=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSet.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="table">
+<h3>Table<a class="headerlink" href="#table" title="Permalink to this headline">¶</a></h3>
+<dl class="class">
+<dt id="synapseclient.table.TableAbstractBaseClass">
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">TableAbstractBaseClass</code><span class="sig-paren">(</span><em>schema</em>, <em>headers=None</em>, <em>etag=None</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass" title="Permalink to this definition">¶</a></dt>
+<dd><p>Abstract base class for Tables based on different data containers.</p>
+<dl class="class">
+<dt id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple">
+<em class="property">class </em><code class="descname">RowMetadataTuple</code><span class="sig-paren">(</span><em>row_id</em>, <em>row_version</em>, <em>row_etag</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_etag">
+<code class="descname">row_etag</code><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_etag" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 2</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_id">
+<code class="descname">row_id</code><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 0</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_version">
+<code class="descname">row_version</code><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.RowMetadataTuple.row_version" title="Permalink to this definition">¶</a></dt>
+<dd><p>Alias for field number 1</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="method">
+<dt id="synapseclient.table.TableAbstractBaseClass.iter_row_metadata">
+<code class="descname">iter_row_metadata</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableAbstractBaseClass.iter_row_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
+generated as (row_id, None)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">a generator that gives :py:class::<cite>collections.namedtuple</cite> with format (row_id, row_etag)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="synapseclient.table.RowSetTable">
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">RowSetTable</code><span class="sig-paren">(</span><em>schema</em>, <em>rowset</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSetTable" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Table object that wraps a RowSet.</p>
+<dl class="method">
+<dt id="synapseclient.table.RowSetTable.iter_row_metadata">
+<code class="descname">iter_row_metadata</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.RowSetTable.iter_row_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
+generated as (row_id, None)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">a generator that gives :py:class::<cite>collections.namedtuple</cite> with format (row_id, row_etag)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="synapseclient.table.TableQueryResult">
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">TableQueryResult</code><span class="sig-paren">(</span><em>synapse</em>, <em>query</em>, <em>limit=None</em>, <em>offset=None</em>, <em>isConsistent=True</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult" title="Permalink to this definition">¶</a></dt>
+<dd><p>An object to wrap rows returned as a result of a table query.
+The TableQueryResult object can be used to iterate over results of a query.</p>
+<p>Example</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">tableQuery</span><span class="p">(</span><span class="s2">&quot;select * from syn1234&quot;</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="synapseclient.table.TableQueryResult.asDataFrame">
+<code class="descname">asDataFrame</code><span class="sig-paren">(</span><em>rowIdAndVersionInIndex=True</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult.asDataFrame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert query result to a Pandas DataFrame.
+:param rowIdAndVersionInIndex:  Make the dataframe index consist of the row_id and row_version (and row_etag</p>
+<blockquote>
+<div>if it exists)</div></blockquote>
+</dd></dl>
+
+<dl class="method">
+<dt id="synapseclient.table.TableQueryResult.iter_row_metadata">
+<code class="descname">iter_row_metadata</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult.iter_row_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
+generated as (row_id, row_version,None)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">a generator that gives :py:class::<cite>collections.namedtuple</cite> with format (row_id, row_version, row_etag)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="synapseclient.table.TableQueryResult.next">
+<code class="descname">next</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.TableQueryResult.next" title="Permalink to this definition">¶</a></dt>
+<dd><p>Python 2 iterator</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="synapseclient.table.CsvFileTable">
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">CsvFileTable</code><span class="sig-paren">(</span><em>schema</em>, <em>filepath</em>, <em>etag=None</em>, <em>quoteCharacter='&quot;'</em>, <em>escapeCharacter='\'</em>, <em>lineEnd='n'</em>, <em>separator='</em>, <em>'</em>, <em>header=True</em>, <em>linesToSkip=0</em>, <em>includeRowIdAndRowVersion=None</em>, <em>headers=None</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable" title="Permalink to this definition">¶</a></dt>
+<dd><p>An object to wrap a CSV file that may be stored into a Synapse table or
+returned as a result of a table query.</p>
+<dl class="method">
+<dt id="synapseclient.table.CsvFileTable.asDataFrame">
+<code class="descname">asDataFrame</code><span class="sig-paren">(</span><em>rowIdAndVersionInIndex=True</em>, <em>convert_to_datetime=False</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.asDataFrame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert query result to a Pandas DataFrame.
+:param rowIdAndVersionInIndex:  Make the dataframe index consist of the row_id and row_version</p>
+<blockquote>
+<div>(and row_etag if it exists)</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>convert_to_datetime</strong> – If set to True, will convert all Synapse DATE columns from UNIX timestamp
+integers into UTC datetime objects</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="synapseclient.table.CsvFileTable.from_table_query">
+<em class="property">classmethod </em><code class="descname">from_table_query</code><span class="sig-paren">(</span><em>synapse</em>, <em>query</em>, <em>quoteCharacter='&quot;'</em>, <em>escapeCharacter='\\'</em>, <em>lineEnd='\n'</em>, <em>separator='</em>, <em>'</em>, <em>header=True</em>, <em>includeRowIdAndRowVersion=True</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.from_table_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a Table object wrapping a CSV file resulting from querying a Synapse table.
+Mostly for internal use.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="synapseclient.table.CsvFileTable.iter_row_metadata">
+<code class="descname">iter_row_metadata</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.iter_row_metadata" title="Permalink to this definition">¶</a></dt>
+<dd><p>Iterates the table results to get row_id and row_etag. If an etag does not exist for a row,
+it will generated as (row_id, None)</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">a generator that gives :py:class::<cite>collections.namedtuple</cite> with format (row_id, row_etag)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="synapseclient.table.CsvFileTable.setColumnHeaders">
+<code class="descname">setColumnHeaders</code><span class="sig-paren">(</span><em>headers</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.CsvFileTable.setColumnHeaders" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the list of <code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.SelectColumn</span></code> objects that will be used to convert fields to the
+appropriate data types.</p>
+<p>Column headers are automatically set when querying.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-level-methods">
+<h3>Module level methods<a class="headerlink" href="#module-level-methods" title="Permalink to this headline">¶</a></h3>
+<dl class="function">
+<dt id="synapseclient.table.as_table_columns">
+<code class="descclassname">synapseclient.table.</code><code class="descname">as_table_columns</code><span class="sig-paren">(</span><em>values</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.as_table_columns" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a list of Synapse table <a class="reference internal" href="#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects that correspond to the columns in the given values.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Params values:</th><td class="field-body">an object that holds the content of the tables
+- a string holding the path to a CSV file, a filehandle, or StringIO containing valid csv content
+- a Pandas <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe">DataFrame</a></td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A list of Synapse table <a class="reference internal" href="#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">a</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">],</span> <span class="n">b</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;c&quot;</span><span class="p">,</span> <span class="s2">&quot;d&quot;</span><span class="p">,</span> <span class="s2">&quot;e&quot;</span><span class="p">]))</span>
+<span class="n">cols</span> <span class="o">=</span> <span class="n">as_table_columns</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.table.build_table">
+<code class="descclassname">synapseclient.table.</code><code class="descname">build_table</code><span class="sig-paren">(</span><em>name</em>, <em>parent</em>, <em>values</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.build_table" title="Permalink to this definition">¶</a></dt>
+<dd><blockquote>
+<div><p>Build a Table object</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">param name:</th><td class="field-body">the name for the Table Schema object</td>
+</tr>
+<tr class="field-even field"><th class="field-name">param parent:</th><td class="field-body">the project in Synapse to which this table belongs</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">param values:</th><td class="field-body">an object that holds the content of the tables
+- a string holding the path to a CSV file
+- a Pandas <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe">DataFrame</a></td>
+</tr>
+<tr class="field-even field"><th class="field-name">return:</th><td class="field-body">a Table object suitable for storing</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">path</span> <span class="o">=</span> <span class="s2">&quot;\path   o</span>
+</pre></div>
+</div>
+</div></blockquote>
+<dl class="docutils">
+<dt>ile.csv”</dt>
+<dd><p class="first">table = build_table(“simple_table”, “syn123”, path)
+table = syn.store(table)</p>
+<p>import pandas as pd</p>
+<p class="last">df = pd.DataFrame(dict(a=[1, 2, 3], b=[“c”, “d”, “e”]))
+table = build_table(“simple_table”, “syn123”, df)
+table = syn.store(table)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.table.Table">
+<code class="descclassname">synapseclient.table.</code><code class="descname">Table</code><span class="sig-paren">(</span><em>schema</em>, <em>values</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Combine a table schema and a set of values into some type of Table object
+depending on what type of values are given.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>schema</strong> – a table <a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">Schema</span></code></a> object</li>
+<li><strong>values</strong> – <p>an object that holds the content of the tables
+- a <a class="reference internal" href="#synapseclient.table.RowSet" title="synapseclient.table.RowSet"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowSet</span></code></a>
+- a list of lists (or tuples) where each element is a row
+- a string holding the path to a CSV file
+- a Pandas <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe">DataFrame</a>
+- a dict which will be wrapped by a Pandas                        <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/api.html#dataframe">DataFrame</a></p>
+</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">a Table object suitable for storing</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Usually, the immediate next step after creating a Table object is to store it:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">table</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Table</span><span class="p">(</span><span class="n">schema</span><span class="p">,</span> <span class="n">values</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>End users should not need to know the details of these Table subclasses:</p>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="#synapseclient.table.TableAbstractBaseClass" title="synapseclient.table.TableAbstractBaseClass"><code class="xref py py-class docutils literal notranslate"><span class="pre">TableAbstractBaseClass</span></code></a></li>
+<li><a class="reference internal" href="#synapseclient.table.RowSetTable" title="synapseclient.table.RowSetTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">RowSetTable</span></code></a></li>
+<li><a class="reference internal" href="#synapseclient.table.TableQueryResult" title="synapseclient.table.TableQueryResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">TableQueryResult</span></code></a></li>
+<li><a class="reference internal" href="#synapseclient.table.CsvFileTable" title="synapseclient.table.CsvFileTable"><code class="xref py py-class docutils literal notranslate"><span class="pre">CsvFileTable</span></code></a></li>
+</ul>
+</div></blockquote>
+</dd></dl>
+
+<dl class="docutils">
+<dt>See also:</dt>
+<dd><ul class="first last simple">
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getColumns" title="synapseclient.Synapse.getColumns"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.getColumns()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getTableColumns" title="synapseclient.Synapse.getTableColumns"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.getTableColumns()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.tableQuery" title="synapseclient.Synapse.tableQuery"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.tableQuery()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.get" title="synapseclient.Synapse.get"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.get()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.delete" title="synapseclient.Synapse.delete"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.delete()</span></code></a></li>
+</ul>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="sftp.html" title="Using the Synapse Python Client with SFTP data storage"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="CommandLineClient.html" title="Synapse command line client"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Aug 17, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.6.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+  </body>
+</html>
