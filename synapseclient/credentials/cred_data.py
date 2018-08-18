@@ -2,7 +2,9 @@ from collections import namedtuple
 
 import synapseclient.utils
 import time
-import base64, hmac, hashlib
+import base64
+import hmac
+import hashlib
 
 try:
     from urllib.parse import urlparse
@@ -10,12 +12,13 @@ except ImportError:
     from urlparse import urlparse
 
 
-class SynapseCredentials(object): #TODO: inherit requests.AuthBase so that this object can be simply passed to requests library
+# TODO: inherit requests.AuthBase so that this object can be simply passed to requests library
+class SynapseCredentials(object):
     """
     Credentials used to make requests to Synapse.
     """
 
-    #setting and getting api_key it will use the base64 encoded string representation
+    # setting and getting api_key it will use the base64 encoded string representation
     @property
     def api_key(self):
         return base64.b64encode(self._api_key).decode()
@@ -49,7 +52,8 @@ class SynapseCredentials(object): #TODO: inherit requests.AuthBase so that this 
         return "SynapseCredentials(username='%s', api_key_string='%s')" % (self.username, self.api_key)
 
 
-#a class that just contains args passed form synapse client login
-UserLoginArgs = namedtuple('UserLoginArgs', ['username','password','api_key','skip_cache', 'session_token']) #TODO remove deprecated sessionToken
+# a class that just contains args passed form synapse client login
+# TODO remove deprecated sessionToken
+UserLoginArgs = namedtuple('UserLoginArgs', ['username', 'password', 'api_key', 'skip_cache', 'session_token'])
 # make the namedtuple's arguments optional instead of positional. All values default to None
 UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)

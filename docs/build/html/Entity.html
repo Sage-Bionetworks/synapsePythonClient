@@ -1,0 +1,476 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Entity &#8212; Synapse Python Client 1.8.2 documentation</title>
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Evaluations" href="Evaluation.html" />
+    <link rel="prev" title="Synapse Client" href="Client.html" /> 
+  </head><body>
+<div class="header">
+  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse'/></a>
+  <h1>Synapse Python Client API</h1>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Evaluation.html" title="Evaluations"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Client.html" title="Synapse Client"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Entity</a><ul>
+<li><a class="reference internal" href="#project">Project</a></li>
+<li><a class="reference internal" href="#folder">Folder</a></li>
+<li><a class="reference internal" href="#file">File</a><ul>
+<li><a class="reference internal" href="#changing-file-names">Changing File Names</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#link">Link</a></li>
+<li><a class="reference internal" href="#table-schema">Table Schema</a></li>
+<li><a class="reference internal" href="#entity-view-schema">Entity View Schema</a></li>
+<li><a class="reference internal" href="#dockerrepository">DockerRepository</a></li>
+<li><a class="reference internal" href="#properties-and-annotations-implementation-details">Properties and annotations, implementation details</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Client.html"
+                        title="previous chapter">Synapse Client</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Evaluation.html"
+                        title="next chapter">Evaluations</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/Entity.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <span class="target" id="module-synapseclient.entity"></span><div class="section" id="entity">
+<h1>Entity<a class="headerlink" href="#entity" title="Permalink to this headline">¶</a></h1>
+<p>The Entity class is the base class for all entities, including Project, Folder and File, Link, as well as deprecated
+entity types such as Data, Study, Summary, etc.</p>
+<p>Entities are dictionary-like objects in which both object and dictionary notation (entity.foo or entity[‘foo’]) can be
+used interchangeably.</p>
+<p>Imports:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Project</span><span class="p">,</span> <span class="n">Folder</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">Link</span>
+</pre></div>
+</div>
+<dl class="class">
+<dt id="synapseclient.entity.Entity">
+<em class="property">class </em><code class="descclassname">synapseclient.entity.</code><code class="descname">Entity</code><span class="sig-paren">(</span><em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>parent=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.entity.Entity" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,
+source code, or a folder that contains other entities.</p>
+<p>Entities should typically be created using the constructors for specific subclasses such as Project, Folder or File.</p>
+</dd></dl>
+
+<div class="section" id="project">
+<h2>Project<a class="headerlink" href="#project" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.entity.Project">
+<em class="property">class </em><code class="descclassname">synapseclient.entity.</code><code class="descname">Project</code><span class="sig-paren">(</span><em>name=None</em>, <em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.entity.Project" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a project in Synapse.</p>
+<p>Projects in Synapse must be uniquely named. Trying to create a project with a name that’s already taken, say
+‘My project’, will result in an error</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> – The name of the project</li>
+<li><strong>properties</strong> – A map of Synapse properties</li>
+<li><strong>annotations</strong> – A map of user defined annotations</li>
+<li><strong>local_state</strong> – Internal use only</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">project</span> <span class="o">=</span> <span class="n">Project</span><span class="p">(</span><span class="s1">&#39;Foobarbat project&#39;</span><span class="p">)</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">project</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="folder">
+<h2>Folder<a class="headerlink" href="#folder" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.entity.Folder">
+<em class="property">class </em><code class="descclassname">synapseclient.entity.</code><code class="descname">Folder</code><span class="sig-paren">(</span><em>name=None</em>, <em>parent=None</em>, <em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.entity.Folder" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a folder in Synapse.</p>
+<p>Folders must have a name and a parent and can optionally have annotations.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> – The name of the folder</li>
+<li><strong>parent</strong> – The parent project or folder</li>
+<li><strong>properties</strong> – A map of Synapse properties</li>
+<li><strong>annotations</strong> – A map of user defined annotations</li>
+<li><strong>local_state</strong> – Internal use only</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">folder</span> <span class="o">=</span> <span class="n">Folder</span><span class="p">(</span><span class="s1">&#39;my data&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">)</span>
+<span class="n">folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">folder</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="file">
+<h2>File<a class="headerlink" href="#file" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.entity.File">
+<em class="property">class </em><code class="descclassname">synapseclient.entity.</code><code class="descname">File</code><span class="sig-paren">(</span><em>path=None</em>, <em>parent=None</em>, <em>synapseStore=True</em>, <em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.entity.File" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a file in Synapse.</p>
+<p>When a File object is stored, the associated local file or its URL will be stored in Synapse. A File must have a
+path (or URL) and a parent.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>path</strong> – Location to be represented by this File</li>
+<li><strong>name</strong> – Name of the file in Synapse, not to be confused with the name within the path</li>
+<li><strong>parent</strong> – Project or Folder where this File is stored</li>
+<li><strong>synapseStore</strong> – Whether the File should be uploaded or if only the path should be stored when
+<a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a> is called on the File object.
+Defaults to True (file should be uploaded)</li>
+<li><strong>contentType</strong> – Manually specify Content-type header, for example “application/png” or
+“application/json; charset=UTF-8”</li>
+<li><strong>dataFileHandleId</strong> – Defining an existing dataFileHandleId will use the existing dataFileHandleId
+The creator of the file must also be the owner of the dataFileHandleId to have
+permission to store the file</li>
+<li><strong>properties</strong> – A map of Synapse properties</li>
+<li><strong>annotations</strong> – A map of user defined annotations</li>
+<li><strong>local_state</strong> – Internal use only</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="s1">&#39;/path/to/file/data.xyz&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<div class="section" id="changing-file-names">
+<h3>Changing File Names<a class="headerlink" href="#changing-file-names" title="Permalink to this headline">¶</a></h3>
+<p>A Synapse File Entity has a name separate from the name of the actual file it represents. When a file is uploaded to
+Synapse, its filename is fixed, even though the name of the entity can be changed at any time. Synapse provides a way
+to change this filename and the content-type of the file for future downloads by creating a new version of the file
+with a modified copy of itself.  This can be done with the synapseutils.copy.changeFileMetaData function.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">synapseutils</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">e</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">synid</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">path</span><span class="p">))</span>  <span class="c1">## prints, e.g., &quot;my_file.txt&quot;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">e</span> <span class="o">=</span> <span class="n">synapseutils</span><span class="o">.</span><span class="n">changeFileMetaData</span><span class="p">(</span><span class="n">syn</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="s2">&quot;my_newname_file.txt&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Setting <em>fileNameOverride</em> will <strong>not</strong> change the name of a copy of the
+file that’s already downloaded into your local cache. Either rename the
+local copy manually or remove it from the cache and re-download.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">syn</span><span class="o">.</span><span class="n">cache</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">dataFileHandleId</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">e</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">path</span><span class="p">))</span>  <span class="c1">## prints &quot;my_newname_file.txt&quot;</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="section" id="link">
+<h2>Link<a class="headerlink" href="#link" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.entity.Link">
+<em class="property">class </em><code class="descclassname">synapseclient.entity.</code><code class="descname">Link</code><span class="sig-paren">(</span><em>targetId=None</em>, <em>targetVersion=None</em>, <em>parent=None</em>, <em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.entity.Link" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a link in Synapse.</p>
+<p>Links must have a target ID and a parent. When you do <a class="reference internal" href="Client.html#synapseclient.Synapse.get" title="synapseclient.Synapse.get"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.get()</span></code></a> on a Link object,
+the Link object is returned. If the target is desired, specify followLink=True in synapseclient.Synapse.get.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>targetId</strong> – The ID of the entity to be linked</li>
+<li><strong>targetVersion</strong> – The version of the entity to be linked</li>
+<li><strong>parent</strong> – The parent project or folder</li>
+<li><strong>properties</strong> – A map of Synapse properties</li>
+<li><strong>annotations</strong> – A map of user defined annotations</li>
+<li><strong>local_state</strong> – Internal use only</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">link</span> <span class="o">=</span> <span class="n">Link</span><span class="p">(</span><span class="s1">&#39;targetID&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">folder</span><span class="p">)</span>
+<span class="n">link</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">link</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="table-schema">
+<h2>Table Schema<a class="headerlink" href="#table-schema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.table.Schema">
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">Schema</code><span class="sig-paren">(</span><em>name=None</em>, <em>columns=None</em>, <em>parent=None</em>, <em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.Schema" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Schema is an <a class="reference internal" href="#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that defines a set of columns in a table.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> – the name for the Table Schema object</li>
+<li><strong>description</strong> – User readable description of the schema</li>
+<li><strong>columns</strong> – a list of <a class="reference internal" href="Table.html#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects or their IDs</li>
+<li><strong>parent</strong> – the project in Synapse to which this table belongs</li>
+<li><strong>properties</strong> – A map of Synapse properties</li>
+<li><strong>annotations</strong> – A map of user defined annotations</li>
+<li><strong>local_state</strong> – Internal use only</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Isotope&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;STRING&#39;</span><span class="p">),</span>
+        <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Atomic Mass&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;INTEGER&#39;</span><span class="p">),</span>
+        <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Halflife&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;DOUBLE&#39;</span><span class="p">),</span>
+        <span class="n">Column</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;Discovered&#39;</span><span class="p">,</span> <span class="n">columnType</span><span class="o">=</span><span class="s1">&#39;DATE&#39;</span><span class="p">)]</span>
+
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Schema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">cols</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="entity-view-schema">
+<h2>Entity View Schema<a class="headerlink" href="#entity-view-schema" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.table.EntityViewSchema">
+<em class="property">class </em><code class="descclassname">synapseclient.table.</code><code class="descname">EntityViewSchema</code><span class="sig-paren">(</span><em>name=None</em>, <em>columns=None</em>, <em>parent=None</em>, <em>scopes=None</em>, <em>type=None</em>, <em>addDefaultViewColumns=True</em>, <em>addAnnotationColumns=True</em>, <em>ignoredAnnotationColumnNames=[]</em>, <em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.table.EntityViewSchema" title="Permalink to this definition">¶</a></dt>
+<dd><p>A EntityViewSchema is a <a class="reference internal" href="#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a> that displays all files/projects
+(depending on user choice) within a given set of scopes</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> – the name of the Entity View Table object</li>
+<li><strong>columns</strong> – a list of <a class="reference internal" href="Table.html#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">Column</span></code></a> objects or their IDs. These are optional.</li>
+<li><strong>parent</strong> – the project in Synapse to which this table belongs</li>
+<li><strong>scopes</strong> – a list of Projects/Folders or their ids</li>
+<li><strong>type</strong> – the type of EntityView to display: either ‘file’,’project’ or
+‘file_and_table’. Defaults to ‘file’.</li>
+<li><strong>addDefaultViewColumns</strong> – If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
+Defaults to True.
+The default columns will be added after a call to
+<a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a>.</li>
+<li><strong>addAnnotationColumns</strong> – If true, adds columns for all annotation keys defined across all Entities in
+the EntityViewSchema’s scope. Defaults to True.
+The annotation columns will be added after a call to
+<a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a>.</li>
+<li><strong>ignoredAnnotationColumnNames</strong> – A list of strings representing annotation names.
+When addAnnotationColumns is True, the names in this list will not be
+automatically added as columns to the EntityViewSchema if they exist in any
+of the defined scopes.</li>
+<li><strong>properties</strong> – A map of Synapse properties</li>
+<li><strong>annotations</strong> – A map of user defined annotations</li>
+<li><strong>local_state</strong> – Internal use only</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">project_or_folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>  
+<span class="n">schema</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">EntityViewSchema</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;MyTable&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">,</span> <span class="n">scopes</span><span class="o">=</span><span class="p">[</span><span class="n">project_or_folder_id</span><span class="p">,</span> <span class="s1">&#39;syn123&#39;</span><span class="p">],</span>
+ <span class="n">view_type</span><span class="o">=</span><span class="s1">&#39;file&#39;</span><span class="p">))</span>
+</pre></div>
+</div>
+</dd></dl>
+
+</div>
+<div class="section" id="dockerrepository">
+<h2>DockerRepository<a class="headerlink" href="#dockerrepository" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.entity.DockerRepository">
+<em class="property">class </em><code class="descclassname">synapseclient.entity.</code><code class="descname">DockerRepository</code><span class="sig-paren">(</span><em>repositoryName=None</em>, <em>parent=None</em>, <em>properties=None</em>, <em>annotations=None</em>, <em>local_state=None</em>, <em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.entity.DockerRepository" title="Permalink to this definition">¶</a></dt>
+<dd><p>A Docker repository is a lightweight virtual machine image.</p>
+<p>NOTE: store()-ing a DockerRepository created in the Python client will always result in it being treated as a 
+reference to an external Docker repository that is not managed by synapse. 
+To upload a docker image that is managed by Synapse please use the official Docker client and read</p>
+<blockquote>
+<div><a class="reference external" href="http://docs.synapse.org/articles/docker.html">http://docs.synapse.org/articles/docker.html</a> for instructions on uploading a Docker Image to Synapse</div></blockquote>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>repositoryName</strong> – the name of the Docker Repository. Usually in the format: [host[:port]/]path.
+If host is not set, it will default to that of DockerHub. port can only be specified if the host is also specified.</li>
+<li><strong>parent</strong> – the parent project for the Docker repository</li>
+<li><strong>properties</strong> – A map of Synapse properties</li>
+<li><strong>annotations</strong> – A map of user defined annotations</li>
+<li><strong>local_state</strong> – Internal use only</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">an object of type <a class="reference internal" href="#synapseclient.entity.DockerRepository" title="synapseclient.entity.DockerRepository"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.DockerRepository</span></code></a></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+<div class="section" id="properties-and-annotations-implementation-details">
+<h2>Properties and annotations, implementation details<a class="headerlink" href="#properties-and-annotations-implementation-details" title="Permalink to this headline">¶</a></h2>
+<p>In Synapse, entities have both properties and annotations. Properties are used by the system, whereas annotations are
+completely user defined. In the Python client, we try to present this situation as a normal object, with one set of
+properties.</p>
+<p>Printing an entity will show the division between properties and annotations.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Under the covers, an Entity object has two dictionaries, one for properties and one for annotations. These two
+namespaces are distinct, so there is a possibility of collisions. It is recommended to avoid defining annotations with
+names that collide with properties, but this is not enforced.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="c1">## don&#39;t do this!</span>
+<span class="n">entity</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;One thing&#39;</span>
+<span class="n">entity</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="s1">&#39;description&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;A different thing&#39;</span>
+</pre></div>
+</div>
+<p>In case of conflict, properties will take precedence.:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+<span class="c1">#&gt; One thing</span>
+</pre></div>
+</div>
+<p>Some additional ambiguity is entailed in the use of dot notation. Entity objects have their own internal properties
+which are not persisted to Synapse. As in all Python objects, these properties are held in object.__dict__. For
+example, this dictionary holds the keys ‘properties’ and ‘annotations’ whose values are both dictionaries themselves.</p>
+<p>The rule, for either getting or setting is: first look in the object then look in properties, then look in annotations.
+If the key is not found in any of these three, a get results in a <code class="docutils literal notranslate"><span class="pre">KeyError</span></code> and a set results in a new annotation
+being created. Thus, the following results in a new annotation that will be persisted in Synapse:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span><span class="o">.</span><span class="n">foo</span> <span class="o">=</span> <span class="s1">&#39;bar&#39;</span>
+</pre></div>
+</div>
+<p>To create an object member variable, which will <em>not</em> be persisted in Synapse, this unfortunate notation is required:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s1">&#39;foo&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;bar&#39;</span>
+</pre></div>
+</div>
+<p>As mentioned previously, name collisions are entirely possible.
+Keys in the three namespaces can be referred to unambiguously like so:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span><span class="o">.</span><span class="vm">__dict__</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">]</span>
+
+<span class="n">entity</span><span class="o">.</span><span class="n">properties</span><span class="o">.</span><span class="n">key</span>
+<span class="n">entity</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">]</span>
+
+<span class="n">entity</span><span class="o">.</span><span class="n">annotations</span><span class="o">.</span><span class="n">key</span>
+<span class="n">entity</span><span class="o">.</span><span class="n">annotations</span><span class="p">[</span><span class="s1">&#39;key&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>Most of the time, users should be able to ignore these distinctions and treat Entities like normal Python objects.
+End users should never need to manipulate items in __dict__.</p>
+<p>See also:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Annotations.html#module-synapseclient.annotations" title="synapseclient.annotations"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.annotations</span></code></a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Evaluation.html" title="Evaluations"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Client.html" title="Synapse Client"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Aug 17, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.6.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+  </body>
+</html>

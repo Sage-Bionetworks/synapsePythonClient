@@ -1,6 +1,4 @@
-import os
 import synapseclient
-from synapseclient import Project, File
 
 syn = None
 

@@ -5,37 +5,45 @@ from synapseclient.exceptions import SynapseHTTPError
 import re
 import json
 ############################################################
-##                 Copy Functions                         ##
+#                  Copy Functions                          #
 ############################################################
+
 
 def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, contentTypes, fileNames):
     """
     Given a list of fileHandle Objects, copy the fileHandles
 
-    :param fileHandles:          List of fileHandle Ids or Objects
+    :param fileHandles:             List of fileHandle Ids or Objects
 
-    :param associateObjectTypes: List of associated object types: FileEntity, TableEntity, WikiAttachment, UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment, VerificationSubmission (Must be the same length as fileHandles)
+    :param associateObjectTypes:    List of associated object types: FileEntity, TableEntity, WikiAttachment,
+                                    UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
+                                    VerificationSubmission (Must be the same length as fileHandles)
     
-    :param associateObjectIds:   List of associated object Ids: If copying a file, the objectId is the synapse id, and if copying a wiki attachment, the object id is the wiki subpage id. (Must be the same length as fileHandles)
+    :param associateObjectIds:      List of associated object Ids: If copying a file, the objectId is the synapse id,
+                                    and if copying a wiki attachment, the object id is the wiki subpage id.
+                                    (Must be the same length as fileHandles)
     
-    :param contentTypes:         List of content types (Can change a filetype of a filehandle).
+    :param contentTypes:            List of content types (Can change a filetype of a filehandle).
 
-    :param fileNames:            List of filenames (Can change a filename of a filehandle).
+    :param fileNames:               List of filenames (Can change a filename of a filehandle).
     
-    :return:                     List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and NOT_FOUND
+    :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
+                                    NOT_FOUND
     """
-    if (len(fileHandles) != len(associateObjectTypes) or len(fileHandles) != len(associateObjectIds) or
-        len(fileHandles) != len(contentTypes) or len(fileHandles) != len(fileNames)):
+    if (len(fileHandles) != len(associateObjectTypes) or len(fileHandles) != len(associateObjectIds)
+            or len(fileHandles) != len(contentTypes) or len(fileHandles) != len(fileNames)):
         raise ValueError("Length of fileHandles, associateObjectTypes, and associateObjectIds must be the same")
     fileHandles = [synapseclient.utils.id_of(handle) for handle in fileHandles]
-    copyFileHandleRequest = {"copyRequests":[]}
-    for filehandleId, contentType, fileName, associateObjectType, associateObjectId in zip(fileHandles, contentTypes, fileNames, associateObjectTypes, associateObjectIds):
-        copyFileHandleRequest['copyRequests'].append({"newContentType":contentType,
-                                                      "newFileName":fileName,
-                                                      "originalFile":{"associateObjectType":associateObjectType,
-                                                                      "fileHandleId":filehandleId,
-                                                                      "associateObjectId":associateObjectId}})
-    copiedFileHandles = syn.restPOST('/filehandles/copy',body=json.dumps(copyFileHandleRequest),endpoint=syn.fileHandleEndpoint)
+    copyFileHandleRequest = {"copyRequests": []}
+    for filehandleId, contentType, fileName, associateObjectType, associateObjectId \
+            in zip(fileHandles, contentTypes, fileNames, associateObjectTypes, associateObjectIds):
+        copyFileHandleRequest['copyRequests'].append({"newContentType": contentType,
+                                                      "newFileName": fileName,
+                                                      "originalFile": {"associateObjectType": associateObjectType,
+                                                                       "fileHandleId": filehandleId,
+                                                                       "associateObjectId": associateObjectId}})
+    copiedFileHandles = syn.restPOST('/filehandles/copy', body=json.dumps(copyFileHandleRequest),
+                                     endpoint=syn.fileHandleEndpoint)
     _copy_cached_file_handles(syn.cache, copiedFileHandles)
     return copiedFileHandles
 
@@ -59,23 +67,25 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
 
     :return:              Synapse Entity
 
-    Can be used to change the fileaname or the file content-type without downloading.
+    Can be used to change the fileaname or the file content-type without downloading::
 
-    >>> e = syn.get(synid)
-    >>> print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
-    >>> e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
+        e = syn.get(synid)
+        print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
+        e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
     """
-    ent = syn.get(entity,downloadFile=False)
+    ent = syn.get(entity, downloadFile=False)
     fileResult = syn._getFileHandleDownload(ent.dataFileHandleId, ent.id)
     ent.contentType = ent.contentType if contentType is None else contentType
     downloadAs = fileResult['fileHandle']['fileName'] if downloadAs is None else downloadAs
-    copiedFileHandle = copyFileHandles(syn, [ent.dataFileHandleId], [ent.concreteType.split(".")[-1]], [ent.id], [contentType], [downloadAs])
+    copiedFileHandle = copyFileHandles(syn, [ent.dataFileHandleId], [ent.concreteType.split(".")[-1]], [ent.id],
+                                       [contentType], [downloadAs])
     copyResult = copiedFileHandle['copyResults'][0]
     if copyResult.get("failureCode") is not None:
-        raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],copyResult['originalFileHandleId']))
+        raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"], copyResult['originalFileHandleId']))
     ent.dataFileHandleId = copyResult['newFileHandle']['id']
     ent = syn.store(ent)
-    return(ent)
+    return ent
+
 
 def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
     """
@@ -114,16 +124,17 @@ def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations
                             Default to False
     
     :param setProvenance:   Has three values to set the provenance of the copied entity:
-                                traceback: Sets to the source entity
-                                existing: Sets to source entity's original provenance (if it exists)
-                                None: No provenance is set
+                            traceback: Sets to the source entity
+                            existing: Sets to source entity's original provenance (if it exists)
+                            None: No provenance is set
 
     Examples::
-    synapseutils.copy(syn, "syn12345", "syn45678", updateExisting=False, setProvenance = "traceback",version=None)
+        synapseutils.copy(syn, "syn12345", "syn45678", updateExisting=False, setProvenance = "traceback",version=None)
 
     -- COPYING FOLDERS/PROJECTS
 
-    :param excludeTypes:    Accepts a list of entity types (file, table, link) which determines which entity types to not copy.
+    :param excludeTypes:    Accepts a list of entity types (file, table, link) which determines which entity types to
+                            not copy.
                             Defaults to an empty list.
 
     Examples::
@@ -134,16 +145,17 @@ def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations
     """
     updateLinks = kwargs.get('updateLinks', True)
     updateSynIds = kwargs.get('updateSynIds', True)
-    entitySubPageId = kwargs.get('entitySubPageId',None)
-    destinationSubPageId = kwargs.get('destinationSubPageId',None)
+    entitySubPageId = kwargs.get('entitySubPageId', None)
+    destinationSubPageId = kwargs.get('destinationSubPageId', None)
 
     mapping = _copyRecursive(syn, entity, destinationId, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
     if not skipCopyWikiPage:
         for oldEnt in mapping:
-            newWikig = copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId = entitySubPageId,
-                                destinationSubPageId = destinationSubPageId, updateLinks = updateLinks, 
-                                updateSynIds = updateSynIds, entityMap = mapping)
-    return(mapping)
+            copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId=entitySubPageId,
+                     destinationSubPageId=destinationSubPageId, updateLinks=updateLinks,
+                     updateSynIds=updateSynIds, entityMap=mapping)
+    return mapping
+
 
 def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs):
     """
@@ -161,18 +173,18 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
 
     version = kwargs.get('version', None)
     setProvenance = kwargs.get('setProvenance', "traceback")
-    excludeTypes = kwargs.get('excludeTypes',[])
-    updateExisting = kwargs.get('updateExisting',False)
+    excludeTypes = kwargs.get('excludeTypes', [])
+    updateExisting = kwargs.get('updateExisting', False)
     copiedId = None
     if mapping is None:
-        mapping=dict()
-    #Check that passed in excludeTypes is file, table, and link
-    if not isinstance(excludeTypes,list):
+        mapping = dict()
+    # Check that passed in excludeTypes is file, table, and link
+    if not isinstance(excludeTypes, list):
         raise ValueError("Excluded types must be a list") 
-    elif not all([i in ["file","link","table"] for i in excludeTypes]):
+    elif not all([i in ["file", "link", "table"] for i in excludeTypes]):
         raise ValueError("Excluded types can only be a list of these values: file, table, and link") 
 
-    ent = syn.get(entity,downloadFile=False)
+    ent = syn.get(entity, downloadFile=False)
     if ent.id == destinationId:
         raise ValueError("destinationId cannot be the same as entity id")
 
@@ -183,28 +195,31 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         raise ValueError("Not able to copy this type of file")
 
     if isinstance(ent, Project):
-        if not isinstance(syn.get(destinationId),Project):
+        if not isinstance(syn.get(destinationId), Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
         copiedId = destinationId
         entities = syn.getChildren(entity)
         for i in entities:
-            mapping = _copyRecursive(syn, i['id'], destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
+            mapping = _copyRecursive(syn, i['id'], destinationId, mapping=mapping,
+                                     skipCopyAnnotations=skipCopyAnnotations, **kwargs)
     elif isinstance(ent, Folder):
-        copiedId = _copyFolder(syn, ent.id, destinationId, mapping = mapping, skipCopyAnnotations = skipCopyAnnotations, **kwargs)
+        copiedId = _copyFolder(syn, ent.id, destinationId, mapping=mapping, skipCopyAnnotations=skipCopyAnnotations,
+                               **kwargs)
     elif isinstance(ent, File) and "file" not in excludeTypes:
-        copiedId = _copyFile(syn, ent.id, destinationId, version = version, updateExisting = updateExisting, 
-                             setProvenance = setProvenance, skipCopyAnnotations = skipCopyAnnotations)
+        copiedId = _copyFile(syn, ent.id, destinationId, version=version, updateExisting=updateExisting,
+                             setProvenance=setProvenance, skipCopyAnnotations=skipCopyAnnotations)
     elif isinstance(ent, Link) and "link" not in excludeTypes:
-        copiedId = _copyLink(syn, ent.id, destinationId, updateExisting = updateExisting)
+        copiedId = _copyLink(syn, ent.id, destinationId, updateExisting=updateExisting)
     elif isinstance(ent, Schema) and "table" not in excludeTypes:
-        copiedId = _copyTable(syn, ent.id, destinationId, updateExisting = updateExisting)
+        copiedId = _copyTable(syn, ent.id, destinationId, updateExisting=updateExisting)
 
     if copiedId is not None:
         mapping[ent.id] = copiedId
-        print("Copied %s to %s" % (ent.id,copiedId))
+        print("Copied %s to %s" % (ent.id, copiedId))
     else:
         print("%s not copied" % ent.id)
-    return(mapping)
+    return mapping
+
 
 def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs):
     """
@@ -218,26 +233,29 @@ def _copyFolder(syn, entity, destinationId, mapping=None, skipCopyAnnotations=Fa
                                 Default is False
     """
     oldFolder = syn.get(entity)
-    updateExisting = kwargs.get('updateExisting',False)
+    updateExisting = kwargs.get('updateExisting', False)
 
     if mapping is None:
-        mapping=dict()
-    #CHECK: If Folder name already exists, raise value error
+        mapping = dict()
+    # CHECK: If Folder name already exists, raise value error
     if not updateExisting:
         existingEntity = syn.findEntityId(oldFolder.name, parent=destinationId)
         if existingEntity is not None:
-            raise ValueError('An entity named "%s" already exists in this location. Folder could not be copied'%oldFolder.name)
+            raise ValueError('An entity named "%s" already exists in this location. Folder could not be copied'
+                             % oldFolder.name)
 
-    newFolder = Folder(name = oldFolder.name, parent = destinationId)
+    newFolder = Folder(name=oldFolder.name, parent=destinationId)
     if not skipCopyAnnotations:
         newFolder.annotations = oldFolder.annotations
     newFolder = syn.store(newFolder)
     entities = syn.getChildren(entity)
     for ent in entities:
-        copied = _copyRecursive(syn, ent['id'],newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
-    return(newFolder.id)
+        _copyRecursive(syn, ent['id'], newFolder.id, mapping, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
+    return newFolder.id
 
-def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback", skipCopyAnnotations=False):
+
+def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, setProvenance="traceback",
+              skipCopyAnnotations=False):
     """
     Copies most recent version of a file to a specified synapse ID.
 
@@ -259,11 +277,12 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
                                 Default is False
     """
     ent = syn.get(entity, downloadFile=False, version=version, followLink=False)
-    #CHECK: If File is in the same parent directory (throw an error) (Can choose to update files)
+    # CHECK: If File is in the same parent directory (throw an error) (Can choose to update files)
     if not updateExisting:
         existingEntity = syn.findEntityId(ent.name, parent=destinationId)
         if existingEntity is not None:
-            raise ValueError('An entity named "%s" already exists in this location. File could not be copied'%ent.name)
+            raise ValueError('An entity named "%s" already exists in this location. File could not be copied'
+                             % ent.name)
     profile = syn.getUserProfile()
     # get provenance earlier to prevent errors from being called in the end
     # If traceback, set activity to old entity
@@ -282,32 +301,35 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
         act = None
     else:
         raise ValueError('setProvenance must be one of None, existing, or traceback')
-    #Grab entity bundle
-    bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, bitFlags=0x800|0x1)
+    # Grab entity bundle
+    bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, bitFlags=0x800 | 0x1)
     fileHandle = synapseclient.utils.find_data_file_handle(bundle)
     createdBy = fileHandle['createdBy']
-    #CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
+    # CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
     if profile.ownerId == createdBy:
         newdataFileHandleId = ent.dataFileHandleId
     else:
-        copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']], [fileHandle['contentType']], [fileHandle['fileName']])
-        #Check if failurecodes exist
+        copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']],
+                                           [fileHandle['contentType']], [fileHandle['fileName']])
+        # Check if failurecodes exist
         copyResult = copiedFileHandle['copyResults'][0]
         if copyResult.get("failureCode") is not None:
-            raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],copyResult['originalFileHandleId']))
+            raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],
+                                                          copyResult['originalFileHandleId']))
         newdataFileHandleId = copyResult['newFileHandle']['id']
 
     new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
-    #Set annotations here
+    # Set annotations here
     if not skipCopyAnnotations:
         new_ent.annotations = ent.annotations
-    #Store provenance if act is not None
+    # Store provenance if act is not None
     if act is not None:
         new_ent = syn.store(new_ent, activity=act)
     else:
         new_ent = syn.store(new_ent)
-    #Leave this return statement for test
+    # Leave this return statement for test
     return new_ent['id']
+
 
 def _copyTable(syn, entity, destinationId, updateExisting=False):
     """
@@ -323,23 +345,23 @@ def _copyTable(syn, entity, destinationId, updateExisting=False):
 
     print("Getting table %s" % entity)
     myTableSchema = syn.get(entity)
-    #CHECK: If Table name already exists, raise value error
+    # CHECK: If Table name already exists, raise value error
     existingEntity = syn.findEntityId(myTableSchema.name, parent=destinationId)
     if existingEntity is not None:
-        raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'%myTableSchema.name)
+        raise ValueError('An entity named "%s" already exists in this location. Table could not be copied'
+                         % myTableSchema.name)
 
     d = syn.tableQuery('select * from %s' % myTableSchema.id, includeRowIdAndRowVersion=False)
 
     colIds = myTableSchema.columnIds
 
-    newTableSchema = Schema(name = myTableSchema.name,
-                           parent = destinationId,
-                           columns=colIds)
+    newTableSchema = Schema(name=myTableSchema.name, parent=destinationId, columns=colIds)
 
     print("Created new table using schema %s" % newTableSchema.name)
-    newTable = Table(schema=newTableSchema,values=d.filepath)
+    newTable = Table(schema=newTableSchema, values=d.filepath)
     newTable = syn.store(newTable)
-    return(newTable.schema.id)
+    return newTable.schema.id
+
 
 def _copyLink(syn, entity, destinationId, updateExisting=False):
     """
@@ -353,23 +375,26 @@ def _copyLink(syn, entity, destinationId, updateExisting=False):
                             Default to False
     """
     ent = syn.get(entity)
-    #CHECK: If Link is in the same parent directory (throw an error)
+    # CHECK: If Link is in the same parent directory (throw an error)
     if not updateExisting:
         existingEntity = syn.findEntityId(ent.name, parent=destinationId)
         if existingEntity is not None:
-            raise ValueError('An entity named "%s" already exists in this location. Link could not be copied'%ent.name)
-    newLink = Link(ent.linksTo['targetId'],parent=destinationId,targetVersion=ent.linksTo.get('targetVersionNumber'))
+            raise ValueError('An entity named "%s" already exists in this location. Link could not be copied'
+                             % ent.name)
+    newLink = Link(ent.linksTo['targetId'], parent=destinationId,
+                   targetVersion=ent.linksTo.get('targetVersionNumber'))
     try:
         newLink = syn.store(newLink)
-        return(newLink.id)
+        return newLink.id
     except SynapseHTTPError as e:
         if e.response.status_code == 404:
             print("WARNING: The target of this link %s no longer exists" % ent.id)
-            return(None)
+            return None
         else:
             raise e
 
-def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=None):
+
+def _getSubWikiHeaders(wikiHeaders, subPageId, mapping=None):
     """
     Function to assist in getting wiki headers of subwikipages
     """
@@ -379,13 +404,13 @@ def _getSubWikiHeaders(wikiHeaders,subPageId,mapping=None):
         # If it isnt the actual parent, it will turn the first match into a parent node which will not have a parentId
         if i['id'] == subPageId:
             if mapping is None:
-                i.pop("parentId",None)
+                i.pop("parentId", None)
                 mapping = [i]
             else:
                 mapping.append(i)
         elif i.get('parentId') == subPageId:
-            mapping = _getSubWikiHeaders(wikiHeaders,subPageId=i['id'],mapping=mapping)
-    return(mapping)
+            mapping = _getSubWikiHeaders(wikiHeaders, subPageId=i['id'], mapping=mapping)
+    return mapping
 
 
 def _updateSynIds(newWikis, wikiIdMap, entityMap):
@@ -394,7 +419,7 @@ def _updateSynIds(newWikis, wikiIdMap, entityMap):
         # go through each wiki page once more:
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
-        print('Updated Synapse references for Page: %s\n' %newWikiId)
+        print('Updated Synapse references for Page: %s\n' % newWikiId)
         s = newWiki.markdown
 
         for oldSynId in entityMap.keys():
@@ -404,31 +429,32 @@ def _updateSynIds(newWikis, wikiIdMap, entityMap):
             s = re.sub(oldSynId, newSynId, s)
         print("Done updating Synpase IDs.\n")
         newWikis[newWikiId].markdown = s
-    return(newWikis)
+    return newWikis
 
 
-def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId ):
+def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
     print("Updating internal links:\n")
     for oldWikiId in wikiIdMap.keys():
         # go through each wiki page once more:
-        newWikiId=wikiIdMap[oldWikiId]
-        newWiki=newWikis[newWikiId]
+        newWikiId = wikiIdMap[oldWikiId]
+        newWiki = newWikis[newWikiId]
         print("\tUpdating internal links for Page: %s\n" % newWikiId)
-        s=newWiki.markdown
+        s = newWiki.markdown
         # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
         # where wikiIdMap maps abc->xyz
         # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId> 
         for oldWikiId2 in wikiIdMap.keys():
             oldProjectAndWikiId = "%s/wiki/%s\\b" % (entity, oldWikiId2)
             newProjectAndWikiId = "%s/wiki/%s" % (destinationId, wikiIdMap[oldWikiId2])
-            s=re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
+            s = re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
         # now replace any last references to entity with destinationId
-        s=re.sub(entity, destinationId, s)
-        newWikis[newWikiId].markdown=s
-    return(newWikis)
+        s = re.sub(entity, destinationId, s)
+        newWikis[newWikiId].markdown = s
+    return newWikis
 
 
-def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPageId=None, updateLinks=True, updateSynIds=True, entityMap=None):
+def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPageId=None, updateLinks=True,
+             updateSynIds=True, entityMap=None):
     """
     Copies wikis and updates internal links
 
@@ -444,12 +470,13 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     :param updateSynIds:            Update all the synapse ID's referenced in the wikis. (e.g. syn1234 becomes syn2345)
                                     Defaults to True but needs an entityMap
 
-    :param entityMap:               An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the wiki
+    :param entityMap:               An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the
+                                    wiki.
                                     Defaults to None 
 
     :param entitySubPageId:         Can specify subPageId and copy all of its subwikis
-                                    Defaults to None, which copies the entire wiki
-                                    subPageId can be found: https://www.synapse.org/#!Synapse:syn123/wiki/1234
+                                    Defaults to None, which copies the entire wiki subPageId can be found:
+                                    https://www.synapse.org/#!Synapse:syn123/wiki/1234
                                     In this case, 1234 is the subPageId. 
 
     :param destinationSubPageId:    Can specify destination subPageId to copy wikis to
@@ -457,21 +484,21 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 
     :returns: A list of Objects with three fields: id, title and parentId.
     """
-    oldOwn = syn.get(entity,downloadFile=False)
+    oldOwn = syn.get(entity, downloadFile=False)
     # getWikiHeaders fails when there is no wiki
     try:
         oldWikiHeaders = syn.getWikiHeaders(oldOwn)
     except SynapseHTTPError as e:
         if e.response.status_code == 404:
-            return([])
+            return []
         else:
             raise e
 
-    newOwn =syn.get(destinationId,downloadFile=False)
+    newOwn = syn.get(destinationId, downloadFile=False)
     wikiIdMap = dict()
     newWikis = dict()
-    #If entitySubPageId is given but not destinationSubPageId, set the pageId to "" (will get the root page)
-    #A entitySubPage could be copied to a project without any wiki pages, this has to be checked
+    # If entitySubPageId is given but not destinationSubPageId, set the pageId to "" (will get the root page)
+    # A entitySubPage could be copied to a project without any wiki pages, this has to be checked
     newWikiPage = None
     try:
         newWikiPage = syn.getWiki(newOwn, destinationSubPageId)
@@ -481,41 +508,47 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         else:
             raise e
     if entitySubPageId is not None:
-        oldWikiHeaders = _getSubWikiHeaders(oldWikiHeaders,entitySubPageId)
+        oldWikiHeaders = _getSubWikiHeaders(oldWikiHeaders, entitySubPageId)
 
     for wikiHeader in oldWikiHeaders:
         wiki = syn.getWiki(oldOwn, wikiHeader.id)
         print('Got wiki %s' % wikiHeader.id)
-        if wiki['attachmentFileHandleIds'] == []:
+        if not wiki['attachmentFileHandleIds']:
             new_file_handles = []
-        elif wiki['attachmentFileHandleIds'] != []:
-            results = [syn._getFileHandleDownload(filehandleId, wiki.id, objectType='WikiAttachment') for filehandleId in wiki['attachmentFileHandleIds']]
-            #Get rid of the previews
-            nopreviews = [attach['fileHandle'] for attach in results if attach['fileHandle']['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+        else:
+            results = [syn._getFileHandleDownload(filehandleId, wiki.id, objectType='WikiAttachment')
+                       for filehandleId in wiki['attachmentFileHandleIds']]
+            # Get rid of the previews
+            nopreviews = [attach['fileHandle'] for attach in results
+                          if attach['fileHandle']['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
             contentTypes = [attach['contentType'] for attach in nopreviews]
             fileNames = [attach['fileName'] for attach in nopreviews]
-            copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews), [wiki.id]*len(nopreviews), contentTypes, fileNames)
-            #Check if failurecodes exist
+            copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews),
+                                                [wiki.id]*len(nopreviews), contentTypes, fileNames)
+            # Check if failurecodes exist
             for filehandle in copiedFileHandles['copyResults']:
                 if filehandle.get("failureCode") is not None:
-                    raise ValueError("%s dataFileHandleId: %s" % (filehandle["failureCode"],filehandle['originalFileHandleId']))
+                    raise ValueError("%s dataFileHandleId: %s" % (filehandle["failureCode"],
+                                                                  filehandle['originalFileHandleId']))
             new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
-        #for some reason some wikis don't have titles?
+        # for some reason some wikis don't have titles?
         if hasattr(wikiHeader, 'parentId'):
-            newWikiPage = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])
+            newWikiPage = Wiki(owner=newOwn, title=wiki.get('title', ''), markdown=wiki.markdown,
+                               fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])
             newWikiPage = syn.store(newWikiPage)
         else:
             if destinationSubPageId is not None and newWikiPage is not None:
                 newWikiPage.attachmentFileHandleIds = new_file_handles
                 newWikiPage.markdown = wiki.markdown
-                newWikiPage.title = wiki.get('title','')
-                #Need to add logic to update titles here
+                newWikiPage.title = wiki.get('title', '')
+                # Need to add logic to update titles here
                 newWikiPage = syn.store(newWikiPage)
             else:
-                newWikiPage = Wiki(owner=newOwn, title=wiki.get('title',''), markdown=wiki.markdown, fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
+                newWikiPage = Wiki(owner=newOwn, title=wiki.get('title', ''), markdown=wiki.markdown,
+                                   fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
                 newWikiPage = syn.store(newWikiPage)
-        newWikis[newWikiPage.id]=newWikiPage
-        wikiIdMap[wiki.id] =newWikiPage.id
+        newWikis[newWikiPage.id] = newWikiPage
+        wikiIdMap[wiki.id] = newWikiPage.id
 
     if updateLinks:
         newWikis = _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId)
@@ -529,4 +562,4 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         newWikis[newWikiId] = syn.store(newWikis[newWikiId])
         print("\tStored: %s\n" % newWikiId)
     newWh = syn.getWikiHeaders(newOwn)
-    return(newWh)
+    return newWh

@@ -9,6 +9,7 @@ from ..utils import equal_paths
 SYNAPSE_CACHED_SESSION_APLICATION_NAME = "SYNAPSE.ORG_CLIENT"
 SESSION_CACHE_FILEPATH = os.path.expanduser("~/.synapseSession")
 
+
 def get_api_key(username):
     """
     Retrieves the user's API key
@@ -25,7 +26,7 @@ def remove_api_key(username):
         try:
             keyring.delete_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
         except PasswordDeleteError:
-            #The API key does not exist, but that is fine
+            # The API key does not exist, but that is fine
             pass
 
 
@@ -50,7 +51,8 @@ def _read_session_cache(filepath):
         result = json.load(file)
         if isinstance(result, dict):
             return result
-    except: pass
+    except:
+        pass
     return {}
 
 
@@ -58,7 +60,7 @@ def _write_session_cache(filepath, data):
     """Dumps the JSON data into CACHE_DIR/SESSION_FILENAME."""
     with open(filepath, 'w') as file:
         json.dump(data, file)
-        file.write('\n') # For compatibility with R's JSON parser
+        file.write('\n')  # For compatibility with R's JSON parser
 
 
 def migrate_old_session_file_credentials_if_necessary(syn):
@@ -67,16 +69,16 @@ def migrate_old_session_file_credentials_if_necessary(syn):
     # only migrate if the download cache is in the default location (i.e. user did not set its location)
     # we don't want to migrate credentials if they were a part of a cache shared by multiple people
     if equal_paths(syn.cache.cache_root_dir, os.path.expanduser(_DEFAULT_CACHE_ROOT_DIR)):
-        #iterate throught the old file and place in new credential storage
+        # iterate through the old file and place in new credential storage
         old_session_dict = _read_session_cache(old_session_file_path)
         for key, value in six.iteritems(old_session_dict):
             if key == "<mostRecent>":
                 set_most_recent_user(value)
             else:
                 set_api_key(key, value)
-    #always attempt to remove the old session file
+    # always attempt to remove the old session file
     try:
         os.remove(old_session_file_path)
     except OSError:
-        #file already removed.
+        # file already removed.
         pass

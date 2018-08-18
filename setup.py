@@ -1,9 +1,9 @@
-## Installation script for Synapse Client for Python
+# Installation script for Synapse Client for Python
 ############################################################
 import sys
 from os.path import expanduser, exists
 
-## check Python version, before we do anything
+# check Python version, before we do anything
 if sys.version_info < (2, 7, 0):
     sys.stderr.write("The Synapse Client for Python requires Python 2.7 or 3.4 or higher.\n")
     sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
@@ -25,7 +25,7 @@ data analysis tools such as R, python, Galaxy and Java.
 
 __version__=json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
 
-#make sure not to overwrite existing .synapseConfig with our example one
+# make sure not to overwrite existing .synapseConfig with our example one
 data_files = [(expanduser('~'), ['synapseclient/.synapseConfig'])] if not exists(expanduser('~/.synapseConfig')) else []
 setup(name='synapseclient',
     version=__version__,
@@ -42,10 +42,11 @@ setup(name='synapseclient',
         'six',
         'future',
         'backports.csv',
-        'keyring',
+        'keyring==13.2.1',
+        'deprecation',
     ],
     extras_require = {
-        'pandas':  ["pandas"],
+        'pandas': ["pandas==0.23.0"],
         'pysftp': ["pysftp>=0.2.8"],
         'boto3' : ["boto3"],
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt'],

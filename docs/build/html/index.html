@@ -1,0 +1,421 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Synapse Python Client documentation &#8212; Synapse Python Client 1.8.2 documentation</title>
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Synapse Client" href="Client.html" /> 
+  </head><body>
+<div class="header">
+  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse'/></a>
+  <h1>Synapse Python Client API</h1>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Client.html" title="Synapse Client"
+             accesskey="N">next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="#">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Synapse Python Client documentation</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#connecting-to-synapse">Connecting to Synapse</a></li>
+<li><a class="reference internal" href="#imports">Imports</a></li>
+<li><a class="reference internal" href="#accessing-data">Accessing Data</a></li>
+<li><a class="reference internal" href="#organizing-data-in-a-project">Organizing data in a Project</a></li>
+<li><a class="reference internal" href="#annotating-synapse-entities">Annotating Synapse entities</a></li>
+<li><a class="reference internal" href="#provenance">Provenance</a></li>
+<li><a class="reference internal" href="#tables">Tables</a></li>
+<li><a class="reference internal" href="#wikis">Wikis</a></li>
+<li><a class="reference internal" href="#evaluations">Evaluations</a></li>
+<li><a class="reference internal" href="#querying">Querying</a></li>
+<li><a class="reference internal" href="#access-control">Access control</a></li>
+<li><a class="reference internal" href="#accessing-the-api-directly">Accessing the API directly</a></li>
+<li><a class="reference internal" href="#synapse-utilities">Synapse utilities</a></li>
+<li><a class="reference internal" href="#more-information">More information</a></li>
+<li><a class="reference internal" href="#getting-updates">Getting updates</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Client.html"
+                        title="next chapter">Synapse Client</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/index.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="module-synapseclient">
+<span id="synapse-python-client-documentation"></span><h1>Synapse Python Client documentation<a class="headerlink" href="#module-synapseclient" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">synapseclient</span></code> package provides an interface to <a class="reference external" href="http://www.synapse.org">Synapse</a>, a collaborative workspace
+for reproducible data intensive research projects, providing support for:</p>
+<ul class="simple">
+<li>integrated presentation of data, code and text</li>
+<li>fine grained access control</li>
+<li><a class="reference internal" href="#provenance">provenance</a> tracking</li>
+</ul>
+<p>The <code class="docutils literal notranslate"><span class="pre">synapseclient</span></code> package lets you communicate with the cloud-hosted Synapse service to access data and create
+shared data analysis projects from within Python scripts or at the interactive Python console. Other Synapse clients
+exist for <a class="reference external" href="https://www.synapse.org/#!Synapse:syn1834618">R</a>,
+<a class="reference external" href="https://github.com/Sage-Bionetworks/Synapse-Repository-Services/tree/develop/client/synapseJavaClient">Java</a>, and
+the <a class="reference external" href="https://www.synapse.org/">web</a>. The Python client can also be used from the
+<a class="reference external" href="CommandLineClient.html">command line</a>.</p>
+<p>If you’re just getting started with Synapse, have a look at the Getting Started guides for
+<a class="reference external" href="http://docs.synapse.org/articles/getting_started.html">Synapse</a> and
+<a class="reference external" href="http://docs.synapse.org/python/">the Python client</a>.</p>
+<p>Good example projects are:</p>
+<ul class="simple">
+<li><a class="reference external" href="https://www.synapse.org/#!Synapse:syn300013">TCGA Pan-cancer (syn300013)</a></li>
+<li><a class="reference external" href="https://www.synapse.org/#!Synapse:syn1721874">Development of a Prognostic Model for Breast Cancer Survival in an Open Challenge Environment (syn1721874)</a></li>
+<li><a class="reference external" href="https://www.synapse.org/#!Synapse:syn1899339">Demo projects (syn1899339)</a></li>
+</ul>
+<div class="section" id="installation">
+<h3>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h3>
+<p>The <a class="reference external" href="https://pypi.python.org/pypi/synapseclient/">synapseclient</a> package is available from PyPI. It can be installed
+or upgraded with pip:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">sudo</span><span class="p">)</span> <span class="n">pip</span> <span class="n">install</span> <span class="p">(</span><span class="o">--</span><span class="n">upgrade</span><span class="p">)</span> <span class="n">synapseclient</span><span class="p">[</span><span class="n">pandas</span><span class="p">,</span><span class="n">pysftp</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>The dependencies on pandas and pysftp are optional. The Synapse <a class="reference internal" href="Table.html#module-synapseclient.table" title="synapseclient.table"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.table</span></code></a> feature integrates with
+Pandas. Support for sftp is required for users of SFTP file storage. Both require native libraries to be compiled or
+installed separately from prebuilt binaries.</p>
+<p>Source code and development versions are <a class="reference external" href="https://github.com/Sage-Bionetworks/synapsePythonClient">available on Github</a>.
+Installing from source:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">clone</span> <span class="n">git</span><span class="p">:</span><span class="o">//</span><span class="n">github</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">Sage</span><span class="o">-</span><span class="n">Bionetworks</span><span class="o">/</span><span class="n">synapsePythonClient</span><span class="o">.</span><span class="n">git</span>
+<span class="n">cd</span> <span class="n">synapsePythonClient</span>
+</pre></div>
+</div>
+<p>You can stay on the master branch to get the latest stable release or check out the develop branch or a tagged
+revision:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">git</span> <span class="n">checkout</span> <span class="o">&lt;</span><span class="n">branch</span> <span class="ow">or</span> <span class="n">tag</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<dl class="docutils">
+<dt>Next, either install the package in the site-packages directory <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">install</span></code> or</dt>
+<dd><p class="first"><code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">setup.py</span> <span class="pre">develop</span></code> to make the installation follow the head without having to reinstall:</p>
+<div class="last highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="n">setup</span><span class="o">.</span><span class="n">py</span> <span class="o">&lt;</span><span class="n">install</span> <span class="ow">or</span> <span class="n">develop</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</dd>
+</dl>
+</div>
+<div class="section" id="connecting-to-synapse">
+<h3>Connecting to Synapse<a class="headerlink" href="#connecting-to-synapse" title="Permalink to this headline">¶</a></h3>
+<p>To use Synapse, you’ll need to <a class="reference external" href="https://www.synapse.org/#!RegisterAccount:0">register</a> for an account. The Synapse
+website can authenticate using a Google account, but you’ll need to take the extra step of creating a Synapse password
+to use the programmatic clients.</p>
+<p>Once that’s done, you’ll be able to load the library, create a <a class="reference internal" href="Client.html#synapseclient.Synapse" title="synapseclient.Synapse"><code class="xref py py-class docutils literal notranslate"><span class="pre">Synapse</span></code></a> object and login:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">Synapse</span><span class="p">()</span>
+
+<span class="n">syn</span><span class="o">.</span><span class="n">login</span><span class="p">(</span><span class="s1">&#39;me@nowhere.com&#39;</span><span class="p">,</span> <span class="s1">&#39;secret&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>For more information, see:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse" title="synapseclient.Synapse"><code class="xref py py-class docutils literal notranslate"><span class="pre">Synapse</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.login" title="synapseclient.Synapse.login"><code class="xref py py-func docutils literal notranslate"><span class="pre">Synapse.login()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.logout" title="synapseclient.Synapse.logout"><code class="xref py py-func docutils literal notranslate"><span class="pre">Synapse.logout()</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="imports">
+<h3>Imports<a class="headerlink" href="#imports" title="Permalink to this headline">¶</a></h3>
+<p>Several components of the synapseclient can be imported as needed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Activity</span>
+<span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Entity</span><span class="p">,</span> <span class="n">Project</span><span class="p">,</span> <span class="n">Folder</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">Link</span>
+<span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Evaluation</span><span class="p">,</span> <span class="n">Submission</span><span class="p">,</span> <span class="n">SubmissionStatus</span>
+<span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Wiki</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="accessing-data">
+<h3>Accessing Data<a class="headerlink" href="#accessing-data" title="Permalink to this headline">¶</a></h3>
+<p>Synapse identifiers are used to refer to projects and data which are represented by <a class="reference internal" href="Entity.html#module-synapseclient.entity" title="synapseclient.entity"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.entity</span></code></a>
+objects. For example, the entity <a class="reference external" href="https://www.synapse.org/#!Synapse:syn1899498">syn1899498</a> represents a tab-delimited
+file containing a 100 by 4 matrix. Getting the entity retrieves an object that holds metadata describing the matrix,
+and also downloads the file to a local cache:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;syn1899498&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>View the entity’s metadata in the Python console:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This is one simple way to read in a small matrix:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">entity</span><span class="o">.</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">header</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readline</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;</span><span class="se">\t</span><span class="s1">&#39;</span><span class="p">)]</span>
+        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">row</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>View the entity in the browser:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">syn</span><span class="o">.</span><span class="n">onweb</span><span class="p">(</span><span class="s1">&#39;syn1899498&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.get" title="synapseclient.Synapse.get"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.get()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.onweb" title="synapseclient.Synapse.onweb"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.onweb()</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="organizing-data-in-a-project">
+<h3>Organizing data in a Project<a class="headerlink" href="#organizing-data-in-a-project" title="Permalink to this headline">¶</a></h3>
+<p>You can create your own projects and upload your own data sets. Synapse stores entities in a hierarchical or tree
+structure. Projects are at the top level and must be uniquely named:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
+<span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Project</span><span class="p">,</span> <span class="n">Folder</span><span class="p">,</span> <span class="n">File</span><span class="p">,</span> <span class="n">Link</span>
+
+<span class="n">project</span> <span class="o">=</span> <span class="n">Project</span><span class="p">(</span><span class="s1">&#39;My uniquely named project&#39;</span><span class="p">)</span>
+<span class="n">project</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">project</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Creating a folder:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data_folder</span> <span class="o">=</span> <span class="n">Folder</span><span class="p">(</span><span class="s1">&#39;Data&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">project</span><span class="p">)</span>
+<span class="n">data_folder</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">data_folder</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Adding files to the project:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">test_entity</span> <span class="o">=</span> <span class="n">File</span><span class="p">(</span><span class="s1">&#39;/path/to/data/file.xyz&#39;</span><span class="p">,</span> <span class="n">description</span><span class="o">=</span><span class="s1">&#39;Fancy new data&#39;</span><span class="p">,</span> <span class="n">parent</span><span class="o">=</span><span class="n">data_folder</span><span class="p">)</span>
+<span class="n">test_entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">test_entity</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In addition to simple data storage, Synapse entities can be <a class="reference external" href="#annotating-synapse-entities">annotated</a> with key/value
+metadata, described in markdown documents (<a class="reference internal" href="#wikis">wikis</a>), and linked together in <a class="reference internal" href="#provenance">provenance</a> graphs to create a reproducible
+record of a data analysis pipeline.</p>
+<p>See also:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Entity.html#synapseclient.entity.Entity" title="synapseclient.entity.Entity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Entity</span></code></a></li>
+<li><a class="reference internal" href="Entity.html#synapseclient.entity.Project" title="synapseclient.entity.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Project</span></code></a></li>
+<li><a class="reference internal" href="Entity.html#synapseclient.entity.Folder" title="synapseclient.entity.Folder"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Folder</span></code></a></li>
+<li><a class="reference internal" href="Entity.html#synapseclient.entity.File" title="synapseclient.entity.File"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.File</span></code></a></li>
+<li><a class="reference internal" href="Entity.html#synapseclient.entity.Link" title="synapseclient.entity.Link"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Link</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="annotating-synapse-entities">
+<h3>Annotating Synapse entities<a class="headerlink" href="#annotating-synapse-entities" title="Permalink to this headline">¶</a></h3>
+<p>Annotations are arbitrary metadata attached to Synapse entities, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">test_entity</span><span class="o">.</span><span class="n">genome_assembly</span> <span class="o">=</span> <span class="s2">&quot;hg19&quot;</span>
+</pre></div>
+</div>
+<p>See:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Annotations.html#module-synapseclient.annotations" title="synapseclient.annotations"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.annotations</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="provenance">
+<h3>Provenance<a class="headerlink" href="#provenance" title="Permalink to this headline">¶</a></h3>
+<p>Synapse provides tools for tracking ‘provenance’, or the transformation of raw data into processed results, by linking
+derived data objects to source data and the code used to perform the transformation.</p>
+<p>See:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Activity.html#synapseclient.activity.Activity" title="synapseclient.activity.Activity"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.activity.Activity</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="tables">
+<h3>Tables<a class="headerlink" href="#tables" title="Permalink to this headline">¶</a></h3>
+<p>Tables can be built up by adding sets of rows that follow a user-defined schema and queried using a SQL-like syntax.</p>
+<p>See:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Table.html#module-synapseclient.table" title="synapseclient.table"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.table</span></code></a></li>
+<li><a class="reference internal" href="Entity.html#synapseclient.table.Schema" title="synapseclient.table.Schema"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Schema</span></code></a></li>
+<li><a class="reference internal" href="Table.html#synapseclient.table.Column" title="synapseclient.table.Column"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.table.Column</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getColumns" title="synapseclient.Synapse.getColumns"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getColumns()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getTableColumns" title="synapseclient.Synapse.getTableColumns"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getTableColumns()</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="wikis">
+<h3>Wikis<a class="headerlink" href="#wikis" title="Permalink to this headline">¶</a></h3>
+<p>Wiki pages can be attached to an Synapse entity (i.e. project, folder, file, etc). Text and graphics can be composed in
+markdown and rendered in the web view of the object.</p>
+<p>See:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getWiki" title="synapseclient.Synapse.getWiki"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getWiki()</span></code></a></li>
+<li><a class="reference internal" href="Wiki.html#synapseclient.wiki.Wiki" title="synapseclient.wiki.Wiki"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.wiki.Wiki</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="evaluations">
+<h3>Evaluations<a class="headerlink" href="#evaluations" title="Permalink to this headline">¶</a></h3>
+<p>An evaluation is a Synapse construct useful for building processing pipelines and for scoring predictive modelling and
+data analysis challenges.</p>
+<p>See:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Evaluation.html#module-synapseclient.evaluation" title="synapseclient.evaluation"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseclient.evaluation</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getEvaluation" title="synapseclient.Synapse.getEvaluation"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getEvaluation()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.submit" title="synapseclient.Synapse.submit"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.submit()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getSubmissions" title="synapseclient.Synapse.getSubmissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getSubmissions()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getSubmission" title="synapseclient.Synapse.getSubmission"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getSubmission()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getSubmissionStatus" title="synapseclient.Synapse.getSubmissionStatus"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getSubmissionStatus()</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="querying">
+<h3>Querying<a class="headerlink" href="#querying" title="Permalink to this headline">¶</a></h3>
+<p>Synapse supports a <a class="reference external" href="https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI">SQL-like query language</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s1">&#39;SELECT id, name FROM entity WHERE parentId==&quot;syn1899495&quot;&#39;</span><span class="p">)</span>
+
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;entity.id&#39;</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;entity.name&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>Querying for my projects. Finding projects owned by the current user:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">profile</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">getUserProfile</span><span class="p">()</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="s1">&#39;SELECT id, name FROM project WHERE project.createdByPrincipalId==</span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">profile</span><span class="p">[</span><span class="s1">&#39;ownerId&#39;</span><span class="p">])</span>
+
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">[</span><span class="s1">&#39;results&#39;</span><span class="p">]:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s1">&#39;project.id&#39;</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="s1">&#39;project.name&#39;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>See:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.query" title="synapseclient.Synapse.query"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.query()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.chunkedQuery" title="synapseclient.Synapse.chunkedQuery"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.chunkedQuery()</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="access-control">
+<h3>Access control<a class="headerlink" href="#access-control" title="Permalink to this headline">¶</a></h3>
+<p>By default, data sets in Synapse are private to your user account, but they can easily be shared with specific users,
+groups, or the public.</p>
+<p>See:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getPermissions" title="synapseclient.Synapse.getPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">Synapse.getPermissions()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.setPermissions" title="synapseclient.Synapse.setPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">Synapse.setPermissions()</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="accessing-the-api-directly">
+<h3>Accessing the API directly<a class="headerlink" href="#accessing-the-api-directly" title="Permalink to this headline">¶</a></h3>
+<p>These methods enable access to the Synapse REST(ish) API taking care of details like endpoints and authentication.
+See the <a class="reference external" href="http://docs.synapse.org/rest/">REST API documentation</a>.</p>
+<p>See:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.restGET" title="synapseclient.Synapse.restGET"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restGET()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.restPOST" title="synapseclient.Synapse.restPOST"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restPOST()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.restPUT" title="synapseclient.Synapse.restPUT"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restPUT()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.restDELETE" title="synapseclient.Synapse.restDELETE"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.restDELETE()</span></code></a></li>
+</ul>
+</div>
+<div class="section" id="synapse-utilities">
+<h3>Synapse utilities<a class="headerlink" href="#synapse-utilities" title="Permalink to this headline">¶</a></h3>
+<p>There is a companion module called synapseutils that provide higher level functionality such as recursive copying of
+content, syncing with Synapse and additional query functionality.</p>
+<p>See:
+- <a class="reference internal" href="synapseutils.html#module-synapseutils" title="synapseutils"><code class="xref py py-mod docutils literal notranslate"><span class="pre">synapseutils</span></code></a></p>
+</div>
+<div class="section" id="more-information">
+<h3>More information<a class="headerlink" href="#more-information" title="Permalink to this headline">¶</a></h3>
+<p>For more information see the <a class="reference external" href="http://docs.synapse.org/articles/">Synapse User Guide</a>. These API docs are browsable
+online at <a class="reference external" href="http://docs.synapse.org/python/">http://docs.synapse.org/python/</a>.</p>
+</div>
+<div class="section" id="getting-updates">
+<h3>Getting updates<a class="headerlink" href="#getting-updates" title="Permalink to this headline">¶</a></h3>
+<p>To get information about new versions of the client including development versions see
+<a class="reference external" href="Versions.html#synapseclient.version_check.check_for_updates">synapseclient.check_for_updates()</a> and
+<a class="reference external" href="Versions.html#synapseclient.version_check.release_notes">synapseclient.release_notes()</a>.</p>
+</div>
+</div>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="Client.html">Synapse Client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Entity.html">Entity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Evaluation.html">Evaluations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Activity.html">Provenance</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Annotations.html">Annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Wiki.html">Wiki</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Utilities.html">Utility Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Versions.html">Version Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="CommandLineClient.html">Synapse command line client</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Table.html">Tables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="sftp.html">Using the Synapse Python Client with SFTP data storage</a></li>
+</ul>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Client.html" title="Synapse Client"
+             >next</a> |</li>
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Aug 17, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.6.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+  </body>
+</html>
