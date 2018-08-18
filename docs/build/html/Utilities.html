@@ -1,0 +1,516 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Utility Functions &#8212; Synapse Python Client 1.8.2 documentation</title>
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Version Functions" href="Versions.html" />
+    <link rel="prev" title="Wiki" href="Wiki.html" /> 
+  </head><body>
+<div class="header">
+  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse'/></a>
+  <h1>Synapse Python Client API</h1>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Versions.html" title="Version Functions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Wiki.html" title="Wiki"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Wiki.html"
+                        title="previous chapter">Wiki</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Versions.html"
+                        title="next chapter">Version Functions</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/Utilities.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <span class="target" id="module-synapseclient.utils"></span><div class="section" id="utility-functions">
+<h1>Utility Functions<a class="headerlink" href="#utility-functions" title="Permalink to this headline">¶</a></h1>
+<p>Utility functions useful in the implementation and testing of the Synapse client.</p>
+<dl class="function">
+<dt id="synapseclient.utils.as_url">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">as_url</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.as_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tries to convert the input into a proper URL.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.caller_module_name">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">caller_module_name</code><span class="sig-paren">(</span><em>current_frame</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.caller_module_name" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>current_frame</strong> – use inspect.currentframe().</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">the name of the module calling the function, foo(), in which this calling_module() is invoked.
+Ignores callers that belong in the same module as foo()</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.download_file">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">download_file</code><span class="sig-paren">(</span><em>url</em>, <em>localFilepath=None</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.download_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Downloads a remote file.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>localFilePath</strong> – May be None, in which case a temporary file is created</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">localFilePath</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.equal_paths">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">equal_paths</code><span class="sig-paren">(</span><em>path1</em>, <em>path2</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.equal_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compare file paths in a platform neutral way</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.extract_filename">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">extract_filename</code><span class="sig-paren">(</span><em>content_disposition_header</em>, <em>default_filename=None</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.extract_filename" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract a filename from an HTTP content-disposition header field.</p>
+<p>See <a class="reference external" href="http://tools.ietf.org/html/rfc6266">this memo</a> and <a class="reference external" href="http://pypi.python.org/pypi/rfc6266">this package</a>
+for cryptic details.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.extract_prefix">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">extract_prefix</code><span class="sig-paren">(</span><em>keys</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.extract_prefix" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes a list of strings and extracts a common prefix delimited by a dot,
+for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">extract_prefix</span><span class="p">([</span><span class="s2">&quot;entity.bang&quot;</span><span class="p">,</span> <span class="s2">&quot;entity.bar&quot;</span><span class="p">,</span> <span class="s2">&quot;entity.bat&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>entity.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.extract_user_name">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">extract_user_name</code><span class="sig-paren">(</span><em>profile</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.extract_user_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract a displayable user name from a user’s profile</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.file_url_to_path">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">file_url_to_path</code><span class="sig-paren">(</span><em>url</em>, <em>verify_exists=False</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.file_url_to_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert a file URL to a path, handling some odd cases around Windows paths.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>url</strong> – a file URL</li>
+<li><strong>verify_exists</strong> – If true, return an populated dict only if the resulting file path exists on the local file
+system.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">a path or None if the URL is not a file URL.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.find_data_file_handle">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">find_data_file_handle</code><span class="sig-paren">(</span><em>bundle</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.find_data_file_handle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return the fileHandle whose ID matches the dataFileHandleId in an entity bundle</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.format_time_interval">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">format_time_interval</code><span class="sig-paren">(</span><em>seconds</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.format_time_interval" title="Permalink to this definition">¶</a></dt>
+<dd><p>Format a time interval given in seconds to a readable value, e.g. “5 minutes, 37 seconds”.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.from_unix_epoch_time">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">from_unix_epoch_time</code><span class="sig-paren">(</span><em>ms</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.from_unix_epoch_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Datetime object given milliseconds since midnight Jan 1, 1970.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.from_unix_epoch_time_secs">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">from_unix_epoch_time_secs</code><span class="sig-paren">(</span><em>secs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.from_unix_epoch_time_secs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a Datetime object given milliseconds since midnight Jan 1, 1970.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.get_properties">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">get_properties</code><span class="sig-paren">(</span><em>entity</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.get_properties" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the dictionary of properties of the given Entity.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.guess_file_name">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">guess_file_name</code><span class="sig-paren">(</span><em>string</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.guess_file_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tries to derive a filename from an arbitrary string.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.id_of">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">id_of</code><span class="sig-paren">(</span><em>obj</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.id_of" title="Permalink to this definition">¶</a></dt>
+<dd><p>Try to figure out the Synapse ID of the given object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>obj</strong> – May be a string, Entity object, or dictionary</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The ID or throws an exception</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.is_in_path">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">is_in_path</code><span class="sig-paren">(</span><em>id</em>, <em>path</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.is_in_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Determines whether id is in the path as returned from /entity/{id}/path</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>id</strong> – synapse id string</li>
+<li><strong>path</strong> – object as returned from ‘/entity/{id}/path’</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">True or False</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.is_same_base_url">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">is_same_base_url</code><span class="sig-paren">(</span><em>url1</em>, <em>url2</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.is_same_base_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Compares two urls to see if they are the same excluding up to the base path</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>url1</strong> – a URL</li>
+<li><strong>url2</strong> – a second URL</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Boolean</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.is_synapse_id">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">is_synapse_id</code><span class="sig-paren">(</span><em>obj</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.is_synapse_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>If the input is a Synapse ID return it, otherwise return None</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.is_url">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">is_url</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.is_url" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return True if the string appears to be a valid URL.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.itersubclasses">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">itersubclasses</code><span class="sig-paren">(</span><em>cls</em>, <em>_seen=None</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.itersubclasses" title="Permalink to this definition">¶</a></dt>
+<dd><p><a class="reference external" href="http://code.activestate.com/recipes/576949/">http://code.activestate.com/recipes/576949/</a> (r3)</p>
+<p>itersubclasses(cls)</p>
+<p>Generator over all subclasses of a given class, in depth first order.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="nb">list</span><span class="p">(</span><span class="n">itersubclasses</span><span class="p">(</span><span class="nb">int</span><span class="p">))</span> <span class="o">==</span> <span class="p">[</span><span class="nb">bool</span><span class="p">]</span>
+<span class="go">True</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">A</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span> <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">B</span><span class="p">(</span><span class="n">A</span><span class="p">):</span> <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">C</span><span class="p">(</span><span class="n">A</span><span class="p">):</span> <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">D</span><span class="p">(</span><span class="n">B</span><span class="p">,</span><span class="n">C</span><span class="p">):</span> <span class="k">pass</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">class</span> <span class="nc">E</span><span class="p">(</span><span class="n">D</span><span class="p">):</span> <span class="k">pass</span>
+<span class="go">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">itersubclasses</span><span class="p">(</span><span class="n">A</span><span class="p">):</span>
+<span class="gp">... </span>    <span class="nb">print</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+<span class="go">B</span>
+<span class="go">D</span>
+<span class="go">E</span>
+<span class="go">C</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># get ALL (new-style) classes currently defined</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">for</span> <span class="bp">cls</span> <span class="ow">in</span> <span class="n">itersubclasses</span><span class="p">(</span><span class="nb">object</span><span class="p">)]</span> 
+<span class="go">[&#39;type&#39;, ...&#39;tuple&#39;, ...]</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.make_bogus_binary_file">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">make_bogus_binary_file</code><span class="sig-paren">(</span><em>n=1048576</em>, <em>filepath=None</em>, <em>printprogress=False</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.make_bogus_binary_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a bogus binary data file for testing. It is the caller’s responsibility to clean up the file when finished.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>n</strong> – How many bytes to write</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The name of the file</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.make_bogus_data_file">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">make_bogus_data_file</code><span class="sig-paren">(</span><em>n=100</em>, <em>seed=None</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.make_bogus_data_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Makes a bogus data file for testing. It is the caller’s responsibility to clean up the file when finished.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>n</strong> – How many random floating point numbers to be written into the file, separated by commas</li>
+<li><strong>seed</strong> – Random seed for the random numbers</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The name of the file</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.md5_for_file">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">md5_for_file</code><span class="sig-paren">(</span><em>filename</em>, <em>block_size=2097152</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.md5_for_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calculates the MD5 of the given file.
+See <a class="reference external" href="http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python">source</a>.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>filename</strong> – The file to read in</li>
+<li><strong>block_size</strong> – How much of the file to read in at once (bytes).
+Defaults to 2 MB</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The MD5</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.normalize_path">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">normalize_path</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.normalize_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transforms a path into an absolute path with forward slashes only.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.normalize_whitespace">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">normalize_whitespace</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.normalize_whitespace" title="Permalink to this definition">¶</a></dt>
+<dd><p>Strips the string and replace all whitespace sequences and other non-printable characters with a single space.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.printTransferProgress">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">printTransferProgress</code><span class="sig-paren">(</span><em>transferred</em>, <em>toBeTransferred</em>, <em>prefix=''</em>, <em>postfix=''</em>, <em>isBytes=True</em>, <em>dt=None</em>, <em>previouslyTransferred=0</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.printTransferProgress" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prints a progress bar</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>transferred</strong> – a number of items/bytes completed</li>
+<li><strong>toBeTransferred</strong> – total number of items/bytes when completed</li>
+<li><strong>prefix</strong> – String printed before progress bar</li>
+<li><strong>prefix</strong> – String printed after progress bar</li>
+<li><strong>isBytes</strong> – A boolean indicating whether to convert bytes to kB, MB, GB etc.</li>
+<li><strong>dt</strong> – The time in seconds that has passed since transfer started is used to calculate rate</li>
+<li><strong>previouslyTransferred</strong> – the number of bytes that were already transferred before this transfer began
+(e.g. someone ctrl+c’d out of an upload and restarted it later)</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.query_limit_and_offset">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">query_limit_and_offset</code><span class="sig-paren">(</span><em>query</em>, <em>hard_limit=1000</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.query_limit_and_offset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Extract limit and offset from the end of a query string.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A triple containing the query with limit and offset removed, the limit at most equal to the hard_limit,
+and the offset which
+defaults to 1</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.threadsafe_generator">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">threadsafe_generator</code><span class="sig-paren">(</span><em>f</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.threadsafe_generator" title="Permalink to this definition">¶</a></dt>
+<dd><p>A decorator that takes a generator function and makes it thread-safe.
+See: <a class="reference external" href="http://anandology.com/blog/using-iterators-and-generators/">http://anandology.com/blog/using-iterators-and-generators/</a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="synapseclient.utils.threadsafe_iter">
+<em class="property">class </em><code class="descclassname">synapseclient.utils.</code><code class="descname">threadsafe_iter</code><span class="sig-paren">(</span><em>it</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.threadsafe_iter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes an iterator/generator and makes it thread-safe by serializing call to the <cite>next</cite> method of given
+iterator/generator.
+See: <a class="reference external" href="http://anandology.com/blog/using-iterators-and-generators/">http://anandology.com/blog/using-iterators-and-generators/</a></p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.to_unix_epoch_time">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">to_unix_epoch_time</code><span class="sig-paren">(</span><em>dt</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.to_unix_epoch_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert either <a class="reference external" href="http://docs.python.org/2/library/datetime.html">datetime.date or datetime.datetime objects</a>
+to UNIX time.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.to_unix_epoch_time_secs">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">to_unix_epoch_time_secs</code><span class="sig-paren">(</span><em>dt</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.to_unix_epoch_time_secs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert either <a class="reference external" href="http://docs.python.org/2/library/datetime.html">datetime.date or datetime.datetime objects</a>
+to UNIX time.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.topolgical_sort">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">topolgical_sort</code><span class="sig-paren">(</span><em>graph</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.topolgical_sort" title="Permalink to this definition">¶</a></dt>
+<dd><p>Given a graph in the form of a dictionary returns a sorted list</p>
+<p>Adapted from: <a class="reference external" href="http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/">http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/</a></p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>graph</strong> – a dictionary with values containing lists of keys referencing back into the dictionary</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">sorted list of items</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.touch">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">touch</code><span class="sig-paren">(</span><em>path</em>, <em>times=None</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.touch" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make sure a file exists. Update its access and modified times.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="synapseclient.utils.unique_filename">
+<code class="descclassname">synapseclient.utils.</code><code class="descname">unique_filename</code><span class="sig-paren">(</span><em>path</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.utils.unique_filename" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a unique path by appending (n) for some number n to the end of the filename.</p>
+</dd></dl>
+
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Versions.html" title="Version Functions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Wiki.html" title="Wiki"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Aug 17, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.6.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+  </body>
+</html>

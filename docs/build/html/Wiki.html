@@ -1,0 +1,229 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Wiki &#8212; Synapse Python Client 1.8.2 documentation</title>
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Utility Functions" href="Utilities.html" />
+    <link rel="prev" title="Annotations" href="Annotations.html" /> 
+  </head><body>
+<div class="header">
+  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse'/></a>
+  <h1>Synapse Python Client API</h1>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Utilities.html" title="Utility Functions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Annotations.html" title="Annotations"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Wiki</a><ul>
+<li><a class="reference internal" href="#creating-a-wiki">Creating a Wiki</a></li>
+<li><a class="reference internal" href="#embedding-images">Embedding images</a></li>
+<li><a class="reference internal" href="#updating-a-wiki">Updating a Wiki</a></li>
+<li><a class="reference internal" href="#wiki-class">Wiki Class</a></li>
+<li><a class="reference internal" href="#wiki-methods">Wiki methods</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Annotations.html"
+                        title="previous chapter">Annotations</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Utilities.html"
+                        title="next chapter">Utility Functions</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/Wiki.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <span class="target" id="module-synapseclient.wiki"></span><div class="section" id="wiki">
+<h1>Wiki<a class="headerlink" href="#wiki" title="Permalink to this headline">¶</a></h1>
+<p>A Wiki page requires a title, markdown and an owner object and can
+also include images.</p>
+<div class="section" id="creating-a-wiki">
+<h2>Creating a Wiki<a class="headerlink" href="#creating-a-wiki" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Wiki</span>
+
+<span class="n">entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;syn123456&#39;</span><span class="p">)</span>
+
+<span class="n">content</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2"># My Wiki Page</span>
+
+<span class="s2">Here is a description of my **fantastic** project!</span>
+
+<span class="s2">An attached image:</span>
+<span class="s2">${image?fileName=logo.png&amp;align=none}</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">wiki</span> <span class="o">=</span> <span class="n">Wiki</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s1">&#39;My Wiki Page&#39;</span><span class="p">,</span>
+            <span class="n">owner</span><span class="o">=</span><span class="n">entity</span><span class="p">,</span>
+            <span class="n">markdown</span><span class="o">=</span><span class="n">content</span><span class="p">,</span>
+            <span class="n">attachments</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;/path/to/logo.png&#39;</span><span class="p">])</span>
+
+<span class="n">wiki</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">wiki</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="embedding-images">
+<h2>Embedding images<a class="headerlink" href="#embedding-images" title="Permalink to this headline">¶</a></h2>
+<p>Note that in the above example, we’ve <strong>attached</strong> a logo graphic and embedded it in the web page.</p>
+<p>Figures that are more than just decoration can be stored as Synapse entities allowing versioning and provenance
+information to be recorded. This is a better choice for figures with data behind them.</p>
+</div>
+<div class="section" id="updating-a-wiki">
+<h2>Updating a Wiki<a class="headerlink" href="#updating-a-wiki" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;syn123456&#39;</span><span class="p">)</span>
+<span class="n">wiki</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">getWiki</span><span class="p">(</span><span class="n">entity</span><span class="p">)</span>
+
+<span class="n">wiki</span><span class="o">.</span><span class="n">markdown</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2"># My Wiki Page</span>
+
+<span class="s2">Here is a description of my **fantastic** project! Let&#39;s</span>
+<span class="s2">*emphasize* the important stuff.</span>
+
+<span class="s2">An embedded image that is also a Synapse entity:</span>
+<span class="s2">${image?synapseId=syn1824434&amp;align=None&amp;scale=66}</span>
+
+<span class="s2">Now we can track it&#39;s provenance and keep multiple versions.</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="n">wiki</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">wiki</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="wiki-class">
+<h2>Wiki Class<a class="headerlink" href="#wiki-class" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.wiki.Wiki">
+<em class="property">class </em><code class="descclassname">synapseclient.wiki.</code><code class="descname">Wiki</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.wiki.Wiki" title="Permalink to this definition">¶</a></dt>
+<dd><p>Represents a wiki page in Synapse with content specified in markdown.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>title</strong> – Title of the Wiki</li>
+<li><strong>owner</strong> – Parent Entity that the Wiki will belong to</li>
+<li><strong>markdown</strong> – Content of the Wiki (cannot be defined if markdownFile is defined)</li>
+<li><strong>markdownFile</strong> – Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)</li>
+<li><strong>attachments</strong> – List of paths to files to attach</li>
+<li><strong>fileHandles</strong> – List of file handle IDs representing files to be attached</li>
+<li><strong>parentWikiId</strong> – (optional) For sub-pages, specify parent wiki page</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="synapseclient.wiki.Wiki.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.wiki.Wiki.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="wiki-methods">
+<h2>Wiki methods<a class="headerlink" href="#wiki-methods" title="Permalink to this headline">¶</a></h2>
+<blockquote>
+<div><ul class="simple">
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getWiki" title="synapseclient.Synapse.getWiki"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.getWiki()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getWikiHeaders" title="synapseclient.Synapse.getWikiHeaders"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.getWikiHeaders()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.delete" title="synapseclient.Synapse.delete"><code class="xref py py-meth docutils literal notranslate"><span class="pre">synapseclient.Synapse.delete()</span></code></a></li>
+</ul>
+</div></blockquote>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Utilities.html" title="Utility Functions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Annotations.html" title="Annotations"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Aug 17, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.6.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+  </body>
+</html>
