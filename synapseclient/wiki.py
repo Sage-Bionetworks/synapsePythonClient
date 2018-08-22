@@ -4,7 +4,7 @@ Wiki
 ****
 
 A Wiki page requires a title, markdown and an owner object and can
-alse include images.
+also include images.
 
 ~~~~~~~~~~~~~~~
 Creating a Wiki
@@ -36,12 +36,10 @@ Creating a Wiki
 Embedding images
 ~~~~~~~~~~~~~~~~
 
-Note that in the above example, we've **attached** a logo graphic and embedded it
-in the web page.
+Note that in the above example, we've **attached** a logo graphic and embedded it in the web page.
 
-Figures that are more than just decoration can be stored as Synapse entities
-allowing versioning and provenance information to be recorded. This is a better
-choice for figures with data behind them.
+Figures that are more than just decoration can be stored as Synapse entities allowing versioning and provenance
+information to be recorded. This is a better choice for figures with data behind them.
 
 ~~~~~~~~~~~~~~~
 Updating a Wiki
@@ -92,35 +90,36 @@ import six
 import os
 import json
 
-from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.utils import id_of
+
 
 class Wiki(DictObject):
     """
     Represents a wiki page in Synapse with content specified in markdown.
 
-    :param title:       Title of the Wiki
-    :param owner:       Parent Entity that the Wiki will belong to
-    :param markdown:    Content of the Wiki (cannot be defined if markdownFile is defined)
-    :param markdownFile: Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
-    :param attachments: List of paths to files to attach
-    :param fileHandles: List of file handle IDs representing files to be attached
-    :param parentWikiId: (optional) For subpages, specify parent wiki page
+    :param title:           Title of the Wiki
+    :param owner:           Parent Entity that the Wiki will belong to
+    :param markdown:        Content of the Wiki (cannot be defined if markdownFile is defined)
+    :param markdownFile:    Path to file which contains the Content of Wiki (cannot be defined if markdown is defined)
+    :param attachments:     List of paths to files to attach
+    :param fileHandles:     List of file handle IDs representing files to be attached
+    :param parentWikiId:    (optional) For sub-pages, specify parent wiki page
     """
 
-    __PROPERTIES = ('title', 'markdown', 'attachmentFileHandleIds', 'id', 'etag', 'createdBy', 'createdOn', 'modifiedBy', 'modifiedOn', 'parentWikiId')
+    __PROPERTIES = ('title', 'markdown', 'attachmentFileHandleIds', 'id', 'etag', 'createdBy', 'createdOn',
+                    'modifiedBy', 'modifiedOn', 'parentWikiId')
 
     def __init__(self, **kwargs):
         # Verify that the parameters are correct
-        if not 'owner' in kwargs:
+        if 'owner' not in kwargs:
             raise ValueError('Wiki constructor must have an owner specified')
 
         # Initialize the file handle list to be an empty list
         if 'attachmentFileHandleIds' not in kwargs:
             kwargs['attachmentFileHandleIds'] = []
 
-        #update the markdown
+        # update the markdown
         self.update_markdown(kwargs.pop('markdown', None), kwargs.pop('markdownFile', None))
 
         # Move the 'fileHandles' into the proper (wordier) bucket
@@ -133,10 +132,9 @@ class Wiki(DictObject):
         self.ownerId = id_of(self.owner)
         del self['owner']
 
-
     def json(self):
         """Returns the JSON representation of the Wiki object."""
-        return json.dumps({k:v for k,v in six.iteritems(self) if k in self.__PROPERTIES})
+        return json.dumps({k: v for k, v in six.iteritems(self) if k in self.__PROPERTIES})
 
     def getURI(self):
         """For internal use."""
@@ -158,18 +156,17 @@ class Wiki(DictObject):
 
         return '/entity/%s/wiki/%s' % (self.ownerId, self.id)
 
-
-    def update_markdown(self, markdown = None, markdown_file = None):
+    def update_markdown(self, markdown=None, markdown_file=None):
         """
         Updates the wiki's markdown. Specify only one of markdown or markdown_file
-        :param markdown: text that will become the markdown
-        :param markdown_file: path to a file. Its contents will be the markdown
+        :param markdown:        text that will become the markdown
+        :param markdown_file:   path to a file. Its contents will be the markdown
         """
         if markdown and markdown_file:
             raise ValueError("Please use only one argument: markdown or markdownFile")
 
         if markdown_file:
-            #pop the 'markdownFile' kwargs because we don't actually need it in the dictionary to upload to synapse
+            # pop the 'markdownFile' kwargs because we don't actually need it in the dictionary to upload to synapse
             markdown_path = os.path.expandvars(os.path.expanduser(markdown_file))
             if not os.path.isfile(markdown_path):
                 raise ValueError(markdown_file + "is not a valid file")

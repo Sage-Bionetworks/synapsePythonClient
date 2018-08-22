@@ -3,7 +3,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 
 try:
     from urllib.parse import urlparse
@@ -11,60 +10,64 @@ except ImportError:
     from urlparse import urlparse
 
 import filecmp
-import os, sys, traceback
-import json
+import os
+import traceback
 import uuid 
-from nose.tools import assert_raises, assert_is_not_none, assert_equals
+from nose.tools import assert_is_not_none, assert_equals
 import tempfile
 import shutil
 
 from synapseclient.exceptions import *
-import synapseclient
 import synapseclient.utils as utils
-from synapseclient.utils import MB, GB
-from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient.utils import MB
+from synapseclient import File
 from synapseclient.remote_file_storage_wrappers import SFTPWrapper
 
 import integration
 from integration import schedule_for_cleanup
 
-DESTINATIONS =  [{"uploadType": "SFTP", 
-                  "description" :'EC2 subfolder A',
-                  "supportsSubfolders": True,
-                  "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/test%20space",
-                  "banner": "Uploading file to EC2\n"}, 
-                 {"uploadType": "SFTP", 
-                  "supportsSubfolders": True,
-                  "description":'EC2 subfolder B',
-                  "url": "sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/pythonClientIntegration/another_location",
-                  "banner": "Uploading file to EC2 version 2\n"}
-                 ] 
+SFTP_SERVER_PREFIX = "sftp://ec2-18-209-45-78.compute-1.amazonaws.com"
+SFTP_USER_HOME_PATH = "/home/sftpuser"
 
+DESTINATIONS = [{"uploadType": "SFTP",
+                 "description": 'EC2 subfolder A',
+                 "supportsSubfolders": True,
+                 "url": SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + "/folder_A",
+                 "banner": "Uploading file to EC2\n"},
+                {"uploadType": "SFTP",
+                 "supportsSubfolders": True,
+                 "description": 'EC2 subfolder B',
+                 "url": SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + "/folder_B",
+                 "banner": "Uploading file to EC2 version 2\n"}
+                ]
 
 
 def setup(module):
 
     module.syn = integration.syn
     module.project = integration.project
-    #Create the upload destinations
+    # Create the upload destinations
     destinations = [syn.createStorageLocationSetting('ExternalStorage', **x)['storageLocationId'] for x in DESTINATIONS]
     module._sftp_project_setting_id = syn.setStorageLocation(project, destinations)['id']
 
+
 def teardown(module):
     syn.restDELETE('/projectSettings/%s' % module._sftp_project_setting_id)
+
 
 def test_synStore_sftpIntegration():
     """Creates a File Entity on an sftp server and add the external url. """
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
     try:
         file = syn.store(File(filepath, parent=project))
-        file2  = syn.get(file)
-        assert file.externalURL==file2.externalURL and urlparse(file2.externalURL).scheme=='sftp'
+        file2 = syn.get(file)
+        assert_equals(file.externalURL, file2.externalURL)
+        assert_equals(urlparse(file2.externalURL).scheme, 'sftp')
 
         tmpdir = tempfile.mkdtemp()
         schedule_for_cleanup(tmpdir)
 
-        ## test that we got an MD5 à la SYNPY-185
+        # test that we got an MD5 à la SYNPY-185
         assert_is_not_none(file2.md5)
         fh = syn._getFileHandle(file2.dataFileHandleId)
         assert_is_not_none(fh['contentMd5'])
@@ -77,12 +80,11 @@ def test_synStore_sftpIntegration():
 
 
 def test_synGet_sftpIntegration():
-    #Create file by uploading directly to sftp and creating entity from URL
-    serverURL='sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/'+str(uuid.uuid1())
+    # Create file by uploading directly to sftp and creating entity from URL
+    serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_synGet_sftpIntegration/' + str(uuid.uuid1())
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
 
-    username, password = syn._getUserCredentials(serverURL)
-
+    username, password = syn._getUserCredentials(SFTP_SERVER_PREFIX)
 
     url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
     file = syn.store(File(path=url, parent=project, synapseStore=False))
@@ -93,30 +95,33 @@ def test_synGet_sftpIntegration():
 
 def test_utils_sftp_upload_and_download():
     """Tries to upload a file to an sftp file """
-    serverURL='sftp://ec2-54-212-85-156.us-west-2.compute.amazonaws.com/public/'+str(uuid.uuid1())
+    serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_utils_sftp_upload_and_download/' + str(uuid.uuid1())
     filepath = utils.make_bogus_binary_file(1*MB - 777771)
 
     tempdir = tempfile.mkdtemp()
 
-    username, password = syn._getUserCredentials(serverURL)
+    username, password = syn._getUserCredentials(SFTP_SERVER_PREFIX)
 
     try:
         url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
 
-        #Get with a specified localpath
+        # Get with a specified localpath
         junk = SFTPWrapper.download_file(url, tempdir, username=username, password=password)
         filecmp.cmp(filepath, junk)
-        #Get without specifying path
+        # Get without specifying path
         junk2 = SFTPWrapper.download_file(url, username=username, password=password)
         filecmp.cmp(filepath, junk2)
-        #Get with a specified localpath as file
+        # Get with a specified localpath as file
         junk3 = SFTPWrapper.download_file(url, os.path.join(tempdir, 'bar.dat'), username=username, password=password)
         filecmp.cmp(filepath, junk3)
     finally:
         try:
-            if 'junk' in locals(): os.remove(junk)
-            if 'junk2' in locals(): os.remove(junk2)
-            if 'junk3' in locals(): os.remove(junk3)
+            if 'junk' in locals():
+                os.remove(junk)
+            if 'junk2' in locals():
+                os.remove(junk2)
+            if 'junk3' in locals():
+                os.remove(junk3)
         except Exception:
             print(traceback.format_exc())
         try:
@@ -127,7 +132,3 @@ def test_utils_sftp_upload_and_download():
             shutil.rmtree(tempdir)
         except Exception:
             print(traceback.format_exc())
-
-
-
-    

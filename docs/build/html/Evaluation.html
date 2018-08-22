@@ -1,0 +1,293 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Evaluations &#8212; Synapse Python Client 1.8.2 documentation</title>
+    <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Provenance" href="Activity.html" />
+    <link rel="prev" title="Entity" href="Entity.html" /> 
+  </head><body>
+<div class="header">
+  <a href="https://www.synapse.org/"><img src="_static/synapse_logo.png" alt='Synapse'/></a>
+  <h1>Synapse Python Client API</h1>
+</div>
+
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Activity.html" title="Provenance"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="Entity.html" title="Entity"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Evaluations</a><ul>
+<li><a class="reference internal" href="#evaluation">Evaluation</a></li>
+<li><a class="reference internal" href="#submission">Submission</a></li>
+<li><a class="reference internal" href="#submission-status">Submission Status</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="Entity.html"
+                        title="previous chapter">Entity</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="Activity.html"
+                        title="next chapter">Provenance</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/Evaluation.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <span class="target" id="module-synapseclient.evaluation"></span><div class="section" id="evaluations">
+<h1>Evaluations<a class="headerlink" href="#evaluations" title="Permalink to this headline">¶</a></h1>
+<p>An <a class="reference internal" href="#evaluation">evaluation</a> object represents a collection of Synapse Entities that will be processed in a particular way.  This
+could mean scoring Entries in a challenge or executing a processing pipeline.</p>
+<p>Imports:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">synapseclient</span> <span class="k">import</span> <span class="n">Evaluation</span><span class="p">,</span> <span class="n">Submission</span><span class="p">,</span> <span class="n">SubmissionStatus</span>
+</pre></div>
+</div>
+<p>Evaluations can be retrieved by ID:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">evaluation</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">getEvaluation</span><span class="p">(</span><span class="mi">1901877</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Like entities, evaluations are access controlled via ACLs. The <a class="reference internal" href="Client.html#synapseclient.Synapse.getPermissions" title="synapseclient.Synapse.getPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getPermissions()</span></code></a> and
+<a class="reference internal" href="Client.html#synapseclient.Synapse.setPermissions" title="synapseclient.Synapse.setPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.setPermissions()</span></code></a> methods work for evaluations:</p>
+<blockquote>
+<div>access = syn.getPermissions(evaluation, user_id)</div></blockquote>
+<p>The <a class="reference internal" href="Client.html#synapseclient.Synapse.submit" title="synapseclient.Synapse.submit"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.submit()</span></code></a> method returns a <a class="reference internal" href="#submission">Submission</a> object:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">entity</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">synapse_id</span><span class="p">)</span>
+<span class="n">submission</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">evaluation</span><span class="p">,</span> <span class="n">entity</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s1">&#39;My Data&#39;</span><span class="p">,</span> <span class="n">team</span><span class="o">=</span><span class="s1">&#39;My Team&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The Submission object can then be used to check the <a class="reference external" href="#submission-status">status</a> of the submission:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">status</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">getSubmissionStatus</span><span class="p">(</span><span class="n">submission</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="docutils">
+<dt>The status of a submission may be:</dt>
+<dd><ul class="first last simple">
+<li><strong>INVALID</strong> the submitted entity is in the wrong format</li>
+<li><strong>SCORED</strong> in the context of a challenge or competition</li>
+<li><strong>OPEN</strong> indicating processing <em>has not</em> completed</li>
+<li><strong>CLOSED</strong> indicating processing <em>has</em> completed</li>
+</ul>
+</dd>
+</dl>
+<p>Submission status objects can be updated, usually by changing the <em>status</em> and <em>score</em> fields, and stored back to
+Synapse using <a class="reference internal" href="Client.html#synapseclient.Synapse.store" title="synapseclient.Synapse.store"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.store()</span></code></a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">status</span><span class="o">.</span><span class="n">score</span> <span class="o">=</span> <span class="mf">0.99</span>
+<span class="n">status</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s1">&#39;SCORED&#39;</span>
+<span class="n">status</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">status</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See:</p>
+<ul class="simple">
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getEvaluation" title="synapseclient.Synapse.getEvaluation"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getEvaluation()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getEvaluationByContentSource" title="synapseclient.Synapse.getEvaluationByContentSource"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getEvaluationByContentSource()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getEvaluationByName" title="synapseclient.Synapse.getEvaluationByName"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getEvaluationByName()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.submit" title="synapseclient.Synapse.submit"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.submit()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getSubmissions" title="synapseclient.Synapse.getSubmissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getSubmissions()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getSubmission" title="synapseclient.Synapse.getSubmission"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getSubmission()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getSubmissionStatus" title="synapseclient.Synapse.getSubmissionStatus"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getSubmissionStatus()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.getPermissions" title="synapseclient.Synapse.getPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.getPermissions()</span></code></a></li>
+<li><a class="reference internal" href="Client.html#synapseclient.Synapse.setPermissions" title="synapseclient.Synapse.setPermissions"><code class="xref py py-func docutils literal notranslate"><span class="pre">synapseclient.Synapse.setPermissions()</span></code></a></li>
+</ul>
+<div class="section" id="evaluation">
+<h2>Evaluation<a class="headerlink" href="#evaluation" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.evaluation.Evaluation">
+<em class="property">class </em><code class="descclassname">synapseclient.evaluation.</code><code class="descname">Evaluation</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.evaluation.Evaluation" title="Permalink to this definition">¶</a></dt>
+<dd><p>An Evaluation Submission queue, allowing submissions, retrieval and scoring.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> – Name of the evaluation</li>
+<li><strong>description</strong> – A short description of the evaluation</li>
+<li><strong>contentSource</strong> – Synapse Project associated with the evaluation</li>
+<li><strong>submissionReceiptMessage</strong> – Message to display to users upon submission</li>
+<li><strong>submissionInstructionsMessage</strong> – Message to display to users detailing acceptable formatting for submissions.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p><a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html">To create an Evaluation</a>
+and store it in Synapse:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">evaluation</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">store</span><span class="p">(</span><span class="n">Evaluation</span><span class="p">(</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Q1 Final&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Predict progression of MMSE scores for final scoring&quot;</span><span class="p">,</span>
+    <span class="n">contentSource</span><span class="o">=</span><span class="s2">&quot;syn2290704&quot;</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>The contentSource field links the evaluation to its <a class="reference internal" href="Entity.html#synapseclient.entity.Project" title="synapseclient.entity.Project"><code class="xref py py-class docutils literal notranslate"><span class="pre">synapseclient.entity.Project</span></code></a>.
+(Or, really, any synapse ID, but sticking to projects is a good idea.)</p>
+<p><a class="reference external" href="http://docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html">Evaluations</a> can be retrieved
+from Synapse by ID:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">evaluation</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">getEvaluation</span><span class="p">(</span><span class="mi">1901877</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>…by the Synapse ID of the content source (associated entity):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">evaluation</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">getEvaluationByContentSource</span><span class="p">(</span><span class="s1">&#39;syn12345&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>…or by the name of the evaluation:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">evaluation</span> <span class="o">=</span> <span class="n">syn</span><span class="o">.</span><span class="n">getEvaluationByName</span><span class="p">(</span><span class="s1">&#39;Foo Challenge Question 1&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<dl class="method">
+<dt id="synapseclient.evaluation.Evaluation.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.evaluation.Evaluation.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="submission">
+<h2>Submission<a class="headerlink" href="#submission" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.evaluation.Submission">
+<em class="property">class </em><code class="descclassname">synapseclient.evaluation.</code><code class="descname">Submission</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.evaluation.Submission" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds an Synapse submission object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>name</strong> – Name of submission</li>
+<li><strong>entityId</strong> – Synapse ID of the Entity to submit</li>
+<li><strong>evaluationId</strong> – ID of the Evaluation to which the Entity is to be submitted</li>
+<li><strong>versionNumber</strong> – Version number of the submitted Entity</li>
+<li><strong>submitterAlias</strong> – A pseudonym or team name for a challenge entry</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="synapseclient.evaluation.Submission.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.evaluation.Submission.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="submission-status">
+<h2>Submission Status<a class="headerlink" href="#submission-status" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="synapseclient.evaluation.SubmissionStatus">
+<em class="property">class </em><code class="descclassname">synapseclient.evaluation.</code><code class="descname">SubmissionStatus</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.evaluation.SubmissionStatus" title="Permalink to this definition">¶</a></dt>
+<dd><p>Builds an Synapse submission status object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>score</strong> – The score of the submission</li>
+<li><strong>status</strong> – Status can be one of {‘OPEN’, ‘CLOSED’, ‘SCORED’, ‘INVALID’}.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="synapseclient.evaluation.SubmissionStatus.__init__">
+<code class="descname">__init__</code><span class="sig-paren">(</span><em>**kwargs</em><span class="sig-paren">)</span><a class="headerlink" href="#synapseclient.evaluation.SubmissionStatus.__init__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Initialize self.  See help(type(self)) for accurate signature.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="Activity.html" title="Provenance"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="Entity.html" title="Entity"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.8.2 documentation</a> &#187;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+    &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
+      Last updated on Aug 17, 2018.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.7.6.
+    </div>
+    <script type="text/javascript">
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+      ga('create', 'UA-44781812-1', 'synapse.org');
+      ga('send', 'pageview');
+    </script>
+  </body>
+</html>

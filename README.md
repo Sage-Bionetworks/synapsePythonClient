@@ -8,7 +8,7 @@ Python Synapse Client
 
 [![Get the synapseclient from PyPI](https://img.shields.io/pypi/v/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Supported Python Versions](https://img.shields.io/pypi/pyversions/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/) [![Monthly downloads of synapseclient from PyPI](https://img.shields.io/pypi/dm/synapseclient.svg)](https://pypi.python.org/pypi/synapseclient/)
 
-A Python client for [Sage Bionetwork's](https://www.sagebase.org) [Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
+A Python client for [Sage Bionetworks'](https://www.sagebase.org) [Synapse](https://www.synapse.org/), a collaborative compute space that allows scientists to share and analyze data together. The Python client can be used as a library for development of software that communicates with Synapse or as a command-line utility.
 
 There is also a [Synapse client for R](https://github.com/Sage-Bionetworks/rSynapseClient/).
 
@@ -191,7 +191,7 @@ The purpose of synapseutils is to create a space filled with convenience functio
     #COPY: copies all synapse entities to a destination location
     synapseutils.copy(syn, "syn1234", destinationId = "syn2345")
     
-    #COPY WIKI: copies the wiki from the entity to a destionation entity. Only a project can have subwikipages.
+    #COPY WIKI: copies the wiki from the entity to a destination entity. Only a project can have sub wiki pages.
     synapseutils.copyWiki(syn, "syn1234", destinationId = "syn2345")
 
 
