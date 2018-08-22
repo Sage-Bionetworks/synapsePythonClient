@@ -2,9 +2,10 @@ FROM ubuntu
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 
 RUN apt-get update && apt-get install -y \
-	python \
-	python-pip \
-	python-pandas
+	python3 \
+	python3-pip \
+	python3-pandas
 
-RUN pip install --upgrade pip
-RUN pip install synapseclient
+RUN pip3 install --upgrade pip
+RUN pip3 install synapseclient
+
