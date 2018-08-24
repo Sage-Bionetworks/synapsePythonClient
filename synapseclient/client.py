@@ -2803,6 +2803,7 @@ class Synapse(object):
                     int(header)
                     yield self.getColumn(header)
                 except ValueError:
+                    # ignore aggregate column
                     pass
         elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
             for col in self.getTableColumns(x):

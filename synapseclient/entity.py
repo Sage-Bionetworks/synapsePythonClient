@@ -750,12 +750,9 @@ def is_versionable(entity):
     if isinstance(entity, Versionable):
         return True
 
-    try:
         if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
             entity_class = _entity_type_to_class[entity['concreteType']]
             return issubclass(entity_class, Versionable)
-    except TypeError:
-        pass
 
     return False
 

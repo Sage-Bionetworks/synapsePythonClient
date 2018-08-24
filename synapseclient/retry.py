@@ -112,11 +112,8 @@ def _get_message(response):
     getting body.
     """
     if _is_json(response.headers.get('content-type', None)):
-        try:
-            json = response.json()
-            return json.get('reason', None)
-        except (AttributeError, ValueError):
-            pass
+        json = response.json()
+        return json.get('reason', None)
     else:
         # if the response is not JSON, return the text content
         return response.text
