@@ -158,10 +158,14 @@ def _get_from_members_items_or_properties(obj, key):
         return getattr(obj, key)
     if hasattr(obj, 'properties') and key in obj.properties:
         return obj.properties[key]
-    if key in obj:
-        return obj[key]
-    elif 'properties' in obj and key in obj['properties']:
-        return obj['properties'][key]
+    try :
+        if key in obj:
+            return obj[key]
+        elif 'properties' in obj and key in obj['properties']:
+            return obj['properties'][key]
+    except TypeError:
+        # obj is not iterable
+        pass
     return None
 
 
