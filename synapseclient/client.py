@@ -619,6 +619,10 @@ class Synapse(object):
         elif isinstance(entity, six.string_types) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
                                             ' or a valid entity id' % entity))
+        # have not been saved entities
+        elif isinstance(entity, Entity) and not entity.get('id'):
+            raise ValueError("Cannot retrieve entity that has not been save."
+                             " Please use syn.store() to save your entity and try again.")
         else:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
