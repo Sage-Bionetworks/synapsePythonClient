@@ -1147,6 +1147,12 @@ class Synapse(object):
             except AttributeError:
                 SynapseError("Can't delete a %s" % type(obj))
 
+    def purge_trash_can(self):
+        """
+        Purges everything in the trash can for the current user.
+        """
+        return self.restPUT(uri="/trashcan/purge")
+
     _user_name_cache = {}
 
     def _get_user_name(self, user_id):
