@@ -1205,58 +1205,42 @@ class Synapse(object):
     #                    Deprecated methods                    #
     ############################################################
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use get() instead.")
     def getEntity(self, entity, version=None):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.get`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=False)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use get() instead.")
     def loadEntity(self, entity):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.get`
-        """
-
-        self.logger.warning('THIS ONLY DOWNLOADS ENTITIES!')
+        """Use :py:func:`synapseclient.Synapse.get`"""
         return self.downloadEntity(entity)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use store() instead.")
     def createEntity(self, entity, used=None, executed=None, **kwargs):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.store`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.store`"""
         return self.store(entity, used=used, executed=executed, **kwargs)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use store() instead.")
     def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.store`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.store`"""
         return self.store(entity, used=used, executed=executed, forceVersion=incrementVersion,
                           versionLabel=versionLabel, **kwargs)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use delete() instead.")
     def deleteEntity(self, entity):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.delete`
-        """
+        """Use :py:func:`synapseclient.Synapse.delete`"""
         self.delete(entity)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use store() instead.")
     def uploadFile(self, entity, filename=None, used=None, executed=None):
-        """
-        **Deprecated**
+        """Use :py:func:`synapseclient.Synapse.store`"""
 
-        Use :py:func:`synapseclient.Synapse.store`
-        """
         properties, annotations, local_state = split_entity_namespaces(entity)
 
         if filename is not None:
@@ -1267,15 +1251,14 @@ class Synapse(object):
         return self.store(File(properties=properties, annotations=annotations, local_state=local_state), used=used,
                           executed=executed)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use get() instead.")
     def downloadEntity(self, entity, version=None):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.get`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=True)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use upload_file_handle() instead.")
     def uploadFileHandle(self, path, parent, synapseStore=True, mimetype=None, md5=None, file_size=None):
         """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
         Returns a new FileHandle as a dict to represent the stored file.
@@ -1298,6 +1281,8 @@ class Synapse(object):
         """
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use upload_synapse_s3() instead.")
     def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
         """
         Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
@@ -1309,12 +1294,11 @@ class Synapse(object):
         """
         return upload_synapse_s3(self, path, storageLocationId=storageLocationId, mimetype=mimetype)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use upload_file_handle() instead.")
     def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None,
                                    storageLocationId=None):
         """
-        **Deprecated**
-
-
         Create and return a fileHandle, by either uploading a local file or linking to an external URL.
 
         :param synapseStore: Indicates whether the file should be stored or just its URL.
@@ -1324,7 +1308,7 @@ class Synapse(object):
 
         .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
         """
-        warnings.warn("_uploadToFileHandleService() is deprecated, please use uploadFileHandle() instead",
+        warnings.warn("_uploadToFileHandleService() is deprecated, please use upload_file_handle() instead",
                       DeprecationWarning, stacklevel=2)
         if filename is None:
             raise ValueError('No filename given')
@@ -3072,11 +3056,11 @@ class Synapse(object):
                 return column
         return None
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                        details="please use downloadTableColumns() instead")
     def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None,
                           rowIdAndVersion=None, ifcollision="keep.both"):
         """
-        **Deprecated**
-
         Downloads a file associated with a row in a Synapse table.
 
         :param table:            schema object, table query result or synapse ID
