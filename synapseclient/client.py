@@ -1257,8 +1257,7 @@ class Synapse(object):
         """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=True)
 
-    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
-                            details="Please use upload_file_handle() instead.")
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
     def uploadFileHandle(self, path, parent, synapseStore=True, mimetype=None, md5=None, file_size=None):
         """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
         Returns a new FileHandle as a dict to represent the stored file.
@@ -1281,8 +1280,7 @@ class Synapse(object):
         """
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
 
-    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
-                            details="Please use upload_synapse_s3() instead.")
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
     def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
         """
         Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
@@ -1294,8 +1292,7 @@ class Synapse(object):
         """
         return upload_synapse_s3(self, path, storageLocationId=storageLocationId, mimetype=mimetype)
 
-    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
-                            details="Please use upload_file_handle() instead.")
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
     def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None,
                                    storageLocationId=None):
         """
@@ -1308,7 +1305,7 @@ class Synapse(object):
 
         .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
         """
-        warnings.warn("_uploadToFileHandleService() is deprecated, please use upload_file_handle() instead",
+        warnings.warn("_uploadToFileHandleService() is deprecated and no longer supported.",
                       DeprecationWarning, stacklevel=2)
         if filename is None:
             raise ValueError('No filename given')
