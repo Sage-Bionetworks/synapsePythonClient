@@ -747,15 +747,15 @@ def is_synapse_entity(entity):
 def is_versionable(entity):
     """Return True if the given entity's concreteType is one that is Versionable."""
 
+    if not isinstance(entity, Entity):
+        raise ValueError("Input is not an entity.")
+
     if isinstance(entity, Versionable):
         return True
 
-    try:
-        if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
-            entity_class = _entity_type_to_class[entity['concreteType']]
-            return issubclass(entity_class, Versionable)
-    except TypeError:
-        pass
+    if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
+        entity_class = _entity_type_to_class[entity['concreteType']]
+        return issubclass(entity_class, Versionable)
 
     return False
 

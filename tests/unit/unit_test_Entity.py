@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 
 import collections
 from synapseclient.entity import Entity, Project, Folder, File, Link, DockerRepository, split_entity_namespaces,\
-    is_container
+    is_container, is_versionable
 from synapseclient.exceptions import *
 from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises, assert_in, assert_is_instance
 from mock import patch
@@ -305,6 +305,10 @@ def test_File_update_file_handle__External_non_sftp():
     assert_true(f.synapseStore)
     f._update_file_handle(external_file_handle)
     assert_false(f.synapseStore)
+
+
+def test_is_versionable_non_entity():
+    assert_raises(ValueError, is_versionable, dict())
 
 
 def test_create_Link_to_entity_with_the_same_parent():
