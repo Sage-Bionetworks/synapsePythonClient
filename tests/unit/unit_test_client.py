@@ -514,3 +514,6 @@ def test_purge_trash_can():
         syn.purge_trash_can()
         mockRestPUT.assert_called_once_with(uri="/trashcan/purge")
 
+
+def test_get_unsaved_entity():
+    assert_raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
