@@ -74,6 +74,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 import six
 import collections
+import deprecation
 
 from synapseclient.utils import is_url, is_synapse_id
 from synapseclient.entity import is_synapse_entity
@@ -293,21 +294,16 @@ class Activity(dict):
         # Add the used resource to the activity
         self['used'].append(resource)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use used() instead.")
     def usedEntity(self, target, targetVersion=None, wasExecuted=False):
-        """
-        **Deprecated**
-
-        See :py:func:`synapseclient.Activity.used`.
-        """
-
+        """See :py:func:`synapseclient.Activity.used`."""
         self.used(target=target, targetVersion=targetVersion, wasExecuted=wasExecuted)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use used() instead.")
     def usedURL(self, url, name=None, wasExecuted=False):
-        """
-        **Deprecated**
-
-        See :py:func:`synapseclient.Activity.used`.
-        """
+        """See :py:func:`synapseclient.Activity.used`."""
         self.used(url=url, name=name, wasExecuted=wasExecuted)
 
     def executed(self, target=None, targetVersion=None, url=None, name=None):
