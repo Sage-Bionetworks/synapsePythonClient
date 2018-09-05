@@ -507,3 +507,7 @@ def test_setPermissions__default_permissions():
          patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl:
         assert_equal(update_acl, syn.setPermissions(entity, principalId))
         patch_store_acl.assert_called_once_with(entity, update_acl)
+
+
+def test_get_unsaved_entity():
+    assert_raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
