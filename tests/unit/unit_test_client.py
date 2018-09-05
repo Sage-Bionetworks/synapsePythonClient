@@ -509,5 +509,11 @@ def test_setPermissions__default_permissions():
         patch_store_acl.assert_called_once_with(entity, update_acl)
 
 
+def test_purge_trash_can():
+    with patch.object(syn, "restPUT") as mockRestPUT:
+        syn.purge_trash_can()
+        mockRestPUT.assert_called_once_with(uri="/trashcan/purge")
+
+
 def test_get_unsaved_entity():
     assert_raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
