@@ -747,6 +747,9 @@ def is_synapse_entity(entity):
 def is_versionable(entity):
     """Return True if the given entity's concreteType is one that is Versionable."""
 
+    if not isinstance(entity, Entity):
+        raise ValueError("Input is not an entity.")
+
     if isinstance(entity, Versionable):
         return True
 

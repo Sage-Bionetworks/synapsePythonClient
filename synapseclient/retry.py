@@ -111,11 +111,13 @@ def _get_message(response):
     Extracts the message body or a response object by checking for a json response and returning the reason otherwise
     getting body.
     """
-    if _is_json(response.headers.get('content-type', None)):
-        json = response.json()
-        return json.get('reason', None)
-    else:
-        # if the response is not JSON, return the text content
-        return response.text
-
-
+    try:
+        if _is_json(response.headers.get('content-type', None)):
+            json = response.json()
+            return json.get('reason', None)
+        else:
+            # if the response is not JSON, return the text content
+            return response.text
+    except (AttributeError, ValueError):
+        # The response can be truncated. In which case, the message cannot be retrieved.
+        return None

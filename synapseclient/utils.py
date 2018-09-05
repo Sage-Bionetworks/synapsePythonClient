@@ -156,15 +156,15 @@ def extract_user_name(profile):
 def _get_from_members_items_or_properties(obj, key):
     if hasattr(obj, key):
         return getattr(obj, key)
-    if hasattr(obj, 'properties') and key in obj.properties:
-        return obj.properties[key]
-    try :
+    try:
+        if hasattr(obj, 'properties') and key in obj.properties:
+            return obj.properties[key]
         if key in obj:
             return obj[key]
-        elif 'properties' in obj and key in obj['properties']:
+        else:
             return obj['properties'][key]
-    except TypeError:
-        # obj is not iterable
+    except (KeyError, TypeError):
+        # We cannot get the key from this obj. So this case will be treated as key not found.
         pass
     return None
 

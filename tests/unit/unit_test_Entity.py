@@ -3,7 +3,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import collections
-from synapseclient.entity import Entity, Project, Folder, File, DockerRepository, split_entity_namespaces, is_container
+from synapseclient.entity import Entity, Project, Folder, File, DockerRepository, split_entity_namespaces, \
+is_container, is_versionable
 from synapseclient.exceptions import *
 from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises, assert_in, assert_is_instance
 
@@ -303,3 +304,6 @@ def test_File_update_file_handle__External_non_sftp():
     f._update_file_handle(external_file_handle)
     assert_false(f.synapseStore)
 
+
+def test_is_versionable_non_entity():
+    assert_raises(ValueError, is_versionable, dict())
