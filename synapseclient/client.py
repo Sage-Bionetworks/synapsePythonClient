@@ -995,6 +995,8 @@ class Synapse(object):
             if properties['concreteType'] == "org.sagebionetworks.repo.model.Link":
                 target_properties = self._getEntity(properties['linksTo']['targetId'],
                                                     version=properties['linksTo'].get('targetVersionNumber'))
+                if target_properties['parentId'] == properties['parentId']:
+                    raise ValueError("Cannot create a Link to an entity under the same parent.")
                 properties['linksToClassName'] = target_properties['concreteType']
                 if target_properties.get('versionNumber') is not None \
                         and properties['linksTo'].get('targetVersionNumber') is not None:
