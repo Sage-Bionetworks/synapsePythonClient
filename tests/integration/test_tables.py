@@ -420,7 +420,7 @@ class TestPartialRowSet(object):
                                                resultsAs,
                                                2,
                                                QUERY_TIMEOUT_SEC)
-
+        assert_is_not_none(query_results)
         df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
 
         partial_changes = {df['ROW_ID'][i]: row_changes for i, row_changes in enumerate(partial_changes)}
