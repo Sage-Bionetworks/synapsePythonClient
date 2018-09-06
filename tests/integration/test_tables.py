@@ -16,7 +16,7 @@ import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true, assert_is_not_none
 from pandas.util.testing import assert_frame_equal
 from datetime import datetime
 from mock import patch
@@ -406,7 +406,7 @@ class TestPartialRowSet(object):
         cls = type(self)
         self._test_method(cls.table_schema, "rowset", cls.table_changes, cls.expected_table_cells)
 
-    def test_parital_row_rowset_query_entity_veiw(self):
+    def test_parital_row_rowset_query_entity_view(self):
         """
         Test PartialRow updates to entity views from rowset queries
         """
@@ -416,9 +416,10 @@ class TestPartialRowSet(object):
     def _test_method(self, schema, resultsAs, partial_changes, expected_results):
         # anything starting with "test" will be considered a test case by nosetests so I had to append '_' to it
 
-        import pandas as pd
-        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
-        assert_equals(len(query_results), 2)
+        query_results = self._query_with_retry("SELECT * FROM %s" % utils.id_of(schema),
+                                               resultsAs,
+                                               2,
+                                               QUERY_TIMEOUT_SEC)
 
         df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
 
@@ -427,14 +428,21 @@ class TestPartialRowSet(object):
         partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
         syn.store(partial_rowset)
 
-        df2 = None
+        query_results = self._query_with_retry("SELECT * FROM %s" % utils.id_of(schema),
+                                               resultsAs,
+                                               2,
+                                               QUERY_TIMEOUT_SEC)
+        assert_is_not_none(query_results)
+        df2 = query_results.asDataFrame()
+        assert_true(self._rows_match(df2, expected_results))
+
+    def _query_with_retry(self, query, resultsAs, expected_result_len, timeout):
         start_time = time.time()
-        while not (self._rows_match(df2, expected_results)):
-            assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-            query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
-            assert_equals(len(query_results), 2)
-            df2 = query_results.asDataFrame()
-            df2 = df2.where((pd.notnull(df2)), None)
+        while time.time() - start_time < timeout:
+            query_results = syn.tableQuery(query, resultsAs=resultsAs)
+            if len(query_results) == expected_result_len:
+                return query_results
+        return None
 
     def _rows_match(self, df2, expected_results):
         if df2 is None:
