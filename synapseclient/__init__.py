@@ -63,7 +63,7 @@ Once that's done, you'll be able to load the library, create a :py:class:`Synaps
     import synapseclient
     syn = synapseclient.Synapse()
 
-    syn.login('my_email', 'my_password')
+    syn.login('my_username', 'my_password')
 
 For more information, see:
 
