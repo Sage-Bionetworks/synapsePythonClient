@@ -121,7 +121,7 @@ actually change will make processing faster.
 
 For example, let's update the names of some of our favorite genes::
 
-    results = syn.tableQuery("select * from %s where Chromosome='1'" %table.schema.id)
+    results = syn.tableQuery("select * from %s where Chromosome='1'" % table.schema.id)
     df = results.asDataFrame()
     df['Name'] = ['rzing', 'zing1', 'zing2', 'zing3']
 
