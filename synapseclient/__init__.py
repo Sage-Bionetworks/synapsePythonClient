@@ -18,8 +18,8 @@ the `web <https://www.synapse.org/>`_. The Python client can also be used from t
 `command line <CommandLineClient.html>`_.
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for
-`Synapse <http://docs.synapse.org/articles/getting_started.html>`_ and
-`the Python client <http://python-docs.synapse.org/>`_.
+`Synapse <https://docs.synapse.org/articles/getting_started.html>`_ and
+`the Python client <https://python-docs.synapse.org/>`_.
 
 Installation
 ============
@@ -27,7 +27,7 @@ Installation
 The `synapseclient <https://pypi.python.org/pypi/synapseclient/>`_ package is available from PyPI. It can be installed
 or upgraded with pip::
 
-    (sudo) pip install (--upgrade) synapseclient[pandas,pysftp]
+    (sudo) pip install (--upgrade) synapseclient[pandas, pysftp]
 
 The dependencies on pandas and pysftp are optional. The Synapse :py:mod:`synapseclient.table` feature integrates with
 Pandas. Support for sftp is required for users of SFTP file storage. Both require native libraries to be compiled or
@@ -63,7 +63,7 @@ Once that's done, you'll be able to load the library, create a :py:class:`Synaps
     import synapseclient
     syn = synapseclient.Synapse()
 
-    syn.login('me@nowhere.com', 'secret')
+    syn.login('my_email', 'my_password')
 
 For more information, see:
 
@@ -208,30 +208,6 @@ See:
 - :py:func:`synapseclient.Synapse.getSubmission`
 - :py:func:`synapseclient.Synapse.getSubmissionStatus`
 
-Querying
-========
-
-Synapse supports a `SQL-like query language \
- <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_::
-
-    results = syn.query('SELECT id, name FROM entity WHERE parentId=="syn1899495"')
-
-    for result in results['results']:
-        print(result['entity.id'], result['entity.name'])
-
-Querying for my projects. Finding projects owned by the current user::
-
-    profile = syn.getUserProfile()
-    results = syn.query('SELECT id, name FROM project WHERE project.createdByPrincipalId==%s' % profile['ownerId'])
-
-    for result in results['results']:
-        print(result['project.id'], result['project.name'])
-
-See:
-
-- :py:func:`synapseclient.Synapse.query`
-- :py:func:`synapseclient.Synapse.chunkedQuery`
-
 Access control
 ==============
 
@@ -247,7 +223,7 @@ Accessing the API directly
 ==========================
 
 These methods enable access to the Synapse REST(ish) API taking care of details like endpoints and authentication.
-See the `REST API documentation <http://docs.synapse.org/rest/>`_.
+See the `REST API documentation <https://docs.synapse.org/rest/>`_.
 
 See:
 
@@ -270,8 +246,8 @@ See:
 More information
 ================
 
-For more information see the `Synapse User Guide <http://docs.synapse.org/articles/>`_. These API docs are browsable
-online at `http://docs.synapse.org/python/ <http://docs.synapse.org/python/>`_.
+For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. These Python API docs are browsable
+online at `https://python-docs.synapse.org/ <https://python-docs.synapse.org/>`_.
 
 Getting updates
 ===============
