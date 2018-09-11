@@ -203,7 +203,7 @@ Deleting rows
 
 Query for the rows you want to delete and call syn.delete on the results::
 
-    results = syn.tableQuery("select * from %s where Chromosome='2'" %table.schema.id)
+    results = syn.tableQuery("select * from %s where Chromosome='2'" % table.schema.id)
     a = syn.delete(results)
 
 ------------------------
