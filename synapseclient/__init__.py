@@ -12,21 +12,14 @@ for reproducible data intensive research projects, providing support for:
 
 The ``synapseclient`` package lets you communicate with the cloud-hosted Synapse service to access data and create
 shared data analysis projects from within Python scripts or at the interactive Python console. Other Synapse clients
-exist for `R <https://www.synapse.org/#!Synapse:syn1834618>`_,
+exist for `R <https://r-docs.synapse.org/>`_,
 `Java <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/tree/develop/client/synapseJavaClient>`_, and
 the `web <https://www.synapse.org/>`_. The Python client can also be used from the
 `command line <CommandLineClient.html>`_.
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for
 `Synapse <http://docs.synapse.org/articles/getting_started.html>`_ and
-`the Python client <http://docs.synapse.org/python/>`_.
-
-Good example projects are:
-
-- `TCGA Pan-cancer (syn300013) <https://www.synapse.org/#!Synapse:syn300013>`_
-- `Development of a Prognostic Model for Breast Cancer Survival in an Open Challenge Environment (syn1721874) \
- <https://www.synapse.org/#!Synapse:syn1721874>`_
-- `Demo projects (syn1899339) <https://www.synapse.org/#!Synapse:syn1899339>`_
+`the Python client <http://python-docs.synapse.org/>`_.
 
 Installation
 ============
@@ -61,7 +54,7 @@ Next, either install the package in the site-packages directory ``python setup.p
 Connecting to Synapse
 =====================
 
-To use Synapse, you'll need to `register <https://www.synapse.org/#!RegisterAccount:0>`_ for an account. The Synapse
+To use Synapse, you'll need to `register <https://www.synapse.org/register>`_ for an account. The Synapse
 website can authenticate using a Google account, but you'll need to take the extra step of creating a Synapse password
 to use the programmatic clients.
 
