@@ -401,7 +401,7 @@ def _getSubWikiHeaders(wikiHeaders, subPageId, mapping=None):
     subPageId = str(subPageId)
     for i in wikiHeaders:
         # This is for the first match 
-        # If it isn't the actual parent, it will turn the first match into a parent node which will not have a parentId
+        # If it isnt the actual parent, it will turn the first match into a parent node which will not have a parentId
         if i['id'] == subPageId:
             if mapping is None:
                 i.pop("parentId", None)
@@ -458,32 +458,31 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     """
     Copies wikis and updates internal links
 
-    :param syn:                     A synapse object: syn = synapseclient.login().
+    :param syn:                     A synapse object: syn = synapseclient.login()- Must be logged into synapse
 
-    :param entity:                  A synapse ID of an entity whose Wiki pages you want to copy.
+    :param entity:                  A synapse ID of an entity whose wiki you want to copy
 
-    :param destinationId:           Synapse ID of a folder/project that the Wiki pages will be copied to.
+    :param destinationId:           Synapse ID of a folder/project that the wiki wants to be copied to
     
     :param updateLinks:             Update all the internal links. (e.g. syn1234/wiki/34345 becomes syn3345/wiki/49508)
-                                    Defaults to True.
+                                    Defaults to True
 
-    :param updateSynIds:            Update all the synapse ID's referenced in the Wiki pages. (e.g. syn1234 becomes syn2345)
+    :param updateSynIds:            Update all the synapse ID's referenced in the wikis. (e.g. syn1234 becomes syn2345)
                                     Defaults to True but needs an entityMap
 
     :param entityMap:               An entity map {'oldSynId','newSynId'} to update the synapse IDs referenced in the
                                     wiki.
-                                    Defaults to None.
+                                    Defaults to None 
 
-    :param entitySubPageId:         Use this parameter to specify a subPageId whose sub wiki pages will be copied. For
-                                    example: `1234` is the subPageId where its content can be viewed at
-                                    https://www.synapse.org/#!Synapse:syn123/wiki/1234.
-                                    Defaults to None, which copies the entire Wiki subPageId under the root Wiki
-                                    associates with the provided entity.
+    :param entitySubPageId:         Can specify subPageId and copy all of its subwikis
+                                    Defaults to None, which copies the entire wiki subPageId can be found:
+                                    https://www.synapse.org/#!Synapse:syn123/wiki/1234
+                                    In this case, 1234 is the subPageId. 
 
-    :param destinationSubPageId:    Can specify destination subPageId to copy wiki pages to.
-                                    Defaults to None, which copies the Wiki pages to the destination root Wiki.
+    :param destinationSubPageId:    Can specify destination subPageId to copy wikis to
+                                    Defaults to None
 
-    :returns: A list of the newly created Wiki headers. Each header has three fields: id, title and parentId.
+    :returns: A list of Objects with three fields: id, title and parentId.
     """
 
     # Validate input parameters
@@ -492,107 +491,85 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     if destinationSubPageId:
         destinationSubPageId = str(int(destinationSubPageId))
 
-    # First verify the entity
-    org_entity = syn.get(entity, downloadFile=False)
+    oldOwn = syn.get(entity, downloadFile=False)
+    # getWikiHeaders fails when there is no wiki
 
-    # Attempt to retrieve the root Wiki
     try:
-        wiki_headers_to_copy = syn.getWikiHeaders(org_entity)
+        oldWikiHeaders = syn.getWikiHeaders(oldOwn)
     except SynapseHTTPError as e:
         if e.response.status_code == 404:
             return []
         else:
             raise e
 
-    dest_entity = syn.get(destinationId, downloadFile=False)
-
+    newOwn = syn.get(destinationId, downloadFile=False)
     wikiIdMap = dict()
     newWikis = dict()
+    # If entitySubPageId is given but not destinationSubPageId, set the pageId to "" (will get the root page)
+    # A entitySubPage could be copied to a project without any wiki pages, this has to be checked
+    newWikiPage = None
+    if destinationSubPageId:
+        try:
+            newWikiPage = syn.getWiki(newOwn, destinationSubPageId)
+        except SynapseHTTPError as e:
+            if e.response.status_code == 404:
+                pass
+            else:
+                raise e
+    if entitySubPageId:
+        oldWikiHeaders = _getSubWikiHeaders(oldWikiHeaders, entitySubPageId)
 
-    # if an entity subPageId is specified, narrow scope of wiki pages to be copied
-    if entitySubPageId is not None:
-        wiki_headers_to_copy = _getSubWikiHeaders(wiki_headers_to_copy, entitySubPageId)
-
-    if not wiki_headers_to_copy:
+    if not oldWikiHeaders:
         return []
 
-    for wikiHeader in wiki_headers_to_copy:
-        _do_copy_wiki(syn, org_entity, wikiHeader, dest_entity, destinationSubPageId, newWikis, wikiIdMap)
+    for wikiHeader in oldWikiHeaders:
+        wiki = syn.getWiki(oldOwn, wikiHeader.get('id'))
+        print('Got wiki %s' % wikiHeader.get('id'))
+        if "attachmentFileHandleIds" not in wiki or not wiki['attachmentFileHandleIds']:
+            new_file_handles = []
+        else:
+            results = [syn._getFileHandleDownload(filehandleId, wiki.id, objectType='WikiAttachment')
+                       for filehandleId in wiki['attachmentFileHandleIds']]
+            # Get rid of the previews
+            nopreviews = [attach['fileHandle'] for attach in results
+                          if attach['fileHandle']['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+            contentTypes = [attach['contentType'] for attach in nopreviews]
+            fileNames = [attach['fileName'] for attach in nopreviews]
+            copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews),
+                                                [wiki.id]*len(nopreviews), contentTypes, fileNames)
+            # Check if failurecodes exist
+            for filehandle in copiedFileHandles['copyResults']:
+                if filehandle.get("failureCode") is not None:
+                    raise ValueError("%s dataFileHandleId: %s" % (filehandle["failureCode"],
+                                                                  filehandle['originalFileHandleId']))
+            new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
+        # for some reason some wikis don't have titles?
+        if hasattr(wikiHeader, 'parentId'):
+            newWikiPage = Wiki(owner=newOwn, title=wiki.get('title', ''), markdown=wiki.markdown,
+                               fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])
+            newWikiPage = syn.store(newWikiPage)
+        else:
+            if destinationSubPageId is not None and newWikiPage is not None:
+                newWikiPage["attachmentFileHandleIds"] = new_file_handles
+                newWikiPage["markdown"] = wiki.get("markdown")
+                newWikiPage["title"] = wiki.get("title", "")
+                # Need to add logic to update titles here
+                newWikiPage = syn.store(newWikiPage)
+            else:
+                newWikiPage = Wiki(owner=newOwn, title=wiki.get("title", ""), markdown=wiki.markdown,
+                                   fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
+                newWikiPage = syn.store(newWikiPage)
+        newWikis[newWikiPage.get('id')] = newWikiPage
+        wikiIdMap[wiki.get('id')] = newWikiPage.get('id')
 
     if updateLinks:
         newWikis = _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId)
 
     if updateSynIds and entityMap is not None:
         newWikis = _updateSynIds(newWikis, wikiIdMap, entityMap)
-
+    
+    print("Storing new Wikis\n")
     for oldWikiId in wikiIdMap.keys():
         newWikiId = wikiIdMap[oldWikiId]
         newWikis[newWikiId] = syn.store(newWikis[newWikiId])
-    return syn.getWikiHeaders(dest_entity)
-
-
-def _do_copy_wiki(syn, org_entity, to_copy, dest_entity, destinationSubPageId, newWikis, wikiIdMap):
-    """Private method that perform wiki copy."""
-
-    wiki = syn.getWiki(org_entity, to_copy.get('id'))
-    print('Copying wiki %s' % to_copy.get('id'))
-
-    # Handling attachments
-    if 'attachmentFileHandleIds' not in wiki or not wiki['attachmentFileHandleIds']:
-        new_file_handles = []
-    else:
-        new_file_handles = _extract_wiki_attachments(syn, wiki)
-
-    newWikiPage = _create_new_wiki(syn, wiki, dest_entity, destinationSubPageId, new_file_handles, wikiIdMap)
-
-    newWikiPage = syn.store(newWikiPage)
-    newWikis[newWikiPage.get("id")] = newWikiPage
-    wikiIdMap[wiki.get("id")] = newWikiPage.get("id")
-
-
-def _create_new_wiki(syn, wiki, dest_entity, destinationSubPageId, new_file_handles, wikiIdMap):
-    if hasattr(wiki, 'parentWikiId') and wiki.parentWikiId in wikiIdMap:
-        return Wiki(owner=dest_entity, title=wiki.get('title', ''), markdown=wiki.markdown,
-                    fileHandles=new_file_handles, parentWikiId=wikiIdMap[wiki.parentWikiId])
-
-    # Copying root Wiki
-    if destinationSubPageId:
-        # Check to see if the root Wiki already exist at the destination
-        try:
-            newWikiPage = syn.getWiki(dest_entity, destinationSubPageId)
-        except SynapseHTTPError as e:
-            if e.response.status_code == 404:
-                # Root Wiki page does not exist
-                pass
-            else:
-                raise e
-        if newWikiPage:
-            newWikiPage['attachmentFileHandleIds'] = new_file_handles
-            newWikiPage['markdown'] = wiki.get('markdown')
-            newWikiPage['title'] = wiki.get('title', '')
-            return newWikiPage
-        return Wiki(owner=dest_entity, title=wiki.get('title', ''), markdown=wiki.markdown,
-                    fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
-
-    return Wiki(owner=dest_entity, title=wiki.get('title', ''), markdown=wiki.markdown,
-                fileHandles=new_file_handles, parentWikiId=None)
-
-
-def _extract_wiki_attachments(syn, wiki):
-    """Private method that extract wiki attachment for copying Wiki pages."""
-    attachments = [syn._getFileHandleDownload(filehandleId, wiki.id, objectType='WikiAttachment')
-               for filehandleId in wiki['attachmentFileHandleIds']]
-    # Get rid of the previews
-    nopreviews = [attach['fileHandle'] for attach in attachments
-                  if
-                  attach['fileHandle']['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
-    contentTypes = [attach['contentType'] for attach in nopreviews]
-    fileNames = [attach['fileName'] for attach in nopreviews]
-    copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"] * len(nopreviews),
-                                        [wiki.id] * len(nopreviews), contentTypes, fileNames)
-    # Check if failure code exist
-    for filehandle in copiedFileHandles['copyResults']:
-        if filehandle.get("failureCode") is not None:
-            raise ValueError("%s dataFileHandleId: %s" % (filehandle["failureCode"],
-                                                          filehandle['originalFileHandleId']))
-    return [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
+    return syn.getWikiHeaders(newOwn)
