@@ -19,9 +19,9 @@ synapseclient.__version__
 *Provide a description of the problem, and if possible a minimal reproducible example.*
 
 A minimal reproducible example:
-* uses a minimal dataset, necessary to reproduce the error;
-* the minimal runnable code necessary to reproduce the error, which can be run on the given dataset;
-* and often do not requires extra imports.
+* uses a minimal dataset necessary to reproduce the error
+* the minimal runnable code necessary to reproduce the error, which can be run on the given dataset
+* often do not include extra imports
 
 *Please don't share private data and credentials with us.*
 
