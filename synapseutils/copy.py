@@ -572,4 +572,5 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     for oldWikiId in wikiIdMap.keys():
         newWikiId = wikiIdMap[oldWikiId]
         newWikis[newWikiId] = syn.store(newWikis[newWikiId])
+        print("\tStored: %s\n" % newWikiId)
     return syn.getWikiHeaders(newOwn)
