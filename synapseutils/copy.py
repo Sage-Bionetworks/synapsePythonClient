@@ -439,7 +439,7 @@ def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
         print("\tUpdating internal links for Page: %s\n" % newWikiId)
-        s = newWiki.markdown
+        s = newWiki.get("markdown")
         # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
         # where wikiIdMap maps abc->xyz
         # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId> 
@@ -485,6 +485,13 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 
     :returns: A list of the newly created Wiki headers. Each header has three fields: id, title and parentId.
     """
+
+    # Validate input parameters
+    if entitySubPageId:
+        entitySubPageId = str(int(entitySubPageId))
+    if destinationSubPageId:
+        destinationSubPageId = str(int(destinationSubPageId))
+
     # First verify the entity
     org_entity = syn.get(entity, downloadFile=False)
 
@@ -506,6 +513,9 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     if entitySubPageId is not None:
         wiki_headers_to_copy = _getSubWikiHeaders(wiki_headers_to_copy, entitySubPageId)
 
+    if not wiki_headers_to_copy:
+        return []
+
     for wikiHeader in wiki_headers_to_copy:
         _do_copy_wiki(syn, org_entity, wikiHeader, dest_entity, destinationSubPageId, newWikis, wikiIdMap)
 
@@ -524,11 +534,11 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 def _do_copy_wiki(syn, org_entity, to_copy, dest_entity, destinationSubPageId, newWikis, wikiIdMap):
     """Private method that perform wiki copy."""
 
-    wiki = syn.getWiki(org_entity, to_copy.id)
-    print('Copying wiki %s' % to_copy.id)
+    wiki = syn.getWiki(org_entity, to_copy.get('id'))
+    print('Copying wiki %s' % to_copy.get('id'))
 
     # Handling attachments
-    if not wiki['attachmentFileHandleIds']:
+    if 'attachmentFileHandleIds' not in wiki or not wiki['attachmentFileHandleIds']:
         new_file_handles = []
     else:
         new_file_handles = _extract_wiki_attachments(syn, wiki)
@@ -536,8 +546,8 @@ def _do_copy_wiki(syn, org_entity, to_copy, dest_entity, destinationSubPageId, n
     newWikiPage = _create_new_wiki(syn, wiki, dest_entity, destinationSubPageId, new_file_handles, wikiIdMap)
 
     newWikiPage = syn.store(newWikiPage)
-    newWikis[newWikiPage.id] = newWikiPage
-    wikiIdMap[wiki.id] = newWikiPage.id
+    newWikis[newWikiPage.get("id")] = newWikiPage
+    wikiIdMap[wiki.get("id")] = newWikiPage.get("id")
 
 
 def _create_new_wiki(syn, wiki, dest_entity, destinationSubPageId, new_file_handles, wikiIdMap):
@@ -557,9 +567,9 @@ def _create_new_wiki(syn, wiki, dest_entity, destinationSubPageId, new_file_hand
             else:
                 raise e
         if newWikiPage:
-            newWikiPage.attachmentFileHandleIds = new_file_handles
-            newWikiPage.markdown = wiki.markdown
-            newWikiPage.title = wiki.get('title', '')
+            newWikiPage['attachmentFileHandleIds'] = new_file_handles
+            newWikiPage['markdown'] = wiki.get('markdown')
+            newWikiPage['title'] = wiki.get('title', '')
             return newWikiPage
         return Wiki(owner=dest_entity, title=wiki.get('title', ''), markdown=wiki.markdown,
                     fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
