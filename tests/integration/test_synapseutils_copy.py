@@ -5,13 +5,10 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import uuid
-import os
-import sys
 import time
 
-from nose.tools import assert_raises, assert_equals, assert_is_none, assert_is_not_none, assert_in
+from nose.tools import assert_raises, assert_equals, assert_is_none, assert_is_not_none
 
-import synapseclient
 from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
 from synapseclient.exceptions import *
 import synapseutils
@@ -201,241 +198,122 @@ def test_copy():
     assert_raises(ValueError, synapseutils.copy, syn, project_entity.id, destinationId=second_folder.id)
 
 
-def test_copyWiki():
-    # Create a Project
-    project_entity = syn.store(Project(name=str(uuid.uuid4())))
+class test_copyWiki:
 
-    schedule_for_cleanup(project_entity.id)
+    def setup(self):
+        # Create a Project
+        self.project_entity = syn.store(Project(name=str(uuid.uuid4())))
+        filename = utils.make_bogus_data_file()
+        attachname = utils.make_bogus_data_file()
+        file_entity = syn.store(File(filename, parent=self.project_entity))
 
-    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-    schedule_for_cleanup(folder_entity.id)
-    second_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-    schedule_for_cleanup(second_folder.id)
-    third_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-    schedule_for_cleanup(third_folder.id)
+        schedule_for_cleanup(self.project_entity.id)
+        schedule_for_cleanup(filename)
+        schedule_for_cleanup(file_entity.id)
 
-    filename = utils.make_bogus_data_file()
-    attachname = utils.make_bogus_data_file()
-
-    schedule_for_cleanup(filename)
-    file_entity = syn.store(File(filename, parent=folder_entity))
-    nested_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
-    second_file = syn.store(File(filename, parent=nested_folder))
-
-    schedule_for_cleanup(file_entity.id)
-    schedule_for_cleanup(nested_folder.id)
-    schedule_for_cleanup(second_file.id)
-
-    fileWiki = Wiki(owner=second_file, title='A Test Wiki', markdown="Test")
-    fileWiki = syn.store(fileWiki)
-
-    # Create mock wiki
-    md = """
-    This is a test wiki
-    =======================
-
-    Blabber jabber blah blah boo.
-    %s
-    %s
-    """ % (file_entity.id, second_file.id)
-
-    wiki = Wiki(owner=project_entity, title='A Test Wiki', markdown=md, 
-                attachments=[attachname])
-    wiki = syn.store(wiki)
-
-    # Create a Wiki sub-page
-    subwiki = Wiki(owner=project_entity, title='A sub-wiki', 
-                   markdown='%s' % file_entity.id, parentWikiId=wiki.id)
-    subwiki = syn.store(subwiki)
-
-    second_md = """
-    Testing internal links
-    ======================
-
-    [test](#!Synapse:%s/wiki/%s)
-
-    %s)
-    """ % (project_entity.id, subwiki.id, second_file.id)
-
-    sub_subwiki = Wiki(owner=project_entity, title='A sub-sub-wiki', markdown=second_md, parentWikiId=subwiki.id,
-                       attachments=[attachname])
-    sub_subwiki = syn.store(sub_subwiki)
-
-    # Copy wiki to second project
-    second_project = syn.store(Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(second_project.id)
-
-    fileMapping = synapseutils.copy(syn, project_entity, second_project.id, skipCopyWikiPage=True)
+        # Create mock wiki
+        md = """
+        This is a test wiki
+        =======================
     
-    # Test: copyWikiPage = False
-    assert_raises(SynapseHTTPError, syn.getWiki, second_project.id)
+        Blabber jabber blah blah boo.
+        syn123
+        syn456
+        """
 
-    first_headers = syn.getWikiHeaders(project_entity)
-    second_headers = synapseutils.copyWiki(syn, project_entity.id, second_project.id, entityMap=fileMapping)
+        wiki = Wiki(owner=self.project_entity, title='A Test Wiki', markdown=md,
+                    attachments=[attachname])
+        wiki = syn.store(wiki)
 
-    mapping = dict()
+        # Create a Wiki sub-page
+        subwiki = Wiki(owner=self.project_entity, title='A sub-wiki',
+                       markdown='%s' % file_entity.id, parentWikiId=wiki.id)
+        self.subwiki = syn.store(subwiki)
 
-    # Test: Check that all wikis were copied correctly with the correct mapping
-    for index, info in enumerate(second_headers):
-        mapping[first_headers[index]['id']] = info['id']
-        assert_equals(first_headers[index]['title'], info['title'])
-        if info.get('parentId', None) is not None:
-            # Check if parent Ids are mapping correctly in the copied Wikis
-            assert_equals(info['parentId'], mapping[first_headers[index]['parentId']])
+        second_md = """
+        Testing internal links
+        ======================
+    
+        [test](#!Synapse:%s/wiki/%s)
+    
+        %s)
+        """ % (self.project_entity.id, self.subwiki.id, file_entity.id)
 
-    # Test: Check that all wikis have the correct attachments and have correct internal synapse link/file mapping
-    for index, info in enumerate(second_headers):
-        # Check if markdown is the correctly mapped
-        orig_wikiPage = syn.getWiki(project_entity, first_headers[index]['id'])
-        new_wikiPage = syn.getWiki(second_project, info['id'])
-        s = orig_wikiPage.markdown
-        for oldWikiId in mapping.keys():
-            oldProjectAndWikiId = "%s/wiki/%s" % (project_entity.id, oldWikiId)
-            newProjectAndWikiId = "%s/wiki/%s" % (second_project.id, mapping[oldWikiId])
-            s = re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
-        for oldFileId in fileMapping.keys():
-            s = re.sub(oldFileId, fileMapping[oldFileId], s)
-        assert_equals(s, new_wikiPage.markdown)
-        orig_attach = syn.getWikiAttachments(orig_wikiPage)
-        new_attach = syn.getWikiAttachments(new_wikiPage)
+        sub_subwiki = Wiki(owner=self.project_entity, title='A sub-sub-wiki', markdown=second_md,
+                           parentWikiId=self.subwiki.id, attachments=[attachname])
+        self.sub_subwiki = syn.store(sub_subwiki)
 
-        orig_file = [i['fileName'] for i in orig_attach
-                     if i['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
-        new_file = [i['fileName'] for i in new_attach
-                    if i['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
-        
-        # check that attachment file names are the same
-        assert_equals(orig_file, new_file)
+        # Set up the second project
+        self.second_project = syn.store(Project(name=str(uuid.uuid4())))
+        schedule_for_cleanup(self.second_project.id)
 
-    # Test: copyWikiPage = True (Default) (Should copy all wikis including wikis on files)
-    third_project = syn.store(Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(third_project.id)
+        self.fileMapping = {'syn123': 'syn12345', 'syn456': 'syn45678'}
 
-    copiedFile = synapseutils.copy(syn, second_file, third_project.id)
-    copiedWiki = syn.getWiki(copiedFile[second_file.id])
-    assert_equals(copiedWiki.title, fileWiki.title)
-    assert_equals(copiedWiki.markdown, fileWiki.markdown)
+        self.first_headers = syn.getWikiHeaders(self.project_entity)
 
-    # Test: entitySubPageId
-    third_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=sub_subwiki.id,
-                                         destinationSubPageId=None, updateLinks=False, updateSynIds=False,
-                                         entityMap=fileMapping)
-    test_ent_subpage = syn.getWiki(third_project.id, third_header[0]['id'])
+    def test_copy_Wiki(self):
+        second_headers = synapseutils.copyWiki(syn, self.project_entity.id, self.second_project.id,
+                                               entityMap=self.fileMapping)
 
-    # Test: No internal links updated
-    assert_equals(test_ent_subpage.markdown, sub_subwiki.markdown)
-    assert_equals(test_ent_subpage.title, sub_subwiki.title)
+        mapping = dict()
 
-    # Test: destinationSubPageId
-    fourth_header = synapseutils.copyWiki(syn, project_entity.id, third_project.id, entitySubPageId=subwiki.id,
-                                          destinationSubPageId=test_ent_subpage.id, updateLinks=False,
-                                          updateSynIds=False, entityMap=fileMapping)
-    temp = syn.getWiki(third_project.id, fourth_header[0]['id'])
-    # There are issues where some title pages are blank.  This is an issue that needs to be addressed
-    assert_equals(temp.title, subwiki.title)
+        # Check that all wikis were copied correctly with the correct mapping
+        for index, info in enumerate(second_headers):
+            mapping[self.first_headers[index]['id']] = info['id']
+            assert_equals(self.first_headers[index]['title'], info['title'])
+            if info.get('parentId', None) is not None:
+                # Check if parent Ids are mapping correctly in the copied Wikis
+                assert_equals(info['parentId'], mapping[self.first_headers[index]['parentId']])
 
-    assert_equals(temp.markdown, subwiki.markdown)
+        # Check that all wikis have the correct attachments and have correct internal synapse link/file mapping
+        for index, info in enumerate(second_headers):
+            # Check if markdown is the correctly mapped
+            orig_wikiPage = syn.getWiki(self.project_entity, self.first_headers[index]['id'])
+            new_wikiPage = syn.getWiki(self.second_project, info['id'])
+            s = orig_wikiPage.markdown
+            for oldWikiId in mapping.keys():
+                oldProjectAndWikiId = "%s/wiki/%s" % (self.project_entity.id, oldWikiId)
+                newProjectAndWikiId = "%s/wiki/%s" % (self.second_project.id, mapping[oldWikiId])
+                s = re.sub(oldProjectAndWikiId, newProjectAndWikiId, s)
+            for oldFileId in self.fileMapping.keys():
+                s = re.sub(oldFileId, self.fileMapping[oldFileId], s)
+            assert_equals(s, new_wikiPage.markdown)
+            orig_attach = syn.getWikiAttachments(orig_wikiPage)
+            new_attach = syn.getWikiAttachments(new_wikiPage)
 
-    temp = syn.getWiki(third_project.id, fourth_header[1]['id'])
-    assert_equals(temp.title, sub_subwiki.title)
-    assert_equals(temp.markdown, sub_subwiki.markdown)
+            orig_file = [i['fileName'] for i in orig_attach
+                         if i['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+            new_file = [i['fileName'] for i in new_attach
+                        if i['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
 
+            # check that attachment file names are the same
+            assert_equals(orig_file, new_file)
 
-def test_walk():
-    walked = []
-    firstfile = utils.make_bogus_data_file()
-    schedule_for_cleanup(firstfile)
-    project_entity = syn.store(Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
-    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-    schedule_for_cleanup(folder_entity.id)
-    second_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-    schedule_for_cleanup(second_folder.id)
-    file_entity = syn.store(File(firstfile, parent=project_entity))
-    schedule_for_cleanup(file_entity.id)
+    def test_entitySubPageId_and_destinationSubPageId(self):
+        # Test: entitySubPageId
+        second_header = synapseutils.copyWiki(syn, self.project_entity.id, self.second_project.id,
+                                              entitySubPageId=self.sub_subwiki.id, destinationSubPageId=None,
+                                              updateLinks=False, updateSynIds=False, entityMap=None)
+        test_ent_subpage = syn.getWiki(self.second_project.id, second_header[0]['id'])
 
-    walked.append(((project_entity.name, project_entity.id),
-                   [(folder_entity.name, folder_entity.id), (second_folder.name, second_folder.id)],
-                   [(file_entity.name, file_entity.id)]))
+        # Test: No internal links updated
+        assert_equals(test_ent_subpage.markdown, self.sub_subwiki.markdown)
+        assert_equals(test_ent_subpage.title, self.sub_subwiki.title)
 
-    nested_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
-    schedule_for_cleanup(nested_folder.id)
-    secondfile = utils.make_bogus_data_file()
-    schedule_for_cleanup(secondfile)
-    second_file = syn.store(File(secondfile, parent=nested_folder))
-    schedule_for_cleanup(second_file.id)
-    thirdfile = utils.make_bogus_data_file()
-    schedule_for_cleanup(thirdfile)
-    third_file = syn.store(File(thirdfile, parent=second_folder))
-    schedule_for_cleanup(third_file.id)
+        # Test: destinationSubPageId
+        third_header = synapseutils.copyWiki(syn, self.project_entity.id, self.second_project.id,
+                                              entitySubPageId=self.subwiki.id,
+                                              destinationSubPageId=test_ent_subpage.id, updateLinks=False,
+                                              updateSynIds=False, entityMap=None)
+        temp = syn.getWiki(self.second_project.id, third_header[0]['id'])
+        # There are issues where some title pages are blank.  This is an issue that needs to be addressed
+        assert_equals(temp.title, self.subwiki.title)
 
-    walked.append(((os.path.join(project_entity.name, folder_entity.name), folder_entity.id),
-                   [(nested_folder.name, nested_folder.id)], []))
-    walked.append(((os.path.join(os.path.join(project_entity.name, folder_entity.name), nested_folder.name),
-                    nested_folder.id), [], [(second_file.name, second_file.id)]))
-    walked.append(((os.path.join(project_entity.name, second_folder.name), second_folder.id), [],
-                   [(third_file.name, third_file.id)]))
+        assert_equals(temp.markdown, self.subwiki.markdown)
 
-    temp = synapseutils.walk(syn, project_entity.id)
-    temp = list(temp)
-    # Must sort the tuples returned, because order matters for the assert
-    # Folders are returned in a different ordering depending on the name
-    for i in walked:
-        for x in i:
-            if type(x) == list:
-                x = x.sort()
-    for i in temp:
-        for x in i:
-            if type(x) == list:
-                x = x.sort()
-        assert_in(i, walked)
-
-    temp = synapseutils.walk(syn, second_file.id)
-    assert_equals(list(temp), [])
-
-
-def test_syncFromSynapse():
-    """This function tests recursive download as defined in syncFromSynapse
-    most of the functionality of this function are already tested in the 
-    tests/integration/test_command_line_client::test_command_get_recursive_and_query
-
-    which means that the only test if for path=None
-    """
-    # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
-    schedule_for_cleanup(project_entity.id)
-
-    # Create a Folder in Project
-    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
-
-    # Create and upload two files in Folder
-    uploaded_paths = []
-    for i in range(2):
-        f = utils.make_bogus_data_file()
-        uploaded_paths.append(f)
-        schedule_for_cleanup(f)
-        syn.store(File(f, parent=folder_entity))
-    # Add a file in the project level as well
-    f = utils.make_bogus_data_file()
-    uploaded_paths.append(f)
-    schedule_for_cleanup(f)
-    syn.store(File(f, parent=project_entity))
-
-    # Test recursive get
-    output = synapseutils.syncFromSynapse(syn, project_entity)
-
-    assert_equals(len(output), len(uploaded_paths))
-    for f in output:
-        assert_in(f.path, uploaded_paths)
-
-
-def test_syncFromSynapse__given_file_id():
-    file_path = utils.make_bogus_data_file()
-    schedule_for_cleanup(file_path)
-    file = syn.store(File(file_path, name=str(uuid.uuid4()), parent=project, synapseStore=False))
-    all_files = synapseutils.syncFromSynapse(syn, file.id)
-    assert_equals(1, len(all_files))
-    assert_equals(file, all_files[0])
+        temp = syn.getWiki(self.second_project.id, third_header[1]['id'])
+        assert_equals(temp.title, self.sub_subwiki.title)
+        assert_equals(temp.markdown, self.sub_subwiki.markdown)
 
 
 def test_copyFileHandleAndchangeFileMetadata():
