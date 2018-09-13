@@ -439,7 +439,7 @@ def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
         print("\tUpdating internal links for Page: %s\n" % newWikiId)
-        s = newWiki.get("markdown")
+        s = newWiki["markdown"]
         # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
         # where wikiIdMap maps abc->xyz
         # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId> 
@@ -523,9 +523,9 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         return []
 
     for wikiHeader in oldWikiHeaders:
-        wiki = syn.getWiki(oldOwn, wikiHeader.get('id'))
-        print('Got wiki %s' % wikiHeader.get('id'))
-        if "attachmentFileHandleIds" not in wiki or not wiki['attachmentFileHandleIds']:
+        wiki = syn.getWiki(oldOwn, wikiHeader['id'])
+        print('Got wiki %s' % wikiHeader['id'])
+        if not wiki.get('attachmentFileHandleIds'):
             new_file_handles = []
         else:
             results = [syn._getFileHandleDownload(filehandleId, wiki.id, objectType='WikiAttachment')
@@ -551,7 +551,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         else:
             if destinationSubPageId is not None and newWikiPage is not None:
                 newWikiPage["attachmentFileHandleIds"] = new_file_handles
-                newWikiPage["markdown"] = wiki.get("markdown")
+                newWikiPage["markdown"] = wiki["markdown"]
                 newWikiPage["title"] = wiki.get("title", "")
                 # Need to add logic to update titles here
                 newWikiPage = syn.store(newWikiPage)
@@ -559,8 +559,8 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
                 newWikiPage = Wiki(owner=newOwn, title=wiki.get("title", ""), markdown=wiki.markdown,
                                    fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
                 newWikiPage = syn.store(newWikiPage)
-        newWikis[newWikiPage.get('id')] = newWikiPage
-        wikiIdMap[wiki.get('id')] = newWikiPage.get('id')
+        newWikis[newWikiPage['id']] = newWikiPage
+        wikiIdMap[wiki['id']] = newWikiPage['id']
 
     if updateLinks:
         newWikis = _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId)

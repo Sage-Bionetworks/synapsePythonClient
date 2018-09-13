@@ -17,9 +17,8 @@ def setup(module):
 
 def test_copyWiki_empty_Wiki():
     entity = {"id": "syn123"}
-    with patch.object(syn, "getWikiHeaders", return_value=[]), \
-            patch.object(syn, "get", return_value=entity), \
-            patch.object(syn, "getWiki"):
+    with patch.object(syn, "getWikiHeaders", return_value=None), \
+            patch.object(syn, "get", return_value=entity):
         synapseutils.copyWiki(syn, "syn123", "syn456", updateLinks=False)
 
 def test_copyWiki_input_validation():
@@ -27,7 +26,8 @@ def test_copyWiki_input_validation():
              {'id': '8689', 'title': 'A sub-wiki', 'parentId': '8688'},
              {'id': '8690', 'title': 'A sub-sub-wiki', 'parentId': '8689'}]
     wiki={"id": "8786",
-          "title": "A Test Wiki"
+          "title": "A Test Wiki",
+          "markdown": "some text"
          }
     entity={"id":"syn123"}
     expected_calls=[call({'id': 'syn123'}, '4'),

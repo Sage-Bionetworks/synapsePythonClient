@@ -198,7 +198,7 @@ def test_copy():
     assert_raises(ValueError, synapseutils.copy, syn, project_entity.id, destinationId=second_folder.id)
 
 
-class test_copyWiki:
+class TestCopyWiki:
 
     def setup(self):
         # Create a Project
