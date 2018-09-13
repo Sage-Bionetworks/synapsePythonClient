@@ -310,6 +310,7 @@ def test_File_update_file_handle__External_non_sftp():
 def test_is_versionable_non_entity():
     assert_raises(ValueError, is_versionable, dict())
 
+
 def test_is_versionable_dict_representation_of_entity():
     assert_false(is_versionable({
         "id": "syn123456",
