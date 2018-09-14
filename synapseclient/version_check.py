@@ -29,9 +29,7 @@ import synapseclient
 import sys
 
 
-_VERSION_URL = 'http://versions.synapse.sagebase.org/synapsePythonClient'
-_DEV_VERSION_URL = 'http://dev-versions.synapse.sagebase.org/synapsePythonClient'
-_GITHUB_URL = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
+_VERSION_URL = 'https://raw.githubusercontent.com/Sage-Bionetworks/synapsePythonClient/master/synapseclient/synapsePythonClient'
 
 
 def version_check(current_version=None, version_url=_VERSION_URL, check_for_point_releases=False):
@@ -163,10 +161,6 @@ if __name__ == "__main__":
 
     print("Check against production version:")
     if version_check():
-        print("ok")
-
-    print("Check against dev version:")
-    if version_check(version_url=_DEV_VERSION_URL):
         print("ok")
 
     print("Check against local copy of version file:")
