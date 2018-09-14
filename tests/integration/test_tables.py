@@ -434,7 +434,7 @@ class TestPartialRowSet(object):
         df2 = query_results.asDataFrame()
         # remove the column index which cannot be set to expected_results
         df2 = df2.reset_index(drop=True)
-        assert_frame_equal(df2, expected_results, check_like=True)
+        assert_frame_equal(df2, expected_results, check_like=True, check_dtype=False)
 
     def _query_with_retry(self, query, resultsAs, expected_result_len, timeout):
         start_time = time.time()
