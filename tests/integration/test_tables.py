@@ -7,10 +7,8 @@ from __future__ import unicode_literals
 from backports import csv
 import io
 import filecmp
-import math
 import os
 import random
-import sys
 import tempfile
 import time
 import uuid
@@ -434,7 +432,9 @@ class TestPartialRowSet(object):
                                                QUERY_TIMEOUT_SEC)
         assert_is_not_none(query_results)
         df2 = query_results.asDataFrame()
-        assert_true(self._rows_match(df2, expected_results))
+        # remove the column index which cannot be set to expected_results
+        df2 = df2.reset_index(drop=True)
+        assert_frame_equal(df2, expected_results)
 
     def _query_with_retry(self, query, resultsAs, expected_result_len, timeout):
         start_time = time.time()
@@ -444,17 +444,6 @@ class TestPartialRowSet(object):
                 return query_results
         return None
 
-    def _rows_match(self, df2, expected_results):
-        if df2 is None:
-            return False
-
-        for expected_row, df_row in zip(expected_results, df2.iterrows()):
-            df_idx, actual_row = df_row
-            for expected_cell in expected_row:
-                if expected_cell.value != actual_row[expected_cell.col_index]:
-                    return False
-            return True
-
     @classmethod
     def setup_class(cls):
         cls.table_schema = cls._table_setup()
@@ -463,13 +452,8 @@ class TestPartialRowSet(object):
         cls.table_changes = [{'foo': 4}, {'bar': 5}]
         cls.view_changes = [{'bar': 6}, {'foo': 7}]
 
-        # class used to in asserts for cell values
-        ExpectedTableCell = namedtuple('ExpectedTableCell', ['col_index', 'value'])
-
-        cls.expected_table_cells = [[ExpectedTableCell(0, 4)],
-                                    [ExpectedTableCell(1, 5)]]
-        cls.expected_view_cells = [[ExpectedTableCell(1, 6)],
-                                   [ExpectedTableCell(0, 7)]]
+        cls.expected_table_cells = pd.DataFrame({'foo': [4.0, float('NaN')], 'bar': [float('NaN'), 5.0]})
+        cls.expected_view_cells = pd.DataFrame({'foo': [float('NaN'), 7.0], 'bar': [6.0, float('NaN')]})
 
     @classmethod
     def _table_setup(cls):
