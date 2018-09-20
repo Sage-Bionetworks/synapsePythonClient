@@ -334,6 +334,47 @@ DEFAULT_SEPARATOR = ","
 DEFAULT_ESCAPSE_CHAR = "\\"
 
 
+# View Type Mask
+FILE = 0x01
+PROJECT = 0x02
+TABLE = 0x04
+FOLDER = 0x08
+VIEW = 0x10
+DOCKER = 0x20
+VIEW_TYPE_MASK = {
+    'file': FILE,
+    'project': PROJECT,
+    'table': TABLE,
+    'folder': FOLDER,
+    'view': VIEW,
+    'docker': DOCKER
+}
+
+
+def _get_view_type_mask(types_to_include):
+    if not types_to_include:
+        raise ValueError("Please include at least one of the following entity types: file, project, table, folder,"
+                         " view, and/or docker.")
+    mask = 0x00
+    for input in types_to_include:
+        type = input.strip().lower()
+        if type not in VIEW_TYPE_MASK:
+            raise ValueError("Entity types not supported: %s", input)
+        mask = mask | VIEW_TYPE_MASK[type]
+    return mask
+
+def _get_view_type_mask_for_deprecated_type(type):
+    if not type:
+        raise ValueError("Please specify the deprecated type to convert to viewTypeMask")
+    if type == 'file':
+        return VIEW_TYPE_MASK['file']
+    if type == 'project':
+        return VIEW_TYPE_MASK['project']
+    if type == 'file_and_table':
+        return VIEW_TYPE_MASK['file'] | VIEW_TYPE_MASK['table']
+    raise ValueError("The provided value is not a valid type: %s", type)
+
+
 def test_import_pandas():
     try:
         import pandas as pd
@@ -698,8 +739,15 @@ class EntityViewSchema(SchemaBase):
     :param columns:                         a list of :py:class:`Column` objects or their IDs. These are optional.
     :param parent:                          the project in Synapse to which this table belongs
     :param scopes:                          a list of Projects/Folders or their ids
-    :param type:                            the type of EntityView to display: either 'file','project' or
-                                            'file_and_table'. Defaults to 'file'.
+    :param type:                            This field is deprecated. Please use `includeEntityTypes`
+    :param includeEntityTypes:              a list of entity types to include in the view. Supported entity types are:
+                                                'file',
+                                                'project',
+                                                'table',
+                                                'folder',
+                                                'view',
+                                                'docker'
+                                            If none is provided, the view will default to include 'file' entities.
     :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
                                             Defaults to True.
                                             The default columns will be added after a call to
@@ -724,15 +772,17 @@ class EntityViewSchema(SchemaBase):
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
-    _property_keys = SchemaBase._property_keys + ['type', 'scopeIds']
+    _property_keys = SchemaBase._property_keys + ['viewTypeMask', 'scopeIds']
     _local_keys = SchemaBase._local_keys + ['addDefaultViewColumns', 'addAnnotationColumns',
                                             'ignoredAnnotationColumnNames']
 
-    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, addDefaultViewColumns=True,
-                 addAnnotationColumns=True, ignoredAnnotationColumnNames=[], properties=None, annotations=None,
-                 local_state=None, **kwargs):
-        if type:
-            kwargs['type'] = type
+    def __init__(self, name=None, columns=None, parent=None, scopes=None, type=None, includeEntityTypes=None,
+                 addDefaultViewColumns=True, addAnnotationColumns=True, ignoredAnnotationColumnNames=[],
+                 properties=None, annotations=None, local_state=None, **kwargs):
+        if includeEntityTypes:
+            kwargs['viewTypeMask'] = _get_view_type_mask(includeEntityTypes)
+        elif type:
+            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(type)
 
         self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
         super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
@@ -747,8 +797,8 @@ class EntityViewSchema(SchemaBase):
 
         # set default values after constructor so we don't overwrite the values defined in properties using .get()
         # because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
-        if self.get('type') is None:
-            self.type = 'file'
+        if self.get('viewTypeMask') is None:
+            self.viewTypeMask = VIEW_TYPE_MASK['file']
         if self.get('scopeIds') is None:
             self.scopeIds = []
 
@@ -771,11 +821,11 @@ class EntityViewSchema(SchemaBase):
         # get the default EntityView columns from Synapse and add them to the columns list
         additional_columns = []
         if self.addDefaultViewColumns:
-            additional_columns.extend(syn._get_default_entity_view_columns(self.type))
+            additional_columns.extend(syn._get_default_entity_view_columns(self.get('viewTypeMask')))
 
         # get default annotations
         if self.addAnnotationColumns:
-            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self.type)
+            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self.get('viewTypeMask'))
                             if x['name'] not in self.ignoredAnnotationColumnNames]
             additional_columns.extend(anno_columns)
 

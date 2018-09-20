@@ -3290,15 +3290,21 @@ class Synapse(object):
         return file_handle_associations, file_handle_to_path_map
 
     @memoize
-    def _get_default_entity_view_columns(self, view_type):
-        return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
+    def _get_default_entity_view_columns(self, view_type_mask):
+        return [Column(**col)
+                for col in self.restGET("/column/tableview/defaults?viewTypeMask=%s" % view_type_mask)['list']]
 
-    def _get_annotation_entity_view_columns(self, scope_ids, view_type):
+    def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
         view_scope = {'scope': scope_ids,
-                      'viewType': view_type}
+                      'viewTypeMask': view_type_mask}
         columns = []
+        next_page_token = None
         while True:
-            response = self.restPOST('/column/view/scope', json.dumps(view_scope))
+            if next_page_token:
+                url = '/column/view/scope?nextPageToken=%s' % next_page_token
+            else:
+                url = '/column/view/scope'
+            response = self.restPOST(url, json.dumps(view_scope))
             columns.extend(Column(**column) for column in response['results'])
             next_page_token = response.get('nextPageToken')
             if next_page_token is None:
