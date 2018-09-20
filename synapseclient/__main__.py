@@ -101,7 +101,7 @@ def query(args, syn):
         # chunkedQuery will be removed in 1.9.0
         sys.stderr.write('This query is deprecated. Query should only be used for table and view.'
                          ' Please consider using the ls function.')
-        results = syn.chunkedQuery(' '.join(args.queryString))
+        results = syn.__deprecated_chunkedQuery(' '.join(args.queryString))
         headings = collections.OrderedDict()
         temp = []  # Since query returns a generator, the results must be stored locally
         for res in results:
@@ -131,7 +131,7 @@ def _getIdsFromQuery(queryString, syn):
 
         ids = [x['id'] for x in csv.DictReader(open(tbl.filepath))]
     else:
-        for item in syn.chunkedQuery(queryString):
+        for item in syn.__chunkedQuery(queryString):
             key = [k for k in item.keys() if k.split('.', 1)[1] == 'id'][0]
             ids.append(item[key])
     return ids
