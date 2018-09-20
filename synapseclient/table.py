@@ -768,7 +768,7 @@ class EntityViewSchema(SchemaBase):
     
         project_or_folder = syn.get("syn123")  
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
-         view_type='file'))
+         includeEntityTypes=['file']))
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
