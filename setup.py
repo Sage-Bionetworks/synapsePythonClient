@@ -15,13 +15,8 @@ import json
 description = """A client for Synapse, a collaborative compute space 
 that allows scientists to share and analyze data together.""".replace("\n", " ")
 
-long_description = """A client for Synapse, a collaborative compute
-space that allows scientists to share and analyze data
-together. Synapse brings together scientific data, tools, and disease
-models into a commons that enables true collaborative research. The
-platform consists of a web portal, web services, and integration with
-data analysis tools such as R, python, Galaxy and Java.
-""".replace("\n", " ")
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
 __version__=json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
 
@@ -31,9 +26,10 @@ setup(name='synapseclient',
     version=__version__,
     description=description,
     long_description=long_description,
+    long_description_content_type="text/markdown",
     url='http://synapse.sagebase.org/',
     download_url="https://github.com/Sage-Bionetworks/synapsePythonClient",
-    author='Synapse Team',
+    author='The Synapse Engineering Team',
     author_email='platform@sagebase.org',
     license='Apache',
     packages=find_packages(),
