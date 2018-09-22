@@ -3,9 +3,8 @@
 Evaluations
 ***********
 
-An evaluation_ object represents a collection of Synapse Entities that will be
-processed in a particular way.  This could mean scoring Entries in a challenge
-or executing a processing pipeline.
+An evaluation_ object represents a collection of Synapse Entities that will be processed in a particular way.  This
+could mean scoring Entries in a challenge or executing a processing pipeline.
 
 Imports::
 
@@ -15,8 +14,7 @@ Evaluations can be retrieved by ID::
 
     evaluation = syn.getEvaluation(1901877)
 
-Like entities, evaluations are access controlled via ACLs. The
-:py:func:`synapseclient.Synapse.getPermissions` and
+Like entities, evaluations are access controlled via ACLs. The :py:func:`synapseclient.Synapse.getPermissions` and
 :py:func:`synapseclient.Synapse.setPermissions` methods work for evaluations:
 
     access = syn.getPermissions(evaluation, user_id)
@@ -36,8 +34,8 @@ The status of a submission may be:
     - **OPEN** indicating processing *has not* completed
     - **CLOSED** indicating processing *has* completed
 
-Submission status objects can be updated, usually by changing the *status* and *score*
-fields, and stored back to Synapse using :py:func:`synapseclient.Synapse.store`::
+Submission status objects can be updated, usually by changing the *status* and *score* fields, and stored back to
+Synapse using :py:func:`synapseclient.Synapse.store`::
 
     status.score = 0.99
     status.status = 'SCORED'
@@ -82,9 +80,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import sys
-
-from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 
 
@@ -92,11 +87,11 @@ class Evaluation(DictObject):
     """
     An Evaluation Submission queue, allowing submissions, retrieval and scoring.
     
-    :param name:          Name of the evaluation
-    :param description:   A short description of the evaluation
-    :param contentSource: Synapse Project associated with the evaluation
-    :param submissionReceiptMessage: Message to display to users upon submission
-    :param submissionInstructionsMessage: Message to display to users detailing acceptable formatting for submissions.
+    :param name:                            Name of the evaluation
+    :param description:                     A short description of the evaluation
+    :param contentSource:                   Synapse Project associated with the evaluation
+    :param submissionReceiptMessage:        Message to display to users upon submission
+    :param submissionInstructionsMessage:   Message to display to users detailing acceptable formatting for submissions.
 
     `To create an Evaluation <http://docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_
     and store it in Synapse::
@@ -109,8 +104,8 @@ class Evaluation(DictObject):
     The contentSource field links the evaluation to its :py:class:`synapseclient.entity.Project`.
     (Or, really, any synapse ID, but sticking to projects is a good idea.)
 
-    `Evaluations <http://docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_
-    can be retrieved from Synapse by ID::
+    `Evaluations <http://docs.synapse.org/rest/org/sagebionetworks/evaluation/model/Evaluation.html>`_ can be retrieved
+    from Synapse by ID::
 
         evaluation = syn.getEvaluation(1901877)
 
@@ -126,37 +121,33 @@ class Evaluation(DictObject):
 
     @classmethod
     def getByNameURI(cls, name):
-        return '/evaluation/name/%s' %name
-    
-    
+        return '/evaluation/name/%s' % name
+
     @classmethod
     def getURI(cls, id):
-        return '/evaluation/%s' %id
-
+        return '/evaluation/%s' % id
 
     def __init__(self, **kwargs):
         kwargs['status'] = kwargs.get('status', 'OPEN')
         kwargs['contentSource'] = kwargs.get('contentSource', '')
-        if  kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
+        if kwargs['status'] not in ['OPEN', 'PLANNED', 'CLOSED', 'COMPLETED']:
             raise ValueError('Evaluation Status must be one of [OPEN, PLANNED, CLOSED, COMPLETED]')
-        if not kwargs['contentSource'].startswith('syn'):   #Verify that synapse Id given
-            raise ValueError('The "contentSource" parameter must be specified as a Synapse Entity when creating an Evaluation')
+        if not kwargs['contentSource'].startswith('syn'):  # Verify that synapse Id given
+            raise ValueError('The "contentSource" parameter must be specified as a Synapse Entity when creating an'
+                             ' Evaluation')
         super(Evaluation, self).__init__(kwargs)
-
 
     def postURI(self):
         return '/evaluation'
 
-        
     def putURI(self):
-        return '/evaluation/%s' %self.id
+        return '/evaluation/%s' % self.id
 
-        
     def deleteURI(self):
-        return '/evaluation/%s' %self.id
+        return '/evaluation/%s' % self.id
 
     def getACLURI(self):
-        return '/evaluation/%s/acl' %self.id
+        return '/evaluation/%s/acl' % self.id
 
     def putACLURI(self):
         return '/evaluation/acl'
@@ -175,8 +166,7 @@ class Submission(DictObject):
 
     @classmethod
     def getURI(cls, id):
-        return '/evaluation/submission/%s' %id
-
+        return '/evaluation/submission/%s' % id
 
     def __init__(self, **kwargs):
         if not ('evaluationId' in kwargs and 
@@ -186,17 +176,14 @@ class Submission(DictObject):
 
         super(Submission, self).__init__(kwargs)
 
-        
     def postURI(self):
-        return '/evaluation/submission?etag=%s' %self.etag
+        return '/evaluation/submission?etag=%s' % self.etag
 
-        
     def putURI(self):
-        return '/evaluation/submission/%s' %self.id
+        return '/evaluation/submission/%s' % self.id
 
-        
     def deleteURI(self):
-        return '/evaluation/submission/%s' %self.id
+        return '/evaluation/submission/%s' % self.id
 
 
 class SubmissionStatus(DictObject):
@@ -209,22 +196,17 @@ class SubmissionStatus(DictObject):
 
     @classmethod
     def getURI(cls, id):
-        return '/evaluation/submission/%s/status' %id
-
+        return '/evaluation/submission/%s/status' % id
 
     def __init__(self, **kwargs):
         super(SubmissionStatus, self).__init__(kwargs)
 
-        
     def postURI(self):
-        return '/evaluation/submission/%s/status' %self.id
+        return '/evaluation/submission/%s/status' % self.id
 
-        
     def putURI(self):
-        return '/evaluation/submission/%s/status' %self.id
+        return '/evaluation/submission/%s/status' % self.id
 
-        
     def deleteURI(self):
-        return '/evaluation/submission/%s/status' %self.id
-        
-        
+        return '/evaluation/submission/%s/status' % self.id
+

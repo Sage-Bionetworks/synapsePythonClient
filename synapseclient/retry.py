@@ -6,12 +6,12 @@ from builtins import str
 
 import random
 import sys
-import time
 import logging
 import six
 from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
 from synapseclient.utils import _is_json
 from synapseclient.dozer import doze
+
 
 def _with_retry(function, verbose=False,
                 retry_status_codes=[429, 500, 502, 503, 504], retry_errors=[], retry_exceptions=[],
@@ -63,61 +63,61 @@ def _with_retry(function, verbose=False,
                 response_message = _get_message(response)
                 retry = True
                 logger.debug("retrying on status code: %s" % str(response.status_code))
-                logger.debug(str(response_message)) #TODO: this was originally printed regardless of 'verbose' was that behavior correct?
-                if (response.status_code == 429) and (wait>10):
+                # TODO: this was originally printed regardless of 'verbose' was that behavior correct?
+                logger.debug(str(response_message))
+                if (response.status_code == 429) and (wait > 10):
                     logger.warning('%s...\n' % response_message)
-                    logger.warning('Retrying in %i seconds' %wait)
+                    logger.warning('Retrying in %i seconds' % wait)
                 
-            elif response.status_code not in range(200,299):
-                ## For all other non 200 messages look for retryable errors in the body or reason field
+            elif response.status_code not in range(200, 299):
+                # For all other non 200 messages look for retryable errors in the body or reason field
                 response_message = _get_message(response)
                 if any([msg.lower() in response_message.lower() for msg in retry_errors]):
                     retry = True
-                    logger.debug('retrying %s' %response_message)
-                ## special case for message throttling
+                    logger.debug('retrying %s' % response_message)
+                # special case for message throttling
                 elif 'Please slow down.  You may send a maximum of 10 message' in response:
                     retry = True
                     wait = 16
-                    logger.debug("retrying "+ response_message)
+                    logger.debug("retrying " + response_message)
 
         # Check if we got a retry-able exception
         if exc_info is not None:
-            if (exc_info[1].__class__.__name__ in retry_exceptions or
-                any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors])):
+            if (exc_info[1].__class__.__name__ in retry_exceptions
+                    or any([msg.lower() in str(exc_info[1]).lower() for msg in retry_errors])):
                 retry = True
-                logger.debug("retrying exception: "+ exc_info[1].__class__.__name__ + str(exc_info[1]))
+                logger.debug("retrying exception: " + exc_info[1].__class__.__name__ + str(exc_info[1]))
 
         # Wait then retry
         retries -= 1
         if retries >= 0 and retry:
-            randomized_wait = wait*random.uniform(0.5,1.5)
-            logger.debug(('total wait time {total_wait:5.0f} seconds\n'
-                       '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait, wait=randomized_wait)))
-            total_wait +=randomized_wait
+            randomized_wait = wait*random.uniform(0.5, 1.5)
+            logger.debug(('total wait time {total_wait:5.0f} seconds\n '
+                          '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait, wait=randomized_wait)))
+            total_wait += randomized_wait
             doze(randomized_wait)
             wait = min(max_wait, wait*back_off)
             continue
 
         # Out of retries, re-raise the exception or return the response
         if exc_info is not None and exc_info[0] is not None:
-            logger.debug("retries have run out. reraising the exception", exc_info=True)
-            six.reraise(exc_info[0],exc_info[1],exc_info[2])
+            logger.debug("retries have run out. re-raising the exception", exc_info=True)
+            six.reraise(exc_info[0], exc_info[1], exc_info[2])
         return response
 
 
 def _get_message(response):
     """
-    Extracts the message body or a response object by checking for a
-    json response and returning the reason otherwise getting body.
+    Extracts the message body or a response object by checking for a json response and returning the reason otherwise
+    getting body.
     """
-    if _is_json(response.headers.get('content-type', None)):
-        try:
+    try:
+        if _is_json(response.headers.get('content-type', None)):
             json = response.json()
             return json.get('reason', None)
-        except (AttributeError, ValueError) as ex:
-            pass
-    else:
-        # if the response is not JSON, return the text content
-        return response.text
-
-
+        else:
+            # if the response is not JSON, return the text content
+            return response.text
+    except (AttributeError, ValueError):
+        # The response can be truncated. In which case, the message cannot be retrieved.
+        return None
