@@ -131,7 +131,7 @@ def _getIdsFromQuery(queryString, syn):
 
         ids = [x['id'] for x in csv.DictReader(open(tbl.filepath))]
     else:
-        for item in syn.__chunkedQuery(queryString):
+        for item in syn.__deprecated_chunkedQuery(queryString):
             key = [k for k in item.keys() if k.split('.', 1)[1] == 'id'][0]
             ids.append(item[key])
     return ids
