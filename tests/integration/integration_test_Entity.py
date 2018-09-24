@@ -27,106 +27,132 @@ def setup(module):
     module.project = integration.project
 
 
-class TestEntity():
-    def test_Project(self):
-        # Update the project
-        project_name = str(uuid.uuid4())
-        project = Project(name=project_name)
-        project = syn.store(project)
-        schedule_for_cleanup(project)
-        project = syn.getEntity(project)
-        assert_equals(project.name, project_name)
-
-    def test_Folder(self):
-        project = syn.store(Project(name=str(uuid.uuid4())))
-
-        # Create and get a Folder
-        folder = Folder('Test Folder', parent=project, description='A place to put my junk', foo=1000)
-        folder = syn.createEntity(folder)
-        folder = syn.getEntity(folder)
-        assert_equals(folder.name, 'Test Folder')
-        assert_equals(folder.parentId, project.id)
-        assert_equals(folder.description, 'A place to put my junk')
-        assert_equals(folder.foo[0], 1000)
+def test_Entity():
+    # Update the project
+    project_name = str(uuid.uuid4())
+    project = Project(name=project_name)
+    project = syn.store(project)
+    schedule_for_cleanup(project)
+    project = syn.getEntity(project)
+    assert_equals(project.name, project_name)
     
-        # Update and get the Folder
-        folder.pi = 3.14159265359
-        folder.description = 'The rejects from the other folder'
-        folder = syn.store(folder)
-        folder = syn.get(folder)
-        assert_equals(folder.name, 'Test Folder')
-        assert_equals(folder.parentId, project.id)
-        assert_equals(folder.description, 'The rejects from the other folder')
-        assert_equals(folder.pi[0], 3.14159265359)
+    # Create and get a Folder
+    folder = Folder('Test Folder', parent=project, description='A place to put my junk', foo=1000)
+    folder = syn.createEntity(folder)
+    folder = syn.getEntity(folder)
+    assert_equals(folder.name, 'Test Folder')
+    assert_equals(folder.parentId, project.id)
+    assert_equals(folder.description, 'A place to put my junk')
+    assert_equals(folder.foo[0], 1000)
+    
+    # Update and get the Folder
+    folder.pi = 3.14159265359
+    folder.description = 'The rejects from the other folder'
+    folder = syn.store(folder)
+    folder = syn.get(folder)
+    assert_equals(folder.name, 'Test Folder')
+    assert_equals(folder.parentId, project.id)
+    assert_equals(folder.description, 'The rejects from the other folder')
+    assert_equals(folder.pi[0], 3.14159265359)
 
-    def test_File(self):
-        project = syn.store(Project(name=str(uuid.uuid4())))
+    # Test CRUD on Files, check unicode
+    path = utils.make_bogus_data_file()
+    schedule_for_cleanup(path)
+    a_file = File(path, parent=folder, description=u'Description with funny characters: Déjà vu, ประเทศไทย, 中国',
+                  contentType='text/flapdoodle',
+                  foo='An arbitrary value',
+                  bar=[33, 44, 55],
+                  bday=Datetime(2013, 3, 15),
+                  band=u"Motörhead",
+                  lunch=u"すし")
+    a_file = syn.store(a_file)
+    assert_equals(a_file.path, path)
 
-        # Test CRUD on Files, check unicode
-        path = utils.make_bogus_data_file()
-        schedule_for_cleanup(path)
-        a_file = File(path, parent=project, description=u'Description with funny characters: Déjà vu, ประเทศไทย, 中国',
-                      contentType='text/flapdoodle',
-                      foo='An arbitrary value',
-                      bar=[33, 44, 55],
-                      bday=Datetime(2013, 3, 15),
-                      band=u"Motörhead",
-                      lunch=u"すし")
-        a_file = syn.store(a_file)
-        assert_equals(a_file.path, path)
+    a_file = syn.getEntity(a_file)
+    assert_equals(a_file.description,
+                  u'Description with funny characters: Déjà vu, ประเทศไทย, 中国', u'description= %s'
+                  % a_file.description)
+    assert_equals(a_file['foo'][0], 'An arbitrary value', u'foo= %s' % a_file['foo'][0])
+    assert_equals(a_file['bar'], [33, 44, 55])
+    assert_equals(a_file['bday'][0], Datetime(2013, 3, 15))
+    assert_equals(a_file.contentType, 'text/flapdoodle', u'contentType= %s' % a_file.contentType)
+    assert_equals(a_file['band'][0], u"Motörhead", u'band= %s' % a_file['band'][0])
+    assert_equals(a_file['lunch'][0], u"すし", u'lunch= %s' % a_file['lunch'][0])
+    
+    a_file = syn.downloadEntity(a_file)
+    assert_true(filecmp.cmp(path, a_file.path))
 
-        a_file = syn.getEntity(a_file)
-        assert_equals(a_file.description,
-                      u'Description with funny characters: Déjà vu, ประเทศไทย, 中国', u'description= %s'
-                      % a_file.description)
-        assert_equals(a_file['foo'][0], 'An arbitrary value', u'foo= %s' % a_file['foo'][0])
-        assert_equals(a_file['bar'], [33, 44, 55])
-        assert_equals(a_file['bday'][0], Datetime(2013, 3, 15))
-        assert_equals(a_file.contentType, 'text/flapdoodle', u'contentType= %s' % a_file.contentType)
-        assert_equals(a_file['band'][0], u"Motörhead", u'band= %s' % a_file['band'][0])
-        assert_equals(a_file['lunch'][0], u"すし", u'lunch= %s' % a_file['lunch'][0])
+    b_file = File(name="blah", parent=folder, dataFileHandleId=a_file.dataFileHandleId)
+    b_file = syn.store(b_file)
 
-        a_file = syn.downloadEntity(a_file)
-        assert_true(filecmp.cmp(path, a_file.path))
+    assert_equals(b_file.dataFileHandleId, a_file.dataFileHandleId)
+    # Update the File
+    a_file.path = path
+    a_file['foo'] = 'Another arbitrary chunk of text data'
+    a_file['new_key'] = 'A newly created value'
+    a_file = syn.updateEntity(a_file)
+    assert_equals(a_file['foo'][0], 'Another arbitrary chunk of text data')
+    assert_equals(a_file['bar'], [33, 44, 55])
+    assert_equals(a_file['bday'][0], Datetime(2013, 3, 15))
+    assert_equals(a_file.new_key[0], 'A newly created value')
+    assert_equals(a_file.path, path)
+    assert_equals(a_file.versionNumber, 1, "unexpected version number: " + str(a_file.versionNumber))
 
-        b_file = File(name="blah", parent=project, dataFileHandleId=a_file.dataFileHandleId)
-        b_file = syn.store(b_file)
+    # Test create, store, get Links
+    # If version isn't specified, targetVersionNumber should not be set
+    link = Link(a_file['id'], 
+                parent=project)
+    link = syn.store(link)
+    assert_equals(link['linksTo']['targetId'], a_file['id'])
+    assert_is_none(link['linksTo'].get('targetVersionNumber'))
+    assert_equals(link['linksToClassName'], a_file['concreteType'])
 
-        assert_equals(b_file.dataFileHandleId, a_file.dataFileHandleId)
-        # Update the File
-        a_file.path = path
-        a_file['foo'] = 'Another arbitrary chunk of text data'
-        a_file['new_key'] = 'A newly created value'
-        a_file = syn.updateEntity(a_file)
-        assert_equals(a_file['foo'][0], 'Another arbitrary chunk of text data')
-        assert_equals(a_file['bar'], [33, 44, 55])
-        assert_equals(a_file['bday'][0], Datetime(2013, 3, 15))
-        assert_equals(a_file.new_key[0], 'A newly created value')
-        assert_equals(a_file.path, path)
-        assert_equals(a_file.versionNumber, 1, "unexpected version number: " + str(a_file.versionNumber))
+    link = Link(a_file['id'], 
+                targetVersion=a_file.versionNumber,
+                parent=project)
+    link = syn.store(link)
+    assert_equals(link['linksTo']['targetId'], a_file['id'])
+    assert_equals(link['linksTo']['targetVersionNumber'], a_file.versionNumber)
+    assert_equals(link['linksToClassName'], a_file['concreteType'])
+    
+    testLink = syn.get(link)
+    assert_equals(testLink, link)
 
-        tmpdir = tempfile.mkdtemp()
-        schedule_for_cleanup(tmpdir)
+    link = syn.get(link, followLink=True)
+    assert_equals(link['foo'][0], 'Another arbitrary chunk of text data')
+    assert_equals(link['bar'], [33, 44, 55])
+    assert_equals(link['bday'][0], Datetime(2013, 3, 15))
+    assert_equals(link.new_key[0], 'A newly created value')
+    assert_true(utils.equal_paths(link.path, path))
+    assert_equals(link.versionNumber, 1, "unexpected version number: " + str(a_file.versionNumber))
 
-        # test getting the file from the cache with downloadLocation parameter (SYNPY-330)
-        a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
-        assert_is_not_none(a_file_cached.path)
-        assert_equal(os.path.basename(a_file_cached.path), os.path.basename(a_file.path))
+    newfolder = Folder('Testing Folder', parent=project)
+    newfolder = syn.store(newfolder)
+    link = Link(newfolder, parent=folder.id)
+    link = syn.store(link)
+    assert_equals(link['linksTo']['targetId'], newfolder.id)
+    assert_equals(link['linksToClassName'], newfolder['concreteType'])
+    assert_is_none(link['linksTo'].get('targetVersionNumber'))
 
-    def test_Link(self):
-        project = syn.store(Project(name=str(uuid.uuid4())))
-        folder = syn.store(Folder('Test Folder', parent=project))
-        path = utils.make_bogus_data_file()
-        schedule_for_cleanup(path)
-        a_file = syn.store(File(path, parent=folder))
+    # Upload a new File and verify
+    new_path = utils.make_bogus_data_file()
+    schedule_for_cleanup(new_path)
+    a_file = syn.uploadFile(a_file, new_path)
+    a_file = syn.downloadEntity(a_file)
+    assert_true(filecmp.cmp(new_path, a_file.path))
+    assert_equals(a_file.versionNumber, 2)
 
-        # Test create, store, get Links
-        # If version isn't specified, targetVersionNumber should not be set
-        link = Link(a_file['id'], parent=project)
-        link = syn.store(link)
-        assert_equals(link['linksTo']['targetId'], a_file['id'])
-        assert_is_none(link['linksTo'].get('targetVersionNumber'))
-        assert_equals(link['linksToClassName'], a_file['concreteType'])
+    # Make sure we can still get the older version of file
+    old_random_data = syn.get(a_file.id, version=1)
+    assert_true(filecmp.cmp(old_random_data.path, path))
+
+    tmpdir = tempfile.mkdtemp()
+    schedule_for_cleanup(tmpdir)
+
+    # test getting the file from the cache with downloadLocation parameter (SYNPY-330)
+    a_file_cached = syn.get(a_file.id, downloadLocation=tmpdir)
+    assert_is_not_none(a_file_cached.path)
+    assert_equal(os.path.basename(a_file_cached.path), os.path.basename(a_file.path))
 
 
 def test_special_characters():

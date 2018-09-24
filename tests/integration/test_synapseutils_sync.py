@@ -166,14 +166,14 @@ def test_syncFromSynapse__children_contain_non_file():
     schedule_for_cleanup(temp_file)
     file_entity = syn.store(File(temp_file, name="temp_file_test_syncFromSynapse_children_non_file" + str(uuid.uuid4()),
                                  parent=proj))
+
+    syn.store(Schema(name="table_test_syncFromSynapse", parent=proj))
+
     temp_folder = tempfile.mkdtemp()
     schedule_for_cleanup(temp_folder)
 
-    file_entity = syn.get(file_entity)
     files_list = synapseutils.syncFromSynapse(syn, proj, temp_folder)
     assert_equals(1, len(files_list))
-    print(files_list[0])
-    print(file_entity)
     assert_equals(file_entity, files_list[0])
 
 
@@ -280,7 +280,6 @@ def test_syncFromSynapse__given_file_id():
     file_path = utils.make_bogus_data_file()
     schedule_for_cleanup(file_path)
     file = syn.store(File(file_path, name=str(uuid.uuid4()), parent=project, synapseStore=False))
-    file = syn.get(file)
     all_files = synapseutils.syncFromSynapse(syn, file.id)
     assert_equals(1, len(all_files))
     assert_equals(file, all_files[0])
