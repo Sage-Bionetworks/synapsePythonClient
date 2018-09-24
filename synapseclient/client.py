@@ -1063,7 +1063,8 @@ class Synapse(object):
             properties = self._getEntity(properties)
 
         # Return the updated Entity object
-        return Entity.create(properties, annotations, local_state)
+        entity = Entity.create(properties, annotations, local_state)
+        return syn.get(entity, downloadFile=False)
 
     def _createAccessRequirementIfNone(self, entity):
         """
