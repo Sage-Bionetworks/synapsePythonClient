@@ -21,7 +21,7 @@ Python 2 Supports
 
 The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
 
-The Synapse Python client will step down Python 2.7 support to only fixing bugs, and require Python 3 on new feature releases. **Starting with Synapse Python client version 2.0, Synapse Python client will requires Python 3.**
+The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3 on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019), Synapse Python client will requires Python 3.**
 
 
 Documentation
