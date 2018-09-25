@@ -93,4 +93,3 @@ def cleanup(items):
                     print(ex)
         else:
             sys.stderr.write('Don\'t know how to clean: %s' % str(item))
-    syn.purge_trash_can()
