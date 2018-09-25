@@ -1179,7 +1179,7 @@ class Synapse(object):
         # we will convert this to use the new service in SYNPY-473
         query = 'select ' + ','.join(fields) + \
                 ' from entity where %s=="%s"' % ('id' if indent == 0 else 'parentId', id_of(parent))
-        results = self.chunkedQuery(query)
+        results = self.__deprecated_chunkedQuery(query)
 
         results_found = False
         for result in results:
@@ -1432,32 +1432,8 @@ class Synapse(object):
             if entityChildrenResponse.get('nextPageToken') is not None:
                 entityChildrenRequest['nextPageToken'] = entityChildrenResponse['nextPageToken']
 
-    @deprecation.deprecated(deprecated_in="1.8.2",
-                            removed_in="1.9.0",
-                            details="Please use :py:func:`synapseclient.Synapse.getChildren` or "
-                                    ":py:class:`synapseclient.table.EntityViewSchema` instead.")
-    def query(self, queryStr):
-        """
-        Query for Synapse entities.
-        See the `query language documentation \
-         <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
-
-        :param queryStr:  the query to execute
-        :returns: an array of query results
-
-        Example::
-
-            syn.query("select id, name from entity where entity.parentId=='syn449742'")
-
-        See also: :py:func:`synapseclient.Synapse.chunkedQuery`
-        """
-        return self.restGET('/query?query=' + quote(queryStr))
-
-    @deprecation.deprecated(deprecated_in="1.8.2",
-                            removed_in="1.9.0",
-                            details="Please use :py:func:`synapseclient.Synapse.getChildren` or "
-                                    ":py:class:`synapseclient.table.EntityViewSchema` instead.")
-    def chunkedQuery(self, queryStr):
+    # TODO: replace this method when PLFM-4578 is resolved
+    def __deprecated_chunkedQuery(self, queryStr):
         """
         Query for Synapse Entities.
         See the `query language documentation \
@@ -1469,7 +1445,7 @@ class Synapse(object):
 
         Example::
 
-            results = syn.chunkedQuery("select id, name from entity where entity.parentId=='syn449742'")
+            results = syn.__deprecated_chunkedQuery("select id, name from entity where entity.parentId=='syn449742'")
             for res in results:
                 print(res['entity.id'])
 
@@ -3291,15 +3267,20 @@ class Synapse(object):
         return file_handle_associations, file_handle_to_path_map
 
     @memoize
-    def _get_default_entity_view_columns(self, view_type):
-        return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
+    def _get_default_entity_view_columns(self, view_type_mask):
+        return [Column(**col)
+                for col in self.restGET("/column/tableview/defaults?viewTypeMask=%s" % view_type_mask)['list']]
 
-    def _get_annotation_entity_view_columns(self, scope_ids, view_type):
+    def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
         view_scope = {'scope': scope_ids,
-                      'viewType': view_type}
+                      'viewTypeMask': view_type_mask}
         columns = []
+        next_page_token = None
         while True:
-            response = self.restPOST('/column/view/scope', json.dumps(view_scope))
+            params = {}
+            if next_page_token:
+                params = {'nextPageToken': next_page_token}
+            response = self.restPOST('/column/view/scope', json.dumps(view_scope), params=params)
             columns.extend(Column(**column) for column in response['results'])
             next_page_token = response.get('nextPageToken')
             if next_page_token is None:
