@@ -535,8 +535,8 @@ def test_get_annotation_entity_view_columns():
              'nextPageToken': 'a'}
     page2 = {'results': [],
              'nextPageToken': None}
-    call_list = [call('/column/view/scope', json.dumps(view_scope)),
-                 call('/column/view/scope?nextPageToken=a', json.dumps(view_scope))]
+    call_list = [call('/column/view/scope', json.dumps(view_scope), params={}),
+                 call('/column/view/scope', json.dumps(view_scope), params={'nextPageToken': 'a'})]
     with patch.object(syn, "restPOST", side_effect=[page1, page2]) as mock_restPOST:
         syn._get_annotation_entity_view_columns(scope_ids, mask)
         mock_restPOST.assert_has_calls(call_list)

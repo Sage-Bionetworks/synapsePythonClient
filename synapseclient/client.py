@@ -3301,11 +3301,10 @@ class Synapse(object):
         columns = []
         next_page_token = None
         while True:
+            params = {}
             if next_page_token:
-                url = '/column/view/scope?nextPageToken=%s' % next_page_token
-            else:
-                url = '/column/view/scope'
-            response = self.restPOST(url, json.dumps(view_scope))
+                params = {'nextPageToken': next_page_token}
+            response = self.restPOST('/column/view/scope', json.dumps(view_scope), params=params)
             columns.extend(Column(**column) for column in response['results'])
             next_page_token = response.get('nextPageToken')
             if next_page_token is None:
