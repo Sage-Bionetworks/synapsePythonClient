@@ -304,6 +304,7 @@ import itertools
 from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
 from builtins import zip
 from abc import ABCMeta, abstractmethod
+from enum import Enum
 
 from .utils import id_of, from_unix_epoch_time
 from .exceptions import *
@@ -334,44 +335,36 @@ DEFAULT_SEPARATOR = ","
 DEFAULT_ESCAPSE_CHAR = "\\"
 
 
-# View Type Mask
-FILE = 0x01
-PROJECT = 0x02
-TABLE = 0x04
-FOLDER = 0x08
-VIEW = 0x10
-DOCKER = 0x20
-VIEW_TYPE_MASK = {
-    'file': FILE,
-    'project': PROJECT,
-    'table': TABLE,
-    'folder': FOLDER,
-    'view': VIEW,
-    'docker': DOCKER
-}
+# This Enum is used to help users determine which Entity types they want in their view
+# Each item will be used to construct the viewTypeMask
+class EntityType(Enum):
+    FILE = 0x01
+    PROJECT = 0x02
+    TABLE = 0x04
+    FOLDER = 0x08
+    VIEW = 0x10
+    DOCKER = 0x20
 
 
 def _get_view_type_mask(types_to_include):
     if not types_to_include:
-        raise ValueError("Please include at least one of the following entity types: file, project, table, folder,"
-                         " view, and/or docker.")
+        raise ValueError("Please include at least one of the following entity types specified in EntityType.")
     mask = 0x00
     for input in types_to_include:
-        type = input.strip().lower()
-        if type not in VIEW_TYPE_MASK:
-            raise ValueError("Entity types not supported: %s", input)
-        mask = mask | VIEW_TYPE_MASK[type]
+        if not isinstance(input, EntityType):
+            raise ValueError("Please use EntityType to specify the type you want to include in a View.")
+        mask = mask | input.value
     return mask
 
 def _get_view_type_mask_for_deprecated_type(type):
     if not type:
         raise ValueError("Please specify the deprecated type to convert to viewTypeMask")
     if type == 'file':
-        return VIEW_TYPE_MASK['file']
+        return EntityType.FILE.value
     if type == 'project':
-        return VIEW_TYPE_MASK['project']
+        return EntityType.PROJECT.value
     if type == 'file_and_table':
-        return VIEW_TYPE_MASK['file'] | VIEW_TYPE_MASK['table']
+        return EntityType.FILE.value | EntityType.TABLE.value
     raise ValueError("The provided value is not a valid type: %s", type)
 
 
@@ -765,10 +758,11 @@ class EntityViewSchema(SchemaBase):
     :param local_state:                     Internal use only
     
     Example::
-    
+        from synapseclient.table import EntityType
+
         project_or_folder = syn.get("syn123")  
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
-         includeEntityTypes=['file']))
+         includeEntityTypes=[EntityType.FILE]))
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
@@ -798,7 +792,7 @@ class EntityViewSchema(SchemaBase):
         # set default values after constructor so we don't overwrite the values defined in properties using .get()
         # because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
         if self.get('viewTypeMask') is None:
-            self.viewTypeMask = VIEW_TYPE_MASK['file']
+            self.viewTypeMask = EntityType.FILE.value
         if self.get('scopeIds') is None:
             self.scopeIds = []
 
@@ -821,11 +815,11 @@ class EntityViewSchema(SchemaBase):
         # get the default EntityView columns from Synapse and add them to the columns list
         additional_columns = []
         if self.addDefaultViewColumns:
-            additional_columns.extend(syn._get_default_entity_view_columns(self.get('viewTypeMask')))
+            additional_columns.extend(syn._get_default_entity_view_columns(self['viewTypeMask']))
 
         # get default annotations
         if self.addAnnotationColumns:
-            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self.get('viewTypeMask'))
+            anno_columns = [x for x in syn._get_annotation_entity_view_columns(self.scopeIds, self['viewTypeMask'])
                             if x['name'] not in self.ignoredAnnotationColumnNames]
             additional_columns.extend(anno_columns)
 

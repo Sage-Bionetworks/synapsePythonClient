@@ -23,7 +23,7 @@ import synapseclient
 from synapseclient.exceptions import *
 from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.utils import id_of
-from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, VIEW_TYPE_MASK
+from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, EntityType
 
 import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
@@ -57,7 +57,7 @@ def test_create_and_update_file_view():
     # Add new columns for the annotations on this file and get their IDs
     my_added_cols = [syn.store(synapseclient.Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
     my_added_cols_ids = [c['id'] for c in my_added_cols]
-    view_default_ids = [c['id'] for c in syn._get_default_entity_view_columns(VIEW_TYPE_MASK['file'])]
+    view_default_ids = [c['id'] for c in syn._get_default_entity_view_columns(EntityType.FILE.value)]
     col_ids = my_added_cols_ids + view_default_ids
     scopeIds = [folder['id'].lstrip('syn')]
 
@@ -71,7 +71,7 @@ def test_create_and_update_file_view():
 
     assert_equals(set(scopeIds), set(entity_view.scopeIds))
     assert_equals(set(col_ids), set(entity_view.columnIds))
-    assert_equals(VIEW_TYPE_MASK['file'], entity_view.viewTypeMask)
+    assert_equals(EntityType.FILE.value, entity_view.viewTypeMask)
 
     # get the current view-schema
     view = syn.tableQuery("select * from %s" % entity_view.id)
@@ -142,12 +142,12 @@ def test_entity_view_add_annotation_columns():
     # This test is to ensure that user code which use the deprecated field `type` continue to work
     # TODO: remove this test case in Synapse Python client 2.0
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False,
-                                   addAnnotationColumns=True, type='file', includeEntityTypes=['project'],
+                                   addAnnotationColumns=True, type='file', includeEntityTypes=[EntityType.PROJECT],
                                    parent=project)
     syn.store(entity_view)
 
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False,
-                                   addAnnotationColumns=True, includeEntityTypes=['project'], parent=project)
+                                   addAnnotationColumns=True, includeEntityTypes=[EntityType.PROJECT], parent=project)
     syn.store(entity_view)
 
 

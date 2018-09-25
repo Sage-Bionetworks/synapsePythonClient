@@ -24,7 +24,7 @@ from synapseclient.exceptions import SynapseError
 from synapseclient.entity import split_entity_namespaces
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
-    PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, VIEW_TYPE_MASK, _get_view_type_mask
+    PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityType, _get_view_type_mask
 from mock import patch
 from collections import OrderedDict
 from .unit_utils import StringIOContextManager
@@ -532,7 +532,7 @@ def test_build_table_download_file_handle_list__repeated_file_handles():
 
 def test_EntityViewSchema__default_params():
     entity_view = EntityViewSchema(parent="idk")
-    assert_equals(VIEW_TYPE_MASK['file'], entity_view.viewTypeMask)
+    assert_equals(EntityType.FILE.value, entity_view.viewTypeMask)
     assert_equals([], entity_view.scopeIds)
     assert_equals(True, entity_view.addDefaultViewColumns)
 
@@ -540,21 +540,19 @@ def test_EntityViewSchema__default_params():
 def test_entityViewSchema__specified_deprecated_type():
     view_type = 'project'
     entity_view = EntityViewSchema(parent="idk", type=view_type)
-    assert_equals(VIEW_TYPE_MASK[view_type], entity_view.viewTypeMask)
+    assert_equals(EntityType.PROJECT.value, entity_view.viewTypeMask)
     assert_is_none(entity_view.get('type'))
 
 
 def test_entityViewSchema__specified_viewTypeMask():
-    view_type = 'project'
-    entity_view = EntityViewSchema(parent="idk", includeEntityTypes=[view_type])
-    assert_equals(VIEW_TYPE_MASK[view_type], entity_view.viewTypeMask)
+    entity_view = EntityViewSchema(parent="idk", includeEntityTypes=[EntityType.PROJECT])
+    assert_equals(EntityType.PROJECT.value, entity_view.viewTypeMask)
     assert_is_none(entity_view.get('type'))
 
 
 def test_entityViewSchema__specified_both_type_and_viewTypeMask():
-    view_type = 'project'
-    entity_view = EntityViewSchema(parent="idk", type='folder', includeEntityTypes=[view_type])
-    assert_equals(VIEW_TYPE_MASK[view_type], entity_view.viewTypeMask)
+    entity_view = EntityViewSchema(parent="idk", type='folder', includeEntityTypes=[EntityType.PROJECT])
+    assert_equals(EntityType.PROJECT.value, entity_view.viewTypeMask)
     assert_is_none(entity_view.get('type'))
 
 
@@ -621,7 +619,7 @@ def test_EntityViewSchema__ignore_annotation_column_names():
         entity_view._before_synapse_store(syn)
 
         mocked_get_columns.assert_called_once_with([])
-        mocked_get_annotations.assert_called_once_with(scopeIds, VIEW_TYPE_MASK['file'])
+        mocked_get_annotations.assert_called_once_with(scopeIds, EntityType.FILE.value)
 
         assert_equals([Column(name='long2', columnType='INTEGER')], entity_view.columns_to_store)
 
@@ -993,31 +991,37 @@ def test_SelectColumn_forward_compatibility():
 def test_get_view_type_mask_for_deprecated_type():
     assert_raises(ValueError, _get_view_type_mask_for_deprecated_type, None)
     assert_raises(ValueError, _get_view_type_mask_for_deprecated_type, 'wiki')
-    assert_equals(VIEW_TYPE_MASK['file'], _get_view_type_mask_for_deprecated_type('file'))
-    assert_equals(VIEW_TYPE_MASK['project'], _get_view_type_mask_for_deprecated_type('project'))
-    assert_equals(VIEW_TYPE_MASK['file'] | VIEW_TYPE_MASK['table'],
+    assert_equals(EntityType.FILE.value, _get_view_type_mask_for_deprecated_type('file'))
+    assert_equals(EntityType.PROJECT.value, _get_view_type_mask_for_deprecated_type('project'))
+    assert_equals(EntityType.FILE.value | EntityType.TABLE.value,
                   _get_view_type_mask_for_deprecated_type('file_and_table'))
 
 
 def test_get_view_type_mask():
     assert_raises(ValueError, _get_view_type_mask, None)
     assert_raises(ValueError, _get_view_type_mask, [])
-    assert_raises(ValueError, _get_view_type_mask, ['file', 'wiki'])
+    assert_raises(ValueError, _get_view_type_mask, [EntityType.DOCKER, 'wiki'])
     # test the map
-    assert_equals(VIEW_TYPE_MASK['file'], _get_view_type_mask(['file ']))
-    assert_equals(VIEW_TYPE_MASK['project'], _get_view_type_mask(['Project']))
-    assert_equals(VIEW_TYPE_MASK['folder'], _get_view_type_mask(['FOLDER']))
-    assert_equals(VIEW_TYPE_MASK['table'], _get_view_type_mask(['table']))
-    assert_equals(VIEW_TYPE_MASK['view'], _get_view_type_mask(['view']))
-    assert_equals(VIEW_TYPE_MASK['docker'], _get_view_type_mask(['docker']))
+    assert_equals(EntityType.FILE.value, _get_view_type_mask([EntityType.FILE]))
+    assert_equals(EntityType.PROJECT.value, _get_view_type_mask([EntityType.PROJECT]))
+    assert_equals(EntityType.FOLDER.value, _get_view_type_mask([EntityType.FOLDER]))
+    assert_equals(EntityType.TABLE.value, _get_view_type_mask([EntityType.TABLE]))
+    assert_equals(EntityType.VIEW.value, _get_view_type_mask([EntityType.VIEW]))
+    assert_equals(EntityType.DOCKER.value, _get_view_type_mask([EntityType.DOCKER]))
     # test combinations
-    assert_equals(VIEW_TYPE_MASK['project'] | VIEW_TYPE_MASK['folder'],
-                  _get_view_type_mask(['project', 'folder']))
+    assert_equals(EntityType.PROJECT.value | EntityType.FOLDER.value,
+                  _get_view_type_mask([EntityType.PROJECT, EntityType.FOLDER]))
     # test the actual mask value
-    assert_equals(0x01, _get_view_type_mask(['file']))
-    assert_equals(0x02, _get_view_type_mask(['Project']))
-    assert_equals(0x04, _get_view_type_mask(['table  ']))
-    assert_equals(0x08, _get_view_type_mask(['FOLDER']))
-    assert_equals(0x10, _get_view_type_mask(['view']))
-    assert_equals(0x20, _get_view_type_mask(['docker']))
-    assert_equals(2**6-1, _get_view_type_mask(['file', 'folder', 'project', 'table', 'view', 'docker']))
+    assert_equals(0x01, _get_view_type_mask([EntityType.FILE]))
+    assert_equals(0x02, _get_view_type_mask([EntityType.PROJECT]))
+    assert_equals(0x04, _get_view_type_mask([EntityType.TABLE]))
+    assert_equals(0x08, _get_view_type_mask([EntityType.FOLDER]))
+    assert_equals(0x10, _get_view_type_mask([EntityType.VIEW]))
+    assert_equals(0x20, _get_view_type_mask([EntityType.DOCKER]))
+    assert_equals(2**6-1, _get_view_type_mask([EntityType.FILE,
+                                               EntityType.PROJECT,
+                                               EntityType.FOLDER,
+                                               EntityType.TABLE,
+                                               EntityType.VIEW,
+                                               EntityType.DOCKER
+                                               ]))
