@@ -121,7 +121,7 @@ View the entity in the browser::
 - :py:func:`synapseclient.Synapse.onweb`
 
 
-Organizing data in a Project
+Organizing Data in a Project
 ============================
 
 You can create your own projects and upload your own data sets. Synapse stores entities in a hierarchical or tree
@@ -156,7 +156,7 @@ See also:
 - :py:class:`synapseclient.entity.Link`
 - :py:func:`synapseclient.Synapse.store`
 
-Annotating Synapse entities
+Annotating Synapse Entities
 ===========================
 
 Annotations are arbitrary metadata attached to Synapse entities, for example::
@@ -216,7 +216,7 @@ See:
 - :py:func:`synapseclient.Synapse.getSubmission`
 - :py:func:`synapseclient.Synapse.getSubmissionStatus`
 
-Access control
+Access Control
 ==============
 
 By default, data sets in Synapse are private to your user account, but they can easily be shared with specific users,
@@ -227,7 +227,7 @@ See:
 - :py:func:`Synapse.getPermissions`
 - :py:func:`Synapse.setPermissions`
 
-Accessing the API directly
+Accessing the API Directly
 ==========================
 
 These methods enable access to the Synapse REST(ish) API taking care of details like endpoints and authentication.
@@ -241,8 +241,8 @@ See:
 - :py:func:`synapseclient.Synapse.restDELETE`
 
 
-Synapse utilities
-================
+Synapse Utilities
+=================
 
 There is a companion module called synapseutils that provide higher level functionality such as recursive copying of
 content, syncing with Synapse and additional query functionality.
@@ -251,18 +251,18 @@ See:
 - :py:mod:`synapseutils`
 
 
-More information
+More Information
 ================
 
 For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. These Python API docs are browsable
 online at `https://python-docs.synapse.org/ <https://python-docs.synapse.org/>`_.
 
-Getting updates
+Getting Updates
 ===============
 
-To get information about new versions of the client including development versions see
-`synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_ and
-`synapseclient.release_notes() <Versions.html#synapseclient.version_check.release_notes>`_.
+To get information about new versions of the client, see:
+`synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_.
+
 
 """
 
