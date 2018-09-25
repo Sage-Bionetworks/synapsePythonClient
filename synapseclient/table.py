@@ -348,7 +348,7 @@ class EntityType(Enum):
 
 def _get_view_type_mask(types_to_include):
     if not types_to_include:
-        raise ValueError("Please include at least one of the following entity types specified in EntityType.")
+        raise ValueError("Please include at least one of the entity types specified in EntityType.")
     mask = 0x00
     for input in types_to_include:
         if not isinstance(input, EntityType):
@@ -734,13 +734,13 @@ class EntityViewSchema(SchemaBase):
     :param scopes:                          a list of Projects/Folders or their ids
     :param type:                            This field is deprecated. Please use `includeEntityTypes`
     :param includeEntityTypes:              a list of entity types to include in the view. Supported entity types are:
-                                                'file',
-                                                'project',
-                                                'table',
-                                                'folder',
-                                                'view',
-                                                'docker'
-                                            If none is provided, the view will default to include 'file' entities.
+                                                EntityType.FILE,
+                                                EntityType.PROJECT,
+                                                EntityType.TABLE,
+                                                EntityType.FOLDER,
+                                                EntityType.VIEW,
+                                                EntityType.DOCKER
+                                            If none is provided, the view will default to include EntityType.FILE type.
     :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
                                             Defaults to True.
                                             The default columns will be added after a call to
