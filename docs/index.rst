@@ -1,12 +1,16 @@
 ===================================
-Synapse Python Client documentation
+Synapse Python Client Documentation
 ===================================
 .. automodule:: synapseclient
    :members:
 
+=========
+Reference
+=========
+
 .. toctree::
    :maxdepth: 1
-   
+
    Client
    Entity
    Evaluation
@@ -18,3 +22,12 @@ Synapse Python Client documentation
    CommandLineClient
    Table
    sftp
+
+=============
+Release Notes
+=============
+
+.. toctree::
+   :maxdepth: 2
+
+   news
