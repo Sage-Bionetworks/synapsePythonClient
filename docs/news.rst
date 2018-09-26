@@ -54,7 +54,6 @@ Improvements
 ------------
 
 * `SYNPY-583 <https://sagebionetworks.jira.com/browse/SYNPY-583>`_ - Better error message for create Link object
-* `SYNPY-808 <https://sagebionetworks.jira.com/browse/SYNPY-808>`_ - Announce Python2 support strategy
 * `SYNPY-810 <https://sagebionetworks.jira.com/browse/SYNPY-810>`_ - simplify docs for deleting rows
 * `SYNPY-814 <https://sagebionetworks.jira.com/browse/SYNPY-814>`_ - fix docs links in python client __init__.py
 * `SYNPY-822 <https://sagebionetworks.jira.com/browse/SYNPY-822>`_ - Switch to use news.rst instead of multiple release notes files
