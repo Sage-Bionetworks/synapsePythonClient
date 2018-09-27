@@ -337,7 +337,7 @@ DEFAULT_ESCAPSE_CHAR = "\\"
 
 # This Enum is used to help users determine which Entity types they want in their view
 # Each item will be used to construct the viewTypeMask
-class EntityType(Enum):
+class EntityViewType(Enum):
     FILE = 0x01
     PROJECT = 0x02
     TABLE = 0x04
@@ -351,7 +351,7 @@ def _get_view_type_mask(types_to_include):
         raise ValueError("Please include at least one of the entity types specified in EntityType.")
     mask = 0x00
     for input in types_to_include:
-        if not isinstance(input, EntityType):
+        if not isinstance(input, EntityViewType):
             raise ValueError("Please use EntityType to specify the type you want to include in a View.")
         mask = mask | input.value
     return mask
@@ -360,11 +360,11 @@ def _get_view_type_mask_for_deprecated_type(type):
     if not type:
         raise ValueError("Please specify the deprecated type to convert to viewTypeMask")
     if type == 'file':
-        return EntityType.FILE.value
+        return EntityViewType.FILE.value
     if type == 'project':
-        return EntityType.PROJECT.value
+        return EntityViewType.PROJECT.value
     if type == 'file_and_table':
-        return EntityType.FILE.value | EntityType.TABLE.value
+        return EntityViewType.FILE.value | EntityViewType.TABLE.value
     raise ValueError("The provided value is not a valid type: %s", type)
 
 
@@ -792,7 +792,7 @@ class EntityViewSchema(SchemaBase):
         # set default values after constructor so we don't overwrite the values defined in properties using .get()
         # because properties, unlike local_state, do not have nonexistent keys assigned with a value of None
         if self.get('viewTypeMask') is None:
-            self.viewTypeMask = EntityType.FILE.value
+            self.viewTypeMask = EntityViewType.FILE.value
         if self.get('scopeIds') is None:
             self.scopeIds = []
 
