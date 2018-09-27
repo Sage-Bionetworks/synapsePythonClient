@@ -428,6 +428,7 @@ class TestPartialRowSet(object):
         query_results = self._query_with_retry("SELECT * FROM %s" % utils.id_of(schema),
                                                resultsAs,
                                                2,
+                                               None,
                                                QUERY_TIMEOUT_SEC)
         assert_is_not_none(query_results)
         df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
@@ -437,21 +438,29 @@ class TestPartialRowSet(object):
         partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
         syn.store(partial_rowset)
 
-        query_results = self._query_with_retry("SELECT * FROM %s" % utils.id_of(schema),
-                                               resultsAs,
-                                               2,
-                                               QUERY_TIMEOUT_SEC)
-        assert_is_not_none(query_results)
-        df2 = query_results.asDataFrame()
-        # remove the column index which cannot be set to expected_results
-        df2 = df2.reset_index(drop=True)
-        assert_frame_equal(df2, expected_results, check_like=True, check_dtype=False)
+        assert_is_not_none(self._query_with_retry("SELECT * FROM %s" % utils.id_of(schema),
+                                                  resultsAs,
+                                                  None,
+                                                  expected_results,
+                                                  QUERY_TIMEOUT_SEC))
 
-    def _query_with_retry(self, query, resultsAs, expected_result_len, timeout):
+    def _query_with_retry(self, query, resultsAs, expected_result_len, expected_frame, timeout):
+        # query and look for the expected_frame
+        # if the expected_frame is not specified, look for the number of lines returned
         start_time = time.time()
         while time.time() - start_time < timeout:
             query_results = syn.tableQuery(query, resultsAs=resultsAs)
-            if len(query_results) == expected_result_len:
+            if expected_frame is not None:
+                df2 = query_results.asDataFrame()
+                # remove the column index which cannot be set to expected_results
+                df2 = df2.reset_index(drop=True)
+                try:
+                    assert_frame_equal(df2, expected_frame, check_like=True, check_dtype=False)
+                    return query_results
+                except AssertionError:
+                    # hasn't found the result yet
+                    pass
+            elif expected_result_len and len(query_results) == expected_result_len:
                 return query_results
         return None
 
