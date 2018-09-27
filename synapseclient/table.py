@@ -348,11 +348,11 @@ class EntityViewType(Enum):
 
 def _get_view_type_mask(types_to_include):
     if not types_to_include:
-        raise ValueError("Please include at least one of the entity types specified in EntityType.")
+        raise ValueError("Please include at least one of the entity types specified in EntityViewType.")
     mask = 0x00
     for input in types_to_include:
         if not isinstance(input, EntityViewType):
-            raise ValueError("Please use EntityType to specify the type you want to include in a View.")
+            raise ValueError("Please use EntityViewType to specify the type you want to include in a View.")
         mask = mask | input.value
     return mask
 
@@ -734,13 +734,13 @@ class EntityViewSchema(SchemaBase):
     :param scopes:                          a list of Projects/Folders or their ids
     :param type:                            This field is deprecated. Please use `includeEntityTypes`
     :param includeEntityTypes:              a list of entity types to include in the view. Supported entity types are:
-                                                EntityType.FILE,
-                                                EntityType.PROJECT,
-                                                EntityType.TABLE,
-                                                EntityType.FOLDER,
-                                                EntityType.VIEW,
-                                                EntityType.DOCKER
-                                            If none is provided, the view will default to include EntityType.FILE type.
+                                                EntityViewType.FILE,
+                                                EntityViewType.PROJECT,
+                                                EntityViewType.TABLE,
+                                                EntityViewType.FOLDER,
+                                                EntityViewType.VIEW,
+                                                EntityViewType.DOCKER
+                                            If none is provided, the view will default to include EntityViewType.FILE.
     :param addDefaultViewColumns:           If true, adds all default columns (e.g. name, createdOn, modifiedBy etc.)
                                             Defaults to True.
                                             The default columns will be added after a call to
@@ -758,11 +758,11 @@ class EntityViewSchema(SchemaBase):
     :param local_state:                     Internal use only
     
     Example::
-        from synapseclient.table import EntityType
+        from synapseclient import EntityViewType
 
         project_or_folder = syn.get("syn123")  
         schema = syn.store(EntityViewSchema(name='MyTable', parent=project, scopes=[project_or_folder_id, 'syn123'],
-         includeEntityTypes=[EntityType.FILE]))
+         includeEntityTypes=[EntityViewType.FILE]))
     """
 
     _synapse_entity_type = 'org.sagebionetworks.repo.model.table.EntityView'
