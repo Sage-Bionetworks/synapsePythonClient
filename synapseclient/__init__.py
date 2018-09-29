@@ -51,12 +51,12 @@ Next, either install the package in the site-packages directory ``python setup.p
     python setup.py <install or develop>
 
 
-Python 2 Supports
------------------
+Python 2 Support
+----------------
 
 The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
 
-The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3 on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019), Synapse Python client will requires Python 3.**
+The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3 on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019), Synapse Python client will require Python 3.**
 
 
 Connecting to Synapse
@@ -281,7 +281,7 @@ from .client import ROOT_ENTITY
 from .activity import Activity
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset
+from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, EntityViewType
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 

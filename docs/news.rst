@@ -3,11 +3,68 @@ Release Notes
 =============
 
 
+1.9.0 (2018-09-28)
+==================
+
+In version 1.9.0, we deprecated and removed `query()` and `chunkedQuery()`. These functions used the old query services which does not perform well. To query for entities filter by annotations, please use `EntityViewSchema`.
+
+We also deprecated the following functions and will remove them in Synapse Python client version 2.0.
+In the `Activity` object:
+
+* `usedEntity()`
+* `usedURL()`
+
+In the `Synapse` object:
+
+* `getEntity()`
+* `loadEntity()`
+* `createEntity()`
+* `updateEntity()`
+* `deleteEntity()`
+* `downloadEntity()`
+* `uploadFile()`
+* `uploadFileHandle()`
+* `uploadSynapseManagedFileHandle()`
+* `downloadTableFile()`
+
+Please see our documentation for more details on how to migrate your code away from these functions.
+
+Features
+--------
+
+* `SYNPY-806 <https://sagebionetworks.jira.com/browse/SYNPY-806>`_ - Support Folders and Tables in View
+
+Bug Fixes
+---------
+
+* `SYNPY-195 <https://sagebionetworks.jira.com/browse/SYNPY-195>`_ - Dangerous exception handling
+* `SYNPY-261 <https://sagebionetworks.jira.com/browse/SYNPY-261>`_ - error downloading data from synapse (python client)
+* `SYNPY-694 <https://sagebionetworks.jira.com/browse/SYNPY-694>`_ - Uninformative error in `copyWiki` function
+* `SYNPY-805 <https://sagebionetworks.jira.com/browse/SYNPY-805>`_ - Uninformative error when getting View that does not exist
+* `SYNPY-819 <https://sagebionetworks.jira.com/browse/SYNPY-819>`_ - command-line clients need to be updated to replace the EntityView 'viewType' with 'viewTypeMask'
+
+Tasks
+-----
+
+* `SYNPY-759 <https://sagebionetworks.jira.com/browse/SYNPY-759>`_ - Look for all functions that are documented as "Deprecated" and apply the deprecation syntax
+* `SYNPY-812 <https://sagebionetworks.jira.com/browse/SYNPY-812>`_ - Add Github issue template
+* `SYNPY-824 <https://sagebionetworks.jira.com/browse/SYNPY-824>`_ - Remove the deprecated function query() and chunkedQuery()
+
+Improvements
+------------
+
+* `SYNPY-583 <https://sagebionetworks.jira.com/browse/SYNPY-583>`_ - Better error message for create Link object
+* `SYNPY-810 <https://sagebionetworks.jira.com/browse/SYNPY-810>`_ - simplify docs for deleting rows
+* `SYNPY-814 <https://sagebionetworks.jira.com/browse/SYNPY-814>`_ - fix docs links in python client __init__.py
+* `SYNPY-822 <https://sagebionetworks.jira.com/browse/SYNPY-822>`_ - Switch to use news.rst instead of multiple release notes files
+* `SYNPY-823 <https://sagebionetworks.jira.com/browse/SYNPY-759>`_ - Pin keyring to version 12.0.2 to use SecretStorage 2.x
+
 
 1.8.2 (2018-08-17)
 ==================
 
 In this release, we have been performed some house-keeping on the code base. The two major changes are:
+
  * making `syn.move()` available to move an entity to a new parent in Synapse. For example::
 
     import synapseclient

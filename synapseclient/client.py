@@ -621,7 +621,7 @@ class Synapse(object):
                                             ' or a valid entity id' % entity))
         # have not been saved entities
         elif isinstance(entity, Entity) and not entity.get('id'):
-            raise ValueError("Cannot retrieve entity that has not been save."
+            raise ValueError("Cannot retrieve entity that has not been saved."
                              " Please use syn.store() to save your entity and try again.")
         else:
             version = kwargs.get('version', None)
