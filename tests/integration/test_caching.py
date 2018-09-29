@@ -190,9 +190,7 @@ def sleep_for_a_bit():
 
 def get_all_ids_from_Project():
     """Fetches all currently available Synapse IDs from the parent Project."""
-    
-    others = syn.chunkedQuery('select id from entity where parentId=="%s"' % syn.test_parent.id)
-    return [result['entity.id'] for result in others]
+    return [result['id'] for result in syn.getChildren(syn.test_parent.id)]
     
 
 def store_catch_412_HTTPError(entity):

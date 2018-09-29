@@ -52,6 +52,7 @@ def _read_session_cache(filepath):
         if isinstance(result, dict):
             return result
     except:
+        # If we cannot parse the cache for any reason, treat it as if the cache is empty
         pass
     return {}
 

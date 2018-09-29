@@ -7,26 +7,23 @@ from __future__ import unicode_literals
 from backports import csv
 import io
 import filecmp
-import math
 import os
 import random
-import sys
 import tempfile
 import time
 import uuid
 import six
 from builtins import zip
-from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true, assert_is_not_none
 from pandas.util.testing import assert_frame_equal
 from datetime import datetime
 from mock import patch
-from collections import namedtuple
 
 import synapseclient
 from synapseclient.exceptions import *
 from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.utils import id_of
-from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset
+from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, EntityViewType
 
 import integration
 from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
@@ -60,7 +57,7 @@ def test_create_and_update_file_view():
     # Add new columns for the annotations on this file and get their IDs
     my_added_cols = [syn.store(synapseclient.Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
     my_added_cols_ids = [c['id'] for c in my_added_cols]
-    view_default_ids = [c['id'] for c in syn._get_default_entity_view_columns('file')]
+    view_default_ids = [c['id'] for c in syn._get_default_entity_view_columns(EntityViewType.FILE.value)]
     col_ids = my_added_cols_ids + view_default_ids
     scopeIds = [folder['id'].lstrip('syn')]
 
@@ -74,7 +71,7 @@ def test_create_and_update_file_view():
 
     assert_equals(set(scopeIds), set(entity_view.scopeIds))
     assert_equals(set(col_ids), set(entity_view.columnIds))
-    assert_equals('file', entity_view.type)
+    assert_equals(EntityViewType.FILE.value, entity_view.viewTypeMask)
 
     # get the current view-schema
     view = syn.tableQuery("select * from %s" % entity_view.id)
@@ -137,8 +134,20 @@ def test_entity_view_add_annotation_columns():
     schedule_for_cleanup(folder2)
     scopeIds = [utils.id_of(folder1), utils.id_of(folder2)]
 
+    # This test is to ensure that user code which use the deprecated field `type` continue to work
+    # TODO: remove this test case in Synapse Python client 2.0
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False,
                                    addAnnotationColumns=True, type='project', parent=project)
+    syn.store(entity_view)
+    # This test is to ensure that user code which use the deprecated field `type` continue to work
+    # TODO: remove this test case in Synapse Python client 2.0
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False,
+                                   addAnnotationColumns=True, type='file', includeEntityTypes=[EntityViewType.PROJECT],
+                                   parent=project)
+    syn.store(entity_view)
+
+    entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False,
+                                   addAnnotationColumns=True, includeEntityTypes=[EntityViewType.PROJECT], parent=project)
     syn.store(entity_view)
 
 
@@ -406,7 +415,7 @@ class TestPartialRowSet(object):
         cls = type(self)
         self._test_method(cls.table_schema, "rowset", cls.table_changes, cls.expected_table_cells)
 
-    def test_parital_row_rowset_query_entity_veiw(self):
+    def test_parital_row_rowset_query_entity_view(self):
         """
         Test PartialRow updates to entity views from rowset queries
         """
@@ -416,10 +425,11 @@ class TestPartialRowSet(object):
     def _test_method(self, schema, resultsAs, partial_changes, expected_results):
         # anything starting with "test" will be considered a test case by nosetests so I had to append '_' to it
 
-        import pandas as pd
-        query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
-        assert_equals(len(query_results), 2)
-
+        query_results = self._query_with_retry("SELECT * FROM %s" % utils.id_of(schema),
+                                               resultsAs,
+                                               2,
+                                               QUERY_TIMEOUT_SEC)
+        assert_is_not_none(query_results)
         df = query_results.asDataFrame(rowIdAndVersionInIndex=False)
 
         partial_changes = {df['ROW_ID'][i]: row_changes for i, row_changes in enumerate(partial_changes)}
@@ -427,25 +437,23 @@ class TestPartialRowSet(object):
         partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
         syn.store(partial_rowset)
 
-        df2 = None
+        query_results = self._query_with_retry("SELECT * FROM %s" % utils.id_of(schema),
+                                               resultsAs,
+                                               2,
+                                               QUERY_TIMEOUT_SEC)
+        assert_is_not_none(query_results)
+        df2 = query_results.asDataFrame()
+        # remove the column index which cannot be set to expected_results
+        df2 = df2.reset_index(drop=True)
+        assert_frame_equal(df2, expected_results, check_like=True, check_dtype=False)
+
+    def _query_with_retry(self, query, resultsAs, expected_result_len, timeout):
         start_time = time.time()
-        while not (self._rows_match(df2, expected_results)):
-            assert_less(time.time() - start_time, QUERY_TIMEOUT_SEC)
-            query_results = syn.tableQuery("SELECT * FROM %s" % utils.id_of(schema), resultsAs=resultsAs)
-            assert_equals(len(query_results), 2)
-            df2 = query_results.asDataFrame()
-            df2 = df2.where((pd.notnull(df2)), None)
-
-    def _rows_match(self, df2, expected_results):
-        if df2 is None:
-            return False
-
-        for expected_row, df_row in zip(expected_results, df2.iterrows()):
-            df_idx, actual_row = df_row
-            for expected_cell in expected_row:
-                if expected_cell.value != actual_row[expected_cell.col_index]:
-                    return False
-            return True
+        while time.time() - start_time < timeout:
+            query_results = syn.tableQuery(query, resultsAs=resultsAs)
+            if len(query_results) == expected_result_len:
+                return query_results
+        return None
 
     @classmethod
     def setup_class(cls):
@@ -455,13 +463,8 @@ class TestPartialRowSet(object):
         cls.table_changes = [{'foo': 4}, {'bar': 5}]
         cls.view_changes = [{'bar': 6}, {'foo': 7}]
 
-        # class used to in asserts for cell values
-        ExpectedTableCell = namedtuple('ExpectedTableCell', ['col_index', 'value'])
-
-        cls.expected_table_cells = [[ExpectedTableCell(0, 4)],
-                                    [ExpectedTableCell(1, 5)]]
-        cls.expected_view_cells = [[ExpectedTableCell(1, 6)],
-                                   [ExpectedTableCell(0, 7)]]
+        cls.expected_table_cells = pd.DataFrame({'foo': [4.0, float('NaN')], 'bar': [float('NaN'), 5.0]})
+        cls.expected_view_cells = pd.DataFrame({'foo': [float('NaN'), 7.0], 'bar': [6.0, float('NaN')]})
 
     @classmethod
     def _table_setup(cls):

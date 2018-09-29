@@ -507,3 +507,30 @@ def test_setPermissions__default_permissions():
          patch.object(syn, "_storeACL", return_value=update_acl) as patch_store_acl:
         assert_equal(update_acl, syn.setPermissions(entity, principalId))
         patch_store_acl.assert_called_once_with(entity, update_acl)
+
+
+def test_get_unsaved_entity():
+    assert_raises(ValueError, syn.get, Folder(name="folder", parent="syn456"))
+
+
+def test_get_default_view_columns():
+    mask = 5
+    with patch.object(syn, "restGET") as mock_restGET:
+        syn._get_default_entity_view_columns(mask)
+        mock_restGET.assert_called_with("/column/tableview/defaults?viewTypeMask=5")
+
+
+def test_get_annotation_entity_view_columns():
+    scope_ids = 3
+    mask = 5
+    view_scope = {'scope': scope_ids,
+                  'viewTypeMask': mask}
+    page1 = {'results': [],
+             'nextPageToken': 'a'}
+    page2 = {'results': [],
+             'nextPageToken': None}
+    call_list = [call('/column/view/scope', json.dumps(view_scope), params={}),
+                 call('/column/view/scope', json.dumps(view_scope), params={'nextPageToken': 'a'})]
+    with patch.object(syn, "restPOST", side_effect=[page1, page2]) as mock_restPOST:
+        syn._get_annotation_entity_view_columns(scope_ids, mask)
+        mock_restPOST.assert_has_calls(call_list)

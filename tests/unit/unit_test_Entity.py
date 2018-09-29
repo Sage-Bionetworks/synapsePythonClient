@@ -3,9 +3,12 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import collections
-from synapseclient.entity import Entity, Project, Folder, File, DockerRepository, split_entity_namespaces, is_container
+from synapseclient.entity import Entity, Project, Folder, File, Link, DockerRepository, split_entity_namespaces,\
+    is_container, is_versionable
 from synapseclient.exceptions import *
 from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises, assert_in, assert_is_instance
+from mock import patch
+import synapseclient
 
 
 def test_Entity():
@@ -303,3 +306,43 @@ def test_File_update_file_handle__External_non_sftp():
     f._update_file_handle(external_file_handle)
     assert_false(f.synapseStore)
 
+
+def test_is_versionable_non_entity():
+    assert_raises(ValueError, is_versionable, dict())
+
+
+def test_is_versionable_dict_representation_of_entity():
+    assert_false(is_versionable({
+        "id": "syn123456",
+        "concreteType": "org.sagebionetworks.repo.model.Folder",
+        "parentId": "syn445566",
+        "name": "Testing123"
+    }))
+
+
+def test_create_Link_to_entity_with_the_same_parent():
+    parent = "syn123"
+    file = File("new file", parent=parent, id="syn456")
+    file_bundle = {
+        'accessControlList': '/repo/v1/entity/syn456/acl',
+        'entityType': 'org.sagebionetworks.repo.model.FileEntity',
+        'annotations': '/repo/v1/entity/syn456/annotations',
+        'uri': '/repo/v1/entity/syn456',
+        'createdOn': '2018-08-27T20:48:43.562Z',
+        'parentId': 'syn123',
+        'versionNumber': 1,
+        'dataFileHandleId': '3594',
+        'modifiedOn': '2018-08-27T20:48:44.938Z',
+        'versionLabel': '1',
+        'createdBy': '1',
+        'versions': '/repo/v1/entity/syn456/version',
+        'name': 'new file',
+        'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+        'etag': '62fd1a76-ed9c-425a-b4a8-1c4e6aad7fc6',
+        'modifiedBy': '1',
+        'id': 'syn456',
+        'versionUrl': '/repo/v1/entity/syn456/version/1'}
+    link = Link(targetId=file, parent=parent)
+    syn = synapseclient.Synapse()
+    with patch.object(syn, "_getEntity", return_value=file_bundle):
+        assert_raises(ValueError, syn.store, link)

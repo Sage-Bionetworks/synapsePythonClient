@@ -8,7 +8,6 @@ import os
 
 import unit
 from mock import patch, create_autospec, Mock, call
-from nose import SkipTest
 from nose.tools import assert_dict_equal, assert_raises, assert_equals, assert_list_equal
 from builtins import str
 

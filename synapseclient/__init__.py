@@ -12,21 +12,14 @@ for reproducible data intensive research projects, providing support for:
 
 The ``synapseclient`` package lets you communicate with the cloud-hosted Synapse service to access data and create
 shared data analysis projects from within Python scripts or at the interactive Python console. Other Synapse clients
-exist for `R <https://www.synapse.org/#!Synapse:syn1834618>`_,
+exist for `R <https://r-docs.synapse.org/>`_,
 `Java <https://github.com/Sage-Bionetworks/Synapse-Repository-Services/tree/develop/client/synapseJavaClient>`_, and
 the `web <https://www.synapse.org/>`_. The Python client can also be used from the
 `command line <CommandLineClient.html>`_.
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for
-`Synapse <http://docs.synapse.org/articles/getting_started.html>`_ and
-`the Python client <http://docs.synapse.org/python/>`_.
-
-Good example projects are:
-
-- `TCGA Pan-cancer (syn300013) <https://www.synapse.org/#!Synapse:syn300013>`_
-- `Development of a Prognostic Model for Breast Cancer Survival in an Open Challenge Environment (syn1721874) \
- <https://www.synapse.org/#!Synapse:syn1721874>`_
-- `Demo projects (syn1899339) <https://www.synapse.org/#!Synapse:syn1899339>`_
+`Synapse <https://docs.synapse.org/articles/getting_started.html>`_ and
+`the Python client <https://python-docs.synapse.org/>`_.
 
 Installation
 ============
@@ -34,7 +27,7 @@ Installation
 The `synapseclient <https://pypi.python.org/pypi/synapseclient/>`_ package is available from PyPI. It can be installed
 or upgraded with pip::
 
-    (sudo) pip install (--upgrade) synapseclient[pandas,pysftp]
+    (sudo) pip install (--upgrade) synapseclient[pandas, pysftp]
 
 The dependencies on pandas and pysftp are optional. The Synapse :py:mod:`synapseclient.table` feature integrates with
 Pandas. Support for sftp is required for users of SFTP file storage. Both require native libraries to be compiled or
@@ -58,10 +51,18 @@ Next, either install the package in the site-packages directory ``python setup.p
     python setup.py <install or develop>
 
 
+Python 2 Support
+----------------
+
+The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
+
+The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3 on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019), Synapse Python client will require Python 3.**
+
+
 Connecting to Synapse
 =====================
 
-To use Synapse, you'll need to `register <https://www.synapse.org/#!RegisterAccount:0>`_ for an account. The Synapse
+To use Synapse, you'll need to `register <https://www.synapse.org/register>`_ for an account. The Synapse
 website can authenticate using a Google account, but you'll need to take the extra step of creating a Synapse password
 to use the programmatic clients.
 
@@ -70,7 +71,7 @@ Once that's done, you'll be able to load the library, create a :py:class:`Synaps
     import synapseclient
     syn = synapseclient.Synapse()
 
-    syn.login('me@nowhere.com', 'secret')
+    syn.login('my_username', 'my_password')
 
 For more information, see:
 
@@ -120,7 +121,7 @@ View the entity in the browser::
 - :py:func:`synapseclient.Synapse.onweb`
 
 
-Organizing data in a Project
+Organizing Data in a Project
 ============================
 
 You can create your own projects and upload your own data sets. Synapse stores entities in a hierarchical or tree
@@ -155,7 +156,7 @@ See also:
 - :py:class:`synapseclient.entity.Link`
 - :py:func:`synapseclient.Synapse.store`
 
-Annotating Synapse entities
+Annotating Synapse Entities
 ===========================
 
 Annotations are arbitrary metadata attached to Synapse entities, for example::
@@ -215,31 +216,7 @@ See:
 - :py:func:`synapseclient.Synapse.getSubmission`
 - :py:func:`synapseclient.Synapse.getSubmissionStatus`
 
-Querying
-========
-
-Synapse supports a `SQL-like query language \
- <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_::
-
-    results = syn.query('SELECT id, name FROM entity WHERE parentId=="syn1899495"')
-
-    for result in results['results']:
-        print(result['entity.id'], result['entity.name'])
-
-Querying for my projects. Finding projects owned by the current user::
-
-    profile = syn.getUserProfile()
-    results = syn.query('SELECT id, name FROM project WHERE project.createdByPrincipalId==%s' % profile['ownerId'])
-
-    for result in results['results']:
-        print(result['project.id'], result['project.name'])
-
-See:
-
-- :py:func:`synapseclient.Synapse.query`
-- :py:func:`synapseclient.Synapse.chunkedQuery`
-
-Access control
+Access Control
 ==============
 
 By default, data sets in Synapse are private to your user account, but they can easily be shared with specific users,
@@ -250,11 +227,11 @@ See:
 - :py:func:`Synapse.getPermissions`
 - :py:func:`Synapse.setPermissions`
 
-Accessing the API directly
+Accessing the API Directly
 ==========================
 
 These methods enable access to the Synapse REST(ish) API taking care of details like endpoints and authentication.
-See the `REST API documentation <http://docs.synapse.org/rest/>`_.
+See the `REST API documentation <https://docs.synapse.org/rest/>`_.
 
 See:
 
@@ -264,8 +241,8 @@ See:
 - :py:func:`synapseclient.Synapse.restDELETE`
 
 
-Synapse utilities
-================
+Synapse Utilities
+=================
 
 There is a companion module called synapseutils that provide higher level functionality such as recursive copying of
 content, syncing with Synapse and additional query functionality.
@@ -274,18 +251,18 @@ See:
 - :py:mod:`synapseutils`
 
 
-More information
+More Information
 ================
 
-For more information see the `Synapse User Guide <http://docs.synapse.org/articles/>`_. These API docs are browsable
-online at `http://docs.synapse.org/python/ <http://docs.synapse.org/python/>`_.
+For more information see the `Synapse User Guide <https://docs.synapse.org/articles/>`_. These Python API docs are browsable
+online at `https://python-docs.synapse.org/ <https://python-docs.synapse.org/>`_.
 
-Getting updates
+Getting Updates
 ===============
 
-To get information about new versions of the client including development versions see
-`synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_ and
-`synapseclient.release_notes() <Versions.html#synapseclient.version_check.release_notes>`_.
+To get information about new versions of the client, see:
+`synapseclient.check_for_updates() <Versions.html#synapseclient.version_check.check_for_updates>`_.
+
 
 """
 
@@ -304,7 +281,7 @@ from .client import ROOT_ENTITY
 from .activity import Activity
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset
+from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, EntityViewType
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
