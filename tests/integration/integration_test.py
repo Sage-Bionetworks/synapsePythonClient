@@ -84,8 +84,7 @@ def test_login():
             syn.login(silent=True)
 
     except configparser.Error:
-        raise SkipTest("To fully test the login method,"
-                       " please supply a username and password in the configuration file")
+        raise ValueError("Please supply a username and password in the configuration file.")
 
     finally:
         # Login with config file
@@ -109,7 +108,7 @@ def testCustomConfigFile():
         syn2 = synapseclient.Synapse(configPath=configPath)
         syn2.login()
     else:
-        raise SkipTest("To fully test the login method a configuration file is required")
+        raise ValueError("Please supply a username and password in the configuration file.")
 
 
 def test_entity_version():
@@ -345,10 +344,9 @@ def test_annotations():
 def test_get_user_profile():
     p1 = syn.getUserProfile()
 
-    # skip this test. See SYNPY-685
     # get by name
-    # p2 = syn.getUserProfile(p1.userName)
-    # assert_equals(p2.userName, p1.userName)
+    p2 = syn.getUserProfile(p1.userName)
+    assert_equals(p2.userName, p1.userName)
 
     # get by user ID
     p2 = syn.getUserProfile(p1.ownerId)
