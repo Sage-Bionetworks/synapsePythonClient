@@ -74,7 +74,7 @@ script:
 - nosetests -s tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
-    nosetests -s tests/integration
+    nosetests -s -v tests/integration
   else
     echo "Skipping integration tests";
   fi
