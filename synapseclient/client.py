@@ -1168,13 +1168,14 @@ class Synapse(object):
         """
         to_process = self.getChildren(parent=parent)
         if not recursive:
-            return set(to_process)
-        results = set()
+            return to_process
+        results = list()
         i = 0
         while i < len(to_process):
             if is_container(to_process[i]):
                 to_process.extend(self.getChildren(parent=to_process[i]))
-            results.add(to_process[i])
+            results.append(to_process[i])
+            i += 1
         return results
 
 

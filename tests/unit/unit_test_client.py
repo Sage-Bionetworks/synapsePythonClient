@@ -340,20 +340,20 @@ def test_getChildren__nextPageToken():
     # setup
     nextPageToken = "T O K E N"
     parent_project_id_int = 42690
-    first_page = {'versionLabel': '1',
+    first_page_child = {'versionLabel': '1',
                   'name': 'firstPageResult',
                   'versionNumber': 1,
                   'benefactorId': parent_project_id_int,
                   'type': 'org.sagebionetworks.repo.model.FileEntity',
                   'id': 'syn123'}
-    second_page = {'versionLabel': '1',
+    second_page_child = {'versionLabel': '1',
                    'name': 'secondPageResult',
                    'versionNumber': 1,
                    'benefactorId': parent_project_id_int,
                    'type': 'org.sagebionetworks.repo.model.Folder',
                    'id': 'syn456'}
-    mock_responses = [{'page': [first_page], 'nextPageToken': nextPageToken},
-                      {'page': [second_page], 'nextPageToken': None}]
+    mock_responses = [{'page': [first_page_child], 'nextPageToken': nextPageToken},
+                      {'page': [second_page_child], 'nextPageToken': None}]
 
     with patch.object(syn, "restPOST", side_effect=mock_responses) as mocked_POST:
         # method under test
@@ -361,9 +361,9 @@ def test_getChildren__nextPageToken():
 
         # assert check the results of the generator
         result = next(children_generator)
-        assert_equal(first_page, result)
+        assert_equal(first_page_child, result)
         result = next(children_generator)
-        assert_equal(second_page, result)
+        assert_equal(second_page_child, result)
         assert_raises(StopIteration, next, children_generator)
 
         # check that the correct POST requests were sent
@@ -534,3 +534,108 @@ def test_get_annotation_entity_view_columns():
     with patch.object(syn, "restPOST", side_effect=[page1, page2]) as mock_restPOST:
         syn._get_annotation_entity_view_columns(scope_ids, mask)
         mock_restPOST.assert_has_calls(call_list)
+
+
+def test__list_no_grand_children():
+    parent = "syn1"
+    child = {
+                'versionLabel': '1',
+                'name': 'firstPageResult',
+                'versionNumber': 1,
+                'benefactorId': parent,
+                'type': 'org.sagebionetworks.repo.model.FileEntity',
+                'id': 'syn123'
+    }
+    with patch.object(syn, "getChildren", return_value=list(child)) as mock_getChildren:
+        assert_equal(list(child), syn._list(parent))
+        mock_getChildren.assert_called_once_with(parent=parent)
+
+def test__list_non_recursive():
+    parent = "syn1"
+    folder = {
+        'versionLabel': '1',
+        'name': 'folder',
+        'versionNumber': 1,
+        'benefactorId': parent,
+        'type': 'org.sagebionetworks.repo.model.Folder',
+        'id': 'syn456'
+    }
+    children = [
+        {
+            'versionLabel': '1',
+            'name': 'child',
+            'versionNumber': 1,
+            'benefactorId': parent,
+            'type': 'org.sagebionetworks.repo.model.FileEntity',
+            'id': 'syn123'
+        },
+        folder
+    ]
+    grandchildren = [
+        {
+            'versionLabel': '1',
+            'name': 'grandchild1',
+            'versionNumber': 1,
+            'benefactorId': parent,
+            'type': 'org.sagebionetworks.repo.model.FileEntity',
+            'id': 'syn789'
+        },
+        {
+            'versionLabel': '1',
+            'name': 'grandchild2',
+            'versionNumber': 1,
+            'benefactorId': parent,
+            'type': 'org.sagebionetworks.repo.model.FileEntity',
+            'id': 'syn987'
+        }
+    ]
+    with patch.object(syn, "getChildren", side_effect=[children, grandchildren]) as mock_getChildren:
+        assert_equal(children, syn._list(parent))
+        mock_getChildren.assert_called_once_with(parent=parent)
+
+
+def test__list_recursive():
+    parent = "syn1"
+    folder = {
+            'versionLabel': '1',
+            'name': 'folder',
+            'versionNumber': 1,
+            'benefactorId': parent,
+            'type': 'org.sagebionetworks.repo.model.Folder',
+            'id': 'syn456'
+        }
+    children = [
+        {
+            'versionLabel': '1',
+            'name': 'child',
+            'versionNumber': 1,
+            'benefactorId': parent,
+            'type': 'org.sagebionetworks.repo.model.FileEntity',
+            'id': 'syn123'
+        },
+        folder
+    ]
+    grandchildren = [
+        {
+            'versionLabel': '1',
+            'name': 'grandchild1',
+            'versionNumber': 1,
+            'benefactorId': parent,
+            'type': 'org.sagebionetworks.repo.model.FileEntity',
+            'id': 'syn789'
+        },
+        {
+            'versionLabel': '1',
+            'name': 'grandchild2',
+            'versionNumber': 1,
+            'benefactorId': parent,
+            'type': 'org.sagebionetworks.repo.model.FileEntity',
+            'id': 'syn987'
+        }
+    ]
+    call_list = [call(parent=parent), call(parent=folder)]
+    expected = children + grandchildren
+    with patch.object(syn, "getChildren", side_effect=[children, grandchildren]) as mock_getChildren:
+        result = syn._list(parent, recursive=True)
+        assert_equal(expected, result)
+        mock_getChildren.assert_has_calls(call_list)
