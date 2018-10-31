@@ -98,30 +98,12 @@ def query(args, syn):
         for row in reader:
             sys.stdout.write("%s\n" % ("\t".join(row)))
     else:
-        # chunkedQuery will be removed in 1.9.0
-        sys.stderr.write('This query is deprecated. Query should only be used for table and view.'
-                         ' Please consider using the ls function.')
-        results = syn.__deprecated_chunkedQuery(' '.join(args.queryString))
-        headings = collections.OrderedDict()
-        temp = []  # Since query returns a generator, the results must be stored locally
-        for res in results:
-            temp.append(res)
-            for head in res:
-                headings[head] = True
-        if len(headings) == 0:  # No results found
-            return
-        sys.stdout.write('%s\n' % '\t'.join(headings))
-        for res in temp:
-            out = []
-            for key in headings:
-                out.append(str(res.get(key, "")))
-            sys.stdout.write('%s\n' % "\t".join(out))
+        sys.stderr.write('Input query cannot be parsed. Please see our documentation for writing Synapse query:'
+                         ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
 
 
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
-
-    ids = []
 
     if re.search('from syn\d', queryString.lower()):
         tbl = syn.tableQuery(queryString)
@@ -130,11 +112,10 @@ def _getIdsFromQuery(queryString, syn):
         assert check_for_id_col, ValueError("Query does not include the id column.")
 
         ids = [x['id'] for x in csv.DictReader(open(tbl.filepath))]
+        return ids
     else:
-        for item in syn.__deprecated_chunkedQuery(queryString):
-            key = [k for k in item.keys() if k.split('.', 1)[1] == 'id'][0]
-            ids.append(item[key])
-    return ids
+        sys.stderr.write('Input query cannot be parsed. Please see our documentation for writing Synapse query:'
+                         ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
 
 
 def get(args, syn):
@@ -286,8 +267,50 @@ def cat(args, syn):
 
 def ls(args, syn):
     """List entities in a Project or Folder"""
-    syn._list(args.id, recursive=args.recursive, long_format=args.long, show_modified=args.modified)
+    container_id = args.id
+    recursive = args.recursive
+    indentation = 0
+    long_format = args.long_format
+    show_modified = args.show_modified
+    children = syn._list(container_id, recursive=recursive)
 
+    fields = ['id', 'name', 'nodeType']
+    if long_format:
+        fields.extend(['createdByPrincipalId', 'createdOn', 'versionNumber'])
+    if show_modified:
+        fields.extend(['modifiedByPrincipalId', 'modifiedOn'])
+    results_found = False
+    for child in children:
+        results_found = True
+
+        fmt_fields = {'name': child['entity.name'],
+                      'id': child['entity.id'],
+                      'padding': ' ' * indentation,
+                      'slash_or_not': '/' if syn.is_container(child) else ''}
+        fmt_string = "{id}"
+
+        if long_format:
+            fmt_fields['createdOn'] = utils.from_unix_epoch_time(child['entity.createdOn'])\
+                .strftime("%Y-%m-%d %H:%M")
+            fmt_fields['createdBy'] = syn._get_user_name(child['entity.createdByPrincipalId'])[:18]
+            fmt_fields['version'] = child['entity.versionNumber']
+            fmt_string += " {version:3}  {createdBy:>18} {createdOn}"
+        if show_modified:
+            fmt_fields['modifiedOn'] = utils.from_unix_epoch_time(child['entity.modifiedOn'])\
+                .strftime("%Y-%m-%d %H:%M")
+            fmt_fields['modifiedBy'] = syn._get_user_name(child['entity.modifiedByPrincipalId'])[:18]
+            fmt_string += "  {modifiedBy:>18} {modifiedOn}"
+
+        fmt_string += "  {padding}{name}{slash_or_not}\n"
+        sys.stdout.write(fmt_string.format(**fmt_fields))
+
+        if (indentation == 0 or recursive) and syn.is_container(child):
+            syn._list(child['entity.id'], recursive=recursive, long_format=long_format,
+                       show_modified=show_modified, indent=indentation+2, out=sys.stdout)
+
+    if indentation == 0 and not results_found:
+        sys.stdout.write('No results visible to {username} found for id {id}\n'.format(
+            username=syn.credentials.username, id=syn.id_of(container_id)))
 
 def show(args, syn):
     """Show metadata for an entity."""

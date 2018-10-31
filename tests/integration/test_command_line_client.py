@@ -553,7 +553,7 @@ def test_command_get_recursive_and_query():
     syn.store(synapseclient.RowSet(schema=schema1,
                                    rows=[synapseclient.Row(r) for r in data1]))
 
-    time.sleep(3)  # get -q uses chunkedQuery which are eventually consistent
+    time.sleep(3)  # get -q are eventually consistent
     # Test Table/View query get
     output = run('synapse', '--skip-checks', 'get', '-q',
                  "select id from %s" % schema1.id)
