@@ -1171,38 +1171,35 @@ class Synapse(object):
             fields.extend(['createdByPrincipalId', 'createdOn', 'versionNumber'])
         if show_modified:
             fields.extend(['modifiedByPrincipalId', 'modifiedOn'])
-        # we will convert this to use the new service in SYNPY-473
-        query = 'select ' + ','.join(fields) + \
-                ' from entity where %s=="%s"' % ('id' if indent == 0 else 'parentId', id_of(parent))
-        results = self.__deprecated_chunkedQuery(query)
+        results = self.getChildren(parent)
 
         results_found = False
         for result in results:
             results_found = True
 
-            fmt_fields = {'name': result['entity.name'],
-                          'id': result['entity.id'],
+            fmt_fields = {'name': result['name'],
+                          'id': result['id'],
                           'padding': ' ' * indent,
                           'slash_or_not': '/' if is_container(result) else ''}
             fmt_string = "{id}"
 
             if long_format:
-                fmt_fields['createdOn'] = utils.from_unix_epoch_time(result['entity.createdOn'])\
+                fmt_fields['createdOn'] = utils.iso_to_datetime(result['createdOn'])\
                     .strftime("%Y-%m-%d %H:%M")
-                fmt_fields['createdBy'] = self._get_user_name(result['entity.createdByPrincipalId'])[:18]
-                fmt_fields['version'] = result['entity.versionNumber']
+                fmt_fields['createdBy'] = self._get_user_name(result['createdBy'])[:18]
+                fmt_fields['version'] = result['versionNumber']
                 fmt_string += " {version:3}  {createdBy:>18} {createdOn}"
             if show_modified:
-                fmt_fields['modifiedOn'] = utils.from_unix_epoch_time(result['entity.modifiedOn'])\
+                fmt_fields['modifiedOn'] = utils.iso_to_datetime(result['modifiedOn'])\
                     .strftime("%Y-%m-%d %H:%M")
-                fmt_fields['modifiedBy'] = self._get_user_name(result['entity.modifiedByPrincipalId'])[:18]
+                fmt_fields['modifiedBy'] = self._get_user_name(result['modifiedBy'])[:18]
                 fmt_string += "  {modifiedBy:>18} {modifiedOn}"
 
             fmt_string += "  {padding}{name}{slash_or_not}\n"
             out.write(fmt_string.format(**fmt_fields))
 
             if (indent == 0 or recursive) and is_container(result):
-                self._list(result['entity.id'], recursive=recursive, long_format=long_format,
+                self._list(result['id'], recursive=recursive, long_format=long_format,
                            show_modified=show_modified, indent=indent+2, out=out)
 
         if indent == 0 and not results_found:
