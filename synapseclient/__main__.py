@@ -98,30 +98,12 @@ def query(args, syn):
         for row in reader:
             sys.stdout.write("%s\n" % ("\t".join(row)))
     else:
-        # chunkedQuery will be removed in 1.9.0
-        sys.stderr.write('This query is deprecated. Query should only be used for table and view.'
-                         ' Please consider using the ls function.')
-        results = syn.__deprecated_chunkedQuery(' '.join(args.queryString))
-        headings = collections.OrderedDict()
-        temp = []  # Since query returns a generator, the results must be stored locally
-        for res in results:
-            temp.append(res)
-            for head in res:
-                headings[head] = True
-        if len(headings) == 0:  # No results found
-            return
-        sys.stdout.write('%s\n' % '\t'.join(headings))
-        for res in temp:
-            out = []
-            for key in headings:
-                out.append(str(res.get(key, "")))
-            sys.stdout.write('%s\n' % "\t".join(out))
+        sys.stderr.write('Input query cannot be parsed. Please see our documentation for writing Synapse query:'
+                         ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
 
 
 def _getIdsFromQuery(queryString, syn):
     """Helper function that extracts the ids out of returned query."""
-
-    ids = []
 
     if re.search('from syn\d', queryString.lower()):
         tbl = syn.tableQuery(queryString)
@@ -130,11 +112,11 @@ def _getIdsFromQuery(queryString, syn):
         assert check_for_id_col, ValueError("Query does not include the id column.")
 
         ids = [x['id'] for x in csv.DictReader(open(tbl.filepath))]
+        return ids
     else:
-        for item in syn.__deprecated_chunkedQuery(queryString):
-            key = [k for k in item.keys() if k.split('.', 1)[1] == 'id'][0]
-            ids.append(item[key])
-    return ids
+        sys.stderr.write('Input query cannot be parsed. Please see our documentation for writing Synapse query:'
+                         ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
+
 
 
 def get(args, syn):
