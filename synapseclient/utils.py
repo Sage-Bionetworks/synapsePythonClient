@@ -29,12 +29,15 @@ except ImportError:
     from urlparse import urlsplit
 
 try:
-    import urllib.request, urllib.error
+    import urllib.request
+    import urllib.error
 except ImportError:
     import urllib
 
-import os, sys
-import hashlib, re
+import os
+import sys
+import hashlib
+import re
 import cgi
 import errno
 import inspect
@@ -64,7 +67,8 @@ BUFFER_SIZE = 8*KB
 
 def md5_for_file(filename, block_size=2*MB):
     """
-    Calculates the MD5 of the given file.  See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
+    Calculates the MD5 of the given file.
+    See `source <http://stackoverflow.com/questions/1131220/get-md5-hash-of-a-files-without-open-it-in-python>`_.
 
     :param filename:   The file to read in
     :param block_size: How much of the file to read in at once (bytes).
@@ -73,13 +77,13 @@ def md5_for_file(filename, block_size=2*MB):
     """
 
     md5 = hashlib.md5()
-    with open(filename,'rb') as f:
+    with open(filename, 'rb') as f:
         while True:
             data = f.read(block_size)
             if not data:
                 break
             md5.update(data)
-    return(md5)
+    return md5
 
 
 def download_file(url, localFilepath=None):
@@ -120,8 +124,7 @@ def extract_filename(content_disposition_header, default_filename=None):
     """
     Extract a filename from an HTTP content-disposition header field.
 
-    See `this memo <http://tools.ietf.org/html/rfc6266>`_
-    and `this package <http://pypi.python.org/pypi/rfc6266>`_
+    See `this memo <http://tools.ietf.org/html/rfc6266>`_ and `this package <http://pypi.python.org/pypi/rfc6266>`_
     for cryptic details.
     """
 
@@ -151,22 +154,22 @@ def extract_user_name(profile):
 
 
 def _get_from_members_items_or_properties(obj, key):
+    if hasattr(obj, key):
+        return getattr(obj, key)
     try:
-        if hasattr(obj, key):
-            return getattr(obj, key)
         if hasattr(obj, 'properties') and key in obj.properties:
             return obj.properties[key]
-    except (KeyError, TypeError, AttributeError): pass
-    try:
         if key in obj:
             return obj[key]
-        elif 'properties' in obj and key in obj['properties']:
+        else:
             return obj['properties'][key]
-    except (KeyError, TypeError): pass
+    except (KeyError, TypeError):
+        # We cannot get the key from this obj. So this case will be treated as key not found.
+        pass
     return None
 
 
-## TODO: what does this do on an unsaved Synapse Entity object?
+# TODO: what does this do on an unsaved Synapse Entity object?
 def id_of(obj):
     """
     Try to figure out the Synapse ID of the given object.
@@ -180,7 +183,7 @@ def id_of(obj):
     if isinstance(obj, Number):
         return str(obj)
 
-    id_attr_names = ['id', 'ownerId', 'tableId'] #possible attribute names for a synapse Id
+    id_attr_names = ['id', 'ownerId', 'tableId']  # possible attribute names for a synapse Id
     for attribute_name in id_attr_names:
         syn_id = _get_from_members_items_or_properties(obj, attribute_name)
         if syn_id is not None:
@@ -192,12 +195,13 @@ def id_of(obj):
 def is_in_path(id, path):
     """Determines whether id is in the path as returned from /entity/{id}/path
 
-    :param id: synapse id string
-    :param path: object as returned from '/entity/{id}/path'
+    :param id:      synapse id string
+    :param path:    object as returned from '/entity/{id}/path'
 
     :returns: True or False
     """
     return id in [item['id'] for item in path['path']]
+
 
 def get_properties(entity):
     """Returns the dictionary of properties of the given Entity."""
@@ -210,13 +214,13 @@ def is_url(s):
     if isinstance(s, six.string_types):
         try:
             url_parts = urlsplit(s)
-            ## looks like a Windows drive letter?
-            if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
+            # looks like a Windows drive letter?
+            if len(url_parts.scheme) == 1 and url_parts.scheme.isalpha():
                 return False
             if url_parts.scheme == 'file' and bool(url_parts.path):
                 return True
             return bool(url_parts.scheme) and bool(url_parts.netloc)
-        except Exception as e:
+        except Exception:
             return False
     return False
 
@@ -224,9 +228,9 @@ def is_url(s):
 def as_url(s):
     """Tries to convert the input into a proper URL."""
     url_parts = urlsplit(s)
-    ## Windows drive letter?
-    if len(url_parts.scheme)==1 and url_parts.scheme.isalpha():
-        return 'file:///%s' % str(s).replace("\\","/")
+    # Windows drive letter?
+    if len(url_parts.scheme) == 1 and url_parts.scheme.isalpha():
+        return 'file:///%s' % str(s).replace("\\", "/")
     if url_parts.scheme:
         return url_parts.geturl()
     else:
@@ -266,19 +270,19 @@ def file_url_to_path(url, verify_exists=False):
     """
     Convert a file URL to a path, handling some odd cases around Windows paths.
 
-    :param url: a file URL
-    :param verify_exists: If true, return an populated dict only if the
-                          resulting file path exists on the local file system.
+    :param url:             a file URL
+    :param verify_exists:   If true, return an populated dict only if the resulting file path exists on the local file
+                            system.
 
     :returns: a path or None if the URL is not a file URL.
     """
     parts = urlsplit(url)
-    if parts.scheme=='file' or parts.scheme=='':
+    if parts.scheme == 'file' or parts.scheme == '':
         path = parts.path
-        ## A windows file URL, for example file:///c:/WINDOWS/asdf.txt
-        ## will get back a path of: /c:/WINDOWS/asdf.txt, which we need to fix by
-        ## lopping off the leading slash character. Apparently, the Python developers
-        ## think this is not a bug: http://bugs.python.org/issue7965
+        # A windows file URL, for example file:///c:/WINDOWS/asdf.txt
+        # will get back a path of: /c:/WINDOWS/asdf.txt, which we need to fix by
+        # lopping off the leading slash character. Apparently, the Python developers
+        # think this is not a bug: http://bugs.python.org/issue7965
         if re.match(r'\/[A-Za-z]:', path):
             path = path[1:]
         if os.path.exists(path) or not verify_exists:
@@ -296,8 +300,8 @@ def is_same_base_url(url1, url2):
     """
     url1 = urlsplit(url1)
     url2 = urlsplit(url2)
-    return (url1.scheme==url2.scheme and
-            url1.hostname==url2.hostname)
+    return (url1.scheme == url2.scheme and
+            url1.hostname == url2.hostname)
 
 
 def is_synapse_id(obj):
@@ -311,7 +315,7 @@ def is_synapse_id(obj):
 
 def _is_date(dt):
     """Objects of class datetime.date and datetime.datetime will be recognized as dates"""
-    return isinstance(dt,Date) or isinstance(dt,Datetime)
+    return isinstance(dt, Date) or isinstance(dt, Datetime)
 
 
 def _to_list(value):
@@ -324,17 +328,14 @@ def _to_list(value):
 
 def _to_iterable(value):
     """Convert the value (an iterable or a scalar value) to an iterable."""
-    if isinstance(value, six.string_types):
-        return (value,)
     if isinstance(value, collections.Iterable):
         return value
-    return (value,)
+    return value,
 
 
 def make_bogus_data_file(n=100, seed=None):
     """
-    Makes a bogus data file for testing.
-    It is the caller's responsibility to clean up the file when finished.
+    Makes a bogus data file for testing. It is the caller's responsibility to clean up the file when finished.
 
     :param n:    How many random floating point numbers to be written into the file, separated by commas
     :param seed: Random seed for the random numbers
@@ -358,8 +359,7 @@ def make_bogus_data_file(n=100, seed=None):
 
 def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
     """
-    Makes a bogus binary data file for testing.
-    It is the caller's responsibility to clean up the file when finished.
+    Makes a bogus binary data file for testing. It is the caller's responsibility to clean up the file when finished.
 
     :param n:       How many bytes to write
 
@@ -383,8 +383,8 @@ def make_bogus_binary_file(n=1*MB, filepath=None, printprogress=False):
 
 def to_unix_epoch_time(dt):
     """
-    Convert either `datetime.date or datetime.datetime objects
-    <http://docs.python.org/2/library/datetime.html>`_ to UNIX time.
+    Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
+    to UNIX time.
     """
 
     if type(dt) == Date:
@@ -394,8 +394,8 @@ def to_unix_epoch_time(dt):
 
 def to_unix_epoch_time_secs(dt):
     """
-    Convert either `datetime.date or datetime.datetime objects 
-    <http://docs.python.org/2/library/datetime.html>`_ to UNIX time.
+    Convert either `datetime.date or datetime.datetime objects <http://docs.python.org/2/library/datetime.html>`_
+    to UNIX time.
     """
 
     if type(dt) == Date:
@@ -411,9 +411,9 @@ def from_unix_epoch_time_secs(secs):
     # utcfromtimestamp() fails for negative values (dates before 1970-1-1) on Windows
     # so, here's a hack that enables ancient events, such as Chris's birthday to be
     # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!
-    if platform.system()=='Windows' and secs < 0:
+    if platform.system() == 'Windows' and secs < 0:
         mirror_date = Datetime.utcfromtimestamp(abs(secs))
-        return (UNIX_EPOCH - (mirror_date-UNIX_EPOCH))
+        return UNIX_EPOCH - (mirror_date - UNIX_EPOCH)
     return Datetime.utcfromtimestamp(secs)
 
 
@@ -426,10 +426,11 @@ def from_unix_epoch_time(ms):
 
 
 def datetime_to_iso(dt, sep="T"):
-    ## Round microseconds to milliseconds (as expected by older clients)
-    ## and add back the "Z" at the end.
-    ## see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
-    fmt = "{time.year:04}-{time.month:02}-{time.day:02}{sep}{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
+    # Round microseconds to milliseconds (as expected by older clients)
+    # and add back the "Z" at the end.
+    # see: http://stackoverflow.com/questions/30266188/how-to-convert-date-string-to-iso8601-standard
+    fmt = "{time.year:04}-{time.month:02}-{time.day:02}" \
+          "{sep}{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
     if dt.microsecond >= 999500:
         dt -= timedelta(microseconds=dt.microsecond)
         dt += timedelta(seconds=1)
@@ -451,11 +452,11 @@ def format_time_interval(seconds):
         ('minute',      60),
         ('second',      1),)
 
-    result=[]
-    for period_name,period_seconds in periods:
-        if seconds > period_seconds or period_name=='second':
+    result = []
+    for period_name, period_seconds in periods:
+        if seconds > period_seconds or period_name == 'second':
             period_value, seconds = divmod(seconds, period_seconds)
-            if period_value > 0 or period_name=='second':
+            if period_value > 0 or period_name == 'second':
                 if period_value == 1:
                     result.append("%d %s" % (period_value, period_name))
                 else:
@@ -502,23 +503,23 @@ def itersubclasses(cls, _seen=None):
     if not isinstance(cls, type):
         raise TypeError('itersubclasses must be called with '
                         'new-style classes, not %.100r' % cls)
-    if _seen is None: _seen = set()
+    if _seen is None:
+        _seen = set()
     try:
         subs = cls.__subclasses__()
-    except TypeError: # fails only when cls is type
+    except TypeError:  # fails only when cls is type
         subs = cls.__subclasses__(cls)
     for sub in subs:
         if sub not in _seen:
             _seen.add(sub)
             yield sub
-            for sub in itersubclasses(sub, _seen):
-                yield sub
+            for inner_sub in itersubclasses(sub, _seen):
+                yield inner_sub
 
 
 def normalize_whitespace(s):
     """
-    Strips the string and replace all whitespace sequences and other
-    non-printable characters with a single space.
+    Strips the string and replace all whitespace sequences and other non-printable characters with a single space.
     """
     assert isinstance(s, six.string_types)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
@@ -555,13 +556,13 @@ def _limit_and_offset(uri, limit=None, offset=None):
     else:
         query['offset'] = offset
 
-    ## in Python 2, urllib expects encoded byte-strings
+    # in Python 2, urllib expects encoded byte-strings
     if six.PY2:
         new_query = {}
-        for k,v in query.items():
-            if isinstance(v,list):
+        for k, v in query.items():
+            if isinstance(v, list):
                 v = [unicode(element).encode('utf-8') for element in v]
-            elif isinstance(v,str):
+            elif isinstance(v, str):
                 v = unicode(v).encode('utf-8')
             new_query[unicode(k).encode('utf-8')] = v
         query = new_query
@@ -580,9 +581,9 @@ def query_limit_and_offset(query, hard_limit=1000):
     """
     Extract limit and offset from the end of a query string.
 
-    :returns: A triple containing the query with limit and offset removed, the
-              limit at most equal to the hard_limit, and the offset which
-              defaults to 1
+    :returns:   A triple containing the query with limit and offset removed, the limit at most equal to the hard_limit,
+                and the offset which
+                defaults to 1
     """
     # Regex a lower-case string to simplify matching
     tempQueryStr = query.lower()
@@ -600,17 +601,16 @@ def query_limit_and_offset(query, hard_limit=1000):
     query = query[:len(tempQueryStr)].strip()
 
     # Continue querying until the entire query has been fetched (or crash out)
-    limit = min(options.get('limit',hard_limit), hard_limit)
-    offset = options.get('offset',1)
+    limit = min(options.get('limit', hard_limit), hard_limit)
+    offset = options.get('offset', 1)
 
     return query, limit, offset
 
 
 def _extract_synapse_id_from_query(query):
     """
-    An unfortunate hack to pull the synapse ID out of a table query of the
-    form "select column1, column2 from syn12345 where...." needed to build
-    URLs for table services.
+    An unfortunate hack to pull the synapse ID out of a table query of the form "select column1, column2 from syn12345
+    where...." needed to build URLs for table services.
     """
     m = re.search(r"from\s+(syn\d+)", query, re.IGNORECASE)
     if m:
@@ -619,7 +619,7 @@ def _extract_synapse_id_from_query(query):
         raise ValueError("Couldn't extract synapse ID from query: \"%s\"" % query)
 
 
-#Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
+# Derived from https://wiki.python.org/moin/PythonDecoratorLibrary#Memoize
 def memoize(obj):
     cache = obj._memoize_cache = {}
 
@@ -632,33 +632,36 @@ def memoize(obj):
         return cache[key]
     return memoizer
 
-def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='', isBytes=True, dt=None, previouslyTransferred = 0):
+
+def printTransferProgress(transferred, toBeTransferred, prefix='', postfix='', isBytes=True, dt=None,
+                          previouslyTransferred=0):
     """Prints a progress bar
 
-    :param transferred: a number of items/bytes completed
-    :param toBeTransferred: total number of items/bytes when completed
-    :param prefix: String printed before progress bar
-    :param prefix: String printed after progress bar
-    :param isBytes: A boolean indicating whether to convert bytes to kB, MB, GB etc.
-    :param dt: The time in seconds that has passed since transfer started is used to calculate rate.
-    :param previouslyTransferred: the number of bytes that were already transferred before this transfer began( e.g. someone ctrl+c'd out of an upload and restarted it later)
+    :param transferred:             a number of items/bytes completed
+    :param toBeTransferred:         total number of items/bytes when completed
+    :param prefix:                  String printed before progress bar
+    :param prefix:                  String printed after progress bar
+    :param isBytes:                 A boolean indicating whether to convert bytes to kB, MB, GB etc.
+    :param dt:                      The time in seconds that has passed since transfer started is used to calculate rate
+    :param previouslyTransferred:   the number of bytes that were already transferred before this transfer began
+                                    (e.g. someone ctrl+c'd out of an upload and restarted it later)
 
     """
     if not sys.stdout.isatty():
         return
-    barLength = 20 # Modify this to change the length of the progress bar
+    barLength = 20  # Modify this to change the length of the progress bar
     status = ''
     rate = ''
     if dt is not None and dt != 0:
         rate = (transferred - previouslyTransferred)/float(dt)
         rate = '(%s/s)' % humanizeBytes(rate) if isBytes else rate
-    if toBeTransferred<0:
+    if toBeTransferred < 0:
         defaultToBeTransferred = (barLength*1*MB)
         if transferred > defaultToBeTransferred:
             progress = float(transferred % defaultToBeTransferred) / defaultToBeTransferred
         else:
             progress = float(transferred) / defaultToBeTransferred
-    elif toBeTransferred==0:  #There is nothing to be transferred
+    elif toBeTransferred == 0:  # There is nothing to be transferred
         progress = 1
         status = "Done...\n"
     else:
@@ -668,17 +671,17 @@ def printTransferProgress(transferred, toBeTransferred, prefix = '', postfix='',
             status = "Done...\n"
     block = int(round(barLength*progress))
     nbytes = humanizeBytes(transferred) if isBytes else transferred
-    if toBeTransferred>0:
+    if toBeTransferred > 0:
         outOf = "/%s" % (humanizeBytes(toBeTransferred) if isBytes else toBeTransferred)
-        percentage = "%4.2f%%"%(progress*100)
+        percentage = "%4.2f%%" % (progress*100)
     else:
         outOf = ""
         percentage = ""
     text = "\r%s [%s]%s   %s%s %s %s %s    " % (prefix,
-                                                  "#"*block + "-"*(barLength-block),
-                                                  percentage, 
-                                                  nbytes, outOf, rate,
-                                                  postfix, status)
+                                                "#"*block + "-"*(barLength-block),
+                                                percentage,
+                                                nbytes, outOf, rate,
+                                                postfix, status)
     sys.stdout.write(text)
     sys.stdout.flush()
 
@@ -687,8 +690,8 @@ def humanizeBytes(bytes):
     bytes = float(bytes)
     units = ['bytes', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB']
     for i, unit in enumerate(units):
-        if bytes<1024:
-            return '%3.1f%s' %(bytes, units[i])
+        if bytes < 1024:
+            return '%3.1f%s' % (bytes, units[i])
         else:
             bytes /= 1024
     return 'Oops larger than Exabytes'
@@ -703,7 +706,7 @@ def touch(path, times=None):
         try:
             os.makedirs(basedir)
         except OSError as err:
-            ## alternate processes might be creating these at the same time
+            # alternate processes might be creating these at the same time
             if err.errno != errno.EEXIST:
                 raise
 
@@ -714,8 +717,8 @@ def touch(path, times=None):
 
 def _is_json(content_type):
     """detect if a content-type is JSON"""
-    ## The value of Content-Type defined here:
-    ## http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
+    # The value of Content-Type defined here:
+    # http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
     return content_type.lower().strip().startswith('application/json') if content_type else False
 
 
@@ -741,8 +744,8 @@ def unique_filename(path):
 
 @implements_iterator
 class threadsafe_iter:
-    """Takes an iterator/generator and makes it thread-safe by
-    serializing call to the `next` method of given iterator/generator.
+    """Takes an iterator/generator and makes it thread-safe by serializing call to the `next` method of given
+    iterator/generator.
     See: http://anandology.com/blog/using-iterators-and-generators/
     """
     def __init__(self, it):
@@ -756,6 +759,7 @@ class threadsafe_iter:
         with self.lock:
             return next(self.it)
 
+
 def threadsafe_generator(f):
     """A decorator that takes a generator function and makes it thread-safe.
     See: http://anandology.com/blog/using-iterators-and-generators/
@@ -768,8 +772,8 @@ def threadsafe_generator(f):
 def extract_prefix(keys):
     """
     Takes a list of strings and extracts a common prefix delimited by a dot,
-    for example:
-    >>> extract_prefix(["entity.bang", "entity.bar", "entity.bat"])
+    for example::
+        extract_prefix(["entity.bang", "entity.bar", "entity.bat"])
     entity.
     """
     prefixes = set()
@@ -785,25 +789,25 @@ def extract_prefix(keys):
 
 
 def temp_download_filename(destination, file_handle_id):
-    suffix = "synapse_download_" + (str(file_handle_id) \
-                                    if file_handle_id else \
-                                    str(uuid.uuid4()))
+    suffix = "synapse_download_" + (str(file_handle_id)
+                                    if file_handle_id
+                                    else str(uuid.uuid4()))
     return os.path.join(destination, suffix) \
-            if os.path.isdir(destination) else \
-            destination + '.' + suffix
+        if os.path.isdir(destination) \
+        else destination + '.' + suffix
 
 
 def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
     """
     Extracts a specified file in a zip to the specified directory
-    :param zip_file: an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
-    :param zip_entry_name: the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
-    :param target_dir: the directory to which the file will be extracted
+    :param zip_file:        an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
+    :param zip_entry_name:  the name of the file to be extracted from the zip e.g. folderInsideZipIfAny/fileName.txt
+    :param target_dir:      the directory to which the file will be extracted
 
     :return: full path to the extracted file
     """
-    file_base_name = os.path.basename(zip_entry_name) # base name of the file
-    filepath = os.path.join(target_dir, file_base_name) # file path to the cached file to write
+    file_base_name = os.path.basename(zip_entry_name)  # base name of the file
+    filepath = os.path.join(target_dir, file_base_name)  # file path to the cached file to write
 
     # Create the cache directory if it does not exist
     if not os.path.exists(target_dir):
@@ -824,7 +828,7 @@ def _is_integer(x):
             int(x)
             return True
         except (ValueError, TypeError):
-            ## anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
+            # anything that's not an integer, for example: empty string, None, 'NaN' or float('Nan')
             return False
 
 
@@ -871,24 +875,27 @@ def topolgical_sort(graph):
             # weren't able to resolve any of them, which means there
             # are nodes with cyclic edges that will never be resolved,
             # so we bail out with an error.
-            raise RuntimeError("A cyclic dependency occurred. Some files in provenance reference each other circularly.")
+            raise RuntimeError("A cyclic dependency occurred."
+                               " Some files in provenance reference each other circularly.")
     return graph_sorted
 
 
 def caller_module_name(current_frame):
     """
     :param current_frame: use inspect.currentframe().
-    :return: the name of the module calling the function, foo(), in which this calling_module() is invoked. Ignores callers that belong in the same module as foo()
+    :return: the name of the module calling the function, foo(), in which this calling_module() is invoked.
+     Ignores callers that belong in the same module as foo()
     """
 
-    current_frame_filename = current_frame.f_code.co_filename #filename in which foo() resides
+    current_frame_filename = current_frame.f_code.co_filename  # filename in which foo() resides
 
-    #go back a frame takes us to the frame calling foo()
+    # go back a frame takes us to the frame calling foo()
     caller_frame = current_frame.f_back
     caller_filename = caller_frame.f_code.co_filename
 
-    # find the first frame that does not have the same filename. this ensures that we don't consider functions within the same module as foo() that use foo() as a helper function
-    while(caller_filename == current_frame_filename):
+    # find the first frame that does not have the same filename. this ensures that we don't consider functions within
+    # the same module as foo() that use foo() as a helper function
+    while caller_filename == current_frame_filename:
         caller_frame = caller_frame.f_back
         caller_filename = caller_frame.f_code.co_filename
 
@@ -901,10 +908,10 @@ def attempt_import(module_name, fail_message):
         return importlib.import_module(module_name)
     except ImportError:
         sys.stderr.write(
-            (fail_message +
-                 "To install this library on Mac or Linux distributions:\n"
-                 "    (sudo) pip install %s\n\n"
-                 "On Windows, right click the Command Prompt(cmd.exe) and select 'Run as administrator' then:\n"
-                 "    pip install %s\n\n"
-                 "\n\n\n" % (module_name, module_name)))
+            (fail_message
+             + "To install this library on Mac or Linux distributions:\n"
+               "    (sudo) pip install %s\n\n"
+               "On Windows, right click the Command Prompt(cmd.exe) and select 'Run as administrator' then:\n"
+               "    pip install %s\n\n"
+               "\n\n\n" % (module_name, module_name)))
         raise

@@ -13,3 +13,8 @@ div.header {
 div.header img {
 	float:left;
 }
+
+.deprecated {
+    background-color: #FFFF00
+}
+

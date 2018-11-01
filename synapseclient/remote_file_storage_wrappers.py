@@ -19,6 +19,7 @@ import time
 from .utils import printTransferProgress, attempt_import
 from multiprocessing import Value
 
+
 class S3ClientWrapper:
 
     # These methods are static because in our use case, we always have the bucket and
@@ -36,20 +37,22 @@ class S3ClientWrapper:
 
     @staticmethod
     def _create_progress_callback_func(file_size, filename, prefix=None):
-        bytes_transferred= Value('d', 0)
+        bytes_transferred = Value('d', 0)
         t0 = time.time()
+
         def progress_callback(bytes):
             with bytes_transferred.get_lock():
                 bytes_transferred.value += bytes
                 printTransferProgress(bytes_transferred.value, file_size, prefix=prefix, postfix=filename,
-                                                     dt=time.time() - t0, previouslyTransferred=0)
+                                      dt=time.time() - t0, previouslyTransferred=0)
         return progress_callback
 
     @staticmethod
-    def download_file(bucket, endpoint_url, remote_file_key, download_file_path, profile_name = None, show_progress=True):
+    def download_file(bucket, endpoint_url, remote_file_key, download_file_path, profile_name=None, show_progress=True):
 
         boto3 = S3ClientWrapper._attempt_import_boto3()
-        import botocore #if we boto3 is importable, botocore should also be importable since it is a dependency of boto3
+        # if we boto3 is importable, botocore should also be importable since it is a dependency of boto3
+        import botocore
 
         boto_session = boto3.session.Session(profile_name=profile_name)
         s3 = boto_session.resource('s3', endpoint_url=endpoint_url)
@@ -62,7 +65,8 @@ class S3ClientWrapper:
                 s3_obj.load()
                 file_size = s3_obj.content_length
                 filename = os.path.basename(download_file_path)
-                progress_callback = S3ClientWrapper._create_progress_callback_func(file_size, filename, prefix='Downloading')
+                progress_callback = S3ClientWrapper._create_progress_callback_func(file_size, filename,
+                                                                                   prefix='Downloading')
             s3_obj.download_file(download_file_path, Callback=progress_callback)
             return download_file_path
         except botocore.exceptions.ClientError as e:
@@ -71,9 +75,8 @@ class S3ClientWrapper:
             else:
                 raise
 
-
     @staticmethod
-    def upload_file(bucket, endpoint_url, remote_file_key, upload_file_path, profile_name = None, show_progress=True):
+    def upload_file(bucket, endpoint_url, remote_file_key, upload_file_path, profile_name=None, show_progress=True):
         boto3 = S3ClientWrapper._attempt_import_boto3()
 
         if not os.path.isfile(upload_file_path):
@@ -88,7 +91,8 @@ class S3ClientWrapper:
             filename = os.path.basename(upload_file_path)
             progress_callback = S3ClientWrapper._create_progress_callback_func(file_size, filename, prefix='Uploading')
 
-        s3.Bucket(bucket).upload_file(upload_file_path, remote_file_key, Callback=progress_callback) #automatically determines whether to perform multi-part upload
+        # automatically determines whether to perform multi-part upload
+        s3.Bucket(bucket).upload_file(upload_file_path, remote_file_key, Callback=progress_callback)
         return upload_file_path
 
 
@@ -101,37 +105,31 @@ class SFTPWrapper:
         :return: the pysftp module if available
         """
         return attempt_import("pysftp",
-                                "\n\nLibraries required for SFTP are not installed!\n"
-                                "The Synapse client uses pysftp in order to access SFTP storage "
-                                "locations.  This library in turn depends on pycrypto.\n"
-                                "For Windows systems without a C/C++ compiler, install the appropriate "
-                                "binary distribution of pycrypto from:\n"
-                                "    http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n"
-                                "For more information, see: http://docs.synapse.org/python/sftp.html")
-
+                              "\n\nLibraries required for SFTP are not installed!\n"
+                              "The Synapse client uses pysftp in order to access SFTP storage locations. "
+                              "This library in turn depends on pycrypto.\n"
+                              "For Windows systems without a C/C++ compiler, install the appropriate binary "
+                              "distribution of pycrypto from:\n"
+                              "http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n"
+                              "For more information, see: http://docs.synapse.org/python/sftp.html")
 
     @staticmethod
     def _parse_for_sftp(url):
         parsedURL = urlparse(url)
-        if parsedURL.scheme!='sftp':
-            raise(NotImplementedError("This method only supports sftp URLs of the "
-                                      " form sftp://..."))
+        if parsedURL.scheme != 'sftp':
+            raise(NotImplementedError("This method only supports sftp URLs of the form sftp://..."))
         return parsedURL
-
 
     @staticmethod
     def upload_file(filepath, url, username=None, password=None):
         """
         Performs upload of a local file to an sftp server.
 
-        :param filepath: The file to be uploaded
-
-        :param url: URL where file will be deposited. Should include path and protocol. e.g.
-                    sftp://sftp.example.com/path/to/file/store
-
-        :param username: username on sftp server
-
-        :param password: password for authentication on the sftp server
+        :param filepath:    The file to be uploaded
+        :param url:         URL where file will be deposited. Should include path and protocol. e.g.
+                            sftp://sftp.example.com/path/to/file/store
+        :param username:    username on sftp server
+        :param password:    password for authentication on the sftp server
 
         :returns: A URL where file is stored
         """
@@ -153,10 +151,10 @@ class SFTPWrapper:
         """
         Performs download of a file from an sftp server.
 
-        :param url: URL where file will be deposited.  Path will be chopped out.
-        :param localFilepath: location where to store file
-        :param username: username on server
-        :param password: password for authentication on  server
+        :param url:             URL where file will be deposited.  Path will be chopped out.
+        :param localFilepath:   location where to store file
+        :param username:        username on server
+        :param password:        password for authentication on  server
 
         :returns: localFilePath
 
@@ -165,18 +163,18 @@ class SFTPWrapper:
 
         parsedURL = SFTPWrapper._parse_for_sftp(url)
 
-        #Create the local file path if it doesn't exist
+        # Create the local file path if it doesn't exist
         path = unquote(parsedURL.path)
         if localFilepath is None:
             localFilepath = os.getcwd()
         if os.path.isdir(localFilepath):
             localFilepath = os.path.join(localFilepath, path.split('/')[-1])
-        #Check and create the directory
+        # Check and create the directory
         dir = os.path.dirname(localFilepath)
         if not os.path.exists(dir):
             os.makedirs(dir)
 
-        #Download file
+        # Download file
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.get(path, localFilepath, preserve_mtime=True, callback=printTransferProgress)
         return localFilepath

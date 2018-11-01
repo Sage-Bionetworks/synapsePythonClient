@@ -5,16 +5,19 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import filecmp
-import os, random, sys, traceback
+import os
+import random
+import traceback
 from io import open
 
-import synapseclient
 import synapseclient.utils as utils
-from synapseclient.utils import MB, GB
-from synapseclient import Activity, Entity, Project, Folder, File
+from synapseclient.utils import MB
+from synapseclient import File
 from synapseclient.multipart_upload import multipart_upload, multipart_upload_string
 import synapseclient.multipart_upload as multipart_upload_module
 import tempfile
+
+from nose.tools import assert_equals, assert_true
 
 import integration
 from integration import schedule_for_cleanup
@@ -23,6 +26,7 @@ from integration import schedule_for_cleanup
 def setup(module):
     module.syn = integration.syn
     module.project = integration.project
+
 
 def test_round_trip():
     fhid = None
@@ -37,7 +41,7 @@ def test_round_trip():
         schedule_for_cleanup(tmp_path)
 
         junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-        assert filecmp.cmp(filepath, junk.path)
+        assert_true(filecmp.cmp(filepath, junk.path))
 
     finally:
         try:
@@ -67,7 +71,7 @@ def test_randomly_failing_parts():
         else:
             return normal_put_chunk(url, chunk, verbose)
 
-    ## Mock _put_chunk to fail randomly
+    # Mock _put_chunk to fail randomly
     normal_put_chunk = multipart_upload_module._put_chunk
     multipart_upload_module._put_chunk = _put_chunk_or_fail_randomly
 
@@ -81,10 +85,10 @@ def test_randomly_failing_parts():
         schedule_for_cleanup(tmp_path)
 
         junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-        assert filecmp.cmp(filepath, junk.path)
+        assert_true(filecmp.cmp(filepath, junk.path))
 
     finally:
-        ## Un-mock _put_chunk
+        # Un-mock _put_chunk
         if normal_put_chunk:
             multipart_upload_module._put_chunk = normal_put_chunk
 
@@ -112,7 +116,7 @@ def test_multipart_upload_big_string():
 
     text = "Places I wanna go:\n"
     while len(text.encode('utf-8')) < multipart_upload_module.MIN_PART_SIZE:
-        text += ", ".join( random.choice(cities) for i in range(5000) ) + "\n"
+        text += ", ".join(random.choice(cities) for i in range(5000)) + "\n"
 
     fhid = multipart_upload_string(syn, text)
 
@@ -122,10 +126,10 @@ def test_multipart_upload_big_string():
     (tmp_f, tmp_path) = tempfile.mkstemp()
     schedule_for_cleanup(tmp_path)
 
-    junk['path'] = syn._downloadFileHandle(fhid, junk['id'], "FileEntity" ,tmp_path)
+    junk['path'] = syn._downloadFileHandle(fhid, junk['id'], "FileEntity", tmp_path)
 
     with open(junk.path, encoding='utf-8') as f:
         retrieved_text = f.read()
 
-    assert retrieved_text == text
+    assert_equals(retrieved_text, text)
 

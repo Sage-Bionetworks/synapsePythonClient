@@ -12,27 +12,24 @@ import sys
 import tempfile
 from builtins import zip
 from mock import MagicMock
-from nose.tools import assert_raises, assert_equals, assert_not_equals, raises, assert_false, assert_not_in, assert_sequence_equal
-from nose import SkipTest
-import unit
+from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_in, assert_sequence_equal,\
+    assert_true, assert_is_none, assert_is_instance, raises, assert_equals
 
-try:
-    import pandas as pd
-    pandas_found = False
-except ImportError:
-    pandas_found = True
+import pandas as pd
 
-from nose.tools import raises, assert_equals
 import unit
 import synapseclient
 from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
 from synapseclient.entity import split_entity_namespaces
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
-     as_table_columns, Table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, PartialRowset, SchemaBase
+    as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
+    PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask
 from mock import patch
 from collections import OrderedDict
 from .unit_utils import StringIOContextManager
+
+
 def setup(module):
     module.syn = unit.syn
 
@@ -58,9 +55,10 @@ def test_cast_values():
                       'columnType': 'LINK'}]
 
     row = ('Finklestein', 'bat', '3.14159', '65535', 'true', 'https://www.synapse.org/')
-    assert cast_values(row, selectColumns)==['Finklestein', 'bat', 3.14159, 65535, True, 'https://www.synapse.org/']
+    assert_equals(cast_values(row, selectColumns),
+                  ['Finklestein', 'bat', 3.14159, 65535, True, 'https://www.synapse.org/'])
 
-    ## group by
+    # group by
     selectColumns = [{'name': 'bonk',
                       'columnType': 'BOOLEAN'},
                      {'name': 'COUNT(name)',
@@ -70,22 +68,22 @@ def test_cast_values():
                      {'name': 'SUM(n)',
                       'columnType': 'INTEGER'}]
     row = ('true', '211', '1.61803398875', '1421365')
-    assert cast_values(row, selectColumns)==[True, 211, 1.61803398875, 1421365]
+    assert_equals(cast_values(row, selectColumns), [True, 211, 1.61803398875, 1421365])
 
 
 def test_schema():
     schema = Schema(name='My Table', parent="syn1000001")
 
-    assert not schema.has_columns()
+    assert_false(schema.has_columns())
 
     schema.addColumn(Column(id='1', name='Name', columnType='STRING'))
 
-    assert schema.has_columns()
-    assert schema.properties.columnIds == ['1']
+    assert_true(schema.has_columns())
+    assert_equals(schema.properties.columnIds, ['1'])
 
     schema.removeColumn('1')
-    assert not schema.has_columns()
-    assert schema.properties.columnIds == []
+    assert_false(schema.has_columns())
+    assert_equals(schema.properties.columnIds, [])
 
     schema = Schema(name='Another Table', parent="syn1000001")
 
@@ -94,18 +92,18 @@ def test_schema():
         Column(name='Born', columnType='INTEGER'),
         Column(name='Hipness', columnType='DOUBLE'),
         Column(name='Living', columnType='BOOLEAN')])
-    assert schema.has_columns()
-    assert len(schema.columns_to_store) == 4
-    assert Column(name='Name', columnType='STRING') in schema.columns_to_store
-    assert Column(name='Born', columnType='INTEGER') in schema.columns_to_store
-    assert Column(name='Hipness', columnType='DOUBLE') in schema.columns_to_store
-    assert Column(name='Living', columnType='BOOLEAN') in schema.columns_to_store
+    assert_true(schema.has_columns())
+    assert_equals(len(schema.columns_to_store), 4)
+    assert_in(Column(name='Name', columnType='STRING'), schema.columns_to_store)
+    assert_in(Column(name='Born', columnType='INTEGER'), schema.columns_to_store)
+    assert_in(Column(name='Hipness', columnType='DOUBLE'), schema.columns_to_store)
+    assert_in(Column(name='Living', columnType='BOOLEAN'), schema.columns_to_store)
 
     schema.removeColumn(Column(name='Living', columnType='BOOLEAN'))
-    assert schema.has_columns()
-    assert len(schema.columns_to_store) == 3
-    assert Column(name='Living', columnType='BOOLEAN') not in schema.columns_to_store
-    assert Column(name='Hipness', columnType='DOUBLE') in schema.columns_to_store
+    assert_true(schema.has_columns())
+    assert_equals(len(schema.columns_to_store), 3)
+    assert_not_in(Column(name='Living', columnType='BOOLEAN'), schema.columns_to_store)
+    assert_in(Column(name='Hipness', columnType='DOUBLE'), schema.columns_to_store)
 
 
 def test_RowSetTable():
@@ -133,70 +131,84 @@ def test_RowSetTable():
 
     row_set = RowSet.from_json(row_set_json)
 
-    assert row_set.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    assert row_set.tableId == 'syn2976298'
-    assert len(row_set.headers) == 4
-    assert len(row_set.rows) == 4
+    assert_equals(row_set.etag, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    assert_equals(row_set.tableId, 'syn2976298')
+    assert_equals(len(row_set.headers), 4)
+    assert_equals(len(row_set.rows), 4)
 
-    schema = Schema(id="syn2976298", name="Bogus Schema", columns=[353,355,3020,891], parent="syn1000001")
+    schema = Schema(id="syn2976298", name="Bogus Schema", columns=[353, 355, 3020, 891], parent="syn1000001")
 
     table = Table(schema, row_set)
 
-    assert table.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-    assert table.tableId == 'syn2976298'
-    assert len(table.headers) == 4
-    assert len(table.asRowSet().rows) == 4
+    assert_equals(table.etag, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    assert_equals(table.tableId, 'syn2976298')
+    assert_equals(len(table.headers), 4)
+    assert_equals(len(table.asRowSet().rows), 4)
 
-    try:
-        import pandas as pd
-
-        df = table.asDataFrame()
-        assert df.shape == (4,4)
-        assert all(df['name'] == ['foo', 'bar', 'foo', 'qux'])
-
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping part of test_RowSetTable.\n\n')
+    df = table.asDataFrame()
+    assert_equals(df.shape, (4, 4))
+    assert_equals(list(df['name']), ['foo', 'bar', 'foo', 'qux'])
 
 
-def test_as_table_columns():
-    try:
-        import pandas as pd
+def test_as_table_columns__with_pandas_DataFrame():
+    df = pd.DataFrame({
+        'foobar': ("foo", "bar", "baz", "qux", "asdf"),
+        'x': tuple(math.pi*i for i in range(5)),
+        'n': (101, 202, 303, 404, 505),
+        'really': (False, True, False, True, False),
+        'size': ('small', 'large', 'medium', 'medium', 'large')},
+    columns=['foobar', 'x', 'n', 'really', 'size'])
 
-        df = pd.DataFrame({
-            'foobar' : ("foo", "bar", "baz", "qux", "asdf"),
-            'x' : tuple(math.pi*i for i in range(5)),
-            'n' : (101, 202, 303, 404, 505),
-            'really' : (False, True, False, True, False),
-            'size' : ('small', 'large', 'medium', 'medium', 'large')})
+    cols = as_table_columns(df)
 
-        cols = as_table_columns(df)
+    expected_columns = [
+        {'defaultValue': '',
+         'columnType': 'STRING',
+         'name': 'foobar',
+         'maximumSize': 30,
+         'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'columnType': 'DOUBLE',
+         'name': 'x',
+         u'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'columnType': 'INTEGER',
+         'name': 'n',
+         'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'columnType': 'BOOLEAN',
+         'name': 'really',
+         'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'},
+        {'defaultValue': '',
+         'columnType': 'STRING',
+         'name': 'size',
+         'maximumSize': 30,
+         'concreteType': 'org.sagebionetworks.repo.model.table.ColumnModel'}
+    ]
+    assert_equals(expected_columns, cols)
 
-        cols[0]['name'] == 'foobar'
-        cols[0]['columnType'] == 'STRING'
-        cols[1]['name'] == 'x'
-        cols[1]['columnType'] == 'DOUBLE'
-        cols[1]['name'] == 'n'
-        cols[1]['columnType'] == 'INTEGER'
-        cols[1]['name'] == 'really'
-        cols[1]['columnType'] == 'BOOLEAN'
-        cols[1]['name'] == 'size'
-        # TODO: support Categorical when fully supported in Pandas Data Frames
-        cols[1]['columnType'] == 'STRING'
 
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping test_as_table_columns.\n\n')
+def test_as_table_columns__with_non_supported_input_type():
+    assert_raises(ValueError, as_table_columns, dict(a=[1, 2, 3], b=["c", "d", "e"]))
 
-def _try_import_pandas(test):
-    try:
-        import pandas as pd
-        return pd
-    except ImportError:
-        raise SkipTest('Pandas is not installed, skipping '+test+'.\n\n')
+
+def test_as_table_columns__with_csv_file():
+    string_io = StringIOContextManager(
+        'ROW_ID,ROW_VERSION,Name,Born,Hipness,Living\n'
+        '"1", "1", "John Coltrane", 1926, 8.65, False\n'
+        '"2", "1", "Miles Davis", 1926, 9.87, False'
+    )
+    cols = as_table_columns(string_io)
+
+    assert_equals(cols[0]['name'], 'Name')
+    assert_equals(cols[0]['columnType'], 'STRING')
+    assert_equals(cols[1]['name'], 'Born')
+    assert_equals(cols[1]['columnType'], 'INTEGER')
+    assert_equals(cols[2]['name'], 'Hipness')
+    assert_equals(cols[2]['columnType'], 'DOUBLE')
+    assert_equals(cols[3]['name'], 'Living')
+    assert_equals(cols[3]['columnType'], 'STRING')
+
 
 def test_dict_to_table():
-    pd = _try_import_pandas('test_dict_to_table')
-
-    d = dict(a=[1,2,3], b=["c", "d", "e"])
+    d = dict(a=[1, 2, 3], b=["c", "d", "e"])
     df = pd.DataFrame(d)
     schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
 
@@ -207,57 +219,57 @@ def test_dict_to_table():
     agrs_list = mocked_from_data_frame.call_args[0]
     # getting the second argument
     df_agr = agrs_list[1]
-    assert df_agr.equals(df)
+    assert_true(df_agr.equals(df))
+
 
 def test_pandas_to_table():
-    pd = _try_import_pandas('test_pandas_to_table')
-
-    df = pd.DataFrame(dict(a=[1,2,3], b=["c", "d", "e"]))
+    df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
     schema = Schema(name="Baz", parent="syn12345", columns=as_table_columns(df))
 
-    ## A dataframe with no row id and version
+    # A dataframe with no row id and version
     table = Table(schema, df)
 
     for i, row in enumerate(table):
-        assert row[0]==(i+1)
-        assert row[1]==["c", "d", "e"][i]
+        assert_equals(row[0], (i+1))
+        assert_equals(row[1], ["c", "d", "e"][i])
 
-    assert len(table)==3
+        assert_equals(len(table), 3)
 
-    ## If includeRowIdAndRowVersion=True, include empty row id an versions
-    ## ROW_ID,ROW_VERSION,a,b
-    ## ,,1,c
-    ## ,,2,d
-    ## ,,3,e
+    # If includeRowIdAndRowVersion=True, include empty row id an versions
+    # ROW_ID,ROW_VERSION,a,b
+    # ,,1,c
+    # ,,2,d
+    # ,,3,e
     table = Table(schema, df, includeRowIdAndRowVersion=True)
     for i, row in enumerate(table):
-        assert row[0] is None
-        assert row[1] is None
-        assert row[2]==(i+1)
+        assert_is_none(row[0])
+        assert_is_none(row[1])
+        assert_equals(row[2], (i+1))
 
-    ## A dataframe with no row id and version
-    df = pd.DataFrame(index=["1_7","2_7","3_8"], data=dict(a=[100,200,300], b=["c", "d", "e"]))
-
-    table = Table(schema, df)
-    for i, row in enumerate(table):
-        assert row[0]==["1","2","3"][i]
-        assert row[1]==["7","7","8"][i]
-        assert row[2]==(i+1)*100
-        assert row[3]==["c", "d", "e"][i]
-
-    ## A dataframe with row id and version in columns
-    df = pd.DataFrame(dict(ROW_ID=["0","1","2"], ROW_VERSION=["8","9","9"], a=[100,200,300], b=["c", "d", "e"]))
+    # A dataframe with no row id and version
+    df = pd.DataFrame(index=["1_7", "2_7", "3_8"], data=dict(a=[100, 200, 300], b=["c", "d", "e"]))
 
     table = Table(schema, df)
     for i, row in enumerate(table):
-        assert row[0]==["0","1","2"][i]
-        assert row[1]==["8","9","9"][i]
-        assert row[2]==(i+1)*100
-        assert row[3]==["c", "d", "e"][i]
+        assert_equals(row[0], ["1", "2", "3"][i])
+        assert_equals(row[1], ["7", "7", "8"][i])
+        assert_equals(row[2], (i+1)*100)
+        assert_equals(row[3], ["c", "d", "e"][i])
+
+    # A dataframe with row id and version in columns
+    df = pd.DataFrame(dict(ROW_ID=["0", "1", "2"], ROW_VERSION=["8", "9", "9"], a=[100, 200, 300], b=["c", "d", "e"]))
+
+    table = Table(schema, df)
+    for i, row in enumerate(table):
+        assert_equals(row[0], ["0", "1", "2"][i])
+        assert_equals(row[1], ["8", "9", "9"][i])
+        assert_equals(row[2], (i+1)*100)
+        assert_equals(row[3], ["c", "d", "e"][i])
+
 
 def test_csv_table():
-    ## Maybe not truly a unit test, but here because it doesn't do
-    ## network IO to synapse
+    # Maybe not truly a unit test, but here because it doesn't do
+    # network IO to synapse
     data = [["1", "1", "John Coltrane",  1926, 8.65, False],
             ["2", "1", "Miles Davis",    1926, 9.87, False],
             ["3", "1", "Bill Evans",     1929, 7.65, False],
@@ -269,17 +281,16 @@ def test_csv_table():
 
     filename = None
 
-    cols = []
-    cols.append(Column(id='1', name='Name', columnType='STRING'))
-    cols.append(Column(id='2', name='Born', columnType='INTEGER'))
-    cols.append(Column(id='3', name='Hipness', columnType='DOUBLE'))
-    cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
+    cols = [Column(id='1', name='Name', columnType='STRING'),
+            Column(id='2', name='Born', columnType='INTEGER'),
+            Column(id='3', name='Hipness', columnType='DOUBLE'),
+            Column(id='4', name='Living', columnType='BOOLEAN')]
 
     schema1 = Schema(id='syn1234', name='Jazz Guys', columns=cols, parent="syn1000001")
 
-    #TODO: use StringIO.StringIO(data) rather than writing files
+    # TODO: use StringIO.StringIO(data) rather than writing files
     try:
-        ## create CSV file
+        # create CSV file
         with tempfile.NamedTemporaryFile(delete=False) as temp:
             filename = temp.name
 
@@ -291,40 +302,33 @@ def test_csv_table():
                 writer.writerow(row)
 
         table = Table(schema1, filename)
-        assert isinstance(table, CsvFileTable)
+        assert_is_instance(table, CsvFileTable)
 
-        ## need to set column headers to read a CSV file
+        # need to set column headers to read a CSV file
         table.setColumnHeaders(
             [SelectColumn(name="ROW_ID", columnType="STRING"),
              SelectColumn(name="ROW_VERSION", columnType="STRING")] +
             [SelectColumn.from_column(col) for col in cols])
 
-        ## test iterator
+        # test iterator
         for table_row, expected_row in zip(table, data):
-            assert table_row==expected_row
+            assert_equals(table_row, expected_row)
 
-        ## test asRowSet
+        # test asRowSet
         rowset = table.asRowSet()
         for rowset_row, expected_row in zip(rowset.rows, data):
-            assert rowset_row['values']==expected_row[2:]
-            assert rowset_row['rowId']==expected_row[0]
-            assert rowset_row['versionNumber']==expected_row[1]
+            assert_equals(rowset_row['values'], expected_row[2:])
+            assert_equals(rowset_row['rowId'], expected_row[0])
+            assert_equals(rowset_row['versionNumber'], expected_row[1])
 
-        ## test asDataFrame
-        try:
-            import pandas as pd
+        df = table.asDataFrame()
+        assert_equals(list(df['Name']), [row[2] for row in data])
+        assert_equals(list(df['Born']), [row[3] for row in data])
+        assert_equals(list(df['Living']), [row[5] for row in data])
+        assert_equals(list(df.index), ['%s_%s' % tuple(row[0:2]) for row in data])
+        assert_equals(df.shape, (8, 4))
 
-            df = table.asDataFrame()
-            assert all(df['Name'] == [row[2] for row in data])
-            assert all(df['Born'] == [row[3] for row in data])
-            assert all(df['Living'] == [row[5] for row in data])
-            assert all(df.index == ['%s_%s'%tuple(row[0:2]) for row in data])
-            assert df.shape == (8,4)
-
-        except ImportError as e1:
-            sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_csv_table.\n\n')
-
-    except Exception as ex1:
+    except Exception:
         if filename:
             try:
                 if os.path.isdir(filename):
@@ -346,109 +350,101 @@ def test_list_of_rows_table():
             ["Sonny Rollins",  1930, 8.99, True],
             ["Kenny Burrel",   1931, 4.37, True]]
 
-    cols = []
-    cols.append(Column(id='1', name='Name', columnType='STRING'))
-    cols.append(Column(id='2', name='Born', columnType='INTEGER'))
-    cols.append(Column(id='3', name='Hipness', columnType='DOUBLE'))
-    cols.append(Column(id='4', name='Living', columnType='BOOLEAN'))
+    cols = [Column(id='1', name='Name', columnType='STRING'),
+            Column(id='2', name='Born', columnType='INTEGER'),
+            Column(id='3', name='Hipness', columnType='DOUBLE'),
+            Column(id='4', name='Living', columnType='BOOLEAN')]
 
     schema1 = Schema(name='Jazz Guys', columns=cols, id="syn1000002", parent="syn1000001")
 
-    ## need columns to do cast_values w/o storing
+    # need columns to do cast_values w/o storing
     table = Table(schema1, data, headers=[SelectColumn.from_column(col) for col in cols])
 
     for table_row, expected_row in zip(table, data):
-        assert table_row==expected_row
+        assert_equals(table_row, expected_row)
 
     rowset = table.asRowSet()
     for rowset_row, expected_row in zip(rowset.rows, data):
-        assert rowset_row['values']==expected_row
+        assert_equals(rowset_row['values'], expected_row)
 
     table.columns = cols
 
-    ## test asDataFrame
-    try:
-        import pandas as pd
-
-        df = table.asDataFrame()
-        assert all(df['Name'] == [r[0] for r in data])
-
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_list_of_rows_table.\n\n')
+    df = table.asDataFrame()
+    assert_equals(list(df['Name']), [r[0] for r in data])
 
 
 def test_aggregate_query_result_to_data_frame():
 
-    try:
-        import pandas as pd
-
-        class MockSynapse(object):
-            def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
-                return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
-                        'maxRowsPerPage': 2,
-                        'queryCount': 4,
-                        'queryResult': {
+    class MockSynapse(object):
+        def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
+            return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
+                    'maxRowsPerPage': 2,
+                    'queryCount': 4,
+                    'queryResult': {
                          'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
                          'nextPageToken': 'aaaaaaaa',
                          'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-                         'headers': [
-                          {'columnType': 'STRING',  'name': 'State'},
-                          {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
-                          {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
-                          {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
-                          'rows': [
-                           {'values': ['PA', '1935', '2', '1.1']},
-                           {'values': ['MO', '1928', '3', '2.38']}],
-                          'tableId': 'syn2757980'}},
-                        'selectColumns': [{
+                                          'headers': [
+                                              {'columnType': 'STRING',  'name': 'State'},
+                                              {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
+                                              {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
+                                              {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
+                                          'rows': [
+                                               {'values': ['PA', '1935', '2', '1.1']},
+                                               {'values': ['MO', '1928', '3', '2.38']}],
+                                          'tableId': 'syn2757980'}},
+                    'selectColumns': [{
                          'columnType': 'STRING',
                          'id': '1387',
                          'name': 'State'}]}
-            def _queryTableNext(self, nextPageToken, tableId):
-                return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
-                        'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
-                         'headers': [
-                          {'columnType': 'STRING',  'name': 'State'},
-                          {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
-                          {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
-                          {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
-                         'rows': [
-                          {'values': ['DC', '1929', '1', '3.14']},
-                          {'values': ['NC', '1926', '1', '4.38']}],
-                         'tableId': 'syn2757980'}}
 
-        result = TableQueryResult(synapse=MockSynapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
+        def _queryTableNext(self, nextPageToken, tableId):
+            return {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                    'queryResults': {'etag': 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                                     'headers': [
+                                         {'columnType': 'STRING',  'name': 'State'},
+                                         {'columnType': 'INTEGER', 'name': 'MIN(Born)'},
+                                         {'columnType': 'INTEGER', 'name': 'COUNT(State)'},
+                                         {'columnType': 'DOUBLE',  'name': 'AVG(Hipness)'}],
+                                     'rows': [
+                                         {'values': ['DC', '1929', '1', '3.14']},
+                                         {'values': ['NC', '1926', '1', '4.38']}],
+                                     'tableId': 'syn2757980'}}
 
-        assert result.etag == 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-        assert result.tableId == 'syn2757980'
-        assert len(result.headers) == 4
+    result = TableQueryResult(synapse=MockSynapse(),
+                              query="select State, min(Born), count(State), avg(Hipness) from syn2757980 "
+                                    "group by Living")
 
-        rs = result.asRowSet()
-        assert len(rs.rows) == 4
+    assert_equals(result.etag, 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee')
+    assert_equals(result.tableId, 'syn2757980')
+    assert_equals(len(result.headers), 4)
 
-        result = TableQueryResult(synapse=MockSynapse(), query="select State, min(Born), count(State), avg(Hipness) from syn2757980 group by Living")
-        df = result.asDataFrame()
+    rs = result.asRowSet()
+    assert_equals(len(rs.rows), 4)
 
-        assert df.shape == (4,4)
-        assert all(df['State'].values == ['PA', 'MO', 'DC', 'NC'])
+    result = TableQueryResult(synapse=MockSynapse(),
+                              query="select State, min(Born), count(State), avg(Hipness) from syn2757980"
+                                    " group by Living")
+    df = result.asDataFrame()
 
-        ## check integer, double and boolean types after PLFM-3073 is fixed
-        assert all(df['MIN(Born)'].values == [1935, 1928, 1929, 1926]), "Unexpected values" + str(df['MIN(Born)'].values)
-        assert all(df['COUNT(State)'].values == [2,3,1,1])
-        assert all(df['AVG(Hipness)'].values == [1.1, 2.38, 3.14, 4.38])
+    assert_equals(df.shape, (4, 4))
+    assert_equals(list(df['State'].values), ['PA', 'MO', 'DC', 'NC'])
 
-    except ImportError as e1:
-        sys.stderr.write('Pandas is apparently not installed, skipping asDataFrame portion of test_aggregate_query_result_to_data_frame.\n\n')
+    # check integer, double and boolean types after PLFM-3073 is fixed
+    assert_equals(list(df['MIN(Born)'].values), [1935, 1928, 1929, 1926],
+                  "Unexpected values" + str(df['MIN(Born)'].values))
+    assert_equals(list(df['COUNT(State)'].values), [2, 3, 1, 1])
+    assert_equals(list(df['AVG(Hipness)'].values), [1.1, 2.38, 3.14, 4.38])
 
 
 def test_waitForAsync():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
     syn.table_query_timeout = 0.05
     syn.table_query_max_sleep = 0.001
-    syn.restPOST = MagicMock(return_value={"token":"1234567"})
+    syn.restPOST = MagicMock(return_value={"token": "1234567"})
 
     # return a mocked http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
-    syn.restGET  = MagicMock(return_value={
+    syn.restGET = MagicMock(return_value={
         "jobState": "PROCESSING",
         "progressMessage": "Test progress message",
         "progressCurrent": 10,
@@ -456,7 +452,8 @@ def test_waitForAsync():
         "errorMessage": "Totally fubared error",
         "errorDetails": "Totally fubared error details"})
 
-    assert_raises(synapseclient.exceptions.SynapseTimeoutError, syn._waitForAsync, uri="foo/bar", request={"foo": "bar"})
+    assert_raises(synapseclient.exceptions.SynapseTimeoutError, syn._waitForAsync, uri="foo/bar",
+                  request={"foo": "bar"})
 
 
 def _insert_dataframe_column_if_not_exist__setup():
@@ -467,55 +464,48 @@ def _insert_dataframe_column_if_not_exist__setup():
 
 
 def test_insert_dataframe_column_if_not_exist__nonexistent_column():
-    if pandas_found:
-        raise SkipTest("pandas could not be found. please let the pandas into your library.")
-
     df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
 
-    #method under test
+    # method under test
     CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
 
-    #make sure the data was inserted
+    # make sure the data was inserted
     assert_equals(data, df[column_name].tolist())
 
 
 def test_insert_dataframe_column_if_not_exist__existing_column_matching():
-    if pandas_found:
-        raise SkipTest("pandas could not be found. please let the pandas into your library.")
 
     df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
 
-    #add the same data to the DataFrame prior to calling our method
-    df.insert(0,column_name, data)
+    # add the same data to the DataFrame prior to calling our method
+    df.insert(0, column_name, data)
 
-    #method under test
+    # method under test
     CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
 
-    #make sure the data has not changed
+    # make sure the data has not changed
     assert_equals(data, df[column_name].tolist())
 
 
 @raises(SynapseError)
 def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
-    if pandas_found:
-        raise SkipTest("pandas could not be found. please let the pandas into your library.")
     df, column_name, data = _insert_dataframe_column_if_not_exist__setup()
 
-    #add different data to the DataFrame prior to calling our method
-    df.insert(0,column_name, ['mercy', 'main', 'btw'])
+    # add different data to the DataFrame prior to calling our method
+    df.insert(0, column_name, ['mercy', 'main', 'btw'])
 
-    #make sure the data is different
+    # make sure the data is different
     assert_not_equals(data, df[column_name].tolist())
 
-    #method under test should raise exception
+    # method under test should raise exception
     CsvFileTable._insert_dataframe_column_if_not_exist(df, 0, column_name, data)
 
 
 def test_build_table_download_file_handle_list__repeated_file_handles():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
 
-    #patch the cache so we don't look there in case FileHandle ids actually exist there
-    patch.object(syn.cache, "get", return_value = None)
+    # patch the cache so we don't look there in case FileHandle ids actually exist there
+    patch.object(syn.cache, "get", return_value=None)
 
     cols = [
         Column(name='Name', columnType='STRING', maximumSize=50),
@@ -523,33 +513,47 @@ def test_build_table_download_file_handle_list__repeated_file_handles():
 
     schema = Schema(name='FileHandleTest', columns=cols, parent='syn420')
 
-    #using some large filehandle numbers so i don
+    # using some large filehandle numbers so i don
     data = [["ayy lmao", 5318008],
             ["large numberino", 0x5f3759df],
             ["repeated file handle", 5318008],
             ["repeated file handle also", 0x5f3759df]]
 
-    ## need columns to do cast_values w/o storing
+    # need columns to do cast_values w/o storing
     table = Table(schema, data, headers=[SelectColumn.from_column(col) for col in cols])
 
-    file_handle_associations, file_handle_to_path_map = syn._build_table_download_file_handle_list(table, ['filehandle'])
+    file_handle_associations, file_handle_to_path_map = syn._build_table_download_file_handle_list(table,
+                                                                                                   ['filehandle'])
 
-    #verify only 2 file_handles are added (repeats were ignored)
+    # verify only 2 file_handles are added (repeats were ignored)
     assert_equals(2, len(file_handle_associations))
-    assert_equals(0, len(file_handle_to_path_map)) #might as well check anyways
+    assert_equals(0, len(file_handle_to_path_map))
 
 
 def test_EntityViewSchema__default_params():
     entity_view = EntityViewSchema(parent="idk")
-    assert_equals('file', entity_view.type)
+    assert_equals(EntityViewType.FILE.value, entity_view.viewTypeMask)
     assert_equals([], entity_view.scopeIds)
     assert_equals(True, entity_view.addDefaultViewColumns)
 
 
-def test_entityViewSchema__specified_type():
+def test_entityViewSchema__specified_deprecated_type():
     view_type = 'project'
     entity_view = EntityViewSchema(parent="idk", type=view_type)
-    assert_equals(view_type, entity_view.type)
+    assert_equals(EntityViewType.PROJECT.value, entity_view.viewTypeMask)
+    assert_is_none(entity_view.get('type'))
+
+
+def test_entityViewSchema__specified_viewTypeMask():
+    entity_view = EntityViewSchema(parent="idk", includeEntityTypes=[EntityViewType.PROJECT])
+    assert_equals(EntityViewType.PROJECT.value, entity_view.viewTypeMask)
+    assert_is_none(entity_view.get('type'))
+
+
+def test_entityViewSchema__specified_both_type_and_viewTypeMask():
+    entity_view = EntityViewSchema(parent="idk", type='folder', includeEntityTypes=[EntityViewType.PROJECT])
+    assert_equals(EntityViewType.PROJECT.value, entity_view.viewTypeMask)
+    assert_is_none(entity_view.get('type'))
 
 
 def test_entityViewSchema__sepcified_scopeId():
@@ -569,51 +573,53 @@ def test_entityViewSchema__add_default_columns_when_from_Synapse():
     assert_false(entity_view.addDefaultViewColumns)
 
 
-
-
 def test_entityViewSchema__add_scope():
     entity_view = EntityViewSchema(parent="idk")
     entity_view.add_scope(Entity(parent="also idk", id=123))
     entity_view.add_scope(456)
     entity_view.add_scope("789")
-    assert_equals([str(x) for x in ["123","456","789"]], entity_view.scopeIds)
+    assert_equals([str(x) for x in ["123", "456", "789"]], entity_view.scopeIds)
 
 
 def test_Schema__max_column_check():
     table = Schema(name="someName", parent="idk")
-    table.addColumns(Column(name="colNum%s"%i, columnType="STRING") for i in range(synapseclient.table.MAX_NUM_TABLE_COLUMNS + 1))
+    table.addColumns(Column(name="colNum%s" % i, columnType="STRING")
+                     for i in range(synapseclient.table.MAX_NUM_TABLE_COLUMNS + 1))
     assert_raises(ValueError, syn.store, table)
 
     
 def test_EntityViewSchema__ignore_column_names_set_info_preserved():
     """
-    tests that ignoredAnnotationColumnNames will be preserved after creating a new EntityViewSchema from properties, local_state, and annotations
+    tests that ignoredAnnotationColumnNames will be preserved after creating a new EntityViewSchema from properties,
+    local_state, and annotations
     """
-    ignored_names = {'a','b','c'}
-    entity_view = EntityViewSchema("someName", parent="syn123", ignoredAnnotationColumnNames={'a','b','c'})
+    ignored_names = {'a', 'b', 'c'}
+    entity_view = EntityViewSchema("someName", parent="syn123", ignoredAnnotationColumnNames={'a', 'b', 'c'})
     properties, annotations, local_state = split_entity_namespaces(entity_view)
     entity_view_copy = Entity.create(properties, annotations, local_state)
-    assert_equals( ignored_names, entity_view.ignoredAnnotationColumnNames)
-    assert_equals( ignored_names, entity_view_copy.ignoredAnnotationColumnNames)
-
+    assert_equals(ignored_names, entity_view.ignoredAnnotationColumnNames)
+    assert_equals(ignored_names, entity_view_copy.ignoredAnnotationColumnNames)
 
 
 def test_EntityViewSchema__ignore_annotation_column_names():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
 
     scopeIds = ['123']
-    entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123", ignoredAnnotationColumnNames={'long1'}, addDefaultViewColumns=False, addAnnotationColumns=True)
+    entity_view = EntityViewSchema("someName", scopes=scopeIds, parent="syn123", ignoredAnnotationColumnNames={'long1'},
+                                   addDefaultViewColumns=False, addAnnotationColumns=True)
 
-    mocked_annotation_result1 = [Column(name='long1', columnType='INTEGER'), Column(name='long2', columnType ='INTEGER')]
+    mocked_annotation_result1 = [Column(name='long1', columnType='INTEGER'), Column(name='long2',
+                                                                                    columnType='INTEGER')]
 
-    with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1) as mocked_get_annotations,\
+    with patch.object(syn, '_get_annotation_entity_view_columns', return_value=mocked_annotation_result1)\
+            as mocked_get_annotations,\
          patch.object(syn, 'getColumns') as mocked_get_columns,\
          patch.object(SchemaBase, "_before_synapse_store"):
 
         entity_view._before_synapse_store(syn)
 
         mocked_get_columns.assert_called_once_with([])
-        mocked_get_annotations.assert_called_once_with(scopeIds, 'file')
+        mocked_get_annotations.assert_called_once_with(scopeIds, EntityViewType.FILE.value)
 
         assert_equals([Column(name='long2', columnType='INTEGER')], entity_view.columns_to_store)
 
@@ -622,10 +628,10 @@ def test_EntityViewSchema__repeated_columnName_different_type():
     syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
 
     scopeIds = ['123']
-    entity_view = EntityViewSchema("someName", scopes = scopeIds ,parent="syn123")
+    entity_view = EntityViewSchema("someName", scopes=scopeIds, parent="syn123")
 
     columns = [Column(name='annoName', columnType='INTEGER'),
-                                 Column(name='annoName', columnType='DOUBLE')]
+               Column(name='annoName', columnType='DOUBLE')]
 
     with patch.object(syn, 'getColumns') as mocked_get_columns:
 
@@ -653,63 +659,104 @@ def test_EntityViewSchema__repeated_columnName_same_type():
 
 
 def test_rowset_asDataFrame__with_ROW_ETAG_column():
-    _try_import_pandas('test_rowset_asDataFrame__with_ROW_ETAG_column')
-
     query_result = {
-                   'concreteType':'org.sagebionetworks.repo.model.table.QueryResultBundle',
-                   'maxRowsPerPage':6990,
-                   'selectColumns':[
-                      {'id':'61770',  'columnType':'STRING', 'name':'annotationColumn1'},
-                      {'id':'61771', 'columnType':'STRING', 'name':'annotationColumn2'}
+                   'concreteType': 'org.sagebionetworks.repo.model.table.QueryResultBundle',
+                   'maxRowsPerPage': 6990,
+                   'selectColumns': [
+                       {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
+                       {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}
                    ],
-                   'queryCount':1,
-                   'queryResult':{
-                      'concreteType':'org.sagebionetworks.repo.model.table.QueryResult',
-                      'nextPageToken': 'sometoken',
-                      'queryResults':{
-                         'headers':[
-                             {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
-                             {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
-                         'concreteType':'org.sagebionetworks.repo.model.table.RowSet',
-                         'etag':'DEFAULT',
-                         'tableId':'syn11363411',
-                         'rows':[{ 'values':[ 'initial_value1', 'initial_value2'],
-                               'etag':'7de0f326-9ef7-4fde-9e4a-ac0babca73f6',
-                               'rowId':123,
-                               'versionNumber':456}]
-                      }
+                   'queryCount': 1,
+                   'queryResult': {
+                       'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
+                       'nextPageToken': 'sometoken',
+                       'queryResults': {
+                           'headers': [
+                               {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
+                               {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
+                           'concreteType': 'org.sagebionetworks.repo.model.table.RowSet',
+                           'etag': 'DEFAULT',
+                           'tableId': 'syn11363411',
+                           'rows': [{'values': ['initial_value1', 'initial_value2'],
+                                     'etag': '7de0f326-9ef7-4fde-9e4a-ac0babca73f6',
+                                     'rowId': 123,
+                                     'versionNumber':456}]
+                       }
                    }
                 }
     query_result_next_page = {'concreteType': 'org.sagebionetworks.repo.model.table.QueryResult',
-                        'queryResults': {'etag': 'DEFAULT',
-                         'headers': [
-                             {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
-                             {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
-                         'rows':[{ 'values':[ 'initial_value3', 'initial_value4'],
-                               'etag':'7de0f326-9ef7-4fde-9e4a-ac0babca73f7',
-                               'rowId':789,
-                               'versionNumber':101112}],
-                         'tableId': 'syn11363411'}}
+                              'queryResults': {
+                                  'etag': 'DEFAULT',
+                                  'headers': [
+                                      {'id': '61770', 'columnType': 'STRING', 'name': 'annotationColumn1'},
+                                      {'id': '61771', 'columnType': 'STRING', 'name': 'annotationColumn2'}],
+                                  'rows': [{'values': ['initial_value3', 'initial_value4'],
+                                            'etag': '7de0f326-9ef7-4fde-9e4a-ac0babca73f7',
+                                            'rowId': 789,
+                                            'versionNumber': 101112}],
+                                  'tableId': 'syn11363411'}}
 
     with patch.object(syn, "_queryTable", return_value=query_result),\
          patch.object(syn, "_queryTableNext", return_value=query_result_next_page):
         table = syn.tableQuery("select something from syn123", resultsAs='rowset')
         dataframe = table.asDataFrame()
         assert_not_in("ROW_ETAG", dataframe.columns)
-        expected_indicies = ['123_456_7de0f326-9ef7-4fde-9e4a-ac0babca73f6', '789_101112_7de0f326-9ef7-4fde-9e4a-ac0babca73f7']
+        expected_indicies = ['123_456_7de0f326-9ef7-4fde-9e4a-ac0babca73f6',
+                             '789_101112_7de0f326-9ef7-4fde-9e4a-ac0babca73f7']
         assert_sequence_equal(expected_indicies, dataframe.index.values.tolist())
 
 
 def test_RowSetTable_len():
     schema = Schema(parentId="syn123", id='syn456', columns=[Column(name='column_name', id='123')])
-    rowset =  RowSet(schema=schema, rows=[Row(['first row']), Row(['second row'])])
+    rowset = RowSet(schema=schema, rows=[Row(['first row']), Row(['second row'])])
     row_set_table = RowSetTable(schema, rowset)
     assert_equals(2, len(row_set_table))
 
-class TestTableQueryResult():
+
+def test_build_table__with_pandas_DataFrame():
+    df = pd.DataFrame(dict(a=[1, 2, 3], b=["c", "d", "e"]))
+    table = build_table("test", "syn123", df)
+
+    for i, row in enumerate(table):
+        assert_equals(row[0], (i+1))
+        assert_equals(row[1], ["c", "d", "e"][i])
+    assert_equals(len(table), 3)
+    headers = [
+        {'name': 'a', 'columnType': 'INTEGER'},
+        {'name': 'b', 'columnType': 'STRING'}
+    ]
+    assert_equals(headers, table.headers)
+
+
+def test_build_table__with_csv():
+    string_io = StringIOContextManager('a,b\n'
+                                       '1,c\n'
+                                       '2,d\n'
+                                       '3,e')
+    with patch.object(synapseclient.table, "as_table_columns",
+                      return_value=[Column(name="a", columnType="INTEGER"),
+                                    Column(name="b", columnType="STRING")]),\
+         patch.object(io, "open", return_value=string_io):
+        table = build_table("test", "syn123", "some_file_name")
+        for col, row in enumerate(table):
+            assert_equals(row[0], (col + 1))
+            assert_equals(row[1], ["c", "d", "e"][col])
+        assert_equals(len(table), 3)
+        headers = [
+            {'name': 'a', 'columnType': 'INTEGER'},
+            {'name': 'b', 'columnType': 'STRING'}
+        ]
+        assert_equals(headers, table.headers)
+
+
+def test_build_table__with_dict():
+    assert_raises(ValueError, build_table, "test", "syn123", dict(a=[1, 2, 3], b=["c", "d", "e"]))
+
+
+class TestTableQueryResult:
     def setup(self):
-        self.rows = [{'rowId':1, 'versionNumber':2, 'values': ['first_row']},
-                    {'rowId':5, 'versionNumber':1, 'values': ['second_row']}]
+        self.rows = [{'rowId': 1, 'versionNumber': 2, 'values': ['first_row']},
+                     {'rowId': 5, 'versionNumber': 1, 'values': ['second_row']}]
         self.query_result_dict = {'queryResult': {
             'queryResults': {
                 'headers': [
@@ -724,31 +771,32 @@ class TestTableQueryResult():
         self.query_string = "SELECT whatever FROM some_table WHERE sky=blue"
 
     def test_len(self):
-        with patch.object(syn, "_queryTable", return_value =  self.query_result_dict) as mocked_table_query:
+        with patch.object(syn, "_queryTable", return_value=self.query_result_dict) as mocked_table_query:
             query_result_table = TableQueryResult(syn, self.query_string)
             args, kwargs = mocked_table_query.call_args
             assert_equals(self.query_string, kwargs['query'])
             assert_equals(2, len(query_result_table))
 
     def test_iter_metadata__no_etag(self):
-        with patch.object(syn, "_queryTable", return_value =  self.query_result_dict) as mocked_table_query:
+        with patch.object(syn, "_queryTable", return_value=self.query_result_dict):
             query_result_table = TableQueryResult(syn, self.query_string)
             metadata = [x for x in query_result_table.iter_row_metadata()]
             assert_equals(2, len(metadata))
-            assert_equals((1,2, None), metadata[0])
+            assert_equals((1, 2, None), metadata[0])
             assert_equals((5, 1, None), metadata[1])
 
     def test_iter_metadata__has_etag(self):
-        self.rows[0].update({'etag':'etag1'})
-        self.rows[1].update({'etag':'etag2'})
-        with patch.object(syn, "_queryTable", return_value =  self.query_result_dict) as mocked_table_query:
+        self.rows[0].update({'etag': 'etag1'})
+        self.rows[1].update({'etag': 'etag2'})
+        with patch.object(syn, "_queryTable", return_value=self.query_result_dict):
             query_result_table = TableQueryResult(syn, self.query_string)
             metadata = [x for x in query_result_table.iter_row_metadata()]
             assert_equals(2, len(metadata))
-            assert_equals((1,2, 'etag1'), metadata[0])
+            assert_equals((1, 2, 'etag1'), metadata[0])
             assert_equals((5, 1, 'etag2'), metadata[1])
 
-class TestPartialRow():
+
+class TestPartialRow:
     """
     Testing PartialRow class
     """
@@ -757,11 +805,9 @@ class TestPartialRow():
     def test_constructor__value_not_dict(self):
         PartialRow([], 123)
 
-
     @raises(ValueError)
     def test_constructor__row_id_string_not_castable_to_int(self):
         PartialRow({}, "fourty-two")
-
 
     def test_constructor__row_id_is_int_castable_string(self):
         partial_row = PartialRow({}, "350")
@@ -770,13 +816,12 @@ class TestPartialRow():
         assert_equals(350, partial_row.rowId)
         assert_not_in('etag', partial_row)
 
-
     def test_constructor__values_translation(self):
         values = OrderedDict([("12345", "rowValue"),
                               ("09876", "otherValue")])
         partial_row = PartialRow(values, 711)
 
-        expected_values = [{"key":"12345", "value":"rowValue"}, {"key":"09876", "value":"otherValue"}]
+        expected_values = [{"key": "12345", "value": "rowValue"}, {"key": "09876", "value": "otherValue"}]
 
         assert_equals(expected_values, partial_row.values)
         assert_equals(711, partial_row.rowId)
@@ -788,25 +833,23 @@ class TestPartialRow():
         assert_equals(420, partial_row.rowId)
         assert_equals("my etag", partial_row.etag)
 
-
     def test_constructor__name_to_col_id(self):
         values = OrderedDict([("row1", "rowValue"),
                               ("row2", "otherValue")])
         names_to_col_id = {"row1": "12345", "row2": "09876"}
         partial_row = PartialRow(values, 711, nameToColumnId=names_to_col_id)
 
-        expected_values = [{"key":"12345", "value":"rowValue"}, {"key":"09876", "value":"otherValue"}]
+        expected_values = [{"key": "12345", "value": "rowValue"}, {"key": "09876", "value": "otherValue"}]
 
         assert_equals(expected_values, partial_row.values)
         assert_equals(711, partial_row.rowId)
 
 
-class TestPartialRowSet():
+class TestPartialRowSet:
     @raises(ValueError)
     def test_constructor__not_all_rows_of_type_PartialRow(self):
         rows = [PartialRow({}, 123), "some string instead"]
-        PartialRowset("syn123",rows)
-
+        PartialRowset("syn123", rows)
 
     def test_constructor__single_PartialRow(self):
         partial_row = PartialRow({}, 123)
@@ -814,26 +857,171 @@ class TestPartialRowSet():
         assert_equals([partial_row], partial_rowset.rows)
 
 
-class TestCsvFileTable():
+class TestCsvFileTable:
     def test_iter_metadata__has_etag(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,asdf\n"
-                   "1,2,etag1,\"I like trains\"\n"
-                   "5,1,etag2,\"weeeeeeeeeeee\"\n")
+                                           "1,2,etag1,\"I like trains\"\n"
+                                           "5,1,etag2,\"weeeeeeeeeeee\"\n")
         with patch.object(io, "open", return_value=string_io):
-            csv_file_table = CsvFileTable("syn123","/fake/file/path")
+            csv_file_table = CsvFileTable("syn123", "/fake/file/path")
             metadata = [x for x in csv_file_table.iter_row_metadata()]
             assert_equals(2, len(metadata))
-            assert_equals((1,2,"etag1"), metadata[0])
+            assert_equals((1, 2, "etag1"), metadata[0])
             assert_equals((5, 1, "etag2"), metadata[1])
-
 
     def test_iter_metadata__no_etag(self):
         string_io = StringIOContextManager("ROW_ID,ROW_VERSION,asdf\n"
-                   "1,2,\"I like trains\"\n"
-                   "5,1,\"weeeeeeeeeeee\"\n")
+                                           "1,2,\"I like trains\"\n"
+                                           "5,1,\"weeeeeeeeeeee\"\n")
         with patch.object(io, "open", return_value=string_io):
-            csv_file_table = CsvFileTable("syn123","/fake/file/path")
+            csv_file_table = CsvFileTable("syn123", "/fake/file/path")
             metadata = [x for x in csv_file_table.iter_row_metadata()]
             assert_equals(2, len(metadata))
-            assert_equals((1,2, None), metadata[0])
+            assert_equals((1, 2, None), metadata[0])
             assert_equals((5, 1, None), metadata[1])
+
+    # test __iter__
+    def test_iter_with_no_headers(self):
+        # self.headers is None
+        string_io = StringIOContextManager("ROW_ID,ROW_VERSION,ROW_ETAG,col\n"
+                                           "1,2,etag1,\"I like trains\"\n"
+                                           "5,1,etag2,\"weeeeeeeeeeee\"\n")
+        with patch.object(io, "open", return_value=string_io):
+            table = CsvFileTable("syn123", "/fake/file/path")
+            iter = table.__iter__()
+            assert_raises(ValueError, next, iter)
+
+    def test_iter_with_no_headers_in_csv(self):
+        # csv file does not have headers
+        string_io = StringIOContextManager("1,2,etag1,\"I like trains\"\n"
+                                           "5,1,etag2,\"weeeeeeeeeeee\"\n")
+        with patch.object(io, "open", return_value=string_io):
+            table = CsvFileTable("syn123", "/fake/file/path", header=False)
+            iter = table.__iter__()
+            assert_raises(ValueError, next, iter)
+
+    def test_iter_row_metadata_mismatch_in_headers(self):
+        # csv file does not contain row metadata, self.headers does
+        data = "col1,col2\n" \
+               "1,2\n" \
+               "2,1\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                   SelectColumn(name="ROW_VERSION", columnType="STRING")] + \
+                  [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            iter = table.__iter__()
+            assert_raises(ValueError, next, iter)
+
+    def test_iter_with_table_row_metadata(self):
+        # csv file has row metadata, self.headers does not
+        data = "ROW_ID,ROW_VERSION,col\n" \
+               "1,2,\"I like trains\"\n" \
+               "5,1,\"weeeeeeeeeeee\"\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            expected_rows = [["I like trains"], ["weeeeeeeeeeee"]]
+            for expected_row, table_row in zip(expected_rows, table):
+                assert_equals(expected_row, table_row)
+
+    def test_iter_with_mismatch_row_metadata(self):
+        # self.headers and csv file headers contains mismatch row metadata
+        data = "ROW_ID,ROW_VERSION,ROW_ETAG,col\n" \
+               "1,2,etag1,\"I like trains\"\n" \
+                "5,1,etag2,\"weeeeeeeeeeee\"\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                   SelectColumn(name="ROW_VERSION", columnType="STRING")] + \
+                  [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            iter = table.__iter__()
+            assert_raises(ValueError, next, iter)
+
+    def test_iter_no_row_metadata(self):
+        # both csv headers and self.headers do not contains row metadata
+        data = "col1,col2\n" \
+               "1,2\n" \
+               "2,1\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            expected_rows = [[1, 2], [2, 1]]
+            for expected_row, table_row in zip(expected_rows, table):
+                assert_equals(expected_row, table_row)
+
+    def test_iter_with_file_view_row_metadata(self):
+        # csv file and self.headers contain matching row metadata
+        data = "ROW_ID,ROW_VERSION,ROW_ETAG,col\n" \
+               "1,2,etag1,\"I like trains\"\n" \
+               "5,1,etag2,\"weeeeeeeeeeee\"\n"
+        cols = as_table_columns(StringIOContextManager(data))
+        headers = [SelectColumn(name="ROW_ID", columnType="STRING"),
+                   SelectColumn(name="ROW_VERSION", columnType="STRING"),
+                   SelectColumn(name="ROW_ETAG", columnType="STRING")] + \
+                  [SelectColumn.from_column(col) for col in cols]
+        with patch.object(io, "open", return_value=StringIOContextManager(data)):
+            table = CsvFileTable("syn123", "/fake/file/path", headers=headers)
+            expected_rows = [['1', '2', "etag1", "I like trains"],
+                             ['5', '1', "etag2", "weeeeeeeeeeee"]]
+            for expected_row, table_row in zip(expected_rows, table):
+                assert_equals(expected_row, table_row)
+
+def test_Row_forward_compatibility():
+    row = Row("2, 3, 4", rowId=1, versionNumber=1, etag=None, new_field="new")
+    assert_equals("2, 3, 4", row.get("values"))
+    assert_equals(1, row.get("rowId"))
+    assert_equals(1, row.get("versionNumber"))
+    assert_is_none(row.get("etag"))
+    assert_equals("new", row.get("new_field"))
+
+
+def test_SelectColumn_forward_compatibility():
+    sc = SelectColumn(id=1, columnType="STRING", name="my_col", columnSQL="new")
+    assert_equals(1, sc.get("id"))
+    assert_equals("STRING", sc.get("columnType"))
+    assert_equals("my_col", sc.get("name"))
+    assert_equals("new", sc.get("columnSQL"))
+
+
+def test_get_view_type_mask_for_deprecated_type():
+    assert_raises(ValueError, _get_view_type_mask_for_deprecated_type, None)
+    assert_raises(ValueError, _get_view_type_mask_for_deprecated_type, 'wiki')
+    assert_equals(EntityViewType.FILE.value, _get_view_type_mask_for_deprecated_type('file'))
+    assert_equals(EntityViewType.PROJECT.value, _get_view_type_mask_for_deprecated_type('project'))
+    assert_equals(EntityViewType.FILE.value | EntityViewType.TABLE.value,
+                  _get_view_type_mask_for_deprecated_type('file_and_table'))
+
+
+def test_get_view_type_mask():
+    assert_raises(ValueError, _get_view_type_mask, None)
+    assert_raises(ValueError, _get_view_type_mask, [])
+    assert_raises(ValueError, _get_view_type_mask, [EntityViewType.DOCKER, 'wiki'])
+    # test the map
+    assert_equals(EntityViewType.FILE.value, _get_view_type_mask([EntityViewType.FILE]))
+    assert_equals(EntityViewType.PROJECT.value, _get_view_type_mask([EntityViewType.PROJECT]))
+    assert_equals(EntityViewType.FOLDER.value, _get_view_type_mask([EntityViewType.FOLDER]))
+    assert_equals(EntityViewType.TABLE.value, _get_view_type_mask([EntityViewType.TABLE]))
+    assert_equals(EntityViewType.VIEW.value, _get_view_type_mask([EntityViewType.VIEW]))
+    assert_equals(EntityViewType.DOCKER.value, _get_view_type_mask([EntityViewType.DOCKER]))
+    # test combinations
+    assert_equals(EntityViewType.PROJECT.value | EntityViewType.FOLDER.value,
+                  _get_view_type_mask([EntityViewType.PROJECT, EntityViewType.FOLDER]))
+    # test the actual mask value
+    assert_equals(0x01, _get_view_type_mask([EntityViewType.FILE]))
+    assert_equals(0x02, _get_view_type_mask([EntityViewType.PROJECT]))
+    assert_equals(0x04, _get_view_type_mask([EntityViewType.TABLE]))
+    assert_equals(0x08, _get_view_type_mask([EntityViewType.FOLDER]))
+    assert_equals(0x10, _get_view_type_mask([EntityViewType.VIEW]))
+    assert_equals(0x20, _get_view_type_mask([EntityViewType.DOCKER]))
+    assert_equals(2**6-1, _get_view_type_mask([EntityViewType.FILE,
+                                               EntityViewType.PROJECT,
+                                               EntityViewType.FOLDER,
+                                               EntityViewType.TABLE,
+                                               EntityViewType.VIEW,
+                                               EntityViewType.DOCKER
+                                               ]))

@@ -11,10 +11,10 @@ install:
     - "%PYTHON%\\python.exe setup.py install"
 
 before_test:
-    - IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( ssh-keyscan -t ecdsa ec2-54-212-85-156.us-west-2.compute.amazonaws.com >> %userprofile%\\.ssh\\known_hosts )
+    - IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( ssh-keyscan -t ecdsa ec2-18-209-45-78.compute-1.amazonaws.com >> %userprofile%\\.ssh\\known_hosts )
 
 test_script:
-    - cmd: "%PYTHON%\\python.exe -m nose -vs tests\\unit"
+    - cmd: "%PYTHON%\\python.exe -m nose -s tests\\unit"
     - ps: |
         if ( -Not $env:APPVEYOR_PULL_REQUEST_NUMBER ){
           openssl aes-256-cbc -K $env:encrypted_d17283647768_key -iv $env:encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
@@ -23,4 +23,4 @@ test_script:
           mkdir ${env:userprofile}\\.aws
           move test.awscredentials ${env:userprofile}\\.aws\\credentials
         }
-    - cmd: "IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( %PYTHON%\\python.exe -m nose -vs tests\\integration ) ELSE ( ECHO Skipping integration tests )"
+    - cmd: "IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( %PYTHON%\\python.exe -m nose -s -v tests\\integration ) ELSE ( ECHO Skipping integration tests )"

@@ -3,9 +3,8 @@
 Synapse Client
 **************
 
-The `Synapse` object encapsulates a connection to the Synapse service and is
-used for building projects, uploading and retrieving data, and recording
-provenance of data analysis.
+The `Synapse` object encapsulates a connection to the Synapse service and is used for building projects, uploading and
+retrieving data, and recording provenance of data analysis.
 
 ~~~~~
 Login
@@ -25,7 +24,7 @@ Synapse
 More information
 ~~~~~~~~~~~~~~~~
 
-See also the `Synapse API documentation <http://docs.synapse.org/rest/>`_.
+See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 
 """
 
@@ -42,7 +41,10 @@ except ImportError:
     import ConfigParser as configparser
 
 import collections
-import os, sys, re, time
+import os
+import sys
+import re
+import time
 import hashlib
 import six
 
@@ -69,6 +71,7 @@ import getpass
 import json
 from collections import OrderedDict
 import logging
+import deprecation
 
 import synapseclient
 from . import cache
@@ -78,7 +81,8 @@ from .credentials import cached_sessions, UserLoginArgs, get_default_credential_
 from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from .exceptions import *
 from .version_check import version_check
-from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle, _extract_zip_file_to_directory, _is_integer
+from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle,\
+    _extract_zip_file_to_directory, _is_integer
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -94,42 +98,41 @@ from .upload_functions import upload_file_handle, upload_synapse_s3
 from .dozer import doze
 
 
-PRODUCTION_ENDPOINTS = {'repoEndpoint':'https://repo-prod.prod.sagebase.org/repo/v1',
-                        'authEndpoint':'https://auth-prod.prod.sagebase.org/auth/v1',
-                        'fileHandleEndpoint':'https://file-prod.prod.sagebase.org/file/v1',
-                        'portalEndpoint':'https://www.synapse.org/'}
+PRODUCTION_ENDPOINTS = {'repoEndpoint': 'https://repo-prod.prod.sagebase.org/repo/v1',
+                        'authEndpoint': 'https://auth-prod.prod.sagebase.org/auth/v1',
+                        'fileHandleEndpoint': 'https://file-prod.prod.sagebase.org/file/v1',
+                        'portalEndpoint': 'https://www.synapse.org/'}
 
-STAGING_ENDPOINTS    = {'repoEndpoint':'https://repo-staging.prod.sagebase.org/repo/v1',
-                        'authEndpoint':'https://auth-staging.prod.sagebase.org/auth/v1',
-                        'fileHandleEndpoint':'https://file-staging.prod.sagebase.org/file/v1',
-                        'portalEndpoint':'https://staging.synapse.org/'}
+STAGING_ENDPOINTS = {'repoEndpoint': 'https://repo-staging.prod.sagebase.org/repo/v1',
+                     'authEndpoint': 'https://auth-staging.prod.sagebase.org/auth/v1',
+                     'fileHandleEndpoint': 'https://file-staging.prod.sagebase.org/file/v1',
+                     'portalEndpoint': 'https://staging.synapse.org/'}
 
 CONFIG_FILE = os.path.join(os.path.expanduser('~'), '.synapseConfig')
 SESSION_FILENAME = '.session'
 FILE_BUFFER_SIZE = 2*MB
 CHUNK_SIZE = 5*MB
 QUERY_LIMIT = 1000
-CHUNK_UPLOAD_POLL_INTERVAL = 1 # second
+CHUNK_UPLOAD_POLL_INTERVAL = 1  # second
 ROOT_ENTITY = 'syn4489'
-PUBLIC = 273949  #PrincipalId of public "user"
+PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 REDIRECT_LIMIT = 5
 
 
 # Defines the standard retry policy applied to the rest methods
-## The retry period needs to span a minute because sending
-## messages is limited to 10 per 60 seconds.
+# The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
 STANDARD_RETRY_PARAMS = {"retry_status_codes": [429, 500, 502, 503, 504],
-                         "retry_errors"      : ["proxy error", "slow down", "timeout", "timed out",
-                                                "connection reset by peer", "unknown ssl protocol error",
-                                                "couldn't connect to host", "slowdown", "try again",
-                                                "connection reset by peer"],
-                         "retry_exceptions"  : ["ConnectionError", "Timeout", "timeout", "ChunkedEncodingError"],
-                         "retries"           : 60, #Retries for up to about 30 minutes
-                         "wait"              : 1,
-                         "max_wait"          : 30,
-                         "back_off"          : 2}
+                         "retry_errors": ["proxy error", "slow down", "timeout", "timed out",
+                                          "connection reset by peer", "unknown ssl protocol error",
+                                          "couldn't connect to host", "slowdown", "try again",
+                                          "connection reset by peer"],
+                         "retry_exceptions": ["ConnectionError", "Timeout", "timeout", "ChunkedEncodingError"],
+                         "retries": 60,  # Retries for up to about 30 minutes
+                         "wait": 1,
+                         "max_wait": 30,
+                         "back_off": 2}
 
 # Add additional mimetypes
 mimetypes.add_type('text/x-r', '.R', strict=False)
@@ -144,6 +147,7 @@ mimetypes.add_type('text/x-markdown', '.md', strict=False)
 mimetypes.add_type('text/x-markdown', '.markdown', strict=False)
 
 DEFAULT_STORAGE_LOCATION_ID = 1
+
 
 def login(*args, **kwargs):
     """
@@ -196,11 +200,11 @@ class Synapse(object):
 
         config_debug = None
         # Check for a config file
-        self.configPath=configPath
+        self.configPath = configPath
         if os.path.isfile(configPath):
             config = self.getConfigFile(configPath)
             if config.has_option('cache', 'location'):
-                cache_root_dir=config.get('cache', 'location')
+                cache_root_dir = config.get('cache', 'location')
             if config.has_section('debug'):
                 debug = True
 
@@ -211,24 +215,23 @@ class Synapse(object):
 
         self.setEndpoints(repoEndpoint, authEndpoint, fileHandleEndpoint, portalEndpoint, skip_checks)
 
-        self.default_headers = {'content-type': 'application/json; charset=UTF-8', 'Accept': 'application/json; charset=UTF-8'}
+        self.default_headers = {'content-type': 'application/json; charset=UTF-8',
+                                'Accept': 'application/json; charset=UTF-8'}
         self.credentials = None
-        self.debug = debug #setter for debug initializes self.logger also
+        self.debug = debug  # setter for debug initializes self.logger also
         self.skip_checks = skip_checks
 
         self.table_query_sleep = 2
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
-        self.table_query_timeout = 600 # in seconds
+        self.table_query_timeout = 600  # in seconds
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
 
-
     @property
     def debug(self):
         return self._debug
-
 
     @debug.setter
     def debug(self, value):
@@ -239,31 +242,30 @@ class Synapse(object):
         self._debug = value
         logging.getLogger('py.warnings').handlers = self.logger.handlers
 
-
     @property
-    def username(self): #for backwards compatability when username was a part of the Synapse object and not in credentials
-        return self.credentials.username
-
+    def username(self):
+        # for backwards compatability when username was a part of the Synapse object and not in credentials
+        return self.credentials.username if self.credentials is not None else None
 
     def getConfigFile(self, configPath):
         """
         Retrieves the client configuration information.
-        
+
         :param configPath:  Path to configuration file on local file system
         :return: a ConfigParser populated with properties from the user's configuration file.
         """
 
         try:
             config = configparser.ConfigParser()
-            config.read(configPath) # Does not fail if the file does not exist
+            config.read(configPath)  # Does not fail if the file does not exist
             return config
         except configparser.Error:
             self.logger.error('Error parsing Synapse config file: %s' % configPath)
-            self.logger.debug("Synapse config file parse failure:",exc_info=True)
+            self.logger.debug("Synapse config file parse failure:", exc_info=True)
             raise
 
-
-    def setEndpoints(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None, skip_checks=False):
+    def setEndpoints(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
+                     skip_checks=False):
         """
         Sets the locations for each of the Synapse services (mostly useful for testing).
 
@@ -280,10 +282,10 @@ class Synapse(object):
 
         """
 
-        endpoints = {'repoEndpoint'       : repoEndpoint,
-                     'authEndpoint'       : authEndpoint,
-                     'fileHandleEndpoint' : fileHandleEndpoint,
-                     'portalEndpoint'     : portalEndpoint}
+        endpoints = {'repoEndpoint': repoEndpoint,
+                     'authEndpoint': authEndpoint,
+                     'fileHandleEndpoint': fileHandleEndpoint,
+                     'portalEndpoint': portalEndpoint}
 
         # For unspecified endpoints, first look in the config file
         config = self.getConfigFile(self.configPath)
@@ -298,17 +300,18 @@ class Synapse(object):
 
             # Update endpoints if we get redirected
             if not skip_checks:
-                response = self._requests_session.get(endpoints[point], allow_redirects=False, headers=synapseclient.USER_AGENT)
+                response = self._requests_session.get(endpoints[point], allow_redirects=False,
+                                                      headers=synapseclient.USER_AGENT)
                 if response.status_code == 301:
                     endpoints[point] = response.headers['location']
 
-        self.repoEndpoint       = endpoints['repoEndpoint']
-        self.authEndpoint       = endpoints['authEndpoint']
+        self.repoEndpoint = endpoints['repoEndpoint']
+        self.authEndpoint = endpoints['authEndpoint']
         self.fileHandleEndpoint = endpoints['fileHandleEndpoint']
-        self.portalEndpoint     = endpoints['portalEndpoint']
+        self.portalEndpoint = endpoints['portalEndpoint']
 
-
-    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False, forced=False):
+    def login(self, email=None, password=None, apiKey=None, sessionToken=None, rememberMe=False, silent=False,
+              forced=False):
         """
         Valid combinations of login() arguments:
 
@@ -318,25 +321,28 @@ class Synapse(object):
 
         - sessionToken (**DEPRECATED**)
 
-        If no login arguments are provided or only username is provided, login() will attempt to log in using information from these sources (in order of preference):
+        If no login arguments are provided or only username is provided, login() will attempt to log in using
+         information from these sources (in order of preference):
 
         #. .synapseConfig file (in user home folder unless configured otherwise)
 
         #. cached credentials from previous `login()` where `rememberMe=True` was passed as a parameter
 
-        :param email:   Synapse user name (or an email address associated with a Synapse account)
-        :param password:   password
-        :param apiKey:     Base64 encoded Synapse API key
-        :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the following fields: email, password, apiKey
-        :param rememberMe: Whether the authentication information should be cached in your operating system's credential storage.
-        **GNOME Keyring** (recommended) or **KWallet** is recommonded to be installed for credential storage on **Linux** systems.
-        If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for the current user only (chmod 600).
+        :param email:        Synapse user name (or an email address associated with a Synapse account)
+        :param password:     password
+        :param apiKey:       Base64 encoded Synapse API key
+        :param sessionToken: **!!DEPRECATED FIELD!!** User's current session token. Using this field will ignore the
+                             following fields: email, password, apiKey
+        :param rememberMe:   Whether the authentication information should be cached in your operating system's
+                             credential storage.
+        **GNOME Keyring** (recommended) or **KWallet** is recommended to be installed for credential storage on
+        **Linux** systems.
+        If it is not installed/setup, credentials will be stored as PLAIN-TEXT file with read and write permissions for
+        the current user only (chmod 600).
         On Windows and Mac OS, a default credentials storage exists so it will be preferred over the plain-text file.
         To install GNOME Keyring on Ubuntu::
 
-
             sudo apt-get install gnome-keyring
-
 
             sudo apt-get install python-dbus  #(for Python 2 installed via apt-get)
             OR
@@ -344,7 +350,8 @@ class Synapse(object):
             OR
             sudo apt-get install libdbus-glib-1-dev #(for custom installation of Python or vitualenv)
             sudo pip install dbus-python #(may take a while to compile C code)
-        If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before running your Python session::
+        If you are on a headless Linux session (e.g. connecting via SSH), please run the following commands before
+        running your Python session::
 
             dbus-run-session -- bash #(replace 'bash' with 'sh' if bash is unavailable)
             echo -n "REPLACE_WITH_YOUR_KEYRING_PASSWORD"|gnome-keyring-daemon -- unlock
@@ -367,16 +374,19 @@ class Synapse(object):
         # Note: the order of the logic below reflects the ordering in the docstring above.
 
         # Check version before logging in
-        if not self.skip_checks: version_check()
+        if not self.skip_checks:
+            version_check()
 
         # Make sure to invalidate the existing session
         self.logout()
 
         credential_provder_chain = get_default_credential_chain()
-        self.credentials = credential_provder_chain.get_credentials(self, UserLoginArgs(email, password, apiKey, forced, sessionToken)) #TODO: remove deprecated sessionToken when we move to a different solution
+        # TODO: remove deprecated sessionToken when we move to a different solution
+        self.credentials = credential_provder_chain.get_credentials(self, UserLoginArgs(email, password, apiKey, forced,
+                                                                                        sessionToken))
 
         # Final check on login success
-        if self.credentials is None:
+        if not self.credentials:
             raise SynapseNoCredentialsError("No credentials provided.")
 
         # Save the API key in the cache
@@ -386,9 +396,9 @@ class Synapse(object):
 
         if not silent:
             profile = self.getUserProfile(refresh=True)
-            ## TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
-            self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile else self.credentials.username))
-
+            # TODO-PY3: in Python2, do we need to ensure that this is encoded in utf-8
+            self.logger.info("Welcome, %s!\n" % (profile['displayName'] if 'displayName' in profile
+                                                 else self.credentials.username))
 
     def _get_config_section_dict(self, section_name):
         config = self.getConfigFile(self.configPath)
@@ -401,11 +411,9 @@ class Synapse(object):
     def _get_config_authentication(self):
         return self._get_config_section_dict(config_file_constants.AUTHENTICATION_SECTION_NAME)
 
-
     def _get_client_authenticated_s3_profile(self, endpoint, bucket):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
-
 
     def _getSessionToken(self, email, password):
         """Returns a validated session token."""
@@ -419,14 +427,12 @@ class Synapse(object):
                 raise SynapseAuthenticationError("Invalid username or password.")
             raise
 
-
     def _getAPIKey(self, sessionToken):
         """Uses a session token to fetch an API key."""
 
-        headers = {'sessionToken' : sessionToken, 'Accept': 'application/json'}
+        headers = {'sessionToken': sessionToken, 'Accept': 'application/json'}
         secret = self.restGET('/secretKey', endpoint=self.authEndpoint, headers=headers)
         return secret['secretKey']
-
 
     def _loggedIn(self):
         """Test whether the user is logged in to Synapse."""
@@ -445,7 +451,6 @@ class Synapse(object):
                 return False
             raise
 
-
     def logout(self, forgetMe=False):
         """
         Removes authentication information from the Synapse client.
@@ -460,14 +465,12 @@ class Synapse(object):
         # Remove the authentication information from memory
         self.credentials = None
 
-
     def invalidateAPIKey(self):
         """Invalidates authentication across all clients."""
 
         # Logout globally
         if self._loggedIn():
             self.restDELETE('/secretKey', endpoint=self.authEndpoint)
-
 
     @memoize
     def getUserProfile(self, id=None, sessionToken=None, refresh=False):
@@ -476,16 +479,16 @@ class Synapse(object):
         Retrieves information on the current user if 'id' is omitted.
         :param id:           The 'userId' (aka 'ownerId') of a user or the userName
         :param sessionToken: The session token to use to find the user profile
-        :param refresh:  If set to True will always fetch the data from Synape otherwise
-                         will use cached information
+        :param refresh:      If set to True will always fetch the data from Synape otherwise will use cached information
         :returns: The user profile for the user of interest.
+
         Example::
             my_profile = syn.getUserProfile()
             freds_profile = syn.getUserProfile('fredcommo')
         """
 
         try:
-            ## if id is unset or a userID, this will succeed
+            # if id is unset or a userID, this will succeed
             id = '' if id is None else int(id)
         except (TypeError, ValueError):
             if isinstance(id, collections.Mapping) and 'ownerId' in id:
@@ -507,12 +510,12 @@ class Synapse(object):
 
         return UserProfile(**self.restGET(uri, headers={'sessionToken': sessionToken} if sessionToken else None))
 
-
     def _findPrincipals(self, query_string):
         """
         Find users or groups by name or email.
 
-        :returns: A list of userGroupHeader objects with fields displayName, email, firstName, lastName, isIndividual, ownerId
+        :returns: A list of userGroupHeader objects with fields displayName, email, firstName, lastName, isIndividual,
+                  ownerId
 
         Example::
 
@@ -527,12 +530,11 @@ class Synapse(object):
              {u'displayName': ... }]
 
         """
-        ## In Python2, urllib.quote expects encoded byte-strings
+        # In Python2, urllib.quote expects encoded byte-strings
         if six.PY2 and isinstance(query_string, unicode) or isinstance(query_string, str):
             query_string = query_string.encode('utf-8')
         uri = '/userGroupHeaders?prefix=%s' % quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
-
 
     def onweb(self, entity, subpageId=None):
         """Opens up a browser window to the entity page or wiki-subpage.
@@ -548,11 +550,10 @@ class Synapse(object):
         else:
             webbrowser.open("%s#!Wiki:%s/ENTITY/%s" % (self.portalEndpoint, synId, subpageId))
 
-
     def printEntity(self, entity, ensure_ascii=True):
         """
         Pretty prints an Entity.
-        
+
         :param entity:  The entity to be printed.
         :param ensure_ascii:  If True, escapes all non-ASCII characters
         """
@@ -564,19 +565,16 @@ class Synapse(object):
         except TypeError:
             self.logger.info(str(entity))
 
-
-
     ############################################################
-    ##                  Get / Store methods                   ##
+    #                   Get / Store methods                    #
     ############################################################
 
     def get(self, entity, **kwargs):
         """
         Gets a Synapse entity from the repository service.
 
-        :param entity:           A Synapse ID, a Synapse Entity object,
-                                 a plain dictionary in which 'id' maps to a Synapse ID or
-                                 a local file that is stored in Synapse (found by hash of file)
+        :param entity:           A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a
+                                 Synapse ID or a local file that is stored in Synapse (found by the file MD5)
         :param version:          The specific version to get.
                                  Defaults to the most recent version.
         :param downloadFile:     Whether associated files(s) should be downloaded.
@@ -588,32 +586,31 @@ class Synapse(object):
         :param ifcollision:      Determines how to handle file collisions.
                                  May be "overwrite.local", "keep.local", or "keep.both".
                                  Defaults to "keep.both".
-        :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is
-                                 specified as a local file.  That is, if the file is stored in multiple
-                                 locations in Synapse only the ones in the specified folder/project will be
-                                 returned.
+        :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is specified as a local
+                                 file.  That is, if the file is stored in multiple locations in Synapse only the ones
+                                 in the specified folder/project will be returned.
 
         :returns: A new Synapse Entity object of the appropriate type
 
         Example::
 
-            ## download file into cache
+            # download file into cache
             entity = syn.get('syn1906479')
             print(entity.name)
             print(entity.path)
 
-            ## download file into current working directory
+            # download file into current working directory
             entity = syn.get('syn1906479', downloadLocation='.')
             print(entity.name)
             print(entity.path)
 
-           ## Determine the provenance of a localy stored file as indicated in Synapse
+           # Determine the provenance of a locally stored file as indicated in Synapse
            entity = syn.get('/path/to/file.txt', limitSearch='syn12312')
            print(syn.getProvenance(entity))
 
         """
 
-        #If entity is a local file determine the corresponding synapse entity
+        # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, six.string_types) and os.path.isfile(entity):
             bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
             kwargs['downloadFile'] = False
@@ -621,7 +618,11 @@ class Synapse(object):
 
         elif isinstance(entity, six.string_types) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
-                                            ' or a valid entity id' %entity))
+                                            ' or a valid entity id' % entity))
+        # have not been saved entities
+        elif isinstance(entity, Entity) and not entity.get('id'):
+            raise ValueError("Cannot retrieve entity that has not been saved."
+                             " Please use syn.store() to save your entity and try again.")
         else:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
@@ -630,44 +631,39 @@ class Synapse(object):
 
         return self._getWithEntityBundle(entityBundle=bundle, entity=entity, **kwargs)
 
-
     def _check_entity_restrictions(self, restrictionInformation, entity, downloadFile):
         if restrictionInformation['hasUnmetAccessRequirement']:
-            warning_message = ("\nThis entity has access restrictions. Please visit the "
-                              "web page for this entity (syn.onweb(\"%s\")). Click the downward "
-                              "pointing arrow next to the file's name to review and fulfill its "
-                              "download requirement(s).\n" % id_of(entity))
+            warning_message = ("\nThis entity has access restrictions. Please visit the web page for this entity "
+                               "(syn.onweb(\"%s\")). Click the downward pointing arrow next to the file's name to "
+                               "review and fulfill its download requirement(s).\n" % id_of(entity))
             if downloadFile:
                 raise SynapseUnmetAccessRestrictions(warning_message)
             warnings.warn(warning_message)
-
-
 
     def _getFromFile(self, filepath, limitSearch=None):
         """
         Gets a Synapse entityBundle based on the md5 of a local file
         See :py:func:`synapseclient.Synapse.get`.
 
-        :param filepath: path to local file
-        :param limitSearch:   Limits the places in Synapse where the file is searched for.
+        :param filepath:        path to local file
+        :param limitSearch:     Limits the places in Synapse where the file is searched for.
         """
-        results = self.restGET('/entity/md5/%s' %utils.md5_for_file(filepath).hexdigest())['results']
+        results = self.restGET('/entity/md5/%s' % utils.md5_for_file(filepath).hexdigest())['results']
         if limitSearch is not None:
-            #Go through and find the path of every entity found
-            paths = [self.restGET('/entity/%s/path' %ent['id']) for ent in results]
-            #Filter out all entities whose path does not contain limitSearch
+            # Go through and find the path of every entity found
+            paths = [self.restGET('/entity/%s/path' % ent['id']) for ent in results]
+            # Filter out all entities whose path does not contain limitSearch
             results = [ent for ent, path in zip(results, paths) if
                        utils.is_in_path(limitSearch, path)]
-        if len(results)==0: #None found
+        if len(results) == 0:  # None found
             raise SynapseFileNotFoundError('File %s not found in Synapse' % (filepath,))
-        elif len(results)>1:
-            id_txts = '\n'.join(['%s.%i' %(r['id'], r['versionNumber']) for r in results])
-            self.logger.warning('\nThe file %s is associated with many files in Synapse:\n'
-                             '%s\n'
-                             'You can limit to files in specific project or folder by setting the '
-                             'limitSearch to the synapse Id of the project or folder.  \n'
-                             'Will use the first one returned: \n'
-                             '%s version %i\n' %(filepath,  id_txts, results[0]['id'], results[0]['versionNumber']))
+        elif len(results) > 1:
+            id_txts = '\n'.join(['%s.%i' % (r['id'], r['versionNumber']) for r in results])
+            self.logger.warning('\nThe file %s is associated with many files in Synapse:\n%s\n'
+                                'You can limit to files in specific project or folder by setting the limitSearch to the'
+                                ' synapse Id of the project or folder.\n'
+                                'Will use the first one returned: \n'
+                                '%s version %i\n' % (filepath,  id_txts, results[0]['id'], results[0]['versionNumber']))
         entity = results[0]
 
         bundle = self._getEntityBundle(entity, version=entity['versionNumber'])
@@ -675,6 +671,25 @@ class Synapse(object):
 
         return bundle
 
+    def move(self, entity, new_parent):
+        """
+        Move a Synapse entity to a new container.
+
+        :param entity:           A Synapse ID, a Synapse Entity object, or a local file that is stored in Synapse
+        :param new_parent:       The new parent container (Folder or Project) to which the entity should be moved.
+
+        :returns: The Synapse Entity object that has been moved.
+
+        Example::
+
+            entity = syn.move('syn456', 'syn123')
+        """
+
+        entity = self.get(entity, downloadFile=False)
+        entity.parentId = id_of(new_parent)
+        entity = self.store(entity, forceVersion=False)
+
+        return entity
 
     def _getWithEntityBundle(self, entityBundle, entity=None, **kwargs):
         """
@@ -692,26 +707,26 @@ class Synapse(object):
         """
 
         # Note: This version overrides the version of 'entity' (if the object is Mappable)
-        version = kwargs.pop('version', None)
+        kwargs.pop('version', None)
         downloadFile = kwargs.pop('downloadFile', True)
         downloadLocation = kwargs.pop('downloadLocation', None)
         ifcollision = kwargs.pop('ifcollision', None)
         submission = kwargs.pop('submission', None)
-        followLink = kwargs.pop('followLink',False)
+        followLink = kwargs.pop('followLink', False)
         path = kwargs.pop('path', None)
 
-        #make sure user didn't accidentlaly pass a kwarg that we don't handle
-        if kwargs: #if there are remaining items in the kwargs
+        # make sure user didn't accidentlaly pass a kwarg that we don't handle
+        if kwargs:  # if there are remaining items in the kwargs
             raise TypeError('Unexpected **kwargs: %r' % kwargs)
 
-        #If Link, get target ID entity bundle
+        # If Link, get target ID entity bundle
         if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link' and followLink:
             targetId = entityBundle['entity']['linksTo']['targetId']
             targetVersion = entityBundle['entity']['linksTo'].get('targetVersionNumber')
             entityBundle = self._getEntityBundle(targetId, targetVersion)
 
-        ## TODO is it an error to specify both downloadFile=False and downloadLocation?
-        ## TODO this matters if we want to return already cached files when downloadFile=False
+        # TODO is it an error to specify both downloadFile=False and downloadLocation?
+        # TODO this matters if we want to return already cached files when downloadFile=False
 
         # Make a fresh copy of the Entity
         local_state = entity.local_state() if entity and isinstance(entity, Entity) else {}
@@ -721,20 +736,22 @@ class Synapse(object):
         annotations = from_synapse_annotations(entityBundle['annotations'])
         entity = Entity.create(properties, annotations, local_state)
 
-        #Handle download of fileEntities
+        # Handle download of fileEntities
         if isinstance(entity, File):
-            #update the entity with FileHandle metadata
-            file_handle = next((handle for handle in entityBundle['fileHandles'] if handle['id'] == entity.dataFileHandleId), None)
+            # update the entity with FileHandle metadata
+            file_handle = next((handle for handle in entityBundle['fileHandles']
+                                if handle['id'] == entity.dataFileHandleId), None)
             entity._update_file_handle(file_handle)
 
             if downloadFile:
                 if file_handle:
                     self._download_file_entity(downloadLocation, entity, ifcollision, submission)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
-                    warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD permission. The file has NOT been downloaded."
-                    self.logger.warning('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'+'!'*len(warning_message)+'\n')
+                    warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD " \
+                                      "permission. The file has NOT been downloaded."
+                    self.logger.warning('\n' + '!'*len(warning_message)+'\n' + warning_message + '\n'
+                                        + '!'*len(warning_message)+'\n')
         return entity
-
 
     def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
         # set the initial local state
@@ -743,50 +760,50 @@ class Synapse(object):
         entity.cacheDir = None
 
         # check to see if an UNMODIFIED version of the file (since it was last downloaded) already exists
-        # this location could be either in .synapseCache
-        # or a user specified location to which the user previously downloaded the file
+        # this location could be either in .synapseCache or a user specified location to which the user previously
+        # downloaded the file
         cached_file_path = self.cache.get(entity.dataFileHandleId, downloadLocation)
 
-        #location in .synapseCache where the file would be corresponding to its FileHandleId
+        # location in .synapseCache where the file would be corresponding to its FileHandleId
         synapseCache_location = self.cache.get_cache_dir(entity.dataFileHandleId)
 
         file_name = entity._file_handle.fileName if cached_file_path is None else os.path.basename(cached_file_path)
 
-        #Decide the best download location for the file
+        # Decide the best download location for the file
         if downloadLocation is not None:
             # Make sure the specified download location is a fully resolved directory
             downloadLocation = os.path.expandvars(os.path.expanduser(downloadLocation))
             if os.path.isfile(downloadLocation):
                 raise ValueError("Parameter 'downloadLocation' should be a directory, not a file.")
         elif cached_file_path is not None:
-            #file already cached so use that as the download location
+            # file already cached so use that as the download location
             downloadLocation = os.path.dirname(cached_file_path)
         else:
-            #file not cached and no user-specified location so default to .synapseCache
+            # file not cached and no user-specified location so default to .synapseCache
             downloadLocation = synapseCache_location
 
-        #resolve file path collisions by either overwriting, renaming, or not downloading, depending on the ifcollision value
-        downloadPath = self._resolve_download_path_collisions(downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path)
+        # resolve file path collisions by either overwriting, renaming, or not downloading, depending on the
+        # ifcollision value
+        downloadPath = self._resolve_download_path_collisions(downloadLocation, file_name, ifcollision,
+                                                              synapseCache_location, cached_file_path)
         if downloadPath is None:
             return
 
-        if cached_file_path is not None: #copy from cache
+        if cached_file_path is not None:  # copy from cache
             if downloadPath != cached_file_path:
                 # create the foider if it does not exist already
                 if not os.path.exists(downloadLocation):
                     os.makedirs(downloadLocation)
                 shutil.copy(cached_file_path, downloadPath)
 
-        else: #download the file from URL (could be a local file)
+        else:  # download the file from URL (could be a local file)
             objectType = 'FileEntity' if submission is None else 'SubmissionAttachment'
             objectId = entity['id'] if submission is None else submission
-
 
             # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
             # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
             # _downloadFileHandle may also return None to indicate that the download failed
-            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType,
-                                                      downloadPath)
+            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType, downloadPath)
 
             if downloadPath is None or not os.path.exists(downloadPath):
                 return
@@ -795,13 +812,16 @@ class Synapse(object):
         entity.files = [os.path.basename(downloadPath)]
         entity.cacheDir = os.path.dirname(downloadPath)
 
-    def _resolve_download_path_collisions(self, downloadLocation, file_name, ifcollision, synapseCache_location, cached_file_path):
-        #always overwrite if we are downloading to .synapseCache
+    def _resolve_download_path_collisions(self, downloadLocation, file_name, ifcollision, synapseCache_location,
+                                          cached_file_path):
+        # always overwrite if we are downloading to .synapseCache
         if utils.normalize_path(downloadLocation) == synapseCache_location:
             if ifcollision is not None:
-                self.logger.warning('\n' + '!'*50+'\nifcollision=' + ifcollision+ 'is being IGNORED because the download destination is synapse\'s cache. Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
-            ifcollision= 'overwrite.local'
-        #if ifcollision not specified, keep.local
+                self.logger.warning('\n' + '!'*50+'\nifcollision=' + ifcollision
+                                    + 'is being IGNORED because the download destination is synapse\'s cache.'
+                                      ' Instead, the behavior is "overwrite.local". \n'+'!'*50+'\n')
+            ifcollision = 'overwrite.local'
+        # if ifcollision not specified, keep.local
         ifcollision = ifcollision or 'keep.both'
 
         downloadPath = utils.normalize_path(os.path.join(downloadLocation, file_name))
@@ -820,17 +840,15 @@ class Synapse(object):
                                  'for "ifcollision"' % ifcollision)
         return downloadPath
 
-
     def store(self, obj, **kwargs):
         """
-        Creates a new Entity or updates an existing Entity,
-        uploading any files in the process.
+        Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
         :param obj:                 A Synapse Entity, Evaluation, or Wiki
-        :param used:                The Entity, Synapse ID, or URL
-                                    used to create the object (can also be a list of these)
-        :param executed:            The Entity, Synapse ID, or URL representing code executed
-                                    to create the object (can also be a list of these)
+        :param used:                The Entity, Synapse ID, or URL used to create the object (can also be a list of
+                                    these)
+        :param executed:            The Entity, Synapse ID, or URL representing code executed to create the object
+                                    (can also be a list of these)
         :param activity:            Activity object specifying the user's provenance
         :param activityName:        Activity name to be used in conjunction with *used* and *executed*.
         :param activityDescription: Activity description to be used in conjunction with *used* and *executed*.
@@ -839,11 +857,10 @@ class Synapse(object):
         :param forceVersion:        Indicates whether the method should increment the version of the object even if
                                     nothing has changed.  Defaults to True.
         :param versionLabel:        Arbitrary string used to label the version.
-        :param isRestricted:        If set to true, an email will be sent to the Synapse access control team
-                                    to start the process of adding terms-of-use
-                                    or review board approval for this entity.
-                                    You will be contacted with regards to the specific data being restricted
-                                    and the requirements of access.
+        :param isRestricted:        If set to true, an email will be sent to the Synapse access control team to start
+                                    the process of adding terms-of-use or review board approval for this entity.
+                                    You will be contacted with regards to the specific data being restricted and the
+                                    requirements of access.
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
@@ -858,8 +875,8 @@ class Synapse(object):
 
             from synapseclient import File, Activity
 
-            ## A synapse entity *syn1906480* contains data
-            ## entity *syn1917825* contains code
+            # A synapse entity *syn1906480* contains data
+            # entity *syn1917825* contains code
             activity = Activity(
                 'Fancy Processing',
                 description='No seriously, really fancy processing',
@@ -875,13 +892,13 @@ class Synapse(object):
         versionLabel = kwargs.get('versionLabel', None)
         isRestricted = kwargs.get('isRestricted', False)
 
-        ## _before_store hook
-        ## give objects a chance to do something before being stored
+        # _before_store hook
+        # give objects a chance to do something before being stored
         if hasattr(obj, '_before_synapse_store'):
             obj._before_synapse_store(self)
 
-        ## _synapse_store hook
-        ## for objects that know how to store themselves
+        # _synapse_store hook
+        # for objects that know how to store themselves
         if hasattr(obj, '_synapse_store'):
             return obj._synapse_store(self)
 
@@ -890,10 +907,10 @@ class Synapse(object):
             if isinstance(obj, Wiki):
                 return self._storeWiki(obj, createOrUpdate)
 
-            if 'id' in obj: # If ID is present, update
+            if 'id' in obj:  # If ID is present, update
                 return type(obj)(**self.restPUT(obj.putURI(), obj.json()))
 
-            try: # If no ID is present, attempt to POST the object
+            try:  # If no ID is present, attempt to POST the object
                 return type(obj)(**self.restPOST(obj.postURI(), obj.json()))
 
             except SynapseHTTPError as err:
@@ -923,16 +940,18 @@ class Synapse(object):
             if bundle:
                 # Check if the file should be uploaded
                 fileHandle = find_data_file_handle(bundle)
-                if fileHandle and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
-                    #switching away from ExternalFileHandle or the url was updated
+                if fileHandle \
+                        and fileHandle['concreteType'] == "org.sagebionetworks.repo.model.file.ExternalFileHandle":
+                    # switching away from ExternalFileHandle or the url was updated
                     needs_upload = entity['synapseStore'] or (fileHandle['externalURL'] != entity['externalURL'])
                 else:
-                    ## Check if we need to upload a new version of an existing
-                    ## file. If the file referred to by entity['path'] has been
-                    ## modified, we want to upload the new version.
-                    ## If synapeStore is false then we must upload a ExternalFileHandle
-                    needs_upload = not entity['synapseStore'] or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
-            elif entity.get('dataFileHandleId',None) is not None:
+                    # Check if we need to upload a new version of an existing
+                    # file. If the file referred to by entity['path'] has been
+                    # modified, we want to upload the new version.
+                    # If synapeStore is false then we must upload a ExternalFileHandle
+                    needs_upload = not entity['synapseStore'] \
+                                   or not self.cache.contains(bundle['entity']['dataFileHandleId'], entity['path'])
+            elif entity.get('dataFileHandleId', None) is not None:
                 needs_upload = False
             else:
                 needs_upload = True
@@ -941,12 +960,14 @@ class Synapse(object):
                 local_state_fh = local_state.get('_file_handle', {})
                 synapseStore = local_state.get('synapseStore', True)
                 fileHandle = upload_file_handle(self,
-                                                 entity['parentId'],
-                                                 local_state['path'] if (synapseStore or local_state_fh.get('externalURL') is None) else local_state_fh.get('externalURL'),
-                                                 synapseStore=synapseStore,
-                                                 md5=local_state_fh.get('contentMd5'),
-                                                 file_size=local_state_fh.get('contentSize'),
-                                                 mimetype=local_state_fh.get('contentType'))
+                                                entity['parentId'],
+                                                local_state['path'] if (synapseStore
+                                                                        or local_state_fh.get('externalURL') is None)
+                                                else local_state_fh.get('externalURL'),
+                                                synapseStore=synapseStore,
+                                                md5=local_state_fh.get('contentMd5'),
+                                                file_size=local_state_fh.get('contentSize'),
+                                                mimetype=local_state_fh.get('contentType'))
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 
@@ -955,10 +976,11 @@ class Synapse(object):
                 # But becomes an update() due to conflict
                 properties['dataFileHandleId'] = bundle['entity']['dataFileHandleId']
 
-            #update the file_handle metadata if the FileEntity's FileHandle id has changed
-            if '_file_handle' in local_state and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
+            # update the file_handle metadata if the FileEntity's FileHandle id has changed
+            if '_file_handle' in local_state \
+                    and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
                 local_state['_file_handle'] = self._getFileHandle(properties['dataFileHandleId'])
-                #check if we alredy have the filehandleid cached somewhere
+                # check if we already have the filehandleid cached somewhere
                 cached_path = self.cache.get(properties['dataFileHandleId'])
                 if cached_path is None:
                     local_state['path'] = None
@@ -973,11 +995,15 @@ class Synapse(object):
         if 'id' in properties:
             properties = self._updateEntity(properties, forceVersion, versionLabel)
         else:
-            #If Link, get the target name, version number and concrete type and store in link properties
-            if properties['concreteType']=="org.sagebionetworks.repo.model.Link":
-                target_properties = self._getEntity(properties['linksTo']['targetId'], version=properties['linksTo'].get('targetVersionNumber'))
+            # If Link, get the target name, version number and concrete type and store in link properties
+            if properties['concreteType'] == "org.sagebionetworks.repo.model.Link":
+                target_properties = self._getEntity(properties['linksTo']['targetId'],
+                                                    version=properties['linksTo'].get('targetVersionNumber'))
+                if target_properties['parentId'] == properties['parentId']:
+                    raise ValueError("Cannot create a Link to an entity under the same parent.")
                 properties['linksToClassName'] = target_properties['concreteType']
-                if target_properties.get('versionNumber') is not None and properties['linksTo'].get('targetVersionNumber') is not None:
+                if target_properties.get('versionNumber') is not None \
+                        and properties['linksTo'].get('targetVersionNumber') is not None:
                     properties['linksTo']['targetVersionNumber'] = target_properties['versionNumber']
                 properties['name'] = target_properties['name']
             try:
@@ -986,11 +1012,12 @@ class Synapse(object):
                 if createOrUpdate and ex.response.status_code == 409:
                     # Get the existing Entity's ID via the name and parent
                     existing_entity_id = self.findEntityId(properties['name'], properties.get('parentId', None))
-                    if existing_entity_id is None: raise
+                    if existing_entity_id is None:
+                        raise
 
                     # get existing properties and annotations
                     if not bundle:
-                        bundle = self._getEntityBundle(existing_entity_id, bitFlags=0x1|0x2)
+                        bundle = self._getEntityBundle(existing_entity_id, bitFlags=0x1 | 0x2)
 
                     # Need some fields from the existing entity: id, etag, and version info.
                     existing_entity = bundle['entity']
@@ -1022,21 +1049,22 @@ class Synapse(object):
 
         if used or executed:
             if activity is not None:
-                raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed item(s), but not both.')
+                raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed'
+                                             ' item(s), but not both.')
             activityName = kwargs.get('activityName', None)
             activityDescription = kwargs.get('activityDescription', None)
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
         # If we have an Activity, set it as the Entity's provenance record
         if activity:
-            activity = self.setProvenance(properties, activity)
+            self.setProvenance(properties, activity)
 
             # 'etag' has changed, so get the new Entity
             properties = self._getEntity(properties)
 
         # Return the updated Entity object
-        return Entity.create(properties, annotations, local_state)
-
+        entity = Entity.create(properties, annotations, local_state)
+        return self.get(entity, downloadFile=False)
 
     def _createAccessRequirementIfNone(self, entity):
         """
@@ -1047,14 +1075,13 @@ class Synapse(object):
         if len(existingRestrictions['results']) <= 0:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
-
     def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x40000 | 0x2 | 0x1):
         """
         Gets some information about the Entity.
 
-        :parameter entity: a Synapse Entity or Synapse ID
-        :parameter version: the entity's version (defaults to None meaning most recent version)
-        :parameter bitFlags: Bit flags representing which entity components to return
+        :parameter entity:      a Synapse Entity or Synapse ID
+        :parameter version:     the entity's version (defaults to None meaning most recent version)
+        :parameter bitFlags:    Bit flags representing which entity components to return
 
         EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)::
 
@@ -1077,7 +1104,8 @@ class Synapse(object):
 
             bundle = syn._getEntityBundle('syn111111', bitFlags=0x800|0x2|0x1)
 
-        :returns: An EntityBundle with the requested fields or by default Entity header, annotations, unmet access requirements, and file handles
+        :returns: An EntityBundle with the requested fields or by default Entity header, annotations, unmet access
+         requirements, and file handles
         """
 
         # If 'entity' is given without an ID, try to find it by 'parentId' and 'name'.
@@ -1088,27 +1116,25 @@ class Synapse(object):
             entity = self.findEntityId(entity['name'], entity.get('parentId', None))
 
         # Avoid an exception from finding an ID from a NoneType
-        try: id_of(entity)
+        try:
+            id_of(entity)
         except ValueError:
             return None
 
         if version is not None:
-            uri = '/entity/%s/version/%d/bundle?mask=%d' %(id_of(entity), version, bitFlags)
+            uri = '/entity/%s/version/%d/bundle?mask=%d' % (id_of(entity), int(version), bitFlags)
         else:
-            uri = '/entity/%s/bundle?mask=%d' %(id_of(entity), bitFlags)
+            uri = '/entity/%s/bundle?mask=%d' % (id_of(entity), bitFlags)
         bundle = self.restGET(uri)
 
         return bundle
-
 
     def delete(self, obj, version=None):
         """
         Removes an object from Synapse.
 
-        :param obj: An existing object stored on Synapse
-                    such as Evaluation, File, Project, or Wiki
-
-        :param version: For entities, specify a particular version to delete.
+        :param obj:         An existing object stored on Synapse such as Evaluation, File, Project, or Wiki
+        :param version:     For entities, specify a particular version to delete.
 
         """
         # Handle all strings as the Entity ID for backward compatibility
@@ -1125,16 +1151,16 @@ class Synapse(object):
                     self.restDELETE(obj.deleteURI(versionNumber=version))
                 else:
                     self.restDELETE(obj.deleteURI())
-            except AttributeError as ex1:
+            except AttributeError:
                 SynapseError("Can't delete a %s" % type(obj))
 
 
     _user_name_cache = {}
+
     def _get_user_name(self, user_id):
         if user_id not in self._user_name_cache:
             self._user_name_cache[user_id] = utils.extract_user_name(self.getUserProfile(user_id))
         return self._user_name_cache[user_id]
-
 
     def _list(self, parent, recursive=False, long_format=False, show_modified=False, indent=0, out=sys.stdout):
         """
@@ -1142,103 +1168,87 @@ class Synapse(object):
         """
         fields = ['id', 'name', 'nodeType']
         if long_format:
-            fields.extend(['createdByPrincipalId','createdOn','versionNumber'])
+            fields.extend(['createdByPrincipalId', 'createdOn', 'versionNumber'])
         if show_modified:
             fields.extend(['modifiedByPrincipalId', 'modifiedOn'])
+        # we will convert this to use the new service in SYNPY-473
         query = 'select ' + ','.join(fields) + \
-                ' from entity where %s=="%s"' % ('id' if indent==0 else 'parentId', id_of(parent))
-        results = self.chunkedQuery(query)
+                ' from entity where %s=="%s"' % ('id' if indent == 0 else 'parentId', id_of(parent))
+        results = self.__deprecated_chunkedQuery(query)
 
         results_found = False
         for result in results:
             results_found = True
 
-            fmt_fields = {'name' : result['entity.name'],
-                          'id' : result['entity.id'],
-                          'padding' : ' ' * indent,
-                          'slash_or_not' : '/' if is_container(result) else ''}
+            fmt_fields = {'name': result['entity.name'],
+                          'id': result['entity.id'],
+                          'padding': ' ' * indent,
+                          'slash_or_not': '/' if is_container(result) else ''}
             fmt_string = "{id}"
 
             if long_format:
-                fmt_fields['createdOn'] = utils.from_unix_epoch_time(result['entity.createdOn']).strftime("%Y-%m-%d %H:%M")
+                fmt_fields['createdOn'] = utils.from_unix_epoch_time(result['entity.createdOn'])\
+                    .strftime("%Y-%m-%d %H:%M")
                 fmt_fields['createdBy'] = self._get_user_name(result['entity.createdByPrincipalId'])[:18]
-                fmt_fields['version']   = result['entity.versionNumber']
+                fmt_fields['version'] = result['entity.versionNumber']
                 fmt_string += " {version:3}  {createdBy:>18} {createdOn}"
             if show_modified:
-                fmt_fields['modifiedOn'] = utils.from_unix_epoch_time(result['entity.modifiedOn']).strftime("%Y-%m-%d %H:%M")
+                fmt_fields['modifiedOn'] = utils.from_unix_epoch_time(result['entity.modifiedOn'])\
+                    .strftime("%Y-%m-%d %H:%M")
                 fmt_fields['modifiedBy'] = self._get_user_name(result['entity.modifiedByPrincipalId'])[:18]
                 fmt_string += "  {modifiedBy:>18} {modifiedOn}"
 
             fmt_string += "  {padding}{name}{slash_or_not}\n"
             out.write(fmt_string.format(**fmt_fields))
 
-            if (indent==0 or recursive) and is_container(result):
-                self._list(result['entity.id'], recursive=recursive, long_format=long_format, show_modified=show_modified, indent=indent+2, out=out)
+            if (indent == 0 or recursive) and is_container(result):
+                self._list(result['entity.id'], recursive=recursive, long_format=long_format,
+                           show_modified=show_modified, indent=indent+2, out=out)
 
-        if indent==0 and not results_found:
-            out.write('No results visible to {username} found for id {id}\n'.format(username=self.credentials.username, id=id_of(parent)))
-
+        if indent == 0 and not results_found:
+            out.write('No results visible to {username} found for id {id}\n'.format(username=self.credentials.username,
+                                                                                    id=id_of(parent)))
 
     ############################################################
-    ##                   Deprecated methods                   ##
+    #                    Deprecated methods                    #
     ############################################################
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use get() instead.")
     def getEntity(self, entity, version=None):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.get`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=False)
 
-
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use get() instead.")
     def loadEntity(self, entity):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.get`
-        """
-
-        self.logger.warning('THIS ONLY DOWNLOADS ENTITIES!')
+        """Use :py:func:`synapseclient.Synapse.get`"""
         return self.downloadEntity(entity)
 
-
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use store() instead.")
     def createEntity(self, entity, used=None, executed=None, **kwargs):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.store`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.store`"""
         return self.store(entity, used=used, executed=executed, **kwargs)
 
-
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use store() instead.")
     def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
-        """
-        **Deprecated**
+        """Use :py:func:`synapseclient.Synapse.store`"""
+        return self.store(entity, used=used, executed=executed, forceVersion=incrementVersion,
+                          versionLabel=versionLabel, **kwargs)
 
-        Use :py:func:`synapseclient.Synapse.store`
-        """
-
-        return self.store(entity, used=used, executed=executed, forceVersion=incrementVersion, versionLabel=versionLabel, **kwargs)
-
-
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use delete() instead.")
     def deleteEntity(self, entity):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.delete`
-        """
+        """Use :py:func:`synapseclient.Synapse.delete`"""
         self.delete(entity)
 
-
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use store() instead.")
     def uploadFile(self, entity, filename=None, used=None, executed=None):
-        """
-        **Deprecated**
+        """Use :py:func:`synapseclient.Synapse.store`"""
 
-        Use :py:func:`synapseclient.Synapse.store`
-        """
         properties, annotations, local_state = split_entity_namespaces(entity)
 
         if filename is not None:
@@ -1246,53 +1256,55 @@ class Synapse(object):
         if 'name' not in properties or properties['name'] is None:
             properties['name'] = utils.guess_file_name(filename)
 
-        return self.store(File(properties=properties, annotations=annotations, local_state=local_state), used=used, executed=executed)
+        return self.store(File(properties=properties, annotations=annotations, local_state=local_state), used=used,
+                          executed=executed)
 
-
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use get() instead.")
     def downloadEntity(self, entity, version=None):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.get`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=True)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
     def uploadFileHandle(self, path, parent, synapseStore=True, mimetype=None, md5=None, file_size=None):
         """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
         Returns a new FileHandle as a dict to represent the stored file.
 
-        :param parent: parent of the entity to which we upload.
-        :param path: file path to the file being uploaded
-        :param synapseStore: If False, will not upload the file, but instead create an ExternalFileHandle that references the file on the local machine.
-                             If True, will upload the file based on StorageLocation determined by the entity_parent_id
-        :param mimetype: The MIME type metadata for the uploaded file
-        :param md5: The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
-        :param file_size: The size the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
-        :param file_type: The MIME type the file, if known. Otherwise if the file is a local file, it will be calculated automatically.
-
+        :param parent:          parent of the entity to which we upload.
+        :param path:            file path to the file being uploaded
+        :param synapseStore:    If False, will not upload the file, but instead create an ExternalFileHandle that
+                                references the file on the local machine.
+                                If True, will upload the file based on StorageLocation determined by the
+                                entity_parent_id
+        :param mimetype:        The MIME type metadata for the uploaded file
+        :param md5:             The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will
+                                be calculated automatically.
+        :param file_size:       The size the file, if known. Otherwise if the file is a local file, it will be
+                                calculated automatically.
+        :param file_type:       The MIME type the file, if known. Otherwise if the file is a local file, it will be
+                                calculated automatically.
 
         :returns: a dict of a new FileHandle as a dict that represents the uploaded file
         """
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
 
-    def uploadSynapseManagedFileHandle(self, path, storageLocationId=None,mimetype=None):
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
+    def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
         """
         Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
         :param path: path to the file
-        :param storageLocationId: storageLocationId of a S3 storage location. pass in a value if you wish to use an ExternalS3StorageLocation
+        :param storageLocationId: storageLocationId of a S3 storage location. pass in a value if you wish to use an
+         ExternalS3StorageLocation
         :param mimetype: MIME type of the file, if known.
         :return: file handle dict associated with the uploaded file
         """
         return upload_synapse_s3(self, path, storageLocationId=storageLocationId, mimetype=mimetype)
 
-    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None, storageLocationId = None):
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
+    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None,
+                                   storageLocationId=None):
         """
-        **Deprecated**
-
-
-        Create and return a fileHandle, by either uploading a local file or
-        linking to an external URL.
+        Create and return a fileHandle, by either uploading a local file or linking to an external URL.
 
         :param synapseStore: Indicates whether the file should be stored or just its URL.
                              Defaults to True.
@@ -1301,25 +1313,29 @@ class Synapse(object):
 
         .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
         """
-        warnings.warn("_uploadToFileHandleService() is deprecated, please use uploadFileHandle() instead", DeprecationWarning, stacklevel=2)
+        warnings.warn("_uploadToFileHandleService() is deprecated and no longer supported.",
+                      DeprecationWarning, stacklevel=2)
         if filename is None:
             raise ValueError('No filename given')
         elif utils.is_url(filename):
             if synapseStore and urlparse(filename).scheme != 'sftp':
-                raise NotImplementedError('Automatic storing of external files is not supported.  Please try downloading the file locally first before storing it or set synapseStore=False')
+                raise NotImplementedError('Automatic storing of external files is not supported.'
+                                          ' Please try downloading the file locally first before storing it or set'
+                                          ' synapseStore=False')
             return self._createExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
             if synapseStore:
-                file_handle_id = multipart_upload(self, filename, contentType=mimetype, storageLocationId=storageLocationId)
-                self.cache.add(file_handle_id,filename)
+                file_handle_id = multipart_upload(self, filename, contentType=mimetype,
+                                                  storageLocationId=storageLocationId)
+                self.cache.add(file_handle_id, filename)
                 return self._getFileHandle(file_handle_id)
             else:
                 return self._createExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
     ############################################################
-    ##                 Get / Set Annotations                  ##
+    #                  Get / Set Annotations                   #
     ############################################################
 
     def _getRawAnnotations(self, entity, version=None):
@@ -1335,22 +1351,19 @@ class Synapse(object):
             uri = '/entity/%s/annotations' % id_of(entity)
         return self.restGET(uri)
 
-
     def getAnnotations(self, entity, version=None):
         """
         Retrieve annotations for an Entity from the Synapse Repository as a Python dict.
 
-        Note that collapsing annotations from the native Synapse format to a Python dict
-        may involve some loss of information. See :py:func:`_getRawAnnotations` to get
-        annotations in the native format.
+        Note that collapsing annotations from the native Synapse format to a Python dict may involve some loss of
+        information. See :py:func:`_getRawAnnotations` to get annotations in the native format.
 
         :param entity:  An Entity or Synapse ID to lookup
         :param version: The version of the Entity to retrieve.
 
         :returns: A dictionary
         """
-        return from_synapse_annotations(self._getRawAnnotations(entity,version))
-
+        return from_synapse_annotations(self._getRawAnnotations(entity, version))
 
     def setAnnotations(self, entity, annotations={}, **kwargs):
         """
@@ -1376,77 +1389,58 @@ class Synapse(object):
 
         return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
 
-
-
     ############################################################
-    ##                        Querying                        ##
+    #                         Querying                         #
     ############################################################
 
-    def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo"], sortBy="NAME", sortDirection="ASC"):
+    def getChildren(self, parent, includeTypes=["folder", "file", "table", "link", "entityview", "dockerrepo"],
+                    sortBy="NAME", sortDirection="ASC"):
         """
         Retrieves all of the entities stored within a parent such as folder or project.
-        
-        :param parent:       An id or an object of a Synapse container or None to retrieve all projects
 
-        :param includeTypes:   Must be a list of entity types (ie. ["folder","file"]) which can be found here:
-                               http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
+        :param parent:          An id or an object of a Synapse container or None to retrieve all projects
 
-        :param sortBy:         How results should be sorted.  Can be NAME, or CREATED_ON
+        :param includeTypes:    Must be a list of entity types (ie. ["folder","file"]) which can be found here:
+                                http://docs.synapse.org/rest/org/sagebionetworks/repo/model/EntityType.html
 
-        :param sortDirection:  The direction of the result sort.  Can be ASC, or DESC
+        :param sortBy:          How results should be sorted.  Can be NAME, or CREATED_ON
 
-        :returns:              An iterator that shows all the children of the container.
+        :param sortDirection:   The direction of the result sort.  Can be ASC, or DESC
+
+        :returns:                An iterator that shows all the children of the container.
 
         Also see:
 
         - :py:func:`synapseutils.walk`
         """
         parentId = id_of(parent) if parent is not None else None
-        entityChildrenRequest = {'parentId':parentId,
-                                 'includeTypes':includeTypes,
-                                 'sortBy':sortBy,
-                                 'sortDirection':sortDirection,
+        entityChildrenRequest = {'parentId': parentId,
+                                 'includeTypes': includeTypes,
+                                 'sortBy': sortBy,
+                                 'sortDirection': sortDirection,
                                  'nextPageToken': None}
-        entityChildrenResponse = {"nextPageToken":"first"}
+        entityChildrenResponse = {"nextPageToken": "first"}
         while entityChildrenResponse.get('nextPageToken') is not None:
-            entityChildrenResponse = self.restPOST('/entity/children',body =json.dumps(entityChildrenRequest))
+            entityChildrenResponse = self.restPOST('/entity/children', body=json.dumps(entityChildrenRequest))
             for child in entityChildrenResponse['page']:
                 yield child
             if entityChildrenResponse.get('nextPageToken') is not None:
                 entityChildrenRequest['nextPageToken'] = entityChildrenResponse['nextPageToken']
 
-    def query(self, queryStr):
-        """
-        Query for Synapse entities.
-        **To be replaced** with :py:func:`synapseclient.Synapse.chunkedQuery` in the future.
-        See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
-
-		:param queryStr:  the query to execute
-		
-        :returns: an array of query results
-
-        Example::
-
-            syn.query("select id, name from entity where entity.parentId=='syn449742'")
-
-        See also: :py:func:`synapseclient.Synapse.chunkedQuery`
-        """
-        return self.restGET('/query?query=' + quote(queryStr))
-
-
-    def chunkedQuery(self, queryStr):
+    # TODO: replace this method when PLFM-4578 is resolved
+    def __deprecated_chunkedQuery(self, queryStr):
         """
         Query for Synapse Entities.
-        More robust than :py:func:`synapseclient.Synapse.query`.
-        See the `query language documentation <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
+        See the `query language documentation \
+         <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
 
-		:param queryStr: the query to execute
-		
+        :param queryStr: the query to execute
+
         :returns: An iterator that will break up large queries into managable pieces.
 
         Example::
 
-            results = syn.chunkedQuery("select id, name from entity where entity.parentId=='syn449742'")
+            results = syn.__deprecated_chunkedQuery("select id, name from entity where entity.parentId=='syn449742'")
             for res in results:
                 print(res['entity.id'])
 
@@ -1464,10 +1458,10 @@ class Synapse(object):
 
         # Continue to strip off and save the last limit/offset
         match = re.search(regex, tempQueryStr)
-        options = {'limit':None, 'offset':None}
+        options = {'limit': None, 'offset': None}
         while match is not None:
             options[match.group(2)] = match.group(3)
-            tempQueryStr = match.group(1);
+            tempQueryStr = match.group(1)
             match = re.search(regex, tempQueryStr)
 
         # Parse the stripped off values or default them to no limit and no offset
@@ -1485,7 +1479,7 @@ class Synapse(object):
 
             # Handle the case where a query was skipped due to size and now no items remain
             if remaining <= 0:
-                raise(StopIteration)
+                raise StopIteration
 
             # Build the sub-query
             subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
@@ -1510,12 +1504,12 @@ class Synapse(object):
                     break
             except SynapseHTTPError as err:
                 # Shrink the query size when appropriate
-                if err.response.status_code == 400 and ('The results of this query exceeded the max' in err.response.json()['reason']):
-                    if (limit == 1):
-                        self.logger.warning("A single row (offset %s) of this query "
-                                         "exceeds the maximum size.  Consider "
-                                         "limiting the columns returned "
-                                         "in the select clause.  Skipping...\n" % offset)
+                if err.response.status_code == 400 \
+                        and ('The results of this query exceeded the max' in err.response.json()['reason']):
+                    if limit == 1:
+                        self.logger.warning("A single row (offset %s) of this query exceeds the maximum size."
+                                            " Consider limiting the columns returned in the select clause."
+                                            " Skipping...\n" % offset)
                         offset += 1
                         # Since these large rows are anomalous, reset the limit
                         limit = QUERY_LIMIT
@@ -1523,7 +1517,6 @@ class Synapse(object):
                         limit = limit // 2
                 else:
                     raise
-
 
     def md5Query(self, md5):
         """
@@ -1536,10 +1529,8 @@ class Synapse(object):
 
         return self.restGET('/entity/md5/%s' % md5)['results']
 
-
-
     ############################################################
-    ##                    ACL manipulation                    ##
+    #                     ACL manipulation                     #
     ############################################################
 
     def _getBenefactor(self, entity):
@@ -1548,7 +1539,6 @@ class Synapse(object):
         if utils.is_synapse_id(entity) or is_synapse_entity(entity):
             return self.restGET('/entity/%s/benefactor' % id_of(entity))
         return entity
-
 
     def _getACL(self, entity):
         """Get the effective ACL for a Synapse Entity."""
@@ -1560,7 +1550,6 @@ class Synapse(object):
             benefactor = self._getBenefactor(entity)
             uri = '/entity/%s/acl' % (benefactor['id'])
         return self.restGET(uri)
-
 
     def _storeACL(self, entity, acl):
         """
@@ -1588,23 +1577,20 @@ class Synapse(object):
 
             # Update or create new ACL
             uri = '/entity/%s/acl' % entity_id
-            if benefactor['id']==entity_id:
+            if benefactor['id'] == entity_id:
                 return self.restPUT(uri, json.dumps(acl))
             else:
-                return self.restPOST(uri,json.dumps(acl))
-
+                return self.restPOST(uri, json.dumps(acl))
 
     def _getUserbyPrincipalIdOrName(self, principalId=None):
         """
-        Given either a string, int or None
-        finds the corresponding user
-        where None implies PUBLIC
+        Given either a string, int or None finds the corresponding user where None implies PUBLIC
 
         :param principalId: Identifier of a user or group
 
         :returns: The integer ID of the user
         """
-        if principalId is None or principalId=='PUBLIC':
+        if principalId is None or principalId == 'PUBLIC':
             return PUBLIC
         try:
             return int(principalId)
@@ -1623,7 +1609,6 @@ class Synapse(object):
             supplementalMessage = 'Please be more specific' if totalResults > 1 else 'No matches'
             raise SynapseError('Unknown Synapse user (%s).  %s.' % (principalId, supplementalMessage))
 
-
     def getPermissions(self, entity, principalId=None):
         """Get the permissions that a user or group has on an Entity.
 
@@ -1635,7 +1620,7 @@ class Synapse(object):
                   or an empty array
 
         """
-        ## TODO: what if user has permissions by membership in a group?
+        # TODO: what if user has permissions by membership in a group?
         principalId = self._getUserbyPrincipalIdOrName(principalId)
         acl = self._getACL(entity)
         for permissions in acl['resourceAccess']:
@@ -1643,22 +1628,21 @@ class Synapse(object):
                 return permissions['accessType']
         return []
 
-
-    def setPermissions(self, entity, principalId=None, accessType=['READ', 'DOWNLOAD'], modify_benefactor=False, warn_if_inherits=True, overwrite=True):
+    def setPermissions(self, entity, principalId=None, accessType=['READ', 'DOWNLOAD'], modify_benefactor=False,
+                       warn_if_inherits=True, overwrite=True):
         """
         Sets permission that a user or group has on an Entity.
         An Entity may have its own ACL or inherit its ACL from a benefactor.
 
-        :param entity:            An Entity or Synapse ID to modify
-        :param principalId:       Identifier of a user or group
-        :param accessType:        Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE, DELETE, CHANGE_PERMISSIONS
-        :param modify_benefactor: Set as True when modifying a benefactor's ACL
-        :param warn_if_inherits:  Set as False, when creating a new ACL.
-                                  Trying to modify the ACL of an Entity that
-                                  inherits its ACL will result in a warning
-        :param overwrite:         By default this function overwrites existing
-                                  permissions for the specified user. Set this
-                                  flag to False to add new permissions nondestructively.
+        :param entity:              An Entity or Synapse ID to modify
+        :param principalId:         Identifier of a user or group
+        :param accessType:          Type of permission to be granted. One or more of CREATE, READ, DOWNLOAD, UPDATE,
+                                    DELETE, CHANGE_PERMISSIONS
+        :param modify_benefactor:   Set as True when modifying a benefactor's ACL
+        :param warn_if_inherits:    Set as False, when creating a new ACL.
+                                    Trying to modify the ACL of an Entity that inherits its ACL will result in a warning
+        :param overwrite:           By default this function overwrites existing permissions for the specified user.
+                                    Set this flag to False to add new permissions non-destructively.
 
         :returns: an Access Control List object
 
@@ -1669,10 +1653,9 @@ class Synapse(object):
             if modify_benefactor:
                 entity = benefactor
             elif warn_if_inherits:
-                self.logger.warning('Creating an ACL for entity %s, '
-                                 'which formerly inherited access control '
-                                 'from a benefactor entity, "%s" (%s).\n'
-                                 % (id_of(entity), benefactor['name'], benefactor['id']))
+                self.logger.warning('Creating an ACL for entity %s, which formerly inherited access control from a'
+                                    ' benefactor entity, "%s" (%s).\n'
+                                    % (id_of(entity), benefactor['name'], benefactor['id']))
 
         acl = self._getACL(entity)
 
@@ -1685,12 +1668,12 @@ class Synapse(object):
                 permissions_to_update = permissions
                 break
 
-        if accessType is None or accessType==[]:
-            ## remove permissions
+        if accessType is None or accessType == []:
+            # remove permissions
             if permissions_to_update and overwrite:
                 acl['resourceAccess'].remove(permissions_to_update)
         else:
-            ## add a 'resourceAccess' entry, if necessary
+            # add a 'resourceAccess' entry, if necessary
             if not permissions_to_update:
                 permissions_to_update = {u'accessType': [], u'principalId': principalId}
                 acl['resourceAccess'].append(permissions_to_update)
@@ -1700,13 +1683,11 @@ class Synapse(object):
                 permissions_to_update['accessType'] = list(set(permissions_to_update['accessType']) | set(accessType))
         return self._storeACL(entity, acl)
 
-
-
     ############################################################
-    ##                       Provenance                       ##
+    #                        Provenance                        #
     ############################################################
 
-    ## TODO: rename these to Activity
+    # TODO: rename these to Activity
     def getProvenance(self, entity, version=None):
         """
         Retrieve provenance information for a Synapse Entity.
@@ -1728,7 +1709,6 @@ class Synapse(object):
         else:
             uri = '/entity/%s/generatedBy' % id_of(entity)
         return Activity(data=self.restGET(uri))
-
 
     def setProvenance(self, entity, activity):
         """
@@ -1754,32 +1734,30 @@ class Synapse(object):
 
         return activity
 
-
     def deleteProvenance(self, entity):
         """
-        Removes provenance information from an Entity
-        and deletes the associated Activity.
+        Removes provenance information from an Entity and deletes the associated Activity.
 
         :param entity: An Entity or Synapse ID to modify
         """
 
         activity = self.getProvenance(entity)
-        if not activity: return
+        if not activity:
+            return
 
         uri = '/entity/%s/generatedBy' % id_of(entity)
         self.restDELETE(uri)
 
-        ## TODO: what happens if the activity is shared by more than one entity?
+        # TODO: what happens if the activity is shared by more than one entity?
         uri = '/activity/%s' % activity['id']
         self.restDELETE(uri)
-
 
     def updateActivity(self, activity):
         """
         Modifies an existing Activity.
 
         :param activity:  The Activity to be updated.
-        
+
         :returns: An updated Activity object
         """
 
@@ -1795,10 +1773,8 @@ class Synapse(object):
                     target in usedList]
         return usedList
 
-
-
     ############################################################
-    ##               File handle service calls                ##
+    #                File handle service calls                 #
     ############################################################
 
     def _getFileHandleDownload(self, fileHandleId,  objectId, objectType='FileEntity'):
@@ -1811,18 +1787,19 @@ class Synapse(object):
 
         :returns: dictionary with keys: fileHandle, fileHandleId and preSignedURL
         """
-        body = {'includeFileHandles':True, 'includePreSignedURLs': True,
-                'requestedFiles':[{'fileHandleId':fileHandleId,
-                                   'associateObjectId': objectId,
-                                   'associateObjectType':objectType}]}
+        body = {'includeFileHandles': True, 'includePreSignedURLs': True,
+                'requestedFiles': [{'fileHandleId': fileHandleId,
+                                    'associateObjectId': objectId,
+                                    'associateObjectType': objectType}]}
         response = self.restPOST('/fileHandle/batch', body=json.dumps(body),
-                                endpoint=self.fileHandleEndpoint)
+                                 endpoint=self.fileHandleEndpoint)
         result = response['requestedFiles'][0]
         failure = result.get('failureCode')
         if failure == 'NOT_FOUND':
             raise exceptions.SynapseFileNotFoundError("The fileHandleId %s could not be found" % fileHandleId)
         elif failure == "UNAUTHORIZED":
-            raise exceptions.SynapseError("You are not authorized to access fileHandleId %s associated with the Synapse %s: %s" % (fileHandleId, objectType, objectId))
+            raise exceptions.SynapseError("You are not authorized to access fileHandleId %s associated with the Synapse"
+                                          " %s: %s" % (fileHandleId, objectType, objectId))
 
         return result
 
@@ -1833,9 +1810,8 @@ class Synapse(object):
         :param fileHandleId: id of the FileHandle to download
         :param objectId:     id of the Synapse object that uses the FileHandle e.g. "syn123"
         :param objectType:   type of the Synapse object that uses the FileHandle e.g. "FileEntity"
-        :param destination: destination on local file system
-        :param retries:     (default=5) Number of download retries attempted before
-                            throwing an exception.
+        :param destination:  destination on local file system
+        :param retries:      (default=5) Number of download retries attempted before throwing an exception.
 
         :returns: path to downloaded file
         """
@@ -1846,41 +1822,41 @@ class Synapse(object):
                 raise
         while retries > 0:
             try:
-                fileResult = self._getFileHandleDownload(fileHandleId,
-                                                        objectId, objectType)
+                fileResult = self._getFileHandleDownload(fileHandleId, objectId, objectType)
                 fileHandle = fileResult['fileHandle']
                 if fileHandle['concreteType'] == concrete_types.EXTERNAL_OBJECT_STORE_FILE_HANDLE:
                     profile = self._get_client_authenticated_s3_profile(fileHandle['endpointUrl'], fileHandle['bucket'])
-                    downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'], fileHandle['fileKey'], destination, profile_name=profile)
+                    downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'],
+                                                                    fileHandle['fileKey'], destination,
+                                                                    profile_name=profile)
                 else:
-                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'], destination, fileHandle['id'], expected_md5=fileHandle.get('contentMd5'))
+                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'], destination, fileHandle['id'],
+                                                              expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
             except Exception as ex:
                 exc_info = sys.exc_info()
                 ex.progress = 0 if not hasattr(ex, 'progress') else ex.progress
                 self.logger.debug("\nRetrying download on error: [%s] after progressing %i bytes" %
-                                  (exc_info[0], ex.progress), exc_info=True)# this will include stack trace
-                if ex.progress==0 :  #No progress was made reduce remaining retries.
+                                  (exc_info[0], ex.progress), exc_info=True)  # this will include stack trace
+                if ex.progress == 0:  # No progress was made reduce remaining retries.
                     retries -= 1
                 if retries <= 0:
-                    ## Re-raise exception
+                    # Re-raise exception
                     raise exc_info[0](exc_info[1])
-                
+
         raise Exception("should not reach this line")
 
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
         """
         Download a file from the given URL to the local file system.
 
-        :param url: source of download
-        :param destination: destination on local file system
-        :param fileHandleId: (optional) if given, the file will be given a
-                               temporary name that includes the file handle id
-                               which allows resuming partial downloads of the same
-                               file from previous sessions
-        :param expected_md5:   (optional) if given, check that the MD5 of the
-                               downloaded file matched the expected MD5
+        :param url:             source of download
+        :param destination:     destination on local file system
+        :param fileHandleId:    (optional) if given, the file will be given a temporary name that includes the file
+                                handle id which allows resuming partial downloads of the same file from previous
+                                sessions
+        :param expected_md5:    (optional) if given, check that the MD5 of the downloaded file matched the expected MD5
 
         :returns: path to downloaded file
         """
@@ -1906,35 +1882,37 @@ class Synapse(object):
                 urlretrieve(url, destination)
                 break
             elif scheme == 'http' or scheme == 'https':
-                ## if a partial download exists with the temporary name,
-                ## find it and restart the download from where it left off
+                # if a partial download exists with the temporary name,
+                # find it and restart the download from where it left off
                 temp_destination = utils.temp_download_filename(destination, fileHandleId)
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
-                                if os.path.exists(temp_destination) else {}
+                    if os.path.exists(temp_destination) else {}
                 response = _with_retry(
-                    lambda: self._requests_session.get(url, headers=self._generateSignedHeaders(url, range_header),
-                                                                                  stream=True, allow_redirects=False),
-                                        verbose=self.debug, **STANDARD_RETRY_PARAMS)
+                    lambda: self._requests_session.get(url,
+                                                       headers=self._generateSignedHeaders(url, range_header),
+                                                       stream=True, allow_redirects=False),
+                    verbose=self.debug, **STANDARD_RETRY_PARAMS)
                 try:
                     exceptions._raise_for_status(response, verbose=self.debug)
                 except SynapseHTTPError as err:
                     if err.response.status_code == 404:
                         raise SynapseError("Could not download the file at %s" % url)
-                    elif err.response.status_code == 416: # Requested Range Not Statisfiable
+                    elif err.response.status_code == 416:  # Requested Range Not Statisfiable
                         # this is a weird error when the client already finished downloading but the loop continues
                         # When this exception occurs, the range we request is guaranteed to be >= file size so we
                         # assume that the file has been fully downloaded, rename it to destination file
-                        # and break out of the loop to perform the MD5 check. If it fails the user can retry with another downlaod
+                        # and break out of the loop to perform the MD5 check.
+                        # If it fails the user can retry with another download.
                         shutil.move(temp_destination, destination)
                         break
                     raise
 
-                ## handle redirects
-                if response.status_code in [301,302,303,307,308]:
+                # handle redirects
+                if response.status_code in [301, 302, 303, 307, 308]:
                     url = response.headers['location']
-                    ## don't break, loop again
+                    # don't break, loop again
                 else:
-                    ## get filename from content-disposition, if we don't have it already
+                    # get filename from content-disposition, if we don't have it already
                     if os.path.isdir(destination):
                         filename = utils.extract_filename(
                             content_disposition_header=response.headers.get('content-disposition', None),
@@ -1947,8 +1925,8 @@ class Synapse(object):
                         toBeTransferred = -1
                     transferred = 0
 
-                    ## Servers that respect the Range header return 206 Partial Content
-                    if response.status_code==206:
+                    # Servers that respect the Range header return 206 Partial Content
+                    if response.status_code == 206:
                         mode = 'ab'
                         previouslyTransferred = os.path.getsize(temp_destination)
                         toBeTransferred += previouslyTransferred
@@ -1966,45 +1944,47 @@ class Synapse(object):
                                 fd.write(chunk)
                                 sig.update(chunk)
 
-                                # the 'content-length' header gives the total number of bytes that will be transfered to us
-                                # len(chunk) cannot be used to track progress because iter_content
-                                # automatically decodes the chunks if the response body is encoded
-                                # so the len(chunk) could be different from the total number of bytes we've read read from the response body
-                                # response.raw.tell() is the total number of response body bytes transffered over the wire so far
+                                # the 'content-length' header gives the total number of bytes that will be transferred
+                                # to us len(chunk) cannot be used to track progress because iter_content automatically
+                                # decodes the chunks if the response body is encoded so the len(chunk) could be
+                                # different from the total number of bytes we've read read from the response body
+                                # response.raw.tell() is the total number of response body bytes transferred over the
+                                # wire so far
                                 transferred = response.raw.tell() + previouslyTransferred
                                 utils.printTransferProgress(transferred, toBeTransferred, 'Downloading ',
-                                                            os.path.basename(destination), dt = time.time()-t0)
+                                                            os.path.basename(destination), dt=time.time()-t0)
                     except Exception as ex:  # We will add a progress parameter then push it back to retry.
-                        ex.progress  = transferred-previouslyTransferred
+                        ex.progress = transferred-previouslyTransferred
                         raise
 
                     # verify that the file was completely downloaded and retry if it is not complete
                     if toBeTransferred > 0 and transferred < toBeTransferred:
-                        self.logger.warn("\nRetrying download because the connection ended early.\n")
+                        self.logger.warning("\nRetrying download because the connection ended early.\n")
                         continue
 
                     actual_md5 = sig.hexdigest()
-                    ## rename to final destination
+                    # rename to final destination
                     shutil.move(temp_destination, destination)
                     break
             else:
                 self.logger.error('Unable to download URLs of type %s' % scheme)
                 return None
 
-        else: ## didn't break out of loop
+        else:  # didn't break out of loop
             raise SynapseHTTPError('Too many redirects')
 
-        if actual_md5 is None: # if md5 not set (should be the case for all except http download)
+        if actual_md5 is None:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(destination).hexdigest()
 
-        ## check md5 if given
+        # check md5 if given
         if expected_md5 and actual_md5 != expected_md5:
             if delete_on_md5_mismatch and os.path.exists(destination):
-               os.remove(destination)
-            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of {expected_md5}".format(filename=destination, md5=actual_md5, expected_md5=expected_md5))
+                os.remove(destination)
+            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                                          " {expected_md5}".format(filename=destination, md5=actual_md5,
+                                                                   expected_md5=expected_md5))
 
         return destination
-
 
     def _createExternalFileHandle(self, externalURL, mimetype=None, md5=None, fileSize=None):
         """Create a new FileHandle representing an external URL."""
@@ -2012,9 +1992,9 @@ class Synapse(object):
         fileName = externalURL.split('/')[-1]
         externalURL = utils.as_url(externalURL)
         fileHandle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalFileHandle',
-                      'fileName'    : fileName,
-                      'externalURL' : externalURL,
-                      'contentMd5' :  md5,
+                      'fileName': fileName,
+                      'externalURL': externalURL,
+                      'contentMd5':  md5,
                       'contentSize': fileSize}
         if mimetype is None:
             (mimetype, enc) = mimetypes.guess_type(externalURL, strict=False)
@@ -2022,7 +2002,7 @@ class Synapse(object):
             fileHandle['contentType'] = mimetype
         return self.restPOST('/externalFileHandle', json.dumps(fileHandle), self.fileHandleEndpoint)
 
-    def _createExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id, mimetype = None):
+    def _createExternalObjectStoreFileHandle(self, s3_file_key, file_path, storage_location_id, mimetype=None):
         if mimetype is None:
             mimetype, enc = mimetypes.guess_type(file_path, strict=False)
         file_handle = {'concreteType': 'org.sagebionetworks.repo.model.file.ExternalObjectStoreFileHandle',
@@ -2035,49 +2015,41 @@ class Synapse(object):
 
         return self.restPOST('/externalFileHandle', json.dumps(file_handle), self.fileHandleEndpoint)
 
-
-
     def _getFileHandle(self, fileHandle):
         """Retrieve a fileHandle from the fileHandle service (experimental)."""
 
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
         return self.restGET(uri, endpoint=self.fileHandleEndpoint)
 
-
     def _deleteFileHandle(self, fileHandle):
         """
         Delete the given file handle.
 
-        Note: Only the user that created the FileHandle can delete it. Also, a
-        FileHandle cannot be deleted if it is associated with a FileEntity or WikiPage
+        Note: Only the user that created the FileHandle can delete it. Also, a FileHandle cannot be deleted if it is
+        associated with a FileEntity or WikiPage
         """
 
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
         self.restDELETE(uri, endpoint=self.fileHandleEndpoint)
         return fileHandle
 
-
-
     ############################################################
-    ##                   SFTP                                 ##
+    #                    SFTP                                  #
     ############################################################
 
     def _getDefaultUploadDestination(self, parent_entity):
         return self.restGET('/entity/%s/uploadDestination' % id_of(parent_entity),
                             endpoint=self.fileHandleEndpoint)
 
-
     def _getUserCredentials(self, url, username=None, password=None):
-        """Get user credentials for a specified URL by either looking in the configFile
-        or querying the user.
+        """Get user credentials for a specified URL by either looking in the configFile or querying the user.
 
         :param username: username on server (optionally specified)
-
         :param password: password for authentication on the server (optionally specified)
 
         :returns: tuple of username, password
         """
-        #Get authentication information from configFile
+        # Get authentication information from configFile
 
         parsedURL = urlparse(url)
         baseURL = parsedURL.scheme+'://'+parsedURL.hostname
@@ -2087,21 +2059,20 @@ class Synapse(object):
             username = config.get(baseURL, 'username')
         if password is None and config.has_option(baseURL, 'password'):
             password = config.get(baseURL, 'password')
-        #If I still don't have a username and password prompt for it
+        # If I still don't have a username and password prompt for it
         if username is None:
-            username = getpass.getuser()  #Default to login name
-            ## Note that if we hit the following line from within nosetests in
-            ## Python 3, we get "TypeError: bad argument type for built-in operation".
-            ## Luckily, this case isn't covered in our test suite!
-            user = input('Username for %s (%s):' %(baseURL, username))
-            username = username if user=='' else user
+            username = getpass.getuser()  # Default to login name
+            # Note that if we hit the following line from within nosetests in
+            # Python 3, we get "TypeError: bad argument type for built-in operation".
+            # Luckily, this case isn't covered in our test suite!
+            user = input('Username for %s (%s):' % (baseURL, username))
+            username = username if user == '' else user
         if password is None:
-            password = getpass.getpass('Password for %s:' %baseURL)
+            password = getpass.getpass('Password for %s:' % baseURL)
         return username, password
 
-
     ############################################
-    ## Project/Folder storage location settings
+    # Project/Folder storage location settings #
     ############################################
 
     def createStorageLocationSetting(self, storage_type, **kwargs):
@@ -2116,7 +2087,8 @@ class Synapse(object):
         - bucket: the name of the bucket to use
         ExternalStorage: (SFTP or FTP storage location not accessed by Synapse)
         - url: the base URL for uploading to the external destination
-        - supportsSubfolders(optional): does the destination support creating subfolders under the base url (default: false)
+        - supportsSubfolders(optional): does the destination support creating subfolders under the base url
+         (default: false)
         ProxyStorage: (a proxy server that controls access to a storage)
         - secretKey: The encryption key used to sign all pre-signed URLs used to communicate with the proxy.
         - proxyUrl: The HTTPS URL of the proxy used for upload and download.
@@ -2126,42 +2098,41 @@ class Synapse(object):
         - description: The description to show the user when the user has to choose which upload destination to use
 
 
-        :param storage_type: the type of the StorageLocationSetting to create
-        :param kwargs: fields necessary for creation of the specified storage_type
-        
+        :param storage_type:    the type of the StorageLocationSetting to create
+        :param kwargs:          fields necessary for creation of the specified storage_type
+
         :return: a dict of the created StorageLocationSetting
         """
         upload_type_dict = {"ExternalObjectStorage": "S3",
                             "ExternalS3Storage": "S3",
                             "ExternalStorage": "SFTP",
-                            "ProxyStorage":"PROXYLOCAL"}
+                            "ProxyStorage": "PROXYLOCAL"}
 
         if storage_type not in upload_type_dict:
             raise ValueError("Unknown storage_type: %s", storage_type)
 
+        # ProxyStorageLocationSettings has an extra 's' at the end >:(
         kwargs['concreteType'] = 'org.sagebionetworks.repo.model.project.' + storage_type + 'LocationSetting' \
-                                 + ('s' if storage_type == 'ProxyStorage' else '') # ProxyStorageLocationSettings has an extra 's' at the end >:(
+                                 + ('s' if storage_type == 'ProxyStorage' else '')
         kwargs['uploadType'] = upload_type_dict[storage_type]
 
-
         return self.restPOST('/storageLocation', body=json.dumps(kwargs))
-
 
     def getMyStorageLocationSetting(self, storage_location_id):
         """
         Get a StorageLocationSetting by its id.
-        :param storage_location_id: id of the StorageLocationSetting to retrieve. 
-        The corresponding StorageLocationSetting must have been created by this user.
+        :param storage_location_id: id of the StorageLocationSetting to retrieve.
+                                    The corresponding StorageLocationSetting must have been created by this user.
         :return: a dict describing the StorageLocationSetting retrieved by its id
         """
         return self.restGET('/storageLocation/%s' % storage_location_id)
 
-
     def setStorageLocation(self, entity, storage_location_id):
         """
         Sets the storage location for a Project or Folder
-        :param entity: a Project or Folder to which the StorageLocationSetting is set
-        :param storage_location_id: a StorageLocation id or a list of StorageLocation ids. Pass in None for the default Synapse storage.
+        :param entity:              a Project or Folder to which the StorageLocationSetting is set
+        :param storage_location_id: a StorageLocation id or a list of StorageLocation ids. Pass in None for the default
+                                    Synapse storage.
         :return: The created or updated settings as a dict
         """
         if storage_location_id is None:
@@ -2174,62 +2145,61 @@ class Synapse(object):
             self.restPUT('/projectSettings', body=json.dumps(existing_setting))
             return self.getProjectSetting(entity, 'upload')
         else:
-            project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+            project_destination = {'concreteType':
+                                   'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
                                    'settingsType': 'upload',
-                                    'locations': locations,
-                                    'projectId': id_of(entity)
+                                   'locations': locations,
+                                   'projectId': id_of(entity)
                                    }
 
             return self.restPOST('/projectSettings', body=json.dumps(project_destination))
 
-
     def getProjectSetting(self, project, setting_type):
         """
         Gets the ProjectSetting for a project.
-        
-        :param project: Project entity or its id as a string
-        :param setting_type: type of setting. Choose from: {'upload', 'external_sync', 'requester_pays'}
-        
+
+        :param project:         Project entity or its id as a string
+        :param setting_type:    type of setting. Choose from: {'upload', 'external_sync', 'requester_pays'}
+
         :return: The ProjectSetting as a dict or None if no settings of the specified type exist.
         """
         if setting_type not in {'upload', 'external_sync', 'requester_pays'}:
             raise ValueError("Invalid project_type: %s" % setting_type)
 
-        response = self.restGET('/projectSettings/{projectId}/type/{type}'.format(projectId=id_of(project), type=setting_type))
-        return response if response else None # if no project setting, a empty string is returned as the response
-
+        response = self.restGET('/projectSettings/{projectId}/type/{type}'.format(projectId=id_of(project),
+                                                                                  type=setting_type))
+        return response if response else None  # if no project setting, a empty string is returned as the response
 
     ############################################################
-    ##                  CRUD for Evaluations                  ##
+    #                   CRUD for Evaluations                   #
     ############################################################
 
     def getEvaluation(self, id):
         """
         Gets an Evaluation object from Synapse.
-        
+
         :param id:  The ID of the :py:class:`synapseclient.evaluation.Evaluation` to return.
-        
+
         :return: an :py:class:`synapseclient.evaluation.Evaluation` object
 
         See: :py:mod:`synapseclient.evaluation`
 
         Example::
 
-            evaluation = syn.getEvalutation(2005090)
+            evaluation = syn.getEvaluation(2005090)
         """
 
         evaluation_id = id_of(id)
         uri = Evaluation.getURI(evaluation_id)
         return Evaluation(**self.restGET(uri))
 
-
-    ## TODO: Should this be combined with getEvaluation?
+    # TODO: Should this be combined with getEvaluation?
     def getEvaluationByName(self, name):
         """
         Gets an Evaluation object from Synapse.
 
         :param name:  The name of the :py:class:`synapseclient.evaluation.Evaluation` to return.
-        
+
         :return: an :py:class:`synapseclient.evaluation.Evaluation` object
 
         See: :py:mod:`synapseclient.evaluation`
@@ -2237,14 +2207,14 @@ class Synapse(object):
         uri = Evaluation.getByNameURI(quote(name))
         return Evaluation(**self.restGET(uri))
 
-
     def getEvaluationByContentSource(self, entity):
         """
         Returns a generator over evaluations that derive their content from the given entity
-        
+
         :param entity:  The :py:class:`synapseclient.entity.Project` whose Evaluations are to be fetched.
-        
-        :return: a Generator over the :py:class:`synapseclient.evaluation.Evaluation` objects for the given :py:class:`synapseclient.entity.Project`
+
+        :return: a Generator over the :py:class:`synapseclient.evaluation.Evaluation` objects for the given
+         :py:class:`synapseclient.entity.Project`
 
         """
 
@@ -2254,7 +2224,6 @@ class Synapse(object):
         for result in self._GET_paginated(url):
             yield Evaluation(**result)
 
-
     def _findTeam(self, name):
         """
         Retrieve a Teams matching the supplied name fragment
@@ -2262,13 +2231,12 @@ class Synapse(object):
         for result in self._GET_paginated("/teams?fragment=%s" % name):
             yield Team(**result)
 
-
     def getTeam(self, id):
         """
         Finds a team with a given ID or name.
-        
+
         :param id:  The ID or name of the team to retrieve
-        
+
         :return:  An object of type :py:class:`synapseclient.team.Team`
         """
         try:
@@ -2276,7 +2244,7 @@ class Synapse(object):
         except (TypeError, ValueError):
             if isinstance(id, six.string_types):
                 for team in self._findTeam(id):
-                    if team.name==id:
+                    if team.name == id:
                         id = team.id
                         break
                 else:
@@ -2285,36 +2253,34 @@ class Synapse(object):
                 raise ValueError("Can't find team \"{}\"".format(id))
         return Team(**self.restGET('/team/%s' % id))
 
-
     def getTeamMembers(self, team):
         """
         Lists the members of the given team.
-        
+
         :parameter team: A :py:class:`synapseclient.team.Team` object or a team's ID.
         :returns: a generator over :py:class:`synapseclient.team.TeamMember` objects.
         """
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
-
     def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
-        :param evaluation: Evaluation queue to submit to
-        :param entity:     The Entity containing the Submission
-        :param name:       A name for this submission
-        :param team:       (optional) A :py:class:`Team` object or name of a Team that is registered
-                           for the challenge
-        :param silent:	Suppress output.
-        :param submitterAlias: (optional) A nickname, possibly for display in leaderboards in place of the submitter's name
-        :param teamName: (deprecated) A synonym for submitterAlias
+        :param evaluation:      Evaluation queue to submit to
+        :param entity:          The Entity containing the Submission
+        :param name:             A name for this submission
+        :param team:            (optional) A :py:class:`Team` object or name of a Team that is registered for the
+                                challenge
+        :param silent:          Suppress output.
+        :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
+                                name
+        :param teamName:        (deprecated) A synonym for submitterAlias
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
 
-        In the case of challenges, a team can optionally be provided to give
-        credit to members of the team that contributed to the submission. The team
-        must be registered for the challenge with which the given evaluation is
+        In the case of challenges, a team can optionally be provided to give credit to members of the team that
+        contributed to the submission. The team must be registered for the challenge with which the given evaluation is
         associated. The caller must be a member of the submitting team.
 
         Example::
@@ -2326,56 +2292,60 @@ class Synapse(object):
 
         evaluation_id = id_of(evaluation)
 
-        ## default name of submission to name of entity
+        # default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
 
-        ## TODO: accept entities or entity IDs
-        if not 'versionNumber' in entity:
+        # TODO: accept entities or entity IDs
+        if 'versionNumber' not in entity:
             entity = self.get(entity)
-        ## version defaults to 1 to hack around required version field and allow submission of files/folders
+        # version defaults to 1 to hack around required version field and allow submission of files/folders
         entity_version = entity.get('versionNumber', 1)
         entity_id = entity['id']
 
-        ## if teanName given, find matching team object
+        # if teamName given, find matching team object
         if isinstance(team, six.string_types):
             matching_teams = list(self._findTeam(team))
-            if len(matching_teams)>0:
+            if len(matching_teams) > 0:
                 for matching_team in matching_teams:
-                    if matching_team.name==team:
+                    if matching_team.name == team:
                         team = matching_team
                         break
                 else:
-                    raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}".format(team, ', '.join(t.name for t in matching_teams)))
+                    raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}"
+                                     .format(team, ', '.join(t.name for t in matching_teams)))
             else:
                 raise ValueError("Team \"{0}\" not found.".format(team))
 
-        ## if a team is found, build contributors list
+        # if a team is found, build contributors list
         if team:
-            ## see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
-            eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=evaluation_id, id=team.id))
+            # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
+            eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
+                                       .format(evalId=evaluation_id, id=team.id))
 
-            ## Check team eligibility and raise an exception if not eligible
+            # Check team eligibility and raise an exception if not eligible
             if not eligibility['teamEligibility'].get('isEligible', True):
                 if not eligibility['teamEligibility'].get('isRegistered', False):
                     raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
                 if eligibility['teamEligibility'].get('isQuotaFilled', False):
-                    raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'.format(team=team.name))
+                    raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
+                                       .format(team=team.name))
                 raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
 
-            ## Include all team members who are eligible.
-            contributors = [{'principalId':em['principalId']} for em in eligibility['membersEligibility'] if em['isEligible']]
+            # Include all team members who are eligible.
+            contributors = [{'principalId': em['principalId']}
+                            for em in eligibility['membersEligibility'] if em['isEligible']]
         else:
             eligibility = None
             contributors = None
 
-        ## create basic submission object
-        submission = {'evaluationId'  : evaluation_id,
-                      'entityId'      : entity_id,
-                      'name'          : name,
-                      'versionNumber' : entity_version}
+        # create basic submission object
+        submission = {'evaluationId': evaluation_id,
+                      'entityId': entity_id,
+                      'name': name,
+                      'versionNumber': entity_version}
 
-        ## optional submission fields
+        # optional submission fields
         if team:
             submission['teamId'] = team.id
             submission['contributors'] = contributors
@@ -2386,23 +2356,22 @@ class Synapse(object):
         elif team:
             submission['submitterAlias'] = team.name
 
-        ## URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
+        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
         uri = '/evaluation/submission?etag=%s' % entity['etag']
         if eligibility:
             uri += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
 
         submitted = Submission(**self.restPOST(uri, json.dumps(submission)))
 
-        ## if we want to display the receipt message, we need the full object
+        # if we want to display the receipt message, we need the full object
         if not silent:
             if not(isinstance(evaluation, Evaluation)):
                 evaluation = self.getEvaluation(evaluation_id)
             if 'submissionReceiptMessage' in evaluation:
                 self.logger.info(evaluation['submissionReceiptMessage'])
 
-        #TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage']) like the R client
+        # TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage'])
         return submitted
-
 
     def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):
         """
@@ -2420,8 +2389,8 @@ class Synapse(object):
         # Check to see if the user is an ID or group
         userId = -1
         try:
-            ## TODO: is there a better way to differentiate between a userID and a group name?
-            ##   What if a group is named with just numbers?
+            # TODO: is there a better way to differentiate between a userID and a group name?
+            # What if a group is named with just numbers?
             userId = int(user)
 
             # Verify that the user exists
@@ -2440,7 +2409,6 @@ class Synapse(object):
             evaluation = self.getEvaluation(id_of(evaluation))
 
         self.setPermissions(evaluation, userId, accessType=rights, overwrite=False)
-
 
     def getSubmissions(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
@@ -2471,14 +2439,11 @@ class Synapse(object):
         evaluation_id = id_of(evaluation)
         uri = "/evaluation/%s/submission%s" % (evaluation_id, "" if myOwn else "/all")
 
-        if status != None:
-#            if status not in ['OPEN', 'CLOSED', 'SCORED', 'INVALID']:
-#                raise SynapseError('Status must be one of {OPEN, CLOSED, SCORED, INVALID}')
+        if status is not None:
             uri += "?status=%s" % status
 
         for result in self._GET_paginated(uri, limit=limit, offset=offset):
             yield Submission(**result)
-
 
     def _getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
@@ -2502,25 +2467,24 @@ class Synapse(object):
                       sb['submissionStatus']['status'], \\
                       sb['submissionStatus']['score'])
 
-        This may later be changed to return objects, pending some thought on how submissions
-        along with related status and annotations should be represented in the clients.
+        This may later be changed to return objects, pending some thought on how submissions along with related status
+        and annotations should be represented in the clients.
 
         See: :py:mod:`synapseclient.evaluation`
         """
 
         evaluation_id = id_of(evaluation)
         url = "/evaluation/%s/submission/bundle%s" % (evaluation_id, "" if myOwn else "/all")
-        if status != None:
+        if status is not None:
             url += "?status=%s" % status
 
         return self._GET_paginated(url, limit=limit, offset=offset)
 
-
     def getSubmissionBundles(self, evaluation, status=None, myOwn=False, limit=20, offset=0):
         """
-        Retrieve submission bundles (submission and submissions status) for an evaluation queue, optionally 
-        filtered by submission status and/or owner.
-        
+        Retrieve submission bundles (submission and submissions status) for an evaluation queue, optionally filtered by
+        submission status and/or owner.
+
         :param evaluation: Evaluation to get submissions from.
         :param status:     Optionally filter submissions for a specific status.
                            One of {OPEN, CLOSED, SCORED, INVALID}
@@ -2542,27 +2506,24 @@ class Synapse(object):
                       status.status, \\
                       status.score)
 
-        This may later be changed to return objects, pending some thought on how submissions
-        along with related status and annotations should be represented in the clients.
+        This may later be changed to return objects, pending some thought on how submissions along with related status
+        and annotations should be represented in the clients.
 
         See: :py:mod:`synapseclient.evaluation`
         """
         for bundle in self._getSubmissionBundles(evaluation, status=status, myOwn=myOwn, limit=limit, offset=offset):
             yield (Submission(**bundle['submission']), SubmissionStatus(**bundle['submissionStatus']))
 
-
     def _GET_paginated(self, uri, limit=20, offset=0):
         """
-        :param uri: A URI that returns paginated results
-        :param limit: How many records should be returned per request
-        :param offset: At what record offset from the first should
-                       iteration start
+        :param uri:     A URI that returns paginated results
+        :param limit:   How many records should be returned per request
+        :param offset:  At what record offset from the first should iteration start
 
         :returns: A generator over some paginated results
 
-        The limit parameter is set at 20 by default. Using a larger limit
-        results in fewer calls to the service, but if responses are large
-        enough to be a burden on the service they may be truncated.
+        The limit parameter is set at 20 by default. Using a larger limit results in fewer calls to the service, but if
+        responses are large enough to be a burden on the service they may be truncated.
         """
 
         prev_num_results = sys.maxsize
@@ -2576,13 +2537,12 @@ class Synapse(object):
                 offset += 1
                 yield result
 
-
     def getSubmission(self, id, **kwargs):
         """
         Gets a :py:class:`synapseclient.evaluation.Submission` object by its id.
-        
+
         :param id:  The id of the submission to retrieve
-        
+
         :return:  a :py:class:`synapseclient.evaluation.Submission` object
 
         See: :py:func:`synapseclient.Synapse.get` for information
@@ -2604,7 +2564,6 @@ class Synapse(object):
 
         return submission
 
-
     def getSubmissionStatus(self, submission):
         """
         Downloads the status of a Submission.
@@ -2619,21 +2578,18 @@ class Synapse(object):
         val = self.restGET(uri)
         return SubmissionStatus(**val)
 
-
-
     ############################################################
-    ##                     CRUD for Wikis                     ##
+    #                      CRUD for Wikis                      #
     ############################################################
 
     def getWiki(self, owner, subpageId=None, version=None):
         """
-        Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2
-        API which supports versioning.
-        
-        :param owner: The entity to which the Wiki is attached
-        :param subpageId:  The id of the specific sub-page or None to get the root Wiki page
-        :param version:  The version of the page to retrieve or None to retrieve the latest
-        
+        Get a :py:class:`synapseclient.wiki.Wiki` object from Synapse. Uses wiki2 API which supports versioning.
+
+        :param owner:       The entity to which the Wiki is attached
+        :param subpageId:   The id of the specific sub-page or None to get the root Wiki page
+        :param version:     The version of the page to retrieve or None to retrieve the latest
+
         :return: a :py:class:`synapseclient.wiki.Wiki` object
         """
         uri = "/entity/{ownerId}/wiki2".format(ownerId=id_of(owner))
@@ -2656,7 +2612,7 @@ class Synapse(object):
             import gzip
             with gzip.open(path) as f:
                 markdown = f.read().decode('utf-8')
-        except IOError as ex1:
+        except IOError:
             with open(path) as f:
                 markdown = f.read().decode('utf-8')
 
@@ -2664,7 +2620,6 @@ class Synapse(object):
         wiki.markdown_path = path
 
         return wiki
-
 
     def getWikiHeaders(self, owner):
         """
@@ -2678,8 +2633,7 @@ class Synapse(object):
         uri = '/entity/%s/wikiheadertree' % id_of(owner)
         return [DictObject(**header) for header in self._GET_paginated(uri)]
 
-
-    def _storeWiki(self, wiki, createOrUpdate): # type: (Wiki, bool) -> Wiki
+    def _storeWiki(self, wiki, createOrUpdate):  # type: (Wiki, bool) -> Wiki
         """
         Stores or updates the given Wiki.
 
@@ -2700,35 +2654,35 @@ class Synapse(object):
 
         # Perform an update if the Wiki has an ID
         if 'id' in wiki:
-            updated_wiki = Wiki( owner= wiki.ownerId, **self.restPUT(wiki.putURI(), wiki.json()))
+            updated_wiki = Wiki(owner=wiki.ownerId, **self.restPUT(wiki.putURI(), wiki.json()))
 
         # Perform a create if the Wiki has no ID
         else:
             try:
-                updated_wiki = Wiki(owner= wiki.ownerId, **self.restPOST(wiki.postURI(), wiki.json()))
+                updated_wiki = Wiki(owner=wiki.ownerId, **self.restPOST(wiki.postURI(), wiki.json()))
             except SynapseHTTPError as err:
                 # If already present we get an unhelpful SQL error
                 if createOrUpdate and ((err.response.status_code == 400 and "DuplicateKeyException" in err.message)
                                        or err.response.status_code == 409):
                     existing_wiki = self.getWiki(wiki.ownerId)
 
-                    #overwrite everything except for the etag (this will keep unmodified fields in the existing wiki)
+                    # overwrite everything except for the etag (this will keep unmodified fields in the existing wiki)
                     etag = existing_wiki['etag']
                     existing_wiki.update(wiki)
                     existing_wiki.etag = etag
 
-                    updated_wiki = Wiki(owner= wiki.ownerId, **self.restPUT(existing_wiki.putURI(), existing_wiki.json()))
+                    updated_wiki = Wiki(owner=wiki.ownerId, **self.restPUT(existing_wiki.putURI(),
+                                                                           existing_wiki.json()))
                 else:
                     raise
         return updated_wiki
 
-
     def getWikiAttachments(self, wiki):
         """
         Retrieve the attachments to a wiki page.
-        
+
         :param wiki: the Wiki object for which the attachments are to be returned.
-        
+
         :return: A list of file handles for the files attached to the Wiki.
         """
         uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
@@ -2737,7 +2691,7 @@ class Synapse(object):
         return file_handles
 
     ############################################################
-    ##                     Tables                             ##
+    #                      Tables                              #
     ############################################################
 
     def _waitForAsync(self, uri, request, endpoint=None):
@@ -2751,15 +2705,15 @@ class Synapse(object):
         start_time = time.time()
         lastMessage, lastProgress, lastTotal, progressed = '', 0, 1, False
         while time.time()-start_time < self.table_query_timeout:
-            result = self.restGET(uri+'/get/%s'%async_job_id['token'], endpoint=endpoint)
+            result = self.restGET(uri+'/get/%s' % async_job_id['token'], endpoint=endpoint)
             if result.get('jobState', None) == 'PROCESSING':
-                progressed=True
+                progressed = True
                 message = result.get('progressMessage', lastMessage)
                 progress = result.get('progressCurrent', lastProgress)
-                total =  result.get('progressTotal', lastTotal)
-                if message !='':
-                    utils.printTransferProgress(progress ,total, message, isBytes=False)
-                #Reset the time if we made progress (fix SYNPY-214)
+                total = result.get('progressTotal', lastTotal)
+                if message != '':
+                    utils.printTransferProgress(progress, total, message, isBytes=False)
+                # Reset the time if we made progress (fix SYNPY-214)
                 if message != lastMessage or lastProgress != progress:
                     start_time = time.time()
                     lastMessage, lastProgress, lastTotal = message, progress, total
@@ -2770,20 +2724,20 @@ class Synapse(object):
         else:
             raise SynapseTimeoutError('Timeout waiting for query results: %0.1f seconds ' % (time.time()-start_time))
         if result.get('jobState', None) == 'FAILED':
-            raise SynapseError(result.get('errorMessage', None) + '\n' + result.get('errorDetails', None), asynchronousJobStatus=result)
+            raise SynapseError(result.get('errorMessage', None) + '\n' + result.get('errorDetails', None),
+                               asynchronousJobStatus=result)
         if progressed:
-            utils.printTransferProgress(total ,total, message, isBytes=False)
+            utils.printTransferProgress(total, total, message, isBytes=False)
         return result
-
 
     def getColumn(self, id):
         """
         Gets a Column object from Synapse by ID.
 
         See: :py:mod:`synapseclient.table.Column`
-        
+
         :param id: the ID of the column to retrieve
-        
+
         :return: an object of type :py:class:`synapseclient.table.Column`
 
         Example::
@@ -2792,16 +2746,16 @@ class Synapse(object):
         """
         return Column(**self.restGET(Column.getURI(id)))
 
-
     def getColumns(self, x, limit=100, offset=0):
         """
-        Get the columns defined in Synapse either (1) corresponding to a set of column
-        headers, (2) those for a given schema, or (3) those whose names start with a given prefix.
+        Get the columns defined in Synapse either (1) corresponding to a set of column headers, (2) those for a given
+        schema, or (3) those whose names start with a given prefix.
 
-        :param x: a list of column headers, a Table Entity object (Schema/EntityViewSchema), a Table's Synapse ID, or a string prefix
-        :param limit: maximum number of columns to return (pagination parameter)
-        :param offset: the index of the first column to return (pagination parameter)
-        :return: a generator of Column objects
+        :param x:       a list of column headers, a Table Entity object (Schema/EntityViewSchema), a Table's Synapse ID,
+                        or a string prefix
+        :param limit:   maximum number of columns to return (pagination parameter)
+        :param offset:  the index of the first column to return (pagination parameter)
+        :return:        a generator of Column objects
         """
         if x is None:
             uri = '/column'
@@ -2810,11 +2764,11 @@ class Synapse(object):
         elif isinstance(x, (list, tuple)):
             for header in x:
                 try:
-                    ## if header is an integer, it's a columnID, otherwise it's
-                    ## an aggregate column, like "AVG(Foo)"
+                    # if header is an integer, it's a columnID, otherwise it's an aggregate column, like "AVG(Foo)"
                     int(header)
                     yield self.getColumn(header)
                 except ValueError:
+                    # ignore aggregate column
                     pass
         elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
             for col in self.getTableColumns(x):
@@ -2826,80 +2780,74 @@ class Synapse(object):
         else:
             ValueError("Can't get columns for a %s" % type(x))
 
-
     def getTableColumns(self, table):
         """
         Retrieve the column models used in the given table schema.
-        
+
         :param table:  the schema of the Table whose columns are to be retrieved
-        
+
         :return:  a Generator over the Table's columns
         """
         uri = '/entity/{id}/column'.format(id=id_of(table))
         # The returned object type for this service, PaginatedColumnModels, is a misnomer.
-        # This service always returns the full list of results so the pagincation does not not actually matter.
+        # This service always returns the full list of results so the pagination does not not actually matter.
         for result in self.restGET(uri)['results']:
             yield Column(**result)
-
 
     def tableQuery(self, query, resultsAs="csv", **kwargs):
         """
         Query a Synapse Table.
 
-        :param query: query string in a `SQL-like syntax <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_, for example
+        :param query: query string in a `SQL-like syntax \
+         <http://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html>`_, for example
             "SELECT * from syn12345"
-            
-        :param resultsAs: select whether results are returned as a CSV file ("csv") or incrementally
-                          downloaded as sets of rows ("rowset").
 
-        You can receive query results either as a generator over rows or as a CSV file. For
-        smallish tables, either method will work equally well. Use of a "rowset" generator allows
-        rows to be processed one at a time and processing may be stopped before downloading
-        the entire table.
+        :param resultsAs:   select whether results are returned as a CSV file ("csv") or incrementally downloaded as
+                            sets of rows ("rowset").
+
+        You can receive query results either as a generator over rows or as a CSV file. For smallish tables, either
+        method will work equally well. Use of a "rowset" generator allows rows to be processed one at a time and
+        processing may be stopped before downloading the entire table.
 
         Optional keyword arguments differ for the two return types. For the "rowset" option,
 
-        :param  limit: specify the maximum number of rows to be returned, defaults to None
-        :param offset: don't return the first n rows, defaults to None
-        :param isConsistent: defaults to True. If set to False, return results based on current
-                             state of the index without waiting for pending writes to complete.
-                             Only use this if you know what you're doing.
+        :param  limit:          specify the maximum number of rows to be returned, defaults to None
+        :param offset:          don't return the first n rows, defaults to None
+        :param isConsistent:    defaults to True. If set to False, return results based on current state of the index
+                                without waiting for pending writes to complete.
+                                Only use this if you know what you're doing.
 
         For CSV files, there are several parameters to control the format of the resulting file:
 
-        :param quoteCharacter: default double quote
+        :param quoteCharacter:  default double quote
         :param escapeCharacter: default backslash
-        :param lineEnd: defaults to os.linesep
-        :param separator: defaults to comma
-        :param header: True by default
+        :param lineEnd:         defaults to os.linesep
+        :param separator:       defaults to comma
+        :param header:          True by default
         :param includeRowIdAndRowVersion: True by default
 
-        :return: A Table object that serves as a wrapper around a CSV file (or generator over
-                 Row objects if resultsAs="rowset").
+        :return: A Table object that serves as a wrapper around a CSV file (or generator over Row objects if
+                 resultsAs="rowset").
 
-        NOTE: When performing queries on frequently updated tables,
-              the table can be inaccessible for a period leading to a
-              timeout of the query.  Since the results are guaranteed
-              to eventually be returned you can change the max timeout
-              by setting the table_query_timeout variable of the Synapse
-              object:
+        NOTE: When performing queries on frequently updated tables, the table can be inaccessible for a period leading
+              to a timeout of the query.  Since the results are guaranteed to eventually be returned you can change the
+              max timeout by setting the table_query_timeout variable of the Synapse object:
 
               syn.table_query_timeout = 300  #Sets the max timeout to 5 minutes.
 
         """
-        if resultsAs.lower()=="rowset":
+        if resultsAs.lower() == "rowset":
             return TableQueryResult(self, query, **kwargs)
-        elif resultsAs.lower()=="csv":
+        elif resultsAs.lower() == "csv":
             return CsvFileTable.from_table_query(self, query, **kwargs)
         else:
             raise ValueError("Unknown return type requested from tableQuery: " + str(resultsAs))
 
-
     def _queryTable(self, query, limit=None, offset=None, isConsistent=True, partMask=None):
         """
-        Query a table and return the first page of results as a `QueryResultBundle <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
-        If the result contains a *nextPageToken*, following pages a retrieved
-        by calling :py:meth:`~._queryTableNext`.
+        Query a table and return the first page of results as a `QueryResultBundle \
+         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/QueryResultBundle.html>`_.
+        If the result contains a *nextPageToken*, following pages a retrieved by calling :py:meth:`~._queryTableNext`.
 
         :param partMask: Optional, default all. The 'partsMask' is a bit field for requesting
                          different elements in the resulting JSON bundle.
@@ -2931,27 +2879,29 @@ class Synapse(object):
 
         return self._waitForAsync(uri=uri, request=query_bundle_request)
 
-
     def _queryTableNext(self, nextPageToken, tableId):
         uri = '/entity/{id}/table/query/nextPage/async'.format(id=tableId)
         return self._waitForAsync(uri=uri, request=nextPageToken)
 
-
-    def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
+    def _uploadCsv(self, filepath, schema, updateEtag=None, quoteCharacter='"', escapeCharacter="\\",
+                   lineEnd=os.linesep, separator=",", header=True, linesToSkip=0):
         """
-        Send an `UploadToTableRequest <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
+        Send an `UploadToTableRequest \
+         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableRequest.html>`_ to Synapse.
 
-        :param filepath: Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
-        :param schema: A table entity or its Synapse ID.
-        :param updateEtag: Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
+        :param filepath:    Path of a `CSV <https://en.wikipedia.org/wiki/Comma-separated_values>`_ file.
+        :param schema:      A table entity or its Synapse ID.
+        :param updateEtag:  Any RowSet returned from Synapse will contain the current etag of the change set.
+                            To update any rows from a RowSet the etag must be provided with the POST.
 
-        :returns: `UploadToTableResult <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
+        :returns: `UploadToTableResult \
+         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
         fileHandleId = multipart_upload(self, filepath, contentType="text/csv")
 
         uploadRequest = {
-            "concreteType":"org.sagebionetworks.repo.model.table.UploadToTableRequest",
+            "concreteType": "org.sagebionetworks.repo.model.table.UploadToTableRequest",
             "csvTableDescriptor": {
                 "isFirstLineHeader": header,
                 "quoteCharacter": quoteCharacter,
@@ -2979,7 +2929,6 @@ class Synapse(object):
 
         return response
 
-
     def _check_table_transaction_response(self, response):
         for result in response['results']:
             result_type = result['concreteType']
@@ -2987,11 +2936,11 @@ class Synapse(object):
             if result_type in {concrete_types.ROW_REFERENCE_SET_RESULTS,
                                concrete_types.TABLE_SCHEMA_CHANGE_RESPONSE,
                                concrete_types.UPLOAD_TO_TABLE_RESULT}:
-                #if these fail, it we would have gotten an HttpError before the results came back
+                # if these fail, it we would have gotten an HttpError before the results came back
                 pass
             elif result_type == concrete_types.ENTITY_UPDATE_RESULTS:
                 # TODO: output full response to error file when the logging JIRA issue gets pulled in
-                sucessful_updates = []
+                successful_updates = []
                 failed_updates = []
                 for update_result in result['updateResults']:
                     failure_code = update_result.get('failureCode')
@@ -3000,30 +2949,37 @@ class Synapse(object):
                     if failure_code or failure_message:
                         failed_updates.append(update_result)
                     else:
-                        sucessful_updates.append(entity_id)
+                        successful_updates.append(entity_id)
 
                 if failed_updates:
                     raise SynapseError("Not all of the entities were updated."
-                                       " Successful updates: %s.  Failed updates: %s" % (sucessful_updates, failed_updates))
+                                       " Successful updates: %s.  Failed updates: %s" % (successful_updates,
+                                                                                         failed_updates))
 
             else:
-                warnings.warn("Unexpected result from a table transaction of type [%s]. Please check the result to make sure it is correct. %s" % (result_type, result))
+                warnings.warn("Unexpected result from a table transaction of type [%s]."
+                              " Please check the result to make sure it is correct. %s" % (result_type, result))
 
-
-    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",", header=True, includeRowIdAndRowVersion=True):
+    def _queryTableCsv(self, query, quoteCharacter='"', escapeCharacter="\\", lineEnd=os.linesep, separator=",",
+                       header=True, includeRowIdAndRowVersion=True):
         """
         Query a Synapse Table and download a CSV file containing the results.
 
-        Sends a `DownloadFromTableRequest <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
+        Sends a `DownloadFromTableRequest \
+         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableRequest.html>`_ to Synapse.
 
-        :return: a tuple containing a `DownloadFromTableResult <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
+        :return: a tuple containing a `DownloadFromTableResult \
+         <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/DownloadFromTableResult.html>`_
 
         The DownloadFromTableResult object contains these fields:
-         * headers: ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
-         * resultsFileHandleId: STRING, The resulting file handle ID can be used to download the CSV file created by this query.
-         * concreteType: STRING
-         * etag: STRING, Any RowSet returned from Synapse will contain the current etag of the change set. To update any rows from a RowSet the etag must be provided with the POST.
-         * tableId: STRING, The ID of the table identified in the from clause of the table query.
+         * headers:             ARRAY<STRING>, The list of ColumnModel IDs that describes the rows of this set.
+         * resultsFileHandleId: STRING, The resulting file handle ID can be used to download the CSV file created by
+                                this query.
+         * concreteType:        STRING
+         * etag:                STRING, Any RowSet returned from Synapse will contain the current etag of the change
+                                set.
+                                To update any rows from a RowSet the etag must be provided with the POST.
+         * tableId:             STRING, The ID of the table identified in the from clause of the table query.
         """
 
         download_from_table_request = {
@@ -3045,36 +3001,33 @@ class Synapse(object):
         file_handle_id = download_from_table_result['resultsFileHandleId']
         cached_file_path = self.cache.get(file_handle_id=file_handle_id)
         if cached_file_path is not None:
-            return (download_from_table_result, cached_file_path)
+            return download_from_table_result, cached_file_path
         else:
             cache_dir = self.cache.get_cache_dir(file_handle_id)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            path = self._downloadFileHandle(file_handle_id,_extract_synapse_id_from_query(query),
-                                                    'TableEntity', cache_dir)
-        return (download_from_table_result, path)
+            path = self._downloadFileHandle(file_handle_id, _extract_synapse_id_from_query(query),
+                                            'TableEntity', cache_dir)
+        return download_from_table_result, path
 
-
-    ## This is redundant with syn.store(Column(...)) and will be removed
-    ## unless people prefer this method.
+    # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
     def createColumn(self, name, columnType, maximumSize=None, defaultValue=None, enumValues=None):
-        columnModel = Column(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue, enumValue=enumValues)
+        columnModel = Column(name=name, columnType=columnType, maximumSize=maximumSize, defaultValue=defaultValue,
+                             enumValue=enumValues)
         return Column(**self.restPOST('/column', json.dumps(columnModel)))
-
 
     def createColumns(self, columns):
         """
         Creates a batch of :py:class:`synapseclient.table.Column` s within a single request.
-        
+
         :param columns: a list of :py:class:`synapseclient.table.Column` objects
-        
+
         :return: a list of :py:class:`synapseclient.table.Column` objects that have been created in Synapse
         """
-        request_body = {'concreteType':'org.sagebionetworks.repo.model.ListWrapper',
+        request_body = {'concreteType': 'org.sagebionetworks.repo.model.ListWrapper',
                         'list': list(columns)}
         response = self.restPOST('/column/batch', json.dumps(request_body))
         return [Column(**col) for col in response['list']]
-
 
     def _getColumnByName(self, schema, column_name):
         """
@@ -3085,11 +3038,11 @@ class Synapse(object):
                 return column
         return None
 
-
-    def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None, rowIdAndVersion=None, ifcollision="keep.both"):
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                        details="please use downloadTableColumns() instead")
+    def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None,
+                          rowIdAndVersion=None, ifcollision="keep.both"):
         """
-        **Deprecated**
-
         Downloads a file associated with a row in a Synapse table.
 
         :param table:            schema object, table query result or synapse ID
@@ -3110,12 +3063,13 @@ class Synapse(object):
             print(file_path)
 
         """
-        warnings.warn("downloadTableFile() is deprecated, please use downloadTableColumns() instead", DeprecationWarning, stacklevel=2)
+        warnings.warn("downloadTableFile() is deprecated, please use downloadTableColumns() instead",
+                      DeprecationWarning, stacklevel=2)
 
         if (rowId is None or versionNumber is None) and rowIdAndVersion is None:
             raise ValueError("Need to pass in either rowIdAndVersion or (rowId and versionNumber).")
 
-        ## get table ID, given a string, Table or Schema
+        # get table ID, given a string, Table or Schema
         if isinstance(table, six.string_types):
             table_id = table
         elif isinstance(table, TableAbstractBaseClass):
@@ -3125,7 +3079,7 @@ class Synapse(object):
         else:
             raise ValueError("Unrecognized table object \"%s\"." % table)
 
-        ## get column ID, given a column name, ID or Column object
+        # get column ID, given a column name, ID or Column object
         if isinstance(column, six.string_types):
             column = self._getColumnByName(table_id, column)
             if column is None:
@@ -3138,7 +3092,7 @@ class Synapse(object):
         else:
             raise ValueError("Unrecognized column \"%s\"." % column)
 
-        ## extract row and version
+        # extract row and version
         if rowIdAndVersion:
             m = re.match(r'(\d+)_(\d+)', rowIdAndVersion)
             if m:
@@ -3148,18 +3102,18 @@ class Synapse(object):
                 raise ValueError('Row and version \"%s\" in unrecognized format.')
 
         row_reference_set = {
-            'tableId':table_id,
-            'headers':[{'id':column_id}],
-            'rows':[{'rowId':rowId,'versionNumber':versionNumber}]
+            'tableId': table_id,
+            'headers': [{'id': column_id}],
+            'rows': [{'rowId': rowId, 'versionNumber': versionNumber}]
         }
         # result is a http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableFileHandleResults.html
         result = self.restPOST("/entity/%s/table/filehandles" % table_id, body=json.dumps(row_reference_set))
-        if len(result['rows'])==0 or len(result['rows'][0]['list']) != 1:
-            raise SynapseError('Couldn\'t get file handle for tableId={id}, column={columnId}, row={rowId}, version={versionNumber}'.format(
-                id=table_id,
-                columnId=column_id,
-                rowId=rowId,
-                versionNumber=versionNumber))
+        if len(result['rows']) == 0 or len(result['rows'][0]['list']) != 1:
+            raise SynapseError('Couldn\'t get file handle for tableId={id}, column={columnId}, row={rowId},'
+                               ' version={versionNumber}'.format(id=table_id,
+                                                                 columnId=column_id,
+                                                                 rowId=rowId,
+                                                                 versionNumber=versionNumber))
         file_handle_id = result['rows'][0]['list'][0]['id']
 
         if downloadLocation is None:
@@ -3168,14 +3122,13 @@ class Synapse(object):
                 os.makedirs(downloadLocation)
 
         cached_file_path = self.cache.get(file_handle_id, downloadLocation)
-        ## TODO finish cache refactor by handling collisions and
-        ## TODO copy from cache to downloadLocation
+        # TODO finish cache refactor by handling collisions and
+        # TODO copy from cache to downloadLocation
         if cached_file_path is not None:
             return cached_file_path
         else:
             path = self._downloadFileHandle(file_handle_id, table_id, 'TableEntity', downloadLocation)
             return path
-
 
     def downloadTableColumns(self, table, columns, **kwargs):
         """
@@ -3186,9 +3139,9 @@ class Synapse(object):
 
         :returns: a dictionary from file handle ID to path in the local file system.
 
-        For example, consider a Synapse table whose ID is "syn12345" with two columns of type File
-        named 'foo' and 'bar'. The associated files are JSON encoded, so we might retrieve the
-        files from Synapse and load for the second 100 of those rows as shown here::
+        For example, consider a Synapse table whose ID is "syn12345" with two columns of type FILEHANDLEID named 'foo'
+        and 'bar'. The associated files are JSON encoded, so we might retrieve the files from Synapse and load for the
+        second 100 of those rows as shown here::
 
             import json
 
@@ -3205,7 +3158,7 @@ class Synapse(object):
         RETRIABLE_FAILURE_CODES = ["EXCEEDS_SIZE_LIMIT"]
         MAX_DOWNLOAD_TRIES = 100
         max_files_per_request = kwargs.get('max_files_per_request', 2500)
-        #Rowset tableQuery result not allowed
+        # Rowset tableQuery result not allowed
         if isinstance(table, TableQueryResult):
             raise ValueError("downloadTableColumn doesn't work with rowsets. Please use default tableQuery settings.")
         if isinstance(columns, six.string_types):
@@ -3215,7 +3168,8 @@ class Synapse(object):
 
         file_handle_associations, file_handle_to_path_map = self._build_table_download_file_handle_list(table, columns)
 
-        self.logger.info("Downloading %d files, %d cached locally" % (len(file_handle_associations), len(file_handle_to_path_map)))
+        self.logger.info("Downloading %d files, %d cached locally" % (len(file_handle_associations),
+                                                                      len(file_handle_to_path_map)))
 
         permanent_failures = OrderedDict()
 
@@ -3225,37 +3179,38 @@ class Synapse(object):
 
             file_handle_associations_batch = file_handle_associations[:max_files_per_request]
 
-            ##------------------------------------------------------------
-            ## call async service to build zip file
-            ##------------------------------------------------------------
+            # ------------------------------------------------------------
+            # call async service to build zip file
+            # ------------------------------------------------------------
 
-            ## returns a BulkFileDownloadResponse:
-            ##   http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
+            # returns a BulkFileDownloadResponse:
+            #   http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadResponse.html
             request = dict(
                 concreteType="org.sagebionetworks.repo.model.file.BulkFileDownloadRequest",
                 requestedFiles=file_handle_associations_batch)
             response = self._waitForAsync(uri='/file/bulk/async', request=request, endpoint=self.fileHandleEndpoint)
 
-            ##------------------------------------------------------------
-            ## download zip file
-            ##------------------------------------------------------------
+            # ------------------------------------------------------------
+            # download zip file
+            # ------------------------------------------------------------
 
             temp_dir = tempfile.mkdtemp()
-            zipfilepath = os.path.join(temp_dir,"table_file_download.zip")
+            zipfilepath = os.path.join(temp_dir, "table_file_download.zip")
             try:
-                zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId , 'TableEntity', zipfilepath)
-                ## TODO handle case when no zip file is returned
-                ## TODO test case when we give it partial or all bad file handles
-                ## TODO test case with deleted fileHandleID
-                ## TODO return null for permanent failures
+                zipfilepath = self._downloadFileHandle(response['resultZipFileHandleId'], table.tableId, 'TableEntity',
+                                                       zipfilepath)
+                # TODO handle case when no zip file is returned
+                # TODO test case when we give it partial or all bad file handles
+                # TODO test case with deleted fileHandleID
+                # TODO return null for permanent failures
 
-                ##------------------------------------------------------------
-                ## unzip into cache
-                ##------------------------------------------------------------
+                # ------------------------------------------------------------
+                # unzip into cache
+                # ------------------------------------------------------------
 
                 with zipfile.ZipFile(zipfilepath) as zf:
-                    ## the directory structure within the zip follows that of the cache:
-                    ## {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
+                    # the directory structure within the zip follows that of the cache:
+                    # {fileHandleId modulo 1000}/{fileHandleId}/{fileName}
                     for summary in response['fileSummary']:
                         if summary['status'] == 'SUCCESS':
                             cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
@@ -3268,26 +3223,24 @@ class Synapse(object):
                 if os.path.exists(zipfilepath):
                     os.remove(zipfilepath)
 
-            ## Do we have remaining files to download?
-            file_handle_associations = [
-                fha for fha in file_handle_associations
-                    if fha['fileHandleId'] not in file_handle_to_path_map
-                    and fha['fileHandleId'] not in permanent_failures.keys()]
+            # Do we have remaining files to download?
+            file_handle_associations = [fha for fha in file_handle_associations
+                                        if fha['fileHandleId'] not in file_handle_to_path_map
+                                        and fha['fileHandleId'] not in permanent_failures.keys()]
 
-        ## TODO if there are files we still haven't downloaded
+        # TODO if there are files we still haven't downloaded
 
         return file_handle_to_path_map
 
-
     def _build_table_download_file_handle_list(self, table, columns):
-        ##------------------------------------------------------------
-        ## build list of file handles to download
-        ##------------------------------------------------------------
+        # ------------------------------------------------------------
+        # build list of file handles to download
+        # ------------------------------------------------------------
         cols_not_found = [c for c in columns if c not in [h.name for h in table.headers]]
         if len(cols_not_found) > 0:
             raise ValueError("Columns not found: " + ", ".join('"' + col + '"' for col in cols_not_found))
         col_indices = [i for i, h in enumerate(table.headers) if h.name in columns]
-        ## see: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
+        # see: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
         file_handle_associations = []
         file_handle_to_path_map = OrderedDict()
         seen_file_handle_ids = set()  # ensure not sending duplicate requests for the same FileHandle IDs
@@ -3309,26 +3262,28 @@ class Synapse(object):
         return file_handle_associations, file_handle_to_path_map
 
     @memoize
-    def _get_default_entity_view_columns(self, view_type):
-        return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
+    def _get_default_entity_view_columns(self, view_type_mask):
+        return [Column(**col)
+                for col in self.restGET("/column/tableview/defaults?viewTypeMask=%s" % view_type_mask)['list']]
 
-    def _get_annotation_entity_view_columns(self, scope_ids, view_type):
+    def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
         view_scope = {'scope': scope_ids,
-                      'viewType': view_type}
+                      'viewTypeMask': view_type_mask}
         columns = []
         next_page_token = None
-        while True: # why does python not havea do-while loop??????????
-            next_page_query = '' if next_page_token is None else '?nextPageToken=%s' % next_page_token
-            response = self.restPOST('/column/view/scope', json.dumps(view_scope))
+        while True:
+            params = {}
+            if next_page_token:
+                params = {'nextPageToken': next_page_token}
+            response = self.restPOST('/column/view/scope', json.dumps(view_scope), params=params)
             columns.extend(Column(**column) for column in response['results'])
             next_page_token = response.get('nextPageToken')
             if next_page_token is None:
                 break
         return columns
 
-
     ############################################################
-    ##             CRUD for Entities (properties)             ##
+    #              CRUD for Entities (properties)              #
     ############################################################
 
     def _getEntity(self, entity, version=None):
@@ -3346,7 +3301,6 @@ class Synapse(object):
             uri += '/version/%d' % version
         return self.restGET(uri)
 
-
     def _createEntity(self, entity):
         """
         Create a new entity in Synapse.
@@ -3357,7 +3311,6 @@ class Synapse(object):
         """
 
         return self.restPOST(uri='/entity', body=json.dumps(get_properties(entity)))
-
 
     def _updateEntity(self, entity, incrementVersion=True, versionLabel=None):
         """
@@ -3383,13 +3336,13 @@ class Synapse(object):
 
         return self.restPUT(uri, body=json.dumps(get_properties(entity)))
 
-
     def findEntityId(self, name, parent=None):
         """
         Find an Entity given its name and parent.
 
-        :param name: name of the entity to find
-        :param parent: An Entity object or the Id of an entity as a string. Omit if searching for a Project by name
+        :param name:    name of the entity to find
+        :param parent:  An Entity object or the Id of an entity as a string. Omit if searching for a Project by name
+
         :return: the Entity ID or None if not found
         """
         # when we want to search for a project by name. set parentId as None instead of ROOT_ENTITY
@@ -3398,27 +3351,22 @@ class Synapse(object):
         try:
             return self.restPOST("/entity/child", body=json.dumps(entity_lookup_request)).get("id")
         except SynapseHTTPError as e:
-            if e.response.status_code == 404: # a 404 error is raised if the entity does not exist
+            if e.response.status_code == 404:  # a 404 error is raised if the entity does not exist
                 return None
             raise
 
-
-
     ############################################################
-    ##                      Send Message                      ##
+    #                       Send Message                       #
     ############################################################
     def sendMessage(self, userIds, messageSubject, messageBody, contentType="text/plain"):
         """
         send a message via Synapse.
 
-        :param userIds: A list of user IDs to which the message is to be sent
-
-        :param messageSubject: The subject for the message
-
-        :param messageBody: The body of the message
-
-        :param contentType: optional contentType of message body (default="text/plain")
-                  Should be one of "text/plain" or "text/html"
+        :param userIds:         A list of user IDs to which the message is to be sent
+        :param messageSubject:  The subject for the message
+        :param messageBody:     The body of the message
+        :param contentType:     optional contentType of message body (default="text/plain")
+                                Should be one of "text/plain" or "text/html"
 
         :returns: The metadata of the created message
         """
@@ -3430,10 +3378,8 @@ class Synapse(object):
             fileHandleId=fileHandleId)
         return self.restPOST(uri='/message', body=json.dumps(message))
 
-
-
     ############################################################
-    ##                  Low level Rest calls                  ##
+    #                   Low level Rest calls                   #
     ############################################################
 
     def _generateSignedHeaders(self, url, headers=None):
@@ -3450,7 +3396,6 @@ class Synapse(object):
         headers.update(self.credentials.get_signed_headers(url))
         return headers
 
-
     def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
         Sends an HTTP GET request to the Synapse server.
@@ -3466,10 +3411,10 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: self._requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
+        response = _with_retry(lambda: self._requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
+                               **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
-
 
     def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
@@ -3486,10 +3431,10 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: self._requests_session.post(uri, data=body, headers=headers, **kwargs), verbose=self.debug, **retryPolicy)
+        response = _with_retry(lambda: self._requests_session.post(uri, data=body, headers=headers, **kwargs),
+                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
-
 
     def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
@@ -3508,10 +3453,9 @@ class Synapse(object):
         retryPolicy = self._build_retry_policy(retryPolicy)
 
         response = _with_retry(lambda: self._requests_session.put(uri, data=body, headers=headers, **kwargs),
-                               verbose = self.debug, **retryPolicy)
+                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
-
 
     def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
@@ -3527,14 +3471,13 @@ class Synapse(object):
         retryPolicy = self._build_retry_policy(retryPolicy)
 
         response = _with_retry(lambda: self._requests_session.delete(uri, headers=headers, **kwargs),
-                               verbose = self.debug, **retryPolicy)
+                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
-
 
     def _build_uri_and_headers(self, uri, endpoint=None, headers=None):
         """Returns a tuple of the URI and headers to request with."""
 
-        if endpoint == None:
+        if endpoint is None:
             endpoint = self.repoEndpoint
 
         # Check to see if the URI is incomplete (i.e. a Synapse URL)
@@ -3547,14 +3490,12 @@ class Synapse(object):
             headers = self._generateSignedHeaders(uri)
         return uri, headers
 
-
     def _build_retry_policy(self, retryPolicy={}):
         """Returns a retry policy to be passed onto _with_retry."""
 
         defaults = dict(STANDARD_RETRY_PARAMS)
         defaults.update(retryPolicy)
         return defaults
-
 
     def _return_rest_body(self, response):
         """Returns either a dictionary or a string depending on the 'content-type' of the response."""

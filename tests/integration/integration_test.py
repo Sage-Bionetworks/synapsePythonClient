@@ -3,19 +3,24 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-from builtins import str
 
-import tempfile, os, sys, filecmp, shutil, json, time
-import uuid, base64
+import tempfile
+import os
+import filecmp
+import shutil
+import json
+import time
+import uuid
 try:
     import configparser
 except ImportError:
     import ConfigParser as configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_false
+from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_true, assert_false, \
+    assert_not_in
 from nose.plugins.skip import SkipTest
-from mock import MagicMock, patch, call
+from mock import patch
 
 import synapseclient
 import synapseclient.client as client
@@ -32,7 +37,7 @@ from integration import schedule_for_cleanup
 def setup(module):
     module.syn = integration.syn
     module.project = integration.project
-    module.other_user = integration.other_user
+
 
 def test_login():
     try:
@@ -52,11 +57,10 @@ def test_login():
         # Login with ID + API key
         syn.login(email=username, apiKey=api_key, silent=True)
 
-        #login with session token
+        # login with session token
         syn.login(sessionToken=sessionToken)
 
-
-        #login with config file no username
+        # login with config file no username
         syn.login(silent=True)
 
         # Login with ID only from config file
@@ -65,45 +69,46 @@ def test_login():
         # Login with ID not matching username
         assert_raises(SynapseNoCredentialsError, syn.login, "fakeusername")
 
-        #login using cache
+        # login using cache
         # mock to make the config file empty
         with patch.object(syn, "_get_config_authentication", return_value={}):
 
             # Login with no credentials 
             assert_raises(SynapseNoCredentialsError, syn.login)
 
-            #remember login info in cache
-            syn.login(username, password,rememberMe=True, silent=True)
+            # remember login info in cache
+            syn.login(username, password, rememberMe=True, silent=True)
 
-            #login using cached info
+            # login using cached info
             syn.login(username, silent=True)
             syn.login(silent=True)
 
-
     except configparser.Error:
-        raise SkipTest("To fully test the login method, please supply a username and password in the configuration file")
+        raise ValueError("Please supply a username and password in the configuration file.")
 
     finally:
         # Login with config file
         syn.login(rememberMe=True, silent=True)
 
+
 def test_login__bad_credentials():
     # nonexistant username and password
-    assert_raises(SynapseAuthenticationError, synapseclient.login, email=str(uuid.uuid4()), password="In the end, it doens't even matter")
+    assert_raises(SynapseAuthenticationError, synapseclient.login, email=str(uuid.uuid4()),
+                  password="In the end, it doens't even matter")
     # existing username and bad password
     assert_raises(SynapseAuthenticationError, synapseclient.login, email=syn.username, password=str(uuid.uuid4()))
 
 
 def testCustomConfigFile():
     if os.path.isfile(client.CONFIG_FILE):
-        configPath='./CONFIGFILE'
+        configPath = './CONFIGFILE'
         shutil.copyfile(client.CONFIG_FILE, configPath)
         schedule_for_cleanup(configPath)
 
         syn2 = synapseclient.Synapse(configPath=configPath)
         syn2.login()
     else:
-        raise SkipTest("To fully test the login method a configuration file is required")
+        raise ValueError("Please supply a username and password in the configuration file.")
 
 
 def test_entity_version():
@@ -113,43 +118,44 @@ def test_entity_version():
     schedule_for_cleanup(entity['path'])
     entity = syn.createEntity(entity)
     
-    syn.setAnnotations(entity, {'fizzbuzz':111222})
+    syn.setAnnotations(entity, {'fizzbuzz': 111222})
     entity = syn.getEntity(entity)
-    assert entity.versionNumber == 1
+    assert_equals(entity.versionNumber, 1)
 
     # Update the Entity and make sure the version is incremented
     entity.foo = 998877
     entity['name'] = 'foobarbat'
     entity['description'] = 'This is a test entity...'
     entity = syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
-    assert entity.versionNumber == 2
+    assert_equals(entity.versionNumber, 2)
 
     # Get the older data and verify the random stuff is still there
     annotations = syn.getAnnotations(entity, version=1)
-    assert annotations['fizzbuzz'][0] == 111222
+    assert_equals(annotations['fizzbuzz'][0], 111222)
     returnEntity = syn.getEntity(entity, version=1)
-    assert returnEntity.versionNumber == 1
-    assert returnEntity['fizzbuzz'][0] == 111222
-    assert 'foo' not in returnEntity
+    assert_equals(returnEntity.versionNumber, 1)
+    assert_equals(returnEntity['fizzbuzz'][0], 111222)
+    assert_not_in('foo', returnEntity)
 
     # Try the newer Entity
     returnEntity = syn.getEntity(entity)
-    assert returnEntity.versionNumber == 2
-    assert returnEntity['foo'][0] == 998877
-    assert returnEntity['name'] == 'foobarbat'
-    assert returnEntity['description'] == 'This is a test entity...'
-    assert returnEntity['versionLabel'] == 'Prada remix'
+    assert_equals(returnEntity.versionNumber, 2)
+    assert_equals(returnEntity['foo'][0], 998877)
+    assert_equals(returnEntity['name'], 'foobarbat')
+    assert_equals(returnEntity['description'], 'This is a test entity...')
+    assert_equals(returnEntity['versionLabel'], 'Prada remix')
 
     # Try the older Entity again
     returnEntity = syn.downloadEntity(entity, version=1)
-    assert returnEntity.versionNumber == 1
-    assert returnEntity['fizzbuzz'][0] == 111222
-    assert 'foo' not in returnEntity
+    assert_equals(returnEntity.versionNumber, 1)
+    assert_equals(returnEntity['fizzbuzz'][0], 111222)
+    assert_not_in('foo', returnEntity)
     
     # Delete version 2 
     syn.delete(entity, version=2)
     returnEntity = syn.getEntity(entity)
-    assert returnEntity.versionNumber == 1
+    assert_equals(returnEntity.versionNumber, 1)
+
 
 def test_md5_query():
     # Add the same Entity several times
@@ -166,22 +172,22 @@ def test_md5_query():
     
     # Although we expect num results, it is possible for the MD5 to be non-unique
     results = syn.md5Query(utils.md5_for_file(path).hexdigest())
-    assert str(sorted(stored)) == str(sorted([res['id'] for res in results]))
-    assert len(results) == num    
+    assert_equals(str(sorted(stored)), str(sorted([res['id'] for res in results])))
+    assert_equals(len(results), num)
 
 
 def test_uploadFile_given_dictionary():
     # Make a Folder Entity the old fashioned way
     folder = {'concreteType': Folder._synapse_entity_type, 
-            'parentId'  : project['id'], 
-            'name'      : 'fooDictionary',
-            'foo'       : 334455}
+              'parentId': project['id'],
+              'name': 'fooDictionary',
+              'foo': 334455}
     entity = syn.store(folder)
     
     # Download and verify that it is the same file
     entity = syn.get(entity)
-    assert entity.parentId == project.id
-    assert entity.foo[0] == 334455
+    assert_equals(entity.parentId, project.id)
+    assert_equals(entity.foo[0], 334455)
 
     # Update via a dictionary
     path = utils.make_bogus_data_file()
@@ -194,30 +200,28 @@ def test_uploadFile_given_dictionary():
 
     # Verify it works
     entity = syn.store(rareCase)
-    assert entity.description == rareCase['description']
-    assert entity.name == 'fooDictionary'
-    entity = syn.get(entity['id'])
-    
+    assert_equals(entity.description, rareCase['description'])
+    assert_equals(entity.name, 'fooDictionary')
+    syn.get(entity['id'])
+
 
 def test_uploadFileEntity():
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
-    entity = {'name'        : 'fooUploadFileEntity', \
-              'description' : 'A test file entity', \
-              'parentId'    : project['id']}
+    entity = {'name': 'fooUploadFileEntity', 'description': 'A test file entity', 'parentId': project['id']}
     entity = syn.uploadFile(entity, fname)
 
     # Download and verify
     entity = syn.downloadEntity(entity)
 
-    assert entity['files'][0] == os.path.basename(fname)
-    assert filecmp.cmp(fname, entity['path'])
+    assert_equals(entity['files'][0], os.path.basename(fname))
+    assert_true(filecmp.cmp(fname, entity['path']))
 
     # Check if we upload the wrong type of file handle
     fh = syn.restGET('/entity/%s/filehandles' % entity.id)['list'][0]
-    assert fh['concreteType'] == 'org.sagebionetworks.repo.model.file.S3FileHandle'
+    assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
 
     # Create a different temporary file
     fname = utils.make_bogus_data_file()
@@ -229,14 +233,14 @@ def test_uploadFileEntity():
     # Download and verify that it is the same file
     entity = syn.downloadEntity(entity)
     assert_equals(entity['files'][0], os.path.basename(fname))
-    assert filecmp.cmp(fname, entity['path'])
+    assert_true(filecmp.cmp(fname, entity['path']))
 
 
 def test_downloadFile():
     # See if the a "wget" works
     filename = utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
     schedule_for_cleanup(filename)
-    assert os.path.exists(filename)
+    assert_true(os.path.exists(filename))
 
 
 def test_version_check():
@@ -244,16 +248,20 @@ def test_version_check():
     version_check(version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
 
     # Should be higher than current version and return true
-    assert version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+    assert_true(version_check(current_version="999.999.999",
+                              version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient"))
 
     # Test out of date version
-    assert not version_check(current_version="0.0.1", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+    assert_false(version_check(current_version="0.0.1",
+                               version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient"))
 
     # Test blacklisted version
-    assert_raises(SystemExit, version_check, current_version="0.0.0", version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
+    assert_raises(SystemExit, version_check, current_version="0.0.0",
+                  version_url="http://dev-versions.synapse.sagebase.org/synapsePythonClient")
 
     # Test bad URL
-    assert not version_check(current_version="999.999.999", version_url="http://dev-versions.synapse.sagebase.org/bad_filename_doesnt_exist")
+    assert_false(version_check(current_version="999.999.999",
+                               version_url="http://dev-versions.synapse.sagebase.org/bad_filename_doesnt_exist"))
 
 
 def test_provenance():
@@ -278,19 +286,19 @@ def test_provenance():
     # Create a new Activity asserting that the Code Entity was 'used'
     activity = Activity(name='random.gauss', description='Generate some random numbers')
     activity.used(code_entity, wasExecuted=True)
-    activity.used({'name':'Superhack', 'url':'https://github.com/joe_coder/Superhack'}, wasExecuted=True)
+    activity.used({'name': 'Superhack', 'url': 'https://github.com/joe_coder/Superhack'}, wasExecuted=True)
     activity = syn.setProvenance(data_entity, activity)
     
     # Retrieve and verify the saved Provenance record
     retrieved_activity = syn.getProvenance(data_entity)
-    assert retrieved_activity == activity
+    assert_equals(retrieved_activity, activity)
 
     # Test Activity update
     new_description = 'Generate random numbers like a gangsta'
     retrieved_activity['description'] = new_description
     updated_activity = syn.updateActivity(retrieved_activity)
-    assert updated_activity['name'] == retrieved_activity['name']
-    assert updated_activity['description'] == new_description
+    assert_equals(updated_activity['name'], retrieved_activity['name'])
+    assert_equals(updated_activity['description'], new_description)
 
     # Test delete
     syn.deleteProvenance(data_entity)
@@ -301,10 +309,10 @@ def test_annotations():
     # Get the annotations of an Entity
     entity = syn.store(Folder(parent=project['id']))
     anno = syn.getAnnotations(entity)
-    assert hasattr(anno, 'id')
-    assert hasattr(anno, 'etag')
-    assert anno.id == entity.id
-    assert anno.etag == entity.etag
+    assert_true(hasattr(anno, 'id'))
+    assert_true(hasattr(anno, 'etag'))
+    assert_equals(anno.id, entity.id)
+    assert_equals(anno.etag, entity.etag)
 
     # Set the annotations, with keywords too
     anno['bogosity'] = 'total'
@@ -312,13 +320,13 @@ def test_annotations():
 
     # Check the update
     annote = syn.getAnnotations(entity)
-    assert annote['bogosity'] == ['total']
-    assert annote['wazoo'] == ['Frank']
-    assert annote['label'] == ['Barking Pumpkin']
-    assert annote['shark'] == [16776960]
+    assert_equals(annote['bogosity'], ['total'])
+    assert_equals(annote['wazoo'], ['Frank'])
+    assert_equals(annote['label'], ['Barking Pumpkin'])
+    assert_equals(annote['shark'], [16776960])
 
     # More annotation setting
-    annote['primes'] = [2,3,5,7,11,13,17,19,23,29]
+    annote['primes'] = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
     annote['phat_numbers'] = [1234.5678, 8888.3333, 1212.3434, 6677.8899]
     annote['goobers'] = ['chris', 'jen', 'jane']
     annote['present_time'] = datetime.now()
@@ -326,22 +334,23 @@ def test_annotations():
     
     # Check it again
     annotation = syn.getAnnotations(entity)
-    assert annotation['primes'] == [2,3,5,7,11,13,17,19,23,29]
-    assert annotation['phat_numbers'] == [1234.5678, 8888.3333, 1212.3434, 6677.8899]
-    assert annotation['goobers'] == ['chris', 'jen', 'jane']
-    assert annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S') == annote['present_time'].strftime('%Y-%m-%d %H:%M:%S')
+    assert_equals(annotation['primes'], [2, 3, 5, 7, 11, 13, 17, 19, 23, 29])
+    assert_equals(annotation['phat_numbers'], [1234.5678, 8888.3333, 1212.3434, 6677.8899])
+    assert_equals(annotation['goobers'], ['chris', 'jen', 'jane'])
+    assert_equals(annotation['present_time'][0].strftime('%Y-%m-%d %H:%M:%S'), \
+                  annote['present_time'].strftime('%Y-%m-%d %H:%M:%S'))
 
 
 def test_get_user_profile():
     p1 = syn.getUserProfile()
 
-    ## get by name
+    # get by name
     p2 = syn.getUserProfile(p1.userName)
-    assert p2.userName == p1.userName
+    assert_equals(p2.userName, p1.userName)
 
-    ## get by user ID
+    # get by user ID
     p2 = syn.getUserProfile(p1.ownerId)
-    assert p2.userName == p1.userName
+    assert_equals(p2.userName, p1.userName)
 
 
 def test_teams():
@@ -350,9 +359,9 @@ def test_teams():
     team = syn.store(team)
 
     team2 = syn.getTeam(team.id)
-    assert team == team2
+    assert_equals(team, team2)
 
-    ## Asynchronously populates index, so wait 'til it's there
+    # Asynchronously populates index, so wait 'til it's there
     retry = 0
     backoff = 0.2
     while retry < 10:
@@ -367,7 +376,8 @@ def test_teams():
 
     syn.delete(team)
 
-    assert team == found_teams[0]
+    assert_equals(team, found_teams[0])
+
 
 def _set_up_external_s3_project():
     """
@@ -385,19 +395,16 @@ def _set_up_external_s3_project():
     project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
                            'settingsType': 'upload',
                            'locations': [destination['storageLocationId']],
-                           'projectId' : project_ext_s3.id}
+                           'projectId': project_ext_s3.id}
 
-    project_destination = syn.restPOST('/projectSettings', body=json.dumps(project_destination))
+    syn.restPOST('/projectSettings', body=json.dumps(project_destination))
     schedule_for_cleanup(project_ext_s3)
     return project_ext_s3.id, destination['storageLocationId']
 
 
+# TODO: this test should be rewritten as unit test
 def test_external_s3_upload():
-    #skip if not on the synapse-test user
-    if syn.username != 'synapse-test':
-        raise SkipTest("This test is configured to work on synapse's TravisCI. If you wish to run this locally, please create an external S3 bucket that your Synapse username can access (http://docs.synapse.org/articles/custom_storage_location.html) and modify the EXTERNAL_S3_BUCKET variable")
-
-    #setup
+    # setup
     project_id, storage_location_id = _set_up_external_s3_project()
 
     # create a temporary file for upload
@@ -405,29 +412,29 @@ def test_external_s3_upload():
     expected_md5 = utils.md5_for_file(temp_file_path).hexdigest()
     schedule_for_cleanup(temp_file_path)
 
-    #upload the file
+    # upload the file
     uploaded_syn_file = syn.store(File(path=temp_file_path, parent=project_id))
 
-    #get file_handle of the uploaded file
+    # get file_handle of the uploaded file
     file_handle = syn.restGET('/entity/%s/filehandles' % uploaded_syn_file.id)['list'][0]
 
-    #Verify correct file handle type
+    # Verify correct file handle type
     assert_equals(file_handle['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
 
     # Verify storage location id to make sure it's using external S3
     assert_equals(storage_location_id, file_handle['storageLocationId'])
 
-    #Verify md5 of upload
+    # Verify md5 of upload
     assert_equals(expected_md5, file_handle['contentMd5'])
 
     # clear the cache and download the file
     syn.cache.purge(time.time())
     downloaded_syn_file = syn.get(uploaded_syn_file.id)
 
-    #verify the correct file was downloaded
+    # verify the correct file was downloaded
     assert_equals(os.path.basename(downloaded_syn_file['path']), os.path.basename(temp_file_path))
     assert_not_equal(os.path.normpath(temp_file_path), os.path.normpath(downloaded_syn_file['path']))
-    assert filecmp.cmp(temp_file_path, downloaded_syn_file['path'])
+    assert_true(filecmp.cmp(temp_file_path, downloaded_syn_file['path']))
 
 
 def test_findEntityIdByNameAndParent():
@@ -446,12 +453,13 @@ def test_getChildren():
     project_name = str(uuid.uuid1())
     test_project = syn.store(Project(name=project_name))
     folder = syn.store(Folder(name="firstFolder", parent=test_project))
-    nested_file = syn.store(File(path="~/doesntMatter.txt", name="file inside folders", parent=folder, synapseStore=False))
-    project_file = syn.store(File(path="~/doesntMatterAgain.txt", name="file inside project", parent=test_project, synapseStore=False))
+    syn.store(File(path="~/doesntMatter.txt", name="file inside folders", parent=folder, synapseStore=False))
+    project_file = syn.store(File(path="~/doesntMatterAgain.txt", name="file inside project", parent=test_project,
+                                  synapseStore=False))
     schedule_for_cleanup(test_project)
 
     expected_id_set = {project_file.id, folder.id}
-    children_id_set = { x['id'] for x in syn.getChildren(test_project.id)}
+    children_id_set = {x['id'] for x in syn.getChildren(test_project.id)}
     assert_equals(expected_id_set, children_id_set)
 
 
@@ -477,12 +485,12 @@ def test_ExternalObjectStore_roundtrip():
     syn.cache.purge(time.time())
     assert_is_none(syn.cache.get(file_entity['dataFileHandleId']))
 
-    #verify key is in s3
+    # verify key is in s3
     import boto3
     boto_session = boto3.session.Session(profile_name=profile_name)
     s3 = boto_session.resource('s3', endpoint_url=endpoint)
     try:
-        s3_file = s3.Object(file_entity._file_handle.bucket,file_entity._file_handle.fileKey)
+        s3_file = s3.Object(file_entity._file_handle.bucket, file_entity._file_handle.fileKey)
         s3_file.load()
     except botocore.exceptions.ClientError as e:
         if e.response['Error']['Code'] == "404":
@@ -491,16 +499,16 @@ def test_ExternalObjectStore_roundtrip():
     file_entity_downloaded = syn.get(file_entity['id'])
     file_handle = file_entity_downloaded['_file_handle']
 
-    #verify file_handle metadata
+    # verify file_handle metadata
     assert_equals(endpoint, file_handle['endpointUrl'])
     assert_equals(bucket, file_handle['bucket'])
     assert_equals(utils.md5_for_file(file_path).hexdigest(), file_handle['contentMd5'])
     assert_equals(os.stat(file_path).st_size, file_handle['contentSize'])
     assert_equals('text/plain', file_handle['contentType'])
     assert_not_equal(utils.normalize_path(file_path), utils.normalize_path(file_entity_downloaded['path']))
-    assert filecmp.cmp(file_path, file_entity_downloaded['path'])
+    assert_true(filecmp.cmp(file_path, file_entity_downloaded['path']))
 
-    #clean up
+    # clean up
     s3_file.delete()
 
 
@@ -517,8 +525,16 @@ def testSetStorageLocation__existing_storage_location():
 
     new_endpoint = "https://some.other.url.com"
     new_bucket = "some_other_bucket"
-    new_storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=new_endpoint, bucket=new_bucket)
+    new_storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=new_endpoint,
+                                                            bucket=new_bucket)
     new_storage_setting = syn.setStorageLocation(proj, new_storage_location['storageLocationId'])
     new_retrieved_setting = syn.getProjectSetting(proj, 'upload')
     assert_equals(new_storage_setting, new_retrieved_setting)
 
+
+def testMoveProject():
+    proj1 = syn.store(Project(name=str(uuid.uuid4()) + "testMoveProject-child"))
+    proj2 = syn.store(Project(name=str(uuid.uuid4()) + "testMoveProject-newParent"))
+    assert_raises(SynapseHTTPError, syn.move, proj1, proj2)
+    schedule_for_cleanup(proj1)
+    schedule_for_cleanup(proj2)
