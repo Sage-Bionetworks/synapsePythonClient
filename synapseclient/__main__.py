@@ -114,7 +114,7 @@ def _getIdsFromQuery(queryString, syn):
         ids = [x['id'] for x in csv.DictReader(open(tbl.filepath))]
         return ids
     else:
-        sys.stderr.write('Input query cannot be parsed. Please see our documentation for writing Synapse query:'
+        raise ValueError('Input query cannot be parsed. Please see our documentation for writing Synapse query:'
                          ' https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html')
 
 
@@ -126,7 +126,7 @@ def get(args, syn):
         synapseutils.syncFromSynapse(syn, args.id, args.downloadLocation, followLink=args.followLink)
     elif args.queryString is not None:
         if args.version is not None or args.id is not None:
-            raise ValueError('You cannot specify a version or id when you are dowloading a query.')
+            raise ValueError('You cannot specify a version or id when you are downloading a query.')
         ids = _getIdsFromQuery(args.queryString, syn)
         for id in ids:
             syn.get(id, downloadLocation=args.downloadLocation)
