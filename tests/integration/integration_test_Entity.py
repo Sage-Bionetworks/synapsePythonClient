@@ -10,7 +10,7 @@ import os
 import tempfile
 from datetime import datetime as Datetime
 from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_true,\
-    assert_false, assert_equals, assert_is_not_none
+    assert_false, assert_equals, assert_is_not_none, assert_raises
 from mock import patch
 
 import synapseclient
@@ -446,11 +446,7 @@ def test_create_or_update_project():
     assert_equals(project.c, [4])
 
     project = Project(name, c=5, d=6)
-    try:
-        project = syn.store(project, createOrUpdate=False)
-        assert False, "Expect an exception from storing an existing project with createOrUpdate=False"
-    except Exception as ex1:
-        pass
+    assert_raises(Exception, syn.store, project, createOrUpdate=False)
 
 
 def test_download_file_false():

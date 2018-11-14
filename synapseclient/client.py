@@ -24,7 +24,7 @@ Synapse
 More information
 ~~~~~~~~~~~~~~~~
 
-See also the `Synapse API documentation <http://docs.synapse.org/rest/>`_.
+See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 
 """
 
@@ -619,6 +619,10 @@ class Synapse(object):
         elif isinstance(entity, six.string_types) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
                                             ' or a valid entity id' % entity))
+        # have not been saved entities
+        elif isinstance(entity, Entity) and not entity.get('id'):
+            raise ValueError("Cannot retrieve entity that has not been saved."
+                             " Please use syn.store() to save your entity and try again.")
         else:
             version = kwargs.get('version', None)
             bundle = self._getEntityBundle(entity, version)
@@ -995,6 +999,8 @@ class Synapse(object):
             if properties['concreteType'] == "org.sagebionetworks.repo.model.Link":
                 target_properties = self._getEntity(properties['linksTo']['targetId'],
                                                     version=properties['linksTo'].get('targetVersionNumber'))
+                if target_properties['parentId'] == properties['parentId']:
+                    raise ValueError("Cannot create a Link to an entity under the same parent.")
                 properties['linksToClassName'] = target_properties['concreteType']
                 if target_properties.get('versionNumber') is not None \
                         and properties['linksTo'].get('targetVersionNumber') is not None:
@@ -1057,7 +1063,8 @@ class Synapse(object):
             properties = self._getEntity(properties)
 
         # Return the updated Entity object
-        return Entity.create(properties, annotations, local_state)
+        entity = Entity.create(properties, annotations, local_state)
+        return self.get(entity, downloadFile=False)
 
     def _createAccessRequirementIfNone(self, entity):
         """
@@ -1147,6 +1154,7 @@ class Synapse(object):
             except AttributeError:
                 SynapseError("Can't delete a %s" % type(obj))
 
+
     _user_name_cache = {}
 
     def _get_user_name(self, user_id):
@@ -1163,38 +1171,35 @@ class Synapse(object):
             fields.extend(['createdByPrincipalId', 'createdOn', 'versionNumber'])
         if show_modified:
             fields.extend(['modifiedByPrincipalId', 'modifiedOn'])
-        # we will convert this to use the new service in SYNPY-473
-        query = 'select ' + ','.join(fields) + \
-                ' from entity where %s=="%s"' % ('id' if indent == 0 else 'parentId', id_of(parent))
-        results = self.chunkedQuery(query)
+        results = self.getChildren(parent)
 
         results_found = False
         for result in results:
             results_found = True
 
-            fmt_fields = {'name': result['entity.name'],
-                          'id': result['entity.id'],
+            fmt_fields = {'name': result['name'],
+                          'id': result['id'],
                           'padding': ' ' * indent,
                           'slash_or_not': '/' if is_container(result) else ''}
             fmt_string = "{id}"
 
             if long_format:
-                fmt_fields['createdOn'] = utils.from_unix_epoch_time(result['entity.createdOn'])\
+                fmt_fields['createdOn'] = utils.iso_to_datetime(result['createdOn'])\
                     .strftime("%Y-%m-%d %H:%M")
-                fmt_fields['createdBy'] = self._get_user_name(result['entity.createdByPrincipalId'])[:18]
-                fmt_fields['version'] = result['entity.versionNumber']
+                fmt_fields['createdBy'] = self._get_user_name(result['createdBy'])[:18]
+                fmt_fields['version'] = result['versionNumber']
                 fmt_string += " {version:3}  {createdBy:>18} {createdOn}"
             if show_modified:
-                fmt_fields['modifiedOn'] = utils.from_unix_epoch_time(result['entity.modifiedOn'])\
+                fmt_fields['modifiedOn'] = utils.iso_to_datetime(result['modifiedOn'])\
                     .strftime("%Y-%m-%d %H:%M")
-                fmt_fields['modifiedBy'] = self._get_user_name(result['entity.modifiedByPrincipalId'])[:18]
+                fmt_fields['modifiedBy'] = self._get_user_name(result['modifiedBy'])[:18]
                 fmt_string += "  {modifiedBy:>18} {modifiedOn}"
 
             fmt_string += "  {padding}{name}{slash_or_not}\n"
             out.write(fmt_string.format(**fmt_fields))
 
             if (indent == 0 or recursive) and is_container(result):
-                self._list(result['entity.id'], recursive=recursive, long_format=long_format,
+                self._list(result['id'], recursive=recursive, long_format=long_format,
                            show_modified=show_modified, indent=indent+2, out=out)
 
         if indent == 0 and not results_found:
@@ -1205,58 +1210,42 @@ class Synapse(object):
     #                    Deprecated methods                    #
     ############################################################
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use get() instead.")
     def getEntity(self, entity, version=None):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.get`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=False)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use get() instead.")
     def loadEntity(self, entity):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.get`
-        """
-
-        self.logger.warning('THIS ONLY DOWNLOADS ENTITIES!')
+        """Use :py:func:`synapseclient.Synapse.get`"""
         return self.downloadEntity(entity)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use store() instead.")
     def createEntity(self, entity, used=None, executed=None, **kwargs):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.store`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.store`"""
         return self.store(entity, used=used, executed=executed, **kwargs)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use store() instead.")
     def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.store`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.store`"""
         return self.store(entity, used=used, executed=executed, forceVersion=incrementVersion,
                           versionLabel=versionLabel, **kwargs)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use delete() instead.")
     def deleteEntity(self, entity):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.delete`
-        """
+        """Use :py:func:`synapseclient.Synapse.delete`"""
         self.delete(entity)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use store() instead.")
     def uploadFile(self, entity, filename=None, used=None, executed=None):
-        """
-        **Deprecated**
+        """Use :py:func:`synapseclient.Synapse.store`"""
 
-        Use :py:func:`synapseclient.Synapse.store`
-        """
         properties, annotations, local_state = split_entity_namespaces(entity)
 
         if filename is not None:
@@ -1267,15 +1256,13 @@ class Synapse(object):
         return self.store(File(properties=properties, annotations=annotations, local_state=local_state), used=used,
                           executed=executed)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                            details="Please use get() instead.")
     def downloadEntity(self, entity, version=None):
-        """
-        **Deprecated**
-
-        Use :py:func:`synapseclient.Synapse.get`
-        """
-
+        """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=True)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
     def uploadFileHandle(self, path, parent, synapseStore=True, mimetype=None, md5=None, file_size=None):
         """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
         Returns a new FileHandle as a dict to represent the stored file.
@@ -1298,6 +1285,7 @@ class Synapse(object):
         """
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
     def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
         """
         Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
@@ -1309,12 +1297,10 @@ class Synapse(object):
         """
         return upload_synapse_s3(self, path, storageLocationId=storageLocationId, mimetype=mimetype)
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
     def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None,
                                    storageLocationId=None):
         """
-        **Deprecated**
-
-
         Create and return a fileHandle, by either uploading a local file or linking to an external URL.
 
         :param synapseStore: Indicates whether the file should be stored or just its URL.
@@ -1324,7 +1310,7 @@ class Synapse(object):
 
         .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
         """
-        warnings.warn("_uploadToFileHandleService() is deprecated, please use uploadFileHandle() instead",
+        warnings.warn("_uploadToFileHandleService() is deprecated and no longer supported.",
                       DeprecationWarning, stacklevel=2)
         if filename is None:
             raise ValueError('No filename given')
@@ -1438,120 +1424,6 @@ class Synapse(object):
             if entityChildrenResponse.get('nextPageToken') is not None:
                 entityChildrenRequest['nextPageToken'] = entityChildrenResponse['nextPageToken']
 
-    @deprecation.deprecated(deprecated_in="1.8.2",
-                            removed_in="1.9.0",
-                            details="Please use :py:func:`synapseclient.Synapse.getChildren` or "
-                                    ":py:class:`synapseclient.table.EntityViewSchema` instead.")
-    def query(self, queryStr):
-        """
-        Query for Synapse entities.
-        See the `query language documentation \
-         <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
-
-        :param queryStr:  the query to execute
-        :returns: an array of query results
-
-        Example::
-
-            syn.query("select id, name from entity where entity.parentId=='syn449742'")
-
-        See also: :py:func:`synapseclient.Synapse.chunkedQuery`
-        """
-        return self.restGET('/query?query=' + quote(queryStr))
-
-    @deprecation.deprecated(deprecated_in="1.8.2",
-                            removed_in="1.9.0",
-                            details="Please use :py:func:`synapseclient.Synapse.getChildren` or "
-                                    ":py:class:`synapseclient.table.EntityViewSchema` instead.")
-    def chunkedQuery(self, queryStr):
-        """
-        Query for Synapse Entities.
-        See the `query language documentation \
-         <https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+API#RepositoryServiceAPI-QueryAPI>`_.
-
-        :param queryStr: the query to execute
-
-        :returns: An iterator that will break up large queries into managable pieces.
-
-        Example::
-
-            results = syn.chunkedQuery("select id, name from entity where entity.parentId=='syn449742'")
-            for res in results:
-                print(res['entity.id'])
-
-        """
-
-        # The query terms LIMIT and OFFSET are managed by this method
-        # So any user specified limits and offsets must be removed first
-        #   Note: The limit and offset terms are always placed at the end of a query
-        #   Note: The server does not parse the limit and offset terms if the offset occurs first.
-        #         This parsing enforces the correct order so the user does not have to consider it.
-
-        # Regex a lower-case string to simplify matching
-        tempQueryStr = queryStr.lower()
-        regex = '\A(.*\s)(offset|limit)\s*(\d*\s*)\Z'
-
-        # Continue to strip off and save the last limit/offset
-        match = re.search(regex, tempQueryStr)
-        options = {'limit': None, 'offset': None}
-        while match is not None:
-            options[match.group(2)] = match.group(3)
-            tempQueryStr = match.group(1)
-            match = re.search(regex, tempQueryStr)
-
-        # Parse the stripped off values or default them to no limit and no offset
-        options['limit'] = int(options['limit']) if options['limit'] is not None else float('inf')
-        options['offset'] = int(options['offset']) if options['offset'] is not None else 1
-
-        # Get a truncated version of the original query string (not in lower-case)
-        queryStr = queryStr[:len(tempQueryStr)]
-
-        # Continue querying until the entire query has been fetched (or crash out)
-        limit = options['limit'] if options['limit'] < QUERY_LIMIT else QUERY_LIMIT
-        offset = options['offset']
-        while True:
-            remaining = options['limit'] + options['offset'] - offset
-
-            # Handle the case where a query was skipped due to size and now no items remain
-            if remaining <= 0:
-                raise StopIteration
-
-            # Build the sub-query
-            subqueryStr = "%s limit %d offset %d" % (queryStr, limit if limit < remaining else remaining, offset)
-
-            try:
-                response = self.restGET('/query?query=' + quote(subqueryStr))
-                for res in response['results']:
-                    yield res
-
-                # Increase the size of the limit slowly
-                if limit < QUERY_LIMIT // 2:
-                    limit = int(limit * 1.5 + 1)
-
-                # Exit when no more results can be pulled
-                if len(response['results']) > 0:
-                    offset += len(response['results'])
-                else:
-                    break
-
-                # Exit when all requests results have been pulled
-                if offset > options['offset'] + options['limit'] - 1:
-                    break
-            except SynapseHTTPError as err:
-                # Shrink the query size when appropriate
-                if err.response.status_code == 400 \
-                        and ('The results of this query exceeded the max' in err.response.json()['reason']):
-                    if limit == 1:
-                        self.logger.warning("A single row (offset %s) of this query exceeds the maximum size."
-                                            " Consider limiting the columns returned in the select clause."
-                                            " Skipping...\n" % offset)
-                        offset += 1
-                        # Since these large rows are anomalous, reset the limit
-                        limit = QUERY_LIMIT
-                    else:
-                        limit = limit // 2
-                else:
-                    raise
 
     def md5Query(self, md5):
         """
@@ -2803,6 +2675,7 @@ class Synapse(object):
                     int(header)
                     yield self.getColumn(header)
                 except ValueError:
+                    # ignore aggregate column
                     pass
         elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
             for col in self.getTableColumns(x):
@@ -3072,11 +2945,11 @@ class Synapse(object):
                 return column
         return None
 
+    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
+                        details="please use downloadTableColumns() instead")
     def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None,
                           rowIdAndVersion=None, ifcollision="keep.both"):
         """
-        **Deprecated**
-
         Downloads a file associated with a row in a Synapse table.
 
         :param table:            schema object, table query result or synapse ID
@@ -3296,15 +3169,20 @@ class Synapse(object):
         return file_handle_associations, file_handle_to_path_map
 
     @memoize
-    def _get_default_entity_view_columns(self, view_type):
-        return [Column(**col) for col in self.restGET("/column/tableview/defaults/%s" % view_type)['list']]
+    def _get_default_entity_view_columns(self, view_type_mask):
+        return [Column(**col)
+                for col in self.restGET("/column/tableview/defaults?viewTypeMask=%s" % view_type_mask)['list']]
 
-    def _get_annotation_entity_view_columns(self, scope_ids, view_type):
+    def _get_annotation_entity_view_columns(self, scope_ids, view_type_mask):
         view_scope = {'scope': scope_ids,
-                      'viewType': view_type}
+                      'viewTypeMask': view_type_mask}
         columns = []
+        next_page_token = None
         while True:
-            response = self.restPOST('/column/view/scope', json.dumps(view_scope))
+            params = {}
+            if next_page_token:
+                params = {'nextPageToken': next_page_token}
+            response = self.restPOST('/column/view/scope', json.dumps(view_scope), params=params)
             columns.extend(Column(**column) for column in response['results'])
             next_page_token = response.get('nextPageToken')
             if next_page_token is None:

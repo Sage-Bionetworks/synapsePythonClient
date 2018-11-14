@@ -3,8 +3,7 @@
 Entity
 ******
 
-The Entity class is the base class for all entities, including Project, Folder and File, Link, as well as deprecated
-entity types such as Data, Study, Summary, etc.
+The Entity class is the base class for all entities, including Project, Folder, File, and Link.
 
 Entities are dictionary-like objects in which both object and dictionary notation (entity.foo or entity['foo']) can be
 used interchangeably.
@@ -751,13 +750,11 @@ def is_versionable(entity):
         return True
 
     try:
-        if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
-            entity_class = _entity_type_to_class[entity['concreteType']]
-            return issubclass(entity_class, Versionable)
-    except TypeError:
-        pass
-
-    return False
+        entity_class = _entity_type_to_class[entity['concreteType']]
+        return issubclass(entity_class, Versionable)
+    except (KeyError, TypeError):
+        # the dict input is not an entity
+        raise ValueError("Input is not an entity.")
 
 
 def is_container(entity):

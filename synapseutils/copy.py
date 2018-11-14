@@ -439,7 +439,7 @@ def _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId):
         newWikiId = wikiIdMap[oldWikiId]
         newWiki = newWikis[newWikiId]
         print("\tUpdating internal links for Page: %s\n" % newWikiId)
-        s = newWiki.markdown
+        s = newWiki["markdown"]
         # in the markdown field, replace all occurrences of entity/wiki/abc with destinationId/wiki/xyz,
         # where wikiIdMap maps abc->xyz
         # replace <entity>/wiki/<oldWikiId> with <destinationId>/wiki/<newWikiId> 
@@ -484,8 +484,16 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
 
     :returns: A list of Objects with three fields: id, title and parentId.
     """
+
+    # Validate input parameters
+    if entitySubPageId:
+        entitySubPageId = str(int(entitySubPageId))
+    if destinationSubPageId:
+        destinationSubPageId = str(int(destinationSubPageId))
+
     oldOwn = syn.get(entity, downloadFile=False)
     # getWikiHeaders fails when there is no wiki
+
     try:
         oldWikiHeaders = syn.getWikiHeaders(oldOwn)
     except SynapseHTTPError as e:
@@ -500,20 +508,24 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
     # If entitySubPageId is given but not destinationSubPageId, set the pageId to "" (will get the root page)
     # A entitySubPage could be copied to a project without any wiki pages, this has to be checked
     newWikiPage = None
-    try:
-        newWikiPage = syn.getWiki(newOwn, destinationSubPageId)
-    except SynapseHTTPError as e:
-        if e.response.status_code == 404:
-            pass
-        else:
-            raise e
-    if entitySubPageId is not None:
+    if destinationSubPageId:
+        try:
+            newWikiPage = syn.getWiki(newOwn, destinationSubPageId)
+        except SynapseHTTPError as e:
+            if e.response.status_code == 404:
+                pass
+            else:
+                raise e
+    if entitySubPageId:
         oldWikiHeaders = _getSubWikiHeaders(oldWikiHeaders, entitySubPageId)
 
+    if not oldWikiHeaders:
+        return []
+
     for wikiHeader in oldWikiHeaders:
-        wiki = syn.getWiki(oldOwn, wikiHeader.id)
-        print('Got wiki %s' % wikiHeader.id)
-        if not wiki['attachmentFileHandleIds']:
+        wiki = syn.getWiki(oldOwn, wikiHeader['id'])
+        print('Got wiki %s' % wikiHeader['id'])
+        if not wiki.get('attachmentFileHandleIds'):
             new_file_handles = []
         else:
             results = [syn._getFileHandleDownload(filehandleId, wiki.id, objectType='WikiAttachment')
@@ -538,17 +550,17 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             newWikiPage = syn.store(newWikiPage)
         else:
             if destinationSubPageId is not None and newWikiPage is not None:
-                newWikiPage.attachmentFileHandleIds = new_file_handles
-                newWikiPage.markdown = wiki.markdown
-                newWikiPage.title = wiki.get('title', '')
+                newWikiPage["attachmentFileHandleIds"] = new_file_handles
+                newWikiPage["markdown"] = wiki["markdown"]
+                newWikiPage["title"] = wiki.get("title", "")
                 # Need to add logic to update titles here
                 newWikiPage = syn.store(newWikiPage)
             else:
-                newWikiPage = Wiki(owner=newOwn, title=wiki.get('title', ''), markdown=wiki.markdown,
+                newWikiPage = Wiki(owner=newOwn, title=wiki.get("title", ""), markdown=wiki.markdown,
                                    fileHandles=new_file_handles, parentWikiId=destinationSubPageId)
                 newWikiPage = syn.store(newWikiPage)
-        newWikis[newWikiPage.id] = newWikiPage
-        wikiIdMap[wiki.id] = newWikiPage.id
+        newWikis[newWikiPage['id']] = newWikiPage
+        wikiIdMap[wiki['id']] = newWikiPage['id']
 
     if updateLinks:
         newWikis = _updateInternalLinks(newWikis, wikiIdMap, entity, destinationId)
@@ -561,5 +573,4 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
         newWikiId = wikiIdMap[oldWikiId]
         newWikis[newWikiId] = syn.store(newWikis[newWikiId])
         print("\tStored: %s\n" % newWikiId)
-    newWh = syn.getWikiHeaders(newOwn)
-    return newWh
+    return syn.getWikiHeaders(newOwn)
