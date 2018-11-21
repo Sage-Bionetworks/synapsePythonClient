@@ -304,32 +304,35 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     # Grab entity bundle
     bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, bitFlags=0x800 | 0x1)
     fileHandle = synapseclient.utils.find_data_file_handle(bundle)
-    createdBy = fileHandle['createdBy']
-    # CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
-    if profile.ownerId == createdBy:
-        newdataFileHandleId = ent.dataFileHandleId
-    else:
-        copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']],
-                                           [fileHandle['contentType']], [fileHandle['fileName']])
-        # Check if failurecodes exist
-        copyResult = copiedFileHandle['copyResults'][0]
-        if copyResult.get("failureCode") is not None:
-            raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],
-                                                          copyResult['originalFileHandleId']))
-        newdataFileHandleId = copyResult['newFileHandle']['id']
+    #if the filehandle is none, it probably means you only have READ access to the entity
+    if fileHandle is not None:
+        createdBy = fileHandle['createdBy']
+        # CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
+        if profile.ownerId == createdBy:
+            newdataFileHandleId = ent.dataFileHandleId
+        else:
+            copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']],
+                                               [fileHandle['contentType']], [fileHandle['fileName']])
+            # Check if failurecodes exist
+            copyResult = copiedFileHandle['copyResults'][0]
+            if copyResult.get("failureCode") is not None:
+                raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],
+                                                              copyResult['originalFileHandleId']))
+            newdataFileHandleId = copyResult['newFileHandle']['id']
 
-    new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
-    # Set annotations here
-    if not skipCopyAnnotations:
-        new_ent.annotations = ent.annotations
-    # Store provenance if act is not None
-    if act is not None:
-        new_ent = syn.store(new_ent, activity=act)
+        new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
+        # Set annotations here
+        if not skipCopyAnnotations:
+            new_ent.annotations = ent.annotations
+        # Store provenance if act is not None
+        if act is not None:
+            new_ent = syn.store(new_ent, activity=act)
+        else:
+            new_ent = syn.store(new_ent)
+        # Leave this return statement for test
+        return new_ent['id']
     else:
-        new_ent = syn.store(new_ent)
-    # Leave this return statement for test
-    return new_ent['id']
-
+        return(None)
 
 def _copyTable(syn, entity, destinationId, updateExisting=False):
     """
