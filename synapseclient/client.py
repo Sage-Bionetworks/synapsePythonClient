@@ -2142,23 +2142,28 @@ class Synapse(object):
         """
         Finds a team with a given ID or name.
 
-        :param id:  The ID or name of the team to retrieve
+        :param id:  The ID or name of the team or a Team object to retrieve
 
         :return:  An object of type :py:class:`synapseclient.team.Team`
         """
+        #Retrieves team id
+        teamid = id_of(id)
         try:
-            int(id)
+            int(teamid)
         except (TypeError, ValueError):
-            if isinstance(id, six.string_types):
-                for team in self._findTeam(id):
-                    if team.name == id:
-                        id = team.id
-                        break
-                else:
-                    raise ValueError("Can't find team \"{}\"".format(id))
+            if isinstance(teamid, six.string_types):
+                matching_teams = list(self._findTeam(teamid))
+                if len(matching_teams) >0:
+                    for team in matching_teams:
+                        if team.name == teamid:
+                            teamid = team.id
+                            break
+                    else:
+                        raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}"
+                                         .format(teamid, ', '.join(t.name for t in matching_teams)))
             else:
-                raise ValueError("Can't find team \"{}\"".format(id))
-        return Team(**self.restGET('/team/%s' % id))
+                raise ValueError("Can't find team \"{}\"".format(teamid))
+        return Team(**self.restGET('/team/%s' % teamid))
 
     def getTeamMembers(self, team):
         """
@@ -2198,33 +2203,19 @@ class Synapse(object):
         """
 
         evaluation_id = id_of(evaluation)
+        entity = self.get(entity)
+        # version defaults to 1 to hack around required version field and allow submission of files/folders/projects
+        entity_version = entity.get('versionNumber', 1)
+
         # default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
-
-        # TODO: accept entities or entity IDs
-        if 'versionNumber' not in entity:
-            entity = self.get(entity)
-        # version defaults to 1 to hack around required version field and allow submission of files/folders
-        entity_version = entity.get('versionNumber', 1)
+        
         entity_id = entity['id']
-
-        # if teamName given, find matching team object
-        if isinstance(team, six.string_types):
-            matching_teams = list(self._findTeam(team))
-            if len(matching_teams) > 0:
-                for matching_team in matching_teams:
-                    if matching_team.name == team:
-                        team = matching_team
-                        break
-                else:
-                    raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}"
-                                     .format(team, ', '.join(t.name for t in matching_teams)))
-            else:
-                raise ValueError("Team \"{0}\" not found.".format(team))
-
-        # if a team is found, build contributors list
-        if team:
+        
+        if team is not None:
+            team = self.getTeam(team)
+            # if a team is found, build contributors list
             # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
                                        .format(evalId=evaluation_id, id=team.id))
