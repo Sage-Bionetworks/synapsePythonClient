@@ -2175,6 +2175,39 @@ class Synapse(object):
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
+
+    def _build_submission_contributors(self, team, evaluation_id):
+        '''
+        Build contributor list should be refactored to be its own function
+
+        :param team:    A :py:class:`synapseclient.team.Team` object, a team's ID or name.
+        :parm evaluation:  An :py:class:`synapseclient.evaluation.Evaluation` id.
+        :returns: eligibility, contributors
+        '''
+        if team is not None:
+            team = self.getTeam(team)
+            # if a team is found, build contributors list
+            # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
+            eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
+                                       .format(evalId=evaluation_id, id=team['id']))
+
+            # Check team eligibility and raise an exception if not eligible
+            if not eligibility['teamEligibility'].get('isEligible', True):
+                if not eligibility['teamEligibility'].get('isRegistered', False):
+                    raise SynapseError('Team "{team}" is not registered.'.format(team=team['name']))
+                if eligibility['teamEligibility'].get('isQuotaFilled', False):
+                    raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
+                                       .format(team=team['name']))
+                raise SynapseError('Team "{team}" is not eligible.'.format(team=team['name']))
+
+            # Include all team members who are eligible.
+            contributors = [{'principalId': em['principalId']}
+                            for em in eligibility['membersEligibility'] if em['isEligible']]
+        else:
+            eligibility = None
+            contributors = None
+        return(eligibility, contributors)
+
     def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None, dockerTag="latest"):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
@@ -2213,29 +2246,6 @@ class Synapse(object):
         
         entity_id = entity['id']
         
-        if team is not None:
-            team = self.getTeam(team)
-            # if a team is found, build contributors list
-            # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
-            eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
-                                       .format(evalId=evaluation_id, id=team.id))
-
-            # Check team eligibility and raise an exception if not eligible
-            if not eligibility['teamEligibility'].get('isEligible', True):
-                if not eligibility['teamEligibility'].get('isRegistered', False):
-                    raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
-                if eligibility['teamEligibility'].get('isQuotaFilled', False):
-                    raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
-                                       .format(team=team.name))
-                raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
-
-            # Include all team members who are eligible.
-            contributors = [{'principalId': em['principalId']}
-                            for em in eligibility['membersEligibility'] if em['isEligible']]
-        else:
-            eligibility = None
-            contributors = None
-
         # create basic submission object
         submission = {'evaluationId': evaluation_id,
                       'entityId': entity_id,
@@ -2243,15 +2253,17 @@ class Synapse(object):
                       'versionNumber': entity_version}
 
         # optional submission fields
-        if team:
-            submission['teamId'] = team.id
+        if team is not None:
+            team = self.getTeam(team)
+            eligibility, contributors = self._build_submission_contributors(team, evaluation_id)
+            submission['teamId'] = team['id']
             submission['contributors'] = contributors
-        if submitterAlias:
-            submission['submitterAlias'] = submitterAlias
-        elif teamName:
-            submission['submitterAlias'] = teamName
-        elif team:
-            submission['submitterAlias'] = team.name
+        # if submitterAlias:
+        #     submission['submitterAlias'] = submitterAlias
+        # elif teamName:
+        #     submission['submitterAlias'] = teamName
+        # elif team:
+        #     submission['submitterAlias'] = team.name
 
         if isinstance(entity, synapseclient.DockerRepository):
             submission['dockerRepositoryName'] = entity.repositoryName
