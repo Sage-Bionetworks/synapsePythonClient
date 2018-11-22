@@ -2175,13 +2175,12 @@ class Synapse(object):
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
-
     def _build_submission_contributors(self, team, evaluation_id):
         '''
         Build contributor list should be refactored to be its own function
 
         :param team:    A :py:class:`synapseclient.team.Team` object, a team's ID or name.
-        :parm evaluation:  An :py:class:`synapseclient.evaluation.Evaluation` id.
+        :param evaluation:  An :py:class:`synapseclient.evaluation.Evaluation` id.
         :returns: eligibility, contributors
         '''
         if team is not None:
@@ -2208,17 +2207,35 @@ class Synapse(object):
             contributors = None
         return(eligibility, contributors)
 
-    def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None, dockerTag="latest"):
+    def _get_docker_commits(self, entity, docker_tag):
+        '''
+        Get matching Docker sha-digest of a DockerRepository given a Docker tag
+        
+        :param entity:      Synapse id of Docker repository
+        :param docker_tag:  Docker tag
+        :returns: Docker digest matching Docker tag
+        '''
+        docker_commits = self.restGET('/entity/{}/dockerCommit'.format(entity.id)) 
+        docker_digest = None
+        for commit in docker_commits['results']:
+            if docker_tag  == commit['tag']:
+                docker_digest = commit['digest']
+        if docker_digest is None:
+            raise ValueError("Must specify docker tag that exists. Defaults to latest")
+        return(docker_digest)
+
+    def submit(self, evaluation, entity, name=None, dockerTag="latest", team=None, silent=False, submitterAlias=None, teamName=None):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
         :param evaluation:      Evaluation queue to submit to
         :param entity:          The Entity containing the Submission
-        :param name:             A name for this submission
+        :param name:            A name for this submission
         :param team:            (optional) A :py:class:`Team` object or name of a Team that is registered for the
                                 challenge
+        :param dockerTag:       (optional) The Docker tag (ie. latest) must be specified if the entity is a DockerRepository
         :param silent:          Suppress output.
-        :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
+        :param submitterAlias:  (deprecated) A nickname, possibly for display in leaderboards in place of the submitter's
                                 name
         :param teamName:        (deprecated) A synonym for submitterAlias
 
@@ -2267,14 +2284,8 @@ class Synapse(object):
 
         if isinstance(entity, synapseclient.DockerRepository):
             submission['dockerRepositoryName'] = entity.repositoryName
-            docker_commits = self.restGET('/entity/{}/dockerCommit'.format(entity.id)) 
-            docker_digest = None
-            for commit in docker_commits['results']:
-                if dockerTag  == commit['tag']:
-                    docker_digest = commit['digest']
-                    submission['dockerDigest'] = docker_digest
-            if docker_digest is None:
-                raise ValueError("Must specify docker tag that exists. Defaults to latest")
+            docker_digest = self._get_docker_commits(entity, dockerTag)
+            submission['dockerDigest'] = docker_digest
 
         # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
         uri = '/evaluation/submission?etag=%s' % entity['etag']
@@ -2287,11 +2298,11 @@ class Synapse(object):
         if not silent:
             if not(isinstance(evaluation, Evaluation)):
                 evaluation = self.getEvaluation(evaluation_id)
-            if 'submissionReceiptMessage' in evaluation:
-                self.logger.info(evaluation['submissionReceiptMessage'])
+            #Evaluation always has submissionReceiptMessage even if its not assigned
+            self.logger.info(evaluation['submissionReceiptMessage'])
 
         # TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage'])
-        return submitted
+        return(dict(submission=submitted, message=evaluation['submissionReceiptMessage']))
 
     def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):
         """
