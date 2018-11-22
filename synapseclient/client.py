@@ -2170,7 +2170,7 @@ class Synapse(object):
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
-    def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None):
+    def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None, dockerTag="latest"):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
@@ -2198,7 +2198,6 @@ class Synapse(object):
         """
 
         evaluation_id = id_of(evaluation)
-
         # default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
@@ -2262,6 +2261,17 @@ class Synapse(object):
             submission['submitterAlias'] = teamName
         elif team:
             submission['submitterAlias'] = team.name
+
+        if isinstance(entity, synapseclient.DockerRepository):
+            submission['dockerRepositoryName'] = entity.repositoryName
+            docker_commits = self.restGET('/entity/{}/dockerCommit'.format(entity.id)) 
+            docker_digest = None
+            for commit in docker_commits['results']:
+                if dockerTag  == commit['tag']:
+                    docker_digest = commit['digest']
+                    submission['dockerDigest'] = docker_digest
+            if docker_digest is None:
+                raise ValueError("Must specify docker tag that exists. Defaults to latest")
 
         # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
         uri = '/evaluation/submission?etag=%s' % entity['etag']
