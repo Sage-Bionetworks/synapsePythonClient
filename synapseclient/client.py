@@ -2161,6 +2161,8 @@ class Synapse(object):
                     else:
                         raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}"
                                          .format(teamid, ', '.join(t.name for t in matching_teams)))
+                else:
+                    raise ValueError("Can't find team \"{}\"".format(teamid))
             else:
                 raise ValueError("Can't find team \"{}\"".format(teamid))
         return Team(**self.restGET('/team/%s' % teamid))
