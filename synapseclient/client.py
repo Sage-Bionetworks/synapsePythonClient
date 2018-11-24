@@ -2271,12 +2271,17 @@ class Synapse(object):
                       'name': name,
                       'versionNumber': entity_version}
 
+        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
+        uri = '/evaluation/submission?etag=%s' % entity['etag']
         # optional submission fields
         if team is not None:
             team = self.getTeam(team)
             eligibility, contributors = self._build_submission_contributors(team, evaluation_id)
             submission['teamId'] = team['id']
             submission['contributors'] = contributors
+            if eligibility:
+                uri += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
+
         # if submitterAlias:
         #     submission['submitterAlias'] = submitterAlias
         # elif teamName:
@@ -2289,10 +2294,6 @@ class Synapse(object):
             docker_digest = self._get_docker_commits(entity, dockerTag)
             submission['dockerDigest'] = docker_digest
 
-        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
-        uri = '/evaluation/submission?etag=%s' % entity['etag']
-        if eligibility:
-            uri += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
 
         submitted = Submission(**self.restPOST(uri, json.dumps(submission)))
 
