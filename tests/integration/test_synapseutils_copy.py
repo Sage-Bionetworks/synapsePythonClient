@@ -62,7 +62,6 @@ class TestCopy:
         schedule_for_cleanup(second_file_entity.id)
         schedule_for_cleanup(self.link_entity.id)
 
-
         #Create Tables and second project
         self.second_project = syn.store(Project(name=str(uuid.uuid4())))
         schedule_for_cleanup(self.second_project.id)
@@ -77,6 +76,13 @@ class TestCopy:
         syn.store(RowSet(schema=self.schema, rows=[Row(r) for r in self.data]))
 
         schedule_for_cleanup(self.schema.id)
+
+        #Created READ permissions
+        third_file = utils.make_bogus_data_file()
+        schedule_for_cleanup(third_file)
+        self.third_file_entity = syn.store(File(third_file, parent=self.second_project))
+        schedule_for_cleanup(self.third_file_entity.id)
+        syn.setPermissions(self.third_file_entity, syn.getUserProfile()['userName'], accessType=['READ'])
 
         self.third_project = syn.store(Project(name=str(uuid.uuid4())))
         schedule_for_cleanup(self.third_project.id)
@@ -130,6 +136,10 @@ class TestCopy:
         schedule_for_cleanup(output_URL[self.externalURL_entity.id])
         assert_equals(output_prov['name'], self.prov['name'])
         assert_equals(output_prov['used'], self.prov['used'])
+
+        # Test: If permission is READ, it shouldn't fail, but different error message
+        read_permission_copy = synapseutils.copy(syn, self.third_file_entity, destinationId=self.project_entity.id)
+        assert_equals(read_permission_copy, {})
 
     def test_copy_links(self):
         '''Test Copy Links'''
