@@ -80,6 +80,7 @@ class TestCopy:
         self.second_schema = syn.store(Schema(name=str(uuid.uuid4()), columns=cols, parent=self.second_project.id))
         syn.store(RowSet(schema=self.second_schema, rows=[Row(r) for r in self.data]))
         schedule_for_cleanup(self.second_schema.id)
+        syn.setPermissions(self.second_schema.id, syn.getUserProfile()['userName'], accessType=['READ'])
 
         #Created READ permissions
         third_file = utils.make_bogus_data_file()
