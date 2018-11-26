@@ -74,8 +74,12 @@ class TestCopy:
 
         self.schema = syn.store(Schema(name='Testing', columns=cols, parent=self.project_entity.id))
         syn.store(RowSet(schema=self.schema, rows=[Row(r) for r in self.data]))
-
         schedule_for_cleanup(self.schema.id)
+        
+        #Second table
+        self.second_schema = syn.store(Schema(name=str(uuid.uuid4()), columns=cols, parent=self.second_project.id))
+        syn.store(RowSet(schema=self.second_schema, rows=[Row(r) for r in self.data]))
+        schedule_for_cleanup(self.second_schema.id)
 
         #Created READ permissions
         third_file = utils.make_bogus_data_file()
@@ -166,6 +170,11 @@ class TestCopy:
             assert_equals(row['values'], self.data[i])
 
         assert_raises(ValueError, synapseutils.copy, syn, self.schema.id, destinationId=self.second_project.id)
+
+        #this table can't be copied because it has read permissions
+        second_table = synapseutils.copy(syn, self.second_schema.id, destinationId=self.project_entity.id)
+        assert_equals(second_table, {})
+
 
     def test_copy_folder(self):
         '''Test Copy Folder'''

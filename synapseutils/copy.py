@@ -185,6 +185,9 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         raise ValueError("Excluded types can only be a list of these values: file, table, and link") 
 
     ent = syn.get(entity, downloadFile=False)
+    profile_username = syn.getUserProfile()['userName']
+    permissions = syn.getPermissions(ent, profile_username)
+
     if ent.id == destinationId:
         raise ValueError("destinationId cannot be the same as entity id")
 
@@ -205,12 +208,12 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     elif isinstance(ent, Folder):
         copiedId = _copyFolder(syn, ent.id, destinationId, mapping=mapping, skipCopyAnnotations=skipCopyAnnotations,
                                **kwargs)
-    elif isinstance(ent, File) and "file" not in excludeTypes:
+    elif isinstance(ent, File) and "file" not in excludeTypes and "DOWNLOAD" in permissions:
         copiedId = _copyFile(syn, ent.id, destinationId, version=version, updateExisting=updateExisting,
                              setProvenance=setProvenance, skipCopyAnnotations=skipCopyAnnotations)
     elif isinstance(ent, Link) and "link" not in excludeTypes:
         copiedId = _copyLink(syn, ent.id, destinationId, updateExisting=updateExisting)
-    elif isinstance(ent, Schema) and "table" not in excludeTypes:
+    elif isinstance(ent, Schema) and "table" not in excludeTypes and "DOWNLOAD" in permissions:
         copiedId = _copyTable(syn, ent.id, destinationId, updateExisting=updateExisting)
 
     if copiedId is not None:
