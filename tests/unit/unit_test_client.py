@@ -9,7 +9,7 @@ from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, a
     assert_not_equals, assert_true
 
 import synapseclient
-from synapseclient import Evaluation, File, Folder
+from synapseclient import Evaluation, File, Folder, DockerRepository
 from synapseclient.constants import concrete_types
 from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArgs
 from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
@@ -234,19 +234,43 @@ class TestSubmit:
         # -- Normal submission --
         # insert a shim that returns the dictionary it was passed after adding a bogus id
         def shim(*args):
-            assert_equal(args[0], '/evaluation/submission?etag=Fake eTag')
+            assert_equal(args[0], '/evaluation/submission?etag=Fake etag')
             submission = json.loads(args[1])
             submission['id'] = 1234
             return submission
         POST_mock.side_effect = shim
+        entity = File("foo", parentId ="syn1000001")
+        entity.id = "syn123"
+        entity.etag = "Fake etag"
+        with patch.object(syn, "get", return_value=entity) as syn_get_entity:
+            submission = syn.submit('9090', syn_get_entity, name='George')
+                                    #submitterAlias='Team X')
 
-        submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George',
-                                submitterAlias='Team X')
+            assert_equal(submission.id, 1234)
+            assert_equal(submission.evaluationId, '9090')
+            assert_equal(submission.name, 'George')
+            assert_equal(submission.versionNumber, 1)
+        
+        entity.versionNumber = 2
+        with patch.object(syn, "get", return_value=entity) as syn_get_entity:
+            submission = syn.submit('9090', syn_get_entity, name='George')
+                                    #submitterAlias='Team X')
+            assert_equal(submission.versionNumber, 2)
+            #assert_equal(submission.submitterAlias, 'Team X')
 
-        assert_equal(submission.id, 1234)
-        assert_equal(submission.evaluationId, '9090')
-        assert_equal(submission.name, 'George')
-        assert_equal(submission.submitterAlias, 'Team X')
+        docker_entity = DockerRepository("foo", parentId = "syn1000001")
+        docker_entity.id = "syn123"
+        docker_entity.etag = "Fake etag"
+        print(docker_entity)
+        print(isinstance(docker_entity, synapseclient.DockerRepository))
+
+        with patch.object(syn, "get", return_value=docker_entity) as syn_get_entity:
+            submission = syn.submit('9090', syn_get_entity, "George")
+
+            assert_equal(submission.id, 1234)
+            assert_equal(submission.evaluationId, '9090')
+            assert_equal(submission.name, 'George')
+            assert_equal(submission.versionNumber, 1)
 
 
 def test_send_message():

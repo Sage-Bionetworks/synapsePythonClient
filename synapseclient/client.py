@@ -2217,13 +2217,13 @@ class Synapse(object):
         :param docker_tag:  Docker tag
         :returns: Docker digest matching Docker tag
         '''
-        docker_commits = self.restGET('/entity/{}/dockerCommit'.format(entity.id)) 
+        docker_commits = self.restGET('/entity/{entityId}/dockerCommit'.format(entityId=entity.id)) 
         docker_digest = None
         for commit in docker_commits['results']:
             if docker_tag  == commit['tag']:
                 docker_digest = commit['digest']
         if docker_digest is None:
-            raise ValueError("Must specify docker tag that exists. Defaults to latest")
+            raise ValueError("Disgest not found for tag: {docker_tag}. Please specify a docker tag that exists. The dockerTag 'latest' is used as default.".format(docker_tag=docker_tag))
         return(docker_digest)
 
     def submit(self, evaluation, entity, name=None, dockerTag="latest", team=None, silent=False, submitterAlias=None, teamName=None):
@@ -2235,7 +2235,7 @@ class Synapse(object):
         :param name:            A name for this submission
         :param team:            (optional) A :py:class:`Team` object or name of a Team that is registered for the
                                 challenge
-        :param dockerTag:       (optional) The Docker tag (ie. latest) must be specified if the entity is a DockerRepository
+        :param dockerTag:       (optional) The Docker tag must be specified if the entity is a DockerRepository. Defaults to "latest".
         :param silent:          Suppress output.
         :param submitterAlias:  (deprecated) A nickname, possibly for display in leaderboards in place of the submitter's
                                 name
@@ -2272,7 +2272,7 @@ class Synapse(object):
                       'versionNumber': entity_version}
 
         # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
-        uri = '/evaluation/submission?etag=%s' % entity['etag']
+        uri = '/evaluation/submission?etag={etag}'.format(etag=entity['etag'])
         # optional submission fields
         if team is not None:
             team = self.getTeam(team)
@@ -2280,7 +2280,7 @@ class Synapse(object):
             submission['teamId'] = team['id']
             submission['contributors'] = contributors
             if eligibility:
-                uri += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
+                uri += "&submissionEligibilityHash={eligibility}".format(eligibility=eligibility['eligibilityStateHash'])
 
         # if submitterAlias:
         #     submission['submitterAlias'] = submitterAlias
@@ -2288,12 +2288,13 @@ class Synapse(object):
         #     submission['submitterAlias'] = teamName
         # elif team:
         #     submission['submitterAlias'] = team.name
-
         if isinstance(entity, synapseclient.DockerRepository):
+            #Edge case if dockerTag is specified as None
+            if dockerTag is None:
+                raise ValueError('A dockerTag is required to submit a DockerEntity. Cannot be None')
             submission['dockerRepositoryName'] = entity.repositoryName
             docker_digest = self._get_docker_commits(entity, dockerTag)
             submission['dockerDigest'] = docker_digest
-
 
         submitted = Submission(**self.restPOST(uri, json.dumps(submission)))
 
