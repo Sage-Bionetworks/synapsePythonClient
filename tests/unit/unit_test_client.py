@@ -256,13 +256,27 @@ class TestSubmit:
                                     #submitterAlias='Team X')
             assert_equal(submission['submission'].versionNumber, 2)
             #assert_equal(submission.submitterAlias, 'Team X')
+       
+        def shim(*args):
+            assert_equal(args[0], '/evaluation/submission?etag=Fake etag')
+            submission = json.loads(args[1])
+            submission['id'] = 1234
+            return submission
+        POST_mock.side_effect = shim
 
         docker_entity = DockerRepository("foo", parentId = "syn1000001")
         docker_entity.id = "syn123"
         docker_entity.etag = "Fake etag"
-        with patch.object(syn, "get", return_value=docker_entity) as syn_get_entity:
-            assert_raises(ValueError, syn.submit,'9090', syn_get_entity,"George", dockerTag=None)
 
+        dockerTag = {'results': [{'tag': 'latest',
+                    'digest': 'sha256:6b079ae764a6affcb632231349d4a5e1b084bece8c46883c099863ee2aeb5cf8'}]}
+
+        with patch.object(syn, "get", return_value=docker_entity) as syn_get_entity, \
+             patch.object(syn, "restGET", return_value=dockerTag) as syn_store_patch:
+            assert_raises(ValueError, syn.submit,'9090', syn_get_entity,"George", dockerTag=None)
+            assert_raises(ValueError, syn.submit,'9090', syn_get_entity,"George", dockerTag="foo")
+
+            submission = syn.submit('9090', syn_get_entity, name='George')
 
 
 def test_send_message():
