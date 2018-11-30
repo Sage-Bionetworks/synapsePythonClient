@@ -245,29 +245,24 @@ class TestSubmit:
         with patch.object(syn, "get", return_value=entity) as syn_get_entity:
             submission = syn.submit('9090', syn_get_entity, name='George')
                                     #submitterAlias='Team X')
-
-            assert_equal(submission.id, 1234)
-            assert_equal(submission.evaluationId, '9090')
-            assert_equal(submission.name, 'George')
-            assert_equal(submission.versionNumber, 1)
+            assert_equal(submission['submission'].id, 1234)
+            assert_equal(submission['submission'].evaluationId, '9090')
+            assert_equal(submission['submission'].name, 'George')
+            assert_equal(submission['submission'].versionNumber, 1)
         
         entity.versionNumber = 2
         with patch.object(syn, "get", return_value=entity) as syn_get_entity:
             submission = syn.submit('9090', syn_get_entity, name='George')
                                     #submitterAlias='Team X')
-            assert_equal(submission.versionNumber, 2)
+            assert_equal(submission['submission'].versionNumber, 2)
             #assert_equal(submission.submitterAlias, 'Team X')
 
         docker_entity = DockerRepository("foo", parentId = "syn1000001")
         docker_entity.id = "syn123"
         docker_entity.etag = "Fake etag"
         with patch.object(syn, "get", return_value=docker_entity) as syn_get_entity:
-            submission = syn.submit('9090', syn_get_entity, "George", dockerTag=None)
+            assert_raises(ValueError, syn.submit,'9090', syn_get_entity,"George", dockerTag=None)
 
-            assert_equal(submission.id, 1234)
-            assert_equal(submission.evaluationId, '9090')
-            assert_equal(submission.name, 'George')
-            assert_equal(submission.versionNumber, 1)
 
 
 def test_send_message():
