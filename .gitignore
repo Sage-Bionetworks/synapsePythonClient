@@ -18,3 +18,5 @@ jenkins/
 docs/build/doctrees/*
 docs/build/html/_sources/*
 
+.vscode
+.venv

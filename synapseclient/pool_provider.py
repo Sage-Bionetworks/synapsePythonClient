@@ -13,6 +13,8 @@ To use this wrapper for single thread, change the synapseclient.config.single_th
 
 """
 from multiprocessing.dummy import Pool
+from multiprocessing.dummy import Value as DummyValue
+from multiprocessing import Value
 from . import config
 
 
@@ -34,3 +36,16 @@ def get_pool():
         return SingleThreadPool()
     else:
         return Pool(DEFAULT_POOL_SIZE)
+
+def get_value():
+    if config.single_threaded:
+        class DummyWith:
+            def __enter__(self):
+                pass
+            def __exit__(self, type, value, traceback):
+                pass
+
+        DummyValue.get_lock = lambda _: DummyWith()
+        return DummyValue
+    else:
+        return Value

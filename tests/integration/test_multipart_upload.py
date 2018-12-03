@@ -10,6 +10,7 @@ import random
 import traceback
 from io import open
 
+import synapseclient
 import synapseclient.utils as utils
 from synapseclient.utils import MB
 from synapseclient import File
@@ -53,6 +54,11 @@ def test_round_trip():
             os.remove(filepath)
         except Exception:
             print(traceback.format_exc())
+
+
+def test_round_trip_single_threaded():
+    synapseclient.config.single_threaded = True
+    test_round_trip()
 
 
 def test_randomly_failing_parts():
