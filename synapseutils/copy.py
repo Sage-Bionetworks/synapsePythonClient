@@ -185,8 +185,6 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         raise ValueError("Excluded types can only be a list of these values: file, table, and link") 
 
     ent = syn.get(entity, downloadFile=False)
-    profile_username = syn.getUserProfile()['userName']
-    permissions = syn.getPermissions(ent, profile_username)
 
     if ent.id == destinationId:
         raise ValueError("destinationId cannot be the same as entity id")
@@ -197,24 +195,31 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     if not isinstance(ent, (Project, Folder, File, Link, Schema, Entity)):
         raise ValueError("Not able to copy this type of file")
 
-    if isinstance(ent, Project):
-        if not isinstance(syn.get(destinationId), Project):
-            raise ValueError("You must give a destinationId of a new project to copy projects")
-        copiedId = destinationId
-        entities = syn.getChildren(entity)
-        for i in entities:
-            mapping = _copyRecursive(syn, i['id'], destinationId, mapping=mapping,
-                                     skipCopyAnnotations=skipCopyAnnotations, **kwargs)
-    elif isinstance(ent, Folder):
-        copiedId = _copyFolder(syn, ent.id, destinationId, mapping=mapping, skipCopyAnnotations=skipCopyAnnotations,
-                               **kwargs)
-    elif isinstance(ent, File) and "file" not in excludeTypes and "DOWNLOAD" in permissions:
-        copiedId = _copyFile(syn, ent.id, destinationId, version=version, updateExisting=updateExisting,
-                             setProvenance=setProvenance, skipCopyAnnotations=skipCopyAnnotations)
-    elif isinstance(ent, Link) and "link" not in excludeTypes:
-        copiedId = _copyLink(syn, ent.id, destinationId, updateExisting=updateExisting)
-    elif isinstance(ent, Schema) and "table" not in excludeTypes and "DOWNLOAD" in permissions:
-        copiedId = _copyTable(syn, ent.id, destinationId, updateExisting=updateExisting)
+    profile_username = syn.getUserProfile()['userName']
+    permissions = syn.getPermissions(ent, profile_username)
+
+    access_requirements = syn.restGET('/entity/%s/accessRequirement' % ent.id)
+
+    #Do not copy anything with access requirements
+    if access_requirements['totalNumberOfResults'] == 0:
+        if isinstance(ent, Project):
+            if not isinstance(syn.get(destinationId), Project):
+                raise ValueError("You must give a destinationId of a new project to copy projects")
+            copiedId = destinationId
+            entities = syn.getChildren(entity)
+            for i in entities:
+                mapping = _copyRecursive(syn, i['id'], destinationId, mapping=mapping,
+                                         skipCopyAnnotations=skipCopyAnnotations, **kwargs)
+        elif isinstance(ent, Folder):
+            copiedId = _copyFolder(syn, ent.id, destinationId, mapping=mapping, skipCopyAnnotations=skipCopyAnnotations,
+                                   **kwargs)
+        elif isinstance(ent, File) and "file" not in excludeTypes and "DOWNLOAD" in permissions:
+            copiedId = _copyFile(syn, ent.id, destinationId, version=version, updateExisting=updateExisting,
+                                 setProvenance=setProvenance, skipCopyAnnotations=skipCopyAnnotations)
+        elif isinstance(ent, Link) and "link" not in excludeTypes:
+            copiedId = _copyLink(syn, ent.id, destinationId, updateExisting=updateExisting)
+        elif isinstance(ent, Schema) and "table" not in excludeTypes and "DOWNLOAD" in permissions:
+            copiedId = _copyTable(syn, ent.id, destinationId, updateExisting=updateExisting)
 
     if copiedId is not None:
         mapping[ent.id] = copiedId
@@ -307,35 +312,31 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     # Grab entity bundle
     bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, bitFlags=0x800 | 0x1)
     fileHandle = synapseclient.utils.find_data_file_handle(bundle)
-    #if the filehandle is none, it probably means you only have READ access to the entity
-    if fileHandle is not None:
-        createdBy = fileHandle['createdBy']
-        # CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
-        if profile.ownerId == createdBy:
-            newdataFileHandleId = ent.dataFileHandleId
-        else:
-            copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']],
-                                               [fileHandle['contentType']], [fileHandle['fileName']])
-            # Check if failurecodes exist
-            copyResult = copiedFileHandle['copyResults'][0]
-            if copyResult.get("failureCode") is not None:
-                raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],
-                                                              copyResult['originalFileHandleId']))
-            newdataFileHandleId = copyResult['newFileHandle']['id']
-
-        new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
-        # Set annotations here
-        if not skipCopyAnnotations:
-            new_ent.annotations = ent.annotations
-        # Store provenance if act is not None
-        if act is not None:
-            new_ent = syn.store(new_ent, activity=act)
-        else:
-            new_ent = syn.store(new_ent)
-        # Leave this return statement for test
-        return new_ent['id']
+    createdBy = fileHandle['createdBy']
+    # CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
+    if profile.ownerId == createdBy:
+        newdataFileHandleId = ent.dataFileHandleId
     else:
-        return(None)
+        copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']],
+                                           [fileHandle['contentType']], [fileHandle['fileName']])
+        # Check if failurecodes exist
+        copyResult = copiedFileHandle['copyResults'][0]
+        if copyResult.get("failureCode") is not None:
+            raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],
+                                                          copyResult['originalFileHandleId']))
+        newdataFileHandleId = copyResult['newFileHandle']['id']
+
+    new_ent = File(dataFileHandleId=newdataFileHandleId,  name=ent.name, parentId=destinationId)
+    # Set annotations here
+    if not skipCopyAnnotations:
+        new_ent.annotations = ent.annotations
+    # Store provenance if act is not None
+    if act is not None:
+        new_ent = syn.store(new_ent, activity=act)
+    else:
+        new_ent = syn.store(new_ent)
+    # Leave this return statement for test
+    return new_ent['id']
 
 def _copyTable(syn, entity, destinationId, updateExisting=False):
     """
