@@ -56,11 +56,6 @@ def test_round_trip():
             print(traceback.format_exc())
 
 
-def test_round_trip_single_threaded():
-    synapseclient.config.single_threaded = True
-    test_round_trip()
-
-
 def test_randomly_failing_parts():
     FAILURE_RATE = 1.0/3.0
     fhid = None

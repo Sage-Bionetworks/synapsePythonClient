@@ -9,12 +9,11 @@ from synapseclient.multipart_upload import find_parts_to_upload, count_completed
 from synapseclient.utils import MB, GB, make_bogus_binary_file, md5_for_file
 from synapseclient.exceptions import SynapseHTTPError
 from synapseclient import multipart_upload
-from synapseclient import pool_provider
-from multiprocessing import Value
-from multiprocessing.dummy import Pool
 from ctypes import c_bool
 from mock import patch, MagicMock
 import warnings
+import concurrent.futures
+from synapseclient.dict_object import DictObject
 
 
 def setup(module):
@@ -91,43 +90,26 @@ def test_upload_chunk__expired_url():
                      'partNumber': 423}
                     ]
 
-    value_doesnt_matter = None
-    expired = Value(c_bool, False)
-    mocked_get_chunk_function = MagicMock(side_effect=[1, 2, 3, 4])
-
     with patch.object(multipart_upload, "_put_chunk",
-                      side_effect=SynapseHTTPError("useless message",
-                                                   response=MagicMock(status_code=403))) as mocked_put_chunk, \
-         patch.object(warnings, "warn") as mocked_warn:
-        def chunk_upload(part):
-            return _upload_chunk(part, completed=value_doesnt_matter, status=value_doesnt_matter, syn=syn,
-                                 filename=value_doesnt_matter, get_chunk_function=mocked_get_chunk_function,
-                                 fileSize=value_doesnt_matter, partSize=value_doesnt_matter,
-                                 t0=value_doesnt_matter, expired=expired, bytes_already_uploaded=value_doesnt_matter)
-        # 2 threads both with urls that have expired
-        mp = Pool(4)
-        mp.map(chunk_upload, upload_parts)
-        assert_true(expired.value)
+                      side_effect=SynapseHTTPError("useless message",response=MagicMock(status_code=403))) as mocked_put_chunk, \
+                      patch.object(warnings, "warn") as mocked_warn, \
+                      patch.object(multipart_upload, '_start_multipart_upload',
+                        return_value=DictObject({'partsState': '0', 'uploadId': '1', 'state': 'COMPLETED', 'resultFileHandleId': '1'})), \
+                      patch.object(multipart_upload, "_get_presigned_urls", return_value=upload_parts):
+        
+        file_size = 1*MB
+        filepath = make_bogus_binary_file(n=file_size)
 
-        # assert warnings.warn was only called once
-        mocked_warn.assert_called_once_with("The pre-signed upload URL has expired. Restarting upload...\n")
+        try:
+            multipart_upload.multipart_upload(syn, filepath)
+        finally:
+            if os.path.isfile(filepath):
+                os.remove(filepath)
+
+        mocked_warn.assert_called_with('The pre-signed upload URL has expired. Restarting upload...\n')
+
+        # 4 URLs, 7 retries.
+        assert mocked_warn.call_count == 28
 
         # assert _put_chunk was called at least once
         assert_greater_equal(len(mocked_put_chunk.call_args_list), 1)
-
-
-def test_pool_provider_is_used_in__multipart_upload():
-    mocked_get_chunk_function = MagicMock(side_effect=[1, 2, 3, 4])
-    file_size = 1*MB
-    filepath = make_bogus_binary_file(n=file_size)
-    md5 = md5_for_file(filepath).hexdigest()
-    status = {'partsState': {},
-              'uploadId': {},
-              'state': 'COMPLETED'}
-
-    pool = MagicMock()
-    with patch.object(syn, "restPOST", return_value=status),\
-            patch.object(pool_provider, "get_pool", return_value=pool) as mock_provider:
-        _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
-        mock_provider.assert_called()
-        pool.map.assert_called()
