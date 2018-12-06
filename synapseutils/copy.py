@@ -175,7 +175,6 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     setProvenance = kwargs.get('setProvenance', "traceback")
     excludeTypes = kwargs.get('excludeTypes', [])
     updateExisting = kwargs.get('updateExisting', False)
-    copiedId = None
     if mapping is None:
         mapping = dict()
     # Check that passed in excludeTypes is file, table, and link
@@ -191,7 +190,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     if (isinstance(ent, Project) or isinstance(ent, Folder)) and version is not None:
         raise ValueError("Cannot specify version when copying a project of folder")
 
-    if not isinstance(ent, (Project, Folder, File, Link, Schema, DockerRepository, EntityViewSchema)):
+    if not isinstance(ent, (Project, Folder, File, Link, Schema, EntityViewSchema)):
         raise ValueError("Not able to copy this type of file")
 
     if isinstance(ent, Project):
@@ -214,8 +213,8 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         copiedId = _copyTable(syn, ent.id, destinationId, updateExisting = updateExisting)
     elif isinstance(ent, EntityViewSchema) and "entityView" not in excludeTypes:
         copiedId = _copyEntityView(syn, ent.id, destinationId, updateExisting = updateExisting)
-    elif isinstance(ent, DockerRepository):
-        print("Docker repositories on Synapse cannot be copied.  Please read http://docs.synapse.org/articles/docker.html for instructions on uploading a Docker Image to Synapse")
+    else:
+        copiedId = None
     if copiedId is not None:
         mapping[ent.id] = copiedId
         print("Copied %s to %s" % (ent.id, copiedId))
