@@ -2230,8 +2230,8 @@ class Synapse(object):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
-        :param evaluation:      Evaluation queue to submit to
-        :param entity:          The Entity containing the Submission
+        :param evaluation:      Evaluation queue or Evaluation queue Id to submit to
+        :param entity:          The Entity or Entity Id containing the Submission
         :param name:            A name for this submission
         :param team:            (optional) A :py:class:`Team` object or name of a Team that is registered for the
                                 challenge
@@ -2254,58 +2254,63 @@ class Synapse(object):
             submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
         """
 
-        evaluation_id = id_of(evaluation)
-        entity = self.get(entity)
-        # version defaults to 1 to hack around required version field and allow submission of files/folders/projects
-        entity_version = entity.get('versionNumber', 1)
-
-        # default name of submission to name of entity
-        if name is None and 'name' in entity:
-            name = entity['name']
-        
+        evaluation = self.getEvaluation(evaluation)
+        evaluation_id = evaluation['id']
+        entity = self.get(entity, downloadFile=False)
         entity_id = entity['id']
-        
-        # create basic submission object
-        submission = {'evaluationId': evaluation_id,
-                      'entityId': entity_id,
-                      'name': name,
-                      'versionNumber': entity_version}
 
-        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
-        uri = '/evaluation/submission?etag={etag}'.format(etag=entity['etag'])
-        # optional submission fields
-        if team is not None:
-            team = self.getTeam(team)
-            eligibility, contributors = self._build_submission_contributors(team, evaluation_id)
-            submission['teamId'] = team['id']
-            submission['contributors'] = contributors
-            if eligibility:
-                uri += "&submissionEligibilityHash={eligibility}".format(eligibility=eligibility['eligibilityStateHash'])
-
-        # if submitterAlias:
-        #     submission['submitterAlias'] = submitterAlias
-        # elif teamName:
-        #     submission['submitterAlias'] = teamName
-        # elif team:
-        #     submission['submitterAlias'] = team.name
         if isinstance(entity, synapseclient.DockerRepository):
             #Edge case if dockerTag is specified as None
             if dockerTag is None:
                 raise ValueError('A dockerTag is required to submit a DockerEntity. Cannot be None')
-            submission['dockerRepositoryName'] = entity.repositoryName
+            docker_repository = entity['repositoryName']
+        else:
+            docker_repository = None
+        # version defaults to 1 to hack around required version field and allow submission of files/folders/projects
+        entity_version = entity.get('versionNumber', 1)
+
+        # default name of submission to name of entity #Can a entity not have a name
+        name = entity['name'] if name is None else name
+
+        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
+        uri = '/evaluation/submission?etag={etag}'.format(etag=entity['etag'])
+        
+        # optional submission fields
+        if team is not None:
+            team = self.getTeam(team)
+            #An error is thrown if team is not eligible
+            eligibility, contributors = self._build_submission_contributors(team, evaluation_id)
+            teamid = team['id']
+            if eligibility:
+                uri += "&submissionEligibilityHash={eligibility}".format(eligibility=eligibility['eligibilityStateHash'])
+        else:
+            eligibility = None
+            contributors = None
+            teamid = None
+
+        if isinstance(entity, synapseclient.DockerRepository):
             docker_digest = self._get_docker_commits(entity, dockerTag)
-            submission['dockerDigest'] = docker_digest
+        else:
+            docker_digest = None
+
+        # create basic submission object
+        submission = {'evaluationId': evaluation_id,
+                      'entityId': entity_id,
+                      'name': name,
+                      'versionNumber': entity_version,
+                      'dockerDigest': docker_digest,
+                      'dockerRepositoryName':docker_repository,
+                      'teamId':teamid,
+                      'contributors':contributors,
+                      'eligibility':eligibility}
 
         submitted = Submission(**self.restPOST(uri, json.dumps(submission)))
 
         # if we want to display the receipt message, we need the full object
         if not silent:
-            if not(isinstance(evaluation, Evaluation)):
-                evaluation = self.getEvaluation(evaluation_id)
             #Evaluation always has submissionReceiptMessage even if its not assigned
             self.logger.info(evaluation['submissionReceiptMessage'])
 
-        # TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage'])
         return(dict(submission=submitted, message=evaluation['submissionReceiptMessage']))
 
     def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):

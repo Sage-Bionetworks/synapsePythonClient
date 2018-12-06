@@ -239,6 +239,7 @@ class TestSubmit:
             submission['id'] = 1234
             return submission
         POST_mock.side_effect = shim
+    
         entity = File("foo", parentId ="syn1000001")
         entity.id = "syn123"
         entity.etag = "Fake etag"
@@ -256,13 +257,6 @@ class TestSubmit:
                                     #submitterAlias='Team X')
             assert_equal(submission['submission'].versionNumber, 2)
             #assert_equal(submission.submitterAlias, 'Team X')
-       
-        def shim(*args):
-            assert_equal(args[0], '/evaluation/submission?etag=Fake etag')
-            submission = json.loads(args[1])
-            submission['id'] = 1234
-            return submission
-        POST_mock.side_effect = shim
 
         docker_entity = DockerRepository("foo", parentId = "syn1000001")
         docker_entity.id = "syn123"
