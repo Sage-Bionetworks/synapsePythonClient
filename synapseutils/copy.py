@@ -424,7 +424,6 @@ def _getSubWikiHeaders(wikiHeaders, subPageId, mapping=None):
     Function to assist in getting wiki headers of subwikipages
     """
     subPageId = str(subPageId)
-
     for i in wikiHeaders:
         # This is for the first match 
         # If it isnt the actual parent, it will turn the first match into a parent node which will not have a parentId
