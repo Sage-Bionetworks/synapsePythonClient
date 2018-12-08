@@ -24,7 +24,6 @@ class test_copy:
         self.project_entity.id = "syn1234"
         self.second_project.id = "syn2345"
 
-
     def test_copy_EntityView(self):
         cols = [Column(name='n', columnType='DOUBLE', maximumSize=50),
                 Column(name='c', columnType='STRING', maximumSize=50),
@@ -35,6 +34,16 @@ class test_copy:
         copied_view_schema.id = "syn1111"
 
         expected_view_schema = EntityViewSchema(entity_view_schema.name, columns = entity_view_schema.columnIds, parent = self.second_project.id, scopes = entity_view_schema.scopeIds, add_default_columns=False)
+        
+        #TEST: Entity passed in is None
+        assert_raises(TypeError,synapseutils.copy, syn,None, destinationId=self.second_project.id, skipCopyWikiPage=True)
+
+        #TEST: Entity exists at target location
+        with patch.object(syn, "get", return_value=entity_view_schema) as patch_syn_get, \
+             patch.object(syn, "findEntityId", return_value="foo") as patch_syn_entity:
+             assert_raises(ValueError,synapseutils.copy, syn, patch_syn_get.id, destinationId=self.second_project.id, skipCopyWikiPage=True)
+        
+        #TEST: Correct EntityView is copied
         with patch.object(syn, "get", return_value=entity_view_schema) as patch_syn_get, \
              patch.object(syn, "findEntityId", return_value=None) as patch_syn_entity, \
              patch.object(syn, "store", return_value=copied_view_schema) as patch_syn_store:
