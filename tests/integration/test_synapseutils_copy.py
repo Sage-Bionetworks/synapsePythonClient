@@ -21,9 +21,6 @@ def setup(module):
     module.syn = integration.syn
     module.project = integration.project
 
-
-
-
 def test_copy_EntityView():
     cols = [Column(name='n', columnType='DOUBLE', maximumSize=50),
             Column(name='c', columnType='STRING', maximumSize=50),
@@ -43,7 +40,6 @@ def test_copy_EntityView():
         assert row['values'] == orig_row['values']
     schedule_for_cleanup(entity_view_schema.id)
     schedule_for_cleanup(entity_view_schema_map[entity_view_schema.id])
-
 
 # Add Test for UPDATE
 # Add test for existing provenance but the orig doesn't have provenance
