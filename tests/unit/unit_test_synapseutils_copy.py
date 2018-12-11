@@ -16,43 +16,41 @@ import uuid
 def setup(module):
     module.syn = unit.syn
     
-class test_copy:
+class test_copy_entityview:
     
     def setup(self):
         self.project_entity = Project(name=str(uuid.uuid4()))
         self.second_project = Project(name=str(uuid.uuid4()))
         self.project_entity.id = "syn1234"
         self.second_project.id = "syn2345"
-
-    def test_copy_EntityView(self):
         cols = [Column(name='n', columnType='DOUBLE', maximumSize=50),
                 Column(name='c', columnType='STRING', maximumSize=50),
                 Column(name='i', columnType='INTEGER')]
-        entity_view_schema = EntityViewSchema(name='TestingEntityView', columns=cols, parent=self.project_entity.id, scopes=[self.project_entity.id])
-        entity_view_schema.id = "syn3456"
-        copied_view_schema = EntityViewSchema(name='TestingEntityView', columns=cols, parent=self.second_project.id, scopes=[self.project_entity.id])
-        copied_view_schema.id = "syn1111"
+        self.entity_view_schema = EntityViewSchema(name='TestingEntityView', columns=cols, parent=self.project_entity.id, scopes=[self.project_entity.id])
+        self.entity_view_schema.id = "syn3456"
+        self.copied_view_schema = EntityViewSchema(name='TestingEntityView', columns=cols, parent=self.second_project.id, scopes=[self.project_entity.id])
+        self.copied_view_schema.id = "syn1111"
 
-        expected_view_schema = EntityViewSchema(entity_view_schema.name, columns = entity_view_schema.columnIds, parent = self.second_project.id, scopes = entity_view_schema.scopeIds, add_default_columns=False)
-        
+    def test_call_copy_entityview(self):
+        expected_view_schema = EntityViewSchema(self.entity_view_schema.name, columns = self.entity_view_schema.columnIds, parent = self.second_project.id, scopes = self.entity_view_schema.scopeIds, add_default_columns=False)
+        #TEST: Correct EntityView is copied
+        with patch.object(syn, "get", return_value=self.entity_view_schema) as patch_syn_get, \
+             patch.object(syn, "findEntityId", return_value=None) as patch_syn_entity, \
+             patch.object(syn, "store", return_value=self.copied_view_schema) as patch_syn_store:
+            entity_view_schema_map = synapseutils.copy(syn, patch_syn_get.id, destinationId=self.second_project.id, skipCopyWikiPage=True)
+            patch_syn_store.assert_called_once_with(expected_view_schema)
+            assert_equals(entity_view_schema_map, {self.entity_view_schema.id:self.copied_view_schema.id})
+
+    def test_copy_none_entityview(self):
         #TEST: Entity passed in is None
         assert_raises(TypeError,synapseutils.copy, syn,None, destinationId=self.second_project.id, skipCopyWikiPage=True)
 
+    def test_copy_exists_entityview(self):
         #TEST: Entity exists at target location
-        with patch.object(syn, "get", return_value=entity_view_schema) as patch_syn_get, \
+        with patch.object(syn, "get", return_value=self.entity_view_schema) as patch_syn_get, \
              patch.object(syn, "findEntityId", return_value="foo") as patch_syn_entity:
              assert_raises(ValueError,synapseutils.copy, syn, patch_syn_get.id, destinationId=self.second_project.id, skipCopyWikiPage=True)
         
-        #TEST: Correct EntityView is copied
-        with patch.object(syn, "get", return_value=entity_view_schema) as patch_syn_get, \
-             patch.object(syn, "findEntityId", return_value=None) as patch_syn_entity, \
-             patch.object(syn, "store", return_value=copied_view_schema) as patch_syn_store:
-
-            entity_view_schema_map = synapseutils.copy(syn, patch_syn_get.id, destinationId=self.second_project.id, skipCopyWikiPage=True)
-            patch_syn_store.assert_called_once_with(expected_view_schema)
-
-            assert_equals(entity_view_schema_map, {"syn3456":"syn1111"})
-
 
 def test_copyWiki_empty_Wiki():
     entity = {"id": "syn123"}
