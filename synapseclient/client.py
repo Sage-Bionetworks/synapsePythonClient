@@ -42,6 +42,7 @@ except ImportError:
 
 import collections
 import os
+import errno
 import sys
 import re
 import time
@@ -1725,7 +1726,7 @@ class Synapse(object):
         try:
             os.makedirs(os.path.dirname(destination))
         except OSError as exception:
-            if exception.errno != os.errno.EEXIST:
+            if exception.errno != errno.EEXIST:
                 raise
         while retries > 0:
             try:
