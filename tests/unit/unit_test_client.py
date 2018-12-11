@@ -216,13 +216,8 @@ class TestPrivateGetWithEntityBundle:
 @patch('synapseclient.Synapse.getEvaluation')
 class TestSubmit:
 
-    def test_submit(self, *mocks):
-        mocks = [item for item in mocks]
-        POST_mock = mocks.pop()
-        getEvaluation_mock = mocks.pop()
-
-        # -- Unmet access rights --
-        getEvaluation_mock.return_value = Evaluation(**{u'contentSource': u'syn1001',
+    def setup(self):
+        self.evaluation_obj = Evaluation(**{u'contentSource': u'syn1001',
                                                         u'createdOn': u'2013-11-06T06:04:26.789Z',
                                                         u'etag': u'86485ea1-8c89-4f24-a0a4-2f63bc011091',
                                                         u'id': u'9090',
@@ -230,15 +225,25 @@ class TestSubmit:
                                                         u'ownerId': u'1560252',
                                                         u'status': u'OPEN',
                                                         u'submissionReceiptMessage': u'mmmm yummy!'})
-
-        # -- Normal submission --
-        # insert a shim that returns the dictionary it was passed after adding a bogus id
         def shim(*args):
             assert_equal(args[0], '/evaluation/submission?etag=Fake etag')
             submission = json.loads(args[1])
             submission['id'] = 1234
             return submission
-        POST_mock.side_effect = shim
+
+        self.shim = shim
+
+    def test_submit_file(self, *mocks):
+        mocks = [item for item in mocks]
+        POST_mock = mocks.pop()
+        getEvaluation_mock = mocks.pop()
+
+        # -- Unmet access rights --
+        getEvaluation_mock.return_value = self.evaluation_obj
+
+        # -- Normal submission --
+        # insert a shim that returns the dictionary it was passed after adding a bogus id
+        POST_mock.side_effect = self.shim
     
         entity = File("foo", parentId ="syn1000001")
         entity.id = "syn123"
@@ -250,7 +255,25 @@ class TestSubmit:
             assert_equal(submission['submission'].evaluationId, '9090')
             assert_equal(submission['submission'].name, 'George')
             assert_equal(submission['submission'].versionNumber, 1)
-        
+
+    def test_submit_file_none(self, *mocks):
+        assert_raises(TypeError, syn.submit, '9090',None, name='George')
+
+    def test_submit_file_version(self, *mocks):
+        mocks = [item for item in mocks]
+        POST_mock = mocks.pop()
+        getEvaluation_mock = mocks.pop()
+
+        # -- Unmet access rights --
+        getEvaluation_mock.return_value = self.evaluation_obj
+
+        # -- Normal submission --
+        # insert a shim that returns the dictionary it was passed after adding a bogus id
+        POST_mock.side_effect = self.shim
+    
+        entity = File("foo", parentId ="syn1000001")
+        entity.id = "syn123"
+        entity.etag = "Fake etag"
         entity.versionNumber = 2
         with patch.object(syn, "get", return_value=entity) as syn_get_entity:
             submission = syn.submit('9090', syn_get_entity, name='George')
@@ -258,6 +281,17 @@ class TestSubmit:
             assert_equal(submission['submission'].versionNumber, 2)
             #assert_equal(submission.submitterAlias, 'Team X')
 
+    def test_submit_docker(self, *mocks):
+        mocks = [item for item in mocks]
+        POST_mock = mocks.pop()
+        getEvaluation_mock = mocks.pop()
+
+        # -- Unmet access rights --
+        getEvaluation_mock.return_value = self.evaluation_obj
+
+        # -- Normal submission --
+        # insert a shim that returns the dictionary it was passed after adding a bogus id
+        POST_mock.side_effect = self.shim
         docker_entity = DockerRepository("foo", parentId = "syn1000001")
         docker_entity.id = "syn123"
         docker_entity.etag = "Fake etag"
@@ -269,7 +303,6 @@ class TestSubmit:
              patch.object(syn, "restGET", return_value=dockerTag) as syn_store_patch:
             assert_raises(ValueError, syn.submit,'9090', syn_get_entity,"George", dockerTag=None)
             assert_raises(ValueError, syn.submit,'9090', syn_get_entity,"George", dockerTag="foo")
-
             submission = syn.submit('9090', syn_get_entity, name='George')
 
 
