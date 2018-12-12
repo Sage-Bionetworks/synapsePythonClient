@@ -253,7 +253,7 @@ class TestSubmit:
 
     def teardown(self):
         self.patch_restPOST.stop()
-        self.path_getEvaluation.stop()
+        self.patch_getEvaluation.stop()
 
     def test_min_requirements(self):
         assert_equal(self.submission, syn.submit(self.eval_id, self.entity))
