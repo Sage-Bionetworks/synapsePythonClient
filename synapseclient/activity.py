@@ -149,9 +149,7 @@ class Activity(dict):
     :param data:        A dictionary representation of an Activity, with fields 'name', 'description' and 'used'
                         (a list of reference objects)
 
-    See also: `Provenance in Synapse \
-     <https://sagebionetworks.jira.com/wiki/display/PLFM/Analysis+Provenance+in+Synapse>`_
-     and the `W3C's provenance ontology <http://www.w3.org/TR/prov-o/>`_
+    See also: The `W3C's provenance ontology <http://www.w3.org/TR/prov-o/>`_
     """
 
     # TODO: make constructors from JSON consistent across objects
