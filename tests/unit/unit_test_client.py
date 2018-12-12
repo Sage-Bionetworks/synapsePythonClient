@@ -212,41 +212,54 @@ class TestPrivateGetWithEntityBundle:
         # TODO: separate into another test?
 
 
-@patch('synapseclient.Synapse.restPOST')
-@patch('synapseclient.Synapse.getEvaluation')
 class TestSubmit:
 
-    def test_submit(self, *mocks):
-        mocks = [item for item in mocks]
-        POST_mock = mocks.pop()
-        getEvaluation_mock = mocks.pop()
+    def setup(self):
+        self.eval_id = 9090
+        self.team_id = 5
+        self.contributors = None
+        self.submitterAlias = None
+        self.entity = {
+            'versionNumber': 7,
+            'id': 'syn1009',
+            'etag': 'Fake eTag'
+        }
+        self.eval = {
+            'contentSource': self.entity['id'],
+            'createdOn': '2013-11-06T06:04:26.789Z',
+            'etag': '86485ea1-8c89-4f24-a0a4-2f63bc011091',
+            'id': self.eval_id,
+            'name': 'test evaluation',
+            'ownerId': '1560252',
+            'status': 'OPEN',
+            'submissionReceiptMessage': 'Your submission has been received.!'
+        }
+        self.submission = {
+            'id': 123,
+            'evaluationId': self.eval_id,
+            'name': "my submission",
+            'entityId': self.entity['id'],
+            'versionNumber': self.entity['versionNumber'],
+            'teamId': self.team_id,
+            'contributors': self.contributors,
+            'submitterAlias': self.submitterAlias
+        }
 
-        # -- Unmet access rights --
-        getEvaluation_mock.return_value = Evaluation(**{u'contentSource': u'syn1001',
-                                                        u'createdOn': u'2013-11-06T06:04:26.789Z',
-                                                        u'etag': u'86485ea1-8c89-4f24-a0a4-2f63bc011091',
-                                                        u'id': u'9090',
-                                                        u'name': u'test evaluation',
-                                                        u'ownerId': u'1560252',
-                                                        u'status': u'OPEN',
-                                                        u'submissionReceiptMessage': u'mmmm yummy!'})
+        self.patch_restPOST = patch.object(syn, "restPOST", return_value=self.submission)
+        self.patch_getEvaluation = patch.object(syn, "getEvaluation", return_value=self.eval)
 
-        # -- Normal submission --
-        # insert a shim that returns the dictionary it was passed after adding a bogus id
-        def shim(*args):
-            assert_equal(args[0], '/evaluation/submission?etag=Fake eTag')
-            submission = json.loads(args[1])
-            submission['id'] = 1234
-            return submission
-        POST_mock.side_effect = shim
+        self.mock_restPOST = self.patch_restPOST.start()
+        self.mock_getEvaluation = self.patch_getEvaluation.start()
 
-        submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George',
-                                submitterAlias='Team X')
+    def teardown(self):
+        self.patch_restPOST.stop()
+        self.path_getEvaluation.stop()
 
-        assert_equal(submission.id, 1234)
-        assert_equal(submission.evaluationId, '9090')
-        assert_equal(submission.name, 'George')
-        assert_equal(submission.submitterAlias, 'Team X')
+    def test_min_requirements(self):
+        assert_equal(self.submission, syn.submit(self.eval_id, self.entity))
+        expected_submission = self.submission
+        expected_submission.id = None
+        self.mock_restPOST.called_once_with(expected_submission)
 
 
 def test_send_message():

@@ -915,3 +915,8 @@ def attempt_import(module_name, fail_message):
                "    pip install %s\n\n"
                "\n\n\n" % (module_name, module_name)))
         raise
+
+
+def require_param(param, name):
+    if param is None:
+        raise ValueError("%s parameter is required." %name)

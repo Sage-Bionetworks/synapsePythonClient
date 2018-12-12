@@ -82,7 +82,7 @@ from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from .exceptions import *
 from .version_check import version_check
 from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle,\
-    _extract_zip_file_to_directory, _is_integer
+    _extract_zip_file_to_directory, _is_integer, require_param
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -2177,7 +2177,7 @@ class Synapse(object):
         :param evaluation:      Evaluation queue to submit to
         :param entity:          The Entity containing the Submission
         :param name:             A name for this submission
-        :param team:            (optional) A :py:class:`Team` object or name of a Team that is registered for the
+        :param team:            (optional) A :py:class:`Team` object, ID or name of a Team that is registered for the
                                 challenge
         :param silent:          Suppress output.
         :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
@@ -2197,38 +2197,70 @@ class Synapse(object):
             submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
         """
 
+        require_param(evaluation, "evaluation")
+        require_param(entity, "entity")
+
         evaluation_id = id_of(evaluation)
 
         # default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
 
+        entity_id = id_of(entity)
+
         # TODO: accept entities or entity IDs
         if 'versionNumber' not in entity:
-            entity = self.get(entity)
+            entity = self.get(entity, downloadFile=False)
         # version defaults to 1 to hack around required version field and allow submission of files/folders
         entity_version = entity.get('versionNumber', 1)
-        entity_id = entity['id']
 
-        # if teamName given, find matching team object
-        if isinstance(team, six.string_types):
-            matching_teams = list(self._findTeam(team))
-            if len(matching_teams) > 0:
-                for matching_team in matching_teams:
-                    if matching_team.name == team:
-                        team = matching_team
-                        break
-                else:
-                    raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}"
-                                     .format(team, ', '.join(t.name for t in matching_teams)))
-            else:
-                raise ValueError("Team \"{0}\" not found.".format(team))
-
-        # if a team is found, build contributors list
+        team_id = None
         if team:
+            team = self.getTeam(team)
+            team_id = id_of(team)
+
+        contributors, eligibility = self._get_contributors(evaluation_id, team)
+
+        # for backward compatible until we remove supports for teamName
+        if not submitterAlias:
+            if teamName:
+                submitterAlias = teamName
+            elif team and 'name' in team:
+                submitterAlias = team.name
+
+        submission = {'evaluationId': evaluation_id,
+                      'name': name,
+                      'entityId': entity_id,
+                      'versionNumber': entity_version,
+                      'teamId': team_id,
+                      'contributors': contributors,
+                      'submitterAlias': submitterAlias}
+
+        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
+        uri = '/evaluation/submission?etag=%s' % entity['etag']
+        if eligibility:
+            uri += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
+
+        submitted = self.restPOST(uri, json.dumps(submission))
+
+        # if we want to display the receipt message, we need the full object
+        if not silent:
+            if not(isinstance(evaluation, Evaluation)):
+                evaluation = self.getEvaluation(evaluation_id)
+            if 'submissionReceiptMessage' in evaluation:
+                self.logger.info(evaluation['submissionReceiptMessage'])
+
+        # TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage'])
+        return Submission(**submitted)
+
+    def _get_contributors(self, evaluation_id, team):
+        eligibility = None
+        contributors = None
+        if team:
+            team_id = id_of(team)
             # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
-                                       .format(evalId=evaluation_id, id=team.id))
+                                       .format(evalId=evaluation_id, id=team_id))
 
             # Check team eligibility and raise an exception if not eligible
             if not eligibility['teamEligibility'].get('isEligible', True):
@@ -2242,43 +2274,7 @@ class Synapse(object):
             # Include all team members who are eligible.
             contributors = [{'principalId': em['principalId']}
                             for em in eligibility['membersEligibility'] if em['isEligible']]
-        else:
-            eligibility = None
-            contributors = None
-
-        # create basic submission object
-        submission = {'evaluationId': evaluation_id,
-                      'entityId': entity_id,
-                      'name': name,
-                      'versionNumber': entity_version}
-
-        # optional submission fields
-        if team:
-            submission['teamId'] = team.id
-            submission['contributors'] = contributors
-        if submitterAlias:
-            submission['submitterAlias'] = submitterAlias
-        elif teamName:
-            submission['submitterAlias'] = teamName
-        elif team:
-            submission['submitterAlias'] = team.name
-
-        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
-        uri = '/evaluation/submission?etag=%s' % entity['etag']
-        if eligibility:
-            uri += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
-
-        submitted = Submission(**self.restPOST(uri, json.dumps(submission)))
-
-        # if we want to display the receipt message, we need the full object
-        if not silent:
-            if not(isinstance(evaluation, Evaluation)):
-                evaluation = self.getEvaluation(evaluation_id)
-            if 'submissionReceiptMessage' in evaluation:
-                self.logger.info(evaluation['submissionReceiptMessage'])
-
-        # TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage'])
-        return submitted
+        return contributors, eligibility
 
     def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):
         """
