@@ -258,7 +258,7 @@ class TestSubmit:
     def test_min_requirements(self):
         assert_equal(self.submission, syn.submit(self.eval_id, self.entity))
         expected_submission = self.submission
-        expected_submission.id = None
+        expected_submission['id'] = None
         self.mock_restPOST.called_once_with(expected_submission)
 
 
