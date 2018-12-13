@@ -2256,7 +2256,7 @@ class Synapse(object):
     def _get_contributors(self, evaluation_id, team):
         eligibility = None
         contributors = None
-        if team:
+        if evaluation_id and team:
             team_id = id_of(team)
             # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'

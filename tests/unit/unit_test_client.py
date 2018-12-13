@@ -9,7 +9,7 @@ from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, a
     assert_not_equals, assert_true
 
 import synapseclient
-from synapseclient import Evaluation, File, Folder
+from synapseclient import File, Folder, Team
 from synapseclient.constants import concrete_types
 from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArgs
 from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
@@ -260,6 +260,106 @@ class TestSubmit:
         expected_submission = self.submission
         expected_submission['id'] = None
         self.mock_restPOST.called_once_with(expected_submission)
+
+
+class TestPrivateGetContributor:
+
+    def setup(self):
+        self.eval_id = 111
+        self.team_id = 123
+        self.team = Team(name="test", id=self.team_id)
+        self.hash = 3
+        self.member_eligible = {
+            'isEligible': True,
+            'isRegistered': True,
+            'isQuotaFilled': False,
+            'principalId': 222,
+            'hasConflictingSubmission': False
+        }
+        self.member_not_registered = {
+            'isEligible': True,
+            'isRegistered': False,
+            'isQuotaFilled': False,
+            'principalId': 223,
+            'hasConflictingSubmission': False
+        }
+        self.member_quota_filled = {
+            'isEligible': True,
+            'isRegistered': True,
+            'isQuotaFilled': True,
+            'principalId': 224,
+            'hasConflictingSubmission': False
+        }
+        self.member_not_conflict = {
+            'isEligible': True,
+            'isRegistered': True,
+            'isQuotaFilled': False,
+            'principalId': 225,
+            'hasConflictingSubmission': True
+        }
+        self.eligibility = {
+            'teamId': self.team_id,
+            'evaluationId': self.eval_id,
+            'teamEligibility': {
+                'isEligible': True,
+                'isRegistered': True,
+                'isQuotaFilled': False
+            },
+            'membersEligibility': [
+                self.member_eligible,
+                self.member_not_registered,
+                self.member_quota_filled,
+                self.member_not_conflict],
+            'eligibilityStateHash': self.hash
+        }
+
+        self.patch_restGET = patch.object(syn, "restGET", return_value=self.eligibility);
+        self.mock_restGET = self.patch_restGET.start()
+
+    def teardown(self):
+        self.patch_restGET.stop()
+
+    def test_none_team(self):
+        assert_equal((None, None), syn._get_contributors(self.eval_id, None))
+        self.mock_restGET.assert_not_called()
+
+    def test_none_eval_id(self):
+        assert_equal((None, None), syn._get_contributors(None, self.team))
+        self.mock_restGET.assert_not_called()
+
+    def test_not_eligible(self):
+        self.eligibility['teamEligibility']['isEligible'] = False
+        self.patch_restGET.return_value = self.eligibility
+        assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
+        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
+        self.mock_restGET.assert_called_once_with(uri)
+
+    def test_not_registered(self):
+        self.eligibility['teamEligibility']['isRegistered'] = False
+        self.patch_restGET.return_value = self.eligibility
+        assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
+        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
+        self.mock_restGET.assert_called_once_with(uri)
+
+    def test_quota_filled(self):
+        self.eligibility['teamEligibility']['isQuotaFilled'] = True
+        self.patch_restGET.return_value = self.eligibility
+        assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
+        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
+        self.mock_restGET.assert_called_once_with(uri)
+
+    def test_empty_members(self):
+        self.eligibility['membersEligibility'] = []
+        self.patch_restGET.return_value = self.eligibility
+        assert_equal(([], self.eligibility), syn._get_contributors(self.eval_id, self.team))
+        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
+        self.mock_restGET.assert_called_once_with(uri)
+
+    def test_happy_case(self):
+        contributors = [self.member_eligible['principalId']]
+        assert_equal((contributors, self.eligibility), syn._get_contributors(self.eval_id, self.team))
+        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
+        self.mock_restGET.assert_called_once_with(uri)
 
 
 def test_send_message():
