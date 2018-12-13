@@ -39,7 +39,7 @@ setup(name='synapseclient',
         'future',
         'backports.csv',
         'keyring==12.0.2',
-        'deprecation==2.0.5',
+        'deprecated==1.2.4',
     ],
     extras_require = {
         'pandas': ["pandas==0.23.0"],
