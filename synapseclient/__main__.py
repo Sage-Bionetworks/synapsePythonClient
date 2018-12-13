@@ -665,8 +665,8 @@ def build_parser():
                                          help='Performs SQL like queries on Synapse')
     parser_query.add_argument('queryString', metavar='string', type=str, nargs='*',
                               help='A query string, see '
-                                   'https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+'
-                                   'API#RepositoryServiceAPI-QueryAPI for more information')
+                                   'https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html'
+                                   ' for more information')
     parser_query.set_defaults(func=query)
 
     parser_submit = subparsers.add_parser('submit',

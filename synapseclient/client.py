@@ -42,6 +42,7 @@ except ImportError:
 
 import collections
 import os
+import errno
 import sys
 import re
 import time
@@ -1206,6 +1207,28 @@ class Synapse(object):
             out.write('No results visible to {username} found for id {id}\n'.format(username=self.credentials.username,
                                                                                     id=id_of(parent)))
 
+    def uploadFileHandle(self, path, parent, synapseStore=True, mimetype=None, md5=None, file_size=None):
+        """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
+        Returns a new FileHandle as a dict to represent the stored file.
+
+        :param parent:          parent of the entity to which we upload.
+        :param path:            file path to the file being uploaded
+        :param synapseStore:    If False, will not upload the file, but instead create an ExternalFileHandle that
+                                references the file on the local machine.
+                                If True, will upload the file based on StorageLocation determined by the
+                                entity_parent_id
+        :param mimetype:        The MIME type metadata for the uploaded file
+        :param md5:             The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will
+                                be calculated automatically.
+        :param file_size:       The size the file, if known. Otherwise if the file is a local file, it will be
+                                calculated automatically.
+        :param file_type:       The MIME type the file, if known. Otherwise if the file is a local file, it will be
+                                calculated automatically.
+
+        :returns: a dict of a new FileHandle as a dict that represents the uploaded file
+        """
+        return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
+
     ############################################################
     #                    Deprecated methods                    #
     ############################################################
@@ -1261,29 +1284,6 @@ class Synapse(object):
     def downloadEntity(self, entity, version=None):
         """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=True)
-
-    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
-    def uploadFileHandle(self, path, parent, synapseStore=True, mimetype=None, md5=None, file_size=None):
-        """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
-        Returns a new FileHandle as a dict to represent the stored file.
-
-        :param parent:          parent of the entity to which we upload.
-        :param path:            file path to the file being uploaded
-        :param synapseStore:    If False, will not upload the file, but instead create an ExternalFileHandle that
-                                references the file on the local machine.
-                                If True, will upload the file based on StorageLocation determined by the
-                                entity_parent_id
-        :param mimetype:        The MIME type metadata for the uploaded file
-        :param md5:             The MD5 checksum for the file, if known. Otherwise if the file is a local file, it will
-                                be calculated automatically.
-        :param file_size:       The size the file, if known. Otherwise if the file is a local file, it will be
-                                calculated automatically.
-        :param file_type:       The MIME type the file, if known. Otherwise if the file is a local file, it will be
-                                calculated automatically.
-
-        :returns: a dict of a new FileHandle as a dict that represents the uploaded file
-        """
-        return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
 
     @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0")
     def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
@@ -1725,7 +1725,7 @@ class Synapse(object):
         try:
             os.makedirs(os.path.dirname(destination))
         except OSError as exception:
-            if exception.errno != os.errno.EEXIST:
+            if exception.errno != errno.EEXIST:
                 raise
         while retries > 0:
             try:
