@@ -53,7 +53,7 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
         return user_login_args.username, user_login_args.password, user_login_args.api_key
 
 @deprecated.sphinx.deprecated(version='1.9.0',
-                              reason="Please use username and password or apiKey instead.")
+                              reason="This will be removed in 2.0. Please use username and password or apiKey instead.")
 class UserArgsSessionTokenCredentialsProvider(SynapseCredentialsProvider):
     """
     This is a special case where we are not given context as to what the username is. We are only given a session token

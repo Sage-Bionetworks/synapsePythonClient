@@ -1234,38 +1234,38 @@ class Synapse(object):
     ############################################################
 
     @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="Please use get() instead.")
+                                  reason="This will be removed in 2.0. Please use get() instead.")
     def getEntity(self, entity, version=None):
         """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=False)
 
     @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="Please use get() instead.")
+                                  reason="This will be removed in 2.0. Please use get() instead.")
     def loadEntity(self, entity):
         """Use :py:func:`synapseclient.Synapse.get`"""
         return self.downloadEntity(entity)
 
     @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="Please use store() instead.")
+                                  reason="This will be removed in 2.0. Please use store() instead.")
     def createEntity(self, entity, used=None, executed=None, **kwargs):
         """Use :py:func:`synapseclient.Synapse.store`"""
         return self.store(entity, used=used, executed=executed, **kwargs)
 
     @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="Please use store() instead.")
+                                  reason="This will be removed in 2.0. Please use store() instead.")
     def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
         """Use :py:func:`synapseclient.Synapse.store`"""
         return self.store(entity, used=used, executed=executed, forceVersion=incrementVersion,
                           versionLabel=versionLabel, **kwargs)
 
     @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="Please use delete() instead.")
+                                  reason="This will be removed in 2.0. Please use delete() instead.")
     def deleteEntity(self, entity):
         """Use :py:func:`synapseclient.Synapse.delete`"""
         self.delete(entity)
 
     @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="Please use store() instead.")
+                                  reason="This will be removed in 2.0. Please use store() instead.")
     def uploadFile(self, entity, filename=None, used=None, executed=None):
         """Use :py:func:`synapseclient.Synapse.store`"""
 
@@ -1280,12 +1280,13 @@ class Synapse(object):
                           executed=executed)
 
     @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="Please use get() instead.")
+                                  reason="This will be removed in 2.0. Please use get() instead.")
     def downloadEntity(self, entity, version=None):
         """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=True)
 
-    @deprecated.sphinx.deprecated(version='1.9.0')
+    @deprecated.sphinx.deprecated(version='1.9.0',
+                                  reason="This will be removed in 2.0.")
     def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
         """
         Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
@@ -1297,7 +1298,8 @@ class Synapse(object):
         """
         return upload_synapse_s3(self, path, storageLocationId=storageLocationId, mimetype=mimetype)
 
-    @deprecated.sphinx.deprecated(version='1.9.0')
+    @deprecated.sphinx.deprecated(version='1.9.0',
+                                  reason='This will be removed in 2.0.')
     def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None,
                                    storageLocationId=None):
         """
@@ -2946,7 +2948,7 @@ class Synapse(object):
         return None
     
     @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="please use downloadTableColumns() instead")
+                                  reason="This will be removed in 2.0. Please use downloadTableColumns() instead")
     def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None,
                           rowIdAndVersion=None, ifcollision="keep.both"):
         """
