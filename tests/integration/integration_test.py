@@ -41,7 +41,7 @@ def setup(module):
 
 def test_login():
     try:
-        config = configparser.ConfigParser()
+        config = configparser.RawConfigParser()
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
