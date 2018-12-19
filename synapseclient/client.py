@@ -2178,10 +2178,11 @@ class Synapse(object):
 
         :param evaluation:      Evaluation queue to submit to
         :param entity:          The Entity containing the Submission
-        :param name:             A name for this submission
+        :param name:            A name for this submission.
+                                In the absent of this parameter, the entity name will be used.
         :param team:            (optional) A :py:class:`Team` object, ID or name of a Team that is registered for the
                                 challenge
-        :param silent:          Suppress output.
+        :param silent:          Set to True to suppress output.
         :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
                                 name
         :param teamName:        (deprecated) A synonym for submitterAlias
@@ -2194,8 +2195,8 @@ class Synapse(object):
 
         Example::
 
-            evaluation = syn.getEvaluation(12345)
-            entity = syn.get('syn12345')
+            evaluation = syn.getEvaluation(123)
+            entity = syn.get('syn456')
             submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
         """
 
@@ -2204,17 +2205,16 @@ class Synapse(object):
 
         evaluation_id = id_of(evaluation)
 
-        # default name of submission to name of entity
-        if name is None and 'name' in entity:
-            name = entity['name']
-
         entity_id = id_of(entity)
 
-        # TODO: accept entities or entity IDs
         if 'versionNumber' not in entity:
             entity = self.get(entity, downloadFile=False)
         # version defaults to 1 to hack around required version field and allow submission of files/folders
         entity_version = entity.get('versionNumber', 1)
+
+        # default name of submission to name of entity
+        if name is None and 'name' in entity:
+            name = entity['name']
 
         team_id = None
         if team:
@@ -2228,7 +2228,7 @@ class Synapse(object):
             if teamName:
                 submitterAlias = teamName
             elif team and 'name' in team:
-                submitterAlias = team.name
+                submitterAlias = team['name']
 
         submission = {'evaluationId': evaluation_id,
                       'name': name,
@@ -2252,7 +2252,6 @@ class Synapse(object):
             if 'submissionReceiptMessage' in evaluation:
                 self.logger.info(evaluation['submissionReceiptMessage'])
 
-        # TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage'])
         return Submission(**submitted)
 
     def _get_contributors(self, evaluation_id, team):

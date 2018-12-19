@@ -16,6 +16,7 @@ from synapseclient.credentials.credential_provider import SynapseCredentialsProv
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.table import Column, EntityViewSchema
+from synapseclient.utils import id_of
 import synapseclient.upload_functions as upload_functions
 
 
@@ -215,14 +216,13 @@ class TestPrivateGetWithEntityBundle:
 class TestSubmit:
 
     def setup(self):
-        self.eval_id = 9090
-        self.team_id = 5
+        self.eval_id = '9090'
         self.contributors = None
-        self.submitterAlias = None
         self.entity = {
             'versionNumber': 7,
             'id': 'syn1009',
-            'etag': 'Fake eTag'
+            'etag': 'etag',
+            'name': 'entity name'
         }
         self.eval = {
             'contentSource': self.entity['id'],
@@ -234,32 +234,92 @@ class TestSubmit:
             'status': 'OPEN',
             'submissionReceiptMessage': 'Your submission has been received.!'
         }
+        self.team = {
+            'id': 5,
+            'name': 'Team Blue'
+        }
         self.submission = {
             'id': 123,
             'evaluationId': self.eval_id,
-            'name': "my submission",
+            'name': self.entity['name'],
             'entityId': self.entity['id'],
             'versionNumber': self.entity['versionNumber'],
-            'teamId': self.team_id,
+            'teamId': id_of(self.team['id']),
             'contributors': self.contributors,
-            'submitterAlias': self.submitterAlias
+            'submitterAlias': self.team['name']
+        }
+        self.eligibility = {
+            'teamId': self.team['id'],
+            'evaluationId': self.eval_id,
+            'teamEligibility': {},
+            'membersEligibility': [],
+            'eligibilityStateHash': 23
         }
 
         self.patch_restPOST = patch.object(syn, "restPOST", return_value=self.submission)
         self.patch_getEvaluation = patch.object(syn, "getEvaluation", return_value=self.eval)
+        self.patch_get = patch.object(syn, "get", return_value=self.entity)
+        self.patch_getTeam = patch.object(syn, "getTeam", return_value= self.team)
+        self.patch_get_contributors = patch.object(syn, "_get_contributors",
+                                                   return_value=(self.contributors, self.eligibility))
 
         self.mock_restPOST = self.patch_restPOST.start()
         self.mock_getEvaluation = self.patch_getEvaluation.start()
+        self.mock_get = self.patch_get.start()
+        self.mock_getTeam = self.patch_getTeam.start()
+        self.mock_get_contributors = self.patch_get_contributors.start()
 
     def teardown(self):
         self.patch_restPOST.stop()
         self.patch_getEvaluation.stop()
+        self.patch_get.stop()
+        self.patch_getTeam.stop()
+        self.patch_get_contributors.stop()
 
     def test_min_requirements(self):
         assert_equal(self.submission, syn.submit(self.eval_id, self.entity))
         expected_submission = self.submission
-        expected_submission['id'] = None
-        self.mock_restPOST.called_once_with(expected_submission)
+        expected_submission.pop('id')
+        expected_submission['teamId'] = None
+        expected_submission['submitterAlias'] = None
+        uri = '/evaluation/submission?etag={0}&submissionEligibilityHash={1}'\
+            .format(self.entity['etag'],self.eligibility['eligibilityStateHash'])
+        self.mock_restPOST.assert_called_once_with(uri, json.dumps(expected_submission))
+        self.mock_get.assert_not_called()
+        self.mock_getTeam.assert_not_called()
+        self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
+
+    def test_only_entity_id_provided(self):
+        assert_equal(self.submission, syn.submit(self.eval_id, self.entity['id']))
+        expected_submission = self.submission
+        expected_submission.pop('id')
+        expected_submission['teamId'] = None
+        expected_submission['submitterAlias'] = None
+        uri = '/evaluation/submission?etag={0}&submissionEligibilityHash={1}' \
+            .format(self.entity['etag'], self.eligibility['eligibilityStateHash'])
+        self.mock_restPOST.assert_called_once_with(uri, json.dumps(expected_submission))
+        self.mock_get.assert_called_once_with(self.entity['id'], downloadFile=False)
+        self.mock_getTeam.assert_not_called()
+        self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
+
+    def test_team_is_given(self):
+        assert_equal(self.submission, syn.submit(self.eval_id, self.entity, team=self.team['id']))
+        expected_submission = self.submission
+        expected_submission.pop('id')
+        uri = '/evaluation/submission?etag={0}&submissionEligibilityHash={1}' \
+            .format(self.entity['etag'], self.eligibility['eligibilityStateHash'])
+        self.mock_restPOST.assert_called_once_with(uri, json.dumps(expected_submission))
+        self.mock_get.assert_not_called()
+        self.mock_getTeam.assert_called_once_with(self.team['id'])
+        self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
+
+    def test_team_not_eligible(self):
+        self.mock_get_contributors.side_effect = SynapseError()
+        assert_raises(SynapseError, syn.submit, self.eval_id, self.entity, team=self.team['id'])
+        self.mock_restPOST.assert_not_called()
+        self.mock_get.assert_not_called()
+        self.mock_getTeam.assert_called_once_with(self.team['id'])
+        self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
 
 
 class TestPrivateGetContributor:
