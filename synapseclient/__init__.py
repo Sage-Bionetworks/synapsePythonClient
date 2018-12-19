@@ -271,9 +271,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import deprecation
-deprecation.message_location = 'top'
-
 from .client import Synapse, login
 from .client import PUBLIC, AUTHENTICATED_USERS
 from .client import ROOT_ENTITY
