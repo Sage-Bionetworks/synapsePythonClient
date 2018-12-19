@@ -9,6 +9,7 @@ if sys.version_info[:2] not in [(2, 7), (3, 5), (3, 6), (3, 7)]:
     sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
     sys.exit(-1)
 
+
 from setuptools import setup, find_packages
 import json
 
@@ -39,7 +40,7 @@ setup(name='synapseclient',
         'future',
         'backports.csv',
         'keyring==12.0.2',
-        'deprecation==2.0.5',
+        'deprecated==1.2.4',
     ],
     extras_require = {
         'pandas': ["pandas==0.23.0"],
