@@ -52,7 +52,7 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
     def _get_auth_info(self, syn, user_login_args):
         return user_login_args.username, user_login_args.password, user_login_args.api_key
 
-@deprecated.sphinx.deprecated(version='1.9.0',
+@deprecated.sphinx.deprecated(version='1.9.0',action='ignore',
                               reason="This will be removed in 2.0. Please use username and password or apiKey instead.")
 class UserArgsSessionTokenCredentialsProvider(SynapseCredentialsProvider):
     """
