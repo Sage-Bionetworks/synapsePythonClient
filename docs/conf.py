@@ -96,7 +96,7 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'sphinxdoc'
+html_theme = 'bizstyle'
 html_style = 'custom.css'
 
 # Theme options are theme-specific and customize the look and feel of a theme
@@ -137,7 +137,9 @@ html_last_updated_fmt = '%b %d, %Y'
 #html_use_smartypants = True
 
 # Custom sidebar templates, maps document names to template names.
-#html_sidebars = {}
+html_sidebars = {
+   '**': ['searchbox.html', 'localtoc.html', 'relations.html', 'sourcelink.html']
+}
 
 # Additional templates that should be rendered to pages, maps page names to
 # template names.
