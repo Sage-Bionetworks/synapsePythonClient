@@ -277,14 +277,14 @@ class TestPrivateGetContributor:
             'hasConflictingSubmission': False
         }
         self.member_not_registered = {
-            'isEligible': True,
+            'isEligible': False,
             'isRegistered': False,
             'isQuotaFilled': False,
             'principalId': 223,
             'hasConflictingSubmission': False
         }
         self.member_quota_filled = {
-            'isEligible': True,
+            'isEligible': False,
             'isRegistered': True,
             'isQuotaFilled': True,
             'principalId': 224,
@@ -327,14 +327,8 @@ class TestPrivateGetContributor:
         assert_equal((None, None), syn._get_contributors(None, self.team))
         self.mock_restGET.assert_not_called()
 
-    def test_not_eligible(self):
-        self.eligibility['teamEligibility']['isEligible'] = False
-        self.patch_restGET.return_value = self.eligibility
-        assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
-        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
-        self.mock_restGET.assert_called_once_with(uri)
-
     def test_not_registered(self):
+        self.eligibility['teamEligibility']['isEligible'] = False
         self.eligibility['teamEligibility']['isRegistered'] = False
         self.patch_restGET.return_value = self.eligibility
         assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
@@ -342,6 +336,7 @@ class TestPrivateGetContributor:
         self.mock_restGET.assert_called_once_with(uri)
 
     def test_quota_filled(self):
+        self.eligibility['teamEligibility']['isEligible'] = False
         self.eligibility['teamEligibility']['isQuotaFilled'] = True
         self.patch_restGET.return_value = self.eligibility
         assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
@@ -356,7 +351,7 @@ class TestPrivateGetContributor:
         self.mock_restGET.assert_called_once_with(uri)
 
     def test_happy_case(self):
-        contributors = [self.member_eligible['principalId']]
+        contributors = [{'principalId': self.member_eligible['principalId']}]
         assert_equal((contributors, self.eligibility), syn._get_contributors(self.eval_id, self.team))
         uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
         self.mock_restGET.assert_called_once_with(uri)

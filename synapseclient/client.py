@@ -2264,18 +2264,20 @@ class Synapse(object):
             eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
                                        .format(evalId=evaluation_id, id=team_id))
 
-            # Check team eligibility and raise an exception if not eligible
-            if not eligibility['teamEligibility'].get('isEligible', True):
-                if not eligibility['teamEligibility'].get('isRegistered', False):
+            if eligibility['teamEligibility']['isEligible']:
+                # Include all team members who are eligible.
+                contributors = [{'principalId': member['principalId']}
+                                for member in eligibility['membersEligibility']
+                                if member['isEligible'] and not member['hasConflictingSubmission']]
+            else:
+                # Check team eligibility and raise an exception if not eligible
+                if not eligibility['teamEligibility']['isRegistered']:
                     raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
-                if eligibility['teamEligibility'].get('isQuotaFilled', False):
+                if eligibility['teamEligibility']['isQuotaFilled']:
                     raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
                                        .format(team=team.name))
                 raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
 
-            # Include all team members who are eligible.
-            contributors = [{'principalId': em['principalId']}
-                            for em in eligibility['membersEligibility'] if em['isEligible']]
         return contributors, eligibility
 
     def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):
