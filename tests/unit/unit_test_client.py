@@ -10,6 +10,7 @@ from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, a
 
 import synapseclient
 from synapseclient import Evaluation, File, Folder
+from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.constants import concrete_types
 from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArgs
 from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
@@ -534,3 +535,95 @@ def test_get_annotation_entity_view_columns():
     with patch.object(syn, "restPOST", side_effect=[page1, page2]) as mock_restPOST:
         syn._get_annotation_entity_view_columns(scope_ids, mask)
         mock_restPOST.assert_has_calls(call_list)
+
+
+class TestCreateStorageLocationSetting:
+
+    def setup(self):
+        self.patch_restPOST = patch.object(syn, 'restPOST')
+        self.mock_restPOST = self.patch_restPOST.start()
+
+    def teardown(self):
+        self.patch_restPOST.stop()
+
+    def test_invalid(self):
+        assert_raises(ValueError, syn.createStorageLocationSetting, "new storage type")
+
+    def test_ExternalObjectStorage(self):
+        syn.createStorageLocationSetting("ExternalObjectStorage")
+        expected = {
+            'concreteType': 'org.sagebionetworks.repo.model.project.ExternalObjectStorageLocationSetting',
+            'uploadType': 'S3'
+        }
+        self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
+
+    def test_ProxyStorage(self):
+        syn.createStorageLocationSetting("ProxyStorage")
+        expected = {
+            'concreteType': 'org.sagebionetworks.repo.model.project.ProxyStorageLocationSettings',
+            'uploadType': 'PROXYLOCAL'
+        }
+        self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
+
+    def test_ExternalS3Storage(self):
+        syn.createStorageLocationSetting("ExternalS3Storage")
+        expected = {
+            'concreteType': 'org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting',
+            'uploadType': 'S3'
+        }
+        self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
+
+    def test_ExternalStorage(self):
+        syn.createStorageLocationSetting("ExternalStorage")
+        expected = {
+            'concreteType': 'org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting',
+            'uploadType': 'SFTP'
+        }
+        self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
+
+
+class TestSetStorageLocation:
+
+    def setup(self):
+        self.entity = "syn123"
+        self.expected_location = {
+            'concreteType':'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+            'settingsType': 'upload',
+            'locations': [DEFAULT_STORAGE_LOCATION_ID],
+            'projectId': self.entity
+        }
+        self.patch_getProjectSetting = patch.object(syn, 'getProjectSetting', return_value=None)
+        self.mock_getProjectSetting = self.patch_getProjectSetting.start()
+        self.patch_restPOST = patch.object(syn, 'restPOST')
+        self.mock_restPOST = self.patch_restPOST.start()
+        self.patch_restPUT = patch.object(syn, 'restPUT')
+        self.mock_restPUT = self.patch_restPUT.start()
+
+    def teardown(self):
+        self.patch_getProjectSetting.stop()
+        self.patch_restPOST.stop()
+        self.patch_restPUT.stop()
+
+    def test_default(self):
+        syn.setStorageLocation(self.entity, None)
+        self.mock_getProjectSetting.assert_called_once_with(self.entity, 'upload')
+        self.mock_restPOST.assert_called_once_with('/projectSettings', body=json.dumps(self.expected_location))
+
+    def test_create(self):
+        storage_location_id = 333
+        self.expected_location['locations'] = [storage_location_id]
+        syn.setStorageLocation(self.entity, storage_location_id)
+        self.mock_getProjectSetting.assert_called_once_with(self.entity, 'upload')
+        self.mock_restPOST.assert_called_once_with('/projectSettings', body=json.dumps(self.expected_location))
+
+    def test_update(self):
+        self.mock_getProjectSetting.return_value = self.expected_location
+        storage_location_id = 333
+        new_location = self.expected_location
+        new_location['locations'] = [storage_location_id]
+        syn.setStorageLocation(self.entity, storage_location_id)
+        self.mock_getProjectSetting.assert_called_with(self.entity, 'upload')
+        assert_equal(2, self.mock_getProjectSetting.call_count)
+        self.mock_restPUT.assert_called_once_with('/projectSettings', body=json.dumps(new_location))
+        self.mock_restPOST.assert_not_called()
+
