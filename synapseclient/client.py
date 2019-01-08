@@ -253,11 +253,11 @@ class Synapse(object):
         Retrieves the client configuration information.
 
         :param configPath:  Path to configuration file on local file system
-        :return: a ConfigParser populated with properties from the user's configuration file.
+        :return: a RawConfigParser populated with properties from the user's configuration file.
         """
 
         try:
-            config = configparser.ConfigParser()
+            config = configparser.RawConfigParser()
             config.read(configPath)  # Does not fail if the file does not exist
             return config
         except configparser.Error:
