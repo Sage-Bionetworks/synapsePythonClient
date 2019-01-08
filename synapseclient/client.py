@@ -2221,7 +2221,7 @@ class Synapse(object):
             team = self.getTeam(team)
             team_id = id_of(team)
 
-        contributors, eligibility = self._get_contributors(evaluation_id, team)
+        contributors, eligibility_hash = self._get_contributors(evaluation_id, team)
 
         # for backward compatible until we remove supports for teamName
         if not submitterAlias:
@@ -2238,12 +2238,7 @@ class Synapse(object):
                       'contributors': contributors,
                       'submitterAlias': submitterAlias}
 
-        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
-        uri = '/evaluation/submission?etag=%s' % entity['etag']
-        if eligibility:
-            uri += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
-
-        submitted = self.restPOST(uri, json.dumps(submission))
+        submitted = self._submit(submission, entity['etag'], eligibility_hash)
 
         # if we want to display the receipt message, we need the full object
         if not silent:
@@ -2254,30 +2249,39 @@ class Synapse(object):
 
         return Submission(**submitted)
 
+    def _submit(self, submission, entity_etag, eligibility_hash):
+        require_param(submission, "submission")
+        require_param(entity_etag, "entity_etag")
+        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
+        uri = '/evaluation/submission?etag=%s' % entity_etag
+        if eligibility_hash:
+            uri += "&submissionEligibilityHash={0}".format(eligibility_hash)
+        submitted = self.restPOST(uri, json.dumps(submission))
+        return submitted
+
     def _get_contributors(self, evaluation_id, team):
-        eligibility = None
-        contributors = None
-        if evaluation_id and team:
-            team_id = id_of(team)
-            # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
-            eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
-                                       .format(evalId=evaluation_id, id=team_id))
+        if not evaluation_id or not team:
+            return None, None
 
-            if eligibility['teamEligibility']['isEligible']:
-                # Include all team members who are eligible.
-                contributors = [{'principalId': member['principalId']}
-                                for member in eligibility['membersEligibility']
-                                if member['isEligible'] and not member['hasConflictingSubmission']]
-            else:
-                # Check team eligibility and raise an exception if not eligible
-                if not eligibility['teamEligibility']['isRegistered']:
-                    raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
-                if eligibility['teamEligibility']['isQuotaFilled']:
-                    raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
-                                       .format(team=team.name))
-                raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
+        team_id = id_of(team)
+        # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
+        eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
+                                   .format(evalId=evaluation_id, id=team_id))
 
-        return contributors, eligibility
+        if not eligibility['teamEligibility']['isEligible']:
+            # Check team eligibility and raise an exception if not eligible
+            if not eligibility['teamEligibility']['isRegistered']:
+                raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
+            if eligibility['teamEligibility']['isQuotaFilled']:
+                raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
+                                   .format(team=team.name))
+            raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
+
+        # Include all team members who are eligible.
+        contributors = [{'principalId': member['principalId']}
+                        for member in eligibility['membersEligibility']
+                        if member['isEligible'] and not member['hasConflictingSubmission']]
+        return contributors, eligibility['eligibilityStateHash']
 
     def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):
         """

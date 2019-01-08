@@ -213,6 +213,44 @@ class TestPrivateGetWithEntityBundle:
         # TODO: add more test cases for flag combination of this method
         # TODO: separate into another test?
 
+class TestPrivateSubmit:
+
+    def setup(self):
+        self.etag = "etag"
+        self.eval_id = 1
+        self.eligibility_hash = 23
+        self.submission = {
+            'id': 123,
+            'evaluationId': 1,
+            'name': "entity_name",
+            'entityId': "syn43",
+            'versionNumber': 1,
+            'teamId': 888,
+            'contributors': [],
+            'submitterAlias': "awesome_submission"
+        }
+        self.patch_restPOST = patch.object(syn, "restPOST", return_value=self.submission)
+        self.mock_restPOST = self.patch_restPOST.start()
+
+    def teardown(self):
+        self.patch_restPOST.stop()
+
+    def test_invalid_submission(self):
+        assert_raises(ValueError, syn._submit, None, self.etag, self.submission)
+
+    def test_invalid_etag(self):
+        assert_raises(ValueError, syn._submit, self.submission, None, self.submission)
+
+    def test_without_eligibility_hash(self):
+        assert_equal(self.submission, syn._submit(self.submission, self.etag, None))
+        uri = '/evaluation/submission?etag={0}'.format(self.etag)
+        self.mock_restPOST.assert_called_once_with(uri, json.dumps(self.submission))
+
+    def test_with_eligibitiy_hash(self):
+        assert_equal(self.submission, syn._submit(self.submission, self.etag, self.eligibility_hash))
+        uri = '/evaluation/submission?etag={0}&submissionEligibilityHash={1}'.format(self.etag, self.eligibility_hash)
+        self.mock_restPOST.assert_called_once_with(uri, json.dumps(self.submission))
+
 
 class TestSubmit:
 
@@ -257,21 +295,21 @@ class TestSubmit:
             'eligibilityStateHash': 23
         }
 
-        self.patch_restPOST = patch.object(syn, "restPOST", return_value=self.submission)
+        self.patch_private_submit = patch.object(syn, "_submit", return_value=self.submission)
         self.patch_getEvaluation = patch.object(syn, "getEvaluation", return_value=self.eval)
         self.patch_get = patch.object(syn, "get", return_value=self.entity)
         self.patch_getTeam = patch.object(syn, "getTeam", return_value= self.team)
         self.patch_get_contributors = patch.object(syn, "_get_contributors",
                                                    return_value=(self.contributors, self.eligibility))
 
-        self.mock_restPOST = self.patch_restPOST.start()
+        self.mock_private_submit = self.patch_private_submit.start()
         self.mock_getEvaluation = self.patch_getEvaluation.start()
         self.mock_get = self.patch_get.start()
         self.mock_getTeam = self.patch_getTeam.start()
         self.mock_get_contributors = self.patch_get_contributors.start()
 
     def teardown(self):
-        self.patch_restPOST.stop()
+        self.patch_private_submit.stop()
         self.patch_getEvaluation.stop()
         self.patch_get.stop()
         self.patch_getTeam.stop()
@@ -279,37 +317,34 @@ class TestSubmit:
 
     def test_min_requirements(self):
         assert_equal(self.submission, syn.submit(self.eval_id, self.entity))
-        expected_submission = self.submission
-        expected_submission.pop('id')
-        expected_submission['teamId'] = None
-        expected_submission['submitterAlias'] = None
-        uri = '/evaluation/submission?etag={0}&submissionEligibilityHash={1}'\
-            .format(self.entity['etag'],self.eligibility['eligibilityStateHash'])
-        self.mock_restPOST.assert_called_once_with(uri, json.dumps(expected_submission))
+
+        expected_request_body = self.submission
+        expected_request_body.pop('id')
+        expected_request_body['teamId'] = None
+        expected_request_body['submitterAlias'] = None
+        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'], self.eligibility)
         self.mock_get.assert_not_called()
         self.mock_getTeam.assert_not_called()
         self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
 
     def test_only_entity_id_provided(self):
         assert_equal(self.submission, syn.submit(self.eval_id, self.entity['id']))
-        expected_submission = self.submission
-        expected_submission.pop('id')
-        expected_submission['teamId'] = None
-        expected_submission['submitterAlias'] = None
-        uri = '/evaluation/submission?etag={0}&submissionEligibilityHash={1}' \
-            .format(self.entity['etag'], self.eligibility['eligibilityStateHash'])
-        self.mock_restPOST.assert_called_once_with(uri, json.dumps(expected_submission))
+
+        expected_request_body = self.submission
+        expected_request_body.pop('id')
+        expected_request_body['teamId'] = None
+        expected_request_body['submitterAlias'] = None
+        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'], self.eligibility)
         self.mock_get.assert_called_once_with(self.entity['id'], downloadFile=False)
         self.mock_getTeam.assert_not_called()
         self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
 
     def test_team_is_given(self):
         assert_equal(self.submission, syn.submit(self.eval_id, self.entity, team=self.team['id']))
-        expected_submission = self.submission
-        expected_submission.pop('id')
-        uri = '/evaluation/submission?etag={0}&submissionEligibilityHash={1}' \
-            .format(self.entity['etag'], self.eligibility['eligibilityStateHash'])
-        self.mock_restPOST.assert_called_once_with(uri, json.dumps(expected_submission))
+
+        expected_request_body = self.submission
+        expected_request_body.pop('id')
+        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'], self.eligibility)
         self.mock_get.assert_not_called()
         self.mock_getTeam.assert_called_once_with(self.team['id'])
         self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
@@ -317,7 +352,7 @@ class TestSubmit:
     def test_team_not_eligible(self):
         self.mock_get_contributors.side_effect = SynapseError()
         assert_raises(SynapseError, syn.submit, self.eval_id, self.entity, team=self.team['id'])
-        self.mock_restPOST.assert_not_called()
+        self.mock_private_submit.assert_not_called()
         self.mock_get.assert_not_called()
         self.mock_getTeam.assert_called_once_with(self.team['id'])
         self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
@@ -351,7 +386,7 @@ class TestPrivateGetContributor:
             'principalId': 224,
             'hasConflictingSubmission': False
         }
-        self.member_not_conflict = {
+        self.member_has_conflict = {
             'isEligible': True,
             'isRegistered': True,
             'isQuotaFilled': False,
@@ -370,7 +405,7 @@ class TestPrivateGetContributor:
                 self.member_eligible,
                 self.member_not_registered,
                 self.member_quota_filled,
-                self.member_not_conflict],
+                self.member_has_conflict],
             'eligibilityStateHash': self.hash
         }
 
@@ -407,13 +442,13 @@ class TestPrivateGetContributor:
     def test_empty_members(self):
         self.eligibility['membersEligibility'] = []
         self.patch_restGET.return_value = self.eligibility
-        assert_equal(([], self.eligibility), syn._get_contributors(self.eval_id, self.team))
+        assert_equal(([], self.eligibility['eligibilityStateHash']), syn._get_contributors(self.eval_id, self.team))
         uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
         self.mock_restGET.assert_called_once_with(uri)
 
     def test_happy_case(self):
         contributors = [{'principalId': self.member_eligible['principalId']}]
-        assert_equal((contributors, self.eligibility), syn._get_contributors(self.eval_id, self.team))
+        assert_equal((contributors, self.eligibility['eligibilityStateHash']), syn._get_contributors(self.eval_id, self.team))
         uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
         self.mock_restGET.assert_called_once_with(uri)
 
