@@ -287,20 +287,14 @@ class TestSubmit:
             'contributors': self.contributors,
             'submitterAlias': self.team['name']
         }
-        self.eligibility = {
-            'teamId': self.team['id'],
-            'evaluationId': self.eval_id,
-            'teamEligibility': {},
-            'membersEligibility': [],
-            'eligibilityStateHash': 23
-        }
+        self.eligibility_hash = 23
 
         self.patch_private_submit = patch.object(syn, "_submit", return_value=self.submission)
         self.patch_getEvaluation = patch.object(syn, "getEvaluation", return_value=self.eval)
         self.patch_get = patch.object(syn, "get", return_value=self.entity)
         self.patch_getTeam = patch.object(syn, "getTeam", return_value= self.team)
         self.patch_get_contributors = patch.object(syn, "_get_contributors",
-                                                   return_value=(self.contributors, self.eligibility))
+                                                   return_value=(self.contributors, self.eligibility_hash))
 
         self.mock_private_submit = self.patch_private_submit.start()
         self.mock_getEvaluation = self.patch_getEvaluation.start()
@@ -322,7 +316,8 @@ class TestSubmit:
         expected_request_body.pop('id')
         expected_request_body['teamId'] = None
         expected_request_body['submitterAlias'] = None
-        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'], self.eligibility)
+        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
+                                                         self.eligibility_hash)
         self.mock_get.assert_not_called()
         self.mock_getTeam.assert_not_called()
         self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
@@ -334,7 +329,8 @@ class TestSubmit:
         expected_request_body.pop('id')
         expected_request_body['teamId'] = None
         expected_request_body['submitterAlias'] = None
-        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'], self.eligibility)
+        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
+                                                         self.eligibility_hash)
         self.mock_get.assert_called_once_with(self.entity['id'], downloadFile=False)
         self.mock_getTeam.assert_not_called()
         self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
@@ -344,7 +340,8 @@ class TestSubmit:
 
         expected_request_body = self.submission
         expected_request_body.pop('id')
-        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'], self.eligibility)
+        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
+                                                         self.eligibility_hash)
         self.mock_get.assert_not_called()
         self.mock_getTeam.assert_called_once_with(self.team['id'])
         self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
