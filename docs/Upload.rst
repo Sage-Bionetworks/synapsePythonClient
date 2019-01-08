@@ -1,14 +1,15 @@
-======
-Upload
-======
+===========
+File Upload
+===========
 
 Files in Synapse are versionable. Please see `Files and Versioning <https://docs.synapse.org/articles/files_and_versioning.html>`_ for more information about how versions in Files works.
 
 Uploading a New Version
 =======================
-Uploading a new version follows the same steps as uploading a file for the first time - use the same file name and store it in the same location (e.g., the same parentId). It is recommended to add a comment to the new version in order to easily track differences at a glance. The example file raw_data.txt will now have a version of 2 and a comment describing the change::
+Uploading a new version follows the same steps as uploading a file for the first time - use the same file name and store it in the same location (e.g., the same parentId). It is recommended to add a comment to the new version in order to easily track differences at a glance. The example file `raw_data.txt` will now have a version of 2 and a comment describing the change.
 
-    # Upload a new version of raw_data.txt, EXPLICIT UPDATE EXAMPLE
+Explicit example::
+
     import synapseclient
 
     # fetch the file in Synapse
@@ -23,7 +24,8 @@ Uploading a new version follows the same steps as uploading a file for the first
     # store the new file
     updated_file = syn.store(file_to_update)
 
-    # Upload a new version of raw_data.txt, IMPLICIT UPDATE EXAMPLE
+Implicit example::
+
     # Assuming that there is a file created with:
     syn.store(File('path/to/old/raw_data.txt', parentId='syn123456'))
 
@@ -32,9 +34,10 @@ Uploading a new version follows the same steps as uploading a file for the first
 
 Updating Annotations or Provenance without Changing Versions
 ============================================================
-Any change to a File will automatically update its version. If this isn’t the desired behavior, such as minor cahnges to the metadata, you can set forceVersion=False with the Python or R clients. For command line, the commands set-annotations and set-provenance will update the metadata without creating a new version. Adding/updating annotations and provenance in the web client will also not cause a version change.
+Any change to a File will automatically update its version. If this isn’t the desired behavior, such as minor changes to the metadata, you can set `forceVersion=False` with the Python client. For command line, the commands `set-annotations` and `set-provenance` will update the metadata without creating a new version. Adding/updating annotations and provenance in the web client will also not cause a version change.
 
-Important: Because Provenance is tracked by version, set forceVersion=False for minor changes to avoid breaking Provenance.
+**Important: Because Provenance is tracked by version, set `forceVersion=False` for minor changes to avoid breaking Provenance.**
+
 Setting annotations without changing version::
 
     # Get file from Synapse, set download=False since we are only updating annotations

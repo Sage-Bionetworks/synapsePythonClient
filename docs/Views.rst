@@ -68,6 +68,11 @@ Updating Annotations using View
 
 To update ``class`` annotation for ``file2``, simply update the view::
 
+    # Retrieve the view data using table query
+    query_results = syn.tableQuery("select * from %s" % view['id'])
+    data = query_results.asDataFrame()
+
+    # Modify the annotations by modifying the view data and store it
     data["class"] = ["V", "VI"]
     syn.store(Table(view['id'], data))
 
