@@ -7,7 +7,7 @@ Release Notes
 
 In version 1.9.1, we fix various bugs and added two new features:
 
-* Python 3.7 are supported.
+* Python 3.7 is supported.
 * Deprecation warnings are visible by default.
 
 Features
