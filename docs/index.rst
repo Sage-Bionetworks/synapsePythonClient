@@ -4,6 +4,16 @@ Synapse Python Client Documentation
 .. automodule:: synapseclient
    :members:
 
+========
+Articles
+========
+
+.. toctree::
+   :maxdepth: 1
+
+   Views
+   Upload
+
 =========
 Reference
 =========

@@ -41,7 +41,7 @@ def setup(module):
 
 def test_login():
     try:
-        config = configparser.ConfigParser()
+        config = configparser.RawConfigParser()
         config.read(client.CONFIG_FILE)
         username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
@@ -84,8 +84,7 @@ def test_login():
             syn.login(silent=True)
 
     except configparser.Error:
-        raise SkipTest("To fully test the login method,"
-                       " please supply a username and password in the configuration file")
+        raise ValueError("Please supply a username and password in the configuration file.")
 
     finally:
         # Login with config file
@@ -109,7 +108,7 @@ def testCustomConfigFile():
         syn2 = synapseclient.Synapse(configPath=configPath)
         syn2.login()
     else:
-        raise SkipTest("To fully test the login method a configuration file is required")
+        raise ValueError("Please supply a username and password in the configuration file.")
 
 
 def test_entity_version():
@@ -345,10 +344,9 @@ def test_annotations():
 def test_get_user_profile():
     p1 = syn.getUserProfile()
 
-    # skip this test. See SYNPY-685
     # get by name
-    # p2 = syn.getUserProfile(p1.userName)
-    # assert_equals(p2.userName, p1.userName)
+    p2 = syn.getUserProfile(p1.userName)
+    assert_equals(p2.userName, p1.userName)
 
     # get by user ID
     p2 = syn.getUserProfile(p1.ownerId)
@@ -381,64 +379,6 @@ def test_teams():
     assert_equals(team, found_teams[0])
 
 
-def _set_up_external_s3_project():
-    """
-    creates a project and links it to an external s3 storage
-    :return: synapse id of the created  project, and storageLocationId of the project
-    """
-    EXTERNAL_S3_BUCKET = 'python-client-integration-test.sagebase.org'
-    project_ext_s3 = syn.store(Project(name=str(uuid.uuid4())))
-
-    destination = {'uploadType': 'S3',
-                   'concreteType': 'org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting',
-                   'bucket': EXTERNAL_S3_BUCKET}
-    destination = syn.restPOST('/storageLocation', body=json.dumps(destination))
-
-    project_destination = {'concreteType': 'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
-                           'settingsType': 'upload',
-                           'locations': [destination['storageLocationId']],
-                           'projectId': project_ext_s3.id}
-
-    syn.restPOST('/projectSettings', body=json.dumps(project_destination))
-    schedule_for_cleanup(project_ext_s3)
-    return project_ext_s3.id, destination['storageLocationId']
-
-
-# TODO: this test should be rewritten as unit test
-def test_external_s3_upload():
-    # setup
-    project_id, storage_location_id = _set_up_external_s3_project()
-
-    # create a temporary file for upload
-    temp_file_path = utils.make_bogus_data_file()
-    expected_md5 = utils.md5_for_file(temp_file_path).hexdigest()
-    schedule_for_cleanup(temp_file_path)
-
-    # upload the file
-    uploaded_syn_file = syn.store(File(path=temp_file_path, parent=project_id))
-
-    # get file_handle of the uploaded file
-    file_handle = syn.restGET('/entity/%s/filehandles' % uploaded_syn_file.id)['list'][0]
-
-    # Verify correct file handle type
-    assert_equals(file_handle['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
-
-    # Verify storage location id to make sure it's using external S3
-    assert_equals(storage_location_id, file_handle['storageLocationId'])
-
-    # Verify md5 of upload
-    assert_equals(expected_md5, file_handle['contentMd5'])
-
-    # clear the cache and download the file
-    syn.cache.purge(time.time())
-    downloaded_syn_file = syn.get(uploaded_syn_file.id)
-
-    # verify the correct file was downloaded
-    assert_equals(os.path.basename(downloaded_syn_file['path']), os.path.basename(temp_file_path))
-    assert_not_equal(os.path.normpath(temp_file_path), os.path.normpath(downloaded_syn_file['path']))
-    assert_true(filecmp.cmp(temp_file_path, downloaded_syn_file['path']))
-
-
 def test_findEntityIdByNameAndParent():
     project_name = str(uuid.uuid1())
     project_id = syn.store(Project(name=project_name))['id']
@@ -465,56 +405,7 @@ def test_getChildren():
     assert_equals(expected_id_set, children_id_set)
 
 
-def test_ExternalObjectStore_roundtrip():
-    endpoint = "https://s3.amazonaws.com"
-    bucket = "test-client-auth-s3"
-    profile_name = syn._get_client_authenticated_s3_profile(endpoint, bucket)
-
-    if profile_name != 'client-auth-s3-test':
-        raise SkipTest("This test only works on travis because it requires AWS credentials to a specific S3 bucket")
-
-    proj = syn.store(Project(name=str(uuid.uuid4()) + "ExternalObjStoreProject"))
-    schedule_for_cleanup(proj)
-
-    storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=endpoint, bucket=bucket)
-    syn.setStorageLocation(proj, storage_location['storageLocationId'])
-
-    file_path = utils.make_bogus_data_file()
-
-    file_entity = File(file_path, name="TestName", parent=proj)
-    file_entity = syn.store(file_entity)
-
-    syn.cache.purge(time.time())
-    assert_is_none(syn.cache.get(file_entity['dataFileHandleId']))
-
-    # verify key is in s3
-    import boto3
-    boto_session = boto3.session.Session(profile_name=profile_name)
-    s3 = boto_session.resource('s3', endpoint_url=endpoint)
-    try:
-        s3_file = s3.Object(file_entity._file_handle.bucket, file_entity._file_handle.fileKey)
-        s3_file.load()
-    except botocore.exceptions.ClientError as e:
-        if e.response['Error']['Code'] == "404":
-            raise Exception("The file was not uploaded to S3")
-
-    file_entity_downloaded = syn.get(file_entity['id'])
-    file_handle = file_entity_downloaded['_file_handle']
-
-    # verify file_handle metadata
-    assert_equals(endpoint, file_handle['endpointUrl'])
-    assert_equals(bucket, file_handle['bucket'])
-    assert_equals(utils.md5_for_file(file_path).hexdigest(), file_handle['contentMd5'])
-    assert_equals(os.stat(file_path).st_size, file_handle['contentSize'])
-    assert_equals('text/plain', file_handle['contentType'])
-    assert_not_equal(utils.normalize_path(file_path), utils.normalize_path(file_entity_downloaded['path']))
-    assert_true(filecmp.cmp(file_path, file_entity_downloaded['path']))
-
-    # clean up
-    s3_file.delete()
-
-
-def testSetStorageLocation__existing_storage_location():
+def testSetStorageLocation():
     proj = syn.store(Project(name=str(uuid.uuid4()) + "testSetStorageLocation__existing_storage_location"))
     schedule_for_cleanup(proj)
 
@@ -524,14 +415,6 @@ def testSetStorageLocation__existing_storage_location():
     storage_setting = syn.setStorageLocation(proj, storage_location['storageLocationId'])
     retrieved_setting = syn.getProjectSetting(proj, 'upload')
     assert_equals(storage_setting, retrieved_setting)
-
-    new_endpoint = "https://some.other.url.com"
-    new_bucket = "some_other_bucket"
-    new_storage_location = syn.createStorageLocationSetting("ExternalObjectStorage", endpointUrl=new_endpoint,
-                                                            bucket=new_bucket)
-    new_storage_setting = syn.setStorageLocation(proj, new_storage_location['storageLocationId'])
-    new_retrieved_setting = syn.getProjectSetting(proj, 'upload')
-    assert_equals(new_storage_setting, new_retrieved_setting)
 
 
 def testMoveProject():

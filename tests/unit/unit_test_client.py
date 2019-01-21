@@ -9,13 +9,15 @@ from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, a
     assert_not_equals, assert_true
 
 import synapseclient
-from synapseclient import Evaluation, File, Folder
+from synapseclient import File, Folder, Team
+from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.constants import concrete_types
 from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArgs
 from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
 from synapseclient.table import Column, EntityViewSchema
+from synapseclient.utils import id_of
 import synapseclient.upload_functions as upload_functions
 
 
@@ -211,42 +213,241 @@ class TestPrivateGetWithEntityBundle:
         # TODO: add more test cases for flag combination of this method
         # TODO: separate into another test?
 
+class TestPrivateSubmit:
 
-@patch('synapseclient.Synapse.restPOST')
-@patch('synapseclient.Synapse.getEvaluation')
+    def setup(self):
+        self.etag = "etag"
+        self.eval_id = 1
+        self.eligibility_hash = 23
+        self.submission = {
+            'id': 123,
+            'evaluationId': 1,
+            'name': "entity_name",
+            'entityId': "syn43",
+            'versionNumber': 1,
+            'teamId': 888,
+            'contributors': [],
+            'submitterAlias': "awesome_submission"
+        }
+        self.patch_restPOST = patch.object(syn, "restPOST", return_value=self.submission)
+        self.mock_restPOST = self.patch_restPOST.start()
+
+    def teardown(self):
+        self.patch_restPOST.stop()
+
+    def test_invalid_submission(self):
+        assert_raises(ValueError, syn._submit, None, self.etag, self.submission)
+
+    def test_invalid_etag(self):
+        assert_raises(ValueError, syn._submit, self.submission, None, self.submission)
+
+    def test_without_eligibility_hash(self):
+        assert_equal(self.submission, syn._submit(self.submission, self.etag, None))
+        uri = '/evaluation/submission?etag={0}'.format(self.etag)
+        self.mock_restPOST.assert_called_once_with(uri, json.dumps(self.submission))
+
+    def test_with_eligibitiy_hash(self):
+        assert_equal(self.submission, syn._submit(self.submission, self.etag, self.eligibility_hash))
+        uri = '/evaluation/submission?etag={0}&submissionEligibilityHash={1}'.format(self.etag, self.eligibility_hash)
+        self.mock_restPOST.assert_called_once_with(uri, json.dumps(self.submission))
+
+
 class TestSubmit:
 
-    def test_submit(self, *mocks):
-        mocks = [item for item in mocks]
-        POST_mock = mocks.pop()
-        getEvaluation_mock = mocks.pop()
+    def setup(self):
+        self.eval_id = '9090'
+        self.contributors = None
+        self.entity = {
+            'versionNumber': 7,
+            'id': 'syn1009',
+            'etag': 'etag',
+            'name': 'entity name'
+        }
+        self.eval = {
+            'contentSource': self.entity['id'],
+            'createdOn': '2013-11-06T06:04:26.789Z',
+            'etag': '86485ea1-8c89-4f24-a0a4-2f63bc011091',
+            'id': self.eval_id,
+            'name': 'test evaluation',
+            'ownerId': '1560252',
+            'status': 'OPEN',
+            'submissionReceiptMessage': 'Your submission has been received.!'
+        }
+        self.team = {
+            'id': 5,
+            'name': 'Team Blue'
+        }
+        self.submission = {
+            'id': 123,
+            'evaluationId': self.eval_id,
+            'name': self.entity['name'],
+            'entityId': self.entity['id'],
+            'versionNumber': self.entity['versionNumber'],
+            'teamId': id_of(self.team['id']),
+            'contributors': self.contributors,
+            'submitterAlias': self.team['name']
+        }
+        self.eligibility_hash = 23
 
-        # -- Unmet access rights --
-        getEvaluation_mock.return_value = Evaluation(**{u'contentSource': u'syn1001',
-                                                        u'createdOn': u'2013-11-06T06:04:26.789Z',
-                                                        u'etag': u'86485ea1-8c89-4f24-a0a4-2f63bc011091',
-                                                        u'id': u'9090',
-                                                        u'name': u'test evaluation',
-                                                        u'ownerId': u'1560252',
-                                                        u'status': u'OPEN',
-                                                        u'submissionReceiptMessage': u'mmmm yummy!'})
+        self.patch_private_submit = patch.object(syn, "_submit", return_value=self.submission)
+        self.patch_getEvaluation = patch.object(syn, "getEvaluation", return_value=self.eval)
+        self.patch_get = patch.object(syn, "get", return_value=self.entity)
+        self.patch_getTeam = patch.object(syn, "getTeam", return_value= self.team)
+        self.patch_get_contributors = patch.object(syn, "_get_contributors",
+                                                   return_value=(self.contributors, self.eligibility_hash))
 
-        # -- Normal submission --
-        # insert a shim that returns the dictionary it was passed after adding a bogus id
-        def shim(*args):
-            assert_equal(args[0], '/evaluation/submission?etag=Fake eTag')
-            submission = json.loads(args[1])
-            submission['id'] = 1234
-            return submission
-        POST_mock.side_effect = shim
+        self.mock_private_submit = self.patch_private_submit.start()
+        self.mock_getEvaluation = self.patch_getEvaluation.start()
+        self.mock_get = self.patch_get.start()
+        self.mock_getTeam = self.patch_getTeam.start()
+        self.mock_get_contributors = self.patch_get_contributors.start()
 
-        submission = syn.submit('9090', {'versionNumber': 1337, 'id': "Whee...", 'etag': 'Fake eTag'}, name='George',
-                                submitterAlias='Team X')
+    def teardown(self):
+        self.patch_private_submit.stop()
+        self.patch_getEvaluation.stop()
+        self.patch_get.stop()
+        self.patch_getTeam.stop()
+        self.patch_get_contributors.stop()
 
-        assert_equal(submission.id, 1234)
-        assert_equal(submission.evaluationId, '9090')
-        assert_equal(submission.name, 'George')
-        assert_equal(submission.submitterAlias, 'Team X')
+    def test_min_requirements(self):
+        assert_equal(self.submission, syn.submit(self.eval_id, self.entity))
+
+        expected_request_body = self.submission
+        expected_request_body.pop('id')
+        expected_request_body['teamId'] = None
+        expected_request_body['submitterAlias'] = None
+        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
+                                                         self.eligibility_hash)
+        self.mock_get.assert_not_called()
+        self.mock_getTeam.assert_not_called()
+        self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
+
+    def test_only_entity_id_provided(self):
+        assert_equal(self.submission, syn.submit(self.eval_id, self.entity['id']))
+
+        expected_request_body = self.submission
+        expected_request_body.pop('id')
+        expected_request_body['teamId'] = None
+        expected_request_body['submitterAlias'] = None
+        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
+                                                         self.eligibility_hash)
+        self.mock_get.assert_called_once_with(self.entity['id'], downloadFile=False)
+        self.mock_getTeam.assert_not_called()
+        self.mock_get_contributors.assert_called_once_with(self.eval_id, None)
+
+    def test_team_is_given(self):
+        assert_equal(self.submission, syn.submit(self.eval_id, self.entity, team=self.team['id']))
+
+        expected_request_body = self.submission
+        expected_request_body.pop('id')
+        self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
+                                                         self.eligibility_hash)
+        self.mock_get.assert_not_called()
+        self.mock_getTeam.assert_called_once_with(self.team['id'])
+        self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
+
+    def test_team_not_eligible(self):
+        self.mock_get_contributors.side_effect = SynapseError()
+        assert_raises(SynapseError, syn.submit, self.eval_id, self.entity, team=self.team['id'])
+        self.mock_private_submit.assert_not_called()
+        self.mock_get.assert_not_called()
+        self.mock_getTeam.assert_called_once_with(self.team['id'])
+        self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
+
+
+class TestPrivateGetContributor:
+
+    def setup(self):
+        self.eval_id = 111
+        self.team_id = 123
+        self.team = Team(name="test", id=self.team_id)
+        self.hash = 3
+        self.member_eligible = {
+            'isEligible': True,
+            'isRegistered': True,
+            'isQuotaFilled': False,
+            'principalId': 222,
+            'hasConflictingSubmission': False
+        }
+        self.member_not_registered = {
+            'isEligible': False,
+            'isRegistered': False,
+            'isQuotaFilled': False,
+            'principalId': 223,
+            'hasConflictingSubmission': False
+        }
+        self.member_quota_filled = {
+            'isEligible': False,
+            'isRegistered': True,
+            'isQuotaFilled': True,
+            'principalId': 224,
+            'hasConflictingSubmission': False
+        }
+        self.member_has_conflict = {
+            'isEligible': True,
+            'isRegistered': True,
+            'isQuotaFilled': False,
+            'principalId': 225,
+            'hasConflictingSubmission': True
+        }
+        self.eligibility = {
+            'teamId': self.team_id,
+            'evaluationId': self.eval_id,
+            'teamEligibility': {
+                'isEligible': True,
+                'isRegistered': True,
+                'isQuotaFilled': False
+            },
+            'membersEligibility': [
+                self.member_eligible,
+                self.member_not_registered,
+                self.member_quota_filled,
+                self.member_has_conflict],
+            'eligibilityStateHash': self.hash
+        }
+
+        self.patch_restGET = patch.object(syn, "restGET", return_value=self.eligibility);
+        self.mock_restGET = self.patch_restGET.start()
+
+    def teardown(self):
+        self.patch_restGET.stop()
+
+    def test_none_team(self):
+        assert_equal((None, None), syn._get_contributors(self.eval_id, None))
+        self.mock_restGET.assert_not_called()
+
+    def test_none_eval_id(self):
+        assert_equal((None, None), syn._get_contributors(None, self.team))
+        self.mock_restGET.assert_not_called()
+
+    def test_not_registered(self):
+        self.eligibility['teamEligibility']['isEligible'] = False
+        self.eligibility['teamEligibility']['isRegistered'] = False
+        self.patch_restGET.return_value = self.eligibility
+        assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
+        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
+        self.mock_restGET.assert_called_once_with(uri)
+
+    def test_quota_filled(self):
+        self.eligibility['teamEligibility']['isEligible'] = False
+        self.eligibility['teamEligibility']['isQuotaFilled'] = True
+        self.patch_restGET.return_value = self.eligibility
+        assert_raises(SynapseError, syn._get_contributors, self.eval_id, self.team)
+        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
+        self.mock_restGET.assert_called_once_with(uri)
+
+    def test_empty_members(self):
+        self.eligibility['membersEligibility'] = []
+        self.patch_restGET.return_value = self.eligibility
+        assert_equal(([], self.eligibility['eligibilityStateHash']), syn._get_contributors(self.eval_id, self.team))
+        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
+        self.mock_restGET.assert_called_once_with(uri)
+
+    def test_happy_case(self):
+        contributors = [{'principalId': self.member_eligible['principalId']}]
+        assert_equal((contributors, self.eligibility['eligibilityStateHash']), syn._get_contributors(self.eval_id, self.team))
+        uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
+        self.mock_restGET.assert_called_once_with(uri)
 
 
 def test_send_message():
@@ -534,3 +735,95 @@ def test_get_annotation_entity_view_columns():
     with patch.object(syn, "restPOST", side_effect=[page1, page2]) as mock_restPOST:
         syn._get_annotation_entity_view_columns(scope_ids, mask)
         mock_restPOST.assert_has_calls(call_list)
+
+
+class TestCreateStorageLocationSetting:
+
+    def setup(self):
+        self.patch_restPOST = patch.object(syn, 'restPOST')
+        self.mock_restPOST = self.patch_restPOST.start()
+
+    def teardown(self):
+        self.patch_restPOST.stop()
+
+    def test_invalid(self):
+        assert_raises(ValueError, syn.createStorageLocationSetting, "new storage type")
+
+    def test_ExternalObjectStorage(self):
+        syn.createStorageLocationSetting("ExternalObjectStorage")
+        expected = {
+            'concreteType': 'org.sagebionetworks.repo.model.project.ExternalObjectStorageLocationSetting',
+            'uploadType': 'S3'
+        }
+        self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
+
+    def test_ProxyStorage(self):
+        syn.createStorageLocationSetting("ProxyStorage")
+        expected = {
+            'concreteType': 'org.sagebionetworks.repo.model.project.ProxyStorageLocationSettings',
+            'uploadType': 'PROXYLOCAL'
+        }
+        self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
+
+    def test_ExternalS3Storage(self):
+        syn.createStorageLocationSetting("ExternalS3Storage")
+        expected = {
+            'concreteType': 'org.sagebionetworks.repo.model.project.ExternalS3StorageLocationSetting',
+            'uploadType': 'S3'
+        }
+        self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
+
+    def test_ExternalStorage(self):
+        syn.createStorageLocationSetting("ExternalStorage")
+        expected = {
+            'concreteType': 'org.sagebionetworks.repo.model.project.ExternalStorageLocationSetting',
+            'uploadType': 'SFTP'
+        }
+        self.mock_restPOST.assert_called_once_with('/storageLocation', body=json.dumps(expected))
+
+
+class TestSetStorageLocation:
+
+    def setup(self):
+        self.entity = "syn123"
+        self.expected_location = {
+            'concreteType':'org.sagebionetworks.repo.model.project.UploadDestinationListSetting',
+            'settingsType': 'upload',
+            'locations': [DEFAULT_STORAGE_LOCATION_ID],
+            'projectId': self.entity
+        }
+        self.patch_getProjectSetting = patch.object(syn, 'getProjectSetting', return_value=None)
+        self.mock_getProjectSetting = self.patch_getProjectSetting.start()
+        self.patch_restPOST = patch.object(syn, 'restPOST')
+        self.mock_restPOST = self.patch_restPOST.start()
+        self.patch_restPUT = patch.object(syn, 'restPUT')
+        self.mock_restPUT = self.patch_restPUT.start()
+
+    def teardown(self):
+        self.patch_getProjectSetting.stop()
+        self.patch_restPOST.stop()
+        self.patch_restPUT.stop()
+
+    def test_default(self):
+        syn.setStorageLocation(self.entity, None)
+        self.mock_getProjectSetting.assert_called_once_with(self.entity, 'upload')
+        self.mock_restPOST.assert_called_once_with('/projectSettings', body=json.dumps(self.expected_location))
+
+    def test_create(self):
+        storage_location_id = 333
+        self.expected_location['locations'] = [storage_location_id]
+        syn.setStorageLocation(self.entity, storage_location_id)
+        self.mock_getProjectSetting.assert_called_once_with(self.entity, 'upload')
+        self.mock_restPOST.assert_called_once_with('/projectSettings', body=json.dumps(self.expected_location))
+
+    def test_update(self):
+        self.mock_getProjectSetting.return_value = self.expected_location
+        storage_location_id = 333
+        new_location = self.expected_location
+        new_location['locations'] = [storage_location_id]
+        syn.setStorageLocation(self.entity, storage_location_id)
+        self.mock_getProjectSetting.assert_called_with(self.entity, 'upload')
+        assert_equal(2, self.mock_getProjectSetting.call_count)
+        self.mock_restPUT.assert_called_once_with('/projectSettings', body=json.dumps(new_location))
+        self.mock_restPOST.assert_not_called()
+

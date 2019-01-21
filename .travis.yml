@@ -20,6 +20,14 @@ matrix:
       env:
       - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
       - PY_ENABLE_SHARD=0
+    - os: linux
+      python: 3.7
+      # travis issue with Python 3.7 https://github.com/travis-ci/travis-ci/issues/9069
+      dist: xenial
+      sudo: required
+      env:
+      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+      - PY_ENABLE_SHARD=0
 
 
     - os: osx
@@ -31,6 +39,9 @@ matrix:
     - os: osx
       language: generic
       env: PY_VERSION=3.6.2
+    - os: osx
+      language: generic
+      env: PY_VERSION=3.7.1
 
 addons:
   #This is used for SFTP integration tests
@@ -65,8 +76,6 @@ before_script:
   if [[ "${TRAVIS_PULL_REQUEST}" = "false" ]]; then
     openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
     mv test.synapseConfig ~/.synapseConfig
-    openssl aes-256-cbc -K $encrypted_d17283647768_key -iv $encrypted_d17283647768_iv -in test.awscredentials.enc -out test.awscredentials -d
-    mkdir -p ~/.aws && mv test.awscredentials ~/.aws/credentials
   fi
 
 
@@ -74,7 +83,7 @@ script:
 - nosetests -s tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
-    nosetests -s tests/integration
+    nosetests -s -v tests/integration
   else
     echo "Skipping integration tests";
   fi

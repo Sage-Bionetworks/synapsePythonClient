@@ -1190,7 +1190,7 @@ def build_table(name, parent, values):
 
     Example::
 
-        path = "\path\to\file.csv"
+        path = "/path/to/file.csv"
         table = build_table("simple_table", "syn123", path)
         table = syn.store(table)
 
