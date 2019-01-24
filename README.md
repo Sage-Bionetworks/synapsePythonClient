@@ -41,7 +41,7 @@ For more information about interacting with Synapse, see:
 Installation
 ------------
 
-The Python Synapse client has been tested on Python 2.7, 3.5 and 3.6 on Mac OS X, Ubuntu Linux and Windows.
+The Python Synapse client has been tested on 3.5, 3.6, and 3.7 on Mac OS X, Ubuntu Linux and Windows.
 
 ### Install using pip
 
