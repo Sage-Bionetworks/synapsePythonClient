@@ -55,16 +55,8 @@ Commands
 A few more commands (cat, create, update, associate)
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import input
-import six
-
 import argparse
 import os
-import collections
 import sys
 import synapseclient
 import synapseutils

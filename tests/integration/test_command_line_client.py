@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import str
-import six
 import logging
 import filecmp
 import os
@@ -22,19 +15,16 @@ import synapseclient.utils as utils
 import synapseclient.__main__ as cmdline
 from synapseclient.evaluation import Evaluation
 
-import integration
-from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+import tests.integration
+from tests.integration import schedule_for_cleanup
 
-if six.PY2:
-    from StringIO import StringIO
-else:
-    from io import StringIO
+from io import StringIO
 
 
 def setup_module(module):
 
-    module.syn = integration.syn
-    module.project = integration.project
+    module.syn = tests.integration.syn
+    module.project = tests.integration.project
 
     module.parser = cmdline.build_parser()
 

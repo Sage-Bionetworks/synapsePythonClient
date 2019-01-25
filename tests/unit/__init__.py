@@ -1,8 +1,6 @@
 """
 Unit tests for the Synapse Client for Python
 """
-from __future__ import unicode_literals
-from __future__ import print_function
 
 import logging
 import sys

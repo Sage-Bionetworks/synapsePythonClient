@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import uuid
 import os
 
@@ -12,13 +6,13 @@ from nose.tools import assert_equals, assert_in
 from synapseclient import Project, Folder, File
 from synapseclient.exceptions import *
 import synapseutils
-import integration
-from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+import tests.integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    module.syn = tests.integration.syn
+    module.project = tests.integration.project
 
 
 def test_walk():
@@ -63,11 +57,11 @@ def test_walk():
     for i in walked:
         for x in i:
             if type(x) == list:
-                x = x.sort()
+                x.sort()
     for i in temp:
         for x in i:
             if type(x) == list:
-                x = x.sort()
+                x.sort()
         assert_in(i, walked)
 
     temp = synapseutils.walk(syn, second_file.id)

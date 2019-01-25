@@ -1,23 +1,17 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import str
+import csv
+import shutil
 
-from backports import csv
 import io
 import math
 import os
-import sys
 import tempfile
-from builtins import zip
 from mock import MagicMock
 from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_in, assert_sequence_equal,\
     assert_true, assert_is_none, assert_is_instance, raises, assert_equals
 
 import pandas as pd
 
-import unit
+import tests.unit
 import synapseclient
 from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
@@ -31,7 +25,7 @@ from .unit_utils import StringIOContextManager
 
 
 def setup(module):
-    module.syn = unit.syn
+    module.syn = tests.unit.syn
 
 
 def test_cast_values():

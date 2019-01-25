@@ -1,8 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import uuid
 import filecmp
@@ -18,13 +13,13 @@ from synapseclient import Activity, Project, Folder, File, Link, DockerRepositor
 from synapseclient.exceptions import *
 from synapseclient.upload_functions import create_external_file_handle
 
-import integration
-from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+import tests.integration
+from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    module.syn = tests.integration.syn
+    module.project = tests.integration.project
 
 
 def test_Entity():

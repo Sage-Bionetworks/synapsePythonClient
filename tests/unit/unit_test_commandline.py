@@ -2,20 +2,9 @@
 
 """
 
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 from nose.tools import assert_equals
-import unit
+import tests.unit
 from mock import patch
-
-try:
-    import ConfigParser
-except:
-    import configparser as ConfigParser
 
 import synapseclient.__main__ as cmdline
 
@@ -23,7 +12,7 @@ import synapseutils
 
 
 def setup(module):
-    module.syn = unit.syn
+    module.syn = tests.unit.syn
 
 
 def test_command_sync():

@@ -1,25 +1,14 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import tempfile
 import os
 import filecmp
 import shutil
-import json
 import time
 import uuid
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+import configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_true, assert_false, \
-    assert_not_in
-from nose.plugins.skip import SkipTest
+from nose.tools import assert_raises, assert_equals, assert_true, assert_false, assert_not_in
 from mock import patch
 
 import synapseclient
@@ -30,13 +19,13 @@ from synapseclient.version_check import version_check
 from synapseclient.entity import Project, File, Folder
 from synapseclient.team import Team
 
-import integration
-from integration import schedule_for_cleanup
+import tests.integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    module.syn = tests.integration.syn
+    module.project = tests.integration.project
 
 
 def test_login():

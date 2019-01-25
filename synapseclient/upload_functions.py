@@ -1,26 +1,12 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import os
 from .utils import is_url, md5_for_file, as_url, file_url_to_path, id_of
 from .constants import concrete_types
 from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from .multipart_upload import multipart_upload
 from .exceptions import SynapseMd5MismatchError
-try:
-    from urllib.parse import urlparse
-    from urllib.parse import urlunparse
-    from urllib.parse import quote
-    from urllib.parse import unquote
-    from urllib.request import urlretrieve
-except ImportError:
-    from urlparse import urlparse
-    from urlparse import urlunparse
-    from urllib import quote
-    from urllib import unquote
-    from urllib import urlretrieve
+
+from urllib.parse import urlparse
+from urllib.parse import unquote
 
 
 def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, file_size=None, mimetype=None):

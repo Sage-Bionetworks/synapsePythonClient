@@ -1,10 +1,4 @@
-# coding=utf-8
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-import unit
+import tests.unit
 from nose.tools import assert_raises
 from mock import patch, call
 
@@ -12,7 +6,7 @@ import synapseutils
 
 
 def setup(module):
-    module.syn = unit.syn
+    module.syn = tests.unit.syn
 
 
 def test_copyWiki_empty_Wiki():

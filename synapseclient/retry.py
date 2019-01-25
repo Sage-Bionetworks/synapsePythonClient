@@ -1,13 +1,6 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import str
-
 import random
 import sys
 import logging
-import six
 from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
 from synapseclient.utils import _is_json
 from synapseclient.dozer import doze
@@ -102,7 +95,7 @@ def _with_retry(function, verbose=False,
         # Out of retries, re-raise the exception or return the response
         if exc_info is not None and exc_info[0] is not None:
             logger.debug("retries have run out. re-raising the exception", exc_info=True)
-            six.reraise(exc_info[0], exc_info[1], exc_info[2])
+            raise ex
         return response
 
 

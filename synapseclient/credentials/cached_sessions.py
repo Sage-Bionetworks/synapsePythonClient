@@ -1,7 +1,6 @@
 import keyring
 import os
 import json
-import six
 from keyring.errors import PasswordDeleteError
 from ..cache import CACHE_ROOT_DIR as _DEFAULT_CACHE_ROOT_DIR
 from ..utils import equal_paths
@@ -72,7 +71,7 @@ def migrate_old_session_file_credentials_if_necessary(syn):
     if equal_paths(syn.cache.cache_root_dir, os.path.expanduser(_DEFAULT_CACHE_ROOT_DIR)):
         # iterate through the old file and place in new credential storage
         old_session_dict = _read_session_cache(old_session_file_path)
-        for key, value in six.iteritems(old_session_dict):
+        for key, value in old_session_dict.items():
             if key == "<mostRecent>":
                 set_most_recent_user(value)
             else:

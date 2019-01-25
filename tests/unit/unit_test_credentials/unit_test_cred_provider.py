@@ -1,6 +1,6 @@
 import base64
 
-import unit
+import tests.unit
 import mock
 from mock import patch
 from nose.tools import assert_equals, assert_is_none, assert_is_instance
@@ -9,7 +9,7 @@ from synapseclient.credentials.cred_data import UserLoginArgs, SynapseCredential
 
 
 def setup_module(module):
-    module.syn = unit.syn
+    module.syn = tests.unit.syn
 
 
 class TestSynapseCredentialsProviderChain(object):

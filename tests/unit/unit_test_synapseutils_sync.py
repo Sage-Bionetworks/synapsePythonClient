@@ -1,31 +1,18 @@
-# coding=utf-8
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import os
 
-import unit
+import tests.unit
 from mock import patch, create_autospec, Mock, call
 from nose.tools import assert_dict_equal, assert_raises, assert_equals, assert_list_equal
-from builtins import str
 
 import synapseutils
 from synapseclient import Project, Schema, File, Folder
 from synapseclient.exceptions import SynapseHTTPError
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
 import pandas as pd
 import pandas.util.testing as pdt
 
-
 def setup(module):
-    module.syn = unit.syn
+    module.syn = tests.unit.syn
 
 
 def test_readManifest__sync_order_with_home_directory():
@@ -39,7 +26,7 @@ def test_readManifest__sync_order_with_home_directory():
     row1 = '%s\t%s\t%s\t""\tprovActivity1\tTrue\tsomeFooAnnotation1\n' % (file_path1, project_id, file_path2)
     row2 = '%s\t%s\t""\t""\tprovActivity2\tTrue\tsomeFooAnnotation2\n' % (file_path2, project_id)
 
-    manifest = StringIO(header+row1+row2)
+    manifest = os(header+row1+row2)
     # mock syn.get() to return a project because the final check is making sure parent is a container
     # mock isfile() to always return true to avoid having to create files in the home directory
     # side effect mocks values for: manfiest file, file1.txt, file2.txt, isfile(project.id) check in syn.get()
@@ -65,7 +52,7 @@ def test_readManifestFile__synapseStore_values_not_set():
         str(path2): False,
     }
 
-    manifest = StringIO(header+row1+row2)
+    manifest = os(header+row1+row2)
     with patch.object(syn, "get", return_value=Project()),\
          patch.object(os.path, "isfile", return_value=True):  # side effect mocks values for: file1.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)
@@ -100,7 +87,7 @@ def test_readManifestFile__synapseStore_values_are_set():
         str(path6): False
     }
 
-    manifest = StringIO(header+row1+row2+row3+row4+row5+row6)
+    manifest = os(header+row1+row2+row3+row4+row5+row6)
     with patch.object(syn, "get", return_value=Project()),\
          patch.object(os.path, "isfile", return_value=True):  # mocks values for: file1.txt, file3.txt, file5.txt
         manifest_dataframe = synapseutils.sync.readManifestFile(syn, manifest)

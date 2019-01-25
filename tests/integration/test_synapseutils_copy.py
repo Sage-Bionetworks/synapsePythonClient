@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import uuid
 import time
 
@@ -13,13 +7,13 @@ from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, S
 from synapseclient.exceptions import *
 import synapseutils
 import re
-import integration
-from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+import tests.integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    module.syn = tests.integration.syn
+    module.project = tests.integration.project
 
 
 # Add Test for UPDATE

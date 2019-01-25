@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import filecmp
 import os
 import random
@@ -19,13 +13,13 @@ import tempfile
 
 from nose.tools import assert_equals, assert_true
 
-import integration
-from integration import schedule_for_cleanup
+import tests.integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    module.syn = tests.integration.syn
+    module.project = tests.integration.project
 
 
 def test_round_trip():

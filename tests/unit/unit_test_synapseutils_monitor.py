@@ -1,23 +1,12 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-import unit
+import tests.unit
 from mock import patch, MagicMock, call
 from nose.tools import assert_equal, assert_in, assert_tuple_equal
 
 import synapseutils
 from synapseutils import notifyMe, with_progress_bar
 
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
-
 def setup(module):
-    module.syn = unit.syn
+    module.syn = tests.unit.syn
 
 
 def test_notifyMe__successful_call():

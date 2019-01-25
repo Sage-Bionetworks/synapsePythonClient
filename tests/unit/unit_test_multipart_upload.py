@@ -1,4 +1,4 @@
-import unit
+import tests.unit
 import filecmp
 import math
 import os
@@ -18,7 +18,7 @@ import warnings
 
 
 def setup(module):
-    module.syn = unit.syn
+    module.syn = tests.unit.syn
 
 
 def test_find_parts_to_upload():

@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import collections
 from synapseclient.entity import Entity, Project, Folder, File, Link, DockerRepository, split_entity_namespaces,\
     is_container, is_versionable

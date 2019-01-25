@@ -1,10 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from backports import csv
+import csv
 import io
 import filecmp
 import os
@@ -12,8 +6,6 @@ import random
 import tempfile
 import time
 import uuid
-import six
-from builtins import zip
 from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true, assert_is_not_none
 from pandas.util.testing import assert_frame_equal
 from datetime import datetime
@@ -25,16 +17,16 @@ from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.utils import id_of
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, EntityViewType
 
-import integration
-from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+import tests.integration
+from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 import pandas as pd
 import numpy as np
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    module.syn = tests.integration.syn
+    module.project = tests.integration.project
 
     module.syn.table_query_timeout = 423
 
@@ -227,9 +219,7 @@ def test_tables_pandas():
     # simulate rowId-version rownames for comparison
     df.index = ['%s_0' % i for i in range(5)]
 
-    # for python3 we need to convert from numpy.bytes_ to str or the equivalence comparision fails
-    if six.PY3:
-        df['string_'] = df['string_'].transform(str)
+    df['string_'] = df['string_'].transform(str)
 
     # SYNPY-717
     df['datetime64'] = df['datetime64'].apply(lambda x: pd.Timestamp(x).tz_localize('UTC'))

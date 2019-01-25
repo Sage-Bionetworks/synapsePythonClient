@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import os
 import traceback
 import logging
@@ -11,27 +5,22 @@ import uuid
 import time
 import random
 from threading import Lock
-import six
 
 from nose.tools import assert_equals
 
-if six.PY2:
-    import thread
-    from Queue import Queue
-else:
-    import _thread as thread
-    from queue import Queue
+import _thread as thread
+from queue import Queue
 
 from synapseclient.exceptions import *
 from synapseclient import Project, File
 
-import integration
-from integration import schedule_for_cleanup
+import tests.integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    module.syn = tests.integration.syn
+    module.project = tests.integration.project
     
     # Use the module-level syn object to communicate between main and child threads
     # - Read-only objects (for the children)

@@ -1,11 +1,3 @@
-# -*- coding: utf-8 -*-
-# unit tests for python synapse client
-############################################################
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_is_not_none, assert_is_none
 import os
 import re

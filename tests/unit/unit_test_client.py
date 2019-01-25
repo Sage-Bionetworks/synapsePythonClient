@@ -4,7 +4,7 @@ import tempfile
 import base64
 from mock import patch, call, create_autospec
 
-import unit
+import tests.unit
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
 
@@ -22,7 +22,7 @@ import synapseclient.upload_functions as upload_functions
 
 
 def setup(module):
-    module.syn = unit.syn
+    module.syn = tests.unit.syn
 
 
 class TestLogout:

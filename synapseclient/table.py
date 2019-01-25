@@ -286,23 +286,15 @@ See also:
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from future.utils import bytes_to_native_str
-
-from backports import csv
+import csv
 import io
 import os
 import re
-import six
 import sys
 import tempfile
 import copy
 import itertools
 from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
-from builtins import zip
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 
@@ -382,22 +374,6 @@ def test_import_pandas():
         raise
 
 
-def encode_param_in_python2(a, encoding=None):
-    """
-    In Python2, the csv module takes parameters that must be encoded byte strings - for example: delimiter, escapechar,
-    lineterminator, quotechar. But, in Python 3, these have to be unicode strings. Since we're using unicode_literals,
-    we'll need to do the conversion in the Python2 case.
-    """
-    if hasattr(sys.stdout, 'encoding'):
-        encoding = sys.stdout.encoding
-    if not encoding:
-        encoding = 'utf-8'
-    if six.PY2 and type(a) == unicode:
-        return a.encode(encoding)
-    else:
-        return a
-
-
 def as_table_columns(values):
     """
     Return a list of Synapse table :py:class:`Column` objects that correspond to the columns in the given values.
@@ -423,7 +399,7 @@ def as_table_columns(values):
     # filename of a csv file
     # in Python 3, we can check that the values is instanceof io.IOBase
     # for now, check if values has attr `read`
-    if isinstance(values, six.string_types) or hasattr(values, "read"):
+    if isinstance(values, str) or hasattr(values, "read"):
         df = _csv_to_pandas_df(values)
     # pandas DataFrame
     if isinstance(values, pd.DataFrame):
@@ -480,7 +456,7 @@ def to_boolean(value):
     if isinstance(value, bool):
         return value
 
-    if isinstance(value, six.string_types):
+    if isinstance(value, str):
         lower_value = value.lower()
         if lower_value in ['true', 't', '1']:
             return True
@@ -622,8 +598,7 @@ def _delete_rows(syn, schema, row_id_vers_list):
         os.remove(delete_row_csv_filepath)
 
 
-@six.add_metaclass(ABCMeta)
-class SchemaBase(Entity, Versionable):
+class SchemaBase(Entity, Versionable, metaclass=ABCMeta):
     """
     This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both.
     You can not create an object of this type.
@@ -653,7 +628,7 @@ class SchemaBase(Entity, Versionable):
         """
         :param column: a column object or its ID
         """
-        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
+        if isinstance(column, str) or isinstance(column, int) or hasattr(column, 'id'):
             self.properties.columnIds.append(id_of(column))
         elif isinstance(column, Column):
             if not self.__dict__.get('columns_to_store', None):
@@ -673,7 +648,7 @@ class SchemaBase(Entity, Versionable):
         """
         :param column: a column object or its ID
         """
-        if isinstance(column, six.string_types) or isinstance(column, int) or hasattr(column, 'id'):
+        if isinstance(column, str) or isinstance(column, int) or hasattr(column, 'id'):
             self.properties.columnIds.remove(id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
@@ -944,8 +919,7 @@ class Column(DictObject):
         return '/column'
 
 
-@six.add_metaclass(ABCMeta)
-class AppendableRowset(DictObject):
+class AppendableRowset(DictObject, metaclass=ABCMeta):
     """Abstract Base Class for :py:class:`Rowset` and :py:class:`PartialRowset`"""
     @abstractmethod
     def __init__(self, schema, **kwargs):
@@ -1018,7 +992,7 @@ class PartialRowset(AppendableRowset):
         except AttributeError:
             raise ValueError('originalQueryResult must be the result of a syn.tableQuery()')
 
-        row_ids = set(int(id) for id in six.iterkeys(mapping))
+        row_ids = set(int(id) for id in mapping.keys())
 
         # row_ids in the originalQueryResult are not guaranteed to be in ascending order
         # iterate over all etags but only map the row_ids used for this partial update to their etags
@@ -1027,7 +1001,7 @@ class PartialRowset(AppendableRowset):
 
         partial_rows = [PartialRow(row_changes, row_id, etag=row_etags.get(int(row_id)),
                                    nameToColumnId=name_to_column_id)
-                        for row_id, row_changes in six.iteritems(mapping)]
+                        for row_id, row_changes in mapping.items()]
 
         return cls(originalQueryResult.tableId, partial_rows)
 
@@ -1170,7 +1144,7 @@ class PartialRow(DictObject):
         rowId = int(rowId)
 
         self.values = [{'key': nameToColumnId[x_key] if nameToColumnId is not None else x_key,
-                        'value': x_value} for x_key, x_value in six.iteritems(values)]
+                        'value': x_value} for x_key, x_value in values.items()]
         self.rowId = rowId
         if etag is not None:
             self.etag = etag
@@ -1208,7 +1182,7 @@ def build_table(name, parent, values):
 
     if not pandas_available:
         raise ValueError("pandas package is required.")
-    if not isinstance(values, pd.DataFrame) and not isinstance(values, six.string_types):
+    if not isinstance(values, pd.DataFrame) and not isinstance(values, str):
         raise ValueError("Values of type %s is not yet supported." % type(values))
     cols = as_table_columns(values)
     schema = Schema(name=name, columns=cols, parent=parent)
@@ -1260,7 +1234,7 @@ def Table(schema, values, **kwargs):
         return CsvFileTable.from_list_of_rows(schema, values, **kwargs)
 
     # filename of a csv file
-    elif isinstance(values, six.string_types):
+    elif isinstance(values, str):
         return CsvFileTable(schema, filepath=values, **kwargs)
 
     # pandas DataFrame
@@ -1288,7 +1262,7 @@ class TableAbstractBaseClass(Iterable, Sized):
             self.tableId = schema.id if schema and 'id' in schema else None
             self.headers = headers if headers else [SelectColumn(id=id) for id in schema.columnIds]
             self.etag = etag
-        elif isinstance(schema, six.string_types):
+        elif isinstance(schema, str):
             self.schema = None
             self.tableId = schema
             self.headers = headers
@@ -1654,22 +1628,17 @@ class CsvFileTable(TableAbstractBaseClass):
                 temp_dir = tempfile.mkdtemp()
                 filepath = os.path.join(temp_dir, 'table.csv')
 
-            if six.PY2:
-                # pandas uses the Python standard library csv module
-                # see: http://stackoverflow.com/a/3348664/199166
-                f = open(filepath, 'wb')
-            else:
-                f = io.open(filepath, mode='w', encoding='utf-8', newline='')
+            f = io.open(filepath, mode='w', encoding='utf-8', newline='')
 
             df.to_csv(f,
                       index=False,
-                      sep=encode_param_in_python2(separator),
-                      header=encode_param_in_python2(header),
-                      quotechar=encode_param_in_python2(quoteCharacter),
-                      escapechar=encode_param_in_python2(escapeCharacter),
-                      line_terminator=encode_param_in_python2(lineEnd),
-                      na_rep=encode_param_in_python2(kwargs.get('na_rep', '')),
-                      float_format=encode_param_in_python2("%.12g"))
+                      sep=separator,
+                      header=header,
+                      quotechar=quoteCharacter,
+                      escapechar=escapeCharacter,
+                      line_terminator=lineEnd,
+                      na_rep=kwargs.get('na_rep', ''),
+                      float_format="%.12g")
             # NOTE: reason for flat_format='%.12g':
             # pandas automatically converts int columns into float64 columns when some cells in the column have no
             # value. If we write the whole number back as a decimal (e.g. '3.0'), Synapse complains that we are writing
@@ -1822,7 +1791,7 @@ class CsvFileTable(TableAbstractBaseClass):
 
         try:
             # Handle bug in pandas 0.19 requiring quotechar to be str not unicode or newstr
-            quoteChar = bytes_to_native_str(bytes(self.quoteCharacter)) if six.PY2 else self.quoteCharacter
+            quoteChar = self.quoteCharacter
 
             # determine which columns are DATE columns so we can convert milisecond timestamps into datetime objects
             date_columns = []

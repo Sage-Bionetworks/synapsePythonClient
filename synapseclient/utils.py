@@ -6,33 +6,12 @@ Utility Functions
 Utility functions useful in the implementation and testing of the Synapse client.
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from future.utils import implements_iterator
-from builtins import str
-import six
-try:
-    from urllib.parse import urlparse
-    from urllib.parse import urlencode
-    from urllib.parse import parse_qs
-    from urllib.parse import urlunparse
-    from urllib.parse import ParseResult
-    from urllib.parse import urlsplit
-except ImportError:
-    from urlparse import urlparse
-    from urllib import urlencode
-    from urlparse import parse_qs
-    from urlparse import urlunparse
-    from urlparse import ParseResult
-    from urlparse import urlsplit
-
-try:
-    import urllib.request
-    import urllib.error
-except ImportError:
-    import urllib
+from urllib.parse import urlparse
+from urllib.parse import urlencode
+from urllib.parse import parse_qs
+from urllib.parse import urlunparse
+from urllib.parse import ParseResult
+from urllib.parse import urlsplit
 
 import os
 import sys
@@ -178,7 +157,7 @@ def id_of(obj):
 
     :returns: The ID or throws an exception
     """
-    if isinstance(obj, six.string_types):
+    if isinstance(obj, str):
         return str(obj)
     if isinstance(obj, Number):
         return str(obj)
@@ -211,7 +190,7 @@ def get_properties(entity):
 
 def is_url(s):
     """Return True if the string appears to be a valid URL."""
-    if isinstance(s, six.string_types):
+    if isinstance(s, str):
         try:
             url_parts = urlsplit(s)
             # looks like a Windows drive letter?
@@ -306,7 +285,7 @@ def is_same_base_url(url1, url2):
 
 def is_synapse_id(obj):
     """If the input is a Synapse ID return it, otherwise return None"""
-    if isinstance(obj, six.string_types):
+    if isinstance(obj, str):
         m = re.match(r'(syn\d+)', obj)
         if m:
             return m.group(1)
@@ -320,7 +299,7 @@ def _is_date(dt):
 
 def _to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
-    if isinstance(value, collections.Iterable) and not isinstance(value, six.string_types):
+    if isinstance(value, collections.Iterable) and not isinstance(value, str):
         return list(value)
     else:
         return [value]
@@ -405,7 +384,7 @@ def to_unix_epoch_time_secs(dt):
 
 def from_unix_epoch_time_secs(secs):
     """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
-    if isinstance(secs, six.string_types):
+    if isinstance(secs, str):
         secs = float(secs)
 
     # utcfromtimestamp() fails for negative values (dates before 1970-1-1) on Windows
@@ -420,7 +399,7 @@ def from_unix_epoch_time_secs(secs):
 def from_unix_epoch_time(ms):
     """Returns a Datetime object given milliseconds since midnight Jan 1, 1970."""
 
-    if isinstance(ms, six.string_types):
+    if isinstance(ms, str):
         ms = float(ms)
     return from_unix_epoch_time_secs(ms/1000.0)
 
@@ -521,12 +500,12 @@ def normalize_whitespace(s):
     """
     Strips the string and replace all whitespace sequences and other non-printable characters with a single space.
     """
-    assert isinstance(s, six.string_types)
+    assert isinstance(s, str)
     return re.sub(r'[\x00-\x20\s]+', ' ', s.strip())
 
 
 def normalize_lines(s):
-    assert isinstance(s, six.string_types)
+    assert isinstance(s, str)
     s2 = re.sub(r'[\t ]*\n[\t ]*', '\n', s.strip())
     return re.sub(r'[\t ]+', ' ', s2)
 
@@ -535,7 +514,7 @@ def _synapse_error_msg(ex):
     """
     Format a human readable error message
     """
-    if isinstance(ex, six.string_types):
+    if isinstance(ex, str):
         return ex
 
     return '\n' + ex.__class__.__name__ + ': ' + str(ex) + '\n\n'
@@ -555,17 +534,6 @@ def _limit_and_offset(uri, limit=None, offset=None):
         query.pop('offset', None)
     else:
         query['offset'] = offset
-
-    # in Python 2, urllib expects encoded byte-strings
-    if six.PY2:
-        new_query = {}
-        for k, v in query.items():
-            if isinstance(v, list):
-                v = [unicode(element).encode('utf-8') for element in v]
-            elif isinstance(v, str):
-                v = unicode(v).encode('utf-8')
-            new_query[unicode(k).encode('utf-8')] = v
-        query = new_query
 
     new_query_string = urlencode(query, doseq=True)
     return urlunparse(ParseResult(
@@ -742,7 +710,6 @@ def unique_filename(path):
     return path
 
 
-@implements_iterator
 class threadsafe_iter:
     """Takes an iterator/generator and makes it thread-safe by serializing call to the `next` method of given
     iterator/generator.
