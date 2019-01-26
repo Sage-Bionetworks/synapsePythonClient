@@ -61,7 +61,7 @@ def _with_retry(function, verbose=False,
                 if (response.status_code == 429) and (wait > 10):
                     logger.warning('%s...\n' % response_message)
                     logger.warning('Retrying in %i seconds' % wait)
-                
+
             elif response.status_code not in range(200, 299):
                 # For all other non 200 messages look for retryable errors in the body or reason field
                 response_message = _get_message(response)
@@ -95,7 +95,7 @@ def _with_retry(function, verbose=False,
         # Out of retries, re-raise the exception or return the response
         if exc_info is not None and exc_info[0] is not None:
             logger.debug("retries have run out. re-raising the exception", exc_info=True)
-            raise ex
+            raise exc_info[0](exc_info[1]).with_traceback(exc_info[2])
         return response
 
 

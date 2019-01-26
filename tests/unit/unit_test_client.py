@@ -16,6 +16,7 @@ from synapseclient.credentials import UserLoginArgs
 from synapseclient.credentials.cred_data import SynapseCredentials
 from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.dict_object import DictObject
+from synapseclient.utils import id_of
 import unit
 
 

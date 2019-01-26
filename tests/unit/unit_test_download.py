@@ -274,7 +274,7 @@ def test_download_end_early_retry():
 
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch('utils.temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
+         patch(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
             patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
             patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
             patch('os.path.getsize', return_value=partial_content_break) as mocked_getsize, \
@@ -316,7 +316,7 @@ def test_download_md5_mismatch__not_local_file():
 
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch('utils.temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
+         patch(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
             patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
             patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
             patch('shutil.move') as mocked_move, \

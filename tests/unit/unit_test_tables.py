@@ -20,7 +20,8 @@ from synapseclient.entity import split_entity_namespaces
 import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
-    PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask
+    PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
+    MAX_NUM_TABLE_COLUMNS
 import unit
 
 
@@ -579,7 +580,7 @@ def test_entityViewSchema__add_scope():
 def test_Schema__max_column_check():
     table = Schema(name="someName", parent="idk")
     table.addColumns(Column(name="colNum%s" % i, columnType="STRING")
-                     for i in range(synapseclient.MAX_NUM_TABLE_COLUMNS + 1))
+                     for i in range(MAX_NUM_TABLE_COLUMNS + 1))
     assert_raises(ValueError, syn.store, table)
 
     
