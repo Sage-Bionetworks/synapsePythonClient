@@ -15,7 +15,7 @@ from synapseclient.utils import MB, GB, make_bogus_binary_file, md5_for_file
 from synapseclient.exceptions import SynapseHTTPError
 from synapseclient import multipart_upload
 from synapseclient import pool_provider
-from tests import unit
+import unit
 
 
 def setup(module):

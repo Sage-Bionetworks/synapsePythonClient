@@ -5,7 +5,7 @@ from nose.tools import assert_equals, assert_is_none, assert_is_instance
 
 from synapseclient.credentials.credential_provider import *
 from synapseclient.credentials.cred_data import UserLoginArgs, SynapseCredentials
-from tests import unit
+import unit
 
 
 def setup_module(module):

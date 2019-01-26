@@ -3,7 +3,7 @@ from nose.tools import assert_equal, assert_in, assert_tuple_equal
 
 import synapseutils
 from synapseutils import notifyMe, with_progress_bar
-from tests import unit
+import unit
 
 
 def setup(module):

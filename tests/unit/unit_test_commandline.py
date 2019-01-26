@@ -7,7 +7,7 @@ from mock import patch
 
 import synapseutils
 import synapseclient.__main__ as cmdline
-from tests import unit
+import unit
 
 
 def setup(module):

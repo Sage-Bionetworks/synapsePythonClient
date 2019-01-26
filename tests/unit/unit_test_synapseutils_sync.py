@@ -7,7 +7,7 @@ import pandas.util.testing as pdt
 import synapseutils
 from synapseclient import *
 from synapseclient.exceptions import SynapseHTTPError
-from tests import unit
+import unit
 
 
 def setup(module):
