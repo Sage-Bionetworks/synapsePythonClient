@@ -4,14 +4,13 @@ import time
 import tempfile
 
 from nose.tools import assert_raises, assert_equals, assert_less, assert_in, assert_true
-
-import synapseclient
-from synapseclient import Project, Folder, File, Entity, Schema, Link
-from synapseclient.exceptions import *
-import synapseutils
-from .. import integration
-from ..integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 import pandas as pd
+
+from synapseclient.exceptions import *
+from synapseclient import *
+from tests import integration
+from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+import synapseutils
 
 
 def setup(module):
@@ -118,7 +117,7 @@ def test_syncFromSynapse():
     which means that the only test if for path=None
     """
     # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
 
     # Create a Folder in Project
@@ -179,7 +178,7 @@ def test_syncFromSynapse_Links():
     which means that the only test if for path=None
     """
     # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
 
     # Create a Folder in Project
@@ -243,7 +242,7 @@ def test_syncFromSynapse():
     which means that the only test if for path=None
     """
     # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
 
     # Create a Folder in Project

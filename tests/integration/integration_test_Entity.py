@@ -4,17 +4,15 @@ import filecmp
 import os
 import tempfile
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_true,\
-    assert_false, assert_equals, assert_is_not_none, assert_raises
+from nose.tools import assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_true, assert_false, \
+    assert_equals, assert_is_not_none, assert_raises
 from mock import patch
-
-import synapseclient
-from synapseclient import Activity, Project, Folder, File, Link, DockerRepository
-from synapseclient.exceptions import *
 from synapseclient.upload_functions import create_external_file_handle
 
-from .. import integration
-from ..integration import schedule_for_cleanup
+from synapseclient import *
+from synapseclient.exceptions import *
+from tests import integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):
@@ -545,7 +543,7 @@ def test_store_DockerRepository():
 
 def test_store__changing_externalURL_by_changing_path():
     url = 'https://www.synapse.org/Portal/clear.cache.gif'
-    ext = syn.store(synapseclient.File(url, name="test", parent=project, synapseStore=False))
+    ext = syn.store(File(url, name="test", parent=project, synapseStore=False))
 
     # perform a syn.get so the filename changes
     ext = syn.get(ext)
@@ -572,7 +570,7 @@ def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
     temp_path = utils.make_bogus_data_file()
     schedule_for_cleanup(temp_path)
 
-    ext = syn.store(synapseclient.File(temp_path, parent=project, synapseStore=True))
+    ext = syn.store(File(temp_path, parent=project, synapseStore=True))
     ext = syn.get(ext)
     assert_equal("org.sagebionetworks.repo.model.file.S3FileHandle", ext._file_handle.concreteType)
 

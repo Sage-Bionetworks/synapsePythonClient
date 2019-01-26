@@ -1,7 +1,7 @@
 from mock import call, MagicMock
 from nose.tools import assert_is_instance
-
 from multiprocessing.pool import ThreadPool
+
 import synapseclient
 
 

@@ -2,13 +2,13 @@ import uuid
 import time
 
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_is_not_none
-
-from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, Schema, RowSet, Row
-from synapseclient.exceptions import *
-import synapseutils
 import re
-from .. import integration
-from ..integration import schedule_for_cleanup
+
+from synapseclient.exceptions import *
+from synapseclient import *
+from tests import integration
+from tests.integration import schedule_for_cleanup
+import synapseutils
 
 
 def setup(module):

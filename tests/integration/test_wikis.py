@@ -3,11 +3,10 @@ import uuid
 from nose.tools import assert_raises, assert_equal, assert_in, assert_equals, assert_true
 
 from synapseclient.exceptions import *
-from synapseclient import Project, Wiki
+from synapseclient import *
 from synapseclient.upload_functions import upload_synapse_s3
-
-from .. import integration
-from ..integration import schedule_for_cleanup
+from tests import integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):

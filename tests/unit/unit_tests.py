@@ -3,17 +3,16 @@ import os
 import re
 import sys
 import inspect
-
-import synapseclient.utils as utils
-from synapseclient.activity import Activity
-from synapseclient.utils import _find_used
-from synapseclient.exceptions import _raise_for_status, SynapseMalformedEntityError, SynapseHTTPError
-from synapseclient.dict_object import DictObject
-
 from nose import SkipTest
 from mock import patch, mock_open
 import tempfile
 from shutil import rmtree
+
+from synapseclient import *
+from synapseclient.exceptions import _raise_for_status
+from synapseclient.utils import _find_used
+from synapseclient.exceptions import *
+from synapseclient.dict_object import DictObject
 
 
 def test_activity_creation_from_dict():

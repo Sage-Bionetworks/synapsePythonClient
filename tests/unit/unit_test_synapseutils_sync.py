@@ -1,18 +1,17 @@
 import os
-
-import synapseclient
 from mock import patch, create_autospec, Mock, call
 from nose.tools import assert_dict_equal, assert_raises, assert_equals, assert_list_equal
-
-import synapseutils
-from synapseclient import Project, Schema, File, Folder
-from synapseclient.exceptions import SynapseHTTPError
-
 import pandas as pd
 import pandas.util.testing as pdt
 
+import synapseutils
+from synapseclient import *
+from synapseclient.exceptions import SynapseHTTPError
+from tests import unit
+
+
 def setup(module):
-    module.syn = synapseclient.tests.unit.syn
+    module.syn = unit.syn
 
 
 def test_readManifest__sync_order_with_home_directory():

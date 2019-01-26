@@ -3,18 +3,16 @@ import os
 import random
 import traceback
 from io import open
-
-import synapseclient.utils as utils
-from synapseclient.utils import MB
-from synapseclient import File
-from synapseclient.multipart_upload import multipart_upload, multipart_upload_string
-import synapseclient.multipart_upload as multipart_upload_module
 import tempfile
 
 from nose.tools import assert_equals, assert_true
 
-from .. import integration
-from ..integration import schedule_for_cleanup
+from synapseclient.exceptions import *
+from synapseclient import *
+from synapseclient import multipart_upload
+from synapseclient.multipart_upload import multipart_upload_string
+from tests import integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):
@@ -24,7 +22,7 @@ def setup(module):
 
 def test_round_trip():
     fhid = None
-    filepath = utils.make_bogus_binary_file(multipart_upload_module.MIN_PART_SIZE + 777771)
+    filepath = utils.make_bogus_binary_file(multipart_upload.MIN_PART_SIZE + 777771)
     try:
         fhid = multipart_upload(syn, filepath)
 
@@ -52,10 +50,10 @@ def test_round_trip():
 def test_randomly_failing_parts():
     FAILURE_RATE = 1.0/3.0
     fhid = None
-    multipart_upload_module.MIN_PART_SIZE = 5*MB
-    multipart_upload_module.MAX_RETRIES = 20
+    multipart_upload.MIN_PART_SIZE = 5*MB
+    multipart_upload.MAX_RETRIES = 20
 
-    filepath = utils.make_bogus_binary_file(multipart_upload_module.MIN_PART_SIZE*2 + 777771)
+    filepath = utils.make_bogus_binary_file(multipart_upload.MIN_PART_SIZE*2 + 777771)
 
     normal_put_chunk = None
 
@@ -66,8 +64,8 @@ def test_randomly_failing_parts():
             return normal_put_chunk(url, chunk, verbose)
 
     # Mock _put_chunk to fail randomly
-    normal_put_chunk = multipart_upload_module._put_chunk
-    multipart_upload_module._put_chunk = _put_chunk_or_fail_randomly
+    normal_put_chunk = multipart_upload._put_chunk
+    multipart_upload._put_chunk = _put_chunk_or_fail_randomly
 
     try:
         fhid = multipart_upload(syn, filepath)
@@ -84,7 +82,7 @@ def test_randomly_failing_parts():
     finally:
         # Un-mock _put_chunk
         if normal_put_chunk:
-            multipart_upload_module._put_chunk = normal_put_chunk
+            multipart_upload._put_chunk = normal_put_chunk
 
         try:
             if 'junk' in locals():
@@ -109,7 +107,7 @@ def test_multipart_upload_big_string():
               "金沢市", "서울", "แม่ฮ่องสอน", "Москва"]
 
     text = "Places I wanna go:\n"
-    while len(text.encode('utf-8')) < multipart_upload_module.MIN_PART_SIZE:
+    while len(text.encode('utf-8')) < multipart_upload.MIN_PART_SIZE:
         text += ", ".join(random.choice(cities) for i in range(5000)) + "\n"
 
     fhid = multipart_upload_string(syn, text)

@@ -5,12 +5,13 @@
 from nose.tools import assert_equals
 from mock import patch
 
-import synapseclient.__main__ as cmdline
 import synapseutils
-import synapseclient
+import synapseclient.__main__ as cmdline
+from tests import unit
+
 
 def setup(module):
-    module.syn = synapseclient.tests.unit.syn
+    module.syn = unit.syn
 
 
 def test_command_sync():

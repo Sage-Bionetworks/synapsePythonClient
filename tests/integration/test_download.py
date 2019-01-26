@@ -5,13 +5,12 @@ import filecmp
 import os
 import tempfile
 import shutil
+import time
 
 from synapseclient.exceptions import *
-from synapseclient import File
-
-from .. import integration
-from ..integration import schedule_for_cleanup
-import time
+from synapseclient import *
+from tests import integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):

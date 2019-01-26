@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Integration tests for the Synapse Client for Python
 
@@ -15,11 +14,10 @@ import sys
 import shutil
 import tempfile
 
-from synapseclient import Entity, Project
-from synapseclient.logging_setup import SILENT_LOGGER_NAME
-import synapseclient
-import synapseclient.utils as utils
 
+from synapseclient import *
+from synapseclient import utils
+from synapseclient.logging_setup import SILENT_LOGGER_NAME
 
 QUERY_TIMEOUT_SEC = 25
 
@@ -27,7 +25,7 @@ QUERY_TIMEOUT_SEC = 25
 def setup_module(module):
     print("Python version:", sys.version)
 
-    syn = synapseclient.Synapse(debug=False, skip_checks=True)
+    syn = Synapse(debug=False, skip_checks=True)
     syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
 
     print("Testing against endpoints:")

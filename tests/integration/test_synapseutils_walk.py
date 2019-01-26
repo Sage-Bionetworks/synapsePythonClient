@@ -3,11 +3,11 @@ import os
 
 from nose.tools import assert_equals, assert_in
 
-from synapseclient import Project, Folder, File
 from synapseclient.exceptions import *
+from synapseclient import *
+from tests import integration
+from tests.integration import schedule_for_cleanup
 import synapseutils
-from .. import integration
-from ..integration import schedule_for_cleanup
 
 
 def setup(module):

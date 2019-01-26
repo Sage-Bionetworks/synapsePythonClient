@@ -11,16 +11,10 @@ from datetime import datetime
 from nose.tools import assert_raises, assert_equals, assert_true, assert_false, assert_not_in
 from mock import patch
 
-import synapseclient
-import synapseclient.client as client
+from synapseclient import *
 from synapseclient.exceptions import *
-from synapseclient.activity import Activity
-from synapseclient.version_check import version_check
-from synapseclient.entity import Project, File, Folder
-from synapseclient.team import Team
-
-from .. import integration
-from ..integration import schedule_for_cleanup
+from tests import integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):
@@ -82,10 +76,10 @@ def test_login():
 
 def test_login__bad_credentials():
     # nonexistant username and password
-    assert_raises(SynapseAuthenticationError, synapseclient.login, email=str(uuid.uuid4()),
+    assert_raises(SynapseAuthenticationError, login, email=str(uuid.uuid4()),
                   password="In the end, it doens't even matter")
     # existing username and bad password
-    assert_raises(SynapseAuthenticationError, synapseclient.login, email=syn.username, password=str(uuid.uuid4()))
+    assert_raises(SynapseAuthenticationError, login, email=syn.username, password=str(uuid.uuid4()))
 
 
 def testCustomConfigFile():
@@ -94,7 +88,7 @@ def testCustomConfigFile():
         shutil.copyfile(client.CONFIG_FILE, configPath)
         schedule_for_cleanup(configPath)
 
-        syn2 = synapseclient.Synapse(configPath=configPath)
+        syn2 = Synapse(configPath=configPath)
         syn2.login()
     else:
         raise ValueError("Please supply a username and password in the configuration file.")

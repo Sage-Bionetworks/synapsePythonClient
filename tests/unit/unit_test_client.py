@@ -7,21 +7,20 @@ from mock import patch, call, create_autospec
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
 
-import synapseclient
-from synapseclient import File, Folder, Team
+from synapseclient import *
+from synapseclient.exceptions import *
+from synapseclient import upload_functions
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.constants import concrete_types
-from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArgs
+from synapseclient.credentials import UserLoginArgs
+from synapseclient.credentials.cred_data import SynapseCredentials
 from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
-from synapseclient.exceptions import *
 from synapseclient.dict_object import DictObject
-from synapseclient.table import Column, EntityViewSchema
-from synapseclient.utils import id_of
-import synapseclient.upload_functions as upload_functions
+from tests import unit
 
 
 def setup(module):
-    module.syn = synapseclient.tests.unit.syn
+    module.syn = unit.syn
 
 
 class TestLogout:
@@ -30,14 +29,14 @@ class TestLogout:
         self.credentials = SynapseCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
 
     def test_logout__forgetMe_is_True(self):
-        with patch.object(synapseclient.client, "cached_sessions") as mock_cached_session:
+        with patch.object(client, "cached_sessions") as mock_cached_session:
             syn.credentials = self.credentials
             syn.logout(True)
             assert_is_none(syn.credentials)
             mock_cached_session.remove_api_key.assert_called_with(self.username)
 
     def test_logout__forgetMe_is_False(self):
-        with patch.object(synapseclient.client, "cached_sessions") as mock_cached_session:
+        with patch.object(client, "cached_sessions") as mock_cached_session:
             syn.credentials = self.credentials
             syn.logout(False)
             assert_is_none(syn.credentials)
@@ -53,7 +52,7 @@ class TestLogin:
 
         self.mocked_credential_chain = create_autospec(SynapseCredentialsProviderChain)
         self.mocked_credential_chain.get_credentials.return_value = self.synapse_creds
-        self.get_default_credential_chain_patcher = patch.object(synapseclient.client, "get_default_credential_chain",
+        self.get_default_credential_chain_patcher = patch.object(client, "get_default_credential_chain",
                                                                  return_value=self.mocked_credential_chain)
         self.mocked_get_credential_chain = self.get_default_credential_chain_patcher.start()
 
@@ -87,7 +86,7 @@ class TestLogin:
             mocked_logger.info.assert_called_once()
 
     def test_login__rememberMeIsTrue(self):
-        with patch.object(synapseclient.client, "cached_sessions") as mocked_cached_sessions:
+        with patch.object(client, "cached_sessions") as mocked_cached_sessions:
             syn.login(silent=True, rememberMe=True)
 
             mocked_cached_sessions.set_api_key.assert_called_once_with(self.synapse_creds.username,
@@ -489,7 +488,7 @@ class TestPrivateUploadExternallyStoringProjects:
         test_file = File(expected_path, parent="syn12345")
 
         # method under test
-        with patch.object(synapseclient.upload_functions, "multipart_upload",
+        with patch.object(upload_functions, "multipart_upload",
                           return_value=expected_file_handle_id) as mocked_multipart_upload, \
                 patch.object(syn.cache, "add") as mocked_cache_add,\
                 patch.object(syn, "_getFileHandle") as mocked_getFileHandle:
@@ -676,7 +675,7 @@ class TestPrivateGetEntityBundle:
             assert_is_none(entity.path)
 
             # Downloading the file is the default, but is an error if we have unmet access requirements
-            assert_raises(synapseclient.exceptions.SynapseUnmetAccessRestrictions, syn.get, 'syn1000002',
+            assert_raises(SynapseUnmetAccessRestrictions, syn.get, 'syn1000002',
                           downloadFile=True)
 
 
