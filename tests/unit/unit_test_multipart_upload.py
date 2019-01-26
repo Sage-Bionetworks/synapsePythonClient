@@ -1,4 +1,4 @@
-from .. import unit
+import synapseclient
 import filecmp
 import math
 import os
@@ -18,7 +18,7 @@ import warnings
 
 
 def setup(module):
-    module.syn = unit.syn
+    module.syn = synapseclient.tests.unit.syn
 
 
 def test_find_parts_to_upload():

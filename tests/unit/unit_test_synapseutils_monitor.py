@@ -1,4 +1,4 @@
-from .. import unit
+import synapseclient
 from mock import patch, MagicMock, call
 from nose.tools import assert_equal, assert_in, assert_tuple_equal
 
@@ -6,7 +6,7 @@ import synapseutils
 from synapseutils import notifyMe, with_progress_bar
 
 def setup(module):
-    module.syn = unit.syn
+    module.syn = synapseclient.tests.unit.syn
 
 
 def test_notifyMe__successful_call():

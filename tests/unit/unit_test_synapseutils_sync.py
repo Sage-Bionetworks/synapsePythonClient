@@ -1,6 +1,6 @@
 import os
 
-from .. import unit
+import synapseclient
 from mock import patch, create_autospec, Mock, call
 from nose.tools import assert_dict_equal, assert_raises, assert_equals, assert_list_equal
 
@@ -12,7 +12,7 @@ import pandas as pd
 import pandas.util.testing as pdt
 
 def setup(module):
-    module.syn = unit.syn
+    module.syn = synapseclient.tests.unit.syn
 
 
 def test_readManifest__sync_order_with_home_directory():

@@ -7,10 +7,10 @@ from mock import patch
 
 import synapseclient.__main__ as cmdline
 import synapseutils
-from .. import unit
+import synapseclient
 
 def setup(module):
-    module.syn = unit.syn
+    module.syn = synapseclient.tests.unit.syn
 
 
 def test_command_sync():
