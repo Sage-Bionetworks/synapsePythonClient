@@ -9,15 +9,15 @@ import shutil
 from synapseclient.exceptions import *
 from synapseclient import File
 
-import tests.integration
-from tests.integration import schedule_for_cleanup
+from .. import integration
+from ..integration import schedule_for_cleanup
 import time
 
 
 def setup(module):
 
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
 
 
 def test_download_check_md5():

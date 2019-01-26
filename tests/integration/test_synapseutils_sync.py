@@ -9,14 +9,14 @@ import synapseclient
 from synapseclient import Project, Folder, File, Entity, Schema, Link
 from synapseclient.exceptions import *
 import synapseutils
-import tests.integration
-from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+from .. import integration
+from ..integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 import pandas as pd
 
 
 def setup(module):
 
-    module.syn = tests.integration.syn
+    module.syn = integration.syn
 
     module.project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(module.project)

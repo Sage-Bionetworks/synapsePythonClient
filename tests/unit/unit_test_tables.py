@@ -11,7 +11,7 @@ from nose.tools import assert_raises, assert_not_equals, assert_false, assert_no
 
 import pandas as pd
 
-import tests.unit
+from .. import unit
 import synapseclient
 from synapseclient import Entity
 from synapseclient.exceptions import SynapseError
@@ -25,7 +25,7 @@ from .unit_utils import StringIOContextManager
 
 
 def setup(module):
-    module.syn = tests.unit.syn
+    module.syn = unit.syn
 
 
 def test_cast_values():

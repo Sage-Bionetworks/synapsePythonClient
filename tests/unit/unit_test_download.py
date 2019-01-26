@@ -3,15 +3,15 @@ import synapseclient
 import tempfile
 import os
 import hashlib
-import tests.unit
+
 from mock import MagicMock, patch, mock_open, call
 from nose.tools import assert_raises, assert_equals, assert_false
 from synapseclient.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, SynapseFileNotFoundError
 import synapseclient.constants.concrete_types as concrete_types
-
+from .. import unit
 
 def setup(module):
-    module.syn = tests.unit.syn
+    module.syn = unit.syn
 
 
 # a callable that mocks the requests.get function

@@ -14,13 +14,13 @@ from queue import Queue
 from synapseclient.exceptions import *
 from synapseclient import Project, File
 
-import tests.integration
-from tests.integration import schedule_for_cleanup
+from .. import integration
+from ..integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
     
     # Use the module-level syn object to communicate between main and child threads
     # - Read-only objects (for the children)

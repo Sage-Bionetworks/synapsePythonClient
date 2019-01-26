@@ -6,14 +6,14 @@ from synapseclient.exceptions import *
 from synapseclient import Project, Wiki
 from synapseclient.upload_functions import upload_synapse_s3
 
-import tests.integration
-from tests.integration import schedule_for_cleanup
+from .. import integration
+from ..integration import schedule_for_cleanup
 
 
 def setup(module):
 
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
 
 
 def test_wikiAttachment():

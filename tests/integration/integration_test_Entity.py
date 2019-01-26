@@ -13,13 +13,13 @@ from synapseclient import Activity, Project, Folder, File, Link, DockerRepositor
 from synapseclient.exceptions import *
 from synapseclient.upload_functions import create_external_file_handle
 
-import tests.integration
-from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+from .. import integration
+from ..integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
 
 
 def test_Entity():

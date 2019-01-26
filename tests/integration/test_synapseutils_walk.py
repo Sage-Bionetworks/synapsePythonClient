@@ -6,13 +6,13 @@ from nose.tools import assert_equals, assert_in
 from synapseclient import Project, Folder, File
 from synapseclient.exceptions import *
 import synapseutils
-import tests.integration
-from tests.integration import schedule_for_cleanup
+from .. import integration
+from ..integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
 
 
 def test_walk():

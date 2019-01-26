@@ -11,13 +11,13 @@ from synapseclient.entity import File
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
 from synapseclient.team import Team
 
-import tests.integration
-from tests.integration import schedule_for_cleanup
+from .. import integration
+from ..integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
 
 
 def test_evaluations():

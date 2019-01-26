@@ -19,13 +19,13 @@ from synapseclient.version_check import version_check
 from synapseclient.entity import Project, File, Folder
 from synapseclient.team import Team
 
-import tests.integration
-from tests.integration import schedule_for_cleanup
+from .. import integration
+from ..integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
 
 
 def test_login():

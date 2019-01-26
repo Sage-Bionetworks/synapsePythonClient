@@ -13,8 +13,8 @@ from synapseclient.utils import MB
 from synapseclient import File
 from synapseclient.remote_file_storage_wrappers import SFTPWrapper
 
-import tests.integration
-from tests.integration import schedule_for_cleanup
+from .. import integration
+from ..integration import schedule_for_cleanup
 
 SFTP_SERVER_PREFIX = "sftp://ec2-18-209-45-78.compute-1.amazonaws.com"
 SFTP_USER_HOME_PATH = "/home/sftpuser"
@@ -34,8 +34,8 @@ DESTINATIONS = [{"uploadType": "SFTP",
 
 def setup(module):
 
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
     # Create the upload destinations
     destinations = [syn.createStorageLocationSetting('ExternalStorage', **x)['storageLocationId'] for x in DESTINATIONS]
     module._sftp_project_setting_id = syn.setStorageLocation(project, destinations)['id']

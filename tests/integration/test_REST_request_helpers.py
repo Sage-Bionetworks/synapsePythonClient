@@ -3,13 +3,13 @@ This file contains integration tests for methods in the :py:class:`Synapse` clas
 requests to the Synapse backend
 """
 
-import tests.integration
+from .. import integration
 from nose.tools import assert_in, assert_dict_contains_subset, assert_equals
 from synapseclient import Column
 
 
 def setup(module):
-    module.syn = tests.integration.syn
+    module.syn = integration.syn
 
 
 def test_createColumns():

@@ -1,4 +1,4 @@
-import tests.unit
+from .. import unit
 from nose.tools import assert_raises
 from mock import patch, call
 
@@ -6,7 +6,7 @@ import synapseutils
 
 
 def setup(module):
-    module.syn = tests.unit.syn
+    module.syn = unit.syn
 
 
 def test_copyWiki_empty_Wiki():

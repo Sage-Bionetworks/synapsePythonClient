@@ -7,13 +7,13 @@ from synapseclient import Activity, Wiki, Project, Folder, File, Link, Column, S
 from synapseclient.exceptions import *
 import synapseutils
 import re
-import tests.integration
-from tests.integration import schedule_for_cleanup
+from .. import integration
+from ..integration import schedule_for_cleanup
 
 
 def setup(module):
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
 
 
 # Add Test for UPDATE

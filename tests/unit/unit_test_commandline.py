@@ -3,16 +3,14 @@
 """
 
 from nose.tools import assert_equals
-import tests.unit
 from mock import patch
 
 import synapseclient.__main__ as cmdline
-
 import synapseutils
-
+from .. import unit
 
 def setup(module):
-    module.syn = tests.unit.syn
+    module.syn = unit.syn
 
 
 def test_command_sync():

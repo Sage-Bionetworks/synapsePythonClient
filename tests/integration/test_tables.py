@@ -17,16 +17,16 @@ from synapseclient import File, Folder, Schema, EntityViewSchema
 from synapseclient.utils import id_of
 from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, EntityViewType
 
-import tests.integration
-from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+from .. import integration
+from ..integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 import pandas as pd
 import numpy as np
 
 
 def setup(module):
-    module.syn = tests.integration.syn
-    module.project = tests.integration.project
+    module.syn = integration.syn
+    module.project = integration.project
 
     module.syn.table_query_timeout = 423
 
