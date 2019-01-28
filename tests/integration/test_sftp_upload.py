@@ -8,7 +8,7 @@ from nose.tools import assert_is_not_none, assert_equals
 import tempfile
 import shutil
 
-from build.lib.synapseclient.utils import MB
+from synapseclient.utils import MB
 from synapseclient.exceptions import *
 from synapseclient import *
 from synapseclient.remote_file_storage_wrappers import SFTPWrapper
