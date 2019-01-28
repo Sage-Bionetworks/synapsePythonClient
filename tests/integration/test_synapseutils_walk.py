@@ -5,8 +5,8 @@ from nose.tools import assert_equals, assert_in
 
 from synapseclient.exceptions import *
 from synapseclient import *
-from tests import integration
-from tests.integration import schedule_for_cleanup
+import integration
+from integration import schedule_for_cleanup
 import synapseutils
 
 

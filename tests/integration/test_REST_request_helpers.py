@@ -7,7 +7,7 @@ requests to the Synapse backend
 from nose.tools import assert_in, assert_dict_contains_subset, assert_equals
 
 from synapseclient import *
-from tests import integration
+import integration
 
 
 def setup(module):

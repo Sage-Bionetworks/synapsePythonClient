@@ -1,18 +1,15 @@
 import filecmp
-import os
-import random
 import traceback
 from io import open
-import tempfile
 
 from nose.tools import assert_equals, assert_true
 
+from synapseclient.utils import *
 from synapseclient.exceptions import *
 from synapseclient import *
 from synapseclient import multipart_upload
-from synapseclient.multipart_upload import multipart_upload_string
-from tests import integration
-from tests.integration import schedule_for_cleanup
+import integration
+from integration import schedule_for_cleanup
 
 
 def setup(module):
@@ -24,7 +21,7 @@ def test_round_trip():
     fhid = None
     filepath = utils.make_bogus_binary_file(multipart_upload.MIN_PART_SIZE + 777771)
     try:
-        fhid = multipart_upload(syn, filepath)
+        fhid = multipart_upload.multipart_upload(syn, filepath)
 
         # Download the file and compare it with the original
         junk = File(parent=project, dataFileHandleId=fhid)
@@ -68,7 +65,7 @@ def test_randomly_failing_parts():
     multipart_upload._put_chunk = _put_chunk_or_fail_randomly
 
     try:
-        fhid = multipart_upload(syn, filepath)
+        fhid = multipart_upload.multipart_upload(syn, filepath)
 
         # Download the file and compare it with the original
         junk = File(parent=project, dataFileHandleId=fhid)
@@ -110,7 +107,7 @@ def test_multipart_upload_big_string():
     while len(text.encode('utf-8')) < multipart_upload.MIN_PART_SIZE:
         text += ", ".join(random.choice(cities) for i in range(5000)) + "\n"
 
-    fhid = multipart_upload_string(syn, text)
+    fhid = multipart_upload.multipart_upload_string(syn, text)
 
     # Download the file and compare it with the original
     junk = File(parent=project, dataFileHandleId=fhid)

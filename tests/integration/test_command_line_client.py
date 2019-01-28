@@ -14,8 +14,8 @@ from mock import patch
 from synapseclient.exceptions import *
 from synapseclient import *
 import synapseclient.__main__ as cmdline
-from tests import integration
-from tests.integration import schedule_for_cleanup
+import integration
+from integration import schedule_for_cleanup
 
 from io import StringIO
 
@@ -489,10 +489,10 @@ def test_command_get_recursive_and_query():
     project_entity = project
 
     # Create Folders in Project
-    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
                                                    parent=project_entity))
 
-    folder_entity2 = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+    folder_entity2 = syn.store(Folder(name=str(uuid.uuid4()),
                                                     parent=folder_entity))
 
     # Create and upload two files in sub-Folder

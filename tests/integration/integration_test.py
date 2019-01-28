@@ -13,8 +13,9 @@ from mock import patch
 
 from synapseclient import *
 from synapseclient.exceptions import *
-from tests import integration
-from tests.integration import schedule_for_cleanup
+from synapseclient.version_check import version_check
+import integration
+from integration import schedule_for_cleanup
 
 
 def setup(module):

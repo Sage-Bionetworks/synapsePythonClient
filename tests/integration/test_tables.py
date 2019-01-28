@@ -14,10 +14,11 @@ from mock import patch
 import pandas as pd
 import numpy as np
 
+from synapseclient.utils import id_of
 from synapseclient.exceptions import *
 from synapseclient import *
-from tests import integration
-from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+import integration
+from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):

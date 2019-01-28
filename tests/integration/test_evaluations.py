@@ -7,8 +7,8 @@ from nose.tools import assert_raises, assert_false, assert_is_not_none, assert_t
 
 from synapseclient.exceptions import *
 from synapseclient import *
-from tests import integration
-from tests.integration import schedule_for_cleanup
+import integration
+from integration import schedule_for_cleanup
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
 
 

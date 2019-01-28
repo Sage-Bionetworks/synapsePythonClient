@@ -12,8 +12,8 @@ from build.lib.synapseclient.utils import MB
 from synapseclient.exceptions import *
 from synapseclient import *
 from synapseclient.remote_file_storage_wrappers import SFTPWrapper
-from tests import integration
-from tests.integration import schedule_for_cleanup
+import integration
+from integration import schedule_for_cleanup
 
 SFTP_SERVER_PREFIX = "sftp://ec2-18-209-45-78.compute-1.amazonaws.com"
 SFTP_USER_HOME_PATH = "/home/sftpuser"
