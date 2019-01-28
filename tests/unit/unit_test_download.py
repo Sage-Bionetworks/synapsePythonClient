@@ -1,3 +1,4 @@
+import shutil
 import tempfile
 import os
 import hashlib
@@ -274,12 +275,12 @@ def test_download_end_early_retry():
 
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
-            patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
-            patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
-            patch('os.path.getsize', return_value=partial_content_break) as mocked_getsize, \
-            patch('utils.md5_for_file'), \
-            patch('shutil.move') as mocked_move:
+         patch.object(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
+         patch.object(client, 'open', new_callable=mock_open(), create=True) as mocked_open, \
+         patch.object(os.path, 'exists', side_effect=[False, True]) as mocked_exists, \
+         patch.object(os.path, 'getsize', return_value=partial_content_break) as mocked_getsize, \
+         patch.object(utils, 'md5_for_file'), \
+         patch.object(shutil, 'move') as mocked_move:
         # function under test
         syn._download_from_URL(url, destination)
 
@@ -316,11 +317,11 @@ def test_download_md5_mismatch__not_local_file():
 
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
-         patch(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
-            patch('synapseclient.client.open', new_callable=mock_open(), create=True) as mocked_open, \
-            patch('os.path.exists', side_effect=[False, True]) as mocked_exists, \
-            patch('shutil.move') as mocked_move, \
-            patch('os.remove') as mocked_remove:
+         patch.object(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
+         patch.object(client, 'open', new_callable=mock_open(), create=True) as mocked_open, \
+         patch.object(os.path, 'exists', side_effect=[False, True]) as mocked_exists, \
+         patch.object(shutil, 'move') as mocked_move, \
+         patch.object(os, 'remove') as mocked_remove:
         # function under test
         assert_raises(SynapseMd5MismatchError, syn._download_from_URL, url, destination,
                       expected_md5="fake md5 is fake")
