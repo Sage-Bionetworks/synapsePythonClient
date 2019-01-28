@@ -1,20 +1,21 @@
-import unit
 import filecmp
 import math
 import os
 import tempfile
 from nose.tools import assert_raises, assert_true, assert_greater_equal, assert_equals, assert_is_instance
+from multiprocessing import Value
+from multiprocessing.dummy import Pool
+from ctypes import c_bool
+from mock import patch, MagicMock
+import warnings
+
 from synapseclient.multipart_upload import find_parts_to_upload, count_completed_parts, calculate_part_size,\
     get_file_chunk, _upload_chunk, _multipart_upload
 from synapseclient.utils import MB, GB, make_bogus_binary_file, md5_for_file
 from synapseclient.exceptions import SynapseHTTPError
 from synapseclient import multipart_upload
 from synapseclient import pool_provider
-from multiprocessing import Value
-from multiprocessing.dummy import Pool
-from ctypes import c_bool
-from mock import patch, MagicMock
-import warnings
+import unit
 
 
 def setup(module):

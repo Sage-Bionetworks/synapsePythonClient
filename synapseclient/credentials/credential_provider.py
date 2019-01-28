@@ -1,11 +1,10 @@
 from abc import ABCMeta, abstractmethod
-from six import with_metaclass
 from .cred_data import SynapseCredentials
 from . import cached_sessions
 import deprecated.sphinx
 
 
-class SynapseCredentialsProvider(with_metaclass(ABCMeta)):
+class SynapseCredentialsProvider(metaclass=ABCMeta):
     """
     A credential provider is responsible for retrieving synapse authentication information (e.g. username/password or
     username/api key) from a source(e.g. login args, config file, cached credentials in keyring), and use them to return

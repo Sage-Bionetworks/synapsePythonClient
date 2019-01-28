@@ -1,27 +1,18 @@
-# -*- coding: utf-8 -*-
-# unit tests for python synapse client
-############################################################
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_is_not_none, assert_is_none
 import os
 import re
 import sys
 import inspect
-
-import synapseclient.utils as utils
-from synapseclient.activity import Activity
-from synapseclient.utils import _find_used
-from synapseclient.exceptions import _raise_for_status, SynapseMalformedEntityError, SynapseHTTPError
-from synapseclient.dict_object import DictObject
-
 from nose import SkipTest
 from mock import patch, mock_open
 import tempfile
 from shutil import rmtree
+
+from synapseclient import *
+from synapseclient.exceptions import _raise_for_status
+from synapseclient.utils import _find_used
+from synapseclient.exceptions import *
+from synapseclient.dict_object import DictObject
 
 
 def test_activity_creation_from_dict():

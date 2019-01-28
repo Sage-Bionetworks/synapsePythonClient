@@ -1,10 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from backports import csv
+import csv
 import io
 import filecmp
 import os
@@ -12,24 +6,19 @@ import random
 import tempfile
 import time
 import uuid
-import six
-from builtins import zip
 from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true, assert_is_not_none
 from pandas.util.testing import assert_frame_equal
 from datetime import datetime
 from mock import patch
 
-import synapseclient
-from synapseclient.exceptions import *
-from synapseclient import File, Folder, Schema, EntityViewSchema
-from synapseclient.utils import id_of
-from synapseclient.table import Column, RowSet, Row, as_table_columns, Table, PartialRowset, EntityViewType
-
-import integration
-from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
-
 import pandas as pd
 import numpy as np
+
+from synapseclient.utils import id_of
+from synapseclient.exceptions import *
+from synapseclient import *
+import integration
+from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
@@ -55,7 +44,7 @@ def test_create_and_update_file_view():
     schedule_for_cleanup(a_file)
 
     # Add new columns for the annotations on this file and get their IDs
-    my_added_cols = [syn.store(synapseclient.Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
+    my_added_cols = [syn.store(Column(name=k, columnType="STRING")) for k in file_annotations.keys()]
     my_added_cols_ids = [c['id'] for c in my_added_cols]
     view_default_ids = [c['id'] for c in syn._get_default_entity_view_columns(EntityViewType.FILE.value)]
     col_ids = my_added_cols_ids + view_default_ids
@@ -104,7 +93,7 @@ def test_create_and_update_file_view():
         dw.writeheader()
         dw.writerows(view_dict)
         temp_file.flush()
-    syn.store(synapseclient.Table(entity_view.id, temp_filename))
+    syn.store(Table(entity_view.id, temp_filename))
     new_view_dict = list(csv.DictReader(io.open(temp_filename, encoding="utf-8", newline='')))
     assert_equals(new_view_dict[0]['fileFormat'], 'PNG')
 
@@ -227,9 +216,7 @@ def test_tables_pandas():
     # simulate rowId-version rownames for comparison
     df.index = ['%s_0' % i for i in range(5)]
 
-    # for python3 we need to convert from numpy.bytes_ to str or the equivalence comparision fails
-    if six.PY3:
-        df['string_'] = df['string_'].transform(str)
+    df['string_'] = df['string_'].transform(str)
 
     # SYNPY-717
     df['datetime64'] = df['datetime64'].apply(lambda x: pd.Timestamp(x).tz_localize('UTC'))

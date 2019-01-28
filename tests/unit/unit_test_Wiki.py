@@ -1,7 +1,7 @@
 from nose.tools import assert_raises, assert_equals, raises
 from mock import patch, mock_open
-import synapseclient
-from synapseclient.wiki import Wiki
+
+from synapseclient import *
 
 
 def test_Wiki():
@@ -67,7 +67,7 @@ def test_Wiki__markdownFile_path_not_exist():
 
 
 def test_wiki_with_none_attachments():
-    syn = synapseclient.client.Synapse()
+    syn = Synapse()
     with patch.object(syn, 'restPOST') as mock_restPOST:
         w = Wiki(owner="syn1", markdown="markdown", attachments=None)
         syn.store(w)

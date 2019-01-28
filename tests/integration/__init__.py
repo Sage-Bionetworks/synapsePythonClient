@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Integration tests for the Synapse Client for Python
 
@@ -7,28 +6,18 @@ To run a single test suite: nosetests -vs tests/integration
 To run a single test set  : nosetests -vs tests/integration/integration_test_Entity.py
 To run a single test      : nosetests -vs tests/integration/integration_test_Entity.py:test_Entity
 """
-from __future__ import unicode_literals
-from __future__ import print_function
-from builtins import str
-
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
 
 import logging
 import uuid
 import os
 import sys
-import shutil 
-import six
+import shutil
 import tempfile
 
-from synapseclient import Entity, Project
-from synapseclient.logging_setup import SILENT_LOGGER_NAME
-import synapseclient
-import synapseclient.utils as utils
 
+from synapseclient import *
+from synapseclient import utils
+from synapseclient.logging_setup import SILENT_LOGGER_NAME
 
 QUERY_TIMEOUT_SEC = 25
 
@@ -36,7 +25,7 @@ QUERY_TIMEOUT_SEC = 25
 def setup_module(module):
     print("Python version:", sys.version)
 
-    syn = synapseclient.Synapse(debug=False, skip_checks=True)
+    syn = Synapse(debug=False, skip_checks=True)
     syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
 
     print("Testing against endpoints:")
@@ -82,7 +71,7 @@ def cleanup(items):
                     pass
                 else:
                     print("Error cleaning up entity: " + str(ex))
-        elif isinstance(item, six.string_types):
+        elif isinstance(item, str):
             if os.path.exists(item):
                 try:
                     if os.path.isdir(item):

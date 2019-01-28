@@ -55,16 +55,8 @@ Commands
 A few more commands (cat, create, update, associate)
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import input
-import six
-
 import argparse
 import os
-import collections
 import sys
 import synapseclient
 import synapseutils
@@ -132,7 +124,7 @@ def get(args, syn):
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
         # search by MD5
-        if isinstance(args.id, six.string_types) and os.path.isfile(args.id):
+        if isinstance(args.id, str) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))

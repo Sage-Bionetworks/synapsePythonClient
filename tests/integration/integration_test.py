@@ -1,35 +1,19 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import tempfile
 import os
 import filecmp
 import shutil
-import json
 import time
 import uuid
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+import configparser
 
 from datetime import datetime
-from nose.tools import assert_raises, assert_equals, assert_not_equal, assert_is_none, assert_true, assert_false, \
-    assert_not_in
-from nose.plugins.skip import SkipTest
+from nose.tools import assert_raises, assert_equals, assert_true, assert_false, assert_not_in
 from mock import patch
 
-import synapseclient
-import synapseclient.client as client
+from synapseclient import *
 from synapseclient.exceptions import *
-from synapseclient.activity import Activity
 from synapseclient.version_check import version_check
-from synapseclient.entity import Project, File, Folder
-from synapseclient.team import Team
-
 import integration
 from integration import schedule_for_cleanup
 
@@ -93,10 +77,10 @@ def test_login():
 
 def test_login__bad_credentials():
     # nonexistant username and password
-    assert_raises(SynapseAuthenticationError, synapseclient.login, email=str(uuid.uuid4()),
+    assert_raises(SynapseAuthenticationError, login, email=str(uuid.uuid4()),
                   password="In the end, it doens't even matter")
     # existing username and bad password
-    assert_raises(SynapseAuthenticationError, synapseclient.login, email=syn.username, password=str(uuid.uuid4()))
+    assert_raises(SynapseAuthenticationError, login, email=syn.username, password=str(uuid.uuid4()))
 
 
 def testCustomConfigFile():
@@ -105,7 +89,7 @@ def testCustomConfigFile():
         shutil.copyfile(client.CONFIG_FILE, configPath)
         schedule_for_cleanup(configPath)
 
-        syn2 = synapseclient.Synapse(configPath=configPath)
+        syn2 = Synapse(configPath=configPath)
         syn2.login()
     else:
         raise ValueError("Please supply a username and password in the configuration file.")

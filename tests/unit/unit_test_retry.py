@@ -1,8 +1,9 @@
 from nose.tools import assert_raises, assert_equals, assert_true
 from mock import MagicMock
-import unit
+
 from synapseclient.retry import _with_retry
 from synapseclient.exceptions import *
+import unit
 
 
 def setup(module):

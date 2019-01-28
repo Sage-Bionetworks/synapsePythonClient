@@ -9,10 +9,6 @@ Implements a cache on local disk for Synapse file entities and other objects wit
 `FileHandle <https://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html>`_.
 This is part of the internal implementation of the client and should not be accessed directly by users of the client.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import collections
 import datetime
@@ -21,7 +17,6 @@ import operator
 import os
 import re
 import shutil
-import six
 from math import floor
 from synapseclient.lock import Lock
 from synapseclient.exceptions import *
@@ -176,7 +171,7 @@ class Cache:
                     removed_entry_from_cache = False  # determines if cache_map needs to be rewritten to disk
 
                     # iterate a copy of cache_map to allow modifying original cache_map
-                    for cached_file_path, cached_time in six.iteritems(dict(cache_map)):
+                    for cached_file_path, cached_time in dict(cache_map).items():
                         if path == os.path.dirname(cached_file_path):
                             # compare_timestamps has an implicit check for whether the path exists
                             if compare_timestamps(_get_modified_time(cached_file_path), cached_time):

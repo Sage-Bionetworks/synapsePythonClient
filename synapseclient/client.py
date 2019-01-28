@@ -27,18 +27,7 @@ More information
 See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 
 """
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from builtins import input
-
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+import configparser
 
 import collections
 import os
@@ -47,20 +36,10 @@ import sys
 import re
 import time
 import hashlib
-import six
 
-try:
-    from urllib.parse import urlparse
-    from urllib.parse import urlunparse
-    from urllib.parse import quote
-    from urllib.parse import unquote
-    from urllib.request import urlretrieve
-except ImportError:
-    from urlparse import urlparse
-    from urlparse import urlunparse
-    from urllib import quote
-    from urllib import unquote
-    from urllib import urlretrieve
+from urllib.parse import urlparse
+from urllib.parse import quote
+from urllib.request import urlretrieve
 
 import webbrowser
 import shutil
@@ -531,9 +510,6 @@ class Synapse(object):
              {u'displayName': ... }]
 
         """
-        # In Python2, urllib.quote expects encoded byte-strings
-        if six.PY2 and isinstance(query_string, unicode) or isinstance(query_string, str):
-            query_string = query_string.encode('utf-8')
         uri = '/userGroupHeaders?prefix=%s' % quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
@@ -543,7 +519,7 @@ class Synapse(object):
         :param entity:    Either an Entity or a Synapse ID
         :param subpageId: (Optional) ID of one of the wiki's sub-pages
         """
-        if isinstance(entity, six.string_types) and os.path.isfile(entity):
+        if isinstance(entity, str) and os.path.isfile(entity):
             entity = self.get(entity, downloadFile=False)
         synId = id_of(entity)
         if subpageId is None:
@@ -612,12 +588,12 @@ class Synapse(object):
         """
 
         # If entity is a local file determine the corresponding synapse entity
-        if isinstance(entity, six.string_types) and os.path.isfile(entity):
+        if isinstance(entity, str) and os.path.isfile(entity):
             bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
 
-        elif isinstance(entity, six.string_types) and not utils.is_synapse_id(entity):
+        elif isinstance(entity, str) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
                                             ' or a valid entity id' % entity))
         # have not been saved entities
@@ -1139,7 +1115,7 @@ class Synapse(object):
 
         """
         # Handle all strings as the Entity ID for backward compatibility
-        if isinstance(obj, six.string_types):
+        if isinstance(obj, str):
             if version:
                 self.restDELETE(uri='/entity/%s/version/%s' % (id_of(obj), version))
             else:
@@ -1678,7 +1654,7 @@ class Synapse(object):
         if usedList is None:
             return None
         usedList = [self.get(target, limitSearch=limitSearch) if
-                    (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
+                    (os.path.isfile(target) if isinstance(target, str) else False) else target for
                     target in usedList]
         return usedList
 
@@ -2151,7 +2127,7 @@ class Synapse(object):
         try:
             int(id)
         except (TypeError, ValueError):
-            if isinstance(id, six.string_types):
+            if isinstance(id, str):
                 for team in self._findTeam(id):
                     if team.name == id:
                         id = team.id
@@ -2683,7 +2659,7 @@ class Synapse(object):
         elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
             for col in self.getTableColumns(x):
                 yield col
-        elif isinstance(x, six.string_types):
+        elif isinstance(x, str):
             uri = '/column?prefix=' + x
             for result in self._GET_paginated(uri, limit=limit, offset=offset):
                 yield Column(**result)
@@ -2980,7 +2956,7 @@ class Synapse(object):
             raise ValueError("Need to pass in either rowIdAndVersion or (rowId and versionNumber).")
 
         # get table ID, given a string, Table or Schema
-        if isinstance(table, six.string_types):
+        if isinstance(table, str):
             table_id = table
         elif isinstance(table, TableAbstractBaseClass):
             table_id = table.tableId
@@ -2990,7 +2966,7 @@ class Synapse(object):
             raise ValueError("Unrecognized table object \"%s\"." % table)
 
         # get column ID, given a column name, ID or Column object
-        if isinstance(column, six.string_types):
+        if isinstance(column, str):
             column = self._getColumnByName(table_id, column)
             if column is None:
                 raise SynapseError("Can't find column \"%s\"." % column)
@@ -3071,7 +3047,7 @@ class Synapse(object):
         # Rowset tableQuery result not allowed
         if isinstance(table, TableQueryResult):
             raise ValueError("downloadTableColumn doesn't work with rowsets. Please use default tableQuery settings.")
-        if isinstance(columns, six.string_types):
+        if isinstance(columns, str):
             columns = [columns]
         if not isinstance(columns, collections.Iterable):
             raise TypeError('Columns parameter requires a list of column names')

@@ -1,34 +1,23 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import str
-import six
 import logging
 import filecmp
 import os
+import parser
 import re
 import sys
 import uuid
-import json
 import time
 import tempfile
 from nose.tools import assert_raises, assert_equals, assert_true, assert_in
 import shutil
 from mock import patch
-import synapseclient
-import synapseclient.utils as utils
+
+from synapseclient.exceptions import *
+from synapseclient import *
 import synapseclient.__main__ as cmdline
-from synapseclient.evaluation import Evaluation
-
 import integration
-from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+from integration import schedule_for_cleanup
 
-if six.PY2:
-    from StringIO import StringIO
-else:
-    from io import StringIO
+from io import StringIO
 
 
 def setup_module(module):
@@ -149,7 +138,7 @@ def test_command_line_client():
     assert_true(filecmp.cmp(filename, downloaded_filename))
 
     # Move the file to new folder
-    folder = syn.store(synapseclient.Folder(parentId=project_id))
+    folder = syn.store(Folder(parentId=project_id))
     output = run('synapse',
                  'mv',
                  '--id',
@@ -500,10 +489,10 @@ def test_command_get_recursive_and_query():
     project_entity = project
 
     # Create Folders in Project
-    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
                                                    parent=project_entity))
 
-    folder_entity2 = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+    folder_entity2 = syn.store(Folder(name=str(uuid.uuid4()),
                                                     parent=folder_entity))
 
     # Create and upload two files in sub-Folder
@@ -514,7 +503,7 @@ def test_command_get_recursive_and_query():
         f = utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
-        file_entity = synapseclient.File(f, parent=folder_entity2)
+        file_entity = File(f, parent=folder_entity2)
         file_entity = syn.store(file_entity)
         file_entities.append(file_entity)
         schedule_for_cleanup(f)
@@ -523,7 +512,7 @@ def test_command_get_recursive_and_query():
     f = utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
-    file_entity = synapseclient.File(f, parent=folder_entity)
+    file_entity = File(f, parent=folder_entity)
     file_entity = syn.store(file_entity)
     file_entities.append(file_entity)
 
@@ -543,15 +532,14 @@ def test_command_get_recursive_and_query():
 
     # Test query get using a Table with an entity column
     # This should be replaced when Table File Views are implemented in the client
-    cols = [synapseclient.Column(name='id', columnType='ENTITYID')]
+    cols = [Column(name='id', columnType='ENTITYID')]
 
-    schema1 = syn.store(synapseclient.Schema(name='Foo Table', columns=cols, parent=project_entity))
+    schema1 = syn.store(Schema(name='Foo Table', columns=cols, parent=project_entity))
     schedule_for_cleanup(schema1.id)
 
     data1 = [[x.id] for x in file_entities]
 
-    syn.store(synapseclient.RowSet(schema=schema1,
-                                   rows=[synapseclient.Row(r) for r in data1]))
+    syn.store(RowSet(schema=schema1, rows=[Row(r) for r in data1]))
 
     time.sleep(3)  # get -q are eventually consistent
     # Test Table/View query get
@@ -573,11 +561,11 @@ def test_command_copy():
     """Tests the 'synapse cp' function"""
 
     # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
 
     # Create a Folder in Project
-    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()),
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()),
                                                    parent=project_entity))
     schedule_for_cleanup(folder_entity.id)
     # Create and upload a file in Folder
@@ -586,8 +574,8 @@ def test_command_copy():
     # Create, upload, and set annotations on a file in Folder
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
-    file_entity = syn.store(synapseclient.File(filename, parent=folder_entity))
-    externalURL_entity = syn.store(synapseclient.File(repo_url, name='rand', parent=folder_entity, synapseStore=False))
+    file_entity = syn.store(File(filename, parent=folder_entity))
+    externalURL_entity = syn.store(File(repo_url, name='rand', parent=folder_entity, synapseStore=False))
     syn.setAnnotations(file_entity, annots)
     syn.setAnnotations(externalURL_entity, annots)
     schedule_for_cleanup(file_entity.id)
@@ -631,16 +619,16 @@ def test_command_copy():
 
 def test_command_line_using_paths():
     # Create a Project
-    project_entity = syn.store(synapseclient.Project(name=str(uuid.uuid4())))
+    project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
 
     # Create a Folder in Project
-    folder_entity = syn.store(synapseclient.Folder(name=str(uuid.uuid4()), parent=project_entity))
+    folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
 
     # Create and upload a file in Folder
     filename = utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
-    file_entity = syn.store(synapseclient.File(filename, parent=folder_entity))
+    file_entity = syn.store(File(filename, parent=folder_entity))
 
     # Verify that we can use show with a filename
     output = run('synapse', '--skip-checks', 'show', filename)
@@ -649,7 +637,7 @@ def test_command_line_using_paths():
 
     # Verify that limitSearch works by making sure we get the file entity
     # that's inside the folder
-    file_entity2 = syn.store(synapseclient.File(filename, parent=project_entity))
+    file_entity2 = syn.store(File(filename, parent=project_entity))
     output = run('synapse', '--skip-checks', 'get',
                  '--limitSearch', folder_entity.id,
                  filename)
@@ -703,15 +691,15 @@ def test_command_line_using_paths():
 def test_table_query():
     """Test command line ability to do table query."""
 
-    cols = [synapseclient.Column(name='name', columnType='STRING', maximumSize=1000),
-            synapseclient.Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']),
-            synapseclient.Column(name='x', columnType='DOUBLE'),
-            synapseclient.Column(name='age', columnType='INTEGER'),
-            synapseclient.Column(name='cartoon', columnType='BOOLEAN')]
+    cols = [Column(name='name', columnType='STRING', maximumSize=1000),
+            Column(name='foo', columnType='STRING', enumValues=['foo', 'bar', 'bat']),
+            Column(name='x', columnType='DOUBLE'),
+            Column(name='age', columnType='INTEGER'),
+            Column(name='cartoon', columnType='BOOLEAN')]
 
     project_entity = project
 
-    schema1 = syn.store(synapseclient.Schema(name=str(uuid.uuid4()), columns=cols, parent=project_entity))
+    schema1 = syn.store(Schema(name=str(uuid.uuid4()), columns=cols, parent=project_entity))
     schedule_for_cleanup(schema1.id)
 
     data1 = [['Chris',  'bar', 11.23, 45, False],
@@ -719,8 +707,7 @@ def test_table_query():
              ['Jane',   'bat', 17.89,  6, False],
              ['Henry',  'bar', 10.12,  1, False]]
 
-    syn.store(synapseclient.RowSet(schema=schema1,
-                                   rows=[synapseclient.Row(r) for r in data1]))
+    syn.store(RowSet(schema=schema1, rows=[Row(r) for r in data1]))
 
     # Test query
     output = run('synapse', '--skip-checks', 'query',
@@ -739,7 +726,7 @@ def test_table_query():
 
 
 def test_login():
-    alt_syn = synapseclient.Synapse()
+    alt_syn = Synapse()
     username = "username"
     password = "password"
     with patch.object(alt_syn, "login") as mock_login, \
@@ -758,7 +745,7 @@ def test_configPath():
     """Test using a user-specified configPath for Synapse configuration file."""
 
     tmp_config_file = tempfile.NamedTemporaryFile(suffix='.synapseConfig', delete=False)
-    shutil.copyfile(synapseclient.client.CONFIG_FILE, tmp_config_file.name)
+    shutil.copyfile(client.CONFIG_FILE, tmp_config_file.name)
 
     # Create a File
     filename = utils.make_bogus_data_file()

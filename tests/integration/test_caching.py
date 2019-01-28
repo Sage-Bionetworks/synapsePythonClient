@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import os
 import traceback
 import logging
@@ -11,20 +5,14 @@ import uuid
 import time
 import random
 from threading import Lock
-import six
 
 from nose.tools import assert_equals
 
-if six.PY2:
-    import thread
-    from Queue import Queue
-else:
-    import _thread as thread
-    from queue import Queue
+import _thread as thread
+from queue import Queue
 
 from synapseclient.exceptions import *
-from synapseclient import Project, File
-
+from synapseclient import *
 import integration
 from integration import schedule_for_cleanup
 

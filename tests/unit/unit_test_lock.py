@@ -2,9 +2,9 @@ import random
 import time
 from threading import Thread
 from datetime import timedelta
-from synapseclient.lock import Lock
 from nose.tools import assert_true, assert_false, assert_less, assert_greater, assert_equals
 
+from synapseclient.lock import Lock
 
 def test_lock():
     user1_lock = Lock("foo", max_age=timedelta(seconds=5))

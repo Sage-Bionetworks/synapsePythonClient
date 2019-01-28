@@ -6,10 +6,7 @@ import base64
 import hmac
 import hashlib
 
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
+from urllib.parse import urlparse
 
 
 # TODO: inherit requests.AuthBase so that this object can be simply passed to requests library

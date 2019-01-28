@@ -1,33 +1,29 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import str
-
-from backports import csv
+import csv
+import shutil
 import io
 import math
 import os
-import sys
 import tempfile
-from builtins import zip
+from collections import OrderedDict
+
 from mock import MagicMock
 from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_in, assert_sequence_equal,\
     assert_true, assert_is_none, assert_is_instance, raises, assert_equals
-
 import pandas as pd
+from mock import patch
 
-import unit
-import synapseclient
-from synapseclient import Entity
-from synapseclient.exceptions import SynapseError
+from .unit_utils import StringIOContextManager
+
+from synapseclient import *
+from synapseclient.exceptions import *
 from synapseclient.entity import split_entity_namespaces
+import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
-    PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask
-from mock import patch
-from collections import OrderedDict
-from .unit_utils import StringIOContextManager
+    PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask, \
+    MAX_NUM_TABLE_COLUMNS
+import unit
+
 
 
 def setup(module):
@@ -438,7 +434,7 @@ def test_aggregate_query_result_to_data_frame():
 
 
 def test_waitForAsync():
-    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=True, skip_checks=True)
     syn.table_query_timeout = 0.05
     syn.table_query_max_sleep = 0.001
     syn.restPOST = MagicMock(return_value={"token": "1234567"})
@@ -452,7 +448,7 @@ def test_waitForAsync():
         "errorMessage": "Totally fubared error",
         "errorDetails": "Totally fubared error details"})
 
-    assert_raises(synapseclient.exceptions.SynapseTimeoutError, syn._waitForAsync, uri="foo/bar",
+    assert_raises(SynapseTimeoutError, syn._waitForAsync, uri="foo/bar",
                   request={"foo": "bar"})
 
 
@@ -502,7 +498,7 @@ def test_insert_dataframe_column_if_not_exist__existing_column_not_matching():
 
 
 def test_build_table_download_file_handle_list__repeated_file_handles():
-    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=True, skip_checks=True)
 
     # patch the cache so we don't look there in case FileHandle ids actually exist there
     patch.object(syn.cache, "get", return_value=None)
@@ -584,7 +580,7 @@ def test_entityViewSchema__add_scope():
 def test_Schema__max_column_check():
     table = Schema(name="someName", parent="idk")
     table.addColumns(Column(name="colNum%s" % i, columnType="STRING")
-                     for i in range(synapseclient.table.MAX_NUM_TABLE_COLUMNS + 1))
+                     for i in range(MAX_NUM_TABLE_COLUMNS + 1))
     assert_raises(ValueError, syn.store, table)
 
     
@@ -602,7 +598,7 @@ def test_EntityViewSchema__ignore_column_names_set_info_preserved():
 
 
 def test_EntityViewSchema__ignore_annotation_column_names():
-    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=True, skip_checks=True)
 
     scopeIds = ['123']
     entity_view = EntityViewSchema("someName", scopes=scopeIds, parent="syn123", ignoredAnnotationColumnNames={'long1'},
@@ -625,7 +621,7 @@ def test_EntityViewSchema__ignore_annotation_column_names():
 
 
 def test_EntityViewSchema__repeated_columnName_different_type():
-    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=True, skip_checks=True)
 
     scopeIds = ['123']
     entity_view = EntityViewSchema("someName", scopes=scopeIds, parent="syn123")
@@ -643,7 +639,7 @@ def test_EntityViewSchema__repeated_columnName_different_type():
 
 
 def test_EntityViewSchema__repeated_columnName_same_type():
-    syn = synapseclient.client.Synapse(debug=True, skip_checks=True)
+    syn = Synapse(debug=True, skip_checks=True)
 
     entity_view = EntityViewSchema("someName", parent="syn123")
 

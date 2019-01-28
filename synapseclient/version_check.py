@@ -15,11 +15,6 @@ Print release notes for installed version of client::
 .. automethod:: synapseclient.version_check.release_notes
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import str
 
 import json
 import pkg_resources
@@ -95,9 +90,6 @@ def check_for_updates():
 
     release_version_info = _get_version_info(_VERSION_URL)
     sys.stderr.write('latest release version:     %s\n' % release_version_info['latestVersion'])
-
-    dev_version_info = _get_version_info(_DEV_VERSION_URL)
-    sys.stderr.write('latest development version: %s\n' % dev_version_info['latestVersion'])
 
     if _version_tuple(synapseclient.__version__, levels=3) < _version_tuple(release_version_info['latestVersion'],
                                                                             levels=3):

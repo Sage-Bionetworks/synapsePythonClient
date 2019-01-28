@@ -1,14 +1,8 @@
-# coding=utf-8
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-import unit
 from nose.tools import assert_raises
 from mock import patch, call
 
 import synapseutils
+import unit
 
 
 def setup(module):

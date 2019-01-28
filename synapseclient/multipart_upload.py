@@ -10,11 +10,6 @@ the 10s of GB). End users should not need to call any of these functions directl
  http://docs.synapse.org/rest/index.html#org.sagebionetworks.file.controller.UploadController
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import str
 
 import hashlib
 import json
@@ -28,13 +23,6 @@ from ctypes import c_bool
 from multiprocessing import Value
 
 from . import pool_provider
-
-try:
-    from urllib.parse import urlparse
-    from urllib.parse import parse_qs
-except ImportError:
-    from urlparse import urlparse
-    from urlparse import parse_qs
 
 from . import exceptions
 from .utils import printTransferProgress, md5_for_file, MB

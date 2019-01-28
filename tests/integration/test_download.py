@@ -1,22 +1,16 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from nose.tools import assert_raises, assert_not_equal, assert_true, assert_equals
+
+from nose.tools import assert_raises, assert_not_equal, assert_true
 
 import filecmp
 import os
 import tempfile
 import shutil
+import time
 
 from synapseclient.exceptions import *
-from synapseclient import File
-
+from synapseclient import *
 import integration
 from integration import schedule_for_cleanup
-import json
-import time
 
 
 def setup(module):

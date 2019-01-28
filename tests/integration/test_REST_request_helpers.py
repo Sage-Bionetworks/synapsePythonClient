@@ -3,14 +3,11 @@ This file contains integration tests for methods in the :py:class:`Synapse` clas
 requests to the Synapse backend
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-import integration
 from nose.tools import assert_in, assert_dict_contains_subset, assert_equals
-from synapseclient import Column
+
+from synapseclient import *
+import integration
 
 
 def setup(module):

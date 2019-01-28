@@ -1,13 +1,4 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
+from urllib.parse import urlparse
 
 import filecmp
 import os
@@ -17,12 +8,10 @@ from nose.tools import assert_is_not_none, assert_equals
 import tempfile
 import shutil
 
-from synapseclient.exceptions import *
-import synapseclient.utils as utils
 from synapseclient.utils import MB
-from synapseclient import File
+from synapseclient.exceptions import *
+from synapseclient import *
 from synapseclient.remote_file_storage_wrappers import SFTPWrapper
-
 import integration
 from integration import schedule_for_cleanup
 

@@ -1,14 +1,10 @@
-# -*- coding: utf-8 -*-
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import collections
-from synapseclient.entity import Entity, Project, Folder, File, Link, DockerRepository, split_entity_namespaces,\
-    is_container, is_versionable
-from synapseclient.exceptions import *
 from nose.tools import assert_raises, assert_true, assert_false, assert_equals, raises, assert_in, assert_is_instance
 from mock import patch
-import synapseclient
+
+from synapseclient import *
+from synapseclient.entity import split_entity_namespaces, is_container, is_versionable
+from synapseclient.exceptions import *
 
 
 def test_Entity():
@@ -343,6 +339,6 @@ def test_create_Link_to_entity_with_the_same_parent():
         'id': 'syn456',
         'versionUrl': '/repo/v1/entity/syn456/version/1'}
     link = Link(targetId=file, parent=parent)
-    syn = synapseclient.Synapse()
+    syn = Synapse()
     with patch.object(syn, "_getEntity", return_value=file_bundle):
         assert_raises(ValueError, syn.store, link)

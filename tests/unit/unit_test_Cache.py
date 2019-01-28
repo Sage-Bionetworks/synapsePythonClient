@@ -1,9 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-import six
-
 import re
 import os
 import tempfile
@@ -48,7 +42,7 @@ def test_cache_concurrent_access():
     for file_handle_id in file_handle_ids:
         cache_map = my_cache._read_cache_map(my_cache.get_cache_dir(file_handle_id))
         process_ids = set()
-        for path, iso_time in six.iteritems(cache_map):
+        for path, iso_time in cache_map.items():
             m = re.match("file_handle_%d_process_(\d+).junk" % file_handle_id, os.path.basename(path))
             if m:
                 process_ids.add(int(m.group(1)))

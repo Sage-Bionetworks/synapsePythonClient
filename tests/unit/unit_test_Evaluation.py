@@ -1,6 +1,6 @@
 from nose.tools import assert_raises, assert_equals
 
-from synapseclient.evaluation import Evaluation, Submission
+from synapseclient import *
 
 
 def test_Evaluation():

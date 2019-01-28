@@ -1,27 +1,14 @@
-# coding=utf-8
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import os
-
-import unit
 from mock import patch, create_autospec, Mock, call
 from nose.tools import assert_dict_equal, assert_raises, assert_equals, assert_list_equal
-from builtins import str
-
-import synapseutils
-from synapseclient import Project, Schema, File, Folder
-from synapseclient.exceptions import SynapseHTTPError
-
-try:
-    from StringIO import StringIO
-except ImportError:
-    from io import StringIO
-
 import pandas as pd
 import pandas.util.testing as pdt
+from io import StringIO
+
+import synapseutils
+from synapseclient import *
+from synapseclient.exceptions import SynapseHTTPError
+import unit
 
 
 def setup(module):

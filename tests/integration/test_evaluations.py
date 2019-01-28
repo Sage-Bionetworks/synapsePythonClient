@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import tempfile
 import time
 import re
@@ -12,13 +6,10 @@ import random
 from nose.tools import assert_raises, assert_false, assert_is_not_none, assert_true, assert_equals, assert_in
 
 from synapseclient.exceptions import *
-from synapseclient.evaluation import Evaluation
-from synapseclient.entity import File
-from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
-from synapseclient.team import Team
-
+from synapseclient import *
 import integration
 from integration import schedule_for_cleanup
+from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
 
 
 def setup(module):

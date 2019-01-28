@@ -1,9 +1,8 @@
-import json
 from mock import patch, mock_open, create_autospec, call
 from nose.tools import assert_equals
 
 import synapseclient.credentials.cached_sessions as cached_sessions
-from synapseclient import Synapse
+from synapseclient import *
 
 
 @patch.object(cached_sessions, "keyring", autospec=True)

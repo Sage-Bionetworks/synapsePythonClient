@@ -4,13 +4,6 @@ language: python
 matrix:
   include:
     - os: linux
-      python: 2.7.14
-      env:
-      # workaround for the dbus-python package installation not being able to find python shared object files for compilation when using virtualenv.
-      # source: https://github.com/willprice/python-omxplayer-wrapper/pull/101/files
-      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
-      - PY_ENABLE_SHARD=0
-    - os: linux
       python: 3.5.3
       env:
       - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
@@ -32,9 +25,6 @@ matrix:
 
     - os: osx
       language: generic
-      env: PY_VERSION=2.7.14
-    - os: osx
-      language: generic
       env: PY_VERSION=3.5.3
     - os: osx
       language: generic
@@ -44,7 +34,7 @@ matrix:
       env: PY_VERSION=3.7.1
 
 addons:
-  #This is used for SFTP integration tests
+  # This is used for SFTP integration tests
   ssh_known_hosts: ec2-18-209-45-78.compute-1.amazonaws.com
 
 before_install:
