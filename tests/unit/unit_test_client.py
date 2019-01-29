@@ -1,5 +1,4 @@
 import os
-import json
 import tempfile
 import base64
 from mock import patch, call, create_autospec
@@ -8,15 +7,15 @@ from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, a
     assert_not_equals, assert_true
 
 from synapseclient import *
-from synapseclient.exceptions import *
-from synapseclient import upload_functions
+from synapseclient.core.models.exceptions import *
+from synapseclient.core.upload import upload_functions
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
-from synapseclient.constants import concrete_types
-from synapseclient.credentials import UserLoginArgs
-from synapseclient.credentials.cred_data import SynapseCredentials
-from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
-from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of
+from synapseclient.core.constants import concrete_types
+from synapseclient.core.credentials import UserLoginArgs
+from synapseclient.core.credentials.cred_data import SynapseCredentials
+from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
+from synapseclient.core.models.dict_object import DictObject
+from synapseclient.core.utils import id_of
 import unit
 
 

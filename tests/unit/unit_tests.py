@@ -9,10 +9,10 @@ import tempfile
 from shutil import rmtree
 
 from synapseclient import *
-from synapseclient.exceptions import _raise_for_status
-from synapseclient.utils import _find_used
-from synapseclient.exceptions import *
-from synapseclient.dict_object import DictObject
+from synapseclient.core.models.exceptions import _raise_for_status
+from synapseclient.core.utils import _find_used
+from synapseclient.core.models.exceptions import *
+from synapseclient.core.models.dict_object import DictObject
 
 
 def test_activity_creation_from_dict():
@@ -209,7 +209,7 @@ def test_extract_filename():
 
 
 def test_version_check():
-    from synapseclient.version_check import _version_tuple
+    from synapseclient.core.version_check import _version_tuple
     assert_equals(_version_tuple('0.5.1.dev200', levels=2), ('0', '5'))
     assert_equals(_version_tuple('0.5.1.dev200', levels=3), ('0', '5', '1'))
     assert_equals(_version_tuple('1.6', levels=3), ('1', '6', '0'))

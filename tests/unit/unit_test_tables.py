@@ -12,10 +12,10 @@ from nose.tools import assert_raises, assert_not_equals, assert_false, assert_no
 import pandas as pd
 from mock import patch
 
-from .unit_utils import StringIOContextManager
+from tests.unit.synapseclient.core.unit_utils import StringIOContextManager
 
 from synapseclient import *
-from synapseclient.exceptions import *
+from synapseclient.core.models.exceptions import *
 from synapseclient.entity import split_entity_namespaces
 import synapseclient.table
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \

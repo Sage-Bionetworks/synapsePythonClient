@@ -298,11 +298,11 @@ from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 
-from .utils import id_of, from_unix_epoch_time
-from .exceptions import *
-from .dict_object import DictObject
+from synapseclient.core.utils import id_of, from_unix_epoch_time
+from synapseclient.core.models.exceptions import *
+from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, Versionable, _entity_type_to_class
-from .constants import concrete_types
+from synapseclient.core.constants import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 

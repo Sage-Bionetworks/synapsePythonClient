@@ -85,8 +85,8 @@ Wiki methods
 import os
 import json
 
-from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of
+from synapseclient.core.models.dict_object import DictObject
+from synapseclient.core.utils import id_of
 
 
 class Wiki(DictObject):
