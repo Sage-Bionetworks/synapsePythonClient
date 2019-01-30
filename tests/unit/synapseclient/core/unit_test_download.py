@@ -10,7 +10,7 @@ from synapseclient import *
 from synapseclient.core.models.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, SynapseFileNotFoundError
 import synapseclient.core.constants.concrete_types as concrete_types
 from synapseclient.core import utils
-import unit
+from tests import unit
 
 
 def setup(module):

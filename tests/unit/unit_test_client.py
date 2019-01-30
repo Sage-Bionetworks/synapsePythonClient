@@ -8,7 +8,7 @@ from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, a
 
 from synapseclient import *
 from synapseclient.core.models.exceptions import *
-from synapseclient.core.upload import upload_functions
+from synapseclient.core.upload import upload_functions, multipart_upload
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs
@@ -16,7 +16,7 @@ from synapseclient.core.credentials.cred_data import SynapseCredentials
 from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of
-import unit
+from tests import unit
 
 
 def setup(module):
@@ -449,8 +449,8 @@ class TestPrivateGetContributor:
 
 
 def test_send_message():
-    with patch("synapseclient.multipart_upload._multipart_upload") as up_mock,\
-            patch("synapseclient.client.Synapse.restPOST") as post_mock:
+    with patch.object(multipart_upload, "_multipart_upload") as up_mock,\
+            patch.object(Synapse, "restPOST") as post_mock:
             up_mock.return_value = {
                 'startedOn': '2016-01-22T00:00:00.000Z',
                 'state': 'COMPLETED',

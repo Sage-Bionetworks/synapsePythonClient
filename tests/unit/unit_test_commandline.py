@@ -7,7 +7,7 @@ from mock import patch
 
 import synapseutils
 import synapseclient.__main__ as cmdline
-import unit
+from tests import unit
 
 
 def setup(module):
@@ -15,7 +15,7 @@ def setup(module):
 
 
 def test_command_sync():
-    """Test the sync fuction.
+    """Test the sync function.
 
     Since this function only passes argparse arguments for the sync subcommand
     straight to `synapseutils.sync.syncToSynapse`, the only tests here are for

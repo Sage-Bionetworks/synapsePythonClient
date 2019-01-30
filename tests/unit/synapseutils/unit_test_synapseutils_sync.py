@@ -8,7 +8,7 @@ from io import StringIO
 import synapseutils
 from synapseclient import *
 from synapseclient.core.models.exceptions import SynapseHTTPError
-import unit
+from tests import unit
 
 
 def setup(module):

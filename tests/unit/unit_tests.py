@@ -412,7 +412,7 @@ def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocke
 
     try:
         # call the method and make sure correct values are being used
-        with patch('synapseclient.utils.open', mock_open(), create=True) as mocked_open:
+        with patch.object(utils, 'open', mock_open(), create=True) as mocked_open:
             actual_filepath = utils._extract_zip_file_to_directory(mocked_zipfile, file_dir + file_base_name,
                                                                    target_dir)
 

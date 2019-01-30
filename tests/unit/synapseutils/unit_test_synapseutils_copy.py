@@ -2,7 +2,7 @@ from nose.tools import assert_raises
 from mock import patch, call
 
 import synapseutils
-import unit
+from tests import unit
 
 
 def setup(module):

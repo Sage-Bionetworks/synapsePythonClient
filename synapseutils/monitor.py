@@ -3,7 +3,7 @@ import functools
 import traceback
 import sys
 from multiprocessing import Value, Lock
-from synapseclient.utils import printTransferProgress
+from synapseclient.core.utils import printTransferProgress
 
 
 def notifyMe(syn, messageSubject='', retries=0):

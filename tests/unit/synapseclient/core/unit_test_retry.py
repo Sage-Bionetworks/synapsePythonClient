@@ -3,7 +3,7 @@ from mock import MagicMock
 
 from synapseclient.core.retry import _with_retry
 from synapseclient.core.models.exceptions import *
-import unit
+from tests import unit
 
 
 def setup(module):
