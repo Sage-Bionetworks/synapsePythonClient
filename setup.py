@@ -26,7 +26,6 @@ setup(
     # basic
     name='synapseclient',
     version=__version__,
-    platforms=['any'],
     packages=find_packages(),
 
     # requirements
