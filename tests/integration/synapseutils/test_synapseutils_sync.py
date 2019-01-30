@@ -8,8 +8,8 @@ import pandas as pd
 
 from synapseclient.core.models.exceptions import *
 from synapseclient import *
-import integration
-from integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+from tests import integration
+from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 import synapseutils
 
 

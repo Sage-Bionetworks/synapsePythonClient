@@ -6,8 +6,8 @@ import re
 
 from synapseclient.core.models.exceptions import *
 from synapseclient import *
-import integration
-from integration import schedule_for_cleanup
+from tests import integration
+from tests.integration import schedule_for_cleanup
 import synapseutils
 
 

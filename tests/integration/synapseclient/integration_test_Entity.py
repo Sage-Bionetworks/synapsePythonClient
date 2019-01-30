@@ -11,8 +11,8 @@ from synapseclient.core.upload.upload_functions import create_external_file_hand
 
 from synapseclient import *
 from synapseclient.core.models.exceptions import *
-import integration
-from integration import schedule_for_cleanup
+from tests import integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):

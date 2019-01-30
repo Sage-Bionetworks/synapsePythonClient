@@ -5,8 +5,8 @@ from nose.tools import assert_raises, assert_equal, assert_in, assert_equals, as
 from synapseclient.core.models.exceptions import *
 from synapseclient import *
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
-import integration
-from integration import schedule_for_cleanup
+from tests import integration
+from tests.integration import schedule_for_cleanup
 
 
 def setup(module):

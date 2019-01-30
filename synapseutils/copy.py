@@ -33,7 +33,7 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, 
     if (len(fileHandles) != len(associateObjectTypes) or len(fileHandles) != len(associateObjectIds)
             or len(fileHandles) != len(contentTypes) or len(fileHandles) != len(fileNames)):
         raise ValueError("Length of fileHandles, associateObjectTypes, and associateObjectIds must be the same")
-    fileHandles = [synapseclient.utils.id_of(handle) for handle in fileHandles]
+    fileHandles = [synapseclient.core.utils.id_of(handle) for handle in fileHandles]
     copyFileHandleRequest = {"copyRequests": []}
     for filehandleId, contentType, fileName, associateObjectType, associateObjectId \
             in zip(fileHandles, contentTypes, fileNames, associateObjectTypes, associateObjectIds):
@@ -303,7 +303,7 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
         raise ValueError('setProvenance must be one of None, existing, or traceback')
     # Grab entity bundle
     bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, bitFlags=0x800 | 0x1)
-    fileHandle = synapseclient.utils.find_data_file_handle(bundle)
+    fileHandle = synapseclient.core.utils.find_data_file_handle(bundle)
     createdBy = fileHandle['createdBy']
     # CHECK: If the user created the file, copy the file by using fileHandleId else copy the fileHandle
     if profile.ownerId == createdBy:

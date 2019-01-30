@@ -2,6 +2,8 @@
 ############################################################
 import sys
 from os.path import expanduser, exists
+from setuptools import setup, find_packages
+import json
 
 # check Python version, before we do anything
 if sys.version_info[:2] not in [(3, 5), (3, 6), (3, 7)]:
@@ -9,9 +11,7 @@ if sys.version_info[:2] not in [(3, 5), (3, 6), (3, 7)]:
     sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
     sys.exit(-1)
 
-
-from setuptools import setup, find_packages
-import json
+__version__=json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
 
 description = """A client for Synapse, a collaborative compute space 
 that allows scientists to share and analyze data together.""".replace("\n", " ")
@@ -19,10 +19,9 @@ that allows scientists to share and analyze data together.""".replace("\n", " ")
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-__version__=json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
-
 # make sure not to overwrite existing .synapseConfig with our example one
 data_files = [(expanduser('~'), ['synapseclient/.synapseConfig'])] if not exists(expanduser('~/.synapseConfig')) else []
+
 setup(name='synapseclient',
     version=__version__,
     description=description,
