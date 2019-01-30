@@ -22,36 +22,52 @@ with open("README.md", "r") as fh:
 # make sure not to overwrite existing .synapseConfig with our example one
 data_files = [(expanduser('~'), ['synapseclient/.synapseConfig'])] if not exists(expanduser('~/.synapseConfig')) else []
 
-setup(name='synapseclient',
+setup(
+    # basic
+    name='synapseclient',
     version=__version__,
-    description=description,
-    long_description=long_description,
-    long_description_content_type="text/markdown",
-    url='http://synapse.sagebase.org/',
-    download_url="https://github.com/Sage-Bionetworks/synapsePythonClient",
-    author='The Synapse Engineering Team',
-    author_email='platform@sagebase.org',
-    license='Apache',
+    platforms=['any'],
     packages=find_packages(),
+
+    # requirements
+    python_requires='>=3.5*',
     install_requires=[
         'requests>=1.2',
         'keyring==12.0.2',
         'deprecated==1.2.4',
     ],
-    extras_require = {
+    extras_require={
         'pandas': ["pandas==0.23.0"],
         'pysftp': ["pysftp>=0.2.8"],
         'boto3' : ["boto3"],
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
     },
-    test_suite='nose.collector',
-    tests_require=['nose', 'mock'],
-    entry_points = {
+
+    # extra
+    entry_points={
         'console_scripts': ['synapse = synapseclient.__main__:main']
     },
-    zip_safe=False,
     package_data={'synapseclient': ['synapsePythonClient', '.synapseConfig']},
     data_files=data_files,
+    zip_safe=False,
+
+    # test
+    test_suite='nose.collector',
+    tests_require=['nose', 'mock'],
+
+    # metadata to display on PyPI
+    description=description,
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    url='http://synapse.sagebase.org/',
+    author='The Synapse Engineering Team',
+    author_email='platform@sagebase.org',
+    license='Apache',
+    project_urls={
+        "Documentation": "https://python-docs.synapse.org",
+        "Source Code": "https://github.com/Sage-Bionetworks/synapsePythonClient",
+        "Bug Tracker": "https://github.com/Sage-Bionetworks/synapsePythonClient/issues",
+    },
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Programming Language :: Python',
@@ -64,5 +80,4 @@ setup(name='synapseclient',
         'Topic :: Software Development :: Libraries',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Bio-Informatics'],
-    platforms=['any'],
 )
