@@ -5,7 +5,7 @@ Teams
 """
 
 
-from .dict_object import DictObject
+from synapseclient.core.models.dict_object import DictObject
 
 
 class UserProfile(DictObject):

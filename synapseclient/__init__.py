@@ -277,11 +277,10 @@ from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_colum
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-from .version_check import check_for_updates
-from .version_check import release_notes
+from synapseclient.core.version_check import check_for_updates
+from synapseclient.core.version_check import release_notes
 
 import json
-from . import custom_json
 import pkg_resources
 __version__ = json.loads(pkg_resources.resource_string('synapseclient',
                                                        'synapsePythonClient').decode())['latestVersion']
@@ -289,5 +288,6 @@ __version__ = json.loads(pkg_resources.resource_string('synapseclient',
 import requests
 USER_AGENT = {'User-Agent': 'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
-from . import logging_setup as __logingsetup
-from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
+from synapseclient.core import logging_setup as __logingsetup
+from synapseclient.core.models import custom_json
+from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME

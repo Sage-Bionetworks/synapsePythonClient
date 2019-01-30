@@ -52,7 +52,7 @@ See also:
 
 import collections
 import warnings
-from .utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
+from synapseclient.core.utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
 
 
 def is_synapse_annotations(annotations):

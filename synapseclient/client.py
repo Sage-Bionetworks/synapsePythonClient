@@ -54,28 +54,30 @@ import logging
 import deprecated.sphinx
 
 import synapseclient
-from . import cache
-from . import exceptions
-from .constants import concrete_types, config_file_constants
-from .credentials import cached_sessions, UserLoginArgs, get_default_credential_chain
-from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
-from .exceptions import *
-from .version_check import version_check
-from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle,\
+from synapseclient.core import cache
+from synapseclient.core.models import exceptions
+from synapseclient.core.constants import config_file_constants
+from synapseclient.core.constants import concrete_types
+from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
+from synapseclient.core.credentials import cached_sessions
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
+from synapseclient.core.models.exceptions import *
+from synapseclient.core.version_check import version_check
+from synapseclient.core.utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle,\
     _extract_zip_file_to_directory, _is_integer, require_param
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
-from .dict_object import DictObject
+from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
-from .retry import _with_retry
-from .multipart_upload import multipart_upload, multipart_upload_string
-from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from .upload_functions import upload_file_handle, upload_synapse_s3
-from .dozer import doze
+from synapseclient.core.retry import _with_retry
+from synapseclient.core.upload.multipart_upload import multipart_upload, multipart_upload_string
+from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
+from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
+from synapseclient.core.dozer import doze
 
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint': 'https://repo-prod.prod.sagebase.org/repo/v1',

@@ -142,9 +142,9 @@ import collections
 import itertools
 from io import StringIO
 
-from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of, itersubclasses
-from synapseclient.exceptions import *
+from synapseclient.core.models.dict_object import DictObject
+from synapseclient.core.utils import id_of, itersubclasses
+from synapseclient.core.models.exceptions import *
 import os
 import inspect
 

@@ -6,7 +6,7 @@ import logging
 import sys
 
 from synapseclient import *
-from synapseclient.logging_setup import SILENT_LOGGER_NAME
+from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 
 
 def setup_module(module):

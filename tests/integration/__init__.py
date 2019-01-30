@@ -16,8 +16,8 @@ import tempfile
 
 
 from synapseclient import *
-from synapseclient import utils
-from synapseclient.logging_setup import SILENT_LOGGER_NAME
+from synapseclient.core import utils
+from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 
 QUERY_TIMEOUT_SEC = 25
 
