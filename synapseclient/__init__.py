@@ -304,3 +304,6 @@ __all__ = [
 import requests
 USER_AGENT = {'User-Agent': 'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
+# patch json
+from synapseclient.core.models import custom_json
+
