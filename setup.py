@@ -1,9 +1,8 @@
 # Installation script for Synapse Client for Python
 ############################################################
 import sys
-from os.path import expanduser, exists
-from setuptools import setup, find_packages
-import json
+import os
+import setuptools
 
 # check Python version, before we do anything
 if sys.version_info[:2] not in [(3, 5), (3, 6), (3, 7)]:
@@ -11,7 +10,11 @@ if sys.version_info[:2] not in [(3, 5), (3, 6), (3, 7)]:
     sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
     sys.exit(-1)
 
-__version__=json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
+# figure out the version
+about = {}
+here = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(here, "synapseclient", "__version__.py")) as f:
+    exec(f.read(), about)
 
 description = """A client for Synapse, a collaborative compute space 
 that allows scientists to share and analyze data together.""".replace("\n", " ")
@@ -20,16 +23,16 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 # make sure not to overwrite existing .synapseConfig with our example one
-data_files = [(expanduser('~'), ['synapseclient/.synapseConfig'])] if not exists(expanduser('~/.synapseConfig')) else []
+data_files = [(os.path.expanduser('~'), ['synapseclient/.synapseConfig'])] if not os.path.exists(os.path.expanduser('~/.synapseConfig')) else []
 
-setup(
+setuptools.setup(
     # basic
     name='synapseclient',
-    version=__version__,
-    packages=find_packages(),
+    version=about["__version__"],
+    packages=setuptools.find_packages(exclude=["tests", "tests.*"]),
 
     # requirements
-    python_requires='>=3.5*',
+    python_requires='>=3.5.*',
     install_requires=[
         'requests>=1.2',
         'keyring==12.0.2',
@@ -42,10 +45,12 @@ setup(
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
     },
 
-    # extra
+    # command line
     entry_points={
         'console_scripts': ['synapse = synapseclient.__main__:main']
     },
+
+    # data
     package_data={'synapseclient': ['synapsePythonClient', '.synapseConfig']},
     data_files=data_files,
     zip_safe=False,
