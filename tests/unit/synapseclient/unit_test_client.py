@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import base64
@@ -5,6 +6,7 @@ from mock import patch, call, create_autospec
 
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
+from synapseclient import client
 
 from synapseclient import *
 from synapseclient.core.models.exceptions import *

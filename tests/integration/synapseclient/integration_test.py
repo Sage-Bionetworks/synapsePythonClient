@@ -12,6 +12,7 @@ from nose.tools import assert_raises, assert_equals, assert_true, assert_false, 
 from mock import patch
 
 from synapseclient import *
+from synapseclient.client import CONFIG_FILE
 from synapseclient.core.models.exceptions import *
 from synapseclient.core.version_check import version_check
 from tests import integration
@@ -26,7 +27,7 @@ def setup(module):
 def test_login():
     try:
         config = configparser.RawConfigParser()
-        config.read(client.CONFIG_FILE)
+        config.read(CONFIG_FILE)
         username = config.get('authentication', 'username')
         password = config.get('authentication', 'password')
         sessionToken = syn._getSessionToken(username, password)
@@ -84,9 +85,9 @@ def test_login__bad_credentials():
 
 
 def testCustomConfigFile():
-    if os.path.isfile(client.CONFIG_FILE):
+    if os.path.isfile(CONFIG_FILE):
         configPath = './CONFIGFILE'
-        shutil.copyfile(client.CONFIG_FILE, configPath)
+        shutil.copyfile(CONFIG_FILE, configPath)
         schedule_for_cleanup(configPath)
 
         syn2 = Synapse(configPath=configPath)

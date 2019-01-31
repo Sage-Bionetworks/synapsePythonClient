@@ -1,3 +1,4 @@
+import json
 import logging
 import filecmp
 import os
@@ -11,6 +12,7 @@ from nose.tools import assert_raises, assert_equals, assert_true, assert_in
 import shutil
 from mock import patch
 
+from synapseclient.client import CONFIG_FILE
 from synapseclient.core.models.exceptions import *
 from synapseclient import *
 import synapseclient.__main__ as cmdline
@@ -745,7 +747,7 @@ def test_configPath():
     """Test using a user-specified configPath for Synapse configuration file."""
 
     tmp_config_file = tempfile.NamedTemporaryFile(suffix='.synapseConfig', delete=False)
-    shutil.copyfile(client.CONFIG_FILE, tmp_config_file.name)
+    shutil.copyfile(CONFIG_FILE, tmp_config_file.name)
 
     # Create a File
     filename = utils.make_bogus_data_file()

@@ -34,7 +34,7 @@ setuptools.setup(
     # requirements
     python_requires='>=3.5.*',
     install_requires=[
-        'requests>=1.2',
+        'requests>=2.21.0',
         'keyring==12.0.2',
         'deprecated==1.2.4',
     ],

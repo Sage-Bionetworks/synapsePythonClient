@@ -2586,7 +2586,12 @@ class Synapse(object):
         if endpoint is None:
             endpoint = self.repoEndpoint
 
-        async_job_id = self.restPOST(uri+'/start', body=json.dumps(request), endpoint=endpoint)
+        if isinstance(request, str):
+            body = request
+        else:
+            body = json.dumps(request)
+
+        async_job_id = self.restPOST(uri+'/start', body=body, endpoint=endpoint)
 
         # http://docs.synapse.org/rest/org/sagebionetworks/repo/model/asynch/AsynchronousJobStatus.html
         sleep = self.table_query_sleep
