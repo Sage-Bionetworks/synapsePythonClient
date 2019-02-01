@@ -82,14 +82,15 @@ Wiki methods
 
 """
 
+# external imports
 import os
 import json
 
-from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import id_of
+# synapseclient imports
+import synapseclient
 
 
-class Wiki(DictObject):
+class Wiki(synapseclient.core.models.DictObject):
     """
     Represents a wiki page in Synapse with content specified in markdown.
 
@@ -124,7 +125,7 @@ class Wiki(DictObject):
             del kwargs['fileHandles']
 
         super(Wiki, self).__init__(kwargs)
-        self.ownerId = id_of(self.owner)
+        self.ownerId = synapseclient.core.utils.id_of(self.owner)
         del self['owner']
 
     def json(self):
@@ -171,7 +172,7 @@ class Wiki(DictObject):
         self['markdown'] = markdown
 
 
-class WikiAttachment(DictObject):
+class WikiAttachment(synapseclient.core.models.DictObject):
     """
     Represents a wiki page attachment
 

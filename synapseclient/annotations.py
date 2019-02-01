@@ -50,9 +50,12 @@ See also:
 
 """
 
+# external imports
 import collections
 import warnings
-from synapseclient.core.utils import to_unix_epoch_time, from_unix_epoch_time, _is_date, _to_list
+
+# synapseclient imports
+import synapseclient
 
 
 def is_synapse_annotations(annotations):
@@ -78,9 +81,9 @@ def to_synapse_annotations(annotations):
             synapseAnnos[key] = value
         elif key in ['stringAnnotations', 'longAnnotations', 'doubleAnnotations', 'dateAnnotations']\
                 and isinstance(value, collections.Mapping):
-            synapseAnnos.setdefault(key, {}).update({k: _to_list(v) for k, v in value.items()})
+            synapseAnnos.setdefault(key, {}).update({k: synapseclient.core.utils._to_list(v) for k, v in value.items()})
         else:
-            elements = _to_list(value)
+            elements = synapseclient.core.utils._to_list(value)
             if all((isinstance(elem, str) for elem in elements)):
                 synapseAnnos.setdefault('stringAnnotations', {})[key] = elements
             elif all((isinstance(elem, bool) for elem in elements)):
@@ -89,8 +92,9 @@ def to_synapse_annotations(annotations):
                 synapseAnnos.setdefault('longAnnotations', {})[key] = elements
             elif all((isinstance(elem, float) for elem in elements)):
                 synapseAnnos.setdefault('doubleAnnotations', {})[key] = elements
-            elif all((_is_date(elem) for elem in elements)):
-                synapseAnnos.setdefault('dateAnnotations', {})[key] = [to_unix_epoch_time(elem) for elem in elements]
+            elif all((synapseclient.core.utils._is_date(elem) for elem in elements)):
+                synapseAnnos.setdefault('dateAnnotations', {})[key] = [
+                    synapseclient.core.utils.to_unix_epoch_time(elem) for elem in elements]
             # TODO: support blob annotations
             # elif all((isinstance(elem, ???) for elem in elements)):
             #     synapseAnnos.setdefault('blobAnnotations', {})[key] = [???(elem) for elem in elements]
@@ -123,7 +127,8 @@ def from_synapse_annotations(annotations):
         if key in Annotations.system_properties:
             setattr(annos, key, value)
         elif key == 'dateAnnotations':
-            process_user_defined_annotations(value, annos, lambda x: from_unix_epoch_time(float(x)))
+            process_user_defined_annotations(value, annos, lambda x:
+            synapseclient.core.utils.from_unix_epoch_time(float(x)))
         elif key in ['stringAnnotations', 'longAnnotations']:
             process_user_defined_annotations(value, annos, lambda x: x)
         elif key == 'doubleAnnotations':
@@ -190,9 +195,10 @@ def to_submission_status_annotations(annotations, is_private=True):
         elif isinstance(value, str):
             synapseAnnos.setdefault('stringAnnos', [])\
                 .append({'key': key, 'value': value, 'isPrivate': is_private})
-        elif _is_date(value):
+        elif synapseclient.core.utils._is_date(value):
             synapseAnnos.setdefault('longAnnos', [])\
-                .append({'key': key, 'value': to_unix_epoch_time(value), 'isPrivate': is_private})
+                .append({'key': key, 'value': synapseclient.core.utils.to_unix_epoch_time(value),
+                         'isPrivate': is_private})
         else:
             synapseAnnos.setdefault('stringAnnos', [])\
                 .append({'key': key, 'value': str(value), 'isPrivate': is_private})

@@ -55,19 +55,20 @@ Commands
 A few more commands (cat, create, update, associate)
 
 """
+
+# external imports
 import argparse
 import os
 import sys
-import synapseclient
-import synapseutils
-from . import Activity
 import signal
 import json
-from synapseclient.core.models.exceptions import *
-from .wiki import Wiki
 import getpass
 import csv
 import re
+
+# synapseclient imports
+import synapseclient
+import synapseutils
 
 
 def query(args, syn):
@@ -165,13 +166,13 @@ def store(args, syn):
         entity = syn.get(args.id, downloadFile=False)
     else:
         entity = {'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type,
-                  'name': utils.guess_file_name(args.file) if args.file and not args.name else None,
+                  'name': synapseclient.core.utils.guess_file_name(args.file) if args.file and not args.name else None,
                   'parentId': None}
     # Overide setting for parameters included in args
     entity['name'] = args.name if args.name is not None else entity['name']
     entity['parentId'] = args.parentid if args.parentid is not None else entity['parentId']
     entity['path'] = args.file if args.file is not None else None
-    entity['synapseStore'] = not utils.is_url(args.file)
+    entity['synapseStore'] = not synapseclient.core.utils.is_url(args.file)
 
     used = syn._convertProvenanceList(args.used, args.limitSearch)
     executed = syn._convertProvenanceList(args.executed, args.limitSearch)
@@ -194,7 +195,7 @@ def _create_wiki_description_if_necessary(args, entity, syn):
     store the description in a Wiki
     """
     if args.description or args.descriptionFile:
-        syn.store(Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
+        syn.store(synapseclient.Wiki(markdown=args.description, markdownFile=args.descriptionFile, owner=entity))
 
 
 def _descriptionFile_arg_check(args):
@@ -225,7 +226,7 @@ def associate(args, syn):
     for fp in files:
         try:
             ent = syn.get(fp, limitSearch=args.limitSearch)
-        except SynapseFileNotFoundError:
+        except synapseclient.core.models.SynapseFileNotFoundError:
             print('WARNING: The file %s is not available in Synapse' % fp)
         else:
             print('%s.%i\t%s' % (ent.id, ent.versionNumber, fp))
@@ -272,7 +273,7 @@ def show(args, syn):
     try:
         prov = syn.getProvenance(ent)
         print(prov)
-    except SynapseHTTPError:
+    except synapseclient.core.models.SynapseHTTPError:
         print('  No Activity specified.\n')
 
 
@@ -305,7 +306,7 @@ def onweb(args, syn):
 def setProvenance(args, syn):
     """Set provenance information on a synapse entity."""
 
-    activity = Activity(name=args.name, description=args.description)
+    activity = synapseclient.Activity(name=args.name, description=args.description)
 
     if args.used:
         for item in syn._convertProvenanceList(args.used, args.limitSearch):
@@ -829,13 +830,13 @@ def perform_main(args, syn):
             if args.debug:
                 raise
             else:
-                sys.stderr.write(utils._synapse_error_msg(ex))
+                sys.stderr.write(synapseclient.core.utils._synapse_error_msg(ex))
 
 
 def login_with_prompt(syn, user, password, rememberMe=False, silent=False, forced=False):
     try:
         syn.login(user, password, silent=silent, rememberMe=rememberMe, forced=forced)
-    except SynapseNoCredentialsError:
+    except synapseclient.core.models.SynapseNoCredentialsError:
         # if there were no credentials in the cache nor provided, prompt the user and try again
         while not user:
             user = input("Synapse username: ")

@@ -17,8 +17,8 @@ def setup(module):
 
 def test_wikiAttachment():
     # Upload a file to be attached to a Wiki
-    filename = utils.make_bogus_data_file()
-    attachname = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
+    attachname = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     schedule_for_cleanup(attachname)
     fileHandle = upload_synapse_s3(syn, filename)

@@ -36,7 +36,7 @@ def test_copy():
     annos = {'test': ['hello_world']}
     prov = Activity(name="test", used=repo_url)
     # Create, upload, and set annotations/provenance on a file in Folder
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     file_entity = syn.store(File(filename, parent=folder_entity))
     externalURL_entity = syn.store(File(repo_url, name='rand', parent=folder_entity, synapseStore=False))
@@ -197,8 +197,8 @@ class TestCopyWiki:
     def setup(self):
         # Create a Project
         self.project_entity = syn.store(Project(name=str(uuid.uuid4())))
-        filename = utils.make_bogus_data_file()
-        attachname = utils.make_bogus_data_file()
+        filename = synapseclient.core.utils.make_bogus_data_file()
+        attachname = synapseclient.core.utils.make_bogus_data_file()
         file_entity = syn.store(File(filename, parent=self.project_entity))
 
         schedule_for_cleanup(self.project_entity.id)
@@ -313,8 +313,8 @@ class TestCopyWiki:
 def test_copyFileHandleAndchangeFileMetadata():
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
-    filename = utils.make_bogus_data_file()
-    attachname = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
+    attachname = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     schedule_for_cleanup(attachname)
     file_entity = syn.store(File(filename, parent=project_entity))
@@ -361,7 +361,7 @@ def test_copyFileHandles__copying_cached_file_handles():
 
     # upload temp files to synapse
     for i in range(num_files):
-        file_path = utils.make_bogus_data_file()
+        file_path = synapseclient.core.utils.make_bogus_data_file()
         schedule_for_cleanup(file_path)
         file_entities.append(syn.store(File(file_path, name=str(uuid.uuid1()), parent=project)))
 

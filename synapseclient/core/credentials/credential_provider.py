@@ -1,16 +1,18 @@
-from abc import ABCMeta, abstractmethod
-from .cred_data import SynapseCredentials
-from . import cached_sessions
+# external imports
+import abc
 import deprecated.sphinx
 
+# synapseclient imports
+import synapseclient
 
-class SynapseCredentialsProvider(metaclass=ABCMeta):
+
+class SynapseCredentialsProvider(metaclass=abc.ABCMeta):
     """
     A credential provider is responsible for retrieving synapse authentication information (e.g. username/password or
     username/api key) from a source(e.g. login args, config file, cached credentials in keyring), and use them to return
     a ``SynapseCredentials` instance.
     """
-    @abstractmethod
+    @abc.abstractmethod
     def _get_auth_info(self, syn, user_login_args):
         """
         Subclasses must implement this to decide how to obtain username, password, and api_key.
@@ -38,9 +40,9 @@ class SynapseCredentialsProvider(metaclass=ABCMeta):
         if username is not None:
             if password is not None:
                 retrieved_session_token = syn._getSessionToken(email=username, password=password)
-                return SynapseCredentials(username, syn._getAPIKey(retrieved_session_token))
+                return synapseclient.core.credentials.SynapseCredentials(username, syn._getAPIKey(retrieved_session_token))
             elif api_key is not None:
-                return SynapseCredentials(username, api_key)
+                return synapseclient.core.credentials.SynapseCredentials(username, api_key)
         return None
 
 
@@ -85,8 +87,8 @@ class CachedCredentialsProvider(SynapseCredentialsProvider):
     """
     def _get_auth_info(self, syn, user_login_args):
         if not user_login_args.skip_cache:
-            username = user_login_args.username or cached_sessions.get_most_recent_user()
-            return username, None, cached_sessions.get_api_key(username)
+            username = user_login_args.username or synapseclient.core.credentials.cached_sessions.get_most_recent_user()
+            return username, None, synapseclient.core.credentials.cached_sessions.get_api_key(username)
         return None, None, None
 
 

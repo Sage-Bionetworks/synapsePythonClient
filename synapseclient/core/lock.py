@@ -1,14 +1,16 @@
+# external imports
 import errno
 import os
 import shutil
 import sys
 import time
-from datetime import timedelta
-from synapseclient.core.models.exceptions import *
-from synapseclient.core.dozer import doze
+import datetime
 
-LOCK_DEFAULT_MAX_AGE = timedelta(seconds=10)
-DEFAULT_BLOCKING_TIMEOUT = timedelta(seconds=70)
+# synapseclient imports
+import synapseclient
+
+LOCK_DEFAULT_MAX_AGE = datetime.timedelta(seconds=10)
+DEFAULT_BLOCKING_TIMEOUT = datetime.timedelta(seconds=70)
 CACHE_UNLOCK_WAIT_TIME = 0.5
 
 
@@ -74,9 +76,9 @@ class Lock(object):
             if lock_acquired:
                 break
             else:
-                doze(CACHE_UNLOCK_WAIT_TIME)
+                synapseclient.core.dozer.doze(CACHE_UNLOCK_WAIT_TIME)
         if not lock_acquired:
-            raise SynapseFileCacheError("Could not obtain a lock on the file cache within timeout: %s  "
+            raise synapseclient.core.models.SynapseFileCacheError("Could not obtain a lock on the file cache within timeout: %s  "
                                         "Please try again later" % str(timeout))
 
     def release(self):

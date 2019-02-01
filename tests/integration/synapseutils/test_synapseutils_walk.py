@@ -17,7 +17,7 @@ def setup(module):
 
 def test_walk():
     walked = []
-    firstfile = utils.make_bogus_data_file()
+    firstfile = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(firstfile)
     project_entity = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(project_entity.id)
@@ -34,11 +34,11 @@ def test_walk():
 
     nested_folder = syn.store(Folder(name=str(uuid.uuid4()), parent=folder_entity))
     schedule_for_cleanup(nested_folder.id)
-    secondfile = utils.make_bogus_data_file()
+    secondfile = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(secondfile)
     second_file = syn.store(File(secondfile, parent=nested_folder))
     schedule_for_cleanup(second_file.id)
-    thirdfile = utils.make_bogus_data_file()
+    thirdfile = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(thirdfile)
     third_file = syn.store(File(thirdfile, parent=second_folder))
     schedule_for_cleanup(third_file.id)

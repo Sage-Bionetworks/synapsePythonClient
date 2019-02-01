@@ -4,11 +4,10 @@ Teams
 *****
 """
 
+import synapseclient
 
-from synapseclient.core.models.dict_object import DictObject
 
-
-class UserProfile(DictObject):
+class UserProfile(synapseclient.core.models.DictObject):
     """
     Information about a Synapse user.  In practice the constructor is not called directly by the client.
     
@@ -35,7 +34,7 @@ class UserProfile(DictObject):
         super(UserProfile, self).__init__(kwargs)
 
 
-class UserGroupHeader(DictObject):
+class UserGroupHeader(synapseclient.core.models.DictObject):
     """
     Select metadata about a Synapse principal.  In practice the constructor is not called directly by the client.
     
@@ -50,7 +49,7 @@ class UserGroupHeader(DictObject):
         super(UserGroupHeader, self).__init__(kwargs)
 
 
-class Team(DictObject):
+class Team(synapseclient.core.models.DictObject):
     """
     Represents a `Synapse Team <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/Team.html>`_.
     User definable fields are:
@@ -83,7 +82,7 @@ class Team(DictObject):
         return '/team/acl'
 
 
-class TeamMember(DictObject):
+class TeamMember(synapseclient.core.models.DictObject):
     """
     Contains information about a user's membership in a Team.  In practice the constructor is not called directly by
      the client.

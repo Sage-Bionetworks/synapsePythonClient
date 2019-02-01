@@ -120,7 +120,7 @@ def thread_keep_storing_one_File():
     """Makes one file and stores it over and over again."""
     
     # Make a local file to continuously store
-    path = utils.make_bogus_data_file()
+    path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     myPrecious = File(path, parent=syn.test_parent, description='This bogus file is MINE', mwa="hahahah")
     
@@ -156,7 +156,7 @@ def thread_get_and_update_file_from_Project():
         entity = syn.get(id)
         
         # Replace the file and re-store
-        path = utils.make_bogus_data_file()
+        path = synapseclient.core.utils.make_bogus_data_file()
         schedule_for_cleanup(path)
         entity.path = path
         entity = store_catch_412_HTTPError(entity)

@@ -10,7 +10,7 @@ from synapseclient import client
 
 from synapseclient import *
 from synapseclient.core.models.exceptions import *
-from synapseclient.core.upload import upload_functions, multipart_upload
+from synapseclient.core.upload import upload_functions, multipart_upload_file
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.credentials import UserLoginArgs
@@ -451,7 +451,7 @@ class TestPrivateGetContributor:
 
 
 def test_send_message():
-    with patch.object(multipart_upload, "_multipart_upload") as up_mock,\
+    with patch.object(multipart_upload_file, "_multipart_upload") as up_mock,\
             patch.object(Synapse, "restPOST") as post_mock:
             up_mock.return_value = {
                 'startedOn': '2016-01-22T00:00:00.000Z',

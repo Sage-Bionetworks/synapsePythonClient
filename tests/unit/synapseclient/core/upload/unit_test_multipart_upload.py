@@ -13,7 +13,7 @@ from synapseclient.core.upload.multipart_upload import find_parts_to_upload, cou
     get_file_chunk, _upload_chunk, _multipart_upload
 from synapseclient.core.utils import MB, GB, make_bogus_binary_file, md5_for_file
 from synapseclient.core.models.exceptions import SynapseHTTPError
-from synapseclient.core.upload import multipart_upload
+from synapseclient.core.upload import multipart_upload_file
 from synapseclient.core import pool_provider
 from tests import unit
 
@@ -96,7 +96,7 @@ def test_upload_chunk__expired_url():
     expired = Value(c_bool, False)
     mocked_get_chunk_function = MagicMock(side_effect=[1, 2, 3, 4])
 
-    with patch.object(multipart_upload, "_put_chunk",
+    with patch.object(multipart_upload_file, "_put_chunk",
                       side_effect=SynapseHTTPError("useless message",
                                                    response=MagicMock(status_code=403))) as mocked_put_chunk, \
          patch.object(warnings, "warn") as mocked_warn:

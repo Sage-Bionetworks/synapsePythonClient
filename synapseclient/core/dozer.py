@@ -5,6 +5,8 @@ Created on Sep 21, 2017
 
 sleep while checking registered _listeners
 """
+
+# external imports
 import time
 
 _listeners = []

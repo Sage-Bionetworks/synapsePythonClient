@@ -1,17 +1,15 @@
-from urllib.parse import urlparse
-
 import filecmp
+import urllib
 import os
 import traceback
-import uuid 
-from nose.tools import assert_is_not_none, assert_equals
+import uuid
 import tempfile
 import shutil
+from nose.tools import assert_is_not_none, assert_equals
 
-from synapseclient.core.utils import MB
-from synapseclient.core.models.exceptions import *
 from synapseclient import *
-from synapseclient.core.remote_file_storage_wrappers import SFTPWrapper
+import synapseclient.core.utils
+from synapseclient.core.utils import MB
 from tests import integration
 from tests.integration import schedule_for_cleanup
 
@@ -46,12 +44,12 @@ def teardown(module):
 
 def test_synStore_sftpIntegration():
     """Creates a File Entity on an sftp server and add the external url. """
-    filepath = utils.make_bogus_binary_file(1 * MB - 777771)
+    filepath = synapseclient.core.utils.make_bogus_binary_file(1 * MB - 777771)
     try:
         file = syn.store(File(filepath, parent=project))
         file2 = syn.get(file)
         assert_equals(file.externalURL, file2.externalURL)
-        assert_equals(urlparse(file2.externalURL).scheme, 'sftp')
+        assert_equals(urllib.parse.urlparse(file2.externalURL).scheme, 'sftp')
 
         tmpdir = tempfile.mkdtemp()
         schedule_for_cleanup(tmpdir)
@@ -71,11 +69,12 @@ def test_synStore_sftpIntegration():
 def test_synGet_sftpIntegration():
     # Create file by uploading directly to sftp and creating entity from URL
     serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_synGet_sftpIntegration/' + str(uuid.uuid1())
-    filepath = utils.make_bogus_binary_file(1 * MB - 777771)
+    filepath = synapseclient.core.utils.make_bogus_binary_file(1 * MB - 777771)
 
     username, password = syn._getUserCredentials(SFTP_SERVER_PREFIX)
 
-    url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
+    url = synapseclient.core.remote_file_storage_wrappers.SFTPWrapper.upload_file(
+        filepath, url=serverURL, username=username, password=password)
     file = syn.store(File(path=url, parent=project, synapseStore=False))
 
     junk = syn.get(file, downloadLocation=os.getcwd(), downloadFile=True)
@@ -85,23 +84,27 @@ def test_synGet_sftpIntegration():
 def test_utils_sftp_upload_and_download():
     """Tries to upload a file to an sftp file """
     serverURL = SFTP_SERVER_PREFIX + SFTP_USER_HOME_PATH + '/test_utils_sftp_upload_and_download/' + str(uuid.uuid1())
-    filepath = utils.make_bogus_binary_file(1 * MB - 777771)
+    filepath = synapseclient.core.utils.make_bogus_binary_file(1 * MB - 777771)
 
     tempdir = tempfile.mkdtemp()
 
     username, password = syn._getUserCredentials(SFTP_SERVER_PREFIX)
 
     try:
-        url = SFTPWrapper.upload_file(filepath, url=serverURL, username=username, password=password)
+        url = synapseclient.core.remote_file_storage_wrappers.SFTPWrapper.upload_file(
+            filepath, url=serverURL, username=username, password=password)
 
         # Get with a specified localpath
-        junk = SFTPWrapper.download_file(url, tempdir, username=username, password=password)
+        junk = synapseclient.core.remote_file_storage_wrappers.SFTPWrapper.download_file(
+            url, tempdir, username=username, password=password)
         filecmp.cmp(filepath, junk)
         # Get without specifying path
-        junk2 = SFTPWrapper.download_file(url, username=username, password=password)
+        junk2 = synapseclient.core.remote_file_storage_wrappers.SFTPWrapper.download_file(
+            url, username=username, password=password)
         filecmp.cmp(filepath, junk2)
         # Get with a specified localpath as file
-        junk3 = SFTPWrapper.download_file(url, os.path.join(tempdir, 'bar.dat'), username=username, password=password)
+        junk3 = synapseclient.core.remote_file_storage_wrappers.SFTPWrapper.download_file(
+            url, os.path.join(tempdir, 'bar.dat'), username=username, password=password)
         filecmp.cmp(filepath, junk3)
     finally:
         try:

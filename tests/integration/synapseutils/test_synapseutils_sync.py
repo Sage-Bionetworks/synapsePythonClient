@@ -22,8 +22,8 @@ def setup(module):
     module.folder = syn.store(Folder(name=str(uuid.uuid4()), parent=module.project))
 
     # Create testfiles for upload
-    module.f1 = utils.make_bogus_data_file(n=10)
-    module.f2 = utils.make_bogus_data_file(n=10)
+    module.f1 = synapseclient.core.utils.make_bogus_data_file(n=10)
+    module.f2 = synapseclient.core.utils.make_bogus_data_file(n=10)
     f3 = 'https://www.synapse.org'
 
     schedule_for_cleanup(module.f1)

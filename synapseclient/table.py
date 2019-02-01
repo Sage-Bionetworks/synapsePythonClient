@@ -286,6 +286,8 @@ See also:
  - :py:meth:`synapseclient.Synapse.store`
  - :py:meth:`synapseclient.Synapse.delete`
 """
+
+# external imports
 import csv
 import io
 import os
@@ -294,15 +296,12 @@ import sys
 import tempfile
 import copy
 import itertools
-from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
+import collections
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 
-from synapseclient.core.utils import id_of, from_unix_epoch_time
-from synapseclient.core.models.exceptions import *
-from synapseclient.core.models.dict_object import DictObject
-from .entity import Entity, Versionable, _entity_type_to_class
-from synapseclient.core.constants import concrete_types
+# synapseclient imports
+import synapseclient
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 
@@ -509,7 +508,7 @@ def cast_values(values, headers):
         elif columnType == 'BOOLEAN':
             result.append(to_boolean(field))
         elif columnType == 'DATE':
-            result.append(from_unix_epoch_time(field))
+            result.append(synapseclient.core.utils.from_unix_epoch_time(field))
         else:
             raise ValueError("Unknown column type: %s" % columnType)
 
@@ -598,14 +597,14 @@ def _delete_rows(syn, schema, row_id_vers_list):
         os.remove(delete_row_csv_filepath)
 
 
-class SchemaBase(Entity, Versionable, metaclass=ABCMeta):
+class SchemaBase(synapseclient.Entity, synapseclient.entity.Versionable, metaclass=ABCMeta):
     """
     This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both.
     You can not create an object of this type.
     """
 
-    _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
-    _local_keys = Entity._local_keys + ['columns_to_store']
+    _property_keys = synapseclient.Entity._property_keys + synapseclient.entity.Versionable._property_keys + ['columnIds']
+    _local_keys = synapseclient.Entity._local_keys + ['columns_to_store']
 
     @property
     @abstractmethod  # forces subclasses to define _synapse_entity_type
@@ -629,7 +628,7 @@ class SchemaBase(Entity, Versionable, metaclass=ABCMeta):
         :param column: a column object or its ID
         """
         if isinstance(column, str) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.append(id_of(column))
+            self.properties.columnIds.append(synapseclient.core.utils.id_of(column))
         elif isinstance(column, Column):
             if not self.__dict__.get('columns_to_store', None):
                 self.__dict__['columns_to_store'] = []
@@ -649,7 +648,7 @@ class SchemaBase(Entity, Versionable, metaclass=ABCMeta):
         :param column: a column object or its ID
         """
         if isinstance(column, str) or isinstance(column, int) or hasattr(column, 'id'):
-            self.properties.columnIds.remove(id_of(column))
+            self.properties.columnIds.remove(synapseclient.core.utils.id_of(column))
         elif isinstance(column, Column) and self.columns_to_store:
             self.columns_to_store.remove(column)
         else:
@@ -781,10 +780,10 @@ class EntityViewSchema(SchemaBase):
         """
         if isinstance(entities, list):
             # add ids to a temp list so that we don't partially modify scopeIds on an exception in id_of()
-            temp_list = [id_of(entity) for entity in entities]
+            temp_list = [synapseclient.core.utils.id_of(entity) for entity in entities]
             self.scopeIds.extend(temp_list)
         else:
-            self.scopeIds.append(id_of(entities))
+            self.scopeIds.append(synapseclient.core.utils.id_of(entities))
 
     def _before_synapse_store(self, syn):
         # get the default EntityView columns from Synapse and add them to the columns list
@@ -847,11 +846,11 @@ class EntityViewSchema(SchemaBase):
 
 
 # add Schema to the map of synapse entity types to their Python representations
-_entity_type_to_class[Schema._synapse_entity_type] = Schema
-_entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
+synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
+synapseclient.entity._entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 
-class SelectColumn(DictObject):
+class SelectColumn(synapseclient.core.models.DictObject):
     """
     Defines a column to be used in a table :py:class:`synapseclient.table.Schema`.
 
@@ -884,7 +883,7 @@ class SelectColumn(DictObject):
         return cls(column.get('id', None), column.get('columnType', None), column.get('name', None))
 
 
-class Column(DictObject):
+class Column(synapseclient.core.models.DictObject):
     """
     Defines a column to be used in a table :py:class:`synapseclient.table.Schema`
     :py:class:`synapseclient.table.EntityViewSchema`.
@@ -913,18 +912,18 @@ class Column(DictObject):
 
     def __init__(self, **kwargs):
         super(Column, self).__init__(kwargs)
-        self['concreteType'] = concrete_types.COLUMN_MODEL
+        self['concreteType'] = synapseclient.core.constants.COLUMN_MODEL
 
     def postURI(self):
         return '/column'
 
 
-class AppendableRowset(DictObject, metaclass=ABCMeta):
+class AppendableRowset(synapseclient.core.models.DictObject, metaclass=ABCMeta):
     """Abstract Base Class for :py:class:`Rowset` and :py:class:`PartialRowset`"""
     @abstractmethod
     def __init__(self, schema, **kwargs):
         if ('tableId' not in kwargs) and schema:
-            kwargs['tableId'] = id_of(schema)
+            kwargs['tableId'] = synapseclient.core.utils.id_of(schema)
 
         if not kwargs.get('tableId', None):
             raise ValueError("Table schema ID must be defined to create a %s" % type(self).__name__)
@@ -937,7 +936,7 @@ class AppendableRowset(DictObject, metaclass=ABCMeta):
         .. AppendableRowSetRequest:
          http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/AppendableRowSetRequest.html
         """
-        append_rowset_request = {'concreteType': concrete_types.APPENDABLE_ROWSET_REQUEST,
+        append_rowset_request = {'concreteType': synapseclient.core.constants.APPENDABLE_ROWSET_REQUEST,
                                  'toAppend': self,
                                  'entityId': self.tableId}
 
@@ -984,7 +983,7 @@ class PartialRowset(AppendableRowset):
         :param originalQueryResult:
         :return: a PartialRowSet that can be syn.store()-ed to apply the changes
         """
-        if not isinstance(mapping, Mapping):
+        if not isinstance(mapping, collections.Mapping):
             raise ValueError("mapping must be a supported Mapping type such as 'dict'")
 
         try:
@@ -1007,7 +1006,7 @@ class PartialRowset(AppendableRowset):
 
     def __init__(self, schema, rows):
         super(PartialRowset, self).__init__(schema)
-        self.concreteType = concrete_types.PARTIAL_ROW_SET
+        self.concreteType = synapseclient.core.constants.PARTIAL_ROW_SET
 
         if isinstance(rows, PartialRow):
             self.rows = [rows]
@@ -1077,7 +1076,7 @@ class RowSet(AppendableRowset):
         _delete_rows(syn, self.tableId, row_id_vers_generator)
 
 
-class Row(DictObject):
+class Row(synapseclient.core.models.DictObject):
     """
     A `row <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/Row.html>`_ in a Table.
 
@@ -1100,7 +1099,7 @@ class Row(DictObject):
         self.update(kwargs)
 
 
-class PartialRow(DictObject):
+class PartialRow(synapseclient.core.models.DictObject):
     """This is a lower-level class for use in :py:class::`PartialRowSet` to update individual cells within a table.
 
     It is recommended you use :py:classmethod::`PartialRowSet.from_mapping`to construct partial change sets to a table.
@@ -1138,7 +1137,7 @@ class PartialRow(DictObject):
 
     def __init__(self, values, rowId, etag=None, nameToColumnId=None):
         super(PartialRow, self).__init__()
-        if not isinstance(values, Mapping):
+        if not isinstance(values, collections.Mapping):
             raise ValueError("values must be a Mapping")
 
         rowId = int(rowId)
@@ -1249,12 +1248,12 @@ def Table(schema, values, **kwargs):
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))
 
 
-class TableAbstractBaseClass(Iterable, Sized):
+class TableAbstractBaseClass(collections.Iterable, collections.Sized):
     """
     Abstract base class for Tables based on different data containers.
     """
 
-    RowMetadataTuple = namedtuple('RowMetadataTuple', ['row_id', 'row_version', 'row_etag'])
+    RowMetadataTuple = collections.namedtuple('RowMetadataTuple', ['row_id', 'row_version', 'row_etag'])
 
     def __init__(self, schema, headers=None, etag=None):
         if isinstance(schema, Schema):
@@ -1331,7 +1330,7 @@ class RowSetTable(TableAbstractBaseClass):
         else:
             rownames = None
 
-        series = OrderedDict()
+        series = collections.OrderedDict()
         for i, header in enumerate(self.rowset["headers"]):
             series[header.name] = pd.Series(name=header.name,
                                             data=[row['values'][i] for row in self.rowset['rows']],
@@ -1401,8 +1400,9 @@ class TableQueryResult(TableAbstractBaseClass):
             etag=self.rowset.get('etag', None))
 
     def _synapse_store(self, syn):
-        raise SynapseError("A TableQueryResult is a read only object and can't be stored in Synapse. Convert to a"
-                           " DataFrame or RowSet instead.")
+        raise synapseclient.core.models.SynapseError(
+            "A TableQueryResult is a read only object and can't be stored in Synapse. "
+            "Convert to a DataFrame or RowSet instead.")
 
     def asDataFrame(self, rowIdAndVersionInIndex=True):
         """
@@ -1430,7 +1430,7 @@ class TableQueryResult(TableAbstractBaseClass):
         offset = 0
         rownames = construct_rownames(self.rowset, offset)
         offset += len(self.rowset['rows'])
-        series = OrderedDict()
+        series = collections.OrderedDict()
 
         if not rowIdAndVersionInIndex:
             # Since we use an OrderedDict this must happen before we construct the other columns
@@ -1667,11 +1667,12 @@ class CsvFileTable(TableAbstractBaseClass):
         # if the column already exists verify the column data is same as what we parsed
         if col_name in dataframe.columns:
             if dataframe[col_name].tolist() != insert_column_data:
-                raise SynapseError(("A column named '{0}' already exists and does not match the '{0}' values present in"
-                                    " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
-                                    " column for your data because it is necessary for version tracking in Synapse's"
-                                    " tables")
-                                   .format(col_name))
+                raise synapseclient.core.models.SynapseError(
+                    ("A column named '{0}' already exists and does not match the '{0}' values present in"
+                    " the DataFrame's row names. Please refain from using or modifying '{0}' as a"
+                    " column for your data because it is necessary for version tracking in Synapse's"
+                    " tables")
+                   .format(col_name))
         else:
             dataframe.insert(insert_index, col_name, insert_column_data)
 

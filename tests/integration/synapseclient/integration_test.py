@@ -99,7 +99,7 @@ def testCustomConfigFile():
 def test_entity_version():
     # Make an Entity and make sure the version is one
     entity = File(parent=project['id'])
-    entity['path'] = utils.make_bogus_data_file()
+    entity['path'] = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(entity['path'])
     entity = syn.createEntity(entity)
     
@@ -144,7 +144,7 @@ def test_entity_version():
 
 def test_md5_query():
     # Add the same Entity several times
-    path = utils.make_bogus_data_file()
+    path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     repeated = File(path, parent=project['id'], description='Same data over and over again')
     
@@ -175,7 +175,7 @@ def test_uploadFile_given_dictionary():
     assert_equals(entity.foo[0], 334455)
 
     # Update via a dictionary
-    path = utils.make_bogus_data_file()
+    path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     rareCase = {}
     rareCase.update(entity.annotations)
@@ -193,7 +193,7 @@ def test_uploadFile_given_dictionary():
 def test_uploadFileEntity():
     # Create a FileEntity
     # Dictionaries default to FileEntity as a type
-    fname = utils.make_bogus_data_file()
+    fname = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
     entity = {'name': 'fooUploadFileEntity', 'description': 'A test file entity', 'parentId': project['id']}
     entity = syn.uploadFile(entity, fname)
@@ -209,7 +209,7 @@ def test_uploadFileEntity():
     assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
 
     # Create a different temporary file
-    fname = utils.make_bogus_data_file()
+    fname = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
 
     # Update existing FileEntity
@@ -223,7 +223,7 @@ def test_uploadFileEntity():
 
 def test_downloadFile():
     # See if the a "wget" works
-    filename = utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
+    filename = synapseclient.core.utils.download_file("http://dev-versions.synapse.sagebase.org/sage_bionetworks_logo_274x128.png")
     schedule_for_cleanup(filename)
     assert_true(os.path.exists(filename))
 
@@ -251,14 +251,14 @@ def test_version_check():
 
 def test_provenance():
     # Create a File Entity
-    fname = utils.make_bogus_data_file()
+    fname = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
     data_entity = syn.store(File(fname, parent=project['id']))
 
     # Create a File Entity of Code
     fd, path = tempfile.mkstemp(suffix=".py")
     with os.fdopen(fd, 'w') as f:
-        f.write(utils.normalize_lines("""
+        f.write(synapseclient.core.utils.normalize_lines("""
             ## Chris's fabulous random data generator
             ############################################################
             import random

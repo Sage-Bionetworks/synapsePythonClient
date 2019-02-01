@@ -1,9 +1,10 @@
+# external imports
 import random
 import sys
 import logging
-from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
-from synapseclient.core.utils import _is_json
-from synapseclient.core.dozer import doze
+
+# synapseclient imports
+import synapseclient
 
 
 def _with_retry(function, verbose=False,
@@ -29,9 +30,9 @@ def _with_retry(function, verbose=False,
     """
 
     if verbose:
-        logger = logging.getLogger(DEBUG_LOGGER_NAME)
+        logger = logging.getLogger(synapseclient.core.logging_setup.DEBUG_LOGGER_NAME)
     else:
-        logger = logging.getLogger(DEFAULT_LOGGER_NAME)
+        logger = logging.getLogger(synapseclient.core.logging_setup.DEFAULT_LOGGER_NAME)
 
     # Retry until we succeed or run out of tries
     total_wait = 0
@@ -88,7 +89,7 @@ def _with_retry(function, verbose=False,
             logger.debug(('total wait time {total_wait:5.0f} seconds\n '
                           '... Retrying in {wait:5.1f} seconds...'.format(total_wait=total_wait, wait=randomized_wait)))
             total_wait += randomized_wait
-            doze(randomized_wait)
+            synapseclient.core.dozer.doze(randomized_wait)
             wait = min(max_wait, wait*back_off)
             continue
 
@@ -105,7 +106,7 @@ def _get_message(response):
     getting body.
     """
     try:
-        if _is_json(response.headers.get('content-type', None)):
+        if synapseclient.core.utils._is_json(response.headers.get('content-type', None)):
             json = response.json()
             return json.get('reason', None)
         else:

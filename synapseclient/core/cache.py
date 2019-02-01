@@ -10,6 +10,7 @@ Implements a cache on local disk for Synapse file entities and other objects wit
 This is part of the internal implementation of the client and should not be accessed directly by users of the client.
 """
 
+# external imports
 import collections
 import datetime
 import json
@@ -17,9 +18,10 @@ import operator
 import os
 import re
 import shutil
-from math import floor
-from synapseclient.core.lock import Lock
-from synapseclient.core.models.exceptions import *
+import math
+
+# synapseclient imports
+import synapseclient
 
 
 CACHE_ROOT_DIR = os.path.join('~', '.synapseCache')
@@ -29,14 +31,16 @@ def epoch_time_to_iso(epoch_time):
     """
     Convert seconds since unix epoch to a string in ISO format
     """
-    return None if epoch_time is None else utils.datetime_to_iso(utils.from_unix_epoch_time_secs(epoch_time))
+    return None if epoch_time is None else synapseclient.core.utils.datetime_to_iso(
+        synapseclient.core.utils.from_unix_epoch_time_secs(epoch_time))
 
 
 def iso_time_to_epoch(iso_time):
     """
     Convert an ISO formatted time into seconds since unix epoch
     """
-    return None if iso_time is None else utils.to_unix_epoch_time_secs(utils.iso_to_datetime(iso_time))
+    return None if iso_time is None else synapseclient.core.utils.to_unix_epoch_time_secs(
+        synapseclient.core.utils.iso_to_datetime(iso_time))
 
 
 def compare_timestamps(modified_time, cached_time):
@@ -53,7 +57,7 @@ def compare_timestamps(modified_time, cached_time):
     if cached_time is None or modified_time is None:
         return False
     if cached_time.endswith(".000Z"):
-        return cached_time == epoch_time_to_iso(floor(modified_time))
+        return cached_time == epoch_time_to_iso(math.floor(modified_time))
     else:
         return cached_time == epoch_time_to_iso(modified_time)
 
@@ -126,10 +130,10 @@ class Cache:
         if not os.path.exists(cache_dir):
             return False
 
-        with Lock(self.cache_map_file_name, dir=cache_dir):
+        with synapseclient.core.lock.Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
 
-            path = utils.normalize_path(path)
+            path = synapseclient.core.utils.normalize_path(path)
 
             cached_time = cache_map.get(path, None)
             if cached_time:
@@ -154,10 +158,10 @@ class Cache:
         if not os.path.exists(cache_dir):
             return None
 
-        with Lock(self.cache_map_file_name, dir=cache_dir):
+        with synapseclient.core.lock.Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
 
-            path = utils.normalize_path(path)
+            path = synapseclient.core.utils.normalize_path(path)
 
             # If the caller specifies a path and that path exists in the cache
             # but has been modified, we need to indicate no match by returning
@@ -212,12 +216,12 @@ class Cache:
             raise ValueError("Can't find file \"%s\"" % path)
 
         cache_dir = self.get_cache_dir(file_handle_id)
-        with Lock(self.cache_map_file_name, dir=cache_dir):
+        with synapseclient.core.lock.Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
 
-            path = utils.normalize_path(path)
+            path = synapseclient.core.utils.normalize_path(path)
             # write .000 milliseconds for backward compatibility
-            cache_map[path] = epoch_time_to_iso(floor(_get_modified_time(path)))
+            cache_map[path] = epoch_time_to_iso(math.floor(_get_modified_time(path)))
             self._write_cache_map(cache_dir, cache_map)
 
         return cache_map
@@ -240,7 +244,7 @@ class Cache:
         if path is None and isinstance(file_handle_id, collections.Mapping) and 'path' in file_handle_id:
             path = file_handle_id['path']
 
-        with Lock(self.cache_map_file_name, dir=cache_dir):
+        with synapseclient.core.lock.Lock(self.cache_map_file_name, dir=cache_dir):
             cache_map = self._read_cache_map(cache_dir)
 
             if path is None:
@@ -250,7 +254,7 @@ class Cache:
                     removed.append(path)
                 cache_map = {}
             else:
-                path = utils.normalize_path(path)
+                path = synapseclient.core.utils.normalize_path(path)
                 if path in cache_map:
                     if delete is True and os.path.exists(path):
                         os.remove(path)
@@ -282,7 +286,7 @@ class Cache:
         the cache.
         """
         if isinstance(before_date, datetime.datetime):
-            before_date = utils.to_unix_epoch_time_secs(before_date)
+            before_date = synapseclient.core.utils.to_unix_epoch_time_secs(before_date)
         count = 0
         for cache_dir in self._cache_dirs():
             # _get_modified_time returns None if the cache map file doesn't

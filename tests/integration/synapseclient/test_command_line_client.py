@@ -784,7 +784,7 @@ def _create_temp_file_with_cleanup(specific_file_text=None):
             file.write(specific_file_text)
             filename = file.name
     else:
-        filename = utils.make_bogus_data_file()
+        filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     return filename
 

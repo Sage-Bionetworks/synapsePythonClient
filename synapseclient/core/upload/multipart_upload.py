@@ -11,6 +11,7 @@ the 10s of GB). End users should not need to call any of these functions directl
 
 """
 
+# external imports
 import hashlib
 import json
 import math
@@ -19,19 +20,16 @@ import os
 import requests
 import time
 import warnings
-from ctypes import c_bool
-from multiprocessing import Value
+import ctypes
+import multiprocessing
 
-from synapseclient.core.models import exceptions
-from synapseclient.core import pool_provider
-from synapseclient.core.utils import printTransferProgress, md5_for_file, MB
-from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.models.exceptions import SynapseError
-from synapseclient.core.models.exceptions import SynapseHTTPError
-from synapseclient.core.utils import threadsafe_generator
+# synapseclient imports
+import synapseclient
+import synapseclient.core.pool_provider
+from synapseclient.core.utils import MB
 
 MAX_NUMBER_OF_PARTS = 10000
-MIN_PART_SIZE = 8*MB
+MIN_PART_SIZE = 8 * MB
 MAX_RETRIES = 7
 
 
@@ -65,7 +63,7 @@ def calculate_part_size(fileSize, partSize=None, min_part_size=MIN_PART_SIZE, ma
     return partSize
 
 
-def get_file_chunk(filepath, n, chunksize=8*MB):
+def get_file_chunk(filepath, n, chunksize=8 * MB):
     """
     Read the nth chunk from the file.
     """
@@ -74,7 +72,7 @@ def get_file_chunk(filepath, n, chunksize=8*MB):
         return f.read(chunksize)
 
 
-def get_data_chunk(data, n, chunksize=8*MB):
+def get_data_chunk(data, n, chunksize=8 * MB):
     """
     Return the nth chunk of a buffer.
     """
@@ -99,12 +97,12 @@ def _start_multipart_upload(syn, filename, md5, fileSize, partSize, contentType,
         'storageLocationId': storageLocationId
     }
 
-    return DictObject(**syn.restPOST(uri='/file/multipart?forceRestart=%s' % forceRestart,
-                                     body=json.dumps(upload_request),
-                                     endpoint=syn.fileHandleEndpoint))
+    return synapseclient.core.models.DictObject(**syn.restPOST(uri='/file/multipart?forceRestart=%s' % forceRestart,
+                                                               body=json.dumps(upload_request),
+                                                               endpoint=syn.fileHandleEndpoint))
 
 
-@threadsafe_generator
+@synapseclient.core.utils.threadsafe_generator
 def _get_presigned_urls(syn, uploadId, parts_to_upload):
     """Returns list of urls to upload parts to.
 
@@ -137,7 +135,7 @@ def _add_part(syn, uploadId, partNumber, partMD5Hex):
     .. AddPartResponse: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/AddPartResponse.html
     """
     uri = '/file/multipart/{uploadId}/add/{partNumber}?partMD5Hex={partMD5Hex}'.format(**locals())
-    return DictObject(**syn.restPUT(uri, endpoint=syn.fileHandleEndpoint))
+    return synapseclient.core.models.DictObject(**syn.restPUT(uri, endpoint=syn.fileHandleEndpoint))
 
 
 def _complete_multipart_upload(syn, uploadId):
@@ -148,7 +146,7 @@ def _complete_multipart_upload(syn, uploadId):
      http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/MultipartUploadStatus.html
     """
     uri = '/file/multipart/{uploadId}/complete'.format(uploadId=uploadId)
-    return DictObject(**syn.restPUT(uri, endpoint=syn.fileHandleEndpoint))
+    return synapseclient.core.models.DictObject(**syn.restPUT(uri, endpoint=syn.fileHandleEndpoint))
 
 
 def _put_chunk(url, chunk, verbose=False):
@@ -160,10 +158,10 @@ def _put_chunk(url, chunk, verbose=False):
             response.content
     except Exception as ex:
         warnings.warn('error reading response: '+str(ex))
-    exceptions._raise_for_status(response, verbose=verbose)
+    synapseclient.core.models.exceptions._raise_for_status(response, verbose=verbose)
 
 
-def multipart_upload(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
+def multipart_upload_file(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
     """
     Upload a file to a Synapse upload destination in chunks.
 
@@ -189,7 +187,7 @@ def multipart_upload(syn, filepath, filename=None, contentType=None, storageLoca
     fileSize = os.path.getsize(filepath)
     if not filename:
         filename = os.path.basename(filepath)
-    md5 = md5_for_file(filepath).hexdigest()
+    md5 = synapseclient.core.utils.md5_for_file(filepath).hexdigest()
 
     if contentType is None:
         (mimetype, enc) = mimetypes.guess_type(filepath, strict=False)
@@ -282,12 +280,13 @@ def _upload_chunk(part, completed, status, syn, filename, get_chunk_function,
             syn.logger.debug("finished contacting Synapse about adding part %s" % partNumber)
             with completed.get_lock():
                 completed.value += len(chunk)
-            printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0,
-                                  previouslyTransferred=bytes_already_uploaded)
+                synapseclient.core.utils.printTransferProgress(
+                    completed.value, fileSize, prefix='Uploading', postfix=filename, dt=time.time()-t0,
+                    previouslyTransferred=bytes_already_uploaded)
         else:
             syn.logger.debug("did not successfully add part %s" % partNumber)
     except Exception as ex1:
-        if isinstance(ex1, SynapseHTTPError) and ex1.response.status_code == 403:
+        if isinstance(ex1, synapseclient.core.models.SynapseHTTPError) and ex1.response.status_code == 403:
             syn.logger.debug("The pre-signed upload URL for part %s has expired. Restarting upload...\n" % partNumber)
             with expired.get_lock():
                 if not expired.value:
@@ -338,16 +337,17 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     syn.logger.debug("previously completed %d parts, estimated %d bytes" % (completedParts, previously_completed_bytes))
     time_upload_started = time.time()
     retries = 0
-    mp = pool_provider.get_pool()
+    mp = synapseclient.core.pool_provider.get_pool()
     try:
         while retries < MAX_RETRIES:
             syn.logger.debug("Started retry loop for multipart_upload. Currently %d/%d retries"
                              % (retries, MAX_RETRIES))
             # keep track of the number of bytes uploaded so far
-            completed = Value('d', min(completedParts * partSize, fileSize))
-            expired = Value(c_bool, False)
+            completed = multiprocessing.Value('d', min(completedParts * partSize, fileSize))
+            expired = multiprocessing.Value(ctypes.c_bool, False)
 
-            printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
+            synapseclient.core.utils.printTransferProgress(
+                completed.value, fileSize, prefix='Uploading', postfix=filename)
 
             def chunk_upload(part): return _upload_chunk(part, completed=completed, status=status,
                                                          syn=syn, filename=filename,
@@ -384,6 +384,6 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
     finally:
         mp.terminate()
     if status["state"] != "COMPLETED":
-        raise SynapseError("Upload {id} did not complete. Try again.".format(id=status["uploadId"]))
+        raise synapseclient.core.models.SynapseError("Upload {id} did not complete. Try again.".format(id=status["uploadId"]))
 
     return status

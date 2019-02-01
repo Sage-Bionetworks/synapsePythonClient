@@ -49,7 +49,7 @@ def test_Entity():
     assert_equals(folder.pi[0], 3.14159265359)
 
     # Test CRUD on Files, check unicode
-    path = utils.make_bogus_data_file()
+    path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     a_file = File(path, parent=folder, description=u'Description with funny characters: Déjà vu, ประเทศไทย, 中国',
                   contentType='text/flapdoodle',
@@ -165,7 +165,7 @@ def test_special_characters():
 
 
 def test_get_local_file():
-    new_path = utils.make_bogus_data_file()
+    new_path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
     folder = Folder('TestFindFileFolder', parent=project, description='A place to put my junk')
     folder = syn.createEntity(folder)
@@ -202,7 +202,7 @@ def test_store_with_flags():
     assert_equals(projUpdate.updatedThing, ['Yep, sho\'nuf it\'s updated!'])
 
     # Store a File
-    filepath = utils.make_bogus_binary_file()
+    filepath = synapseclient.core.utils.make_bogus_binary_file()
     schedule_for_cleanup(filepath)
     origBogus = File(filepath, name='Bogus Test File', parent=project)
     origBogus = syn.store(origBogus, createOrUpdate=True)
@@ -267,7 +267,7 @@ def test_store_with_flags():
 
 def test_get_with_downloadLocation_and_ifcollision():
     # Store a File and delete it locally
-    filepath = utils.make_bogus_binary_file()
+    filepath = synapseclient.core.utils.make_bogus_binary_file()
     bogus = File(filepath, name='Bogus Test File', parent=project)
     bogus = syn.store(bogus)
     os.remove(filepath)
@@ -313,7 +313,7 @@ def test_get_with_downloadLocation_and_ifcollision():
 
 def test_store_activity():
     # Create a File and an Activity
-    path = utils.make_bogus_binary_file()
+    path = synapseclient.core.utils.make_bogus_binary_file()
     schedule_for_cleanup(path)
     entity = File(path, name='Hinkle horn honking holes', parent=project)
     honking = Activity(name='Hinkle horn honking', 
@@ -348,7 +348,7 @@ def test_store_activity():
 
 def test_store_isRestricted_flag():
     # Store a file with access requirements
-    path = utils.make_bogus_binary_file()
+    path = synapseclient.core.utils.make_bogus_binary_file()
     schedule_for_cleanup(path)
     entity = File(path, name='Secret human data', parent=project)
     
@@ -385,7 +385,7 @@ def test_ExternalFileHandle():
 
 def test_synapseStore_flag():
     # Store a path to a local file
-    path = utils.make_bogus_data_file()
+    path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(path)
     bogus = File(path, name='Totally bogus data', parent=project, synapseStore=False)
     bogus = syn.store(bogus)
@@ -446,7 +446,7 @@ def test_download_file_false():
     RENAME_SUFFIX = 'blah'
     
     # Upload a file
-    filepath = utils.make_bogus_binary_file()
+    filepath = synapseclient.core.utils.make_bogus_binary_file()
     schedule_for_cleanup(filepath)
     schedule_for_cleanup(filepath + RENAME_SUFFIX)
     file = File(filepath, name='SYNR 619', parent=project)
@@ -495,7 +495,7 @@ def test_download_file_URL_false():
 
 # SYNPY-366
 def test_download_local_file_URL_path():
-    path = utils.make_bogus_data_file()
+    path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(path)
 
     filehandle = create_external_file_handle(syn, path, mimetype=None, file_size=None)
@@ -507,7 +507,7 @@ def test_download_local_file_URL_path():
 
 # SYNPY-424
 def test_store_file_handle_update_metadata():
-    original_file_path = utils.make_bogus_data_file()
+    original_file_path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(original_file_path)
 
     # upload the project
@@ -515,7 +515,7 @@ def test_store_file_handle_update_metadata():
     old_file_handle = entity._file_handle
 
     # create file handle to replace the old one
-    replacement_file_path = utils.make_bogus_data_file()
+    replacement_file_path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(replacement_file_path)
     new_file_handle = syn.uploadFileHandle(replacement_file_path, parent=project)
 
@@ -549,7 +549,7 @@ def test_store__changing_externalURL_by_changing_path():
     ext = syn.get(ext)
 
     # create a temp file
-    temp_path = utils.make_bogus_data_file()
+    temp_path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(temp_path)
 
     ext.synapseStore = False
@@ -560,14 +560,15 @@ def test_store__changing_externalURL_by_changing_path():
     ext = syn.get(ext.id, downloadFile=True)
 
     assert_not_equal(ext.externalURL, url)
-    assert_equal(utils.normalize_path(temp_path), utils.file_url_to_path(ext.externalURL))
+    assert_equal(synapseclient.core.utils.normalize_path(temp_path),
+                 synapseclient.core.utils.file_url_to_path(ext.externalURL))
     assert_equal(temp_path, ext.path)
     assert_equal(False, ext.synapseStore)
 
 
 def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
     # create a temp file
-    temp_path = utils.make_bogus_data_file()
+    temp_path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(temp_path)
 
     ext = syn.store(File(temp_path, parent=project, synapseStore=True))
@@ -580,7 +581,7 @@ def test_store__changing_from_Synapse_to_externalURL_by_changing_path():
     # do a get to make sure filehandle has been updated correctly
     ext = syn.get(ext.id, downloadFile=True)
     assert_equal("org.sagebionetworks.repo.model.file.ExternalFileHandle", ext._file_handle.concreteType)
-    assert_equal(utils.as_url(temp_path), ext.externalURL)
+    assert_equal(synapseclient.core.utils.as_url(temp_path), ext.externalURL)
     assert_equal(False, ext.synapseStore)
 
     # swap back to synapse storage

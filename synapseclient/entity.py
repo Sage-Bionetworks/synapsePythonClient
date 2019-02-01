@@ -38,20 +38,20 @@ Changing File Names
 A Synapse File Entity has a name separate from the name of the actual file it represents. When a file is uploaded to
 Synapse, its filename is fixed, even though the name of the entity can be changed at any time. Synapse provides a way
 to change this filename and the content-type of the file for future downloads by creating a new version of the file
-with a modified copy of itself.  This can be done with the synapseutils.copy.changeFileMetaData function.
+with a modified copy of itself.  This can be done with the synapseutils.copy.changeFileMetaData function::
 
->>> import synapseutils
->>> e = syn.get(synid)
->>> print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
->>> e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
+    import synapseutils
+    e = syn.get(synid)
+    print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
+    e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
 
 Setting *fileNameOverride* will **not** change the name of a copy of the
 file that's already downloaded into your local cache. Either rename the
-local copy manually or remove it from the cache and re-download.:
+local copy manually or remove it from the cache and re-download.::
 
->>> syn.cache.remove(e.dataFileHandleId)
->>> e = syn.get(e)
->>> print(os.path.basename(e.path))  ## prints "my_newname_file.txt"
+    syn.cache.remove(e.dataFileHandleId)
+    e = syn.get(e)
+    print(os.path.basename(e.path))  ## prints "my_newname_file.txt"
 
 ~~~~
 Link
@@ -138,15 +138,16 @@ See also:
 
 """
 
+# external imports
 import collections
 import itertools
-from io import StringIO
-
-from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import id_of, itersubclasses
-from synapseclient.core.models.exceptions import *
 import os
 import inspect
+import io
+import urllib
+
+# synapseclient imports
+import synapseclient
 
 
 class Versionable(object):
@@ -227,8 +228,8 @@ class Entity(collections.MutableMapping):
         # any object methods get invoked. This is important because the
         # dot operator magic methods have been overridden and depend on
         # properties and annotations existing.
-        obj.__dict__['properties'] = DictObject()
-        obj.__dict__['annotations'] = DictObject()
+        obj.__dict__['properties'] = synapseclient.core.models.DictObject()
+        obj.__dict__['annotations'] = synapseclient.core.models.DictObject()
         return obj
 
     def __init__(self, properties=None, annotations=None, local_state=None, parent=None, **kwargs):
@@ -240,7 +241,8 @@ class Entity(collections.MutableMapping):
                     del properties['annotations']
                 self.__dict__['properties'].update(properties)
             else:
-                raise SynapseMalformedEntityError('Unknown argument type: properties is a %s' % str(type(properties)))
+                raise synapseclient.core.models.SynapseMalformedEntityError(
+                    'Unknown argument type: properties is a %s' % str(type(properties)))
 
         if annotations:
             if isinstance(annotations, collections.Mapping):
@@ -248,13 +250,15 @@ class Entity(collections.MutableMapping):
             elif isinstance(annotations, str):
                 self.properties['annotations'] = annotations
             else:
-                raise SynapseMalformedEntityError('Unknown argument type: annotations is a %s' % str(type(annotations)))
+                raise synapseclient.core.models.SynapseMalformedEntityError(
+                    'Unknown argument type: annotations is a %s' % str(type(annotations)))
 
         if local_state:
             if isinstance(local_state, collections.Mapping):
                 self.local_state(local_state)
             else:
-                raise SynapseMalformedEntityError('Unknown argument type: local_state is a %s' % str(type(local_state)))
+                raise synapseclient.core.models.SynapseMalformedEntityError(
+                    'Unknown argument type: local_state is a %s' % str(type(local_state)))
 
         for key in self.__class__._local_keys:
             if key not in self.__dict__:
@@ -264,13 +268,14 @@ class Entity(collections.MutableMapping):
         if 'parentId' not in kwargs:
             if parent:
                 try:
-                    kwargs['parentId'] = id_of(parent)
+                    kwargs['parentId'] = synapseclient.core.utils.id_of(parent)
                 except Exception:
                     if isinstance(parent, Entity) and 'id' not in parent:
-                        raise SynapseMalformedEntityError("Couldn't find 'id' of parent."
-                                                          " Has it been stored in Synapse?")
+                        raise synapseclient.core.models.SynapseMalformedEntityError(
+                            "Couldn't find 'id' of parent. Please store the parent entity and retry.")
                     else:
-                        raise SynapseMalformedEntityError("Couldn't find 'id' of parent.")
+                        raise synapseclient.core.models.SynapseMalformedEntityError(
+                            "Couldn't find 'id' of parent.")
 
         # Note: that this will work properly if derived classes declare their internal state variable *before* invoking
         # super(...).__init__(...)
@@ -284,7 +289,8 @@ class Entity(collections.MutableMapping):
         if 'parentId' not in self \
                 and not isinstance(self, Project) \
                 and not type(self) == Entity:
-            raise SynapseMalformedEntityError("Entities of type %s must have a parentId." % type(self))
+            raise synapseclient.core.models.SynapseMalformedEntityError(
+                "Entities of type %s must have a parentId." % type(self))
 
     def postURI(self):
         return '/entity'
@@ -324,8 +330,9 @@ class Entity(collections.MutableMapping):
             # Wrap the dictionary in a DictObject so we can
             # later do:
             #   entity.annotations.foo = 'bar'
-            if (key == 'annotations' or key == 'properties') and not isinstance(value, DictObject):
-                value = DictObject(value)
+            if (key == 'annotations' or key == 'properties') \
+                    and not isinstance(value, synapseclient.core.models.DictObject):
+                value = synapseclient.core.models.DictObject(value)
             self.__dict__[key] = value
         elif key in self.__class__._property_keys:
             self.properties[key] = value
@@ -387,7 +394,7 @@ class Entity(collections.MutableMapping):
                 f.write('\n')
 
     def __str__(self):
-        f = StringIO()
+        f = io.StringIO()
 
         f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'),
                                    self['id'] if 'id' in self else '-',))
@@ -413,7 +420,7 @@ class Entity(collections.MutableMapping):
     def __repr__(self):
         """Returns an eval-able representation of the Entity."""
 
-        f = StringIO()
+        f = io.StringIO()
         f.write(self.__class__.__name__)
         f.write("(")
         f.write(", ".join(
@@ -507,13 +514,13 @@ class Link(Entity):
     def __init__(self, targetId=None, targetVersion=None, parent=None, properties=None, annotations=None,
                  local_state=None, **kwargs):
         if targetId is not None and targetVersion is not None:
-            kwargs['linksTo'] = dict(targetId=utils.id_of(targetId), targetVersionNumber=targetVersion)
+            kwargs['linksTo'] = dict(targetId=synapseclient.core.utils.id_of(targetId), targetVersionNumber=targetVersion)
         elif targetId is not None and targetVersion is None:
-            kwargs['linksTo'] = dict(targetId=utils.id_of(targetId))
+            kwargs['linksTo'] = dict(targetId=synapseclient.core.utils.id_of(targetId))
         elif properties is not None and 'linksTo' in properties:
             pass
         else:
-            raise SynapseMalformedEntityError("Must provide a target id")
+            raise synapseclient.core.models.SynapseMalformedEntityError("Must provide a target id")
         super(Link, self).__init__(concreteType=Link._synapse_entity_type, properties=properties,
                                    annotations=annotations, local_state=local_state, parent=parent, **kwargs)
 
@@ -563,7 +570,7 @@ class File(Entity, Versionable):
     def __init__(self, path=None, parent=None, synapseStore=True, properties=None,
                  annotations=None, local_state=None, **kwargs):
         if path and 'name' not in kwargs:
-            kwargs['name'] = utils.guess_file_name(path)
+            kwargs['name'] = synapseclient.core.utils.guess_file_name(path)
         self.__dict__['path'] = path
         if path:
             cacheDir, basename = os.path.split(path)
@@ -588,12 +595,13 @@ class File(Entity, Versionable):
         """
 
         # replace the file handle dict
-        fh_dict = DictObject(file_handle_update_dict) if file_handle_update_dict is not None else DictObject()
+        fh_dict = synapseclient.core.models.DictObject(file_handle_update_dict) if file_handle_update_dict is not None \
+            else synapseclient.core.models.DictObject()
         self.__dict__['_file_handle'] = fh_dict
 
         if file_handle_update_dict is not None \
                 and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
-                and utils.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
+                and urllib.parse.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
             self.__dict__['synapseStore'] = False
 
         # initialize all nonexistent keys to have value of None
@@ -607,11 +615,12 @@ class File(Entity, Versionable):
         elif key in self.__class__._file_handle_aliases:
             self._file_handle[self.__class__._file_handle_aliases[key]] = value
         else:
-            def expand_and_convert_to_URL(path): return utils.as_url(os.path.expandvars(os.path.expanduser(path)))
+            def expand_and_convert_to_URL(path):
+                return synapseclient.core.utils.as_url(os.path.expandvars(os.path.expanduser(path)))
             # hacky solution to allowing immediate switching into a ExternalFileHandle pointing to the current path
             # yes, there is boolean zen but I feel like it is easier to read/understand this way
             if key == 'synapseStore' and value is False and self['synapseStore'] is True \
-                    and utils.caller_module_name(inspect.currentframe()) != 'client':
+                    and synapseclient.core.utils.caller_module_name(inspect.currentframe()) != 'client':
                 self['externalURL'] = expand_and_convert_to_URL(self['path'])
 
             # hacky solution because we historically allowed modifying 'path' to indicate wanting to change to a new
@@ -619,7 +628,7 @@ class File(Entity, Versionable):
             # don't change exernalURL if it's just the synapseclient setting metadata after a function call such as
             # syn.get()
             if key == 'path' and not self['synapseStore'] \
-                    and utils.caller_module_name(inspect.currentframe()) != 'client':
+                    and synapseclient.core.utils.caller_module_name(inspect.currentframe()) != 'client':
                 self['externalURL'] = expand_and_convert_to_URL(value)
                 self['contentMd5'] = None
                 self['contentSize'] = None
@@ -666,12 +675,12 @@ class DockerRepository(Entity):
         super(DockerRepository, self).__init__(properties=properties, annotations=annotations, local_state=local_state,
                                                parent=parent, **kwargs)
         if 'repositoryName' not in self:
-            raise SynapseMalformedEntityError("DockerRepository must have a repositoryName.")
+            raise synapseclient.core.models.SynapseMalformedEntityError("DockerRepository must have a repositoryName.")
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
 _entity_type_to_class = {}
-for cls in itersubclasses(Entity):
+for cls in synapseclient.core.utils.itersubclasses(Entity):
     _entity_type_to_class[cls._synapse_entity_type] = cls
 
 _entity_types = ["project", "folder", "file", "table", "link", "entityview", "dockerrepo"]
@@ -690,16 +699,17 @@ def split_entity_namespaces(entity):
         return entity.properties.copy(), entity.annotations.copy(), entity.local_state()
 
     if not isinstance(entity, collections.Mapping):
-        raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
+        raise synapseclient.core.models.SynapseMalformedEntityError(
+            "Can't split a %s object." % entity.__class__.__name__)
 
     if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
         entity_class = _entity_type_to_class[entity['concreteType']]
     else:
         entity_class = Entity
 
-    properties = DictObject()
-    annotations = DictObject()
-    local_state = DictObject()
+    properties = synapseclient.core.models.DictObject()
+    annotations = synapseclient.core.models.DictObject()
+    local_state = synapseclient.core.models.DictObject()
 
     property_keys = entity_class._property_keys
     local_keys = entity_class._local_keys
@@ -752,7 +762,7 @@ def is_container(entity):
     elif 'type' in entity:
         concreteType = entity['type']
     elif isinstance(entity, collections.Mapping):
-        prefix = utils.extract_prefix(entity.keys())
+        prefix = synapseclient.core.utils.extract_prefix(entity.keys())
         if prefix+'concreteType' in entity:
             concreteType = entity[prefix+'concreteType'][0]
         elif prefix+'nodeType' in entity:

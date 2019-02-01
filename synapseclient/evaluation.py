@@ -76,10 +76,10 @@ Submission Status
 
 """
 
-from synapseclient.core.models.dict_object import DictObject
+import synapseclient.core.models
 
 
-class Evaluation(DictObject):
+class Evaluation(synapseclient.core.models.DictObject):
     """
     An Evaluation Submission queue, allowing submissions, retrieval and scoring.
     
@@ -149,7 +149,7 @@ class Evaluation(DictObject):
         return '/evaluation/acl'
 
 
-class Submission(DictObject):
+class Submission(synapseclient.core.models.DictObject):
     """
     Builds an Synapse submission object.
 
@@ -182,7 +182,7 @@ class Submission(DictObject):
         return '/evaluation/submission/%s' % self.id
 
 
-class SubmissionStatus(DictObject):
+class SubmissionStatus(synapseclient.core.models.DictObject):
     """
     Builds an Synapse submission status object.
 

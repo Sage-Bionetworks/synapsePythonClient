@@ -20,7 +20,7 @@ def setup(module):
 
 
 def test_download_check_md5():
-    tempfile_path = utils.make_bogus_data_file()
+    tempfile_path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(tempfile_path)
     entity = File(parent=project['id'])
     entity['path'] = tempfile_path
@@ -28,7 +28,7 @@ def test_download_check_md5():
 
     syn._downloadFileHandle(entity['dataFileHandleId'], entity['id'], 'FileEntity', tempfile.gettempdir())
 
-    tempfile_path2 = utils.make_bogus_data_file()
+    tempfile_path2 = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(tempfile_path2)
     entity_bad_md5 = syn.store(File(path=tempfile_path2, parent=project['id'], synapseStore=False))
 
@@ -37,8 +37,8 @@ def test_download_check_md5():
 
 
 def test_resume_partial_download():
-    original_file = utils.make_bogus_data_file(40000)
-    original_md5 = utils.md5_for_file(original_file).hexdigest()
+    original_file = synapseclient.core.utils.make_bogus_data_file(40000)
+    original_md5 = synapseclient.core.utils.md5_for_file(original_file).hexdigest()
 
     entity = File(original_file, parent=project['id'])
     entity = syn.store(entity)
@@ -56,7 +56,7 @@ def test_resume_partial_download():
 
     # simulate an imcomplete download by putting the
     # complete file back into its temporary location
-    tmp_path = utils.temp_download_filename(temp_dir, entity.dataFileHandleId)
+    tmp_path = synapseclient.core.utils.temp_download_filename(temp_dir, entity.dataFileHandleId)
     shutil.move(path, tmp_path)
 
     # ...and truncating it to some fraction of its original size
@@ -73,13 +73,14 @@ def test_resume_partial_download():
 def test_http_download__range_request_error():
     # SYNPY-525
 
-    file_path = utils.make_bogus_data_file()
+    file_path = synapseclient.core.utils.make_bogus_data_file()
     file_entity = syn.store(File(file_path, parent=project))
 
     syn.cache.purge(time.time())
     # download once and rename to temp file to simulate range exceed
     file_entity = syn.get(file_entity)
-    shutil.move(file_entity.path, utils.temp_download_filename(file_entity.path, file_entity.dataFileHandleId))
+    shutil.move(file_entity.path,
+                synapseclient.core.utils.temp_download_filename(file_entity.path, file_entity.dataFileHandleId))
     file_entity = syn.get(file_entity)
 
     assert_not_equal(file_path, file_entity.path)

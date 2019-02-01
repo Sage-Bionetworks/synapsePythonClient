@@ -205,9 +205,9 @@ class TestCachedCredentialsProvider(object):
 
         self.expected_return_tuple = (self.username, None, api_key)
 
-        self.get_most_recent_user__patcher = patch.object(cached_sessions, "get_most_recent_user",
+        self.get_most_recent_user__patcher = patch.object(synapseclient.core.cached_sessions, "get_most_recent_user",
                                                           return_value=self.username)
-        self.get_api_key__patcher = patch.object(cached_sessions, "get_api_key", return_value=api_key)
+        self.get_api_key__patcher = patch.object(synapseclient.core.cached_sessions, "get_api_key", return_value=api_key)
 
         self.mock_get_most_recent_user = self.get_most_recent_user__patcher.start()
         self.mock_get_api_key = self.get_api_key__patcher.start()

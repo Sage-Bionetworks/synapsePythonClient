@@ -35,7 +35,7 @@ def test_create_and_update_file_view():
     folder = syn.store(folder)
 
     # Create dummy file with annotations in our folder
-    path = utils.make_bogus_data_file()
+    path = synapseclient.core.utils.make_bogus_data_file()
     file_annotations = dict(fileFormat='jpg', dataType='image', artist='Banksy',
                             medium='print', title='Girl With Ballon')
     schedule_for_cleanup(path)
@@ -121,7 +121,7 @@ def test_entity_view_add_annotation_columns():
                                annotations={'dateAnno': datetime.now(), 'strAnno': 'str2', 'intAnno': 2}))
     schedule_for_cleanup(folder1)
     schedule_for_cleanup(folder2)
-    scopeIds = [utils.id_of(folder1), utils.id_of(folder2)]
+    scopeIds = [synapseclient.core.utils.id_of(folder1), utils.id_of(folder2)]
 
     # This test is to ensure that user code which use the deprecated field `type` continue to work
     # TODO: remove this test case in Synapse Python client 2.0
@@ -246,7 +246,7 @@ def test_download_table_files():
     # upload files and store file handle ids
     original_files = []
     for row in data:
-        path = utils.make_bogus_data_file()
+        path = synapseclient.core.utils.make_bogus_data_file()
         original_files.append(path)
         schedule_for_cleanup(path)
         file_handle = syn.uploadFileHandle(path, project)

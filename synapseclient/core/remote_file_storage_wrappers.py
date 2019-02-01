@@ -1,13 +1,11 @@
-
-from urllib.parse import urlparse
-from urllib.parse import urlunparse
-from urllib.parse import quote
-from urllib.parse import unquote
-
+# external imports
+import urllib
 import os
 import time
-from synapseclient.core.utils import printTransferProgress, attempt_import
-from multiprocessing import Value
+import multiprocessing
+
+# synapseclient imports
+import synapseclient
 
 
 class S3ClientWrapper:
@@ -20,21 +18,23 @@ class S3ClientWrapper:
         """
         Check if pysftp is installed and give instructions if not.
         """
-        return attempt_import("boto3",
-                              "\n\nLibraries required for client authenticated S3 access are not installed!\n"
-                              "The Synapse client uses boto3 in order to access S3-like storage "
-                              "locations.\n")
+        return synapseclient.core.utils.attempt_import(
+            "boto3",
+            "\n\nLibraries required for client authenticated S3 access are not installed!\n"
+            "The Synapse client uses boto3 in order to access S3-like storage "
+            "locations.\n")
 
     @staticmethod
     def _create_progress_callback_func(file_size, filename, prefix=None):
-        bytes_transferred = Value('d', 0)
+        bytes_transferred = multiprocessing.Value('d', 0)
         t0 = time.time()
 
         def progress_callback(bytes):
             with bytes_transferred.get_lock():
                 bytes_transferred.value += bytes
-                printTransferProgress(bytes_transferred.value, file_size, prefix=prefix, postfix=filename,
-                                      dt=time.time() - t0, previouslyTransferred=0)
+                synapseclient.core.utils.printTransferProgress(
+                    bytes_transferred.value, file_size, prefix=prefix, postfix=filename, dt=time.time() - t0,
+                    previouslyTransferred=0)
         return progress_callback
 
     @staticmethod
@@ -94,18 +94,19 @@ class SFTPWrapper:
         Check if pysftp is installed and give instructions if not.
         :return: the pysftp module if available
         """
-        return attempt_import("pysftp",
-                              "\n\nLibraries required for SFTP are not installed!\n"
-                              "The Synapse client uses pysftp in order to access SFTP storage locations. "
-                              "This library in turn depends on pycrypto.\n"
-                              "For Windows systems without a C/C++ compiler, install the appropriate binary "
-                              "distribution of pycrypto from:\n"
-                              "http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n"
-                              "For more information, see: http://docs.synapse.org/python/sftp.html")
+        return synapseclient.core.utils.attempt_import(
+            "pysftp",
+            "\n\nLibraries required for SFTP are not installed!\n"
+            "The Synapse client uses pysftp in order to access SFTP storage locations. "
+            "This library in turn depends on pycrypto.\n"
+            "For Windows systems without a C/C++ compiler, install the appropriate binary "
+            "distribution of pycrypto from:\n"
+            "http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n"
+            "For more information, see: http://docs.synapse.org/python/sftp.html")
 
     @staticmethod
     def _parse_for_sftp(url):
-        parsedURL = urlparse(url)
+        parsedURL = urllib.parse.urlparse(url)
         if parsedURL.scheme != 'sftp':
             raise(NotImplementedError("This method only supports sftp URLs of the form sftp://..."))
         return parsedURL
@@ -130,11 +131,11 @@ class SFTPWrapper:
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
             sftp.makedirs(parsedURL.path)
             with sftp.cd(parsedURL.path):
-                sftp.put(filepath, preserve_mtime=True, callback=printTransferProgress)
+                sftp.put(filepath, preserve_mtime=True, callback=synapseclient.core.utils.printTransferProgress)
 
-        path = quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
+        path = urllib.parse.quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
         parsedURL = parsedURL._replace(path=path)
-        return urlunparse(parsedURL)
+        return urllib.parse.urlunparse(parsedURL)
 
     @staticmethod
     def download_file(url, localFilepath=None, username=None, password=None):
@@ -154,7 +155,7 @@ class SFTPWrapper:
         parsedURL = SFTPWrapper._parse_for_sftp(url)
 
         # Create the local file path if it doesn't exist
-        path = unquote(parsedURL.path)
+        path = urllib.parse.unquote(parsedURL.path)
         if localFilepath is None:
             localFilepath = os.getcwd()
         if os.path.isdir(localFilepath):
@@ -166,5 +167,5 @@ class SFTPWrapper:
 
         # Download file
         with pysftp.Connection(parsedURL.hostname, username=username, password=password) as sftp:
-            sftp.get(path, localFilepath, preserve_mtime=True, callback=printTransferProgress)
+            sftp.get(path, localFilepath, preserve_mtime=True, callback=synapseclient.core.utils.printTransferProgress)
         return localFilepath

@@ -12,8 +12,13 @@ To use this wrapper for single thread, change the synapseclient.config.single_th
     synapseclient.config.single_threaded = True
 
 """
-from multiprocessing.dummy import Pool
-from synapseclient.core import config
+
+# external imports
+import multiprocessing.dummy
+
+# synapseclient imports
+import synapseclient
+import synapseclient.core.config
 
 DEFAULT_POOL_SIZE = 8
 
@@ -29,7 +34,7 @@ class SingleThreadPool:
 
 
 def get_pool():
-    if config.single_threaded:
+    if synapseclient.core.config.single_threaded:
         return SingleThreadPool()
     else:
-        return Pool(DEFAULT_POOL_SIZE)
+        return multiprocessing.dummy.Pool(DEFAULT_POOL_SIZE)
