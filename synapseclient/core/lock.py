@@ -8,6 +8,7 @@ import datetime
 
 # synapseclient imports
 import synapseclient
+import synapseclient.core.dozer
 
 LOCK_DEFAULT_MAX_AGE = datetime.timedelta(seconds=10)
 DEFAULT_BLOCKING_TIMEOUT = datetime.timedelta(seconds=70)
