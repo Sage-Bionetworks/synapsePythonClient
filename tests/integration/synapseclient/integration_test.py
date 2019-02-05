@@ -13,8 +13,9 @@ from mock import patch
 
 from synapseclient import *
 from synapseclient.client import CONFIG_FILE
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.models import *
 from synapseclient.core.version_check import version_check
+import synapseclient.core.utils
 from tests import integration
 from tests.integration import schedule_for_cleanup
 
@@ -101,29 +102,29 @@ def test_entity_version():
     entity = File(parent=project['id'])
     entity['path'] = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(entity['path'])
-    entity = syn.createEntity(entity)
+    entity = syn.store(entity)
     
     syn.setAnnotations(entity, {'fizzbuzz': 111222})
-    entity = syn.getEntity(entity)
+    entity = syn.get(entity, downloadFile=False)
     assert_equals(entity.versionNumber, 1)
 
     # Update the Entity and make sure the version is incremented
     entity.foo = 998877
     entity['name'] = 'foobarbat'
     entity['description'] = 'This is a test entity...'
-    entity = syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
+    entity = syn.store(entity, incrementVersion=True, versionLabel="Prada remix")
     assert_equals(entity.versionNumber, 2)
 
     # Get the older data and verify the random stuff is still there
     annotations = syn.getAnnotations(entity, version=1)
     assert_equals(annotations['fizzbuzz'][0], 111222)
-    returnEntity = syn.getEntity(entity, version=1)
+    returnEntity = syn.get(entity, version=1, downloadFile=False)
     assert_equals(returnEntity.versionNumber, 1)
     assert_equals(returnEntity['fizzbuzz'][0], 111222)
     assert_not_in('foo', returnEntity)
 
     # Try the newer Entity
-    returnEntity = syn.getEntity(entity)
+    returnEntity = syn.get(entity, downloadFile=False)
     assert_equals(returnEntity.versionNumber, 2)
     assert_equals(returnEntity['foo'][0], 998877)
     assert_equals(returnEntity['name'], 'foobarbat')
@@ -131,14 +132,14 @@ def test_entity_version():
     assert_equals(returnEntity['versionLabel'], 'Prada remix')
 
     # Try the older Entity again
-    returnEntity = syn.downloadEntity(entity, version=1)
+    returnEntity = syn.get(entity, version=1, downloadFile=False)
     assert_equals(returnEntity.versionNumber, 1)
     assert_equals(returnEntity['fizzbuzz'][0], 111222)
     assert_not_in('foo', returnEntity)
     
     # Delete version 2 
     syn.delete(entity, version=2)
-    returnEntity = syn.getEntity(entity)
+    returnEntity = syn.get(entity, downloadFile=False)
     assert_equals(returnEntity.versionNumber, 1)
 
 
@@ -156,7 +157,7 @@ def test_md5_query():
         stored.append(syn.store(repeated).id)
     
     # Although we expect num results, it is possible for the MD5 to be non-unique
-    results = syn.md5Query(utils.md5_for_file(path).hexdigest())
+    results = syn.md5Query(synapseclient.core.utils.md5_for_file(path).hexdigest())
     assert_equals(str(sorted(stored)), str(sorted([res['id'] for res in results])))
     assert_equals(len(results), num)
 

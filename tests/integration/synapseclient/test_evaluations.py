@@ -5,7 +5,7 @@ import uuid
 import random
 from nose.tools import assert_raises, assert_false, assert_is_not_none, assert_true, assert_equals, assert_in
 
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.models import *
 from synapseclient import *
 from tests import integration
 from tests.integration import schedule_for_cleanup

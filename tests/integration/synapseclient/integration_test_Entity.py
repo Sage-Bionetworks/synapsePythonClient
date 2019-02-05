@@ -3,14 +3,15 @@ import uuid
 import filecmp
 import os
 import tempfile
-from datetime import datetime as Datetime
+import datetime
 from nose.tools import assert_equal, assert_is_none, assert_not_equal, assert_is_instance, assert_true, assert_false, \
     assert_equals, assert_is_not_none, assert_raises
 from mock import patch
-from synapseclient.core.upload.upload_functions import create_external_file_handle
 
 from synapseclient import *
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.models import *
+import synapseclient.core.utils
+from synapseclient.core.upload.upload_functions import create_external_file_handle
 from tests import integration
 from tests.integration import schedule_for_cleanup
 
@@ -55,7 +56,7 @@ def test_Entity():
                   contentType='text/flapdoodle',
                   foo='An arbitrary value',
                   bar=[33, 44, 55],
-                  bday=Datetime(2013, 3, 15),
+                  bday=datetime.datetime(2013, 3, 15),
                   band=u"Motörhead",
                   lunch=u"すし")
     a_file = syn.store(a_file)
@@ -67,7 +68,7 @@ def test_Entity():
                   % a_file.description)
     assert_equals(a_file['foo'][0], 'An arbitrary value', u'foo= %s' % a_file['foo'][0])
     assert_equals(a_file['bar'], [33, 44, 55])
-    assert_equals(a_file['bday'][0], Datetime(2013, 3, 15))
+    assert_equals(a_file['bday'][0], datetime.datetime(2013, 3, 15))
     assert_equals(a_file.contentType, 'text/flapdoodle', u'contentType= %s' % a_file.contentType)
     assert_equals(a_file['band'][0], u"Motörhead", u'band= %s' % a_file['band'][0])
     assert_equals(a_file['lunch'][0], u"すし", u'lunch= %s' % a_file['lunch'][0])
@@ -86,7 +87,7 @@ def test_Entity():
     a_file = syn.updateEntity(a_file)
     assert_equals(a_file['foo'][0], 'Another arbitrary chunk of text data')
     assert_equals(a_file['bar'], [33, 44, 55])
-    assert_equals(a_file['bday'][0], Datetime(2013, 3, 15))
+    assert_equals(a_file['bday'][0], datetime.datetime(2013, 3, 15))
     assert_equals(a_file.new_key[0], 'A newly created value')
     assert_equals(a_file.path, path)
     assert_equals(a_file.versionNumber, 1, "unexpected version number: " + str(a_file.versionNumber))
@@ -114,9 +115,9 @@ def test_Entity():
     link = syn.get(link, followLink=True)
     assert_equals(link['foo'][0], 'Another arbitrary chunk of text data')
     assert_equals(link['bar'], [33, 44, 55])
-    assert_equals(link['bday'][0], Datetime(2013, 3, 15))
+    assert_equals(link['bday'][0], datetime.datetime(2013, 3, 15))
     assert_equals(link.new_key[0], 'A newly created value')
-    assert_true(utils.equal_paths(link.path, path))
+    assert_true(synapseclient.core.utils.equal_paths(link.path, path))
     assert_equals(link.versionNumber, 1, "unexpected version number: " + str(a_file.versionNumber))
 
     newfolder = Folder('Testing Folder', parent=project)
@@ -128,7 +129,7 @@ def test_Entity():
     assert_is_none(link['linksTo'].get('targetVersionNumber'))
 
     # Upload a new File and verify
-    new_path = utils.make_bogus_data_file()
+    new_path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
     a_file = syn.uploadFile(a_file, new_path)
     a_file = syn.downloadEntity(a_file)
@@ -233,7 +234,7 @@ def test_store_with_flags():
     # -- CreateOrUpdate flag for files --
     # Store a different file with the same name and parent
     # Expected behavior is that a new version of the first File will be created
-    new_filepath = utils.make_bogus_binary_file()
+    new_filepath = synapseclient.core.utils.make_bogus_binary_file()
     schedule_for_cleanup(new_filepath)
     mutaBogus.path = new_filepath
     mutaBogus = syn.store(mutaBogus, createOrUpdate=True)
@@ -249,7 +250,7 @@ def test_store_with_flags():
 
     # Create yet another file with the same name and parent
     # Expected behavior is raising an exception with a 409 error
-    newer_filepath = utils.make_bogus_binary_file()
+    newer_filepath = synapseclient.core.utils.make_bogus_binary_file()
     schedule_for_cleanup(newer_filepath)
     badBogus = File(newer_filepath, name='Bogus Test File', parent=project)
     assert_raises(SynapseHTTPError, syn.store, badBogus, createOrUpdate=False)

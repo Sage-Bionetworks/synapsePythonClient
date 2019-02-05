@@ -12,9 +12,10 @@ from nose.tools import assert_raises, assert_equals, assert_true, assert_in
 import shutil
 from mock import patch
 
-from synapseclient.client import CONFIG_FILE
-from synapseclient.core.models.exceptions import *
 from synapseclient import *
+from synapseclient.client import CONFIG_FILE
+from synapseclient.core.models import *
+import synapseclient.core.utils
 import synapseclient.__main__ as cmdline
 from tests import integration
 from tests.integration import schedule_for_cleanup
@@ -90,7 +91,7 @@ def test_command_line_client():
     schedule_for_cleanup(project_id)
 
     # Create a File
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     output = run('synapse',
                  '--skip-checks',
@@ -120,7 +121,7 @@ def test_command_line_client():
     assert_true(filecmp.cmp(filename, downloaded_filename))
 
     # Update the File
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     output = run('synapse',
                  '--skip-checks',
@@ -176,10 +177,10 @@ def test_command_line_client():
     assert_equals(activity['name'], 'TestActivity')
     assert_equals(activity['description'], 'A very excellent provenance')
 
-    used = utils._find_used(activity, lambda used: 'reference' in used)
+    used = synapseclient.core.utils._find_used(activity, lambda used: 'reference' in used)
     assert_equals(used['reference']['targetId'], file_entity_id)
 
-    used = utils._find_used(activity, lambda used: 'url' in used)
+    used = synapseclient.core.utils._find_used(activity, lambda used: 'url' in used)
     assert_equals(used['url'], repo_url)
     assert_true(used['wasExecuted'])
 
@@ -233,7 +234,7 @@ def test_command_line_client_annotations():
     schedule_for_cleanup(project_id)
 
     # Create a File
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     output = run('synapse',
                  '--skip-checks',
@@ -301,7 +302,7 @@ def test_command_line_client_annotations():
     assert_raises(KeyError, lambda key: annotations[key], 'baz')
 
     # Test running add command to set annotations on a new object
-    filename2 = utils.make_bogus_data_file()
+    filename2 = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename2)
     output = run('synapse',
                  '--skip-checks',
@@ -329,7 +330,7 @@ def test_command_line_client_annotations():
     assert_equals(annotations['foo'], [123])
 
     # Test running store command to set annotations on a new object
-    filename3 = utils.make_bogus_data_file()
+    filename3 = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename3)
     output = run('synapse',
                  '--skip-checks',
@@ -372,7 +373,7 @@ def test_command_line_store_and_submit():
     schedule_for_cleanup(project_id)
 
     # Create and upload a file
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     output = run('synapse',
                  '--skip-checks',
@@ -426,7 +427,7 @@ def test_command_line_store_and_submit():
     submission_id = parse(r'Submitted \(id: (\d+)\) entity:\s+', output)
 
     # Update the file
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     output = run('synapse',
                  '--skip-checks',
@@ -471,7 +472,7 @@ def test_command_line_store_and_submit():
     assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
     # submit an external file to an evaluation and use provenance
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
     run('synapse', '--skip-checks', 'submit',
@@ -502,7 +503,7 @@ def test_command_get_recursive_and_query():
     file_entities = []
 
     for i in range(2):
-        f = utils.make_bogus_data_file()
+        f = synapseclient.core.utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = File(f, parent=folder_entity2)
@@ -511,7 +512,7 @@ def test_command_get_recursive_and_query():
         schedule_for_cleanup(f)
 
     # Add a file in the Folder as well
-    f = utils.make_bogus_data_file()
+    f = synapseclient.core.utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = File(f, parent=folder_entity)
@@ -574,7 +575,7 @@ def test_command_copy():
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
     annots = {'test': ['hello_world']}
     # Create, upload, and set annotations on a file in Folder
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     file_entity = syn.store(File(filename, parent=folder_entity))
     externalURL_entity = syn.store(File(repo_url, name='rand', parent=folder_entity, synapseStore=False))
@@ -628,7 +629,7 @@ def test_command_line_using_paths():
     folder_entity = syn.store(Folder(name=str(uuid.uuid4()), parent=project_entity))
 
     # Create and upload a file in Folder
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     file_entity = syn.store(File(filename, parent=folder_entity))
 
@@ -646,7 +647,7 @@ def test_command_line_using_paths():
     id = parse(r'Associated file: .* with synapse ID (syn\d+)', output)
     name = parse(r'Associated file: (.*) with synapse ID syn\d+', output)
     assert_equals(file_entity.id, id)
-    assert_true(utils.equal_paths(name, filename))
+    assert_true(synapseclient.core.utils.equal_paths(name, filename))
 
     # Verify that set-provenance works with filepath
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
@@ -667,7 +668,7 @@ def test_command_line_using_paths():
 
     # Verify that store works with provenance specified with filepath
     repo_url = 'https://github.com/Sage-Bionetworks/synapsePythonClient'
-    filename2 = utils.make_bogus_data_file()
+    filename2 = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename2)
     output = run('synapse', '--skip-checks', 'add', filename2,
                  '-parentid', project_entity.id,
@@ -750,7 +751,7 @@ def test_configPath():
     shutil.copyfile(CONFIG_FILE, tmp_config_file.name)
 
     # Create a File
-    filename = utils.make_bogus_data_file()
+    filename = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(filename)
     output = run('synapse',
                  '--skip-checks',

@@ -1,20 +1,15 @@
 import filecmp
-import math
-import os
 import tempfile
-from nose.tools import assert_raises, assert_true, assert_greater_equal, assert_equals, assert_is_instance
-from multiprocessing import Value
-from multiprocessing.dummy import Pool
-from ctypes import c_bool
-from mock import patch, MagicMock
-import warnings
 
-from synapseclient.core.upload.multipart_upload import find_parts_to_upload, count_completed_parts, calculate_part_size,\
-    get_file_chunk, _upload_chunk, _multipart_upload
+from mock import patch, MagicMock
+from nose.tools import assert_raises, assert_true, assert_greater_equal, assert_equals, assert_is_instance
+
+
+import synapseclient.core.pool_provider
+import synapseclient.core.upload
+from synapseclient.core.upload.multipart_upload import *
 from synapseclient.core.utils import MB, GB, make_bogus_binary_file, md5_for_file
-from synapseclient.core.models.exceptions import SynapseHTTPError
-from synapseclient.core.upload import multipart_upload_file
-from synapseclient.core import pool_provider
+from synapseclient.core.models import *
 from tests import unit
 
 
@@ -93,20 +88,21 @@ def test_upload_chunk__expired_url():
                     ]
 
     value_doesnt_matter = None
-    expired = Value(c_bool, False)
+    expired = multiprocessing.Value(ctypes.c_bool, False)
     mocked_get_chunk_function = MagicMock(side_effect=[1, 2, 3, 4])
 
-    with patch.object(multipart_upload_file, "_put_chunk",
+    with patch.object(synapseclient.core.upload.multipart_upload, "_put_chunk",
                       side_effect=SynapseHTTPError("useless message",
                                                    response=MagicMock(status_code=403))) as mocked_put_chunk, \
          patch.object(warnings, "warn") as mocked_warn:
         def chunk_upload(part):
-            return _upload_chunk(part, completed=value_doesnt_matter, status=value_doesnt_matter, syn=syn,
-                                 filename=value_doesnt_matter, get_chunk_function=mocked_get_chunk_function,
-                                 fileSize=value_doesnt_matter, partSize=value_doesnt_matter,
-                                 t0=value_doesnt_matter, expired=expired, bytes_already_uploaded=value_doesnt_matter)
+            return synapseclient.core.upload.multipart_upload._upload_chunk(
+                part, completed=value_doesnt_matter, status=value_doesnt_matter, syn=syn,
+                filename=value_doesnt_matter, get_chunk_function=mocked_get_chunk_function,
+                fileSize=value_doesnt_matter, partSize=value_doesnt_matter,
+                t0=value_doesnt_matter, expired=expired, bytes_already_uploaded=value_doesnt_matter)
         # 2 threads both with urls that have expired
-        mp = Pool(4)
+        mp = multiprocessing.dummy.Pool(4)
         mp.map(chunk_upload, upload_parts)
         assert_true(expired.value)
 
@@ -128,7 +124,8 @@ def test_pool_provider_is_used_in__multipart_upload():
 
     pool = MagicMock()
     with patch.object(syn, "restPOST", return_value=status),\
-            patch.object(pool_provider, "get_pool", return_value=pool) as mock_provider:
-        _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
+            patch.object(synapseclient.core.pool_provider, "get_pool", return_value=pool) as mock_provider:
+        synapseclient.core.upload.multipart_upload._multipart_upload(
+            syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
         mock_provider.assert_called()
         pool.map.assert_called()

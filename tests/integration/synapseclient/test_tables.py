@@ -14,9 +14,10 @@ from mock import patch
 import pandas as pd
 import numpy as np
 
+from synapseclient import *
+import synapseclient.core.utils
 from synapseclient.core.utils import id_of
 from synapseclient.core.models.exceptions import *
-from synapseclient import *
 from tests import integration
 from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 
@@ -121,7 +122,7 @@ def test_entity_view_add_annotation_columns():
                                annotations={'dateAnno': datetime.now(), 'strAnno': 'str2', 'intAnno': 2}))
     schedule_for_cleanup(folder1)
     schedule_for_cleanup(folder2)
-    scopeIds = [synapseclient.core.utils.id_of(folder1), utils.id_of(folder2)]
+    scopeIds = [synapseclient.core.utils.id_of(folder1), synapseclient.core.utils.id_of(folder2)]
 
     # This test is to ensure that user code which use the deprecated field `type` continue to work
     # TODO: remove this test case in Synapse Python client 2.0
@@ -412,7 +413,7 @@ class TestPartialRowSet(object):
     def _test_method(self, schema, resultsAs, partial_changes, expected_results):
         # anything starting with "test" will be considered a test case by nosetests so I had to append '_' to it
 
-        query_results = self._query_with_retry("SELECT * FROM %s" % utils.id_of(schema),
+        query_results = self._query_with_retry("SELECT * FROM %s" % synapseclient.core.utils.id_of(schema),
                                                resultsAs,
                                                2,
                                                None,
@@ -425,7 +426,7 @@ class TestPartialRowSet(object):
         partial_rowset = PartialRowset.from_mapping(partial_changes, query_results)
         syn.store(partial_rowset)
 
-        assert_is_not_none(self._query_with_retry("SELECT * FROM %s" % utils.id_of(schema),
+        assert_is_not_none(self._query_with_retry("SELECT * FROM %s" % synapseclient.core.utils.id_of(schema),
                                                   resultsAs,
                                                   None,
                                                   expected_results,

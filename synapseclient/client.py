@@ -52,12 +52,15 @@ import requests
 
 # synapseclient imports
 import synapseclient
+import synapseclient.entity
+import synapseclient.table
 import synapseclient.annotations
 import synapseclient.core.cache
 import synapseclient.core.credentials
 import synapseclient.core.constants
 import synapseclient.core.retry
 import synapseclient.core.lock
+import synapseclient.core.upload
 from synapseclient.core.utils import MB, memoize
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint': 'https://repo-prod.prod.sagebase.org/repo/v1',
@@ -1112,7 +1115,7 @@ class Synapse(object):
             return obj._synapse_delete(self)
         else:
             try:
-                if isinstance(obj, synapseclient.Versionable):
+                if isinstance(obj, synapseclient.entity.Versionable):
                     self.restDELETE(obj.deleteURI(versionNumber=version))
                 else:
                     self.restDELETE(obj.deleteURI())
@@ -2563,7 +2566,7 @@ class Synapse(object):
         """
         uri = "/entity/%s/wiki/%s/attachmenthandles" % (wiki.ownerId, wiki.id)
         results = self.restGET(uri)
-        file_handles = list(synapseclient.WikiAttachment(**fh) for fh in results['list'])
+        file_handles = list(synapseclient.wiki.WikiAttachment(**fh) for fh in results['list'])
         return file_handles
 
     ############################################################
@@ -2647,7 +2650,7 @@ class Synapse(object):
                 except ValueError:
                     # ignore aggregate column
                     pass
-        elif isinstance(x, synapseclient.SchemaBase) or synapseclient.core.utils.is_synapse_id(x):
+        elif isinstance(x, synapseclient.table.SchemaBase) or synapseclient.core.utils.is_synapse_id(x):
             for col in self.getTableColumns(x):
                 yield col
         elif isinstance(x, str):
@@ -2716,7 +2719,7 @@ class Synapse(object):
         if resultsAs.lower() == "rowset":
             return synapseclient.table.TableQueryResult(self, query, **kwargs)
         elif resultsAs.lower() == "csv":
-            return synapseclient.CsvFileTable.from_table_query(self, query, **kwargs)
+            return synapseclient.table.CsvFileTable.from_table_query(self, query, **kwargs)
         else:
             raise ValueError("Unknown return type requested from tableQuery: " + str(resultsAs))
 
@@ -2775,7 +2778,7 @@ class Synapse(object):
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
-        fileHandleId = synapseclient.core.upload.multipart_upload(self, filepath, contentType="text/csv")
+        fileHandleId = synapseclient.core.upload.multipart_upload.multipart_upload_file(self, filepath, contentType="text/csv")
 
         uploadRequest = {
             "concreteType": "org.sagebionetworks.repo.model.table.UploadToTableRequest",
@@ -2951,7 +2954,7 @@ class Synapse(object):
         # get table ID, given a string, Table or Schema
         if isinstance(table, str):
             table_id = table
-        elif isinstance(table, synapseclient.TableAbstractBaseClass):
+        elif isinstance(table, synapseclient.table.TableAbstractBaseClass):
             table_id = table.tableId
         elif isinstance(table, synapseclient.Schema):
             table_id = table.id
@@ -3036,7 +3039,7 @@ class Synapse(object):
         MAX_DOWNLOAD_TRIES = 100
         max_files_per_request = kwargs.get('max_files_per_request', 2500)
         # Rowset tableQuery result not allowed
-        if isinstance(table, synapseclient.TableQueryResult):
+        if isinstance(table, synapseclient.table.TableQueryResult):
             raise ValueError("downloadTableColumn doesn't work with rowsets. Please use default tableQuery settings.")
         if isinstance(columns, str):
             columns = [columns]

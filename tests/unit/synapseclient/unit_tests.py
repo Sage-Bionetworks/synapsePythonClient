@@ -10,6 +10,7 @@ from shutil import rmtree
 
 from synapseclient import *
 from synapseclient.core.models.exceptions import _raise_for_status
+import synapseclient.core.utils
 from synapseclient.core.utils import _find_used
 from synapseclient.core.models.exceptions import *
 from synapseclient.core.models.dict_object import DictObject
@@ -132,22 +133,23 @@ def test_activity_parameter_errors():
 
 def test_is_url():
     """test the ability to determine whether a string is a URL"""
-    assert_true(utils.is_url("http://mydomain.com/foo/bar/bat?asdf=1234&qewr=ooo"))
-    assert_true(utils.is_url("http://xkcd.com/1193/"))
-    assert_false(utils.is_url("syn123445"))
-    assert_false(utils.is_url("wasssuuuup???"))
-    assert_true(utils.is_url('file://foo.com/path/to/file.xyz'))
-    assert_true(utils.is_url('file:///path/to/file.xyz'))
-    assert_true(utils.is_url('file:/path/to/file.xyz'))
-    assert_true(utils.is_url('file:///c:/WINDOWS/clock.avi'))
-    assert_true(utils.is_url('file:c:/WINDOWS/clock.avi'))
-    assert_false(utils.is_url('c:/WINDOWS/ugh/ugh.ugh'))
+    assert_true(synapseclient.core.utils.is_url("http://mydomain.com/foo/bar/bat?asdf=1234&qewr=ooo"))
+    assert_true(synapseclient.core.utils.is_url("http://xkcd.com/1193/"))
+    assert_false(synapseclient.core.utils.is_url("syn123445"))
+    assert_false(synapseclient.core.utils.is_url("wasssuuuup???"))
+    assert_true(synapseclient.core.utils.is_url('file://foo.com/path/to/file.xyz'))
+    assert_true(synapseclient.core.utils.is_url('file:///path/to/file.xyz'))
+    assert_true(synapseclient.core.utils.is_url('file:/path/to/file.xyz'))
+    assert_true(synapseclient.core.utils.is_url('file:///c:/WINDOWS/clock.avi'))
+    assert_true(synapseclient.core.utils.is_url('file:c:/WINDOWS/clock.avi'))
+    assert_false(synapseclient.core.utils.is_url('c:/WINDOWS/ugh/ugh.ugh'))
 
 
 def test_windows_file_urls():
     url = 'file:///c:/WINDOWS/clock.avi'
-    assert_true(utils.is_url(url))
-    assert_equals(utils.file_url_to_path(url, verify_exists=False), 'c:/WINDOWS/clock.avi', utils.file_url_to_path(url))
+    assert_true(synapseclient.core.utils.is_url(url))
+    assert_equals(synapseclient.core.utils.file_url_to_path(url, verify_exists=False),
+                  'c:/WINDOWS/clock.avi', synapseclient.core.utils.file_url_to_path(url))
 
 
 def test_is_in_path():
@@ -158,18 +160,18 @@ def test_is_in_path():
                       {u'id': u'syn2385356', u'name': u'.emacs',
                        u'type': u'org.sagebionetworks.repo.model.FileEntity'}]}
 
-    assert_true(utils.is_in_path('syn537704', path))
-    assert_false(utils.is_in_path('syn123', path))
+    assert_true(synapseclient.core.utils.is_in_path('syn537704', path))
+    assert_false(synapseclient.core.utils.is_in_path('syn123', path))
 
 
 def test_id_of():
-    assert_equals(utils.id_of(1), '1')
-    assert_equals(utils.id_of('syn12345'), 'syn12345')
-    assert_equals(utils.id_of({'foo': 1, 'id': 123}), '123')
-    assert_raises(ValueError, utils.id_of, {'foo': 1, 'idzz': 123})
-    assert_equals(utils.id_of({'properties': {'id': 123}}), '123')
-    assert_raises(ValueError, utils.id_of, {'properties': {'qq': 123}})
-    assert_raises(ValueError, utils.id_of, object())
+    assert_equals(synapseclient.core.utils.id_of(1), '1')
+    assert_equals(synapseclient.core.utils.id_of('syn12345'), 'syn12345')
+    assert_equals(synapseclient.core.utils.id_of({'foo': 1, 'id': 123}), '123')
+    assert_raises(ValueError, synapseclient.core.utils.id_of, {'foo': 1, 'idzz': 123})
+    assert_equals(synapseclient.core.utils.id_of({'properties': {'id': 123}}), '123')
+    assert_raises(ValueError, synapseclient.core.utils.id_of, {'properties': {'qq': 123}})
+    assert_raises(ValueError, synapseclient.core.utils.id_of, object())
 
     class Foo:
         def __init__(self, id_attr_name, id):
@@ -179,33 +181,33 @@ def test_id_of():
 
     for attr_name in id_attr_names:
         foo = Foo(attr_name, 123)
-        assert_equals(utils.id_of(foo), '123')
+        assert_equals(synapseclient.core.utils.id_of(foo), '123')
 
 
 def test_guess_file_name():
-    assert_equals(utils.guess_file_name('a/b'), 'b')
-    assert_equals(utils.guess_file_name('file:///a/b'), 'b')
-    assert_equals(utils.guess_file_name('A:/a/b'), 'b')
-    assert_equals(utils.guess_file_name('B:/a/b/'), 'b')
-    assert_equals(utils.guess_file_name('c:\\a\\b'), 'b')
-    assert_equals(utils.guess_file_name('d:\\a\\b\\'), 'b')
-    assert_equals(utils.guess_file_name('E:\\a/b'), 'b')
-    assert_equals(utils.guess_file_name('F:\\a/b/'), 'b')
-    assert_equals(utils.guess_file_name('/a/b'), 'b')
-    assert_equals(utils.guess_file_name('/a/b/'), 'b')
-    assert_equals(utils.guess_file_name('http://www.a.com/b'), 'b')
-    assert_equals(utils.guess_file_name('http://www.a.com/b/'), 'b')
-    assert_equals(utils.guess_file_name('http://www.a.com/b?foo=bar'), 'b')
-    assert_equals(utils.guess_file_name('http://www.a.com/b/?foo=bar'), 'b')
-    assert_equals(utils.guess_file_name('http://www.a.com/b?foo=bar&arga=barga'), 'b')
-    assert_equals(utils.guess_file_name('http://www.a.com/b/?foo=bar&arga=barga'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('a/b'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('file:///a/b'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('A:/a/b'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('B:/a/b/'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('c:\\a\\b'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('d:\\a\\b\\'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('E:\\a/b'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('F:\\a/b/'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('/a/b'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('/a/b/'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('http://www.a.com/b'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('http://www.a.com/b/'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('http://www.a.com/b?foo=bar'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('http://www.a.com/b/?foo=bar'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('http://www.a.com/b?foo=bar&arga=barga'), 'b')
+    assert_equals(synapseclient.core.utils.guess_file_name('http://www.a.com/b/?foo=bar&arga=barga'), 'b')
 
 
 def test_extract_filename():
-    assert_equals(utils.extract_filename('attachment; filename="fname.ext"'), "fname.ext")
-    assert_equals(utils.extract_filename('attachment; filename=fname.ext'), "fname.ext")
-    assert_is_none(utils.extract_filename(None))
-    assert_equals(utils.extract_filename(None, "fname.ext"), "fname.ext")
+    assert_equals(synapseclient.core.utils.extract_filename('attachment; filename="fname.ext"'), "fname.ext")
+    assert_equals(synapseclient.core.utils.extract_filename('attachment; filename=fname.ext'), "fname.ext")
+    assert_is_none(synapseclient.core.utils.extract_filename(None))
+    assert_equals(synapseclient.core.utils.extract_filename(None, "fname.ext"), "fname.ext")
 
 
 def test_version_check():
@@ -219,16 +221,16 @@ def test_normalize_path():
     # tests should pass on reasonable OSes and also on windows
 
     # resolves relative paths
-    assert_true(len(utils.normalize_path('asdf.txt')) > 8)
+    assert_true(len(synapseclient.core.utils.normalize_path('asdf.txt')) > 8)
 
     # doesn't resolve home directory references
-    # assert '~' not in utils.normalize_path('~/asdf.txt')
+    # assert '~' not in synapseclient.core.utils.normalize_path('~/asdf.txt')
 
     # converts back slashes to forward slashes
-    assert_true(utils.normalize_path('\\windows\\why\\why\\why.txt'))
+    assert_true(synapseclient.core.utils.normalize_path('\\windows\\why\\why\\why.txt'))
 
     # what's the right thing to do for None?
-    assert_is_none(utils.normalize_path(None))
+    assert_is_none(synapseclient.core.utils.normalize_path(None))
 
 
 def test_limit_and_offset():
@@ -236,22 +238,22 @@ def test_limit_and_offset():
         """Return the query params as a dict"""
         return dict([kvp.split('=') for kvp in uri.split('?')[1].split('&')])
 
-    qp = query_params(utils._limit_and_offset('/asdf/1234', limit=10, offset=0))
+    qp = query_params(synapseclient.core.utils._limit_and_offset('/asdf/1234', limit=10, offset=0))
     assert_equals(qp['limit'], '10')
     assert_equals(qp['offset'], '0')
 
-    qp = query_params(utils._limit_and_offset('/asdf/1234?limit=5&offset=10', limit=25, offset=50))
+    qp = query_params(synapseclient.core.utils._limit_and_offset('/asdf/1234?limit=5&offset=10', limit=25, offset=50))
     assert_equals(qp['limit'], '25')
     assert_equals(qp['offset'], '50')
     assert_equals(len(qp), 2)
 
-    qp = query_params(utils._limit_and_offset('/asdf/1234?foo=bar', limit=10, offset=30))
+    qp = query_params(synapseclient.core.utils._limit_and_offset('/asdf/1234?foo=bar', limit=10, offset=30))
     assert_equals(qp['limit'], '10')
     assert_equals(qp['offset'], '30')
     assert_equals(qp['foo'], 'bar')
     assert_equals(len(qp), 3)
 
-    qp = query_params(utils._limit_and_offset('/asdf/1234?foo=bar&a=b', limit=10))
+    qp = query_params(synapseclient.core.utils._limit_and_offset('/asdf/1234?foo=bar&a=b', limit=10))
     assert_equals(qp['limit'], '10')
     assert_false('offset' in qp)
     assert_equals(qp['foo'], 'bar')
@@ -261,25 +263,25 @@ def test_limit_and_offset():
 
 def test_utils_extract_user_name():
     profile = {'firstName': 'Madonna'}
-    assert_equals(utils.extract_user_name(profile), 'Madonna')
+    assert_equals(synapseclient.core.utils.extract_user_name(profile), 'Madonna')
     profile = {'firstName': 'Oscar', 'lastName': 'the Grouch'}
-    assert_equals(utils.extract_user_name(profile), 'Oscar the Grouch')
+    assert_equals(synapseclient.core.utils.extract_user_name(profile), 'Oscar the Grouch')
     profile['displayName'] = None
-    assert_equals(utils.extract_user_name(profile), 'Oscar the Grouch')
+    assert_equals(synapseclient.core.utils.extract_user_name(profile), 'Oscar the Grouch')
     profile['displayName'] = ''
-    assert_equals(utils.extract_user_name(profile), 'Oscar the Grouch')
+    assert_equals(synapseclient.core.utils.extract_user_name(profile), 'Oscar the Grouch')
     profile['displayName'] = 'Assistant Professor Oscar the Grouch, PhD'
-    assert_equals(utils.extract_user_name(profile), 'Assistant Professor Oscar the Grouch, PhD')
+    assert_equals(synapseclient.core.utils.extract_user_name(profile), 'Assistant Professor Oscar the Grouch, PhD')
     profile['userName'] = 'otg'
-    assert_equals(utils.extract_user_name(profile), 'otg')
+    assert_equals(synapseclient.core.utils.extract_user_name(profile), 'otg')
 
 
 def test_is_json():
-    assert_true(utils._is_json('application/json'))
-    assert_true(utils._is_json('application/json;charset=ISO-8859-1'))
-    assert_false(utils._is_json('application/flapdoodle;charset=ISO-8859-1'))
-    assert_false(utils._is_json(None))
-    assert_false(utils._is_json(''))
+    assert_true(synapseclient.core.utils._is_json('application/json'))
+    assert_true(synapseclient.core.utils._is_json('application/json;charset=ISO-8859-1'))
+    assert_false(synapseclient.core.utils._is_json('application/flapdoodle;charset=ISO-8859-1'))
+    assert_false(synapseclient.core.utils._is_json(None))
+    assert_false(synapseclient.core.utils._is_json(''))
 
 
 def test_unicode_output():
@@ -292,28 +294,28 @@ def test_unicode_output():
 
 
 def test_normalize_whitespace():
-    assert_equals("zip tang pow a = 2", utils.normalize_whitespace("   zip\ttang   pow   \n    a = 2   "))
-    result = utils.normalize_lines("   zip\ttang   pow   \n    a = 2   \n    b = 3   ")
+    assert_equals("zip tang pow a = 2", synapseclient.core.utils.normalize_whitespace("   zip\ttang   pow   \n    a = 2   "))
+    result = synapseclient.core.utils.normalize_lines("   zip\ttang   pow   \n    a = 2   \n    b = 3   ")
     assert_equals("zip tang pow\na = 2\nb = 3", result)
 
 
 def test_query_limit_and_offset():
-    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 123 offset 456")
+    query, limit, offset = synapseclient.core.utils.query_limit_and_offset("select foo from bar where zap > 2 limit 123 offset 456")
     assert_equals(query, "select foo from bar where zap > 2")
     assert_equals(limit, 123)
     assert_equals(offset, 456)
 
-    query, limit, offset = utils.query_limit_and_offset("select limit from offset where limit==2 limit 123 offset 456")
+    query, limit, offset = synapseclient.core.utils.query_limit_and_offset("select limit from offset where limit==2 limit 123 offset 456")
     assert_equals(query, "select limit from offset where limit==2")
     assert_equals(limit, 123)
     assert_equals(offset, 456)
 
-    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 123")
+    query, limit, offset = synapseclient.core.utils.query_limit_and_offset("select foo from bar where zap > 2 limit 123")
     assert_equals(query, "select foo from bar where zap > 2")
     assert_equals(limit, 123)
     assert_equals(offset, 1)
 
-    query, limit, offset = utils.query_limit_and_offset("select foo from bar where zap > 2 limit 65535",
+    query, limit, offset = synapseclient.core.utils.query_limit_and_offset("select foo from bar where zap > 2 limit 65535",
                                                         hard_limit=1000)
     assert_equals(query, "select foo from bar where zap > 2")
     assert_equals(limit, 1000)
@@ -321,39 +323,39 @@ def test_query_limit_and_offset():
 
 
 def test_as_urls():
-    assert_equals(utils.as_url("C:\\Users\\Administrator\\AppData\\Local\\Temp\\2\\tmpvixuld.txt"),
+    assert_equals(synapseclient.core.utils.as_url("C:\\Users\\Administrator\\AppData\\Local\\Temp\\2\\tmpvixuld.txt"),
                   "file:///C:/Users/Administrator/AppData/Local/Temp/2/tmpvixuld.txt")
-    assert_equals(utils.as_url("/foo/bar/bat/zoinks.txt"), "file:///foo/bar/bat/zoinks.txt")
-    assert_equals(utils.as_url("http://foo/bar/bat/zoinks.txt"), "http://foo/bar/bat/zoinks.txt")
-    assert_equals(utils.as_url("ftp://foo/bar/bat/zoinks.txt"), "ftp://foo/bar/bat/zoinks.txt")
-    assert_equals(utils.as_url("sftp://foo/bar/bat/zoinks.txt"), "sftp://foo/bar/bat/zoinks.txt")
+    assert_equals(synapseclient.core.utils.as_url("/foo/bar/bat/zoinks.txt"), "file:///foo/bar/bat/zoinks.txt")
+    assert_equals(synapseclient.core.utils.as_url("http://foo/bar/bat/zoinks.txt"), "http://foo/bar/bat/zoinks.txt")
+    assert_equals(synapseclient.core.utils.as_url("ftp://foo/bar/bat/zoinks.txt"), "ftp://foo/bar/bat/zoinks.txt")
+    assert_equals(synapseclient.core.utils.as_url("sftp://foo/bar/bat/zoinks.txt"), "sftp://foo/bar/bat/zoinks.txt")
 
 
 def test_time_manipulation():
-    round_tripped_datetime = utils.datetime_to_iso(
-                                utils.from_unix_epoch_time_secs(
-                                    utils.to_unix_epoch_time_secs(
-                                        utils.iso_to_datetime("2014-12-10T19:09:34.000Z"))))
+    round_tripped_datetime = synapseclient.core.utils.datetime_to_iso(
+                                synapseclient.core.utils.from_unix_epoch_time_secs(
+                                    synapseclient.core.utils.to_unix_epoch_time_secs(
+                                        synapseclient.core.utils.iso_to_datetime("2014-12-10T19:09:34.000Z"))))
     assert_equals("2014-12-10T19:09:34.000Z", round_tripped_datetime)
 
-    round_tripped_datetime = utils.datetime_to_iso(
-                                utils.from_unix_epoch_time_secs(
-                                    utils.to_unix_epoch_time_secs(
-                                        utils.iso_to_datetime("1969-04-28T23:48:34.123Z"))))
+    round_tripped_datetime = synapseclient.core.utils.datetime_to_iso(
+                                synapseclient.core.utils.from_unix_epoch_time_secs(
+                                    synapseclient.core.utils.to_unix_epoch_time_secs(
+                                        synapseclient.core.utils.iso_to_datetime("1969-04-28T23:48:34.123Z"))))
     assert_equals("1969-04-28T23:48:34.123Z", round_tripped_datetime)
 
     # check that rounding to milliseconds works
-    round_tripped_datetime = utils.datetime_to_iso(
-                                utils.from_unix_epoch_time_secs(
-                                    utils.to_unix_epoch_time_secs(
-                                        utils.iso_to_datetime("1969-04-28T23:48:34.999499Z"))))
+    round_tripped_datetime = synapseclient.core.utils.datetime_to_iso(
+                                synapseclient.core.utils.from_unix_epoch_time_secs(
+                                    synapseclient.core.utils.to_unix_epoch_time_secs(
+                                        synapseclient.core.utils.iso_to_datetime("1969-04-28T23:48:34.999499Z"))))
     assert_equals("1969-04-28T23:48:34.999Z", round_tripped_datetime)
 
     # check that rounding to milliseconds works
-    round_tripped_datetime = utils.datetime_to_iso(
-                                utils.from_unix_epoch_time_secs(
-                                    utils.to_unix_epoch_time_secs(
-                                        utils.iso_to_datetime("1969-04-27T23:59:59.999999Z"))))
+    round_tripped_datetime = synapseclient.core.utils.datetime_to_iso(
+                                synapseclient.core.utils.from_unix_epoch_time_secs(
+                                    synapseclient.core.utils.to_unix_epoch_time_secs(
+                                        synapseclient.core.utils.iso_to_datetime("1969-04-27T23:59:59.999999Z"))))
     assert_equals("1969-04-28T00:00:00.000Z", round_tripped_datetime)
 
 
@@ -378,7 +380,7 @@ def test_raise_for_status():
 
 
 def test_treadsafe_generator():
-    @utils.threadsafe_generator
+    @synapseclient.core.utils.threadsafe_generator
     def generate_letters():
         for c in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
             yield c
@@ -387,18 +389,18 @@ def test_treadsafe_generator():
 
 
 def test_extract_synapse_id_from_query():
-    assert_equals(utils._extract_synapse_id_from_query("select * from syn1234567"), "syn1234567")
-    assert_equals(utils._extract_synapse_id_from_query("select * from syn1234567 where foo = 'bar'"), "syn1234567")
-    assert_equals(utils._extract_synapse_id_from_query("select * from syn1"), "syn1")
-    assert_equals(utils._extract_synapse_id_from_query("select foo from syn99999999999"), "syn99999999999")
+    assert_equals(synapseclient.core.utils._extract_synapse_id_from_query("select * from syn1234567"), "syn1234567")
+    assert_equals(synapseclient.core.utils._extract_synapse_id_from_query("select * from syn1234567 where foo = 'bar'"), "syn1234567")
+    assert_equals(synapseclient.core.utils._extract_synapse_id_from_query("select * from syn1"), "syn1")
+    assert_equals(synapseclient.core.utils._extract_synapse_id_from_query("select foo from syn99999999999"), "syn99999999999")
 
 
 def test_temp_download_filename():
-    temp_destination = utils.temp_download_filename("/foo/bar/bat", 12345)
+    temp_destination = synapseclient.core.utils.temp_download_filename("/foo/bar/bat", 12345)
     assert_equals(temp_destination, "/foo/bar/bat.synapse_download_12345", temp_destination)
 
     regex = r'/foo/bar/bat.synapse_download_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
-    assert_true(re.match(regex, utils.temp_download_filename("/foo/bar/bat", None)))
+    assert_true(re.match(regex, synapseclient.core.utils.temp_download_filename("/foo/bar/bat", None)))
 
 
 @patch('zipfile.ZipFile')
@@ -412,9 +414,9 @@ def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocke
 
     try:
         # call the method and make sure correct values are being used
-        with patch.object(utils, 'open', mock_open(), create=True) as mocked_open:
-            actual_filepath = utils._extract_zip_file_to_directory(mocked_zipfile, file_dir + file_base_name,
-                                                                   target_dir)
+        with patch.object(synapseclient.core.utils, 'open', mock_open(), create=True) as mocked_open:
+            actual_filepath = synapseclient.core.utils._extract_zip_file_to_directory(
+                mocked_zipfile, file_dir + file_base_name, target_dir)
 
             # make sure it returns the correct cache path
             assert_equals(expected_filepath, actual_filepath)
@@ -431,7 +433,7 @@ def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocke
 
 
 def _calling_module_test_helper():
-    return utils.caller_module_name(inspect.currentframe())
+    return synapseclient.core.utils.caller_module_name(inspect.currentframe())
 
 
 def test_calling_module():

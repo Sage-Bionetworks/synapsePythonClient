@@ -4,6 +4,7 @@ from mock import patch, mock_open, create_autospec, call
 from nose.tools import assert_equals
 
 import synapseclient.core.credentials.cached_sessions as cached_sessions
+import synapseclient.core.utils
 from synapseclient import *
 
 
@@ -97,7 +98,7 @@ class TestMigrateOldSessionFile(object):
         set_most_recent_user_patcher = patch.object(cached_sessions, "set_most_recent_user")
         set_api_key_patcher = patch.object(cached_sessions, "set_api_key")
         os_patcher = patch.object(cached_sessions, 'os')
-        equals_path_patcher = patch.object(cached_sessions, 'equal_paths')
+        equals_path_patcher = patch.object(synapseclient.core.utils, 'equal_paths')
         self.patchers = [read_session_cache_patcher, set_most_recent_user_patcher, set_api_key_patcher, os_patcher,
                          equals_path_patcher]
 

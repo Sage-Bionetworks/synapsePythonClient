@@ -302,6 +302,9 @@ from enum import Enum
 
 # synapseclient imports
 import synapseclient
+import synapseclient.core.models
+from .entity import Entity, Versionable, _entity_type_to_class
+
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
 
@@ -597,14 +600,14 @@ def _delete_rows(syn, schema, row_id_vers_list):
         os.remove(delete_row_csv_filepath)
 
 
-class SchemaBase(synapseclient.Entity, synapseclient.entity.Versionable, metaclass=ABCMeta):
+class SchemaBase(Entity, Versionable, metaclass=ABCMeta):
     """
     This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both.
     You can not create an object of this type.
     """
 
-    _property_keys = synapseclient.Entity._property_keys + synapseclient.entity.Versionable._property_keys + ['columnIds']
-    _local_keys = synapseclient.Entity._local_keys + ['columns_to_store']
+    _property_keys = Entity._property_keys + Versionable._property_keys + ['columnIds']
+    _local_keys = Entity._local_keys + ['columns_to_store']
 
     @property
     @abstractmethod  # forces subclasses to define _synapse_entity_type
@@ -846,8 +849,8 @@ class EntityViewSchema(SchemaBase):
 
 
 # add Schema to the map of synapse entity types to their Python representations
-synapseclient.entity._entity_type_to_class[Schema._synapse_entity_type] = Schema
-synapseclient.entity._entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
+_entity_type_to_class[Schema._synapse_entity_type] = Schema
+_entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 
 class SelectColumn(synapseclient.core.models.DictObject):

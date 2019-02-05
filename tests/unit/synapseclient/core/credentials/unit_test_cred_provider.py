@@ -3,6 +3,7 @@ import mock
 from mock import patch
 from nose.tools import assert_equals, assert_is_none, assert_is_instance
 
+import synapseclient.core.credentials.cached_sessions
 from synapseclient.core.credentials.credential_provider import *
 from synapseclient.core.credentials.cred_data import UserLoginArgs, SynapseCredentials
 from tests import unit
@@ -205,9 +206,11 @@ class TestCachedCredentialsProvider(object):
 
         self.expected_return_tuple = (self.username, None, api_key)
 
-        self.get_most_recent_user__patcher = patch.object(synapseclient.core.cached_sessions, "get_most_recent_user",
+        self.get_most_recent_user__patcher = patch.object(synapseclient.core.credentials.cached_sessions,
+                                                          "get_most_recent_user",
                                                           return_value=self.username)
-        self.get_api_key__patcher = patch.object(synapseclient.core.cached_sessions, "get_api_key", return_value=api_key)
+        self.get_api_key__patcher = patch.object(synapseclient.core.credentials.cached_sessions, "get_api_key",
+                                                 return_value=api_key)
 
         self.mock_get_most_recent_user = self.get_most_recent_user__patcher.start()
         self.mock_get_api_key = self.get_api_key__patcher.start()

@@ -1,23 +1,18 @@
-import json
-import os
-import tempfile
-import base64
 from mock import patch, call, create_autospec
-
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
-from synapseclient import client
 
 from synapseclient import *
-from synapseclient.core.models.exceptions import *
-from synapseclient.core.upload import upload_functions, multipart_upload_file
-from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
-from synapseclient.core.constants import concrete_types
-from synapseclient.core.credentials import UserLoginArgs
-from synapseclient.core.credentials.cred_data import SynapseCredentials
-from synapseclient.core.credentials.credential_provider import SynapseCredentialsProviderChain
+from synapseclient.client import *
+from synapseclient.core.models import *
+from synapseclient.core.upload import *
+import synapseclient.core.upload.multipart_upload
+from synapseclient.core.constants import *
+from synapseclient.core.credentials.cred_data import *
+from synapseclient.core.credentials.credential_provider import *
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.utils import id_of
+from synapseclient.core.credentials import *
+from synapseclient.core.utils import *
 from tests import unit
 
 
@@ -31,14 +26,14 @@ class TestLogout:
         self.credentials = SynapseCredentials(self.username, base64.b64encode(b"api_key_doesnt_matter").decode())
 
     def test_logout__forgetMe_is_True(self):
-        with patch.object(client, "cached_sessions") as mock_cached_session:
+        with patch.object(synapseclient.core.credentials, "cached_sessions") as mock_cached_session:
             syn.credentials = self.credentials
             syn.logout(True)
             assert_is_none(syn.credentials)
             mock_cached_session.remove_api_key.assert_called_with(self.username)
 
     def test_logout__forgetMe_is_False(self):
-        with patch.object(client, "cached_sessions") as mock_cached_session:
+        with patch.object(synapseclient.core.credentials, "cached_sessions") as mock_cached_session:
             syn.credentials = self.credentials
             syn.logout(False)
             assert_is_none(syn.credentials)
@@ -54,7 +49,8 @@ class TestLogin:
 
         self.mocked_credential_chain = create_autospec(SynapseCredentialsProviderChain)
         self.mocked_credential_chain.get_credentials.return_value = self.synapse_creds
-        self.get_default_credential_chain_patcher = patch.object(client, "get_default_credential_chain",
+        self.get_default_credential_chain_patcher = patch.object(synapseclient.core.credentials,
+                                                                 "get_default_credential_chain",
                                                                  return_value=self.mocked_credential_chain)
         self.mocked_get_credential_chain = self.get_default_credential_chain_patcher.start()
 
@@ -88,7 +84,7 @@ class TestLogin:
             mocked_logger.info.assert_called_once()
 
     def test_login__rememberMeIsTrue(self):
-        with patch.object(client, "cached_sessions") as mocked_cached_sessions:
+        with patch.object(synapseclient.core.credentials, "cached_sessions") as mocked_cached_sessions:
             syn.login(silent=True, rememberMe=True)
 
             mocked_cached_sessions.set_api_key.assert_called_once_with(self.synapse_creds.username,
@@ -172,10 +168,11 @@ class TestPrivateGetWithEntityBundle:
 
         assert_equal(e.name, bundle["entity"]["name"])
         assert_equal(e.parentId, bundle["entity"]["parentId"])
-        assert_equal(utils.normalize_path(os.path.abspath(os.path.dirname(e.path))), utils.normalize_path(temp_dir1))
+        assert_equal(synapseclient.core.utils.normalize_path(os.path.abspath(os.path.dirname(e.path))),
+                     synapseclient.core.utils.normalize_path(temp_dir1))
         assert_equal(bundle["fileHandles"][0]["fileName"], os.path.basename(e.path))
-        assert_equal(utils.normalize_path(os.path.abspath(e.path)),
-                     utils.normalize_path(os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])))
+        assert_equal(synapseclient.core.utils.normalize_path(os.path.abspath(e.path)),
+                     synapseclient.core.utils.normalize_path(os.path.join(temp_dir1, bundle["fileHandles"][0]["fileName"])))
 
         # 2. ----------------------------------------------------------------------
         # get without specifying downloadLocation
@@ -195,7 +192,7 @@ class TestPrivateGetWithEntityBundle:
 
         assert_in(bundle["fileHandles"][0]["fileName"], e.files)
         assert_is_not_none(e.path)
-        assert_true(utils.equal_paths(os.path.dirname(e.path), temp_dir2))
+        assert_true(synapseclient.core.utils.equal_paths(os.path.dirname(e.path), temp_dir2))
 
         # 4. ----------------------------------------------------------------------
         # test preservation of local state
@@ -451,7 +448,7 @@ class TestPrivateGetContributor:
 
 
 def test_send_message():
-    with patch.object(multipart_upload_file, "_multipart_upload") as up_mock,\
+    with patch.object(synapseclient.core.upload.multipart_upload, "_multipart_upload") as up_mock,\
             patch.object(Synapse, "restPOST") as post_mock:
             up_mock.return_value = {
                 'startedOn': '2016-01-22T00:00:00.000Z',
@@ -490,7 +487,7 @@ class TestPrivateUploadExternallyStoringProjects:
         test_file = File(expected_path, parent="syn12345")
 
         # method under test
-        with patch.object(upload_functions, "multipart_upload",
+        with patch.object(synapseclient.core.upload, "multipart_upload_file",
                           return_value=expected_file_handle_id) as mocked_multipart_upload, \
                 patch.object(syn.cache, "add") as mocked_cache_add,\
                 patch.object(syn, "_getFileHandle") as mocked_getFileHandle:

@@ -1,11 +1,12 @@
 import uuid
 import time
-
 from nose.tools import assert_raises, assert_equals, assert_is_none, assert_is_not_none
 import re
 
-from synapseclient.core.models.exceptions import *
+
 from synapseclient import *
+import synapseclient.core.utils
+from synapseclient.core.models import *
 from tests import integration
 from tests.integration import schedule_for_cleanup
 import synapseutils
@@ -99,7 +100,7 @@ def test_copy():
     # ------------------------------------
     # TEST COPY LINKS
     # ------------------------------------
-    second_file = utils.make_bogus_data_file()
+    second_file = synapseclient.core.utils.make_bogus_data_file()
     # schedule_for_cleanup(filename)
     second_file_entity = syn.store(File(second_file, parent=project_entity))
     link_entity = Link(second_file_entity.id, parent=folder_entity.id)

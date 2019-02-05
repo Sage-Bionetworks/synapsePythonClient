@@ -148,6 +148,7 @@ import urllib
 
 # synapseclient imports
 import synapseclient
+import synapseclient.core.utils
 
 
 class Versionable(object):

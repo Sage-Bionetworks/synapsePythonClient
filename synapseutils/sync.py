@@ -1,13 +1,15 @@
 import csv
 import errno
-from .monitor import notifyMe
-from synapseclient.entity import is_container
-from synapseclient.core.utils import id_of, is_url, is_synapse_id
-from synapseclient import File, table
-from synapseclient.core.models.exceptions import *
 import os
 import io
 import sys
+
+from synapseclient.entity import is_container
+from synapseclient.core.utils import id_of, is_url, is_synapse_id
+from synapseclient import File, table
+from synapseclient.core.models import *
+from .monitor import notifyMe
+import synapseclient.core.utils
 
 REQUIRED_FIELDS = ['path', 'parent']
 FILE_CONSTRUCTOR_FIELDS = ['name', 'synapseStore', 'contentType']
@@ -188,7 +190,7 @@ def _sortAndFixProvenance(syn, df):
                                             "Specifically %s is not being uploaded and is not in Synapse."
                                             % (path, item)))
 
-        elif not utils.is_url(item) and (utils.is_synapse_id(item) is None):
+        elif not synapseclient.core.utils.is_url(item) and (synapseclient.core.utils.is_synapse_id(item) is None):
             raise SynapseProvenanceError(("The provenance record for file: %s is incorrect.\n"
                                           "Specifically %s, is neither a valid URL or synapseId.") % (path, item))
         return item
@@ -206,7 +208,7 @@ def _sortAndFixProvenance(syn, df):
             allRefs.extend(df.loc[path, 'executed'])
         uploadOrder[path] = allRefs
 
-    uploadOrder = utils.topolgical_sort(uploadOrder)
+    uploadOrder = synapseclient.core.utils.topolgical_sort(uploadOrder)
     df = df.reindex([l[0] for l in uploadOrder])
     return df.reset_index()
 
@@ -370,7 +372,7 @@ def syncToSynapse(syn, manifestFile, dryRun=False, sendMessages=True, retries=MA
     # Write output on what is getting pushed and estimated times - send out message.
     sys.stdout.write('='*50+'\n')
     sys.stdout.write('We are about to upload %i files with a total size of %s.\n '
-                     % (len(df), utils.humanizeBytes(sum(sizes))))
+                     % (len(df), synapseclient.core.utils.humanizeBytes(sum(sizes))))
     sys.stdout.write('='*50+'\n')
 
     if dryRun:

@@ -8,7 +8,7 @@ from math import pi
 
 from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations,\
     to_submission_status_annotations, from_submission_status_annotations, set_privacy
-from synapseclient.core.models.exceptions import *
+import synapseclient.core.utils
 
 
 def test_annotations():
@@ -55,7 +55,7 @@ def test_more_annotations():
     assert_equals(sa['stringAnnotations']['test_mo_booleans'], ['false', 'true', 'true', 'false'])
 
     # this part of the test is kinda fragile. It it breaks again, it should be removed
-    bdays = [utils.from_unix_epoch_time(t) for t in sa['dateAnnotations']['birthdays']]
+    bdays = [synapseclient.core.utils.from_unix_epoch_time(t) for t in sa['dateAnnotations']['birthdays']]
     assert_true(all([t in bdays for t in [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)]]))
 
 
@@ -111,7 +111,7 @@ def test_submission_status_annotations_round_trip():
         if key == 'lucky':
             assert_equals(value, 13)
         if key == 'birthday':
-            assert_equals(utils.from_unix_epoch_time(value), april_28_1969)
+            assert_equals(synapseclient.core.utils.from_unix_epoch_time(value), april_28_1969)
 
     assert_equals({'pi'}, set([kvp['key'] for kvp in sa['doubleAnnos']]))
     assert_equals({pi}, set([kvp['value'] for kvp in sa['doubleAnnos']]))
@@ -125,7 +125,7 @@ def test_submission_status_annotations_round_trip():
 
     a2 = from_submission_status_annotations(sa)
     # TODO: is there a way to convert dates back from longs automatically?
-    a2['birthday'] = utils.from_unix_epoch_time(a2['birthday'])
+    a2['birthday'] = synapseclient.core.utils.from_unix_epoch_time(a2['birthday'])
     assert_equals(a, a2)
 
     # test idempotence

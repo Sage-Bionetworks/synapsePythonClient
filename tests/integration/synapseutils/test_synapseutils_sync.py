@@ -2,12 +2,12 @@ import uuid
 import os
 import time
 import tempfile
-
 from nose.tools import assert_raises, assert_equals, assert_less, assert_in, assert_true
 import pandas as pd
 
-from synapseclient.core.models.exceptions import *
 from synapseclient import *
+import synapseclient.core.utils
+from synapseclient.core.models import *
 from tests import integration
 from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
 import synapseutils
@@ -40,7 +40,7 @@ def setup(module):
 def _makeManifest(content):
     with tempfile.NamedTemporaryFile(mode='w', suffix=".dat", delete=False) as f:
         f.write(content)
-        filepath = utils.normalize_path(f.name)
+        filepath = synapseclient.core.utils.normalize_path(f.name)
     schedule_for_cleanup(filepath)        
     return filepath
 
@@ -126,12 +126,12 @@ def test_syncFromSynapse():
     # Create and upload two files in Folder
     uploaded_paths = []
     for i in range(2):
-        f = utils.make_bogus_data_file()
+        f = synapseclient.core.utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         syn.store(File(f, parent=folder_entity))
     # Add a file in the project level as well
-    f = utils.make_bogus_data_file()
+    f = synapseclient.core.utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     syn.store(File(f, parent=project_entity))
@@ -155,7 +155,7 @@ def test_syncFromSynapse__children_contain_non_file():
     proj = syn.store(Project(name="test_syncFromSynapse_children_non_file" + str(uuid.uuid4())))
     schedule_for_cleanup(proj)
 
-    temp_file = utils.make_bogus_data_file()
+    temp_file = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(temp_file)
     file_entity = syn.store(File(temp_file, name="temp_file_test_syncFromSynapse_children_non_file" + str(uuid.uuid4()),
                                  parent=proj))
@@ -191,14 +191,14 @@ def test_syncFromSynapse_Links():
     # Create and upload two files in Folder
     uploaded_paths = []
     for i in range(2):
-        f = utils.make_bogus_data_file()
+        f = synapseclient.core.utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         file_entity = syn.store(File(f, parent=project_entity))
         # Create links to inner folder
         syn.store(Link(file_entity.id, parent=folder_entity))
     # Add a file in the project level as well
-    f = utils.make_bogus_data_file()
+    f = synapseclient.core.utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     file_entity = syn.store(File(f, parent=second_folder_entity))
@@ -251,12 +251,12 @@ def test_syncFromSynapse():
     # Create and upload two files in Folder
     uploaded_paths = []
     for i in range(2):
-        f = utils.make_bogus_data_file()
+        f = synapseclient.core.utils.make_bogus_data_file()
         uploaded_paths.append(f)
         schedule_for_cleanup(f)
         syn.store(File(f, parent=folder_entity))
     # Add a file in the project level as well
-    f = utils.make_bogus_data_file()
+    f = synapseclient.core.utils.make_bogus_data_file()
     uploaded_paths.append(f)
     schedule_for_cleanup(f)
     syn.store(File(f, parent=project_entity))
@@ -270,7 +270,7 @@ def test_syncFromSynapse():
 
 
 def test_syncFromSynapse__given_file_id():
-    file_path = utils.make_bogus_data_file()
+    file_path = synapseclient.core.utils.make_bogus_data_file()
     schedule_for_cleanup(file_path)
     file = syn.store(File(file_path, name=str(uuid.uuid4()), parent=project, synapseStore=False))
     all_files = synapseutils.syncFromSynapse(syn, file.id)
