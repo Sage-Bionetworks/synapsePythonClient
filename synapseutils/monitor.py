@@ -1,13 +1,9 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
 import functools
 import traceback
 import sys
 from multiprocessing import Value, Lock
-from synapseclient.utils import printTransferProgress
+from synapseclient.core.utils import printTransferProgress
 
 
 def notifyMe(syn, messageSubject='', retries=0):

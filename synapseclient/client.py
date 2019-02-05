@@ -27,18 +27,7 @@ More information
 See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 
 """
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from builtins import input
-
-try:
-    import configparser
-except ImportError:
-    import ConfigParser as configparser
+import configparser
 
 import collections
 import os
@@ -47,20 +36,10 @@ import sys
 import re
 import time
 import hashlib
-import six
 
-try:
-    from urllib.parse import urlparse
-    from urllib.parse import urlunparse
-    from urllib.parse import quote
-    from urllib.parse import unquote
-    from urllib.request import urlretrieve
-except ImportError:
-    from urlparse import urlparse
-    from urlparse import urlunparse
-    from urllib import quote
-    from urllib import unquote
-    from urllib import urlretrieve
+from urllib.parse import urlparse
+from urllib.parse import quote
+from urllib.request import urlretrieve
 
 import webbrowser
 import shutil
@@ -75,28 +54,30 @@ import logging
 import deprecated.sphinx
 
 import synapseclient
-from . import cache
-from . import exceptions
-from .constants import concrete_types, config_file_constants
-from .credentials import cached_sessions, UserLoginArgs, get_default_credential_chain
-from .logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
-from .exceptions import *
-from .version_check import version_check
-from .utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle,\
-    _extract_zip_file_to_directory, _is_integer
+from synapseclient.core import cache
+from synapseclient.core.models import exceptions
+from synapseclient.core.constants import config_file_constants
+from synapseclient.core.constants import concrete_types
+from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
+from synapseclient.core.credentials import cached_sessions
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
+from synapseclient.core.models.exceptions import *
+from synapseclient.core.version_check import version_check
+from synapseclient.core.utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle,\
+    _extract_zip_file_to_directory, _is_integer, require_param
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
-from .dict_object import DictObject
+from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
-from .retry import _with_retry
-from .multipart_upload import multipart_upload, multipart_upload_string
-from .remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from .upload_functions import upload_file_handle, upload_synapse_s3
-from .dozer import doze
+from synapseclient.core.retry import _with_retry
+from synapseclient.core.upload.multipart_upload import multipart_upload, multipart_upload_string
+from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
+from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
+from synapseclient.core.dozer import doze
 
 
 PRODUCTION_ENDPOINTS = {'repoEndpoint': 'https://repo-prod.prod.sagebase.org/repo/v1',
@@ -253,11 +234,11 @@ class Synapse(object):
         Retrieves the client configuration information.
 
         :param configPath:  Path to configuration file on local file system
-        :return: a ConfigParser populated with properties from the user's configuration file.
+        :return: a RawConfigParser populated with properties from the user's configuration file.
         """
 
         try:
-            config = configparser.ConfigParser()
+            config = configparser.RawConfigParser()
             config.read(configPath)  # Does not fail if the file does not exist
             return config
         except configparser.Error:
@@ -531,9 +512,6 @@ class Synapse(object):
              {u'displayName': ... }]
 
         """
-        # In Python2, urllib.quote expects encoded byte-strings
-        if six.PY2 and isinstance(query_string, unicode) or isinstance(query_string, str):
-            query_string = query_string.encode('utf-8')
         uri = '/userGroupHeaders?prefix=%s' % quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
@@ -543,7 +521,7 @@ class Synapse(object):
         :param entity:    Either an Entity or a Synapse ID
         :param subpageId: (Optional) ID of one of the wiki's sub-pages
         """
-        if isinstance(entity, six.string_types) and os.path.isfile(entity):
+        if isinstance(entity, str) and os.path.isfile(entity):
             entity = self.get(entity, downloadFile=False)
         synId = id_of(entity)
         if subpageId is None:
@@ -612,12 +590,12 @@ class Synapse(object):
         """
 
         # If entity is a local file determine the corresponding synapse entity
-        if isinstance(entity, six.string_types) and os.path.isfile(entity):
+        if isinstance(entity, str) and os.path.isfile(entity):
             bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
             kwargs['downloadFile'] = False
             kwargs['path'] = entity
 
-        elif isinstance(entity, six.string_types) and not utils.is_synapse_id(entity):
+        elif isinstance(entity, str) and not utils.is_synapse_id(entity):
             raise SynapseFileNotFoundError(('The parameter %s is neither a local file path '
                                             ' or a valid entity id' % entity))
         # have not been saved entities
@@ -1139,7 +1117,7 @@ class Synapse(object):
 
         """
         # Handle all strings as the Entity ID for backward compatibility
-        if isinstance(obj, six.string_types):
+        if isinstance(obj, str):
             if version:
                 self.restDELETE(uri='/entity/%s/version/%s' % (id_of(obj), version))
             else:
@@ -1678,7 +1656,7 @@ class Synapse(object):
         if usedList is None:
             return None
         usedList = [self.get(target, limitSearch=limitSearch) if
-                    (os.path.isfile(target) if isinstance(target, six.string_types) else False) else target for
+                    (os.path.isfile(target) if isinstance(target, str) else False) else target for
                     target in usedList]
         return usedList
 
@@ -2151,7 +2129,7 @@ class Synapse(object):
         try:
             int(id)
         except (TypeError, ValueError):
-            if isinstance(id, six.string_types):
+            if isinstance(id, str):
                 for team in self._findTeam(id):
                     if team.name == id:
                         id = team.id
@@ -2178,10 +2156,11 @@ class Synapse(object):
 
         :param evaluation:      Evaluation queue to submit to
         :param entity:          The Entity containing the Submission
-        :param name:             A name for this submission
-        :param team:            (optional) A :py:class:`Team` object or name of a Team that is registered for the
+        :param name:            A name for this submission.
+                                In the absent of this parameter, the entity name will be used.
+        :param team:            (optional) A :py:class:`Team` object, ID or name of a Team that is registered for the
                                 challenge
-        :param silent:          Suppress output.
+        :param silent:          Set to True to suppress output.
         :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
                                 name
         :param teamName:        (deprecated) A synonym for submitterAlias
@@ -2194,83 +2173,50 @@ class Synapse(object):
 
         Example::
 
-            evaluation = syn.getEvaluation(12345)
-            entity = syn.get('syn12345')
+            evaluation = syn.getEvaluation(123)
+            entity = syn.get('syn456')
             submission = syn.submit(evaluation, entity, name='Our Final Answer', team='Blue Team')
         """
 
+        require_param(evaluation, "evaluation")
+        require_param(entity, "entity")
+
         evaluation_id = id_of(evaluation)
+
+        entity_id = id_of(entity)
+
+        if 'versionNumber' not in entity:
+            entity = self.get(entity, downloadFile=False)
+        # version defaults to 1 to hack around required version field and allow submission of files/folders
+        entity_version = entity.get('versionNumber', 1)
 
         # default name of submission to name of entity
         if name is None and 'name' in entity:
             name = entity['name']
 
-        # TODO: accept entities or entity IDs
-        if 'versionNumber' not in entity:
-            entity = self.get(entity)
-        # version defaults to 1 to hack around required version field and allow submission of files/folders
-        entity_version = entity.get('versionNumber', 1)
-        entity_id = entity['id']
-
-        # if teamName given, find matching team object
-        if isinstance(team, six.string_types):
-            matching_teams = list(self._findTeam(team))
-            if len(matching_teams) > 0:
-                for matching_team in matching_teams:
-                    if matching_team.name == team:
-                        team = matching_team
-                        break
-                else:
-                    raise ValueError("Team \"{0}\" not found. Did you mean one of these: {1}"
-                                     .format(team, ', '.join(t.name for t in matching_teams)))
-            else:
-                raise ValueError("Team \"{0}\" not found.".format(team))
-
-        # if a team is found, build contributors list
+        team_id = None
         if team:
-            # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
-            eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
-                                       .format(evalId=evaluation_id, id=team.id))
+            team = self.getTeam(team)
+            team_id = id_of(team)
 
-            # Check team eligibility and raise an exception if not eligible
-            if not eligibility['teamEligibility'].get('isEligible', True):
-                if not eligibility['teamEligibility'].get('isRegistered', False):
-                    raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
-                if eligibility['teamEligibility'].get('isQuotaFilled', False):
-                    raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
-                                       .format(team=team.name))
-                raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
+        contributors, eligibility_hash = self._get_contributors(evaluation_id, team)
 
-            # Include all team members who are eligible.
-            contributors = [{'principalId': em['principalId']}
-                            for em in eligibility['membersEligibility'] if em['isEligible']]
-        else:
-            eligibility = None
-            contributors = None
+        # for backward compatible until we remove supports for teamName
+        if not submitterAlias:
+            if teamName:
+                submitterAlias = teamName
+            elif team and 'name' in team:
+                submitterAlias = team['name']
 
-        # create basic submission object
         submission = {'evaluationId': evaluation_id,
-                      'entityId': entity_id,
                       'name': name,
-                      'versionNumber': entity_version}
+                      'entityId': entity_id,
+                      'versionNumber': entity_version,
+                      'teamId': team_id,
+                      'contributors': contributors,
+                      'submitterAlias': submitterAlias}
 
-        # optional submission fields
-        if team:
-            submission['teamId'] = team.id
-            submission['contributors'] = contributors
-        if submitterAlias:
-            submission['submitterAlias'] = submitterAlias
-        elif teamName:
-            submission['submitterAlias'] = teamName
-        elif team:
-            submission['submitterAlias'] = team.name
-
-        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
-        uri = '/evaluation/submission?etag=%s' % entity['etag']
-        if eligibility:
-            uri += "&submissionEligibilityHash={0}".format(eligibility['eligibilityStateHash'])
-
-        submitted = Submission(**self.restPOST(uri, json.dumps(submission)))
+        submitted = self._submit(submission, entity['etag'], eligibility_hash)
 
         # if we want to display the receipt message, we need the full object
         if not silent:
@@ -2279,8 +2225,41 @@ class Synapse(object):
             if 'submissionReceiptMessage' in evaluation:
                 self.logger.info(evaluation['submissionReceiptMessage'])
 
-        # TODO: consider returning dict(submission=submitted, message=evaluation['submissionReceiptMessage'])
+        return Submission(**submitted)
+
+    def _submit(self, submission, entity_etag, eligibility_hash):
+        require_param(submission, "submission")
+        require_param(entity_etag, "entity_etag")
+        # URI requires the etag of the entity and, in the case of a team submission, requires an eligibilityStateHash
+        uri = '/evaluation/submission?etag=%s' % entity_etag
+        if eligibility_hash:
+            uri += "&submissionEligibilityHash={0}".format(eligibility_hash)
+        submitted = self.restPOST(uri, json.dumps(submission))
         return submitted
+
+    def _get_contributors(self, evaluation_id, team):
+        if not evaluation_id or not team:
+            return None, None
+
+        team_id = id_of(team)
+        # see http://docs.synapse.org/rest/GET/evaluation/evalId/team/id/submissionEligibility.html
+        eligibility = self.restGET('/evaluation/{evalId}/team/{id}/submissionEligibility'
+                                   .format(evalId=evaluation_id, id=team_id))
+
+        if not eligibility['teamEligibility']['isEligible']:
+            # Check team eligibility and raise an exception if not eligible
+            if not eligibility['teamEligibility']['isRegistered']:
+                raise SynapseError('Team "{team}" is not registered.'.format(team=team.name))
+            if eligibility['teamEligibility']['isQuotaFilled']:
+                raise SynapseError('Team "{team}" has already submitted the full quota of submissions.'
+                                   .format(team=team.name))
+            raise SynapseError('Team "{team}" is not eligible.'.format(team=team.name))
+
+        # Include all team members who are eligible.
+        contributors = [{'principalId': member['principalId']}
+                        for member in eligibility['membersEligibility']
+                        if member['isEligible'] and not member['hasConflictingSubmission']]
+        return contributors, eligibility['eligibilityStateHash']
 
     def _allowParticipation(self, evaluation, user, rights=["READ", "PARTICIPATE", "SUBMIT", "UPDATE_SUBMISSION"]):
         """
@@ -2682,7 +2661,7 @@ class Synapse(object):
         elif isinstance(x, SchemaBase) or utils.is_synapse_id(x):
             for col in self.getTableColumns(x):
                 yield col
-        elif isinstance(x, six.string_types):
+        elif isinstance(x, str):
             uri = '/column?prefix=' + x
             for result in self._GET_paginated(uri, limit=limit, offset=offset):
                 yield Column(**result)
@@ -2979,7 +2958,7 @@ class Synapse(object):
             raise ValueError("Need to pass in either rowIdAndVersion or (rowId and versionNumber).")
 
         # get table ID, given a string, Table or Schema
-        if isinstance(table, six.string_types):
+        if isinstance(table, str):
             table_id = table
         elif isinstance(table, TableAbstractBaseClass):
             table_id = table.tableId
@@ -2989,7 +2968,7 @@ class Synapse(object):
             raise ValueError("Unrecognized table object \"%s\"." % table)
 
         # get column ID, given a column name, ID or Column object
-        if isinstance(column, six.string_types):
+        if isinstance(column, str):
             column = self._getColumnByName(table_id, column)
             if column is None:
                 raise SynapseError("Can't find column \"%s\"." % column)
@@ -3070,7 +3049,7 @@ class Synapse(object):
         # Rowset tableQuery result not allowed
         if isinstance(table, TableQueryResult):
             raise ValueError("downloadTableColumn doesn't work with rowsets. Please use default tableQuery settings.")
-        if isinstance(columns, six.string_types):
+        if isinstance(columns, str):
             columns = [columns]
         if not isinstance(columns, collections.Iterable):
             raise TypeError('Columns parameter requires a list of column names')

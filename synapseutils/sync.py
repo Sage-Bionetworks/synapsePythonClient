@@ -1,18 +1,13 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+import csv
 import errno
 from .monitor import notifyMe
 from synapseclient.entity import is_container
-from synapseclient.utils import id_of, is_url, is_synapse_id
+from synapseclient.core.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
-from synapseclient.exceptions import *
+from synapseclient.core.models.exceptions import *
 import os
 import io
 import sys
-from backports import csv
 
 REQUIRED_FIELDS = ['path', 'parent']
 FILE_CONSTRUCTOR_FIELDS = ['name', 'synapseStore', 'contentType']

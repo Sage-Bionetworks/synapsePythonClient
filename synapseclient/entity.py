@@ -138,24 +138,13 @@ See also:
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from future.utils import python_2_unicode_compatible
-from builtins import str
-import six
-
 import collections
 import itertools
-if six.PY2:
-    from StringIO import StringIO
-else:
-    from io import StringIO
+from io import StringIO
 
-from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of, itersubclasses
-from synapseclient.exceptions import *
+from synapseclient.core.models.dict_object import DictObject
+from synapseclient.core.utils import id_of, itersubclasses
+from synapseclient.core.models.exceptions import *
 import os
 import inspect
 
@@ -177,7 +166,6 @@ class Versionable(object):
 # entity_object branch)
 # - giving up on hiding the difference between properties and annotations
 
-@python_2_unicode_compatible
 class Entity(collections.MutableMapping):
     """
     A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,
@@ -286,7 +274,7 @@ class Entity(collections.MutableMapping):
 
         # Note: that this will work properly if derived classes declare their internal state variable *before* invoking
         # super(...).__init__(...)
-        for key, value in six.iteritems(kwargs):
+        for key, value in kwargs.items():
             self.__setitem__(key, value)
 
         if 'concreteType' not in self:
@@ -317,11 +305,11 @@ class Entity(collections.MutableMapping):
         :param state: A dictionary
         """
         if state:
-            for key, value in six.iteritems(state):
+            for key, value in state.items():
                 if key not in ['annotations', 'properties']:
                     self.__dict__[key] = value
         result = {}
-        for key, value in six.iteritems(self.__dict__):
+        for key, value in self.__dict__.items():
             if key not in ['annotations', 'properties'] and not key.startswith('__'):
                 result[key] = value
         return result
@@ -431,10 +419,10 @@ class Entity(collections.MutableMapping):
         f.write(", ".join(
             {"%s=%s" % (str(key), value.__repr__(),) for key, value in
                 itertools.chain(
-                    list([k_v for k_v in six.iteritems(self.__dict__)
+                    list([k_v for k_v in self.__dict__.items()
                           if not (k_v[0] in ['properties', 'annotations'] or k_v[0].startswith('__'))]),
-                    six.iteritems(self.properties),
-                    six.iteritems(self.annotations))}))
+                    self.properties.items(),
+                    self.annotations.items())}))
         f.write(")")
         return f.getvalue()
 
@@ -715,7 +703,7 @@ def split_entity_namespaces(entity):
 
     property_keys = entity_class._property_keys
     local_keys = entity_class._local_keys
-    for key, value in six.iteritems(entity):
+    for key, value in entity.items():
         if key in property_keys:
             properties[key] = value
         elif key in local_keys:

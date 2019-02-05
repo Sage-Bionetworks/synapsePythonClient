@@ -68,17 +68,13 @@ Activity
    :members:
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-import six
+
 import collections
 import deprecated.sphinx
 
-from synapseclient.utils import is_url, is_synapse_id
+from synapseclient.core.utils import is_url, is_synapse_id
 from synapseclient.entity import is_synapse_entity
-from synapseclient.exceptions import *
+from synapseclient.core.models.exceptions import *
 
 
 def is_used_entity(x):
@@ -262,7 +258,7 @@ class Activity(dict):
                         'concreteType': 'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
         # -- Synapse Entity ID (assuming the string is an ID)
-        elif isinstance(target, six.string_types):
+        elif isinstance(target, str):
             badargs = _get_any_bad_args(['url', 'name'], locals())
             _raise_incorrect_used_usage(badargs, 'Synapse entity')            
             vals = target.split('.')  # Handle synapseIds of from syn234.4

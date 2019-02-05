@@ -2,6 +2,100 @@
 Release Notes
 =============
 
+1.9.1 (2019-01-20)
+==================
+
+In version 1.9.1, we fix various bugs and added two new features:
+
+* Python 3.7 is supported.
+* Deprecation warnings are visible by default.
+
+Features
+--------
+
+-  [`SYNPY-802 <https://sagebionetworks.jira.com/browse/SYNPY-802>`__] -
+   Support Python 3.7
+-  [`SYNPY-849 <https://sagebionetworks.jira.com/browse/SYNPY-849>`__] -
+   Add deprecation warning that isn't filtered by Python
+
+Bug Fixes
+---------
+
+-  [`SYNPY-454 <https://sagebionetworks.jira.com/browse/SYNPY-454>`__] -
+   Some integration tests do not clean up after themselves
+-  [`SYNPY-456 <https://sagebionetworks.jira.com/browse/SYNPY-456>`__] -
+   Problems with updated query system
+-  [`SYNPY-515 <https://sagebionetworks.jira.com/browse/SYNPY-515>`__] -
+   sphinx documentation not showing for some new classes
+-  [`SYNPY-526 <https://sagebionetworks.jira.com/browse/SYNPY-526>`__] -
+   deprecate downloadTableFile()
+-  [`SYNPY-578 <https://sagebionetworks.jira.com/browse/SYNPY-578>`__] -
+   switch away from POST /entity/#/table/deleterows
+-  [`SYNPY-594 <https://sagebionetworks.jira.com/browse/SYNPY-594>`__] -
+   Getting error from dev branch in integration test against staging
+-  [`SYNPY-796 <https://sagebionetworks.jira.com/browse/SYNPY-796>`__] -
+   fix or remove PyPI downloads badge in readme
+-  [`SYNPY-799 <https://sagebionetworks.jira.com/browse/SYNPY-799>`__] -
+   Unstable test: Test PartialRow updates to entity views from rowset
+   queries
+-  [`SYNPY-846 <https://sagebionetworks.jira.com/browse/SYNPY-846>`__] -
+   error if password stored in config file contains a '%'
+
+
+Tasks
+-----
+
+-  [`SYNPY-491 <https://sagebionetworks.jira.com/browse/SYNPY-491>`__] -
+   Figure out custom release note fitlers
+-  [`SYNPY-840 <https://sagebionetworks.jira.com/browse/SYNPY-840>`__] -
+   Install not working on latest python
+-  [`SYNPY-847 <https://sagebionetworks.jira.com/browse/SYNPY-847>`__] -
+   uploadFileHandle should not be deprecated nor removed
+-  [`SYNPY-852 <https://sagebionetworks.jira.com/browse/SYNPY-852>`__] -
+   Check and update docs.synapse.org to reflect the change in the Python
+   client
+-  [`SYNPY-860 <https://sagebionetworks.jira.com/browse/SYNPY-860>`__] -
+   vignette for how to upload a new version of a file directly to a
+   synapse entity
+-  [`SYNPY-863 <https://sagebionetworks.jira.com/browse/SYNPY-863>`__] -
+   Update public documentation to move away from the query services
+-  [`SYNPY-866 <https://sagebionetworks.jira.com/browse/SYNPY-866>`__] -
+   Update Synapse logo in Python docs :)
+-  [`SYNPY-873 <https://sagebionetworks.jira.com/browse/SYNPY-873>`__] -
+   consolidate integration testing to platform dev account
+
+Improvements
+------------
+
+-  [`SYNPY-473 <https://sagebionetworks.jira.com/browse/SYNPY-473>`__] -
+   Change syn.list to no longer use deprecated function chunkedQuery
+-  [`SYNPY-573 <https://sagebionetworks.jira.com/browse/SYNPY-573>`__] -
+   synapse list command line shouldn't list the parent container
+-  [`SYNPY-581 <https://sagebionetworks.jira.com/browse/SYNPY-581>`__] -
+   <entity>.annotations return object is inconsistent with
+   getAnnotations()
+-  [`SYNPY-612 <https://sagebionetworks.jira.com/browse/SYNPY-612>`__] -
+   Rename view_type to viewType in EntityViewSchema for consistency
+-  [`SYNPY-777 <https://sagebionetworks.jira.com/browse/SYNPY-777>`__] -
+   Python client \_list still uses chunckedQuery and result seem out of
+   date
+-  [`SYNPY-804 <https://sagebionetworks.jira.com/browse/SYNPY-804>`__] -
+   Update styling in the python docs to more closely match the Docs site
+   styling
+-  [`SYNPY-815 <https://sagebionetworks.jira.com/browse/SYNPY-815>`__] -
+   Update the build to use test user instead of migrationAdmin
+-  [`SYNPY-848 <https://sagebionetworks.jira.com/browse/SYNPY-848>`__] -
+   remove outdated link to confluence for command line query
+-  [`SYNPY-856 <https://sagebionetworks.jira.com/browse/SYNPY-856>`__] -
+   build_table example in the docs does not look right
+-  [`SYNPY-858 <https://sagebionetworks.jira.com/browse/SYNPY-858>`__] -
+   Write file view documentation in python client that is similar to
+   synapser
+-  [`SYNPY-870 <https://sagebionetworks.jira.com/browse/SYNPY-870>`__] -
+   Submitting to an evaluation queue can't accept team as int
+
+
+
 
 1.9.0 (2018-09-28)
 ==================

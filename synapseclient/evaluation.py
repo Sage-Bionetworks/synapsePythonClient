@@ -75,12 +75,8 @@ Submission Status
    :members: __init__
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
 
-from synapseclient.dict_object import DictObject
+from synapseclient.core.models.dict_object import DictObject
 
 
 class Evaluation(DictObject):
