@@ -1,5 +1,6 @@
 # external imports
 import keyring
+import keyring.errors
 import os
 import json
 
@@ -25,7 +26,7 @@ def get_api_key(username):
 def remove_api_key(username):
         try:
             keyring.delete_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
-        except keyring.error.PasswordDeleteError:
+        except keyring.errors.PasswordDeleteError:
             # The API key does not exist, but that is fine
             pass
 
