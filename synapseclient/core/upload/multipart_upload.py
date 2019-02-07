@@ -22,12 +22,11 @@ import warnings
 from ctypes import c_bool
 from multiprocessing import Value
 
-from synapseclient.core.models import exceptions
-from synapseclient.core import pool_provider
+from synapseclient.core import pool_provider, exceptions
 from synapseclient.core.utils import printTransferProgress, md5_for_file, MB
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.models.exceptions import SynapseError
-from synapseclient.core.models.exceptions import SynapseHTTPError
+from synapseclient.core.exceptions import SynapseError
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import threadsafe_generator
 
 MAX_NUMBER_OF_PARTS = 10000
@@ -163,7 +162,7 @@ def _put_chunk(url, chunk, verbose=False):
     exceptions._raise_for_status(response, verbose=verbose)
 
 
-def multipart_upload(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
+def multipart_upload_file(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
     """
     Upload a file to a Synapse upload destination in chunks.
 

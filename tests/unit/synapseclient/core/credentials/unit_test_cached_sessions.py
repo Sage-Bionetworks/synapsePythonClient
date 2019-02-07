@@ -1,3 +1,5 @@
+import json
+
 from mock import patch, mock_open, create_autospec, call
 from nose.tools import assert_equals
 

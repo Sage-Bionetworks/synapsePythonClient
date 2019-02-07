@@ -19,7 +19,7 @@ import re
 import shutil
 from math import floor
 from synapseclient.core.lock import Lock
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 
 
 CACHE_ROOT_DIR = os.path.join('~', '.synapseCache')

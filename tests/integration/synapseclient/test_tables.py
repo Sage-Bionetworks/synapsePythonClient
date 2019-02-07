@@ -15,7 +15,7 @@ import pandas as pd
 import numpy as np
 
 from synapseclient.core.utils import id_of
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient import *
 from tests import integration
 from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC

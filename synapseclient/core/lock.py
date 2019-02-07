@@ -4,7 +4,7 @@ import shutil
 import sys
 import time
 from datetime import timedelta
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient.core.dozer import doze
 
 LOCK_DEFAULT_MAX_AGE = timedelta(seconds=10)

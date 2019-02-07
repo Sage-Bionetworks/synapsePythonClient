@@ -10,7 +10,7 @@ from mock import patch
 from synapseclient.core.upload.upload_functions import create_external_file_handle
 
 from synapseclient import *
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from tests import integration
 from tests.integration import schedule_for_cleanup
 

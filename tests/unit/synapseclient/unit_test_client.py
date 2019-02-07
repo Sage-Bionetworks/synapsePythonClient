@@ -1,3 +1,4 @@
+import json
 import os
 import tempfile
 import base64
@@ -5,9 +6,10 @@ from mock import patch, call, create_autospec
 
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
+from synapseclient import client
 
 from synapseclient import *
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient.core.upload import upload_functions, multipart_upload
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.core.constants import concrete_types
@@ -488,7 +490,7 @@ class TestPrivateUploadExternallyStoringProjects:
         test_file = File(expected_path, parent="syn12345")
 
         # method under test
-        with patch.object(upload_functions, "multipart_upload",
+        with patch.object(upload_functions, "multipart_upload_file",
                           return_value=expected_file_handle_id) as mocked_multipart_upload, \
                 patch.object(syn.cache, "add") as mocked_cache_add,\
                 patch.object(syn, "_getFileHandle") as mocked_getFileHandle:

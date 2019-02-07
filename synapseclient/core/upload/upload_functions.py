@@ -2,8 +2,8 @@ import os
 from synapseclient.core.utils import is_url, md5_for_file, as_url, file_url_to_path, id_of
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from synapseclient.core.upload.multipart_upload import multipart_upload
-from synapseclient.core.models.exceptions import SynapseMd5MismatchError
+from synapseclient.core.upload.multipart_upload import multipart_upload_file
+from synapseclient.core.exceptions import SynapseMd5MismatchError
 
 from urllib.parse import urlparse
 from urllib.parse import unquote
@@ -109,7 +109,7 @@ def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
 
 
 def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
-    file_handle_id = multipart_upload(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)
+    file_handle_id = multipart_upload_file(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)
     syn.cache.add(file_handle_id, file_path)
 
     return syn._getFileHandle(file_handle_id)

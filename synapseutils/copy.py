@@ -1,7 +1,7 @@
 import synapseclient
 from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity
 from synapseclient.core.cache import Cache
-from synapseclient.core.models.exceptions import SynapseHTTPError
+from synapseclient.core.exceptions import SynapseHTTPError
 import re
 import json
 ############################################################

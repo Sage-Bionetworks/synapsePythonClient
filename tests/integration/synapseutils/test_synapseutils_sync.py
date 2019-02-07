@@ -6,7 +6,7 @@ import tempfile
 from nose.tools import assert_raises, assert_equals, assert_less, assert_in, assert_true
 import pandas as pd
 
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient import *
 from tests import integration
 from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
