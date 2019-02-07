@@ -162,7 +162,7 @@ def _put_chunk(url, chunk, verbose=False):
     exceptions._raise_for_status(response, verbose=verbose)
 
 
-def multipart_upload(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
+def multipart_upload_file(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
     """
     Upload a file to a Synapse upload destination in chunks.
 

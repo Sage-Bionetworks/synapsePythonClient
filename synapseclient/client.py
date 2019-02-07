@@ -73,7 +73,7 @@ from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, T
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from synapseclient.core.retry import _with_retry
-from synapseclient.core.upload.multipart_upload import multipart_upload, multipart_upload_string
+from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
 from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
 from synapseclient.core.dozer import doze
@@ -1303,8 +1303,8 @@ class Synapse(object):
         # For local files, we default to uploading the file unless explicitly instructed otherwise
         else:
             if synapseStore:
-                file_handle_id = multipart_upload(self, filename, contentType=mimetype,
-                                                  storageLocationId=storageLocationId)
+                file_handle_id = multipart_upload_file(self, filename, contentType=mimetype,
+                                                       storageLocationId=storageLocationId)
                 self.cache.add(file_handle_id, filename)
                 return self._getFileHandle(file_handle_id)
             else:
@@ -2785,7 +2785,7 @@ class Synapse(object):
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
-        fileHandleId = multipart_upload(self, filepath, contentType="text/csv")
+        fileHandleId = multipart_upload_file(self, filepath, contentType="text/csv")
 
         uploadRequest = {
             "concreteType": "org.sagebionetworks.repo.model.table.UploadToTableRequest",

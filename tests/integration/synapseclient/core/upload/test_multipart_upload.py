@@ -21,7 +21,7 @@ def test_round_trip():
     fhid = None
     filepath = utils.make_bogus_binary_file(multipart_upload.MIN_PART_SIZE + 777771)
     try:
-        fhid = multipart_upload.multipart_upload(syn, filepath)
+        fhid = multipart_upload.multipart_upload_file(syn, filepath)
 
         # Download the file and compare it with the original
         junk = File(parent=project, dataFileHandleId=fhid)
@@ -65,7 +65,7 @@ def test_randomly_failing_parts():
     multipart_upload._put_chunk = _put_chunk_or_fail_randomly
 
     try:
-        fhid = multipart_upload.multipart_upload(syn, filepath)
+        fhid = multipart_upload.multipart_upload_file(syn, filepath)
 
         # Download the file and compare it with the original
         junk = File(parent=project, dataFileHandleId=fhid)
