@@ -4,7 +4,7 @@ from mock import patch
 
 from synapseclient import *
 from synapseclient.entity import split_entity_namespaces, is_container, is_versionable
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 
 
 def test_Entity():

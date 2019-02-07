@@ -11,7 +11,7 @@ from nose.tools import assert_raises, assert_equals, assert_true, assert_in
 import shutil
 from mock import patch
 
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient import *
 import synapseclient.__main__ as cmdline
 from tests import integration

@@ -9,9 +9,9 @@ import tempfile
 from shutil import rmtree
 
 from synapseclient import *
-from synapseclient.core.models.exceptions import _raise_for_status
+from synapseclient.core.exceptions import _raise_for_status
 from synapseclient.core.utils import _find_used
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient.core.models.dict_object import DictObject
 
 

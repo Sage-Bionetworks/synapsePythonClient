@@ -12,7 +12,7 @@ from nose.tools import assert_raises, assert_equals, assert_true, assert_false, 
 from mock import patch
 
 from synapseclient import *
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient.core.version_check import version_check
 from tests import integration
 from tests.integration import schedule_for_cleanup

@@ -5,7 +5,7 @@ from io import open
 from nose.tools import assert_equals, assert_true
 
 from synapseclient.core.utils import *
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient import *
 from synapseclient.core.upload import multipart_upload
 from tests import integration

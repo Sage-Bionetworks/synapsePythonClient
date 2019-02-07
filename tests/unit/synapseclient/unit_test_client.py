@@ -7,7 +7,7 @@ from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, a
     assert_not_equals, assert_true
 
 from synapseclient import *
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient.core.upload import upload_functions, multipart_upload
 from synapseclient.client import DEFAULT_STORAGE_LOCATION_ID
 from synapseclient.core.constants import concrete_types

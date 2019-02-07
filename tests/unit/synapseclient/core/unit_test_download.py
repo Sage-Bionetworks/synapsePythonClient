@@ -7,7 +7,7 @@ from mock import MagicMock, patch, mock_open, call
 from nose.tools import assert_raises, assert_equals, assert_false
 
 from synapseclient import *
-from synapseclient.core.models.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, SynapseFileNotFoundError
+from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, SynapseFileNotFoundError
 import synapseclient.core.constants.concrete_types as concrete_types
 from synapseclient.core import utils
 from tests import unit

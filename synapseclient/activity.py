@@ -74,7 +74,7 @@ import deprecated.sphinx
 
 from synapseclient.core.utils import is_url, is_synapse_id
 from synapseclient.entity import is_synapse_entity
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 
 
 def is_used_entity(x):

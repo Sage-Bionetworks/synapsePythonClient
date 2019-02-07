@@ -144,7 +144,7 @@ from io import StringIO
 
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of, itersubclasses
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 import os
 import inspect
 

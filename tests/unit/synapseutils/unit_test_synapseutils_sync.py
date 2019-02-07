@@ -7,7 +7,7 @@ from io import StringIO
 
 import synapseutils
 from synapseclient import *
-from synapseclient.core.models.exceptions import SynapseHTTPError
+from synapseclient.core.exceptions import SynapseHTTPError
 from tests import unit
 
 

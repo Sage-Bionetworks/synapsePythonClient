@@ -63,7 +63,7 @@ import synapseutils
 from . import Activity
 import signal
 import json
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from .wiki import Wiki
 import getpass
 import csv

@@ -299,7 +299,7 @@ from abc import ABCMeta, abstractmethod
 from enum import Enum
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient.core.models.dict_object import DictObject
 from .entity import Entity, Versionable, _entity_type_to_class
 from synapseclient.core.constants import concrete_types

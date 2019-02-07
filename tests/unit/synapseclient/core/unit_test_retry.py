@@ -2,7 +2,7 @@ from nose.tools import assert_raises, assert_equals, assert_true
 from mock import MagicMock
 
 from synapseclient.core.retry import _with_retry
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from tests import unit
 
 
