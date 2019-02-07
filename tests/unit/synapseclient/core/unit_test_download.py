@@ -5,6 +5,7 @@ import hashlib
 
 from mock import MagicMock, patch, mock_open, call
 from nose.tools import assert_raises, assert_equals, assert_false
+from synapseclient import client
 
 from synapseclient import *
 from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, SynapseFileNotFoundError

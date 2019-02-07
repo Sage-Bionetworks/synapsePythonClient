@@ -271,7 +271,6 @@ from .__version__ import __version__
 # public APIs
 from .client import Synapse, login
 from .client import PUBLIC, AUTHENTICATED_USERS
-from .client import ROOT_ENTITY
 
 from .activity import Activity
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
@@ -281,10 +280,7 @@ from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_colum
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-
-from .version_check import check_for_updates
-from .version_check import release_notes
-from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
+from .core.version_check import check_for_updates, release_notes
 
 
 __all__ = [
@@ -297,7 +293,7 @@ __all__ = [
     # enum
     'EntityViewType',
     # constants
-    'PUBLIC', 'AUTHENTICATED_USERS', 'ROOT_ENTITY', 'DEBUG_LOGGER_NAME', 'DEFAULT_LOGGER_NAME']
+    'PUBLIC', 'AUTHENTICATED_USERS']
 
 
 # ensure user-agent is set to track Synapse Python client usage
@@ -305,6 +301,6 @@ import requests
 USER_AGENT = {'User-Agent': 'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
 # patch json
-from .models import custom_json
+from .core.models import custom_json
 # patch logging
-from . import logging_setup
+from .core import logging_setup
