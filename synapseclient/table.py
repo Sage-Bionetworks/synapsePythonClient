@@ -777,6 +777,9 @@ class EntityViewSchema(SchemaBase):
             kwargs['viewTypeMask'] = _get_view_type_mask(includeEntityTypes)
         elif type:
             kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(type)
+        elif properties and 'type' in properties:
+            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(properties['type'])
+            properties['type'] = None
 
         self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
         super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
