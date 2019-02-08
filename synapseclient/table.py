@@ -811,6 +811,19 @@ class EntityViewSchema(SchemaBase):
         else:
             self.scopeIds.append(id_of(entities))
 
+    def set_entity_types(self, includeEntityTypes):
+        """
+        :param includeEntityTypes: a list of entity types to include in the view. This list will replace the previous
+                                   settings. Supported entity types are:
+                                        EntityViewType.FILE,
+                                        EntityViewType.PROJECT,
+                                        EntityViewType.TABLE,
+                                        EntityViewType.FOLDER,
+                                        EntityViewType.VIEW,
+                                        EntityViewType.DOCKER
+        """
+        self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
+
     def _before_synapse_store(self, syn):
         # get the default EntityView columns from Synapse and add them to the columns list
         additional_columns = []
