@@ -325,7 +325,7 @@ DTYPE_2_TABLETYPE = {'?': 'BOOLEAN',
 MAX_NUM_TABLE_COLUMNS = 152
 
 # allowed column types
-# see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
+# see https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
 ColumnTypes = {'STRING', 'DOUBLE', 'INTEGER', 'BOOLEAN', 'DATE', 'FILEHANDLEID', 'ENTITYID', 'LINK', 'LARGETEXT',
                'USERID'}
 
@@ -813,6 +813,19 @@ class EntityViewSchema(SchemaBase):
             self.scopeIds.extend(temp_list)
         else:
             self.scopeIds.append(id_of(entities))
+
+    def set_entity_types(self, includeEntityTypes):
+        """
+        :param includeEntityTypes: a list of entity types to include in the view. This list will replace the previous
+                                   settings. Supported entity types are:
+                                        EntityViewType.FILE,
+                                        EntityViewType.PROJECT,
+                                        EntityViewType.TABLE,
+                                        EntityViewType.FOLDER,
+                                        EntityViewType.VIEW,
+                                        EntityViewType.DOCKER
+        """
+        self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
 
     def _before_synapse_store(self, syn):
         # get the default EntityView columns from Synapse and add them to the columns list

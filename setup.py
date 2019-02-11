@@ -35,7 +35,7 @@ setup(name='synapseclient',
     license='Apache',
     packages=find_packages(),
     install_requires=[
-        'requests>=1.2',
+        'requests>=2.21.0',
         'six',
         'future',
         'backports.csv',
