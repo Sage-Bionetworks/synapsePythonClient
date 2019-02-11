@@ -1285,7 +1285,7 @@ class Synapse(object):
         """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=True)
 
-    @deprecated.sphinx.deprecated(version='1.9.0',
+    @deprecated.sphinx.deprecated(version='1.9.0', action='ignore',
                                   reason="This will be removed in 2.0.")
     def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
         """
@@ -2741,9 +2741,10 @@ class Synapse(object):
 
         NOTE: When performing queries on frequently updated tables, the table can be inaccessible for a period leading
               to a timeout of the query.  Since the results are guaranteed to eventually be returned you can change the
-              max timeout by setting the table_query_timeout variable of the Synapse object:
+              max timeout by setting the table_query_timeout variable of the Synapse object::
 
-              syn.table_query_timeout = 300  #Sets the max timeout to 5 minutes.
+                  # Sets the max timeout to 5 minutes.
+                  syn.table_query_timeout = 300
 
         """
         if resultsAs.lower() == "rowset":

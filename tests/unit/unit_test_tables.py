@@ -1025,3 +1025,26 @@ def test_get_view_type_mask():
                                                EntityViewType.VIEW,
                                                EntityViewType.DOCKER
                                                ]))
+
+
+def test_update_existing_view_type_mask():
+    properties = {
+        'id': 'syn123',
+        'parentId': 'syn456',
+        'viewTypeMask': 2
+    }
+    view = EntityViewSchema(properties=properties)
+    assert_equals(view['viewTypeMask'], 2)
+    view.set_entity_types([EntityViewType.FILE])
+    assert_equals(view['viewTypeMask'], 1)
+
+
+def test_set_view_types_invalid_input():
+    properties = {
+        'id': 'syn123',
+        'parentId': 'syn456'
+    }
+    view = EntityViewSchema(type='project', properties=properties)
+    assert_equals(view['viewTypeMask'], 2)
+    assert_raises(ValueError, view.set_entity_types, None)
+
