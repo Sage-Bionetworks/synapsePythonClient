@@ -31,6 +31,14 @@ class SingleThreadPool:
         pass
 
 
+class FakeLock:
+
+    def __enter__(self):
+        pass
+
+    def __exit__(self, type, value, traceback):
+        pass
+
 class SingleValue:
 
     value = None
@@ -39,7 +47,7 @@ class SingleValue:
         self.value = value
 
     def get_lock(self):
-        pass
+        return FakeLock()
 
 def get_pool():
     if config.single_threaded:
