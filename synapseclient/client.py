@@ -1285,7 +1285,7 @@ class Synapse(object):
         """Use :py:func:`synapseclient.Synapse.get`"""
         return self.get(entity, version=version, downloadFile=True)
 
-    @deprecated.sphinx.deprecated(version='1.9.0',
+    @deprecated.sphinx.deprecated(version='1.9.0', action='ignore',
                                   reason="This will be removed in 2.0.")
     def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
         """
