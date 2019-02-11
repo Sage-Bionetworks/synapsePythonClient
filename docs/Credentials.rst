@@ -8,8 +8,8 @@ One Time Login
 ==============
 Use `username` and `password` to login as follows::
 
-    library("synapser")
-    synLogin("username", "password")
+    import synapseclient
+    syn = synapseclient.login("username", "password")
 
 
 Use `.synapseConfig`
@@ -31,8 +31,8 @@ To enable this section, uncomment it. You will only need to specify either `user
 
 Now, you can login without specifying your `username` and `password`::
 
-    library("synapser")
-    synLogin()
+    import synapseclient
+    syn = synapseclient.login()
 
 
 Letting the Operating System Manage Your Synapse Credentials
@@ -40,12 +40,12 @@ Letting the Operating System Manage Your Synapse Credentials
 
 For users who would like to save their credentials and let other OS configured applications (like keychain in Mac) manage credentials for them, when logging in for the first time, use::
 
-    library("synapser")
-    synLogin("username", "password", rememberMe=True)
+    import synapseclient
+    syn = synapseclient.login("username", "password", rememberMe=True)
 
 The application (keychain in Mac) will then prompt you to allow Python to access these credentials. Please choose “Yes” or “OK”.
 
 The second time you login, you will not have to enter your `username` or `password`::
 
-    library("synapser")
-    synLogin()
+    import synapseclient
+    syn = synapseclient.login()
