@@ -11,6 +11,7 @@ Articles
 .. toctree::
    :maxdepth: 1
 
+   Credentials
    Views
    Upload
 
