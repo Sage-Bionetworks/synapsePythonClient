@@ -544,6 +544,14 @@ def test_entityViewSchema__specified_deprecated_type():
     assert_is_none(entity_view.get('type'))
 
 
+def test_entityViewSchema__specified_deprecated_type_in_properties():
+    view_type = 'project'
+    properties = {'type': view_type}
+    entity_view = EntityViewSchema(parent="idk", properties=properties)
+    assert_equals(EntityViewType.PROJECT.value, entity_view.viewTypeMask)
+    assert_is_none(entity_view.get('type'))
+
+
 def test_entityViewSchema__specified_viewTypeMask():
     entity_view = EntityViewSchema(parent="idk", includeEntityTypes=[EntityViewType.PROJECT])
     assert_equals(EntityViewType.PROJECT.value, entity_view.viewTypeMask)
@@ -1025,7 +1033,6 @@ def test_get_view_type_mask():
                                                EntityViewType.VIEW,
                                                EntityViewType.DOCKER
                                                ]))
-
 
 def test_update_existing_view_type_mask():
     properties = {
