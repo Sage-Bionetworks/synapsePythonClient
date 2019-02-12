@@ -18,6 +18,8 @@ In version 1.9.2, we improved Views' usability by exposing `set_entity_types()` 
 Features
 --------
 
+-  [`SYNPY-919 <https://sagebionetworks.jira.com/browse/SYNPY-919>`__] -
+   Expose a way to update entity types in a view using EntityViewType
 
 Bug Fixes
 ---------
@@ -46,7 +48,8 @@ Improvements
    Wonky display on parameters
 -  [`SYNPY-917 <https://sagebionetworks.jira.com/browse/SYNPY-917>`__] -
    Add instructions on how to login with API key
-
+-  [`SYNPY-909 <https://sagebionetworks.jira.com/browse/SYNPY-909>`__] -
+   Missing columnTypes in Column docstring
 
 
 

@@ -931,7 +931,10 @@ class Column(DictObject):
     :py:class:`synapseclient.table.EntityViewSchema`.
 
     :var id:                An immutable ID issued by the platform
-    :param columnType:      Can be any of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID"
+    :param columnType:      The column type determines the type of data that can be stored in a column. It can be any
+                            of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
+                            "LARGETEXT", "USERID". For more information, please see:
+                            https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     :param maximumSize:     A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
                             default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
                             characters.
