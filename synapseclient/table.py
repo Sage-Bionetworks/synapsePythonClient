@@ -325,7 +325,7 @@ DTYPE_2_TABLETYPE = {'?': 'BOOLEAN',
 MAX_NUM_TABLE_COLUMNS = 152
 
 # allowed column types
-# see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
+# see https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
 ColumnTypes = {'STRING', 'DOUBLE', 'INTEGER', 'BOOLEAN', 'DATE', 'FILEHANDLEID', 'ENTITYID', 'LINK', 'LARGETEXT',
                'USERID'}
 
@@ -777,6 +777,9 @@ class EntityViewSchema(SchemaBase):
             kwargs['viewTypeMask'] = _get_view_type_mask(includeEntityTypes)
         elif type:
             kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(type)
+        elif properties and 'type' in properties:
+            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(properties['type'])
+            properties['type'] = None
 
         self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
         super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
@@ -810,6 +813,19 @@ class EntityViewSchema(SchemaBase):
             self.scopeIds.extend(temp_list)
         else:
             self.scopeIds.append(id_of(entities))
+
+    def set_entity_types(self, includeEntityTypes):
+        """
+        :param includeEntityTypes: a list of entity types to include in the view. This list will replace the previous
+                                   settings. Supported entity types are:
+                                        EntityViewType.FILE,
+                                        EntityViewType.PROJECT,
+                                        EntityViewType.TABLE,
+                                        EntityViewType.FOLDER,
+                                        EntityViewType.VIEW,
+                                        EntityViewType.DOCKER
+        """
+        self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
 
     def _before_synapse_store(self, syn):
         # get the default EntityView columns from Synapse and add them to the columns list
@@ -915,7 +931,10 @@ class Column(DictObject):
     :py:class:`synapseclient.table.EntityViewSchema`.
 
     :var id:                An immutable ID issued by the platform
-    :param columnType:      Can be any of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID"
+    :param columnType:      The column type determines the type of data that can be stored in a column. It can be any
+                            of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
+                            "LARGETEXT", "USERID". For more information, please see:
+                            https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     :param maximumSize:     A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
                             default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
                             characters.

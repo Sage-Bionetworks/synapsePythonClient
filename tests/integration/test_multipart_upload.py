@@ -10,6 +10,7 @@ import random
 import traceback
 from io import open
 
+import synapseclient.config
 import synapseclient.utils as utils
 from synapseclient.utils import MB
 from synapseclient import File
@@ -17,7 +18,7 @@ from synapseclient.multipart_upload import multipart_upload, multipart_upload_st
 import synapseclient.multipart_upload as multipart_upload_module
 import tempfile
 
-from nose.tools import assert_equals, assert_true
+from nose.tools import assert_equals, assert_true, assert_is_not_none
 
 import integration
 from integration import schedule_for_cleanup
@@ -53,6 +54,15 @@ def test_round_trip():
             os.remove(filepath)
         except Exception:
             print(traceback.format_exc())
+
+
+def test_single_thread_upload():
+    synapseclient.config.single_threaded = True
+    try:
+        filepath = utils.make_bogus_binary_file(multipart_upload_module.MIN_PART_SIZE * 2 + 1)
+        assert_is_not_none(multipart_upload(syn, filepath))
+    finally:
+        synapseclient.config.single_threaded = False
 
 
 def test_randomly_failing_parts():

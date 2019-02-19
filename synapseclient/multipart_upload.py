@@ -25,7 +25,6 @@ import requests
 import time
 import warnings
 from ctypes import c_bool
-from multiprocessing import Value
 
 from . import pool_provider
 
@@ -357,8 +356,8 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             syn.logger.debug("Started retry loop for multipart_upload. Currently %d/%d retries"
                              % (retries, MAX_RETRIES))
             # keep track of the number of bytes uploaded so far
-            completed = Value('d', min(completedParts * partSize, fileSize))
-            expired = Value(c_bool, False)
+            completed = pool_provider.get_value('d', min(completedParts * partSize, fileSize))
+            expired = pool_provider.get_value(c_bool, False)
 
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
 
