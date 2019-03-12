@@ -36,6 +36,6 @@ $(window).resize(function(){
         $("li.nav-item-0 a").text("Top");
     }
     else {
-        $("li.nav-item-0 a").text("Synapse Python Client 1.9.1 documentation");
+        $("li.nav-item-0 a").text("Synapse Python Client 1.9.2 documentation");
     }
 });

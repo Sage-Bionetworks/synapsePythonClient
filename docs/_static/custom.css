@@ -22,3 +22,7 @@ div.header img {
     background-color: #FFFF00
 }
 
+table.field-list th {
+    word-break: normal;
+}
+
