@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 1.9.1 documentation</title>
+    <title>Synapse Python Client Documentation &#8212; Synapse Python Client 1.9.2 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -19,7 +19,7 @@
     <link rel="shortcut icon" href="_static/favicon.png"/>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Views" href="Views.html" />
+    <link rel="next" title="Manage Synapse Credentials" href="Credentials.html" />
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <!--[if lt IE 9]>
     <script type="text/javascript" src="_static/css3-mediaqueries.js"></script>
@@ -40,9 +40,9 @@
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="Views.html" title="Views"
+          <a href="Credentials.html" title="Manage Synapse Credentials"
              accesskey="N">next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 1.9.1 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 1.9.2 documentation</a> &#187;</li> 
       </ul>
     </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
@@ -91,8 +91,8 @@
 </ul>
 
   <h4>Next topic</h4>
-  <p class="topless"><a href="Views.html"
-                        title="next chapter">Views</a></p>
+  <p class="topless"><a href="Credentials.html"
+                        title="next chapter">Manage Synapse Credentials</a></p>
   <div role="note" aria-label="source link">
     <h3>This Page</h3>
     <ul class="this-page-menu">
@@ -359,6 +359,7 @@ online at <a class="reference external" href="https://python-docs.synapse.org/">
 <h1>Articles<a class="headerlink" href="#articles" title="Permalink to this headline">¶</a></h1>
 <div class="toctree-wrapper compound">
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="Credentials.html">Manage Synapse Credentials</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Views.html">Views</a></li>
 <li class="toctree-l1"><a class="reference internal" href="Upload.html">File Upload</a></li>
 </ul>
@@ -387,16 +388,17 @@ online at <a class="reference external" href="https://python-docs.synapse.org/">
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="news.html">Release Notes</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id1">1.9.1 (2019-01-20)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id2">1.9.0 (2018-09-28)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id7">1.8.2 (2018-08-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id12">1.8.1 (2018-05-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id14">1.8.0 (2018-05-07)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id18">1.7.5 (2018-01-31)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id19">1.7.4 (2018-01-29)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id24">1.7.3 (2017-12-08)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id32">1.7.1 (2017-11-17)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="news.html#id37">1.6.1 (2016-11-02)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id1">1.9.2 (2019-02-15)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id2">1.9.1 (2019-01-20)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id7">1.9.0 (2018-09-28)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id12">1.8.2 (2018-08-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id17">1.8.1 (2018-05-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id19">1.8.0 (2018-05-07)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id23">1.7.5 (2018-01-31)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id24">1.7.4 (2018-01-29)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id29">1.7.3 (2017-12-08)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id37">1.7.1 (2017-11-17)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="news.html#id42">1.6.1 (2016-11-02)</a></li>
 </ul>
 </li>
 </ul>
@@ -419,14 +421,14 @@ online at <a class="reference external" href="https://python-docs.synapse.org/">
           <a href="py-modindex.html" title="Python Module Index"
              >modules</a> |</li>
         <li class="right" >
-          <a href="Views.html" title="Views"
+          <a href="Credentials.html" title="Manage Synapse Credentials"
              >next</a> |</li>
-        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 1.9.1 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="#">Synapse Python Client 1.9.2 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jan 17, 2019.
+      Last updated on Feb 11, 2019.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.1.
     </div>
     <script type="text/javascript">

@@ -427,7 +427,7 @@ def _updateSynIds(newWikis, wikiIdMap, entityMap):
             newSynId = entityMap[oldSynId]
             oldSynId = oldSynId + "\\b"
             s = re.sub(oldSynId, newSynId, s)
-        print("Done updating Synpase IDs.\n")
+        print("Done updating Synapse IDs.\n")
         newWikis[newWikiId].markdown = s
     return newWikis
 
