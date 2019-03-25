@@ -1,4 +1,4 @@
-FROM ubuntu
+FROM ubuntu:18.04
 RUN echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections
 
 RUN apt-get update && apt-get install -y \
@@ -7,5 +7,8 @@ RUN apt-get update && apt-get install -y \
 	python3-pandas
 
 RUN pip3 install --upgrade pip
-RUN pip3 install synapseclient
+
+ADD . /synapsePythonClient
+WORKDIR /synapsePythonClient
+RUN python3 setup.py install
 
