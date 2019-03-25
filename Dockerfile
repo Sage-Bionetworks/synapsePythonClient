@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip3 install --upgrade pip
 
-ADD . /synapsePythonClient
+COPY . /synapsePythonClient
 WORKDIR /synapsePythonClient
 RUN python3 setup.py install
 
