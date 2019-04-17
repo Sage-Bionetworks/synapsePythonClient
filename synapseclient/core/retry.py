@@ -1,6 +1,7 @@
 import random
 import sys
 import logging
+
 from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
 from synapseclient.core.utils import _is_json
 from synapseclient.core.dozer import doze

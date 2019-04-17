@@ -58,16 +58,17 @@ A few more commands (cat, create, update, associate)
 import argparse
 import os
 import sys
-import synapseclient
-import synapseutils
-from . import Activity
 import signal
 import json
-from synapseclient.core.exceptions import *
-from .wiki import Wiki
 import getpass
 import csv
 import re
+
+import synapseclient
+import synapseutils
+from . import Activity
+from .wiki import Wiki
+from synapseclient.core.exceptions import *
 
 
 def query(args, syn):

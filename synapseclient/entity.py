@@ -140,13 +140,14 @@ See also:
 
 import collections
 import itertools
-from io import StringIO
+import io
+import os
+import inspect
+import urllib.parse as urllib_parse
 
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of, itersubclasses
 from synapseclient.core.exceptions import *
-import os
-import inspect
 
 
 class Versionable(object):
@@ -387,7 +388,7 @@ class Entity(collections.MutableMapping):
                 f.write('\n')
 
     def __str__(self):
-        f = StringIO()
+        f = io.StringIO()
 
         f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'),
                                    self['id'] if 'id' in self else '-',))
@@ -413,7 +414,7 @@ class Entity(collections.MutableMapping):
     def __repr__(self):
         """Returns an eval-able representation of the Entity."""
 
-        f = StringIO()
+        f = io.StringIO()
         f.write(self.__class__.__name__)
         f.write("(")
         f.write(", ".join(
@@ -593,7 +594,7 @@ class File(Entity, Versionable):
 
         if file_handle_update_dict is not None \
                 and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
-                and utils.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
+                and urllib_parse.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
             self.__dict__['synapseStore'] = False
 
         # initialize all nonexistent keys to have value of None

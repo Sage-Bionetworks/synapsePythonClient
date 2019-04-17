@@ -3,12 +3,13 @@ import os
 import shutil
 import sys
 import time
-from datetime import timedelta
+import datetime
+
 from synapseclient.core.exceptions import *
 from synapseclient.core.dozer import doze
 
-LOCK_DEFAULT_MAX_AGE = timedelta(seconds=10)
-DEFAULT_BLOCKING_TIMEOUT = timedelta(seconds=70)
+LOCK_DEFAULT_MAX_AGE = datetime.timedelta(seconds=10)
+DEFAULT_BLOCKING_TIMEOUT = datetime.timedelta(seconds=70)
 CACHE_UNLOCK_WAIT_TIME = 0.5
 
 

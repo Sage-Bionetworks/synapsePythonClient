@@ -17,7 +17,8 @@ import operator
 import os
 import re
 import shutil
-from math import floor
+import math
+
 from synapseclient.core.lock import Lock
 from synapseclient.core.exceptions import *
 
@@ -53,7 +54,7 @@ def compare_timestamps(modified_time, cached_time):
     if cached_time is None or modified_time is None:
         return False
     if cached_time.endswith(".000Z"):
-        return cached_time == epoch_time_to_iso(floor(modified_time))
+        return cached_time == epoch_time_to_iso(math.floor(modified_time))
     else:
         return cached_time == epoch_time_to_iso(modified_time)
 
@@ -217,7 +218,7 @@ class Cache:
 
             path = utils.normalize_path(path)
             # write .000 milliseconds for backward compatibility
-            cache_map[path] = epoch_time_to_iso(floor(_get_modified_time(path)))
+            cache_map[path] = epoch_time_to_iso(math.floor(_get_modified_time(path)))
             self._write_cache_map(cache_dir, cache_map)
 
         return cache_map
