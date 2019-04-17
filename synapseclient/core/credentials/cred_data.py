@@ -50,6 +50,7 @@ class SynapseCredentials(object):
 
 # a class that just contains args passed form synapse client login
 # TODO remove deprecated sessionToken
-UserLoginArgs = collections.namedtuple('UserLoginArgs', ['username', 'password', 'api_key', 'skip_cache', 'session_token'])
+UserLoginArgs = collections.namedtuple('UserLoginArgs',
+                                       ['username', 'password', 'api_key', 'skip_cache', 'session_token'])
 # make the namedtuple's arguments optional instead of positional. All values default to None
 UserLoginArgs.__new__.__defaults__ = (None,) * len(UserLoginArgs._fields)
