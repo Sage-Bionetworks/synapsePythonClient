@@ -2425,7 +2425,7 @@ class Synapse(object):
         # Convert all attachments into file handles
         if wiki.get('attachments') is not None:
             for attachment in wiki['attachments']:
-                fileHandle = self.uploadSynapseManagedFileHandle(attachment)
+                fileHandle = self.upload_synapse_s3(attachment)
                 wiki['attachmentFileHandleIds'].append(fileHandle['id'])
             del wiki['attachments']
 

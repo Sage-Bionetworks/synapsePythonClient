@@ -292,7 +292,7 @@ def create(args, syn):
     entity = {'name': args.name,
               'parentId': args.parentid,
               'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
-    entity = syn.createEntity(entity)
+    entity = syn.store(entity)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 

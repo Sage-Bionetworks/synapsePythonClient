@@ -101,7 +101,7 @@ def test_entity_version():
     entity = File(parent=project['id'])
     entity['path'] = utils.make_bogus_data_file()
     schedule_for_cleanup(entity['path'])
-    entity = syn.createEntity(entity)
+    entity = syn.store(entity)
     
     syn.setAnnotations(entity, {'fizzbuzz': 111222})
     entity = syn.getEntity(entity)
@@ -196,7 +196,7 @@ def test_uploadFileEntity():
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
     entity = {'name': 'fooUploadFileEntity', 'description': 'A test file entity', 'parentId': project['id']}
-    entity = syn.uploadFile(entity, fname)
+    entity = syn.store(entity, fname)
 
     # Download and verify
     entity = syn.downloadEntity(entity)
