@@ -28,7 +28,6 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 
 """
 import configparser
-
 import collections
 import os
 import errno
@@ -36,11 +35,6 @@ import sys
 import re
 import time
 import hashlib
-
-from urllib.parse import urlparse
-from urllib.parse import quote
-from urllib.request import urlretrieve
-
 import webbrowser
 import shutil
 import zipfile
@@ -49,21 +43,12 @@ import tempfile
 import warnings
 import getpass
 import json
-from collections import OrderedDict
 import logging
 import deprecated.sphinx
+import urllib.parse as urllib_urlparse
+
 
 import synapseclient
-from synapseclient.core import cache, exceptions
-from synapseclient.core.constants import config_file_constants
-from synapseclient.core.constants import concrete_types
-from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
-from synapseclient.core.credentials import cached_sessions
-from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
-from synapseclient.core.exceptions import *
-from synapseclient.core.version_check import version_check
-from synapseclient.core.utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, find_data_file_handle,\
-    _extract_zip_file_to_directory, _is_integer, require_param
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -72,6 +57,16 @@ from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
+from synapseclient.core import cache, exceptions
+from synapseclient.core.constants import config_file_constants
+from synapseclient.core.constants import concrete_types
+from synapseclient.core.credentials import UserLoginArgs, get_default_credential_chain
+from synapseclient.core.credentials import cached_sessions
+from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
+from synapseclient.core.exceptions import *
+from synapseclient.core.version_check import version_check
+from synapseclient.core.utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, \
+    find_data_file_handle, _extract_zip_file_to_directory, _is_integer, require_param
 from synapseclient.core.retry import _with_retry
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
@@ -511,7 +506,7 @@ class Synapse(object):
              {u'displayName': ... }]
 
         """
-        uri = '/userGroupHeaders?prefix=%s' % quote(query_string)
+        uri = '/userGroupHeaders?prefix=%s' % urllib_urlparse.quote(query_string)
         return [UserGroupHeader(**result) for result in self._GET_paginated(uri)]
 
     def onweb(self, entity, subpageId=None):
@@ -1294,7 +1289,7 @@ class Synapse(object):
         if filename is None:
             raise ValueError('No filename given')
         elif utils.is_url(filename):
-            if synapseStore and urlparse(filename).scheme != 'sftp':
+            if synapseStore and urllib_urlparse.urlparse(filename).scheme != 'sftp':
                 raise NotImplementedError('Automatic storing of external files is not supported.'
                                           ' Please try downloading the file locally first before storing it or set'
                                           ' synapseStore=False')
@@ -1753,7 +1748,7 @@ class Synapse(object):
         delete_on_md5_mismatch = True
         while redirect_count < REDIRECT_LIMIT:
             redirect_count += 1
-            scheme = urlparse(url).scheme
+            scheme = urllib_urlparse.urlparse(url).scheme
             if scheme == 'file':
                 delete_on_md5_mismatch = False
                 destination = utils.file_url_to_path(url, verify_exists=True)
@@ -1765,7 +1760,7 @@ class Synapse(object):
                 destination = SFTPWrapper.download_file(url, destination, username, password)
                 break
             elif scheme == 'ftp':
-                urlretrieve(url, destination)
+                urllib_urlparse.urlretrieve(url, destination)
                 break
             elif scheme == 'http' or scheme == 'https':
                 # if a partial download exists with the temporary name,
@@ -1937,7 +1932,7 @@ class Synapse(object):
         """
         # Get authentication information from configFile
 
-        parsedURL = urlparse(url)
+        parsedURL = urllib_urlparse.urlparse(url)
         baseURL = parsedURL.scheme+'://'+parsedURL.hostname
 
         config = self.getConfigFile(self.configPath)
@@ -2090,7 +2085,7 @@ class Synapse(object):
 
         See: :py:mod:`synapseclient.evaluation`
         """
-        uri = Evaluation.getByNameURI(quote(name))
+        uri = Evaluation.getByNameURI(urllib_urlparse.quote(name))
         return Evaluation(**self.restGET(uri))
 
     def getEvaluationByContentSource(self, entity):
@@ -3059,7 +3054,7 @@ class Synapse(object):
         self.logger.info("Downloading %d files, %d cached locally" % (len(file_handle_associations),
                                                                       len(file_handle_to_path_map)))
 
-        permanent_failures = OrderedDict()
+        permanent_failures = collections.OrderedDict()
 
         attempts = 0
         while len(file_handle_associations) > 0 and attempts < MAX_DOWNLOAD_TRIES:
@@ -3130,7 +3125,7 @@ class Synapse(object):
         col_indices = [i for i, h in enumerate(table.headers) if h.name in columns]
         # see: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/BulkFileDownloadRequest.html
         file_handle_associations = []
-        file_handle_to_path_map = OrderedDict()
+        file_handle_to_path_map = collections.OrderedDict()
         seen_file_handle_ids = set()  # ensure not sending duplicate requests for the same FileHandle IDs
         for row in table:
             for col_index in col_indices:
@@ -3370,7 +3365,7 @@ class Synapse(object):
 
         # Check to see if the URI is incomplete (i.e. a Synapse URL)
         # In that case, append a Synapse endpoint to the URI
-        parsedURL = urlparse(uri)
+        parsedURL = urllib_urlparse.urlparse(uri)
         if parsedURL.netloc == '':
             uri = endpoint + uri
 

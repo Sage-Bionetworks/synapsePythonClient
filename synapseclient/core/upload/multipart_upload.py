@@ -19,7 +19,7 @@ import os
 import requests
 import time
 import warnings
-from ctypes import c_bool
+import ctypes
 
 from synapseclient.core import pool_provider, exceptions
 from synapseclient.core.utils import printTransferProgress, md5_for_file, MB
@@ -343,7 +343,7 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
                              % (retries, MAX_RETRIES))
             # keep track of the number of bytes uploaded so far
             completed = pool_provider.get_value('d', min(completedParts * partSize, fileSize))
-            expired = pool_provider.get_value(c_bool, False)
+            expired = pool_provider.get_value(ctypes.c_bool, False)
 
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
 

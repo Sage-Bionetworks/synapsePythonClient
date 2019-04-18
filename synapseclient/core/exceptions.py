@@ -13,7 +13,8 @@ Exceptions
 """
 
 import requests
-import synapseclient.core.utils as utils
+
+from synapseclient.core import utils
 
 
 class SynapseError(Exception):
