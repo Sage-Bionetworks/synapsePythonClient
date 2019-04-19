@@ -53,7 +53,7 @@ from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass
+from .table import SchemaBase, Column, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from synapseclient.core import cache, exceptions
@@ -64,12 +64,12 @@ from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from synapseclient.core.exceptions import *
 from synapseclient.core.version_check import version_check
-from synapseclient.core.utils import id_of, get_properties, MB, memoize, _is_json, _extract_synapse_id_from_query, \
-    find_data_file_handle, _extract_zip_file_to_directory, _is_integer, require_param
-from synapseclient.core.retry import _with_retry
+from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
+    find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
+from synapseclient.core.retry import with_retry
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
+from synapseclient.core.upload.upload_functions import upload_file_handle
 from synapseclient.core.dozer import doze
 
 
@@ -1663,7 +1663,7 @@ class Synapse(object):
                 temp_destination = utils.temp_download_filename(destination, fileHandleId)
                 range_header = {"Range": "bytes={start}-".format(start=os.path.getsize(temp_destination))} \
                     if os.path.exists(temp_destination) else {}
-                response = _with_retry(
+                response = with_retry(
                     lambda: self._requests_session.get(url,
                                                        headers=self._generateSignedHeaders(url, range_header),
                                                        stream=True, allow_redirects=False),
@@ -2653,7 +2653,7 @@ class Synapse(object):
             query_bundle_request["query"]["offset"] = offset
         query_bundle_request["query"]["isConsistent"] = isConsistent
 
-        uri = '/entity/{id}/table/query/async'.format(id=_extract_synapse_id_from_query(query))
+        uri = '/entity/{id}/table/query/async'.format(id=extract_synapse_id_from_query(query))
 
         return self._waitForAsync(uri=uri, request=query_bundle_request)
 
@@ -2774,7 +2774,7 @@ class Synapse(object):
             "includeEntityEtag": True
         }
 
-        uri = "/entity/{id}/table/download/csv/async".format(id=_extract_synapse_id_from_query(query))
+        uri = "/entity/{id}/table/download/csv/async".format(id=extract_synapse_id_from_query(query))
         download_from_table_result = self._waitForAsync(uri=uri, request=download_from_table_request)
         file_handle_id = download_from_table_result['resultsFileHandleId']
         cached_file_path = self.cache.get(file_handle_id=file_handle_id)
@@ -2784,7 +2784,7 @@ class Synapse(object):
             cache_dir = self.cache.get_cache_dir(file_handle_id)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            path = self._downloadFileHandle(file_handle_id, _extract_synapse_id_from_query(query),
+            path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
                                             'TableEntity', cache_dir)
         return download_from_table_result, path
 
@@ -2900,7 +2900,7 @@ class Synapse(object):
                     for summary in response['fileSummary']:
                         if summary['status'] == 'SUCCESS':
                             cache_dir = self.cache.get_cache_dir(summary['fileHandleId'])
-                            filepath = _extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
+                            filepath = extract_zip_file_to_directory(zf, summary['zipEntryName'], cache_dir)
                             self.cache.add(summary['fileHandleId'], filepath)
                             file_handle_to_path_map[summary['fileHandleId']] = filepath
                         elif summary['failureCode'] not in RETRIABLE_FAILURE_CODES:
@@ -2933,7 +2933,7 @@ class Synapse(object):
         for row in table:
             for col_index in col_indices:
                 file_handle_id = row[col_index]
-                if _is_integer(file_handle_id):
+                if is_integer(file_handle_id):
                     path_to_cached_file = self.cache.get(file_handle_id)
                     if path_to_cached_file:
                         file_handle_to_path_map[file_handle_id] = path_to_cached_file
@@ -3097,8 +3097,8 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: self._requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
-                               **retryPolicy)
+        response = with_retry(lambda: self._requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
+                              **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3117,8 +3117,8 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: self._requests_session.post(uri, data=body, headers=headers, **kwargs),
-                               verbose=self.debug, **retryPolicy)
+        response = with_retry(lambda: self._requests_session.post(uri, data=body, headers=headers, **kwargs),
+                              verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3138,8 +3138,8 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: self._requests_session.put(uri, data=body, headers=headers, **kwargs),
-                               verbose=self.debug, **retryPolicy)
+        response = with_retry(lambda: self._requests_session.put(uri, data=body, headers=headers, **kwargs),
+                              verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
@@ -3156,8 +3156,8 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = _with_retry(lambda: self._requests_session.delete(uri, headers=headers, **kwargs),
-                               verbose=self.debug, **retryPolicy)
+        response = with_retry(lambda: self._requests_session.delete(uri, headers=headers, **kwargs),
+                              verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
 
     def _build_uri_and_headers(self, uri, endpoint=None, headers=None):
@@ -3185,6 +3185,6 @@ class Synapse(object):
 
     def _return_rest_body(self, response):
         """Returns either a dictionary or a string depending on the 'content-type' of the response."""
-        if _is_json(response.headers.get('content-type', None)):
+        if is_json(response.headers.get('content-type', None)):
             return response.json()
         return response.text

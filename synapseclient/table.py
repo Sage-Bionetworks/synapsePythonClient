@@ -301,7 +301,7 @@ import enum
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import *
 from synapseclient.core.models.dict_object import DictObject
-from .entity import Entity, Versionable, _entity_type_to_class
+from .entity import Entity, Versionable, entity_type_to_class
 from synapseclient.core.constants import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
@@ -863,8 +863,8 @@ class EntityViewSchema(SchemaBase):
 
 
 # add Schema to the map of synapse entity types to their Python representations
-_entity_type_to_class[Schema._synapse_entity_type] = Schema
-_entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
+entity_type_to_class[Schema._synapse_entity_type] = Schema
+entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 
 class SelectColumn(DictObject):

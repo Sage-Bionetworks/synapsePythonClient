@@ -124,7 +124,7 @@ def _raise_for_status(response, verbose=False):
 
     if message is not None:
         # Append the server's JSON error message
-        if utils._is_json(response.headers.get('content-type', None)) and 'reason' in response.json():
+        if utils.is_json(response.headers.get('content-type', None)) and 'reason' in response.json():
             message += "\n%s" % response.json()['reason']
         else:
             message += "\n%s" % response.text
