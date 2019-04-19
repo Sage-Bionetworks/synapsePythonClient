@@ -69,7 +69,7 @@ from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json
 from synapseclient.core.retry import with_retry
 from synapseclient.core.upload.multipart_upload import multipart_upload_file, multipart_upload_string
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from synapseclient.core.upload.upload_functions import upload_file_handle
+from synapseclient.core.upload.upload_functions import upload_file_handle, upload_synapse_s3
 from synapseclient.core.dozer import doze
 
 
@@ -2425,7 +2425,7 @@ class Synapse(object):
         # Convert all attachments into file handles
         if wiki.get('attachments') is not None:
             for attachment in wiki['attachments']:
-                fileHandle = self.upload_synapse_s3(attachment)
+                fileHandle = upload_synapse_s3(self, attachment)
                 wiki['attachmentFileHandleIds'].append(fileHandle['id'])
             del wiki['attachments']
 
