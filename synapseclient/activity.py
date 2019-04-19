@@ -70,7 +70,6 @@ Activity
 """
 
 import collections
-import deprecated.sphinx
 
 from synapseclient.core.utils import is_url, is_synapse_id
 from synapseclient.entity import is_synapse_entity
@@ -287,18 +286,6 @@ class Activity(dict):
 
         # Add the used resource to the activity
         self['used'].append(resource)
-        
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use used() instead.")
-    def usedEntity(self, target, targetVersion=None, wasExecuted=False):
-        """See :py:func:`synapseclient.Activity.used`."""
-        self.used(target=target, targetVersion=targetVersion, wasExecuted=wasExecuted)
-
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use used() instead.")
-    def usedURL(self, url, name=None, wasExecuted=False):
-        """See :py:func:`synapseclient.Activity.used`."""
-        self.used(url=url, name=name, wasExecuted=wasExecuted)
 
     def executed(self, target=None, targetVersion=None, url=None, name=None):
         """

@@ -26,13 +26,13 @@ def test_Entity():
     project = Project(name=project_name)
     project = syn.store(project)
     schedule_for_cleanup(project)
-    project = syn.getEntity(project)
+    project = syn.get(project)
     assert_equals(project.name, project_name)
     
     # Create and get a Folder
     folder = Folder('Test Folder', parent=project, description='A place to put my junk', foo=1000)
-    folder = syn.createEntity(folder)
-    folder = syn.getEntity(folder)
+    folder = syn.store(folder)
+    folder = syn.get(folder)
     assert_equals(folder.name, 'Test Folder')
     assert_equals(folder.parentId, project.id)
     assert_equals(folder.description, 'A place to put my junk')
@@ -61,7 +61,7 @@ def test_Entity():
     a_file = syn.store(a_file)
     assert_equals(a_file.path, path)
 
-    a_file = syn.getEntity(a_file)
+    a_file = syn.get(a_file)
     assert_equals(a_file.description,
                   u'Description with funny characters: Déjà vu, ประเทศไทย, 中国', u'description= %s'
                   % a_file.description)
@@ -168,7 +168,7 @@ def test_get_local_file():
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
     folder = Folder('TestFindFileFolder', parent=project, description='A place to put my junk')
-    folder = syn.createEntity(folder)
+    folder = syn.store(folder)
 
     # Get an nonexistent file in Synapse
     assert_raises(SynapseError, syn.get, new_path)

@@ -44,7 +44,6 @@ import warnings
 import getpass
 import json
 import logging
-import deprecated.sphinx
 import urllib.parse as urllib_urlparse
 
 
@@ -1200,110 +1199,6 @@ class Synapse(object):
         :returns: a dict of a new FileHandle as a dict that represents the uploaded file
         """
         return upload_file_handle(self, parent, path, synapseStore, md5, file_size, mimetype)
-
-    ############################################################
-    #                    Deprecated methods                    #
-    ############################################################
-
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use get() instead.")
-    def getEntity(self, entity, version=None):
-        """Use :py:func:`synapseclient.Synapse.get`"""
-        return self.get(entity, version=version, downloadFile=False)
-
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use get() instead.")
-    def loadEntity(self, entity):
-        """Use :py:func:`synapseclient.Synapse.get`"""
-        return self.downloadEntity(entity)
-
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use store() instead.")
-    def createEntity(self, entity, used=None, executed=None, **kwargs):
-        """Use :py:func:`synapseclient.Synapse.store`"""
-        return self.store(entity, used=used, executed=executed, **kwargs)
-
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use store() instead.")
-    def updateEntity(self, entity, used=None, executed=None, incrementVersion=False, versionLabel=None, **kwargs):
-        """Use :py:func:`synapseclient.Synapse.store`"""
-        return self.store(entity, used=used, executed=executed, forceVersion=incrementVersion,
-                          versionLabel=versionLabel, **kwargs)
-
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use delete() instead.")
-    def deleteEntity(self, entity):
-        """Use :py:func:`synapseclient.Synapse.delete`"""
-        self.delete(entity)
-
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use store() instead.")
-    def uploadFile(self, entity, filename=None, used=None, executed=None):
-        """Use :py:func:`synapseclient.Synapse.store`"""
-
-        properties, annotations, local_state = split_entity_namespaces(entity)
-
-        if filename is not None:
-            local_state['path'] = filename
-        if 'name' not in properties or properties['name'] is None:
-            properties['name'] = utils.guess_file_name(filename)
-
-        return self.store(File(properties=properties, annotations=annotations, local_state=local_state), used=used,
-                          executed=executed)
-
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use get() instead.")
-    def downloadEntity(self, entity, version=None):
-        """Use :py:func:`synapseclient.Synapse.get`"""
-        return self.get(entity, version=version, downloadFile=True)
-
-    @deprecated.sphinx.deprecated(version='1.9.0', action='ignore',
-                                  reason="This will be removed in 2.0.")
-    def uploadSynapseManagedFileHandle(self, path, storageLocationId=None, mimetype=None):
-        """
-        Uploads a file to a Synapse managed S3 storage. This is the preferred function for uploading files to Tables
-        :param path: path to the file
-        :param storageLocationId: storageLocationId of a S3 storage location. pass in a value if you wish to use an
-         ExternalS3StorageLocation
-        :param mimetype: MIME type of the file, if known.
-        :return: file handle dict associated with the uploaded file
-        """
-        return upload_synapse_s3(self, path, storageLocationId=storageLocationId, mimetype=mimetype)
-
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason='This will be removed in 2.0.')
-    def _uploadToFileHandleService(self, filename, synapseStore=True, mimetype=None, md5=None, fileSize=None,
-                                   storageLocationId=None):
-        """
-        Create and return a fileHandle, by either uploading a local file or linking to an external URL.
-
-        :param synapseStore: Indicates whether the file should be stored or just its URL.
-                             Defaults to True.
-
-        :returns: a FileHandle_
-
-        .. FileHandle: http://docs.synapse.org/rest/org/sagebionetworks/repo/model/file/FileHandle.html
-        """
-        warnings.warn("_uploadToFileHandleService() is deprecated and no longer supported.",
-                      DeprecationWarning, stacklevel=2)
-        if filename is None:
-            raise ValueError('No filename given')
-        elif utils.is_url(filename):
-            if synapseStore and urllib_urlparse.urlparse(filename).scheme != 'sftp':
-                raise NotImplementedError('Automatic storing of external files is not supported.'
-                                          ' Please try downloading the file locally first before storing it or set'
-                                          ' synapseStore=False')
-            return self._createExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
-
-        # For local files, we default to uploading the file unless explicitly instructed otherwise
-        else:
-            if synapseStore:
-                file_handle_id = multipart_upload_file(self, filename, contentType=mimetype,
-                                                       storageLocationId=storageLocationId)
-                self.cache.add(file_handle_id, filename)
-                return self._getFileHandle(file_handle_id)
-            else:
-                return self._createExternalFileHandle(filename, mimetype=mimetype, md5=md5, fileSize=fileSize)
 
     ############################################################
     #                  Get / Set Annotations                   #
@@ -2530,7 +2425,7 @@ class Synapse(object):
         # Convert all attachments into file handles
         if wiki.get('attachments') is not None:
             for attachment in wiki['attachments']:
-                fileHandle = self.uploadSynapseManagedFileHandle(attachment)
+                fileHandle = self.upload_synapse_s3(attachment)
                 wiki['attachmentFileHandleIds'].append(fileHandle['id'])
             del wiki['attachments']
 
@@ -2920,98 +2815,6 @@ class Synapse(object):
             if column.name == column_name:
                 return column
         return None
-    
-    @deprecated.sphinx.deprecated(version='1.9.0',
-                                  reason="This will be removed in 2.0. Please use downloadTableColumns() instead")
-    def downloadTableFile(self, table, column, downloadLocation=None, rowId=None, versionNumber=None,
-                          rowIdAndVersion=None, ifcollision="keep.both"):
-        """
-        Downloads a file associated with a row in a Synapse table.
-
-        :param table:            schema object, table query result or synapse ID
-        :param rowId:            row number that holds the file handle
-        :param versionNumber:    version number of the row that holds the file handle
-        :param rowIdAndVersion:  row number and version in one string, "101_2" for version 2 of row 101
-        :param column:           a Column object, the ID of a column or its name
-        :param downloadLocation: location in local file system to download the file
-        :param ifcollision:      Determines how to handle file collisions.
-                                 May be "overwrite.local", "keep.local", or "keep.both".
-                                 Defaults to "keep.both".
-
-        :returns: file path (as a string) to the downloaded file.
-
-        Example::
-
-            file_path = syn.downloadTableFile(table, rowId=1, versionNumber=1, column="cover_art", downloadLocation=".")
-            print(file_path)
-
-        """
-        warnings.warn("downloadTableFile() is deprecated, please use downloadTableColumns() instead",
-                      DeprecationWarning, stacklevel=2)
-
-        if (rowId is None or versionNumber is None) and rowIdAndVersion is None:
-            raise ValueError("Need to pass in either rowIdAndVersion or (rowId and versionNumber).")
-
-        # get table ID, given a string, Table or Schema
-        if isinstance(table, str):
-            table_id = table
-        elif isinstance(table, TableAbstractBaseClass):
-            table_id = table.tableId
-        elif isinstance(table, Schema):
-            table_id = table.id
-        else:
-            raise ValueError("Unrecognized table object \"%s\"." % table)
-
-        # get column ID, given a column name, ID or Column object
-        if isinstance(column, str):
-            column = self._getColumnByName(table_id, column)
-            if column is None:
-                raise SynapseError("Can't find column \"%s\"." % column)
-            column_id = column.id
-        elif isinstance(column, Column):
-            column_id = column.id
-        elif isinstance(column, int):
-            column_id = column
-        else:
-            raise ValueError("Unrecognized column \"%s\"." % column)
-
-        # extract row and version
-        if rowIdAndVersion:
-            m = re.match(r'(\d+)_(\d+)', rowIdAndVersion)
-            if m:
-                rowId = m.group(1)
-                versionNumber = m.group(2)
-            else:
-                raise ValueError('Row and version \"%s\" in unrecognized format.')
-
-        row_reference_set = {
-            'tableId': table_id,
-            'headers': [{'id': column_id}],
-            'rows': [{'rowId': rowId, 'versionNumber': versionNumber}]
-        }
-        # result is a http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/TableFileHandleResults.html
-        result = self.restPOST("/entity/%s/table/filehandles" % table_id, body=json.dumps(row_reference_set))
-        if len(result['rows']) == 0 or len(result['rows'][0]['list']) != 1:
-            raise SynapseError('Couldn\'t get file handle for tableId={id}, column={columnId}, row={rowId},'
-                               ' version={versionNumber}'.format(id=table_id,
-                                                                 columnId=column_id,
-                                                                 rowId=rowId,
-                                                                 versionNumber=versionNumber))
-        file_handle_id = result['rows'][0]['list'][0]['id']
-
-        if downloadLocation is None:
-            downloadLocation = self.cache.get_cache_dir(file_handle_id)
-            if not os.path.exists(downloadLocation):
-                os.makedirs(downloadLocation)
-
-        cached_file_path = self.cache.get(file_handle_id, downloadLocation)
-        # TODO finish cache refactor by handling collisions and
-        # TODO copy from cache to downloadLocation
-        if cached_file_path is not None:
-            return cached_file_path
-        else:
-            path = self._downloadFileHandle(file_handle_id, table_id, 'TableEntity', downloadLocation)
-            return path
 
     def downloadTableColumns(self, table, columns, **kwargs):
         """
