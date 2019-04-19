@@ -104,26 +104,26 @@ def test_entity_version():
     entity = syn.store(entity)
     
     syn.setAnnotations(entity, {'fizzbuzz': 111222})
-    entity = syn.getEntity(entity)
+    entity = syn.get(entity)
     assert_equals(entity.versionNumber, 1)
 
     # Update the Entity and make sure the version is incremented
     entity.foo = 998877
     entity['name'] = 'foobarbat'
     entity['description'] = 'This is a test entity...'
-    entity = syn.updateEntity(entity, incrementVersion=True, versionLabel="Prada remix")
+    entity = syn.store(entity, incrementVersion=True, versionLabel="Prada remix")
     assert_equals(entity.versionNumber, 2)
 
     # Get the older data and verify the random stuff is still there
     annotations = syn.getAnnotations(entity, version=1)
     assert_equals(annotations['fizzbuzz'][0], 111222)
-    returnEntity = syn.getEntity(entity, version=1)
+    returnEntity = syn.get(entity, version=1)
     assert_equals(returnEntity.versionNumber, 1)
     assert_equals(returnEntity['fizzbuzz'][0], 111222)
     assert_not_in('foo', returnEntity)
 
     # Try the newer Entity
-    returnEntity = syn.getEntity(entity)
+    returnEntity = syn.get(entity)
     assert_equals(returnEntity.versionNumber, 2)
     assert_equals(returnEntity['foo'][0], 998877)
     assert_equals(returnEntity['name'], 'foobarbat')
@@ -131,14 +131,14 @@ def test_entity_version():
     assert_equals(returnEntity['versionLabel'], 'Prada remix')
 
     # Try the older Entity again
-    returnEntity = syn.downloadEntity(entity, version=1)
+    returnEntity = syn.get(entity, version=1)
     assert_equals(returnEntity.versionNumber, 1)
     assert_equals(returnEntity['fizzbuzz'][0], 111222)
     assert_not_in('foo', returnEntity)
     
     # Delete version 2 
     syn.delete(entity, version=2)
-    returnEntity = syn.getEntity(entity)
+    returnEntity = syn.get(entity)
     assert_equals(returnEntity.versionNumber, 1)
 
 
@@ -195,11 +195,11 @@ def test_uploadFileEntity():
     # Dictionaries default to FileEntity as a type
     fname = utils.make_bogus_data_file()
     schedule_for_cleanup(fname)
-    entity = {'name': 'fooUploadFileEntity', 'description': 'A test file entity', 'parentId': project['id']}
-    entity = syn.store(entity, fname)
+    entity = File(name='fooUploadFileEntity', path=fname, parentId=project['id'], description='A test file entity')
+    entity = syn.store(entity)
 
     # Download and verify
-    entity = syn.downloadEntity(entity)
+    entity = syn.get(entity)
 
     assert_equals(entity['files'][0], os.path.basename(fname))
     assert_true(filecmp.cmp(fname, entity['path']))
@@ -213,10 +213,11 @@ def test_uploadFileEntity():
     schedule_for_cleanup(fname)
 
     # Update existing FileEntity
-    entity = syn.uploadFile(entity, fname)
+    entity.path = fname
+    entity = syn.store(entity)
 
     # Download and verify that it is the same file
-    entity = syn.downloadEntity(entity)
+    entity = syn.get(entity)
     assert_equals(entity['files'][0], os.path.basename(fname))
     assert_true(filecmp.cmp(fname, entity['path']))
 

@@ -275,11 +275,11 @@ def test_utils_extract_user_name():
 
 
 def test_is_json():
-    assert_true(utils._is_json('application/json'))
-    assert_true(utils._is_json('application/json;charset=ISO-8859-1'))
-    assert_false(utils._is_json('application/flapdoodle;charset=ISO-8859-1'))
-    assert_false(utils._is_json(None))
-    assert_false(utils._is_json(''))
+    assert_true(utils.is_json('application/json'))
+    assert_true(utils.is_json('application/json;charset=ISO-8859-1'))
+    assert_false(utils.is_json('application/flapdoodle;charset=ISO-8859-1'))
+    assert_false(utils.is_json(None))
+    assert_false(utils.is_json(''))
 
 
 def test_unicode_output():
@@ -387,10 +387,10 @@ def test_treadsafe_generator():
 
 
 def test_extract_synapse_id_from_query():
-    assert_equals(utils._extract_synapse_id_from_query("select * from syn1234567"), "syn1234567")
-    assert_equals(utils._extract_synapse_id_from_query("select * from syn1234567 where foo = 'bar'"), "syn1234567")
-    assert_equals(utils._extract_synapse_id_from_query("select * from syn1"), "syn1")
-    assert_equals(utils._extract_synapse_id_from_query("select foo from syn99999999999"), "syn99999999999")
+    assert_equals(utils.extract_synapse_id_from_query("select * from syn1234567"), "syn1234567")
+    assert_equals(utils.extract_synapse_id_from_query("select * from syn1234567 where foo = 'bar'"), "syn1234567")
+    assert_equals(utils.extract_synapse_id_from_query("select * from syn1"), "syn1")
+    assert_equals(utils.extract_synapse_id_from_query("select foo from syn99999999999"), "syn99999999999")
 
 
 def test_temp_download_filename():
@@ -413,8 +413,8 @@ def test_extract_zip_file_to_directory(mocked_path_exists, mocked_makedir, mocke
     try:
         # call the method and make sure correct values are being used
         with patch.object(utils, 'open', mock_open(), create=True) as mocked_open:
-            actual_filepath = utils._extract_zip_file_to_directory(mocked_zipfile, file_dir + file_base_name,
-                                                                   target_dir)
+            actual_filepath = utils.extract_zip_file_to_directory(mocked_zipfile, file_dir + file_base_name,
+                                                                  target_dir)
 
             # make sure it returns the correct cache path
             assert_equals(expected_filepath, actual_filepath)

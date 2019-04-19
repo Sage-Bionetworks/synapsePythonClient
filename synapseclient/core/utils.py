@@ -285,12 +285,12 @@ def is_synapse_id(obj):
     return None
 
 
-def _is_date(dt):
+def is_date(dt):
     """Objects of class datetime.date and datetime.datetime will be recognized as dates"""
     return isinstance(dt, datetime.date) or isinstance(dt, datetime.datetime)
 
 
-def _to_list(value):
+def to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
     if isinstance(value, collections.Iterable) and not isinstance(value, str):
         return list(value)
@@ -568,7 +568,7 @@ def query_limit_and_offset(query, hard_limit=1000):
     return query, limit, offset
 
 
-def _extract_synapse_id_from_query(query):
+def extract_synapse_id_from_query(query):
     """
     An unfortunate hack to pull the synapse ID out of a table query of the form "select column1, column2 from syn12345
     where...." needed to build URLs for table services.
@@ -676,7 +676,7 @@ def touch(path, times=None):
     return path
 
 
-def _is_json(content_type):
+def is_json(content_type):
     """detect if a content-type is JSON"""
     # The value of Content-Type defined here:
     # http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
@@ -757,7 +757,7 @@ def temp_download_filename(destination, file_handle_id):
         else destination + '.' + suffix
 
 
-def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
+def extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
     """
     Extracts a specified file in a zip to the specified directory
     :param zip_file:        an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
@@ -780,7 +780,7 @@ def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
     return filepath
 
 
-def _is_integer(x):
+def is_integer(x):
     try:
         return float.is_integer(x)
     except TypeError:
