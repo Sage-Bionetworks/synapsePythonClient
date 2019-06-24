@@ -214,7 +214,7 @@ def test_tables_pandas():
     df2 = results.asDataFrame(convert_to_datetime=True)
 
     # simulate rowId-version rownames for comparison
-    df.index = ['%s_0' % i for i in range(5)]
+    df.index = ['%s_1' % i for i in range(1, 6)]
 
     df['string_'] = df['string_'].transform(str)
 
