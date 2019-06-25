@@ -213,8 +213,8 @@ class Entity(collections.MutableMapping):
 
         if cls == Entity \
                 and 'concreteType' in properties \
-                and properties['concreteType'] in _entity_type_to_class:
-            cls = _entity_type_to_class[properties['concreteType']]
+                and properties['concreteType'] in entity_type_to_class:
+            cls = entity_type_to_class[properties['concreteType']]
         return cls(properties=properties, annotations=annotations, local_state=local_state)
 
     @classmethod
@@ -671,9 +671,9 @@ class DockerRepository(Entity):
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
-_entity_type_to_class = {}
+entity_type_to_class = {}
 for cls in itersubclasses(Entity):
-    _entity_type_to_class[cls._synapse_entity_type] = cls
+    entity_type_to_class[cls._synapse_entity_type] = cls
 
 _entity_types = ["project", "folder", "file", "table", "link", "entityview", "dockerrepo"]
 
@@ -693,8 +693,8 @@ def split_entity_namespaces(entity):
     if not isinstance(entity, collections.Mapping):
         raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
 
-    if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
-        entity_class = _entity_type_to_class[entity['concreteType']]
+    if 'concreteType' in entity and entity['concreteType'] in entity_type_to_class:
+        entity_class = entity_type_to_class[entity['concreteType']]
     else:
         entity_class = Entity
 
@@ -739,7 +739,7 @@ def is_versionable(entity):
         return True
 
     try:
-        entity_class = _entity_type_to_class[entity['concreteType']]
+        entity_class = entity_type_to_class[entity['concreteType']]
         return issubclass(entity_class, Versionable)
     except (KeyError, TypeError):
         # the dict input is not an entity
