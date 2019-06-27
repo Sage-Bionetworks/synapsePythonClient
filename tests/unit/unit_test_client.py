@@ -451,20 +451,12 @@ class TestPrivateGetContributor:
 
 
 def test_send_message():
-    file_handle = {
-            'startedOn': '2016-01-22T00:00:00.000Z',
-            'state': 'COMPLETED',
-            'uploadId': '1234',
-            'updatedOn': '2016-01-22T00:00:00.000Z',
-            'partsState': '11',
-            'startedBy': '377358',
-            'resultFileHandleId': '7365905'}
     messageBody = ("In Xanadu did Kubla Khan\n"
-                         "A stately pleasure-dome decree:\n"
-                         "Where Alph, the sacred river, ran\n"
-                         "Through caverns measureless to man\n"
-                         "Down to a sunless sea.\n")
-    with patch("synapseclient.multipart_upload._multipart_upload", return_value = file_handle) as up_mock,\
+                   "A stately pleasure-dome decree:\n"
+                   "Where Alph, the sacred river, ran\n"
+                   "Through caverns measureless to man\n"
+                   "Down to a sunless sea.\n")
+    with patch("synapseclient.client.multipart_upload_string", return_value='7365905') as mock_upload_string, \
             patch("synapseclient.client.Synapse.restPOST") as post_mock:
         syn.sendMessage(
             userIds=[1421212],
@@ -474,7 +466,7 @@ def test_send_message():
         assert_equal(msg["fileHandleId"], "7365905", msg)
         assert_equal(msg["recipients"], [1421212], msg)
         assert_equal(msg["subject"], "Xanadu", msg)
-        up_mock.assert_called_once_with(messageBody, content_type="text/plain")
+        mock_upload_string.assert_called_once_with(syn, messageBody, contentType="text/plain")
 
 
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
