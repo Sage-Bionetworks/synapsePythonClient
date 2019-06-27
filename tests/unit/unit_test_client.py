@@ -451,28 +451,30 @@ class TestPrivateGetContributor:
 
 
 def test_send_message():
-    with patch("synapseclient.multipart_upload._multipart_upload") as up_mock,\
+    file_handle = {
+            'startedOn': '2016-01-22T00:00:00.000Z',
+            'state': 'COMPLETED',
+            'uploadId': '1234',
+            'updatedOn': '2016-01-22T00:00:00.000Z',
+            'partsState': '11',
+            'startedBy': '377358',
+            'resultFileHandleId': '7365905'}
+    messageBody = ("In Xanadu did Kubla Khan\n"
+                         "A stately pleasure-dome decree:\n"
+                         "Where Alph, the sacred river, ran\n"
+                         "Through caverns measureless to man\n"
+                         "Down to a sunless sea.\n")
+    with patch("synapseclient.multipart_upload._multipart_upload", return_value = file_handle) as up_mock,\
             patch("synapseclient.client.Synapse.restPOST") as post_mock:
-            up_mock.return_value = {
-                'startedOn': '2016-01-22T00:00:00.000Z',
-                'state': 'COMPLETED',
-                'uploadId': '1234',
-                'updatedOn': '2016-01-22T00:00:00.000Z',
-                'partsState': '11',
-                'startedBy': '377358',
-                'resultFileHandleId': '7365905'}
-            syn.sendMessage(
-                userIds=[1421212],
-                messageSubject="Xanadu",
-                messageBody=("In Xanadu did Kubla Khan\n"
-                             "A stately pleasure-dome decree:\n"
-                             "Where Alph, the sacred river, ran\n"
-                             "Through caverns measureless to man\n"
-                             "Down to a sunless sea.\n"))
-            msg = json.loads(post_mock.call_args_list[0][1]['body'])
-            assert_equal(msg["fileHandleId"], "7365905", msg)
-            assert_equal(msg["recipients"], [1421212], msg)
-            assert_equal(msg["subject"], "Xanadu", msg)
+        syn.sendMessage(
+            userIds=[1421212],
+            messageSubject="Xanadu",
+            messageBody=messageBody)
+        msg = json.loads(post_mock.call_args_list[0][1]['body'])
+        assert_equal(msg["fileHandleId"], "7365905", msg)
+        assert_equal(msg["recipients"], [1421212], msg)
+        assert_equal(msg["subject"], "Xanadu", msg)
+        up_mock.assert_called_once_with(messageBody, content_type="text/plain")
 
 
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
