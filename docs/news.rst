@@ -1,6 +1,17 @@
 =============
 Release Notes
 =============
+1.9.3 (2019-06-28)
+==================
+
+Bug Fixes
+---------
+
+-  [`SYNPY-993 <https://sagebionetworks.jira.com/browse/SYNPY-993>`__] -
+   Fix `sendMessage` function
+-  [`SYNPY-989 <https://sagebionetworks.jira.com/browse/SYNPY-989>`__] -
+   Fix unstable test
+
 
 1.9.2 (2019-02-15)
 ==================
