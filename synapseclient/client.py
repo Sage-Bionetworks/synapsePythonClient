@@ -3282,7 +3282,7 @@ class Synapse(object):
         :returns: The metadata of the created message
         """
 
-        fileHandleId = multipart_upload_string(self, messageBody, contentType)
+        fileHandleId = multipart_upload_string(self, messageBody, contentType=contentType)
         message = dict(
             recipients=userIds,
             subject=messageSubject,
