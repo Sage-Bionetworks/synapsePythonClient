@@ -3065,6 +3065,13 @@ class Synapse(object):
         return self.restPOST(uri='/message', body=json.dumps(message))
 
     ############################################################
+    #                       File Handles                       #
+    ############################################################
+
+    def copyFileHandles(self):
+        return None
+
+    ############################################################
     #                   Low level Rest calls                   #
     ############################################################
 
