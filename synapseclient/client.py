@@ -2164,15 +2164,14 @@ class Synapse(object):
 
         submission = {'evaluationId': evaluation_id,
                       'name': name,
+                      'entityId': entity_id,
                       'versionNumber': entity_version,
                       'dockerDigest': docker_digest,
                       'dockerRepositoryName':docker_repository,
                       'teamId': team_id,
                       'contributors':contributors,
-                      'submitterAlias': submitterAlias,
-                      'eligibility':eligibility_hash}
+                      'submitterAlias': submitterAlias}
 
-        print(submission)
         submitted = self._submit(submission, entity['etag'], eligibility_hash)
 
         # if we want to display the receipt message, we need the full object
@@ -2191,7 +2190,6 @@ class Synapse(object):
         uri = '/evaluation/submission?etag=%s' % entity_etag
         if eligibility_hash:
             uri += "&submissionEligibilityHash={0}".format(eligibility_hash)
-        print(uri)
         submitted = self.restPOST(uri, json.dumps(submission))
         return submitted
 
