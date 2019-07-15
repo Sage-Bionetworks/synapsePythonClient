@@ -1,12 +1,11 @@
 import os
+import urllib.parse as urllib_parse
+
 from synapseclient.core.utils import is_url, md5_for_file, as_url, file_url_to_path, id_of
 from synapseclient.core.constants import concrete_types
 from synapseclient.core.remote_file_storage_wrappers import S3ClientWrapper, SFTPWrapper
-from synapseclient.core.upload.multipart_upload import multipart_upload
-from synapseclient.core.models.exceptions import SynapseMd5MismatchError
-
-from urllib.parse import urlparse
-from urllib.parse import unquote
+from synapseclient.core.upload.multipart_upload import multipart_upload_file
+from synapseclient.core.exceptions import SynapseMd5MismatchError
 
 
 def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, file_size=None, mimetype=None):
@@ -55,7 +54,7 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
         if location['uploadType'] == 'SFTP':
             syn.logger.info('\n%s\n%s\nUploading to: %s\n%s\n' % ('#' * 50, location.get('banner', ''),
-                                                                  urlparse(location['url']).netloc,
+                                                                  urllib_parse.urlparse(location['url']).netloc,
                                                                   '#' * 50))
             return upload_external_file_handle_sftp(syn, expanded_upload_path, location['url'], mimetype=mimetype)
         else:
@@ -77,7 +76,7 @@ def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=No
     is_local_file = False  # defaults to false
     url = as_url(os.path.expandvars(os.path.expanduser(path)))
     if is_url(url):
-        parsed_url = urlparse(url)
+        parsed_url = urllib_parse.urlparse(url)
         if parsed_url.scheme == 'file' and os.path.isfile(parsed_url.path):
             actual_md5 = md5_for_file(parsed_url.path).hexdigest()
             if md5 is not None and md5 != actual_md5:
@@ -99,7 +98,7 @@ def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=No
 
 def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
     username, password = syn._getUserCredentials(sftp_url)
-    uploaded_url = SFTPWrapper.upload_file(file_path, unquote(sftp_url), username, password)
+    uploaded_url = SFTPWrapper.upload_file(file_path, urllib_parse.unquote(sftp_url), username, password)
 
     file_handle = syn._createExternalFileHandle(uploaded_url, mimetype=mimetype,
                                                 md5=md5_for_file(file_path).hexdigest(),
@@ -109,7 +108,7 @@ def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
 
 
 def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
-    file_handle_id = multipart_upload(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)
+    file_handle_id = multipart_upload_file(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)
     syn.cache.add(file_handle_id, file_path)
 
     return syn._getFileHandle(file_handle_id)

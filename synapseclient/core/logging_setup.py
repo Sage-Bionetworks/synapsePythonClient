@@ -2,26 +2,13 @@
 # logging setup
 ################
 
-# import os
-# import errno
+
 import logging
 import logging.config as logging_config
+
+
 logging.captureWarnings(True)
 logging.getLogger("requests").setLevel(logging.WARNING)
-
-# _errlog_dir = os.path.expanduser("~/.synapseCache/logs/")
-# _errlog_filename = 'synapseclient_errors.log'
-# _errlog_path = os.path.join(_errlog_dir, _errlog_filename)
-
-
-# create the log file if not exist
-# try:
-#     os.makedirs(_errlog_dir)
-# except OSError as e:
-#     if e.errno != errno.EEXIST:
-#         raise
-# with open(_errlog_path, 'a'):
-#     pass
 
 DEBUG_LOGGER_NAME = 'synapseclient_debug'
 DEFAULT_LOGGER_NAME = 'synapseclient_default'

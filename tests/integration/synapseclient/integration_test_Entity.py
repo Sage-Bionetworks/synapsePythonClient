@@ -10,7 +10,7 @@ from mock import patch
 from synapseclient.core.upload.upload_functions import create_external_file_handle
 
 from synapseclient import *
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from tests import integration
 from tests.integration import schedule_for_cleanup
 
@@ -26,13 +26,13 @@ def test_Entity():
     project = Project(name=project_name)
     project = syn.store(project)
     schedule_for_cleanup(project)
-    project = syn.getEntity(project)
+    project = syn.get(project)
     assert_equals(project.name, project_name)
     
     # Create and get a Folder
     folder = Folder('Test Folder', parent=project, description='A place to put my junk', foo=1000)
-    folder = syn.createEntity(folder)
-    folder = syn.getEntity(folder)
+    folder = syn.store(folder)
+    folder = syn.get(folder)
     assert_equals(folder.name, 'Test Folder')
     assert_equals(folder.parentId, project.id)
     assert_equals(folder.description, 'A place to put my junk')
@@ -61,7 +61,7 @@ def test_Entity():
     a_file = syn.store(a_file)
     assert_equals(a_file.path, path)
 
-    a_file = syn.getEntity(a_file)
+    a_file = syn.get(a_file)
     assert_equals(a_file.description,
                   u'Description with funny characters: Déjà vu, ประเทศไทย, 中国', u'description= %s'
                   % a_file.description)
@@ -72,7 +72,7 @@ def test_Entity():
     assert_equals(a_file['band'][0], u"Motörhead", u'band= %s' % a_file['band'][0])
     assert_equals(a_file['lunch'][0], u"すし", u'lunch= %s' % a_file['lunch'][0])
     
-    a_file = syn.downloadEntity(a_file)
+    a_file = syn.get(a_file)
     assert_true(filecmp.cmp(path, a_file.path))
 
     b_file = File(name="blah", parent=folder, dataFileHandleId=a_file.dataFileHandleId)
@@ -83,7 +83,7 @@ def test_Entity():
     a_file.path = path
     a_file['foo'] = 'Another arbitrary chunk of text data'
     a_file['new_key'] = 'A newly created value'
-    a_file = syn.updateEntity(a_file)
+    a_file = syn.store(a_file, forceVersion=False)
     assert_equals(a_file['foo'][0], 'Another arbitrary chunk of text data')
     assert_equals(a_file['bar'], [33, 44, 55])
     assert_equals(a_file['bday'][0], Datetime(2013, 3, 15))
@@ -130,8 +130,9 @@ def test_Entity():
     # Upload a new File and verify
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
-    a_file = syn.uploadFile(a_file, new_path)
-    a_file = syn.downloadEntity(a_file)
+    a_file.path = new_path
+    a_file = syn.store(a_file)
+    a_file = syn.get(a_file)
     assert_true(filecmp.cmp(new_path, a_file.path))
     assert_equals(a_file.versionNumber, 2)
 
@@ -168,7 +169,7 @@ def test_get_local_file():
     new_path = utils.make_bogus_data_file()
     schedule_for_cleanup(new_path)
     folder = Folder('TestFindFileFolder', parent=project, description='A place to put my junk')
-    folder = syn.createEntity(folder)
+    folder = syn.store(folder)
 
     # Get an nonexistent file in Synapse
     assert_raises(SynapseError, syn.get, new_path)

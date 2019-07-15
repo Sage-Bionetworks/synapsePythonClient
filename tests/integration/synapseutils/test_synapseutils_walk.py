@@ -3,7 +3,7 @@ import os
 
 from nose.tools import assert_equals, assert_in
 
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient import *
 from tests import integration
 from tests.integration import schedule_for_cleanup

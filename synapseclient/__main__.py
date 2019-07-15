@@ -58,16 +58,17 @@ A few more commands (cat, create, update, associate)
 import argparse
 import os
 import sys
-import synapseclient
-import synapseutils
-from . import Activity
 import signal
 import json
-from synapseclient.core.models.exceptions import *
-from .wiki import Wiki
 import getpass
 import csv
 import re
+
+import synapseclient
+import synapseutils
+from . import Activity
+from .wiki import Wiki
+from synapseclient.core.exceptions import *
 
 
 def query(args, syn):
@@ -291,7 +292,7 @@ def create(args, syn):
     entity = {'name': args.name,
               'parentId': args.parentid,
               'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
-    entity = syn.createEntity(entity)
+    entity = syn.store(entity)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 

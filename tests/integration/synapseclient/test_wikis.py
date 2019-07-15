@@ -2,7 +2,7 @@ import os
 import uuid
 from nose.tools import assert_raises, assert_equal, assert_in, assert_equals, assert_true
 
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient import *
 from synapseclient.core.upload.upload_functions import upload_synapse_s3
 from tests import integration

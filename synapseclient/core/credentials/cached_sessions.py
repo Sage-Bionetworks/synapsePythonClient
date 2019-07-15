@@ -1,8 +1,8 @@
 import keyring
 import os
 import json
-from keyring.errors import PasswordDeleteError
-from synapseclient.core.cache import CACHE_ROOT_DIR as _DEFAULT_CACHE_ROOT_DIR
+import keyring.errors as keyring_errors
+from synapseclient.core.cache import CACHE_ROOT_DIR
 from synapseclient.core.utils import equal_paths
 
 SYNAPSE_CACHED_SESSION_APLICATION_NAME = "SYNAPSE.ORG_CLIENT"
@@ -24,7 +24,7 @@ def get_api_key(username):
 def remove_api_key(username):
         try:
             keyring.delete_password(SYNAPSE_CACHED_SESSION_APLICATION_NAME, username)
-        except PasswordDeleteError:
+        except keyring_errors.PasswordDeleteError:
             # The API key does not exist, but that is fine
             pass
 
@@ -68,7 +68,7 @@ def migrate_old_session_file_credentials_if_necessary(syn):
 
     # only migrate if the download cache is in the default location (i.e. user did not set its location)
     # we don't want to migrate credentials if they were a part of a cache shared by multiple people
-    if equal_paths(syn.cache.cache_root_dir, os.path.expanduser(_DEFAULT_CACHE_ROOT_DIR)):
+    if equal_paths(syn.cache.cache_root_dir, os.path.expanduser(CACHE_ROOT_DIR)):
         # iterate through the old file and place in new credential storage
         old_session_dict = _read_session_cache(old_session_file_path)
         for key, value in old_session_dict.items():

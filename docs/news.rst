@@ -1,6 +1,68 @@
 =============
 Release Notes
 =============
+1.9.3 (2019-06-28)
+==================
+
+Bug Fixes
+---------
+
+-  [`SYNPY-993 <https://sagebionetworks.jira.com/browse/SYNPY-993>`__] -
+   Fix `sendMessage` function
+-  [`SYNPY-989 <https://sagebionetworks.jira.com/browse/SYNPY-989>`__] -
+   Fix unstable test
+
+
+1.9.2 (2019-02-15)
+==================
+
+In version 1.9.2, we improved Views' usability by exposing `set_entity_types()` function to change the entity types that will show up in a View::
+
+    import synapseclient
+    from synapseclient.table import EntityViewType
+
+    syn = synapseclient.login()
+    view = syn.get("syn12345")
+    view.set_entity_types([EntityViewType.FILE, EntityViewType.FOLDER])
+    view = syn.store(view)
+
+Features
+--------
+
+-  [`SYNPY-919 <https://sagebionetworks.jira.com/browse/SYNPY-919>`__] -
+   Expose a way to update entity types in a view using EntityViewType
+
+Bug Fixes
+---------
+
+-  [`SYNPY-855 <https://sagebionetworks.jira.com/browse/SYNPY-855>`__] -
+   Single thread uploading fails in Lambda python3.6 environment
+-  [`SYNPY-910 <https://sagebionetworks.jira.com/browse/SYNPY-910>`__] -
+   Store Wiki shows deprecation warning
+-  [`SYNPY-920 <https://sagebionetworks.jira.com/browse/SYNPY-920>`__] -
+   Project View turned into File View after using syndccutils template
+
+Tasks
+-----
+
+-  [`SYNPY-790 <https://sagebionetworks.jira.com/browse/SYNPY-790>`__] -
+   Pin to a fixed version of the request package
+-  [`SYNPY-866 <https://sagebionetworks.jira.com/browse/SYNPY-866>`__] -
+   Update Synapse logo in Python docs :)
+
+Improvements
+------------
+
+-  [`SYNPY-783 <https://sagebionetworks.jira.com/browse/SYNPY-783>`__] -
+   typos in comments and in stdout
+-  [`SYNPY-916 <https://sagebionetworks.jira.com/browse/SYNPY-916>`__] -
+   Wonky display on parameters
+-  [`SYNPY-917 <https://sagebionetworks.jira.com/browse/SYNPY-917>`__] -
+   Add instructions on how to login with API key
+-  [`SYNPY-909 <https://sagebionetworks.jira.com/browse/SYNPY-909>`__] -
+   Missing columnTypes in Column docstring
+
+
 
 1.9.1 (2019-01-20)
 ==================

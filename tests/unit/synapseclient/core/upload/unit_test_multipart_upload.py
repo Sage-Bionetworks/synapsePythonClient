@@ -12,7 +12,7 @@ import warnings
 from synapseclient.core.upload.multipart_upload import find_parts_to_upload, count_completed_parts, calculate_part_size,\
     get_file_chunk, _upload_chunk, _multipart_upload
 from synapseclient.core.utils import MB, GB, make_bogus_binary_file, md5_for_file
-from synapseclient.core.models.exceptions import SynapseHTTPError
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload import multipart_upload
 from synapseclient.core import pool_provider
 from tests import unit
@@ -132,3 +132,4 @@ def test_pool_provider_is_used_in__multipart_upload():
         _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
         mock_provider.assert_called()
         pool.map.assert_called()
+

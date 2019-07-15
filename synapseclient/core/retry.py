@@ -1,14 +1,15 @@
 import random
 import sys
 import logging
+
 from synapseclient.core.logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
-from synapseclient.core.utils import _is_json
+from synapseclient.core.utils import is_json
 from synapseclient.core.dozer import doze
 
 
-def _with_retry(function, verbose=False,
-                retry_status_codes=[429, 500, 502, 503, 504], retry_errors=[], retry_exceptions=[],
-                retries=3, wait=1, back_off=2, max_wait=30):
+def with_retry(function, verbose=False,
+               retry_status_codes=[429, 500, 502, 503, 504], retry_errors=[], retry_exceptions=[],
+               retries=3, wait=1, back_off=2, max_wait=30):
     """
     Retries the given function under certain conditions.
     
@@ -105,7 +106,7 @@ def _get_message(response):
     getting body.
     """
     try:
-        if _is_json(response.headers.get('content-type', None)):
+        if is_json(response.headers.get('content-type', None)):
             json = response.json()
             return json.get('reason', None)
         else:

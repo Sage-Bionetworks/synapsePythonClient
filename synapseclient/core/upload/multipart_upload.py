@@ -19,15 +19,13 @@ import os
 import requests
 import time
 import warnings
-from ctypes import c_bool
-from multiprocessing import Value
+import ctypes
 
-from synapseclient.core.models import exceptions
-from synapseclient.core import pool_provider
+from synapseclient.core import pool_provider, exceptions
 from synapseclient.core.utils import printTransferProgress, md5_for_file, MB
 from synapseclient.core.models.dict_object import DictObject
-from synapseclient.core.models.exceptions import SynapseError
-from synapseclient.core.models.exceptions import SynapseHTTPError
+from synapseclient.core.exceptions import SynapseError
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.utils import threadsafe_generator
 
 MAX_NUMBER_OF_PARTS = 10000
@@ -163,7 +161,7 @@ def _put_chunk(url, chunk, verbose=False):
     exceptions._raise_for_status(response, verbose=verbose)
 
 
-def multipart_upload(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
+def multipart_upload_file(syn, filepath, filename=None, contentType=None, storageLocationId=None, **kwargs):
     """
     Upload a file to a Synapse upload destination in chunks.
 
@@ -344,8 +342,8 @@ def _multipart_upload(syn, filename, contentType, get_chunk_function, md5, fileS
             syn.logger.debug("Started retry loop for multipart_upload. Currently %d/%d retries"
                              % (retries, MAX_RETRIES))
             # keep track of the number of bytes uploaded so far
-            completed = Value('d', min(completedParts * partSize, fileSize))
-            expired = Value(c_bool, False)
+            completed = pool_provider.get_value('d', min(completedParts * partSize, fileSize))
+            expired = pool_provider.get_value(ctypes.c_bool, False)
 
             printTransferProgress(completed.value, fileSize, prefix='Uploading', postfix=filename)
 

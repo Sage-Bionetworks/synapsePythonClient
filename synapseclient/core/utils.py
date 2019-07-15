@@ -6,18 +6,13 @@ Utility Functions
 Utility functions useful in the implementation and testing of the Synapse client.
 
 """
-from urllib.parse import urlparse
-from urllib.parse import urlencode
-from urllib.parse import parse_qs
-from urllib.parse import urlunparse
-from urllib.parse import ParseResult
-from urllib.parse import urlsplit
 
 import os
 import sys
 import hashlib
 import re
 import cgi
+import datetime
 import errno
 import inspect
 import random
@@ -29,13 +24,11 @@ import functools
 import threading
 import uuid
 import importlib
-from datetime import datetime as Datetime
-from datetime import date as Date
-from datetime import timedelta
-from numbers import Number
+import numbers
+import urllib.parse as urllib_parse
 
 
-UNIX_EPOCH = Datetime(1970, 1, 1, 0, 0)
+UNIX_EPOCH = datetime.datetime(1970, 1, 1, 0, 0)
 ISO_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
 ISO_FORMAT_MICROS = "%Y-%m-%dT%H:%M:%S.%fZ"
 GB = 2**30
@@ -159,7 +152,7 @@ def id_of(obj):
     """
     if isinstance(obj, str):
         return str(obj)
-    if isinstance(obj, Number):
+    if isinstance(obj, numbers.Number):
         return str(obj)
 
     id_attr_names = ['id', 'ownerId', 'tableId']  # possible attribute names for a synapse Id
@@ -192,7 +185,7 @@ def is_url(s):
     """Return True if the string appears to be a valid URL."""
     if isinstance(s, str):
         try:
-            url_parts = urlsplit(s)
+            url_parts = urllib_parse.urlsplit(s)
             # looks like a Windows drive letter?
             if len(url_parts.scheme) == 1 and url_parts.scheme.isalpha():
                 return False
@@ -206,7 +199,7 @@ def is_url(s):
 
 def as_url(s):
     """Tries to convert the input into a proper URL."""
-    url_parts = urlsplit(s)
+    url_parts = urllib_parse.urlsplit(s)
     # Windows drive letter?
     if len(url_parts.scheme) == 1 and url_parts.scheme.isalpha():
         return 'file:///%s' % str(s).replace("\\", "/")
@@ -218,7 +211,7 @@ def as_url(s):
 
 def guess_file_name(string):
     """Tries to derive a filename from an arbitrary string."""
-    path = normalize_path(urlparse(string).path)
+    path = normalize_path(urllib_parse.urlparse(string).path)
     tokens = [x for x in path.split('/') if x != '']
     if len(tokens) > 0:
         return tokens[-1]
@@ -255,7 +248,7 @@ def file_url_to_path(url, verify_exists=False):
 
     :returns: a path or None if the URL is not a file URL.
     """
-    parts = urlsplit(url)
+    parts = urllib_parse.urlsplit(url)
     if parts.scheme == 'file' or parts.scheme == '':
         path = parts.path
         # A windows file URL, for example file:///c:/WINDOWS/asdf.txt
@@ -277,8 +270,8 @@ def is_same_base_url(url1, url2):
 
     :returns: Boolean
     """
-    url1 = urlsplit(url1)
-    url2 = urlsplit(url2)
+    url1 = urllib_parse.urlsplit(url1)
+    url2 = urllib_parse.urlsplit(url2)
     return (url1.scheme == url2.scheme and
             url1.hostname == url2.hostname)
 
@@ -292,12 +285,12 @@ def is_synapse_id(obj):
     return None
 
 
-def _is_date(dt):
+def is_date(dt):
     """Objects of class datetime.date and datetime.datetime will be recognized as dates"""
-    return isinstance(dt, Date) or isinstance(dt, Datetime)
+    return isinstance(dt, datetime.date) or isinstance(dt, datetime.datetime)
 
 
-def _to_list(value):
+def to_list(value):
     """Convert the value (an iterable or a scalar value) to a list."""
     if isinstance(value, collections.Iterable) and not isinstance(value, str):
         return list(value)
@@ -366,7 +359,7 @@ def to_unix_epoch_time(dt):
     to UNIX time.
     """
 
-    if type(dt) == Date:
+    if type(dt) == datetime.date:
         return (dt - UNIX_EPOCH.date()).total_seconds() * 1000
     return int((dt - UNIX_EPOCH).total_seconds() * 1000)
 
@@ -377,7 +370,7 @@ def to_unix_epoch_time_secs(dt):
     to UNIX time.
     """
 
-    if type(dt) == Date:
+    if type(dt) == datetime.date:
         return (dt - UNIX_EPOCH.date()).total_seconds()
     return (dt - UNIX_EPOCH).total_seconds()
 
@@ -391,9 +384,9 @@ def from_unix_epoch_time_secs(secs):
     # so, here's a hack that enables ancient events, such as Chris's birthday to be
     # converted from milliseconds since the UNIX epoch to higher level Datetime objects. Ha!
     if platform.system() == 'Windows' and secs < 0:
-        mirror_date = Datetime.utcfromtimestamp(abs(secs))
+        mirror_date = datetime.datetime.utcfromtimestamp(abs(secs))
         return UNIX_EPOCH - (mirror_date - UNIX_EPOCH)
-    return Datetime.utcfromtimestamp(secs)
+    return datetime.datetime.utcfromtimestamp(secs)
 
 
 def from_unix_epoch_time(ms):
@@ -411,13 +404,13 @@ def datetime_to_iso(dt, sep="T"):
     fmt = "{time.year:04}-{time.month:02}-{time.day:02}" \
           "{sep}{time.hour:02}:{time.minute:02}:{time.second:02}.{millisecond:03}{tz}"
     if dt.microsecond >= 999500:
-        dt -= timedelta(microseconds=dt.microsecond)
-        dt += timedelta(seconds=1)
+        dt -= datetime.timedelta(microseconds=dt.microsecond)
+        dt += datetime.timedelta(seconds=1)
     return fmt.format(time=dt, millisecond=int(round(dt.microsecond/1000.0)), tz="Z", sep=sep)
 
 
 def iso_to_datetime(iso_time):
-    return Datetime.strptime(iso_time, ISO_FORMAT_MICROS)
+    return datetime.datetime.strptime(iso_time, ISO_FORMAT_MICROS)
 
 
 def format_time_interval(seconds):
@@ -524,8 +517,8 @@ def _limit_and_offset(uri, limit=None, offset=None):
     """
     Set limit and/or offset query parameters of the given URI.
     """
-    parts = urlparse(uri)
-    query = parse_qs(parts.query)
+    parts = urllib_parse.urlparse(uri)
+    query = urllib_parse.parse_qs(parts.query)
     if limit is None:
         query.pop('limit', None)
     else:
@@ -535,8 +528,8 @@ def _limit_and_offset(uri, limit=None, offset=None):
     else:
         query['offset'] = offset
 
-    new_query_string = urlencode(query, doseq=True)
-    return urlunparse(ParseResult(
+    new_query_string = urllib_parse.urlencode(query, doseq=True)
+    return urllib_parse.urlunparse(urllib_parse.ParseResult(
         scheme=parts.scheme,
         netloc=parts.netloc,
         path=parts.path,
@@ -575,7 +568,7 @@ def query_limit_and_offset(query, hard_limit=1000):
     return query, limit, offset
 
 
-def _extract_synapse_id_from_query(query):
+def extract_synapse_id_from_query(query):
     """
     An unfortunate hack to pull the synapse ID out of a table query of the form "select column1, column2 from syn12345
     where...." needed to build URLs for table services.
@@ -683,7 +676,7 @@ def touch(path, times=None):
     return path
 
 
-def _is_json(content_type):
+def is_json(content_type):
     """detect if a content-type is JSON"""
     # The value of Content-Type defined here:
     # http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.7
@@ -764,7 +757,7 @@ def temp_download_filename(destination, file_handle_id):
         else destination + '.' + suffix
 
 
-def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
+def extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
     """
     Extracts a specified file in a zip to the specified directory
     :param zip_file:        an opened zip file. e.g. "with zipfile.ZipFile(zipfilepath) as zip_file:"
@@ -787,7 +780,7 @@ def _extract_zip_file_to_directory(zip_file, zip_entry_name, target_dir):
     return filepath
 
 
-def _is_integer(x):
+def is_integer(x):
     try:
         return float.is_integer(x)
     except TypeError:

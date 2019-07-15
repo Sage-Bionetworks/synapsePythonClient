@@ -1,7 +1,7 @@
 import synapseclient
 from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity
 from synapseclient.core.cache import Cache
-from synapseclient.core.models.exceptions import SynapseHTTPError
+from synapseclient.core.exceptions import SynapseHTTPError
 import re
 import json
 ############################################################
@@ -427,7 +427,7 @@ def _updateSynIds(newWikis, wikiIdMap, entityMap):
             newSynId = entityMap[oldSynId]
             oldSynId = oldSynId + "\\b"
             s = re.sub(oldSynId, newSynId, s)
-        print("Done updating Synpase IDs.\n")
+        print("Done updating Synapse IDs.\n")
         newWikis[newWikiId].markdown = s
     return newWikis
 

@@ -15,7 +15,7 @@ import pandas as pd
 import numpy as np
 
 from synapseclient.core.utils import id_of
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient import *
 from tests import integration
 from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
@@ -214,7 +214,7 @@ def test_tables_pandas():
     df2 = results.asDataFrame(convert_to_datetime=True)
 
     # simulate rowId-version rownames for comparison
-    df.index = ['%s_0' % i for i in range(5)]
+    df.index = ['%s_1' % i for i in range(1, 6)]
 
     df['string_'] = df['string_'].transform(str)
 
@@ -225,65 +225,6 @@ def test_tables_pandas():
     # second .all() gives a bool that is ANDed value of that Series
 
     assert_frame_equal(df2, df)
-
-
-def test_download_table_files():
-    cols = [
-        Column(name='artist', columnType='STRING', maximumSize=50),
-        Column(name='album', columnType='STRING', maximumSize=50),
-        Column(name='year', columnType='INTEGER'),
-        Column(name='catalog', columnType='STRING', maximumSize=50),
-        Column(name='cover', columnType='FILEHANDLEID')]
-
-    schema = syn.store(Schema(name='Jazz Albums', columns=cols, parent=project))
-    schedule_for_cleanup(schema)
-
-    data = [["John Coltrane",  "Blue Train",   1957, "BLP 1577", "coltraneBlueTrain.jpg"],
-            ["Sonny Rollins",  "Vol. 2",       1957, "BLP 1558", "rollinsBN1558.jpg"],
-            ["Sonny Rollins",  "Newk's Time",  1958, "BLP 4001", "rollinsBN4001.jpg"],
-            ["Kenny Burrel",   "Kenny Burrel", 1956, "BLP 1543", "burrellWarholBN1543.jpg"]]
-
-    # upload files and store file handle ids
-    original_files = []
-    for row in data:
-        path = utils.make_bogus_data_file()
-        original_files.append(path)
-        schedule_for_cleanup(path)
-        file_handle = syn.uploadFileHandle(path, project)
-        row[4] = file_handle['id']
-
-    syn.store(RowSet(schema=schema, rows=[Row(r) for r in data]))
-
-    # retrieve the files for each row and verify that they are identical to the originals
-    results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s" % schema.id, resultsAs="rowset")
-    for i, row in enumerate(results):
-        path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-        assert_true(filecmp.cmp(original_files[i], path))
-        schedule_for_cleanup(path)
-
-    # test that cached copies are returned for already downloaded files
-    original_downloadFile_method = syn._downloadFileHandle
-    with patch("synapseclient.Synapse._downloadFileHandle") as _downloadFile_mock:
-        _downloadFile_mock.side_effect = original_downloadFile_method
-
-        results = syn.tableQuery("select artist, album, 'year', 'catalog', cover from %s where artist = 'John Coltrane'"
-                                 % schema.id, resultsAs="rowset")
-        for i, row in enumerate(results):
-            file_path = syn.downloadTableFile(results, rowId=row.rowId, versionNumber=row.versionNumber, column='cover')
-            assert_true(filecmp.cmp(original_files[i], file_path))
-
-        assert_false(_downloadFile_mock.called, "Should have used cached copy of file and not called _downloadFile")
-
-    # test download table column
-    results = syn.tableQuery('select * from %s' % schema.id)
-    # uncache 2 out of 4 files
-    for i, row in enumerate(results):
-        if i % 2 == 0:
-            syn.cache.remove(row[6])
-    file_map = syn.downloadTableColumns(results, ['cover'])
-    assert_equals(len(file_map), 4)
-    for row in results:
-        filecmp.cmp(original_files[i], file_map[row[6]])
 
 
 def dontruntest_big_tables():

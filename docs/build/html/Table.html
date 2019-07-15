@@ -6,7 +6,7 @@
   <head>
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Tables &#8212; Synapse Python Client 1.9.1 documentation</title>
+    <title>Tables &#8212; Synapse Python Client 1.9.3 documentation</title>
     <link rel="stylesheet" href="_static/custom.css" type="text/css" />
     <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
     
@@ -46,7 +46,7 @@
         <li class="right" >
           <a href="CommandLineClient.html" title="Synapse command line client"
              accesskey="P">previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.9.1 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.9.3 documentation</a> &#187;</li> 
       </ul>
     </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
@@ -412,6 +412,28 @@ schema = syn.store(EntityViewSchema(name=’MyTable’, parent=project, scopes=[
 </table>
 </dd></dl>
 
+<dl class="method">
+<dt>
+<code class="descname">set_entity_types</code><span class="sig-paren">(</span><em>includeEntityTypes</em><span class="sig-paren">)</span></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>includeEntityTypes</strong> – <p>a list of entity types to include in the view. This list will replace the previous
+settings. Supported entity types are:</p>
+<blockquote>
+<div>EntityViewType.FILE,
+EntityViewType.PROJECT,
+EntityViewType.TABLE,
+EntityViewType.FOLDER,
+EntityViewType.VIEW,
+EntityViewType.DOCKER</div></blockquote>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
 </dd></dl>
 
 </div>
@@ -430,7 +452,10 @@ schema = syn.store(EntityViewSchema(name=’MyTable’, parent=project, scopes=[
 </td>
 </tr>
 <tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
-<li><strong>columnType</strong> (<em>string</em>) – Can be any of: “STRING”, “DOUBLE”, “INTEGER”, “BOOLEAN”, “DATE”, “FILEHANDLEID”, “ENTITYID”</li>
+<li><strong>columnType</strong> (<em>string</em>) – The column type determines the type of data that can be stored in a column. It can be any
+of: “STRING”, “DOUBLE”, “INTEGER”, “BOOLEAN”, “DATE”, “FILEHANDLEID”, “ENTITYID”, “LINK”,
+“LARGETEXT”, “USERID”. For more information, please see:
+<a class="reference external" href="https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html">https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html</a></li>
 <li><strong>maximumSize</strong> (<em>integer</em>) – A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
 default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
 characters.</li>
@@ -826,12 +851,12 @@ depending on what type of values are given.</p>
         <li class="right" >
           <a href="CommandLineClient.html" title="Synapse command line client"
              >previous</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.9.1 documentation</a> &#187;</li> 
+        <li class="nav-item nav-item-0"><a href="index.html">Synapse Python Client 1.9.3 documentation</a> &#187;</li> 
       </ul>
     </div>
     <div class="footer">
     &copy; <a href="http://sagebase.org/">Sage Bionetworks</a>.
-      Last updated on Jan 17, 2019.
+      Last updated on Jun 28, 2019.
       Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.1.
     </div>
     <script type="text/javascript">

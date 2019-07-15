@@ -8,7 +8,7 @@ from math import pi
 
 from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations,\
     to_submission_status_annotations, from_submission_status_annotations, set_privacy
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 
 
 def test_annotations():

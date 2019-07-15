@@ -9,7 +9,7 @@ import tempfile
 import shutil
 
 from synapseclient.core.utils import MB
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient import *
 from synapseclient.core.remote_file_storage_wrappers import SFTPWrapper
 from tests import integration

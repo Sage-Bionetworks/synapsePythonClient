@@ -1,13 +1,9 @@
-
-from urllib.parse import urlparse
-from urllib.parse import urlunparse
-from urllib.parse import quote
-from urllib.parse import unquote
-
 import os
 import time
+import multiprocessing
+import urllib.parse as urllib_parse
+
 from synapseclient.core.utils import printTransferProgress, attempt_import
-from multiprocessing import Value
 
 
 class S3ClientWrapper:
@@ -27,7 +23,7 @@ class S3ClientWrapper:
 
     @staticmethod
     def _create_progress_callback_func(file_size, filename, prefix=None):
-        bytes_transferred = Value('d', 0)
+        bytes_transferred = multiprocessing.Value('d', 0)
         t0 = time.time()
 
         def progress_callback(bytes):
@@ -105,7 +101,7 @@ class SFTPWrapper:
 
     @staticmethod
     def _parse_for_sftp(url):
-        parsedURL = urlparse(url)
+        parsedURL = urllib_parse.urlparse(url)
         if parsedURL.scheme != 'sftp':
             raise(NotImplementedError("This method only supports sftp URLs of the form sftp://..."))
         return parsedURL
@@ -132,9 +128,9 @@ class SFTPWrapper:
             with sftp.cd(parsedURL.path):
                 sftp.put(filepath, preserve_mtime=True, callback=printTransferProgress)
 
-        path = quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
+        path = urllib_parse.quote(parsedURL.path+'/'+os.path.split(filepath)[-1])
         parsedURL = parsedURL._replace(path=path)
-        return urlunparse(parsedURL)
+        return urllib_parse.urlunparse(parsedURL)
 
     @staticmethod
     def download_file(url, localFilepath=None, username=None, password=None):
@@ -154,7 +150,7 @@ class SFTPWrapper:
         parsedURL = SFTPWrapper._parse_for_sftp(url)
 
         # Create the local file path if it doesn't exist
-        path = unquote(parsedURL.path)
+        path = urllib_parse.unquote(parsedURL.path)
         if localFilepath is None:
             localFilepath = os.getcwd()
         if os.path.isdir(localFilepath):

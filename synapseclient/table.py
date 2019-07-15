@@ -294,14 +294,14 @@ import sys
 import tempfile
 import copy
 import itertools
-from collections import OrderedDict, Sized, Iterable, Mapping, namedtuple
-from abc import ABCMeta, abstractmethod
-from enum import Enum
+import collections
+import abc
+import enum
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
-from synapseclient.core.models.exceptions import *
+from synapseclient.core.exceptions import *
 from synapseclient.core.models.dict_object import DictObject
-from .entity import Entity, Versionable, _entity_type_to_class
+from .entity import Entity, Versionable, entity_type_to_class
 from synapseclient.core.constants import concrete_types
 
 aggregate_pattern = re.compile(r'(count|max|min|avg|sum)\((.+)\)')
@@ -317,7 +317,7 @@ DTYPE_2_TABLETYPE = {'?': 'BOOLEAN',
 MAX_NUM_TABLE_COLUMNS = 152
 
 # allowed column types
-# see http://rest.synpase.org/org/sagebionetworks/repo/model/table/ColumnType.html
+# see https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
 ColumnTypes = {'STRING', 'DOUBLE', 'INTEGER', 'BOOLEAN', 'DATE', 'FILEHANDLEID', 'ENTITYID', 'LINK', 'LARGETEXT',
                'USERID'}
 
@@ -329,7 +329,7 @@ DEFAULT_ESCAPSE_CHAR = "\\"
 
 # This Enum is used to help users determine which Entity types they want in their view
 # Each item will be used to construct the viewTypeMask
-class EntityViewType(Enum):
+class EntityViewType(enum.Enum):
     FILE = 0x01
     PROJECT = 0x02
     TABLE = 0x04
@@ -598,7 +598,7 @@ def _delete_rows(syn, schema, row_id_vers_list):
         os.remove(delete_row_csv_filepath)
 
 
-class SchemaBase(Entity, Versionable, metaclass=ABCMeta):
+class SchemaBase(Entity, Versionable, metaclass=abc.ABCMeta):
     """
     This is the an Abstract Class for EntityViewSchema and Schema containing the common methods for both.
     You can not create an object of this type.
@@ -608,11 +608,11 @@ class SchemaBase(Entity, Versionable, metaclass=ABCMeta):
     _local_keys = Entity._local_keys + ['columns_to_store']
 
     @property
-    @abstractmethod  # forces subclasses to define _synapse_entity_type
+    @abc.abstractmethod  # forces subclasses to define _synapse_entity_type
     def _synapse_entity_type(self):
         pass
 
-    @abstractmethod
+    @abc.abstractmethod
     def __init__(self, name, columns, properties, annotations, local_state, parent, **kwargs):
         self.properties.setdefault('columnIds', [])
         self.__dict__.setdefault('columns_to_store', [])
@@ -752,6 +752,9 @@ class EntityViewSchema(SchemaBase):
             kwargs['viewTypeMask'] = _get_view_type_mask(includeEntityTypes)
         elif type:
             kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(type)
+        elif properties and 'type' in properties:
+            kwargs['viewTypeMask'] = _get_view_type_mask_for_deprecated_type(properties['type'])
+            properties['type'] = None
 
         self.ignoredAnnotationColumnNames = set(ignoredAnnotationColumnNames)
         super(EntityViewSchema, self).__init__(name=name, columns=columns, properties=properties,
@@ -785,6 +788,19 @@ class EntityViewSchema(SchemaBase):
             self.scopeIds.extend(temp_list)
         else:
             self.scopeIds.append(id_of(entities))
+
+    def set_entity_types(self, includeEntityTypes):
+        """
+        :param includeEntityTypes: a list of entity types to include in the view. This list will replace the previous
+                                   settings. Supported entity types are:
+                                        EntityViewType.FILE,
+                                        EntityViewType.PROJECT,
+                                        EntityViewType.TABLE,
+                                        EntityViewType.FOLDER,
+                                        EntityViewType.VIEW,
+                                        EntityViewType.DOCKER
+        """
+        self.viewTypeMask = _get_view_type_mask(includeEntityTypes)
 
     def _before_synapse_store(self, syn):
         # get the default EntityView columns from Synapse and add them to the columns list
@@ -847,8 +863,8 @@ class EntityViewSchema(SchemaBase):
 
 
 # add Schema to the map of synapse entity types to their Python representations
-_entity_type_to_class[Schema._synapse_entity_type] = Schema
-_entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
+entity_type_to_class[Schema._synapse_entity_type] = Schema
+entity_type_to_class[EntityViewSchema._synapse_entity_type] = EntityViewSchema
 
 
 class SelectColumn(DictObject):
@@ -890,7 +906,10 @@ class Column(DictObject):
     :py:class:`synapseclient.table.EntityViewSchema`.
 
     :var id:                An immutable ID issued by the platform
-    :param columnType:      Can be any of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID"
+    :param columnType:      The column type determines the type of data that can be stored in a column. It can be any
+                            of: "STRING", "DOUBLE", "INTEGER", "BOOLEAN", "DATE", "FILEHANDLEID", "ENTITYID", "LINK",
+                            "LARGETEXT", "USERID". For more information, please see:
+                            https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
     :param maximumSize:     A parameter for columnTypes with a maximum size. For example, ColumnType.STRINGs have a
                             default maximum size of 50 characters, but can be set to a maximumSize of 1 to 1000
                             characters.
@@ -919,9 +938,9 @@ class Column(DictObject):
         return '/column'
 
 
-class AppendableRowset(DictObject, metaclass=ABCMeta):
+class AppendableRowset(DictObject, metaclass=abc.ABCMeta):
     """Abstract Base Class for :py:class:`Rowset` and :py:class:`PartialRowset`"""
-    @abstractmethod
+    @abc.abstractmethod
     def __init__(self, schema, **kwargs):
         if ('tableId' not in kwargs) and schema:
             kwargs['tableId'] = id_of(schema)
@@ -984,7 +1003,7 @@ class PartialRowset(AppendableRowset):
         :param originalQueryResult:
         :return: a PartialRowSet that can be syn.store()-ed to apply the changes
         """
-        if not isinstance(mapping, Mapping):
+        if not isinstance(mapping, collections.Mapping):
             raise ValueError("mapping must be a supported Mapping type such as 'dict'")
 
         try:
@@ -1138,7 +1157,7 @@ class PartialRow(DictObject):
 
     def __init__(self, values, rowId, etag=None, nameToColumnId=None):
         super(PartialRow, self).__init__()
-        if not isinstance(values, Mapping):
+        if not isinstance(values, collections.Mapping):
             raise ValueError("values must be a Mapping")
 
         rowId = int(rowId)
@@ -1249,12 +1268,12 @@ def Table(schema, values, **kwargs):
         raise ValueError("Don't know how to make tables from values of type %s." % type(values))
 
 
-class TableAbstractBaseClass(Iterable, Sized):
+class TableAbstractBaseClass(collections.Iterable, collections.Sized):
     """
     Abstract base class for Tables based on different data containers.
     """
 
-    RowMetadataTuple = namedtuple('RowMetadataTuple', ['row_id', 'row_version', 'row_etag'])
+    RowMetadataTuple = collections.namedtuple('RowMetadataTuple', ['row_id', 'row_version', 'row_etag'])
 
     def __init__(self, schema, headers=None, etag=None):
         if isinstance(schema, Schema):
@@ -1300,7 +1319,7 @@ class TableAbstractBaseClass(Iterable, Sized):
         row_id_vers_generator = ((metadata.row_id, metadata.row_version) for metadata in self.iter_row_metadata())
         _delete_rows(syn, self.tableId, row_id_vers_generator)
 
-    @abstractmethod
+    @abc.abstractmethod
     def iter_row_metadata(self):
         """Iterates the table results to get row_id and row_etag. If an etag does not exist for a row, it will
         generated as (row_id, None)
@@ -1331,7 +1350,7 @@ class RowSetTable(TableAbstractBaseClass):
         else:
             rownames = None
 
-        series = OrderedDict()
+        series = collections.OrderedDict()
         for i, header in enumerate(self.rowset["headers"]):
             series[header.name] = pd.Series(name=header.name,
                                             data=[row['values'][i] for row in self.rowset['rows']],
@@ -1430,7 +1449,7 @@ class TableQueryResult(TableAbstractBaseClass):
         offset = 0
         rownames = construct_rownames(self.rowset, offset)
         offset += len(self.rowset['rows'])
-        series = OrderedDict()
+        series = collections.OrderedDict()
 
         if not rowIdAndVersionInIndex:
             # Since we use an OrderedDict this must happen before we construct the other columns
