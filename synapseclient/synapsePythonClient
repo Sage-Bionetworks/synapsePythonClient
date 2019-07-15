@@ -1,6 +1,9 @@
+# This file exists for backward compatibility.
+# It will be removed in future release.
+
 {
   "client":"synapsePythonClient",
-  "latestVersion":"1.9.1.dev1",
+  "latestVersion":"2.0.0.dev0",
   "blacklist":["0.0.0", "0.4.1", "0.4.0", "0.3.0", "0.2.1", "0.2.0", "0.1.4"],
   "releaseNotes":"https://python-docs.synapse.org/build/html/news.html"
 }

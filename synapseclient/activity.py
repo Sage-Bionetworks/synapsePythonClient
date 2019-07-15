@@ -68,17 +68,12 @@ Activity
    :members:
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-import six
-import collections
-import deprecation
 
-from synapseclient.utils import is_url, is_synapse_id
+import collections
+
+from synapseclient.core.utils import is_url, is_synapse_id
 from synapseclient.entity import is_synapse_entity
-from synapseclient.exceptions import *
+from synapseclient.core.exceptions import *
 
 
 def is_used_entity(x):
@@ -149,9 +144,7 @@ class Activity(dict):
     :param data:        A dictionary representation of an Activity, with fields 'name', 'description' and 'used'
                         (a list of reference objects)
 
-    See also: `Provenance in Synapse \
-     <https://sagebionetworks.jira.com/wiki/display/PLFM/Analysis+Provenance+in+Synapse>`_
-     and the `W3C's provenance ontology <http://www.w3.org/TR/prov-o/>`_
+    See also: The `W3C's provenance ontology <http://www.w3.org/TR/prov-o/>`_
     """
 
     # TODO: make constructors from JSON consistent across objects
@@ -264,7 +257,7 @@ class Activity(dict):
                         'concreteType': 'org.sagebionetworks.repo.model.provenance.UsedURL'}
 
         # -- Synapse Entity ID (assuming the string is an ID)
-        elif isinstance(target, six.string_types):
+        elif isinstance(target, str):
             badargs = _get_any_bad_args(['url', 'name'], locals())
             _raise_incorrect_used_usage(badargs, 'Synapse entity')            
             vals = target.split('.')  # Handle synapseIds of from syn234.4
@@ -293,18 +286,6 @@ class Activity(dict):
 
         # Add the used resource to the activity
         self['used'].append(resource)
-
-    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
-                            details="Please use used() instead.")
-    def usedEntity(self, target, targetVersion=None, wasExecuted=False):
-        """See :py:func:`synapseclient.Activity.used`."""
-        self.used(target=target, targetVersion=targetVersion, wasExecuted=wasExecuted)
-
-    @deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
-                            details="Please use used() instead.")
-    def usedURL(self, url, name=None, wasExecuted=False):
-        """See :py:func:`synapseclient.Activity.used`."""
-        self.used(url=url, name=name, wasExecuted=wasExecuted)
 
     def executed(self, target=None, targetVersion=None, url=None, name=None):
         """

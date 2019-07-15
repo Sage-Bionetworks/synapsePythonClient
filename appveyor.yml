@@ -2,8 +2,9 @@ build: off
 
 environment:
     matrix:
-        - PYTHON: "C:\\Python27-x64"
+        - PYTHON: "C:\\Python35-x64"
         - PYTHON: "C:\\Python36-x64"
+        - PYTHON: "C:\\Python37-x64"
 
 install:
     - "%PYTHON%\\python.exe -m pip install nose mock pysftp cython pandas boto3"
@@ -19,8 +20,5 @@ test_script:
         if ( -Not $env:APPVEYOR_PULL_REQUEST_NUMBER ){
           openssl aes-256-cbc -K $env:encrypted_d17283647768_key -iv $env:encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
           move -force test.synapseConfig ${env:userprofile}\\.synapseConfig
-          openssl aes-256-cbc -K $env:encrypted_d17283647768_key -iv $env:encrypted_d17283647768_iv -in test.awscredentials.enc -out test.awscredentials -d
-          mkdir ${env:userprofile}\\.aws
-          move test.awscredentials ${env:userprofile}\\.aws\\credentials
         }
     - cmd: "IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( %PYTHON%\\python.exe -m nose -s -v tests\\integration ) ELSE ( ECHO Skipping integration tests )"

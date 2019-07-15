@@ -1,4 +1,8 @@
-@import url("sphinxdoc.css");
+@import url("bizstyle.css");
+
+html * {
+    font-family: Lato, Sans-Serif;
+}
 
 div.header {
     background-color: white;
@@ -16,5 +20,9 @@ div.header img {
 
 .deprecated {
     background-color: #FFFF00
+}
+
+table.field-list th {
+    word-break: normal;
 }
 

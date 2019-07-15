@@ -41,7 +41,7 @@ For more information about interacting with Synapse, see:
 Installation
 ------------
 
-The Python Synapse client has been tested on Python 2.7, 3.5 and 3.6 on Mac OS X, Ubuntu Linux and Windows.
+The Python Synapse client has been tested on 3.5, 3.6, and 3.7 on Mac OS X, Ubuntu Linux and Windows.
 
 ### Install using pip
 
@@ -65,24 +65,6 @@ Clone the [source code repository](https://github.com/Sage-Bionetworks/synapsePy
     git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
     cd synapsePythonClient
     python setup.py install
-
-#### Install release candidate branch
-
-For validation, validators would install a release candidate branch to verify that a bug has been fix or a new feature/ an improvement works as expected. To prevent overwriting your working environment, using [virtualenv](https://virtualenv.pypa.io/) to create an isolated test environment is a good idea.
-
-    git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
-    cd synapsePythonClient
-    git checkout v1.8.2-rc
-    python setup.py install
-
-Replace `python setup.py install` with `python setup.py develop` to make the installation follow the head without having to reinstall.
-
-#### Installing a tagged version
-
-After a version is release, a tag will be created for the released version. To install a specific release, instead of checking out the release candidate branch, check out the tag instead, for example:
-
-    git checkout v1.8.2
-
 
 
 Command line usage
@@ -195,6 +177,6 @@ The purpose of synapseutils is to create a space filled with convenience functio
 License and Copyright
 ---------------------
 
-&copy; Copyright 2013-18 Sage Bionetworks
+&copy; Copyright 2013-19 Sage Bionetworks
 
 This software is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).

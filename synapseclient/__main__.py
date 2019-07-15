@@ -55,27 +55,20 @@ Commands
 A few more commands (cat, create, update, associate)
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import input
-import six
-
 import argparse
 import os
-import collections
 import sys
-import synapseclient
-import synapseutils
-from . import Activity
 import signal
 import json
-from .exceptions import *
-from .wiki import Wiki
 import getpass
 import csv
 import re
+
+import synapseclient
+import synapseutils
+from . import Activity
+from .wiki import Wiki
+from synapseclient.core.exceptions import *
 
 
 def query(args, syn):
@@ -132,7 +125,7 @@ def get(args, syn):
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
         # search by MD5
-        if isinstance(args.id, six.string_types) and os.path.isfile(args.id):
+        if isinstance(args.id, str) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
@@ -299,7 +292,7 @@ def create(args, syn):
     entity = {'name': args.name,
               'parentId': args.parentid,
               'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
-    entity = syn.createEntity(entity)
+    entity = syn.store(entity)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
@@ -665,8 +658,8 @@ def build_parser():
                                          help='Performs SQL like queries on Synapse')
     parser_query.add_argument('queryString', metavar='string', type=str, nargs='*',
                               help='A query string, see '
-                                   'https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+'
-                                   'API#RepositoryServiceAPI-QueryAPI for more information')
+                                   'https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html'
+                                   ' for more information')
     parser_query.set_defaults(func=query)
 
     parser_submit = subparsers.add_parser('submit',

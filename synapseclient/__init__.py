@@ -266,36 +266,41 @@ To get information about new versions of the client, see:
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+from .__version__ import __version__
 
-import deprecation
-deprecation.message_location = 'top'
-
+# public APIs
 from .client import Synapse, login
 from .client import PUBLIC, AUTHENTICATED_USERS
-from .client import ROOT_ENTITY
 
 from .activity import Activity
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, EntityViewType
+from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset,\
+    EntityViewType, build_table
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-from .version_check import check_for_updates
-from .version_check import release_notes
+from .core.version_check import check_for_updates, release_notes
 
-import json
-from . import custom_json
-import pkg_resources
-__version__ = json.loads(pkg_resources.resource_string('synapseclient',
-                                                       'synapsePythonClient').decode())['latestVersion']
 
+__all__ = [
+    # objects
+    'Synapse', 'Activity', 'Entity', 'Project', 'Folder', 'File', 'Link', 'DockerRepository', 'Evaluation',
+    'Submission', 'SubmissionStatus', 'Schema', 'EntityViewSchema', 'Column', 'Row', 'RowSet', 'Table', 'PartialRowset',
+    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki',
+    # functions
+    'login', 'build_table', 'as_table_columns', 'check_for_updates', 'release_notes',
+    # enum
+    'EntityViewType',
+    # constants
+    'PUBLIC', 'AUTHENTICATED_USERS']
+
+
+# ensure user-agent is set to track Synapse Python client usage
 import requests
 USER_AGENT = {'User-Agent': 'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
-from . import logging_setup as __logingsetup
-from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
+# patch json
+from .core.models import custom_json
+# patch logging
+from .core import logging_setup
