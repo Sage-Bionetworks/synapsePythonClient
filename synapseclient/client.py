@@ -2073,7 +2073,7 @@ class Synapse(object):
             contributors = None
         return(eligibility, contributors)
 
-    def _get_docker_commits(self, entity, docker_tag):
+    def _get_docker_digest(self, entity, docker_tag):
         '''
         Get matching Docker sha-digest of a DockerRepository given a Docker tag
         
@@ -2081,13 +2081,13 @@ class Synapse(object):
         :param docker_tag:  Docker tag
         :returns: Docker digest matching Docker tag
         '''
-        docker_commits = self.restGET('/entity/{entityId}/dockerCommit'.format(entityId=entity.id)) 
+        docker_tags = self.restGET('/entity/{entityId}/dockerTag'.format(entityId=entity.id)) 
         docker_digest = None
-        for commit in docker_commits['results']:
-            if docker_tag  == commit['tag']:
-                docker_digest = commit['digest']
+        for tag in docker_tags['results']:
+            if docker_tag == tag['tag']:
+                docker_digest = tag['digest']
         if docker_digest is None:
-            raise ValueError("Disgest not found for tag: {docker_tag}. Please specify a docker tag that exists. The dockerTag 'latest' is used as default.".format(docker_tag=docker_tag))
+            raise ValueError("Docker tag {docker_tag} not found.  Please specify a docker tag that exists. The dockerTag 'latest' is used as default.".format(docker_tag=docker_tag))
         return(docker_digest)
 
     def submit(self, evaluation, entity, name=None, dockerTag="latest", team=None, silent=False, submitterAlias=None, teamName=None):
@@ -2158,9 +2158,10 @@ class Synapse(object):
 
 
         if isinstance(entity, synapseclient.DockerRepository):
-            docker_digest = self._get_docker_commits(entity, dockerTag)
+            docker_digest = self._get_docker_digest(entity, dockerTag)
         else:
             docker_digest = None
+
         submission = {'evaluationId': evaluation_id,
                       'name': name,
                       'versionNumber': entity_version,
@@ -2168,14 +2169,18 @@ class Synapse(object):
                       'dockerRepositoryName':docker_repository,
                       'teamId': team_id,
                       'contributors':contributors,
-                      'eligibility':eligibility}
+                      'submitterAlias': submitterAlias,
+                      'eligibility':eligibility_hash}
 
+        print(submission)
         submitted = self._submit(submission, entity['etag'], eligibility_hash)
 
         # if we want to display the receipt message, we need the full object
         if not silent:
-            #Evaluation always has submissionReceiptMessage even if its not assigned
-            self.logger.info(evaluation['submissionReceiptMessage'])
+            if not(isinstance(evaluation, Evaluation)):
+                evaluation = self.getEvaluation(evaluation_id)
+            if 'submissionReceiptMessage' in evaluation:
+                self.logger.info(evaluation['submissionReceiptMessage'])
 
         return Submission(**submitted)
 
@@ -2186,6 +2191,7 @@ class Synapse(object):
         uri = '/evaluation/submission?etag=%s' % entity_etag
         if eligibility_hash:
             uri += "&submissionEligibilityHash={0}".format(eligibility_hash)
+        print(uri)
         submitted = self.restPOST(uri, json.dumps(submission))
         return submitted
 
