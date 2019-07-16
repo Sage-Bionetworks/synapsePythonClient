@@ -8,17 +8,6 @@ from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, a
     assert_not_equals, assert_true
 from synapseclient import client
 
-<<<<<<< HEAD:tests/unit/unit_test_client.py
-import synapseclient
-from synapseclient import Evaluation, File, Folder, DockerRepository
-from synapseclient.constants import concrete_types
-from synapseclient.credentials.cred_data import SynapseCredentials, UserLoginArgs
-from synapseclient.credentials.credential_provider import SynapseCredentialsProviderChain
-from synapseclient.exceptions import *
-from synapseclient.dict_object import DictObject
-from synapseclient.table import Column, EntityViewSchema
-import synapseclient.upload_functions as upload_functions
-=======
 from synapseclient import *
 from synapseclient.core.exceptions import *
 from synapseclient.core.upload import upload_functions, multipart_upload
@@ -30,7 +19,6 @@ from synapseclient.core.credentials.credential_provider import SynapseCredential
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of
 from tests import unit
->>>>>>> develop:tests/unit/synapseclient/unit_test_client.py
 
 
 def setup(module):
@@ -267,98 +255,15 @@ class TestPrivateSubmit:
 class TestSubmit:
 
     def setup(self):
-<<<<<<< HEAD:tests/unit/unit_test_client.py
-        self.evaluation_obj = Evaluation(**{u'contentSource': u'syn1001',
-                                                        u'createdOn': u'2013-11-06T06:04:26.789Z',
-                                                        u'etag': u'86485ea1-8c89-4f24-a0a4-2f63bc011091',
-                                                        u'id': u'9090',
-                                                        u'name': u'test evaluation',
-                                                        u'ownerId': u'1560252',
-                                                        u'status': u'OPEN',
-                                                        u'submissionReceiptMessage': u'mmmm yummy!'})
-        def shim(*args):
-            assert_equal(args[0], '/evaluation/submission?etag=Fake etag')
-            submission = json.loads(args[1])
-            submission['id'] = 1234
-            return submission
-
-        self.shim = shim
-
-    def test_submit_file(self, *mocks):
-        mocks = [item for item in mocks]
-        POST_mock = mocks.pop()
-        getEvaluation_mock = mocks.pop()
-
-        # -- Unmet access rights --
-        getEvaluation_mock.return_value = self.evaluation_obj
-
-        # -- Normal submission --
-        # insert a shim that returns the dictionary it was passed after adding a bogus id
-        POST_mock.side_effect = self.shim
-    
-        entity = File("foo", parentId ="syn1000001")
-        entity.id = "syn123"
-        entity.etag = "Fake etag"
-        with patch.object(syn, "get", return_value=entity) as syn_get_entity:
-            submission = syn.submit('9090', syn_get_entity, name='George')
-                                    #submitterAlias='Team X')
-            assert_equal(submission['submission'].id, 1234)
-            assert_equal(submission['submission'].evaluationId, '9090')
-            assert_equal(submission['submission'].name, 'George')
-            assert_equal(submission['submission'].versionNumber, 1)
-
-    def test_submit_file_none(self, *mocks):
-        assert_raises(TypeError, syn.submit, '9090',None, name='George')
-
-    def test_submit_file_version(self, *mocks):
-        mocks = [item for item in mocks]
-        POST_mock = mocks.pop()
-        getEvaluation_mock = mocks.pop()
-
-        # -- Unmet access rights --
-        getEvaluation_mock.return_value = self.evaluation_obj
-
-        # -- Normal submission --
-        # insert a shim that returns the dictionary it was passed after adding a bogus id
-        POST_mock.side_effect = self.shim
-    
-        entity = File("foo", parentId ="syn1000001")
-        entity.id = "syn123"
-        entity.etag = "Fake etag"
-        entity.versionNumber = 2
-        with patch.object(syn, "get", return_value=entity) as syn_get_entity:
-            submission = syn.submit('9090', syn_get_entity, name='George')
-                                    #submitterAlias='Team X')
-            assert_equal(submission['submission'].versionNumber, 2)
-            #assert_equal(submission.submitterAlias, 'Team X')
-
-    def test_submit_docker(self, *mocks):
-        mocks = [item for item in mocks]
-        POST_mock = mocks.pop()
-        getEvaluation_mock = mocks.pop()
-
-        # -- Unmet access rights --
-        getEvaluation_mock.return_value = self.evaluation_obj
-
-        # -- Normal submission --
-        # insert a shim that returns the dictionary it was passed after adding a bogus id
-        POST_mock.side_effect = self.shim
-        docker_entity = DockerRepository("foo", parentId = "syn1000001")
-        docker_entity.id = "syn123"
-        docker_entity.etag = "Fake etag"
-
-        dockerTag = {'results': [{'tag': 'latest',
-                    'digest': 'sha256:6b079ae764a6affcb632231349d4a5e1b084bece8c46883c099863ee2aeb5cf8'}]}
-
-        with patch.object(syn, "get", return_value=docker_entity) as syn_get_entity, \
-             patch.object(syn, "restGET", return_value=dockerTag) as syn_store_patch:
-            assert_raises(ValueError, syn.submit,'9090', syn_get_entity,"George", dockerTag=None)
-            assert_raises(ValueError, syn.submit,'9090', syn_get_entity,"George", dockerTag="foo")
-            submission = syn.submit('9090', syn_get_entity, name='George')
-=======
         self.eval_id = '9090'
         self.contributors = None
         self.entity = {
+            'versionNumber': 7,
+            'id': 'syn1009',
+            'etag': 'etag',
+            'name': 'entity name'
+        }
+        self.docker = {
             'versionNumber': 7,
             'id': 'syn1009',
             'etag': 'etag',
@@ -417,6 +322,8 @@ class TestSubmit:
         expected_request_body.pop('id')
         expected_request_body['teamId'] = None
         expected_request_body['submitterAlias'] = None
+        expected_request_body['dockerDigest'] = None
+        expected_request_body['dockerRepositoryName'] = None
         self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
                                                          self.eligibility_hash)
         self.mock_get.assert_not_called()
@@ -430,6 +337,8 @@ class TestSubmit:
         expected_request_body.pop('id')
         expected_request_body['teamId'] = None
         expected_request_body['submitterAlias'] = None
+        expected_request_body['dockerDigest'] = None
+        expected_request_body['dockerRepositoryName'] = None
         self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
                                                          self.eligibility_hash)
         self.mock_get.assert_called_once_with(self.entity['id'], downloadFile=False)
@@ -441,6 +350,8 @@ class TestSubmit:
 
         expected_request_body = self.submission
         expected_request_body.pop('id')
+        expected_request_body['dockerDigest'] = None
+        expected_request_body['dockerRepositoryName'] = None
         self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
                                                          self.eligibility_hash)
         self.mock_get.assert_not_called()
@@ -455,6 +366,19 @@ class TestSubmit:
         self.mock_getTeam.assert_called_once_with(self.team['id'])
         self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
 
+    def test_submit_docker(self):
+        docker_entity = DockerRepository("foo", parentId = "syn1000001")
+        docker_entity.id = "syn123"
+        docker_entity.etag = "Fake etag"
+
+        docker_tag = {'results': [{'tag': 'latest',
+                                   'digest': 'sha256:6b079ae764a6affcb632231349d4a5e1b084bece8c46883c099863ee2aeb5cf8'}]}
+
+        with patch.object(syn, "get", return_value=docker_entity) as syn_get_entity, \
+             patch.object(syn, "restGET", return_value=docker_tag) as syn_store_patch:
+            assert_raises(ValueError, syn.submit,'9090', syn_get_entity, "George", dockerTag=None)
+            assert_raises(ValueError, syn.submit,'9090', syn_get_entity, "George", dockerTag="foo")
+            submission = syn.submit('9090', syn_get_entity, name='George')
 
 class TestPrivateGetContributor:
 
@@ -549,7 +473,6 @@ class TestPrivateGetContributor:
         assert_equal((contributors, self.eligibility['eligibilityStateHash']), syn._get_contributors(self.eval_id, self.team))
         uri = '/evaluation/{evalId}/team/{id}/submissionEligibility'.format(evalId=self.eval_id, id=self.team_id)
         self.mock_restGET.assert_called_once_with(uri)
->>>>>>> develop:tests/unit/synapseclient/unit_test_client.py
 
 
 def test_send_message():
