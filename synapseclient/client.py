@@ -29,6 +29,7 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 """
 import configparser
 import collections
+import itertools
 import os
 import errno
 import sys
@@ -3068,8 +3069,70 @@ class Synapse(object):
     #                       File Handles                       #
     ############################################################
 
-    def copyFileHandles(self):
-        return None
+    def copy_file_handles(self, file_handles, obj_types, obj_ids, con_types=None, file_names=None):
+        """
+        Given a list of fileHandle Objects, copy the fileHandles
+
+        :param file_handles:             List of fileHandle Ids or Objects
+
+        :param obj_types:                List of associated object types: FileEntity, TableEntity, WikiAttachment,
+                                        UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
+                                        VerificationSubmission (Must be the same length as fileHandles)
+
+        :param obj_ids:                  List of associated object Ids: If copying a file, the objectId is the synapse id,
+                                        and if copying a wiki attachment, the object id is the wiki subpage id.
+                                        (Must be the same length as fileHandles)
+
+        :param con_types:                (Optional) List of content types (Can change a filetype of a filehandle).
+
+        :param file_names:               (Optional) List of filenames (Can change a filename of a filehandle).
+
+        :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
+                                        NOT_FOUND
+        """
+
+        # Check if length of all inputs are equal
+        iter_locals = iter(locals())
+        next(iter_locals) # need to advance iterator to fileHandles because self is included in locals?
+        target_len = len(next(iter_locals))
+        if not all(len(param) == target_len for param in iter_locals if param is not None):
+            raise ValueError("Length of all input arguments must be the same")
+
+        # If no optional params passed, assign to empty list
+        if con_types is None:
+            con_types = []
+
+        if file_names is None:
+            file_names = []
+
+        # Remove this line if we change API to only take fileHandleIds and not Objects
+        file_handle_ids = [synapseclient.core.utils.id_of(handle) for handle in file_handles]
+
+        # Construct JSON for API call to POST/ filehandles/ copy
+        copy_file_handle_request = {"copyRequest": []}
+        for file_handle_id, obj_id, obj_type, con_type, file_name \
+                in itertools.zip_longest(file_handle_ids, obj_types, obj_ids, con_types, file_names):
+
+            # construct default JSON object for REST call
+            curr_dict = {
+                         "originalFile": {
+                           "fileHandleId": file_handle_id,
+                           "associateObjectId": obj_id,
+                           "associateObjectType": obj_type
+                         }
+                       }
+
+            # add optional parameters to JSON if they exist
+            if con_type is not None:
+                curr_dict["newContentType"] = con_type
+            if file_name is not None:
+                curr_dict["newFileName"] = file_name
+
+            copy_file_handle_request["copyRequest"].append(curr_dict)
+
+        copied_file_handles = self.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
+                                            endpoint=self.fileHandleEndpoint)
+        return copied_file_handles
 
     ############################################################
     #                   Low level Rest calls                   #

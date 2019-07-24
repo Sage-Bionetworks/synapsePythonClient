@@ -1,12 +1,17 @@
+
 ###########################
 # Login Credentials       #
 ###########################
 
 ## Used for logging in to Synapse
-## Alternatively, you can use rememberMe=True in synapseclient.login or login subcommand of the commandline client.
+## you may also specify an apikey instead of password. If both password and apikey are specified, the apikey is ignored
+## Alternatively you can use rememberMe=True in synapseclient.login or login subcommand of the commandline client to 
+## cache your API key elsewhere.
 #[authentication]
-#username = <username>
+username ="minneker"
+password ="ilSkate!21"
 #apikey = <apikey>
+
 
 
 ## If you have projects with file stored on SFTP servers, you can specify your credentials here
@@ -31,7 +36,6 @@
 ###########################
 # Caching                 #
 ###########################
-
 ## your downloaded files are cached to avoid repeat downloads of the same file. change 'location' to use a different folder on your computer as the cache location
 #[cache]
 #location = ~/.synapseCache

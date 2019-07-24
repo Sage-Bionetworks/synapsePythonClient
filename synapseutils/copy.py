@@ -4,48 +4,75 @@ from synapseclient.core.cache import Cache
 from synapseclient.core.exceptions import SynapseHTTPError
 import re
 import json
+import itertools
 ############################################################
 #                  Copy Functions                          #
 ############################################################
 
 
-def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds, contentTypes, fileNames):
+def copyFileHandles(self, file_handles, obj_types, obj_ids, con_types=None, file_names=None):
     """
     Given a list of fileHandle Objects, copy the fileHandles
 
-    :param fileHandles:             List of fileHandle Ids or Objects
+    :param file_handles:             List of fileHandle Ids or Objects
 
-    :param associateObjectTypes:    List of associated object types: FileEntity, TableEntity, WikiAttachment,
+    :param obj_types:                List of associated object types: FileEntity, TableEntity, WikiAttachment,
                                     UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
                                     VerificationSubmission (Must be the same length as fileHandles)
-    
-    :param associateObjectIds:      List of associated object Ids: If copying a file, the objectId is the synapse id,
+
+    :param obj_ids:                  List of associated object Ids: If copying a file, the objectId is the synapse id,
                                     and if copying a wiki attachment, the object id is the wiki subpage id.
                                     (Must be the same length as fileHandles)
-    
-    :param contentTypes:            List of content types (Can change a filetype of a filehandle).
 
-    :param fileNames:               List of filenames (Can change a filename of a filehandle).
-    
+    :param con_types:                (Optional) List of content types (Can change a filetype of a filehandle).
+
+    :param file_names:               (Optional) List of filenames (Can change a filename of a filehandle).
+
     :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
                                     NOT_FOUND
     """
-    if (len(fileHandles) != len(associateObjectTypes) or len(fileHandles) != len(associateObjectIds)
-            or len(fileHandles) != len(contentTypes) or len(fileHandles) != len(fileNames)):
-        raise ValueError("Length of fileHandles, associateObjectTypes, and associateObjectIds must be the same")
-    fileHandles = [synapseclient.core.utils.id_of(handle) for handle in fileHandles]
-    copyFileHandleRequest = {"copyRequests": []}
-    for filehandleId, contentType, fileName, associateObjectType, associateObjectId \
-            in zip(fileHandles, contentTypes, fileNames, associateObjectTypes, associateObjectIds):
-        copyFileHandleRequest['copyRequests'].append({"newContentType": contentType,
-                                                      "newFileName": fileName,
-                                                      "originalFile": {"associateObjectType": associateObjectType,
-                                                                       "fileHandleId": filehandleId,
-                                                                       "associateObjectId": associateObjectId}})
-    copiedFileHandles = syn.restPOST('/filehandles/copy', body=json.dumps(copyFileHandleRequest),
-                                     endpoint=syn.fileHandleEndpoint)
-    _copy_cached_file_handles(syn.cache, copiedFileHandles)
-    return copiedFileHandles
+
+    # Check if length of all inputs are equal
+    if not (len(file_handles) == len(obj_types) == len(obj_ids) and (con_types is None or len(con_types) == len(obj_ids))
+            and (file_names is None or len(file_names) == len(obj_ids))):
+        raise ValueError("Length of all input arguments must be the same")
+
+    # If no optional params passed, assign to empty list
+    if con_types is None:
+        con_types = []
+    if file_names is None:
+        file_names = []
+
+    # Remove this line if we change API to only take fileHandleIds and not Objects
+    file_handle_ids = [synapseclient.core.utils.id_of(handle) for handle in file_handles]
+
+    # Construct JSON for API call to POST/ filehandles/ copy
+    copy_file_handle_request = {"copyRequests": []}
+    for file_handle_id, obj_type, obj_id, con_type, file_name \
+            in itertools.zip_longest(file_handle_ids, obj_types, obj_ids, con_types, file_names):
+
+        # construct default JSON object for REST call
+        curr_dict = {
+            "originalFile": {
+                "fileHandleId": file_handle_id,
+                "associateObjectId": obj_id,
+                "associateObjectType": obj_type
+            }
+        }
+
+        # add optional parameters to JSON if they exist
+        if con_type is not None:
+            curr_dict["newContentType"] = con_type
+        if file_name is not None:
+            curr_dict["newFileName"] = file_name
+
+        # add copy request to list of requests
+        copy_file_handle_request["copyRequests"].append(curr_dict)
+
+    # make backend call which performs the copy specified by copy_file_handle_request
+    copied_file_handles = self.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
+                                        endpoint=self.fileHandleEndpoint)
+    return copied_file_handles
 
 
 def _copy_cached_file_handles(cache, copiedFileHandles):
