@@ -2015,7 +2015,7 @@ class Synapse(object):
 
         :return:  An object of type :py:class:`synapseclient.team.Team`
         """
-        #Retrieves team id
+        # Retrieves team id
         teamid = id_of(id)
         try:
             int(teamid)
@@ -2041,24 +2041,31 @@ class Synapse(object):
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
-    def _get_docker_digest(self, entity, docker_tag):
+    def _get_docker_digest(self, entity, docker_tag="latest"):
         '''
         Get matching Docker sha-digest of a DockerRepository given a Docker tag
-        
-        :param entity:      Synapse id of Docker repository
+
+        :param entity:      Synapse id or entity of Docker repository
         :param docker_tag:  Docker tag
         :returns: Docker digest matching Docker tag
         '''
-        docker_tags = self.restGET('/entity/{entityId}/dockerTag'.format(entityId=entity.id)) 
+        entityid = id_of(entity)
+        uri = '/entity/{entityId}/dockerTag'.format(entityId=entityid)
+
+        docker_commits = self._GET_paginated(uri)
         docker_digest = None
-        for tag in docker_tags['results']:
-            if docker_tag == tag['tag']:
-                docker_digest = tag['digest']
+        for commit in docker_commits:
+            if docker_tag == commit['tag']:
+                docker_digest = commit['digest']
         if docker_digest is None:
-            raise ValueError("Docker tag {docker_tag} not found.  Please specify a docker tag that exists. The dockerTag 'latest' is used as default.".format(docker_tag=docker_tag))
+            raise ValueError("Docker tag {docker_tag} not found.  Please specify a "
+                             "docker tag that exists. 'latest' is used as "
+                             "default.".format(docker_tag=docker_tag))
         return(docker_digest)
 
-    def submit(self, evaluation, entity, name=None, dockerTag="latest", team=None, silent=False, submitterAlias=None, teamName=None):
+    def submit(self, evaluation, entity, name=None, team=None,
+               silent=False, submitterAlias=None, teamName=None,
+               dockerTag="latest"):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
@@ -2068,11 +2075,12 @@ class Synapse(object):
                                 In the absent of this parameter, the entity name will be used.
         :param team:            (optional) A :py:class:`Team` object, ID or name of a Team that is registered for the
                                 challenge
-        :param dockerTag:       (optional) The Docker tag must be specified if the entity is a DockerRepository. Defaults to "latest".
         :param silent:          Set to True to suppress output.
         :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
                                 name
         :param teamName:        (deprecated) A synonym for submitterAlias
+        :param dockerTag:       (optional) The Docker tag must be specified if the entity is a DockerRepository. Defaults to "latest".
+
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
 
@@ -2137,7 +2145,7 @@ class Synapse(object):
                       'dockerDigest': docker_digest,
                       'dockerRepositoryName':docker_repository,
                       'teamId': team_id,
-                      'contributors':contributors,
+                      'contributors': contributors,
                       'submitterAlias': submitterAlias}
 
         submitted = self._submit(submission, entity['etag'], eligibility_hash)
