@@ -10,46 +10,46 @@ import itertools
 ############################################################
 
 
-def copyFileHandles(self, file_handles, obj_types, obj_ids, con_types=None, file_names=None):
+def copyFileHandles(self, fileHandles, associateObjectTypes, associateObjectIds, newContentTypes=None, newFileNames=None):
     """
     Given a list of fileHandle Objects, copy the fileHandles
 
-    :param file_handles:             List of fileHandle Ids or Objects
+    :param fileHandles:             List of fileHandle Ids or Objects
 
-    :param obj_types:                List of associated object types: FileEntity, TableEntity, WikiAttachment,
+    :param associateObjectTypes:                List of associated object types: FileEntity, TableEntity, WikiAttachment,
                                     UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
                                     VerificationSubmission (Must be the same length as fileHandles)
 
-    :param obj_ids:                  List of associated object Ids: If copying a file, the objectId is the synapse id,
+    :param associateObjectIds:                  List of associated object Ids: If copying a file, the objectId is the synapse id,
                                     and if copying a wiki attachment, the object id is the wiki subpage id.
                                     (Must be the same length as fileHandles)
 
-    :param con_types:                (Optional) List of content types (Can change a filetype of a filehandle).
+    :param newContentTypes:                (Optional) List of content types (Can change a filetype of a filehandle).
 
-    :param file_names:               (Optional) List of filenames (Can change a filename of a filehandle).
+    :param newFileNames:               (Optional) List of filenames (Can change a filename of a filehandle).
 
     :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
                                     NOT_FOUND
     """
 
     # Check if length of all inputs are equal
-    if not (len(file_handles) == len(obj_types) == len(obj_ids) and (con_types is None or len(con_types) == len(obj_ids))
-            and (file_names is None or len(file_names) == len(obj_ids))):
+    if not (len(fileHandles) == len(associateObjectTypes) == len(associateObjectIds) and (newContentTypes is None or len(newContentTypes) == len(associateObjectIds))
+            and (newFileNames is None or len(newFileNames) == len(associateObjectIds))):
         raise ValueError("Length of all input arguments must be the same")
 
     # If no optional params passed, assign to empty list
-    if con_types is None:
-        con_types = []
-    if file_names is None:
-        file_names = []
+    if newContentTypes is None:
+        newContentTypes = []
+    if newFileNames is None:
+        newFileNames = []
 
     # Remove this line if we change API to only take fileHandleIds and not Objects
-    file_handle_ids = [synapseclient.core.utils.id_of(handle) for handle in file_handles]
+    file_handle_ids = [synapseclient.core.utils.id_of(handle) for handle in fileHandles]
 
     # Construct JSON for API call to POST/ filehandles/ copy
     copy_file_handle_request = {"copyRequests": []}
     for file_handle_id, obj_type, obj_id, con_type, file_name \
-            in itertools.zip_longest(file_handle_ids, obj_types, obj_ids, con_types, file_names):
+            in itertools.zip_longest(file_handle_ids, associateObjectTypes, associateObjectIds, newContentTypes, newFileNames):
 
         # construct default JSON object for REST call
         curr_dict = {
@@ -70,9 +70,9 @@ def copyFileHandles(self, file_handles, obj_types, obj_ids, con_types=None, file
         copy_file_handle_request["copyRequests"].append(curr_dict)
 
     # make backend call which performs the copy specified by copy_file_handle_request
-    copied_file_handles = self.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
+    copied_fileHandles = self.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
                                         endpoint=self.fileHandleEndpoint)
-    return copied_file_handles
+    return copied_fileHandles
 
 
 def _copy_cached_file_handles(cache, copiedFileHandles):
