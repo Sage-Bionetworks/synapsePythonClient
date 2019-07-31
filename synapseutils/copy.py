@@ -64,7 +64,7 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds,
         batch_copy_results = _copy_file_handles_batch(syn, file_handle_ids[start:end], associateObjectTypes[start:end],
                                                       associateObjectIds[start:end], newContentTypes[start:end],
                                                       newFileNames[start:end])
-        list_copy_results = batch_copy_results["copyRequests"]
+        list_copy_results = batch_copy_results["copyResults"]
         master_copy_results_list.extend(list_copy_results)
     return master_copy_results_list
 
@@ -72,7 +72,7 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds,
 def _copy_file_handles_batch(syn, file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names):
 
     copy_file_handle_request = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids,
-                                                                     new_con_types, new_file_names)
+                                                                      new_con_types, new_file_names)
     # make backend call which performs the copy specified by copy_file_handle_request
     copied_file_handles = syn.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
                                        endpoint=syn.fileHandleEndpoint)
