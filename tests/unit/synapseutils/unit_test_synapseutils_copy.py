@@ -4,6 +4,7 @@ import json
 import synapseutils
 from synapseutils.copy import *
 from synapseutils.copy import _copy_file_handles_batch
+from synapseutils.copy import _create_batch_file_handle_copy_request
 from tests import unit
 
 
@@ -55,81 +56,95 @@ class TestCopyFileHandles:
     def teardown(self):
         self.patch_restPOST.stop()
 
-    def test_copy_invalid_input(self):
+    def test_copy_invalid_input_required_params(self):
         file_handles = ["test"]
         obj_types = []
-        obj_ids = [None]
-        assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids)
+        obj_ids = ["123"]
+        return_val = None
+        with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
+            assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids)
+            mocked_POST.assert_not_called()
+
+    def test_copy_invalid_input_optional_params(self):
+        file_handles = ["test1", "test2"]
+        obj_types = ["FileEntity", "FileEntity"]
+        obj_ids = ["123", "456"]
+        con_types = ["too", "many", "args"]
+        file_names = ["too_few_args"]
+        assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids,
+                      con_types, file_names)
         self.mock_restPOST.assert_not_called()
 
     def test_private_copy_batch(self):
-        file_handles = ["40827299", "41414463"]
+        file_handles = ["123", "456"]
         obj_types = ["FileEntity", "FileEntity"]
-        obj_ids = ["20181837", "20459234"]
+        obj_ids = ["321", "645"]
         con_types = [None, "text/plain"]
         file_names = [None, "test"]
         expected_input = {
             "copyRequests": [
                 {
                     "originalFile": {
-                        "fileHandleId": "40827299",
-                        "associateObjectId": "20181837",
-                        "associateObjectType": "FileEntity"
+                        "fileHandleId": file_handles[0],
+                        "associateObjectId": obj_ids[0],
+                        "associateObjectType": obj_types[0]
                     },
-                    "newContentType": None,
-                    "newFileName": None
+                    "newContentType": con_types[0],
+                    "newFileName": file_names[0]
                 },
                 {
                     "originalFile": {
-                        "fileHandleId": "41414463",
-                        "associateObjectId": "20459234",
-                        "associateObjectType": "FileEntity"
+                        "fileHandleId": file_handles[1],
+                        "associateObjectId": obj_ids[1],
+                        "associateObjectType": obj_types[1]
                     },
-                    "newContentType": "text/plain",
-                    "newFileName": "test"
+                    "newContentType": con_types[1],
+                    "newFileName": file_names[1]
                 }
             ]
         }
         return_val = [
             {
                 "newFileHandle": {
-                    "contentMd5": "2d1f1bf95a4bcb0426c1b9f4682b64e5",
-                    "bucketName": "proddata.sagebase.org",
-                    "fileName": "HelloSynapse.txt",
-                    "createdBy": "3391500",
+                    "contentMd5": "alpha_num_1",
+                    "bucketName": "bucket.sagebase.org",
+                    "fileName": "Name1.txt",
+                    "createdBy": "111",
                     "contentSize": 16,
-                    "concreteType": "org.sagebionetworks.repo.model.file.S3FileHandle",
-                    "etag": "90fc8c8f-e571-4bc4-a823-98b30054d32c",
-                    "id": "41791438",
+                    "concreteType": "type1",
+                    "etag": "etag1",
+                    "id": "123",
                     "storageLocationId": 1,
                     "createdOn": "2019-07-24T21:49:40.615Z",
                     "contentType": "text/plain",
-                    "key": "3391500/202c03b0-0960-49f2-8039-8a90e14854e0/HelloSynapse.txt"
+                    "key": "key1"
                 },
-                "originalFileHandleId": "40827299"
+                "originalFileHandleId": "122"
             },
             {
                 "newFileHandle": {
-                    "contentMd5": "d8e8fca2dc0f896fd7cb4cb0031ba249",
-                    "bucketName": "proddata.sagebase.org",
-                    "fileName": "test",
-                    "createdBy": "3391500",
+                    "contentMd5": "alpha_num2",
+                    "bucketName": "bucket.sagebase.org",
+                    "fileName": "Name2.txt",
+                    "createdBy": "111",
                     "contentSize": 5,
-                    "concreteType": "org.sagebionetworks.repo.model.file.S3FileHandle",
-                    "etag": "c9f04c33-6527-4dea-8601-64affe95e997",
-                    "id": "41791439",
+                    "concreteType": "type2",
+                    "etag": "etag2",
+                    "id": "456",
                     "storageLocationId": 1,
                     "createdOn": "2019-07-24T21:49:40.638Z",
-                    "contentType": "wiki",
-                    "key": "3391500/6436b18c-61de-4983-870f-45cda5e425e6/HelloSynapse2.txt"
+                    "contentType": "text/plain",
+                    "key": "key2"
                 },
-                "originalFileHandleId": "41414463"
+                "originalFileHandleId": "124"
             }
         ]
         post_return_val = {"copyResults": return_val}
         with patch.object(syn, "restPOST", return_value=post_return_val) as mocked_POST:
             result = _copy_file_handles_batch(syn, file_handles, obj_types, obj_ids, con_types, file_names)
             assert_equal(result, post_return_val)
+            mocked_POST.assert_called_once_with('/filehandles/copy', body=json.dumps(expected_input),
+                                                endpoint=syn.fileHandleEndpoint)
 
     def test_large_copy(self):
         num_copies = 202
@@ -139,36 +154,43 @@ class TestCopyFileHandles:
         obj_ids = [str(x) for x in range(num_copies)]
         con_types = ["text/plain"] * num_copies
         file_names = ["test" + str(i) for i in range(num_copies)]
-        synapseutils.copyFileHandles(syn, file_handles, obj_types, obj_ids, con_types, file_names)
-        expected_input_1 = synapseutils.create_batch_file_handle_copy_request(file_handles[:max_copy_per_request],
-                                                                             obj_types[:max_copy_per_request],
-                                                                             obj_ids[:max_copy_per_request],
-                                                                             con_types[:max_copy_per_request],
-                                                                             file_names[:max_copy_per_request])
-        expected_input_2 = synapseutils.create_batch_file_handle_copy_request(file_handles[max_copy_per_request
-                                                                                          :max_copy_per_request * 2],
-                                                                             obj_types[max_copy_per_request
-                                                                                       :max_copy_per_request * 2],
-                                                                             obj_ids[max_copy_per_request
-                                                                                     :max_copy_per_request * 2],
-                                                                             con_types[max_copy_per_request
-                                                                                       :max_copy_per_request * 2],
-                                                                             file_names[max_copy_per_request
-                                                                                        :max_copy_per_request * 2])
-        expected_input_3 = synapseutils.create_batch_file_handle_copy_request(file_handles[max_copy_per_request * 2
-                                                                                          :max_copy_per_request * 3],
-                                                                             obj_types[max_copy_per_request * 2
-                                                                                       :max_copy_per_request * 3],
-                                                                             obj_ids[max_copy_per_request * 2
-                                                                                     :max_copy_per_request * 3],
-                                                                             con_types[max_copy_per_request * 2
-                                                                                       :max_copy_per_request * 3],
-                                                                             file_names[max_copy_per_request * 2
-                                                                                        :max_copy_per_request * 3])
-        self.mock_restPOST.assert_any_call('/filehandles/copy', body=json.dumps(expected_input_1),
-                                           endpoint=syn.fileHandleEndpoint)
-        self.mock_restPOST.assert_any_call('/filehandles/copy', body=json.dumps(expected_input_2),
-                                           endpoint=syn.fileHandleEndpoint)
-        self.mock_restPOST.assert_any_call('/filehandles/copy', body=json.dumps(expected_input_3),
-                                           endpoint=syn.fileHandleEndpoint)
-        assert_equal(1, 1)
+
+        # expected inputs
+        expected_input_1 = _create_batch_file_handle_copy_request(file_handles[:max_copy_per_request],
+                                                                  obj_types[:max_copy_per_request],
+                                                                  obj_ids[:max_copy_per_request],
+                                                                  con_types[:max_copy_per_request],
+                                                                  file_names[:max_copy_per_request])
+        expected_input_2 = _create_batch_file_handle_copy_request(file_handles[max_copy_per_request
+                                                                               :max_copy_per_request * 2],
+                                                                  obj_types[max_copy_per_request
+                                                                            :max_copy_per_request * 2],
+                                                                  obj_ids[max_copy_per_request
+                                                                          :max_copy_per_request * 2],
+                                                                  con_types[max_copy_per_request
+                                                                            :max_copy_per_request * 2],
+                                                                  file_names[max_copy_per_request
+                                                                             :max_copy_per_request * 2])
+        expected_input_3 = _create_batch_file_handle_copy_request(file_handles[max_copy_per_request * 2
+                                                                               :max_copy_per_request * 3],
+                                                                  obj_types[max_copy_per_request * 2
+                                                                            :max_copy_per_request * 3],
+                                                                  obj_ids[max_copy_per_request * 2
+                                                                          :max_copy_per_request * 3],
+                                                                  con_types[max_copy_per_request * 2
+                                                                            :max_copy_per_request * 3],
+                                                                  file_names[max_copy_per_request * 2
+                                                                             :max_copy_per_request * 3])
+
+        # expected returns
+        return_val = []
+        post_return_val = {"copyResults": return_val}
+        with patch.object(syn, "restPOST", return_value=post_return_val) as mocked_POST:
+            result = synapseutils.copyFileHandles(syn, file_handles, obj_types, obj_ids, con_types, file_names)
+            mocked_POST.assert_any_call('/filehandles/copy', body=json.dumps(expected_input_1),
+                                        endpoint=syn.fileHandleEndpoint)
+            mocked_POST.assert_any_call('/filehandles/copy', body=json.dumps(expected_input_2),
+                                        endpoint=syn.fileHandleEndpoint)
+            mocked_POST.assert_any_call('/filehandles/copy', body=json.dumps(expected_input_3),
+                                        endpoint=syn.fileHandleEndpoint)
+            assert_equal(result, return_val)
