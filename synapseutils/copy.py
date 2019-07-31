@@ -5,35 +5,44 @@ from synapseclient.core.exceptions import SynapseHTTPError
 import re
 import json
 import itertools
+import math
+
+# Constants
+MAX_COPY_PER_REQUEST = 100  # The maximum number of FilesHandles that can be copied in a single request
+
 ############################################################
 #                  Copy Functions                          #
 ############################################################
 
 
-def copyFileHandles(self, fileHandles, associateObjectTypes, associateObjectIds, newContentTypes=None, newFileNames=None):
+def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds,
+                    newContentTypes=None, newFileNames=None):
     """
     Given a list of fileHandle Objects, copy the fileHandles
 
+    :param syn:                     A synapse object: syn = synapseclient.login()- Must be logged into synapse
+
     :param fileHandles:             List of fileHandle Ids or Objects
 
-    :param associateObjectTypes:                List of associated object types: FileEntity, TableEntity, WikiAttachment,
+    :param associateObjectTypes:    List of associated object types: FileEntity, TableEntity, WikiAttachment,
                                     UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
                                     VerificationSubmission (Must be the same length as fileHandles)
 
-    :param associateObjectIds:                  List of associated object Ids: If copying a file, the objectId is the synapse id,
+    :param associateObjectIds:      List of associated object Ids: If copying a file, the objectId is the synapse id,
                                     and if copying a wiki attachment, the object id is the wiki subpage id.
                                     (Must be the same length as fileHandles)
 
-    :param newContentTypes:                (Optional) List of content types (Can change a filetype of a filehandle).
+    :param newContentTypes:         (Optional) List of content types (Can change a filetype of a filehandle).
 
-    :param newFileNames:               (Optional) List of filenames (Can change a filename of a filehandle).
+    :param newFileNames:            (Optional) List of filenames (Can change a filename of a filehandle).
 
     :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
                                     NOT_FOUND
     """
 
     # Check if length of all inputs are equal
-    if not (len(fileHandles) == len(associateObjectTypes) == len(associateObjectIds) and (newContentTypes is None or len(newContentTypes) == len(associateObjectIds))
+    if not (len(fileHandles) == len(associateObjectTypes) == len(associateObjectIds)
+            and (newContentTypes is None or len(newContentTypes) == len(associateObjectIds))
             and (newFileNames is None or len(newFileNames) == len(associateObjectIds))):
         raise ValueError("Length of all input arguments must be the same")
 
@@ -46,33 +55,68 @@ def copyFileHandles(self, fileHandles, associateObjectTypes, associateObjectIds,
     # Remove this line if we change API to only take fileHandleIds and not Objects
     file_handle_ids = [synapseclient.core.utils.id_of(handle) for handle in fileHandles]
 
-    # Construct JSON for API call to POST/ filehandles/ copy
-    copy_file_handle_request = {"copyRequests": []}
-    for file_handle_id, obj_type, obj_id, con_type, file_name \
-            in itertools.zip_longest(file_handle_ids, associateObjectTypes, associateObjectIds, newContentTypes, newFileNames):
+    # add division logic for POST call here
+    master_copy_results_list = []  # list which holds all results from POST call
+    num_batches = math.ceil(len(fileHandles) / MAX_COPY_PER_REQUEST)
+    for i in range(num_batches):
+        start = i * MAX_COPY_PER_REQUEST
+        end = start + MAX_COPY_PER_REQUEST
+        batch_copy_results = _copy_file_handles_batch(syn, file_handle_ids[start:end], associateObjectTypes[start:end],
+                                                      associateObjectIds[start:end], newContentTypes[start:end],
+                                                      newFileNames[start:end])
+        list_copy_results = batch_copy_results["copyRequests"]
+        master_copy_results_list.extend(list_copy_results)
+    return master_copy_results_list
 
-        # construct default JSON object for REST call
+
+def _copy_file_handles_batch(syn, file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names):
+
+    copy_file_handle_request = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids,
+                                                                     new_con_types, new_file_names)
+    # make backend call which performs the copy specified by copy_file_handle_request
+    copied_file_handles = syn.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
+                                       endpoint=syn.fileHandleEndpoint)
+    return copied_file_handles
+
+
+def _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names):
+    """
+    Returns json for file handle copy request
+
+    :param file_handle_ids:         List of fileHandle Ids
+
+    :param obj_types:               List of associated object types: FileEntity, TableEntity, WikiAttachment,
+                                    UserProfileAttachment, MessageAttachment, TeamAttachment, SubmissionAttachment,
+                                    VerificationSubmission (Must be the same length as fileHandles)
+
+    :param obj_ids:                 List of associated object Ids: If copying a file, the objectId is the synapse id,
+                                    and if copying a wiki attachment, the object id is the wiki subpage id.
+                                    (Must be the same length as fileHandles)
+
+    :param new_con_types:           List of content types (Can change a filetype of a filehandle).
+
+    :param new_file_names:          List of filenames (Can change a filename of a filehandle).
+
+    :return:                        JSON for API call to POST/ filehandles/ copy
+    """
+
+    copy_file_handle_request = {"copyRequests": []}
+    for file_handle_id, obj_type, obj_id, new_con_type, new_file_name \
+            in itertools.zip_longest(file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names):
+        # construct JSON object for REST call
         curr_dict = {
             "originalFile": {
                 "fileHandleId": file_handle_id,
                 "associateObjectId": obj_id,
                 "associateObjectType": obj_type
-            }
+            },
+            "newContentType": new_con_type,
+            "newFileName": new_file_name
         }
-
-        # add optional parameters to JSON if they exist
-        if con_type is not None:
-            curr_dict["newContentType"] = con_type
-        if file_name is not None:
-            curr_dict["newFileName"] = file_name
 
         # add copy request to list of requests
         copy_file_handle_request["copyRequests"].append(curr_dict)
-
-    # make backend call which performs the copy specified by copy_file_handle_request
-    copied_fileHandles = self.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
-                                        endpoint=self.fileHandleEndpoint)
-    return copied_fileHandles
+    return copy_file_handle_request
 
 
 def _copy_cached_file_handles(cache, copiedFileHandles):
