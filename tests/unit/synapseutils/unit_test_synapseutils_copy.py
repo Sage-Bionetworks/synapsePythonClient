@@ -71,11 +71,17 @@ class TestCopyFileHandles:
         obj_ids = ["123", "456"]
         con_types = ["too", "many", "args"]
         file_names = ["too_few_args"]
+<<<<<<< HEAD
         return_val = None
         with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
             assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids,
                           con_types, file_names)
             mocked_POST.assert_not_called()
+=======
+        assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids,
+                      con_types, file_names)
+        self.mock_restPOST.assert_not_called()
+>>>>>>> 5e45267f482a4c010cc2106aaa3c2f9036b19c37
 
     def test_private_copy_batch(self):
         file_handles = ["123", "456"]
