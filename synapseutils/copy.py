@@ -121,7 +121,7 @@ def _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, 
 
 def _copy_cached_file_handles(cache, copiedFileHandles):
     # type: (Cache , dict) -> None
-    for copy_result in copiedFileHandles['copyResults']:
+    for copy_result in copiedFileHandles:
         if copy_result.get('failureCode') is None:  # sucessfully copied
             original_cache_path = cache.get(copy_result['originalFileHandleId'])
             if original_cache_path:
@@ -150,7 +150,7 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     downloadAs = fileResult['fileHandle']['fileName'] if downloadAs is None else downloadAs
     copiedFileHandle = copyFileHandles(syn, [ent.dataFileHandleId], [ent.concreteType.split(".")[-1]], [ent.id],
                                        [contentType], [downloadAs])
-    copyResult = copiedFileHandle['copyResults'][0]
+    copyResult = copiedFileHandle[0]
     if copyResult.get("failureCode") is not None:
         raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"], copyResult['originalFileHandleId']))
     ent.dataFileHandleId = copyResult['newFileHandle']['id']
@@ -383,7 +383,7 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
         copiedFileHandle = copyFileHandles(syn, [fileHandle], ["FileEntity"], [bundle['entity']['id']],
                                            [fileHandle['contentType']], [fileHandle['fileName']])
         # Check if failurecodes exist
-        copyResult = copiedFileHandle['copyResults'][0]
+        copyResult = copiedFileHandle[0]
         if copyResult.get("failureCode") is not None:
             raise ValueError("%s dataFileHandleId: %s" % (copyResult["failureCode"],
                                                           copyResult['originalFileHandleId']))
@@ -609,11 +609,11 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
             copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews),
                                                 [wiki.id]*len(nopreviews), contentTypes, fileNames)
             # Check if failurecodes exist
-            for filehandle in copiedFileHandles['copyResults']:
+            for filehandle in copiedFileHandles:
                 if filehandle.get("failureCode") is not None:
                     raise ValueError("%s dataFileHandleId: %s" % (filehandle["failureCode"],
                                                                   filehandle['originalFileHandleId']))
-            new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles['copyResults']]
+            new_file_handles = [filehandle['newFileHandle']['id'] for filehandle in copiedFileHandles]
         # for some reason some wikis don't have titles?
         if hasattr(wikiHeader, 'parentId'):
             newWikiPage = Wiki(owner=newOwn, title=wiki.get('title', ''), markdown=wiki.markdown,
