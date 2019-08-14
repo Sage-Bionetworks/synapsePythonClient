@@ -232,16 +232,6 @@ def associate(args, syn):
             print('%s.%i\t%s' % (ent.id, ent.versionNumber, fp))
 
 
-def copy(args, syn):
-    mappings = synapseutils.copy(syn, args.id, args.destinationId,
-                                 skipCopyWikiPage=args.skipCopyWiki,
-                                 skipCopyAnnotations=args.skipCopyAnnotations,
-                                 excludeTypes=args.excludeTypes,
-                                 version=args.version, updateExisting=args.updateExisting,
-                                 setProvenance=args.setProvenance)
-    print(mappings)
-
-
 def cat(args, syn):
     try:
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
@@ -631,8 +621,6 @@ def build_parser():
                                 ' types to not copy.')
     parser_cp.add_argument('--skipCopyWiki', action='store_true',
                            help='Do not copy the wiki pages')
-    parser_cp.set_defaults(func=copy)
-
     parser_associate = subparsers.add_parser('associate',
                                              help=(
                                                  'Associate local files with the files stored in Synapse so that calls'
