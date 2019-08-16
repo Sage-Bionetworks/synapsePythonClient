@@ -2,13 +2,11 @@ import synapseclient
 from synapseclient import File, Project, Folder, Table, Schema, Link, Wiki, Entity, Activity
 from synapseclient.core.cache import Cache
 from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.constants.limits import *
 import re
 import json
 import itertools
 import math
-
-# Constants
-MAX_COPY_PER_REQUEST = 100  # The maximum number of FilesHandles that can be copied in a single request
 
 ############################################################
 #                  Copy Functions                          #
@@ -57,25 +55,25 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds,
 
     # add division logic for POST call here
     master_copy_results_list = []  # list which holds all results from POST call
-    num_batches = math.ceil(len(fileHandles) / MAX_COPY_PER_REQUEST)
+    num_batches = math.ceil(len(fileHandles) / MAX_FILE_HANDLE_PER_COPY_REQUEST)
     for i in range(num_batches):
-        start = i * MAX_COPY_PER_REQUEST
-        end = start + MAX_COPY_PER_REQUEST
+        start = i * MAX_FILE_HANDLE_PER_COPY_REQUEST
+        end = start + MAX_FILE_HANDLE_PER_COPY_REQUEST
         batch_copy_results = _copy_file_handles_batch(syn, file_handle_ids[start:end], associateObjectTypes[start:end],
                                                       associateObjectIds[start:end], newContentTypes[start:end],
                                                       newFileNames[start:end])
-        list_copy_results = batch_copy_results["copyResults"]
+        list_copy_results = batch_copy_results.get("copyResults")
         master_copy_results_list.extend(list_copy_results)
     return master_copy_results_list
 
 
-def _copy_file_handles_batch(syn, file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names):
-
+def _copy_file_handles_batch(self, file_handle_ids, obj_types, obj_ids, new_con_types, new_file_names):
+    #TODO: '''include comment, and validate batch size'''
     copy_file_handle_request = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids,
                                                                       new_con_types, new_file_names)
     # make backend call which performs the copy specified by copy_file_handle_request
-    copied_file_handles = syn.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
-                                       endpoint=syn.fileHandleEndpoint)
+    copied_file_handles = self.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
+                                       endpoint=self.fileHandleEndpoint)
     return copied_file_handles
 
 
@@ -156,77 +154,6 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     ent.dataFileHandleId = copyResult['newFileHandle']['id']
     ent = syn.store(ent)
     return ent
-
-
-def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
-    """
-    - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
-      and will recursively copy everything in directories.
-    - A Mapping of the old entities to the new entities will be created and all the wikis of each entity
-      will also be copied over and links to synapse Ids will be updated.
-
-    :param syn:                 A synapse object: syn = synapseclient.login()- Must be logged into synapse
-
-    :param entity:              A synapse entity ID
-
-    :param destinationId:       Synapse ID of a folder/project that the copied entity is being copied to
-
-    :param skipCopyWikiPage:    Skip copying the wiki pages
-                                Default is False
-
-    :param skipCopyAnnotations: Skips copying the annotations
-                                Default is False
-
-    Examples::                        
-    import synapseutils
-    import synapseclient
-    syn = synapseclient.login()
-    synapseutils.copy(syn, ...)
-
-    Examples and extra parameters unique to each copy function
-    -- COPYING FILES
-
-    :param version:         Can specify version of a file. 
-                            Default to None
-
-    :param updateExisting:  When the destination has an entity that has the same name, 
-                            users can choose to update that entity.  
-                            It must be the same entity type
-                            Default to False
-    
-    :param setProvenance:   Has three values to set the provenance of the copied entity:
-                            traceback: Sets to the source entity
-                            existing: Sets to source entity's original provenance (if it exists)
-                            None: No provenance is set
-
-    Examples::
-        synapseutils.copy(syn, "syn12345", "syn45678", updateExisting=False, setProvenance = "traceback",version=None)
-
-    -- COPYING FOLDERS/PROJECTS
-
-    :param excludeTypes:    Accepts a list of entity types (file, table, link) which determines which entity types to
-                            not copy.
-                            Defaults to an empty list.
-
-    Examples::
-    #This will copy everything in the project into the destinationId except files and tables.
-    synapseutils.copy(syn, "syn123450","syn345678",excludeTypes=["file","table"])
-
-    :returns: a mapping between the original and copied entity: {'syn1234':'syn33455'}
-    """
-    updateLinks = kwargs.get('updateLinks', True)
-    updateSynIds = kwargs.get('updateSynIds', True)
-    entitySubPageId = kwargs.get('entitySubPageId', None)
-    destinationSubPageId = kwargs.get('destinationSubPageId', None)
-
-    mapping = _copyRecursive(syn, entity, destinationId, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
-    if not skipCopyWikiPage:
-        for oldEnt in mapping:
-            copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId=entitySubPageId,
-                     destinationSubPageId=destinationSubPageId, updateLinks=updateLinks,
-                     updateSynIds=updateSynIds, entityMap=mapping)
-    return mapping
-
 
 def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs):
     """
