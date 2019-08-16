@@ -3,7 +3,6 @@ from mock import patch, call
 import synapseutils
 from synapseutils.copy import *
 from synapseutils.copy import _copy_file_handles_batch
-from synapseutils.copy import _create_batch_file_handle_copy_request
 from tests import unit
 
 
