@@ -2,7 +2,8 @@ from nose.tools import assert_raises, assert_equal
 from mock import patch, call
 import synapseutils
 from synapseutils.copy import *
-from synapseutils.copy import _copy_file_handles_batch
+from synapseutils.copy import _copy_file_handles_batch, _create_batch_file_handle_copy_request, \
+    _batch_iterator_generator
 from tests import unit
 
 
@@ -47,212 +48,187 @@ def test_copyWiki_input_validation():
 class TestCopyFileHandles:
 
     def setup(self):
-        self.patch_restPOST = patch.object(syn, 'restPOST')
-        self.mock_restPOST = self.patch_restPOST.start()
+        self.patch_private_copy = patch.object(synapseutils.copy, "_copy_file_handles_batch")
+        self.mock_private_copy = self.patch_private_copy.start()
 
     def teardown(self):
-        self.patch_restPOST.stop()
+        self.patch_private_copy.stop()
 
-    def test_copy_invalid_input_required_params(self):
+    def test_copy_file_handles__invalid_input_params_branch1(self):
         file_handles = ["test"]
         obj_types = []
         obj_ids = ["123"]
-        return_val = None
-        with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
-            assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids)
-            mocked_POST.assert_not_called()
+        assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids)
+        self.mock_private_copy.assert_not_called()
 
-    def test_copy_invalid_input_optional_params(self):
-        file_handles = ["test1", "test2"]
-        obj_types = ["FileEntity", "FileEntity"]
-        obj_ids = ["123", "456"]
-        con_types = ["too", "many", "args"]
-        file_names = ["too_few_args"]
-        return_val = None
-        with patch.object(syn, "restPOST", return_value=return_val) as mocked_POST:
-            assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids,
-                          con_types, file_names)
-            mocked_POST.assert_not_called()
+    def test_copy_file_handles__invalid_input_params_branch2(self):
+        file_handles = ["test"]
+        obj_types = ["FileEntity"]
+        obj_ids = ["123"]
+        new_con_type = []
+        assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids, new_con_type)
+        self.mock_private_copy.assert_not_called()
 
-    def test_private_copy_batch(self):
-        file_handles = ["123", "456"]
-        obj_types = ["FileEntity", "FileEntity"]
-        obj_ids = ["321", "645"]
-        con_types = [None, "text/plain"]
-        file_names = [None, "test"]
-        expected_input = {
-            "copyRequests": [
-                {
-                    "originalFile": {
-                        "fileHandleId": "123",
-                        "associateObjectId": "321",
-                        "associateObjectType": "FileEntity"
-                    },
-                    "newContentType": None,
-                    "newFileName": None
-                },
-                {
-                    "originalFile": {
-                        "fileHandleId": "456",
-                        "associateObjectId": "645",
-                        "associateObjectType": "FileEntity"
-                    },
-                    "newContentType": "text/plain",
-                    "newFileName": "test"
-                }
-            ]
-        }
-        return_val = [
-            {
-                "newFileHandle": {
-                    "contentMd5": "alpha_num_1",
-                    "bucketName": "bucket.sagebase.org",
-                    "fileName": "Name1.txt",
-                    "createdBy": "111",
-                    "contentSize": 16,
-                    "concreteType": "type1",
-                    "etag": "etag1",
-                    "id": "123",
-                    "storageLocationId": 1,
-                    "createdOn": "2019-07-24T21:49:40.615Z",
-                    "contentType": "text/plain",
-                    "key": "key1"
-                },
-                "originalFileHandleId": "122"
-            },
-            {
-                "newFileHandle": {
-                    "contentMd5": "alpha_num2",
-                    "bucketName": "bucket.sagebase.org",
-                    "fileName": "Name2.txt",
-                    "createdBy": "111",
-                    "contentSize": 5,
-                    "concreteType": "type2",
-                    "etag": "etag2",
-                    "id": "456",
-                    "storageLocationId": 1,
-                    "createdOn": "2019-07-24T21:49:40.638Z",
-                    "contentType": "text/plain",
-                    "key": "key2"
-                },
-                "originalFileHandleId": "124"
-            }
-        ]
-        post_return_val = {"copyResults": return_val}
-        with patch.object(syn, "restPOST", return_value=post_return_val) as mocked_POST:
-            result = _copy_file_handles_batch(syn, file_handles, obj_types, obj_ids, con_types, file_names)
-            assert_equal(result, post_return_val)
-            mocked_POST.assert_called_once_with('/filehandles/copy', body=json.dumps(expected_input),
-                                                endpoint=syn.fileHandleEndpoint)
+    def test_copy_file_handles__invalid_input_params_branch3(self):
+        file_handles = ["test"]
+        obj_types = ["FileEntity"]
+        obj_ids = ["123"]
+        new_con_type = ["text/plain"]
+        new_file_name = []
+        assert_raises(ValueError, synapseutils.copyFileHandles, syn, file_handles, obj_types, obj_ids, new_con_type,
+                      new_file_name)
+        self.mock_private_copy.assert_not_called()
 
-    def test_copy_file_handles_multiple_batch(self):
-        num_copies = 102
-        file_handles = [str(x) for x in range(num_copies)]
-        obj_types = ["FileEntity"] * num_copies
-        obj_ids = [str(x) for x in range(num_copies)]
-        con_types = ["text/plain"] * num_copies
-        file_names = ["test" + str(i) for i in range(num_copies)]
-
-        # expected returns
-        return_val_1 = [{
-                          "newFileHandle": {
-                            "key": "value",
-                          },
-                          "originalFileHandleId": file_handle
-                        } for file_handle in file_handles[:MAX_FILE_HANDLE_PER_COPY_REQUEST]]
-        return_val_2 = [{
-                          "newFileHandle": {
-                            "key": "value",
-                          },
-                          "originalFileHandleId": file_handle
-                        } for file_handle in file_handles[MAX_FILE_HANDLE_PER_COPY_REQUEST
-                                                          :MAX_FILE_HANDLE_PER_COPY_REQUEST * 2]]
-        post_return_val_1 = {"copyResults": return_val_1}
-        post_return_val_2 = {"copyResults": return_val_2}
-        expected_return = return_val_1 + return_val_2
-        with patch.object(synapseutils.copy, "_copy_file_handles_batch",
-                          side_effect=[post_return_val_1, post_return_val_2]) as mocked_private_copy:
-            result = synapseutils.copyFileHandles(syn, file_handles, obj_types, obj_ids, con_types, file_names)
-            mocked_private_copy.assert_any_call(syn, file_handles[:MAX_FILE_HANDLE_PER_COPY_REQUEST],
-                                                obj_types[:MAX_FILE_HANDLE_PER_COPY_REQUEST],
-                                                obj_ids[:MAX_FILE_HANDLE_PER_COPY_REQUEST],
-                                                con_types[:MAX_FILE_HANDLE_PER_COPY_REQUEST],
-                                                file_names[:MAX_FILE_HANDLE_PER_COPY_REQUEST])
-            mocked_private_copy.assert_any_call(syn, file_handles[MAX_FILE_HANDLE_PER_COPY_REQUEST
-                                                                  :MAX_FILE_HANDLE_PER_COPY_REQUEST * 2],
-                                                obj_types[MAX_FILE_HANDLE_PER_COPY_REQUEST
-                                                          :MAX_FILE_HANDLE_PER_COPY_REQUEST * 2],
-                                                obj_ids[MAX_FILE_HANDLE_PER_COPY_REQUEST
-                                                        :MAX_FILE_HANDLE_PER_COPY_REQUEST * 2],
-                                                con_types[MAX_FILE_HANDLE_PER_COPY_REQUEST
-                                                          :MAX_FILE_HANDLE_PER_COPY_REQUEST * 2],
-                                                file_names[MAX_FILE_HANDLE_PER_COPY_REQUEST
-                                                           :MAX_FILE_HANDLE_PER_COPY_REQUEST * 2])
-            assert_equal(result, expected_return)
-            assert_equal(mocked_private_copy.call_count, 2)
-
-    def test_mixed_result_response(self):
+    def test_copy_file_handles__multiple_batch_calls(self):
+        synapseutils.copy.MAX_FILE_HANDLE_PER_COPY_REQUEST = 1  # set batch size to 1
         file_handles = ["789", "NotAccessibleFile"]
         obj_types = ["FileEntity", "FileEntity"]
         obj_ids = ["0987", "2352"]
         con_types = [None, "text/plain"]
         file_names = [None, "testName"]
 
+        expected_calls = [((syn, file_handles[0:1], obj_types[0:1], obj_ids[0:1], con_types[0:1], file_names[0:1]),),
+                          ((syn, file_handles[1:2], obj_types[1:2], obj_ids[1:2], con_types[1:2], file_names[1:2]),)]
+
+        return_val_1 = [{
+                            "newFileHandle": {
+                                "contentMd5": "alpha_num_1",
+                                "bucketName": "bucket.sagebase.org",
+                                "fileName": "Name1.txt",
+                                "createdBy": "111",
+                                "contentSize": 16,
+                                "concreteType": "type1",
+                                "etag": "etag1",
+                                "id": "0987",
+                                "storageLocationId": 1,
+                                "createdOn": "2019-07-24T21:49:40.615Z",
+                                "contentType": "text/plain",
+                                "key": "key1"
+                            },
+                            "originalFileHandleId": "789"
+                        }]
+
+        return_val_2 = [{
+                            "failureCode": "UNAUTHORIZED",
+                            "originalFileHandleId": "NotAccessibleFile"
+                        }]
+
+        expected_return = return_val_1 + return_val_2
+
+        self.mock_private_copy.side_effect = [return_val_1, return_val_2]  # define multiple returns
+        result = synapseutils.copyFileHandles(syn, file_handles, obj_types, obj_ids, con_types, file_names)
+        assert_equal(self.mock_private_copy.call_args_list, expected_calls)
+        assert_equal(result, expected_return)
+        assert_equal(self.mock_private_copy.call_count, 2)
+
+
+class TestProtectedCopyFileHandlesBatch:
+
+    def setup(self):
+        self.patch_restPOST = patch.object(syn, 'restPOST')
+        self.mock_restPOST = self.patch_restPOST.start()
+
+    def teardown(self):
+        self.patch_restPOST.stop()
+
+    def test__copy_file_handles_batch__two_file_handles(self):
+        file_handles = ["123", "456"]
+        obj_types = ["FileEntity", "FileEntity"]
+        obj_ids = ["321", "645"]
+        con_types = [None, "text/plain"]
+        file_names = [None, "test"]
         expected_input = {
-            "copyRequests": [
-                {
-                    "originalFile": {
-                        "fileHandleId": "789",
-                        "associateObjectId": "0987",
-                        "associateObjectType": "FileEntity"
-                    },
-                    "newContentType": None,
-                    "newFileName": None
-                },
-                {
-                    "originalFile": {
-                        "fileHandleId": "NotAccessibleFile",
-                        "associateObjectId": "2352",
-                        "associateObjectType": "FileEntity"
-                    },
-                    "newContentType": "text/plain",
-                    "newFileName": "testName"
-                }
-            ]
-        }
-
+                            "copyRequests": [
+                                {
+                                    "originalFile": {
+                                        "fileHandleId": "123",
+                                        "associateObjectId": "321",
+                                        "associateObjectType": "FileEntity"
+                                    },
+                                    "newContentType": None,
+                                    "newFileName": None
+                                },
+                                {
+                                    "originalFile": {
+                                        "fileHandleId": "456",
+                                        "associateObjectId": "645",
+                                        "associateObjectType": "FileEntity"
+                                    },
+                                    "newContentType": "text/plain",
+                                    "newFileName": "test"
+                                }
+                            ]
+                        }
         return_val = [
-            {
-                "newFileHandle": {
-                    "contentMd5": "alpha_num_1",
-                    "bucketName": "bucket.sagebase.org",
-                    "fileName": "Name1.txt",
-                    "createdBy": "111",
-                    "contentSize": 16,
-                    "concreteType": "type1",
-                    "etag": "etag1",
-                    "id": "0987",
-                    "storageLocationId": 1,
-                    "createdOn": "2019-07-24T21:49:40.615Z",
-                    "contentType": "text/plain",
-                    "key": "key1"
-                },
-                "originalFileHandleId": "789"
-            },
-            {
-                "failureCode": "UNAUTHORIZED",
-                "originalFileHandleId": "NotAccessibleFile"
-            }
-        ]
-
+                        {
+                            "newFileHandle": {
+                                "contentMd5": "alpha_num_1",
+                                "bucketName": "bucket.sagebase.org",
+                                "fileName": "Name1.txt",
+                                "createdBy": "111",
+                                "contentSize": 16,
+                                "concreteType": "type1",
+                                "etag": "etag1",
+                                "id": "123",
+                                "storageLocationId": 1,
+                                "createdOn": "2019-07-24T21:49:40.615Z",
+                                "contentType": "text/plain",
+                                "key": "key1"
+                            },
+                            "originalFileHandleId": "122"
+                        },
+                        {
+                            "newFileHandle": {
+                                "contentMd5": "alpha_num2",
+                                "bucketName": "bucket.sagebase.org",
+                                "fileName": "Name2.txt",
+                                "createdBy": "111",
+                                "contentSize": 5,
+                                "concreteType": "type2",
+                                "etag": "etag2",
+                                "id": "456",
+                                "storageLocationId": 1,
+                                "createdOn": "2019-07-24T21:49:40.638Z",
+                                "contentType": "text/plain",
+                                "key": "key2"
+                            },
+                            "originalFileHandleId": "124"
+                        }
+                    ]
         post_return_val = {"copyResults": return_val}
-        with patch.object(syn, "restPOST", return_value=post_return_val) as mocked_POST:
-            result = synapseutils.copyFileHandles(syn, file_handles, obj_types, obj_ids, con_types, file_names)
-            assert_equal(result, return_val)
-            mocked_POST.assert_called_once_with('/filehandles/copy', body=json.dumps(expected_input),
-                                                endpoint=syn.fileHandleEndpoint)
+        self.mock_restPOST.return_value = post_return_val
+        result = _copy_file_handles_batch(syn, file_handles, obj_types, obj_ids, con_types, file_names)
+        assert_equal(result, return_val)
+        self.mock_restPOST.assert_called_once_with('/filehandles/copy', body=json.dumps(expected_input),
+                                                   endpoint=syn.fileHandleEndpoint)
 
-    def test_private_json_creator(self):
+
+class TestProtectedCreateBatchFileHandleCopyRequest:
+
+    def test__create_batch_file_handle_copy_request__no_optional_params(self):
+        file_handle_ids = ["123"]
+        obj_types = ["FileEntity"]
+        obj_ids = ["321"]
+        new_con_types = []
+        new_file_names = []
+        expected_result = {
+                            "copyRequests": [
+                                {
+                                    "originalFile": {
+                                        "fileHandleId": "123",
+                                        "associateObjectId": "321",
+                                        "associateObjectType": "FileEntity"
+                                    },
+                                    "newFileName": None,
+                                    "newContentType": None
+                                }
+                            ]
+                        }
+        result = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types,
+                                                        new_file_names)
+        assert_equal(expected_result, result)
+
+    def test__create_batch_file_handle_copy_request__two_file_request(self):
         file_handle_ids = ["345", "789"]
         obj_types = ["FileEntity", "FileEntity"]
         obj_ids = ["543", "987"]
@@ -280,6 +256,29 @@ class TestCopyFileHandles:
                                 }
                             ]
                         }
-        result = synapseutils._create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types,
-                                                                     new_file_names)
+        result = _create_batch_file_handle_copy_request(file_handle_ids, obj_types, obj_ids, new_con_types,
+                                                        new_file_names)
         assert_equal(expected_result, result)
+
+
+class TestProtectedBatchIteratorGenerator:
+
+    def test__batch_iterator_generator__empty_iterable(self):
+        iterables = []
+        batch_size = 2
+        with assert_raises(ValueError):
+            list(_batch_iterator_generator(iterables, batch_size))
+
+    def test__batch_iterator_generator__single_iterable(self):
+        iterables = ["ABCDEFG"]
+        batch_size = 3
+        expected_result_list = [["ABC"], ["DEF"], ["G"]]
+        result_list = list(_batch_iterator_generator(iterables, batch_size))
+        assert_equal(expected_result_list, result_list)
+
+    def test__batch_iterator_generator__two_iterables(self):
+        iterables = [[1, 2, 3], [4, 5, 6]]
+        batch_size = 2
+        expected_result_list = [[[1, 2], [4, 5]], [[3], [6]]]
+        result_list = list(_batch_iterator_generator(iterables, batch_size))
+        assert_equal(expected_result_list, result_list)

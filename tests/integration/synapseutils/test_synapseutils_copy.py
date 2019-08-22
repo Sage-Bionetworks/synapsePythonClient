@@ -141,40 +141,26 @@ class TestCopyFileHandles:
         project = Project('My uniquely named project 121416')
         project = syn.store(project)
 
-        # create first file entity from externalFileHandle
+        # create file entity from externalFileHandle
         external_file_handle_request_1 = {
-                                        "concreteType": "org.sagebionetworks.repo.model.file.ExternalFileHandle",
-                                        "externalURL": "https://www.synapse.org/images/logo.svg",
-                                        "fileName": "testExternalFileHandle"
-                                       }
+                                           "concreteType": "org.sagebionetworks.repo.model.file.ExternalFileHandle",
+                                           "externalURL": "https://www.synapse.org/images/logo.svg",
+                                           "fileName": "testExternalFileHandle"
+                                         }
         external_response_1 = syn.restPOST('/externalFileHandle', body=json.dumps(external_file_handle_request_1),
-                                         endpoint=syn.fileHandleEndpoint)
+                                           endpoint=syn.fileHandleEndpoint)
         self.file_handle_id_1 = external_response_1['id']
         test_entity_1 = File(parent=project)
         test_entity_1.dataFileHandleId = self.file_handle_id_1
         test_entity_1 = syn.store(test_entity_1)
         self.obj_id_1 = str(test_entity_1['id'][3:])
 
-        # create second file entity from externalFileHandle
-        external_file_handle_request_2 = {
-            "concreteType": "org.sagebionetworks.repo.model.file.ExternalFileHandle",
-            "externalURL": "https://www.synapse.org/images/logo.svg",
-            "fileName": "testExternalFileHandle"
-        }
-        external_response_2 = syn.restPOST('/externalFileHandle', body=json.dumps(external_file_handle_request_2),
-                                           endpoint=syn.fileHandleEndpoint)
-        self.file_handle_id_2 = external_response_2['id']
-        test_entity_2 = File(parent=project)
-        test_entity_2.dataFileHandleId = self.file_handle_id_2
-        test_entity_2 = syn.store(test_entity_2)
-        self.obj_id_2 = str(test_entity_2['id'][3:])
-
     def test_copy_two_files(self):
         # define inputs
-        file_handles = [str(self.file_handle_id_1), str(self.file_handle_id_2)]
-        associate_object_types = ["FileEntity", "FileEntity"]
-        associate_object_ids = [self.obj_id_1, self.obj_id_2]
+        file_handles = [self.file_handle_id_1]
+        associate_object_types = ["FileEntity"]
+        associate_object_ids = [self.obj_id_1]
         copy_results = synapseutils.copyFileHandles(syn, file_handles, associate_object_types, associate_object_ids)
-        # assert copy result contains two copy results
-        assert_equals(len(copy_results), 2)
+        # assert copy result contains one copy result
+        assert_equals(len(copy_results), 1)
 
