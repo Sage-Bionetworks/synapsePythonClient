@@ -42,7 +42,7 @@ def test_copyWiki_input_validation():
         mock_getWiki.assert_has_calls(expected_calls)
 
         assert_raises(ValueError, synapseutils.copyWiki, syn, "syn123", "syn456", entitySubPageId="some_string",
-                              updateLinks=False)
+                      updateLinks=False)
 
 
 class TestCopyFileHandles:

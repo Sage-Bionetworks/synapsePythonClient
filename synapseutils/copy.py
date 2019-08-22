@@ -96,7 +96,7 @@ def _copy_file_handles_batch(self, file_handle_ids, obj_types, obj_ids, new_con_
                                                                       new_con_types, new_file_names)
     # make backend call which performs the copy specified by copy_file_handle_request
     copied_file_handles = self.restPOST('/filehandles/copy', body=json.dumps(copy_file_handle_request),
-                                       endpoint=self.fileHandleEndpoint)
+                                        endpoint=self.fileHandleEndpoint)
     return copied_file_handles.get("copyResults")
 
 
