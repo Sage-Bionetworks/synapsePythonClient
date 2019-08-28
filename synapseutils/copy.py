@@ -18,7 +18,7 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds,
     """
     Given a list of fileHandle Ids or Objects, copy the fileHandles
 
-    :param syn:                     A synapse object: syn = synapseclient.login()- Must be logged into synapse
+    :param syn:                     A Synapse object with user's login, e.g. syn = synapseclient.login()
 
     :param fileHandles:             List of fileHandle Ids or Objects
 
