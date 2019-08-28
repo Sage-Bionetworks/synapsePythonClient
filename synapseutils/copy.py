@@ -30,7 +30,7 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds,
                                     and if copying a wiki attachment, the object id is the wiki subpage id.
                                     (Must be the same length as fileHandles)
 
-    :param newContentTypes:         (Optional) List of content types (Can change a filetype of a filehandle).
+    :param newContentTypes:         (Optional) List of content types. Set each item to a new content type for each file handle, or leave the item as None to keep the original content type. Default None, which keeps all original content types.
 
     :param newFileNames:            (Optional) List of filenames (Can change a filename of a filehandle).
 
