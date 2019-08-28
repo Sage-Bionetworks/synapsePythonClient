@@ -820,4 +820,3 @@ class TestSetStorageLocation:
         assert_equal(2, self.mock_getProjectSetting.call_count)
         self.mock_restPUT.assert_called_once_with('/projectSettings', body=json.dumps(new_location))
         self.mock_restPOST.assert_not_called()
-

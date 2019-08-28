@@ -32,7 +32,6 @@ import collections
 import os
 import errno
 import sys
-import re
 import time
 import hashlib
 import webbrowser
