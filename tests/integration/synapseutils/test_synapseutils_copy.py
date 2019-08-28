@@ -155,7 +155,7 @@ class TestCopyFileHandles:
         test_entity_1 = syn.store(test_entity_1)
         self.obj_id_1 = str(test_entity_1['id'][3:])
 
-    def test_copy_two_files(self):
+    def test_copy_file_handles(self):
         # define inputs
         file_handles = [self.file_handle_id_1]
         associate_object_types = ["FileEntity"]
