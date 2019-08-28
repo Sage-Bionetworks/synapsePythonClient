@@ -73,7 +73,7 @@ def _copy_file_handles_batch(self, file_handle_ids, obj_types, obj_ids, new_con_
     Given a list of fileHandle Ids, copy the fileHandles. This helper makes the POST call and returns the
     results as a list.
 
-    :param self:                    A synapse object: syn = synapseclient.login()- Must be logged into synapse
+    :param self:                    A Synapse object with user's login, e.g. syn = synapseclient.login()
 
     :param file_handle_ids:         List of fileHandle Ids or Objects
 
