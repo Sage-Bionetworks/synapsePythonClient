@@ -32,7 +32,7 @@ def copyFileHandles(syn, fileHandles, associateObjectTypes, associateObjectIds,
 
     :param newContentTypes:         (Optional) List of content types. Set each item to a new content type for each file handle, or leave the item as None to keep the original content type. Default None, which keeps all original content types.
 
-    :param newFileNames:            (Optional) List of filenames (Can change a filename of a filehandle).
+    :param newFileNames:            (Optional) List of filenames. Set each item to a new filename for each file handle, or leave the item as None to keep the original name. Default None, which keeps all original file names.
 
     :return:                        List of batch filehandle copy results, can include failureCodes: UNAUTHORIZED and
                                     NOT_FOUND
