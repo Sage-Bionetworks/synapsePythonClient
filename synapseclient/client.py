@@ -2143,7 +2143,7 @@ class Synapse(object):
                       'entityId': entity_id,
                       'versionNumber': entity_version,
                       'dockerDigest': docker_digest,
-                      'dockerRepositoryName':docker_repository,
+                      'dockerRepositoryName': docker_repository,
                       'teamId': team_id,
                       'contributors': contributors,
                       'submitterAlias': submitterAlias}
