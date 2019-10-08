@@ -237,6 +237,15 @@ def test_store_with_flags():
     mutaBogus = syn.store(mutaBogus, forceVersion=True)
     assert_equals(mutaBogus.versionNumber, 2)
 
+    # Create file with different contents and store it with force version false
+    # This should be ignored because contents (and md5) are different
+    different_filepath = utils.make_bogus_binary_file()
+    schedule_for_cleanup(different_filepath)
+    differentBogus = File(different_filepath, name='Bogus Test File',
+                          parent=project)
+    differentBogus = syn.store(differentBogus, forceVersion=False)
+    assert_equals(differentBogus.versionNumber, 3)
+
     # -- CreateOrUpdate flag for files --
     # Store a different file with the same name and parent
     # Expected behavior is that a new version of the first File will be created
