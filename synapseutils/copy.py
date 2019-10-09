@@ -194,6 +194,13 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     if not isinstance(ent, (Project, Folder, File, Link, Schema, Entity)):
         raise ValueError("Not able to copy this type of file")
 
+    profile_username = syn.username
+    permissions = syn.getPermissions(ent, profile_username)
+    # Don't copy entities without DOWNLOAD permissions
+    if "DOWNLOAD" not in permissions:
+        print("%s not copied" % ent.id)
+        return mapping
+
     if isinstance(ent, Project):
         if not isinstance(syn.get(destinationId), Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
