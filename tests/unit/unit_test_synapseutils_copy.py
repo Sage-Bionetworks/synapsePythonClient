@@ -12,7 +12,6 @@ import uuid
 from synapseclient import Project, File
 import synapseutils
 
-
 def setup(module):
     module.syn = unit.syn
 
@@ -61,10 +60,10 @@ class TestCopyAccessRestriction:
         self.file_ent.id = "syn3456"
 
     def test_copy_entity_access_requirements(self):
-        #TEST: Entity access requirement > 0 not copied
+        #TEST: Entity with access requirement not copied
         access_requirements = {'results': ["fee", "fi"]}
         with patch.object(syn, "get",
-                          return_value=self.file_ent) as patch_syn_get, \
+                          return_value=self.file_ent) as patch_syn_get,\
              patch.object(syn, "restGET",
                           return_value=access_requirements) as patch_restget:
             copied_file = synapseutils.copy(syn, self.file_ent,
