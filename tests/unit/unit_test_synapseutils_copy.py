@@ -48,7 +48,7 @@ def test_copyWiki_input_validation():
         mock_getWiki.assert_has_calls(expected_calls)
 
         assert_raises(ValueError, synapseutils.copyWiki, syn, "syn123", "syn456", entitySubPageId="some_string",
-                              updateLinks=False)
+                      updateLinks=False)
 
 
 class TestCopyAccessRestriction:
@@ -60,7 +60,7 @@ class TestCopyAccessRestriction:
         self.file_ent.id = "syn3456"
 
     def test_copy_entity_access_requirements(self):
-        #TEST: Entity with access requirement not copied
+        # TEST: Entity with access requirement not copied
         access_requirements = {'results': ["fee", "fi"]}
         with patch.object(syn, "get",
                           return_value=self.file_ent) as patch_syn_get,\
