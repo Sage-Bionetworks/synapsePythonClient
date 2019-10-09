@@ -263,6 +263,11 @@ class TestSubmit:
             'etag': 'etag',
             'name': 'entity name'
         }
+        self.docker = {
+            'id': 'syn1009',
+            'etag': 'etag',
+            'repositoryName': 'entity name'
+        }
         self.eval = {
             'contentSource': self.entity['id'],
             'createdOn': '2013-11-06T06:04:26.789Z',
@@ -316,6 +321,8 @@ class TestSubmit:
         expected_request_body.pop('id')
         expected_request_body['teamId'] = None
         expected_request_body['submitterAlias'] = None
+        expected_request_body['dockerDigest'] = None
+        expected_request_body['dockerRepositoryName'] = None
         self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
                                                          self.eligibility_hash)
         self.mock_get.assert_not_called()
@@ -329,6 +336,8 @@ class TestSubmit:
         expected_request_body.pop('id')
         expected_request_body['teamId'] = None
         expected_request_body['submitterAlias'] = None
+        expected_request_body['dockerDigest'] = None
+        expected_request_body['dockerRepositoryName'] = None
         self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
                                                          self.eligibility_hash)
         self.mock_get.assert_called_once_with(self.entity['id'], downloadFile=False)
@@ -340,6 +349,8 @@ class TestSubmit:
 
         expected_request_body = self.submission
         expected_request_body.pop('id')
+        expected_request_body['dockerDigest'] = None
+        expected_request_body['dockerRepositoryName'] = None
         self.mock_private_submit.assert_called_once_with(expected_request_body, self.entity['etag'],
                                                          self.eligibility_hash)
         self.mock_get.assert_not_called()
@@ -353,6 +364,73 @@ class TestSubmit:
         self.mock_get.assert_not_called()
         self.mock_getTeam.assert_called_once_with(self.team['id'])
         self.mock_get_contributors.assert_called_once_with(self.eval_id, self.team)
+
+
+    def test_get_docker_digest_default(self):
+        latest_sha = 'sha256:eeeeee'
+        docker_commits= [{'tag': 'latest',
+                          'digest': latest_sha}]
+
+        with patch.object(syn, "_GET_paginated",
+                          return_value=docker_commits) as patch_syn_get_paginated:
+            digest = syn._get_docker_digest('syn1234')
+            patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
+            assert_equal(digest, latest_sha)
+
+    def test_get_docker_digest_specifytag(self):
+        test_sha = 'sha256:ffffff'
+        docker_commits= [{'tag': 'test',
+                          'digest': test_sha}]
+        with patch.object(syn, "_GET_paginated",
+                          return_value=docker_commits) as patch_syn_get_paginated:
+            digest = syn._get_docker_digest('syn1234', docker_tag="test")
+            patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
+            assert_equal(digest, test_sha)
+
+    def test_get_docker_digest_specifywrongtag(self):
+        test_sha = 'sha256:ffffff'
+        docker_commits= [{'tag': 'test',
+                          'digest': test_sha}]
+        with patch.object(syn, "_GET_paginated",
+                          return_value=docker_commits) as patch_syn_get_paginated:
+            assert_raises(ValueError, syn._get_docker_digest, 'syn1234', docker_tag="foo")
+            patch_syn_get_paginated.assert_called_once_with("/entity/syn1234/dockerTag")
+
+    def test_submit_docker_nonetag(self):
+        docker_entity = DockerRepository("foo", parentId = "syn1000001")
+        docker_entity.id = "syn123"
+        docker_entity.etag = "Fake etag"
+
+        docker_digest = 'sha256:6b079ae764a6affcb632231349d4a5e1b084bece8c46883c099863ee2aeb5cf8'
+        assert_raises(ValueError, syn.submit, '9090',
+                      docker_entity, "George", dockerTag=None)
+
+    def test_submit_docker(self):
+        docker_entity = DockerRepository("foo", parentId = "syn1000001")
+        docker_entity.id = "syn123"
+        docker_entity.etag = "Fake etag"
+
+        docker_digest = 'sha256:digest'
+        expected_submission = {
+            'id': 123,
+            'evaluationId': self.eval_id,
+            'name': None,
+            'entityId': docker_entity['id'],
+            'versionNumber': self.entity['versionNumber'],
+            'dockerDigest': docker_digest,
+            'dockerRepositoryName': docker_entity['repositoryName'],
+            'teamId': id_of(self.team['id']),
+            'contributors': self.contributors,
+            'submitterAlias': self.team['name']}
+        with patch.object(syn, "get",
+                          return_value=docker_entity) as patch_syn_get, \
+             patch.object(syn, "_get_docker_digest",
+                          return_value=docker_digest) as patch_get_digest, \
+             patch.object(syn, "_submit",
+                          return_value=expected_submission) as patch__submit:
+            submission = syn.submit('9090', patch_syn_get, name='George')
+            patch_get_digest.assert_called_once_with(docker_entity, "latest")
+            assert_equal(submission, expected_submission)
 
 
 class TestPrivateGetContributor:

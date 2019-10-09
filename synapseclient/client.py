@@ -2010,12 +2010,14 @@ class Synapse(object):
         """
         Finds a team with a given ID or name.
 
-        :param id:  The ID or name of the team to retrieve
+        :param id:  The ID or name of the team or a Team object to retrieve
 
         :return:  An object of type :py:class:`synapseclient.team.Team`
         """
+        # Retrieves team id
+        teamid = id_of(id)
         try:
-            int(id)
+            int(teamid)
         except (TypeError, ValueError):
             if isinstance(id, str):
                 for team in self._findTeam(id):
@@ -2023,10 +2025,10 @@ class Synapse(object):
                         id = team.id
                         break
                 else:
-                    raise ValueError("Can't find team \"{}\"".format(id))
+                    raise ValueError("Can't find team \"{}\"".format(teamid))
             else:
-                raise ValueError("Can't find team \"{}\"".format(id))
-        return Team(**self.restGET('/team/%s' % id))
+                raise ValueError("Can't find team \"{}\"".format(teamid))
+        return Team(**self.restGET('/team/%s' % teamid))
 
     def getTeamMembers(self, team):
         """
@@ -2038,7 +2040,31 @@ class Synapse(object):
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
-    def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None):
+    def _get_docker_digest(self, entity, docker_tag="latest"):
+        '''
+        Get matching Docker sha-digest of a DockerRepository given a Docker tag
+
+        :param entity:      Synapse id or entity of Docker repository
+        :param docker_tag:  Docker tag
+        :returns: Docker digest matching Docker tag
+        '''
+        entityid = id_of(entity)
+        uri = '/entity/{entityId}/dockerTag'.format(entityId=entityid)
+
+        docker_commits = self._GET_paginated(uri)
+        docker_digest = None
+        for commit in docker_commits:
+            if docker_tag == commit['tag']:
+                docker_digest = commit['digest']
+        if docker_digest is None:
+            raise ValueError("Docker tag {docker_tag} not found.  Please specify a "
+                             "docker tag that exists. 'latest' is used as "
+                             "default.".format(docker_tag=docker_tag))
+        return(docker_digest)
+
+    def submit(self, evaluation, entity, name=None, team=None,
+               silent=False, submitterAlias=None, teamName=None,
+               dockerTag="latest"):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
 
@@ -2052,6 +2078,8 @@ class Synapse(object):
         :param submitterAlias:  (optional) A nickname, possibly for display in leaderboards in place of the submitter's
                                 name
         :param teamName:        (deprecated) A synonym for submitterAlias
+        :param dockerTag:       (optional) The Docker tag must be specified if the entity is a DockerRepository. Defaults to "latest".
+
 
         :returns: A :py:class:`synapseclient.evaluation.Submission` object
 
@@ -2072,6 +2100,13 @@ class Synapse(object):
         evaluation_id = id_of(evaluation)
 
         entity_id = id_of(entity)
+        if isinstance(entity, synapseclient.DockerRepository):
+            #Edge case if dockerTag is specified as None
+            if dockerTag is None:
+                raise ValueError('A dockerTag is required to submit a DockerEntity. Cannot be None')
+            docker_repository = entity['repositoryName']
+        else:
+            docker_repository = None
 
         if 'versionNumber' not in entity:
             entity = self.get(entity, downloadFile=False)
@@ -2096,10 +2131,18 @@ class Synapse(object):
             elif team and 'name' in team:
                 submitterAlias = team['name']
 
+
+        if isinstance(entity, synapseclient.DockerRepository):
+            docker_digest = self._get_docker_digest(entity, dockerTag)
+        else:
+            docker_digest = None
+
         submission = {'evaluationId': evaluation_id,
                       'name': name,
                       'entityId': entity_id,
                       'versionNumber': entity_version,
+                      'dockerDigest': docker_digest,
+                      'dockerRepositoryName': docker_repository,
                       'teamId': team_id,
                       'contributors': contributors,
                       'submitterAlias': submitterAlias}
