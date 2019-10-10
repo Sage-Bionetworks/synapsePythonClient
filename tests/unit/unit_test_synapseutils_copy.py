@@ -95,7 +95,8 @@ class TestCopy:
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
             assert_equals(copied_file, {self.project_entity.id: self.second_project.id})
-            calls = [call(self.project_entity, downloadFile=False), call(self.second_project.id)]
+            calls = [call(self.project_entity, downloadFile=False),
+                     call(self.second_project.id)]
             patch_syn_get.assert_has_calls(calls)
             patch_restget.assert_called_once_with('/entity/{}/accessRequirement'.format(self.project_entity.id))
             patch_get_children.assert_called_once_with(self.project_entity,
