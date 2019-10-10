@@ -131,3 +131,4 @@ def test_pool_provider_is_used_in__multipart_upload():
         _multipart_upload(syn, filepath, "application/octet-stream", mocked_get_chunk_function, md5, file_size)
         mock_provider.assert_called()
         pool.map.assert_called()
+

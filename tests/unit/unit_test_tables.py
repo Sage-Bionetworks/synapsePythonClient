@@ -544,6 +544,14 @@ def test_entityViewSchema__specified_deprecated_type():
     assert_is_none(entity_view.get('type'))
 
 
+def test_entityViewSchema__specified_deprecated_type_in_properties():
+    view_type = 'project'
+    properties = {'type': view_type}
+    entity_view = EntityViewSchema(parent="idk", properties=properties)
+    assert_equals(EntityViewType.PROJECT.value, entity_view.viewTypeMask)
+    assert_is_none(entity_view.get('type'))
+
+
 def test_entityViewSchema__specified_viewTypeMask():
     entity_view = EntityViewSchema(parent="idk", includeEntityTypes=[EntityViewType.PROJECT])
     assert_equals(EntityViewType.PROJECT.value, entity_view.viewTypeMask)
@@ -1025,3 +1033,25 @@ def test_get_view_type_mask():
                                                EntityViewType.VIEW,
                                                EntityViewType.DOCKER
                                                ]))
+
+def test_update_existing_view_type_mask():
+    properties = {
+        'id': 'syn123',
+        'parentId': 'syn456',
+        'viewTypeMask': 2
+    }
+    view = EntityViewSchema(properties=properties)
+    assert_equals(view['viewTypeMask'], 2)
+    view.set_entity_types([EntityViewType.FILE])
+    assert_equals(view['viewTypeMask'], 1)
+
+
+def test_set_view_types_invalid_input():
+    properties = {
+        'id': 'syn123',
+        'parentId': 'syn456'
+    }
+    view = EntityViewSchema(type='project', properties=properties)
+    assert_equals(view['viewTypeMask'], 2)
+    assert_raises(ValueError, view.set_entity_types, None)
+

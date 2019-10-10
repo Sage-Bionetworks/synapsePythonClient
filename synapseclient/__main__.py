@@ -37,23 +37,31 @@ Optional arguments
 
 Commands
 ========
-  * **login**            - login to Synapse and (optionally) cache credentials
   * **get**              - download an entity and associated data
+  * **sync**             - Synchronize files described in a manifest to Synapse
+  * **store**            - uploads and adds a file to Synapse
   * **add**              - add or modify content to Synapse
-  * **delete**           - removes a dataset from Synapse
   * **mv**               - move a dataset in Synapse
   * **cp**               - copy an entity/dataset in Synapse
+  * **associate**        - Associate local files with the files stored in Synapse so
+                           that calls to 'syntapse get' and 'synapse show' don't
+                           re-download the files, but use the already existing file.
+  * **delete**           - removes a dataset from Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
+  * **show**             - displays information about a Entity
+  * **cat**              - prints a dataset from Synapse
+  * **list**             - List Synapse entities contained by the given Project or
+                           Folder. Note: May not be supported in future versions of
+                           the client.
   * **set-provenance**   - create provenance records
   * **get-provenance**   - show provenance records
   * **set-annotations**  - create annotations
   * **get-annotations**  - show annotations
+  * **create**           - Creates folders or projects on Synapse
   * **onweb**            - opens Synapse website for Entity
-  * **show**             - displays information about a Entity
-
-A few more commands (cat, create, update, associate)
-
+  * **login**            - login to Synapse and (optionally) cache credentials
+  * **test-encoding**    - test character encoding to help diagnose problems
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -169,6 +177,10 @@ def store(args, syn):
     args.file = args.FILE if args.FILE is not None else args.file
     args.type = 'FileEntity' if args.type == 'File' else args.type
 
+    # Since force_version defaults to True, negate to determine what
+    # forceVersion action should be
+    force_version = not args.noForceVersion
+
     if args.id is not None:
         entity = syn.get(args.id, downloadFile=False)
     else:
@@ -183,7 +195,8 @@ def store(args, syn):
 
     used = syn._convertProvenanceList(args.used, args.limitSearch)
     executed = syn._convertProvenanceList(args.executed, args.limitSearch)
-    entity = syn.store(entity, used=used, executed=executed)
+    entity = syn.store(entity, used=used, executed=executed,
+                       forceVersion=force_version)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
@@ -552,7 +565,8 @@ def build_parser():
     parser_store.add_argument('--limitSearch', metavar='projId', type=str,
                               help='Synapse ID of a container such as project or folder to limit search for provenance '
                                    'files.')
-
+    parser_store.add_argument('--noForceVersion', action='store_true',
+                              help='Do not force a new version to be created if the contents of the file have not changed. The default is a new version is created.')  # noqa: E501
     parser_store.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
                               help="Annotations to add as a JSON formatted string, should evaluate to a dictionary "
                                    "(key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
@@ -593,6 +607,8 @@ def build_parser():
     parser_add.add_argument('--limitSearch', metavar='projId', type=str,
                             help='Synapse ID of a container such as project or folder to limit search for provenance '
                                  'files.')
+    parser_add.add_argument('--noForceVersion', action='store_true',
+                            help='Do not force a new version to be created if the contents of the file have not changed. The default is a new version is created.')  # noqa: E501
     parser_add.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
                             help="Annotations to add as a JSON formatted string, should evaluate to a dictionary "
                                  "(key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
@@ -665,8 +681,8 @@ def build_parser():
                                          help='Performs SQL like queries on Synapse')
     parser_query.add_argument('queryString', metavar='string', type=str, nargs='*',
                               help='A query string, see '
-                                   'https://sagebionetworks.jira.com/wiki/display/PLFM/Repository+Service+'
-                                   'API#RepositoryServiceAPI-QueryAPI for more information')
+                                   'https://docs.synapse.org/rest/org/sagebionetworks/repo/web/controller/TableExamples.html'
+                                   ' for more information')
     parser_query.set_defaults(func=query)
 
     parser_submit = subparsers.add_parser('submit',

@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from six import with_metaclass
 from .cred_data import SynapseCredentials
 from . import cached_sessions
-import deprecation
+import deprecated.sphinx
 
 
 class SynapseCredentialsProvider(with_metaclass(ABCMeta)):
@@ -52,9 +52,8 @@ class UserArgsCredentialsProvider(SynapseCredentialsProvider):
     def _get_auth_info(self, syn, user_login_args):
         return user_login_args.username, user_login_args.password, user_login_args.api_key
 
-
-@deprecation.deprecated(deprecated_in="1.9.0", removed_in="2.0",
-                        details="Please use username and password or apiKey instead.")
+@deprecated.sphinx.deprecated(version='1.9.0', action='ignore',
+                              reason="This will be removed in 2.0. Please use username and password or apiKey instead.")
 class UserArgsSessionTokenCredentialsProvider(SynapseCredentialsProvider):
     """
     This is a special case where we are not given context as to what the username is. We are only given a session token
