@@ -37,23 +37,31 @@ Optional arguments
 
 Commands
 ========
-  * **login**            - login to Synapse and (optionally) cache credentials
   * **get**              - download an entity and associated data
+  * **sync**             - Synchronize files described in a manifest to Synapse
+  * **store**            - uploads and adds a file to Synapse
   * **add**              - add or modify content to Synapse
-  * **delete**           - removes a dataset from Synapse
   * **mv**               - move a dataset in Synapse
   * **cp**               - copy an entity/dataset in Synapse
+  * **associate**        - Associate local files with the files stored in Synapse so
+                           that calls to 'syntapse get' and 'synapse show' don't
+                           re-download the files, but use the already existing file.
+  * **delete**           - removes a dataset from Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
+  * **show**             - displays information about a Entity
+  * **cat**              - prints a dataset from Synapse
+  * **list**             - List Synapse entities contained by the given Project or
+                           Folder. Note: May not be supported in future versions of
+                           the client.
   * **set-provenance**   - create provenance records
   * **get-provenance**   - show provenance records
   * **set-annotations**  - create annotations
   * **get-annotations**  - show annotations
+  * **create**           - Creates folders or projects on Synapse
   * **onweb**            - opens Synapse website for Entity
-  * **show**             - displays information about a Entity
-
-A few more commands (cat, create, update, associate)
-
+  * **login**            - login to Synapse and (optionally) cache credentials
+  * **test-encoding**    - test character encoding to help diagnose problems
 """
 from __future__ import absolute_import
 from __future__ import division
