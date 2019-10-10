@@ -206,7 +206,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         print("{} not copied".format(ent.id))
         return mapping
     copiedId = None
-    
+
     if isinstance(ent, Project):
         if not isinstance(syn.get(destinationId), Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")

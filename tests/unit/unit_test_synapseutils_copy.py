@@ -50,6 +50,7 @@ def test_copyWiki_input_validation():
         assert_raises(ValueError, synapseutils.copyWiki, syn, "syn123", "syn456", entitySubPageId="some_string",
                       updateLinks=False)
 
+
 class TestCopyPermissions:
     """Test copy entities with different permissions"""
     def setup(self):
@@ -59,21 +60,22 @@ class TestCopyPermissions:
                              id="syn3456")
 
     def test_dont_copy_read_permissions(self):
-        #TEST: Entities with READ permissions not copied
+        """Entities with READ permissions not copied"""
         permissions = ["READ"]
         with patch.object(syn, "get",
                          return_value=self.file_ent) as patch_syn_get,\
              patch.object(syn, "getPermissions",
                           return_value=permissions) as patch_syn_permissions:
             copied_file = synapseutils.copy(syn, self.file_ent,
-                                  destinationId=self.second_project.id,
-                                  skipCopyWikiPage=True)
+                                            destinationId=self.second_project.id,
+                                            skipCopyWikiPage=True)
             assert_equals(copied_file, dict())
             patch_syn_get.assert_called_once_with(self.file_ent,
                                                   downloadFile=False)
             patch_syn_permissions.assert_called_once_with(self.file_ent,
                                                           syn.username)
-          
+
+
 class TestCopyAccessRestriction:
     """Test that entities with access restrictions aren't copied"""
     def setup(self):
