@@ -203,8 +203,11 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         if not isinstance(syn.get(destinationId), Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
         copiedId = destinationId
-        #Projects include Docker repos, and Docker repos cannot be copied with the Synapse rest API
-        entities = syn.getChildren(entity, includeTypes=['folder', 'file', 'table', 'link', 'entityview'])
+        # Projects include Docker repos, and Docker repos cannot be copied
+        # with the Synapse rest API. Entity views currently also aren't
+        # supported
+        entities = syn.getChildren(entity, includeTypes=['folder', 'file',
+                                                         'table', 'link'])
         for i in entities:
             mapping = _copyRecursive(syn, i['id'], destinationId, mapping=mapping,
                                      skipCopyAnnotations=skipCopyAnnotations, **kwargs)
