@@ -175,7 +175,6 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     setProvenance = kwargs.get('setProvenance', "traceback")
     excludeTypes = kwargs.get('excludeTypes', [])
     updateExisting = kwargs.get('updateExisting', False)
-    copiedId = None
     if mapping is None:
         mapping = dict()
     # Check that passed in excludeTypes is file, table, and link
@@ -194,6 +193,12 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     if not isinstance(ent, (Project, Folder, File, Link, Schema, Entity)):
         raise ValueError("Not able to copy this type of file")
 
+    access_requirements = syn.restGET('/entity/{}/accessRequirement'.format(ent.id))
+    # If there are any access requirements, don't copy files
+    if access_requirements['results']:
+        print("{} not copied".format(ent.id))
+        return mapping
+    copiedId = None
     if isinstance(ent, Project):
         if not isinstance(syn.get(destinationId), Project):
             raise ValueError("You must give a destinationId of a new project to copy projects")
@@ -212,7 +217,7 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
         copiedId = _copyLink(syn, ent.id, destinationId, updateExisting=updateExisting)
     elif isinstance(ent, Schema) and "table" not in excludeTypes:
         copiedId = _copyTable(syn, ent.id, destinationId, updateExisting=updateExisting)
-
+    # This is currently done because copyLink returns None sometimes
     if copiedId is not None:
         mapping[ent.id] = copiedId
         print("Copied %s to %s" % (ent.id, copiedId))
