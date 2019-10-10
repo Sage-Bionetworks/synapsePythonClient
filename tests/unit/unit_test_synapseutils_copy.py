@@ -12,7 +12,6 @@ import uuid
 from synapseclient import Project, File
 import synapseutils
 
-
 def setup(module):
     module.syn = unit.syn
 
@@ -67,10 +66,33 @@ class TestCopyPermissions:
              patch.object(syn, "getPermissions",
                           return_value=permissions) as patch_syn_permissions:
             copied_file = synapseutils.copy(syn, self.file_ent,
-                                            destinationId=self.second_project.id,
-                                            skipCopyWikiPage=True)
+                                  destinationId=self.second_project.id,
+                                  skipCopyWikiPage=True)
             assert_equals(copied_file, dict())
             patch_syn_get.assert_called_once_with(self.file_ent,
                                                   downloadFile=False)
             patch_syn_permissions.assert_called_once_with(self.file_ent,
                                                           syn.username)
+          
+class TestCopyAccessRestriction:
+    """Test that entities with access restrictions aren't copied"""
+    def setup(self):
+        self.project_entity = Project(name=str(uuid.uuid4()), id="syn1234")
+        self.second_project = Project(name=str(uuid.uuid4()), id="syn2345")
+        self.file_ent = File(name='File', parent=self.project_entity.id)
+        self.file_ent.id = "syn3456"
+
+    def test_copy_entity_access_requirements(self):
+        # TEST: Entity with access requirement not copied
+        access_requirements = {'results': ["fee", "fi"]}
+        with patch.object(syn, "get",
+                          return_value=self.file_ent) as patch_syn_get,\
+             patch.object(syn, "restGET",
+                          return_value=access_requirements) as patch_restget:
+            copied_file = synapseutils.copy(syn, self.file_ent,
+                                            destinationId=self.second_project.id,
+                                            skipCopyWikiPage=True)
+            assert_equals(copied_file, dict())
+            patch_syn_get.assert_called_once_with(self.file_ent,
+                                                  downloadFile=False)
+            patch_restget.assert_called_once_with('/entity/{}/accessRequirement'.format(self.file_ent.id))
