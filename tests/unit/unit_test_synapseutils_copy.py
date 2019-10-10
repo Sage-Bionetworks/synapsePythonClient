@@ -94,7 +94,8 @@ class TestCopy:
             copied_file = synapseutils.copy(syn, self.project_entity,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
-            assert_equals(copied_file, {self.project_entity.id: self.second_project.id})
+            assert_equals(copied_file, {self.project_entity.id:
+                                        self.second_project.id})
             calls = [call(self.project_entity, downloadFile=False),
                      call(self.second_project.id)]
             patch_syn_get.assert_has_calls(calls)
