@@ -309,10 +309,15 @@ def delete(args, syn):
 def create(args, syn):
     _descriptionFile_arg_check(args)
 
-    entity = {'name': args.name,
-              'parentId': args.parentid,
-              'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
-    entity = syn.createEntity(entity)
+    if args.parentid is None:
+        entity = {'name': args.name,
+                  'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
+    else:
+        entity = {'name': args.name,
+                  'parentId': args.parentid,
+                  'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
+
+    entity = syn.store(entity)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
