@@ -51,7 +51,7 @@ git pull upstream develop
 1. Pull the latest content from the `develop` branch of this central repository (not your fork).
 1. Create a feature branch which off the `develop` branch. The branch should be named the same as the JIRA issue you are working on (e.g., `SYNPY-1234`).
 1. After completing work and testing locally (see below), push to your fork.
-1. In Github, create a pull request from the feature branch of your fork to the develop branch of the central repository.
+1. In Github, create a pull request from the feature branch of your fork to the `develop` branch of the central repository.
 
 > *A Sage Bionetworks engineer must review and accept your pull request.* A code review (which happens with both the contributor and the reviewer present) is required for contributing. This can be performed remotely (e.g., Skype, Hangout, or other video or phone conference).
 
