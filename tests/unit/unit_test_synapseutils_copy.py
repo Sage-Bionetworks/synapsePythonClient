@@ -51,6 +51,31 @@ def test_copyWiki_input_validation():
                       updateLinks=False)
 
 
+class TestCopyPermissions:
+    """Test copy entities with different permissions"""
+    def setup(self):
+        self.project_entity = Project(name=str(uuid.uuid4()), id="syn1234")
+        self.second_project = Project(name=str(uuid.uuid4()), id="syn2345")
+        self.file_ent = File(name='File', parent=self.project_entity.id,
+                             id="syn3456")
+
+    def test_dont_copy_read_permissions(self):
+        """Entities with READ permissions not copied"""
+        permissions = ["READ"]
+        with patch.object(syn, "get",
+                         return_value=self.file_ent) as patch_syn_get,\
+             patch.object(syn, "getPermissions",
+                          return_value=permissions) as patch_syn_permissions:
+            copied_file = synapseutils.copy(syn, self.file_ent,
+                                            destinationId=self.second_project.id,
+                                            skipCopyWikiPage=True)
+            assert_equals(copied_file, dict())
+            patch_syn_get.assert_called_once_with(self.file_ent,
+                                                  downloadFile=False)
+            patch_syn_permissions.assert_called_once_with(self.file_ent,
+                                                          syn.username)
+
+
 class TestCopyAccessRestriction:
     """Test that entities with access restrictions aren't copied"""
     def setup(self):
@@ -62,8 +87,11 @@ class TestCopyAccessRestriction:
     def test_copy_entity_access_requirements(self):
         # TEST: Entity with access requirement not copied
         access_requirements = {'results': ["fee", "fi"]}
+        permissions = ["DOWNLOAD"]
         with patch.object(syn, "get",
                           return_value=self.file_ent) as patch_syn_get,\
+             patch.object(syn, "getPermissions",
+                          return_value=permissions) as patch_syn_permissions,\
              patch.object(syn, "restGET",
                           return_value=access_requirements) as patch_restget:
             copied_file = synapseutils.copy(syn, self.file_ent,
