@@ -981,3 +981,32 @@ def test_add__update_description():
                  update_description_text
                  )
     _description_wiki_check(output, update_description_text)
+
+
+def test_create__same_project_name():
+    """Test creating project that already exists returns the existing project.
+
+    """
+
+    name = str(uuid.uuid4())
+    output_first = run('synapse',
+                       'create',
+                       '-name',
+                       name,
+                       'Project')
+
+    entity_id_first = parse(r'Created entity:\s+(syn\d+)\s+',
+                            output_first)
+
+    schedule_for_cleanup(entity_id_first)
+
+    output_second = run('synapse',
+                        'create',
+                        '-name',
+                        name,
+                        'Project')
+
+    entity_id_second = parse(r'Created entity:\s+(syn\d+)\s+',
+                             output_second)
+
+    assert entity_id_first == entity_id_second
