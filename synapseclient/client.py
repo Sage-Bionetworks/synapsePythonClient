@@ -2172,6 +2172,47 @@ class Synapse(object):
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
+    def invite_member_to_team(self, team, user=None, email=None,
+                              message=None):
+        """
+        Invite members to a team
+
+        Args:
+            syn: Synapse object
+            team: Synapse Team id or name
+            user: Synapse username or profile id
+            email: Email of user, do not specify both email and user,
+                   but must specify one
+            message: Message for people getting invited to the team
+
+        Returns:
+            Invitation response or None
+        """
+        teamid = self.getTeam(team)['id']
+        is_member = False
+        invite = {'teamId': str(teamid)}
+
+        if email is None:
+            userid = self.getUserProfile(user)['ownerId']
+            request = \
+                "/team/{teamId}/member/{individualId}/membershipStatus".format(
+                    teamId=str(teamid),
+                    individualId=str(userid))
+            membership_status = self.restGET(request)
+            is_member = membership_status['isMember']
+            invite['inviteeId'] = str(userid)
+        else:
+            invite['inviteeEmail'] = email
+
+        if message is not None:
+            invite['message'] = message
+
+        if not is_member:
+            invite = self.restPOST("/membershipInvitation", body=json.dumps(invite))
+            return invite
+
+        return None
+
     def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None):
         """
         Submit an Entity for `evaluation <Evaluation.html>`_.
