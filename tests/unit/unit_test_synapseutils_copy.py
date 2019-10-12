@@ -114,8 +114,11 @@ class TestCopy:
     def test_no_copy_types(self):
         """Docker repositories and EntityViews aren't copied"""
         access_requirements = {'results': []}
+        permissions = ["DOWNLOAD"]
         with patch.object(syn, "get",
                           return_value=self.project_entity) as patch_syn_get,\
+             patch.object(syn, "getPermissions",
+                          return_value=permissions) as patch_syn_permissions,\
              patch.object(syn, "restGET",
                           return_value=access_requirements) as patch_restget,\
              patch.object(syn, "getChildren") as patch_get_children:
