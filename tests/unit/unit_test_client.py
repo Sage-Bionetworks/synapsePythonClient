@@ -821,3 +821,87 @@ class TestSetStorageLocation:
         self.mock_restPUT.assert_called_once_with('/projectSettings', body=json.dumps(new_location))
         self.mock_restPOST.assert_not_called()
 
+
+class MembershipInvitation:
+
+    def setup(self):
+        self.team = synapseclient.Team(id=222)
+        self.userid = 123
+        self.email = "test@email.com"
+        self.member_status = {'isMember': True}
+        self.response = {'inviteeId': self.userid}
+        self.message = "custom message"
+
+    def test_teamid_get_membership_status(self):
+        """Get membership status when team id is passed in"""
+        with patch.object(syn, "restGET") as patch_restget:
+            syn.get_membership_status(self.userid, self.team.id)
+            request = "/team/{team}/member/{user}/membershipStatus".format(
+                team=self.team.id,
+                user=self.userid)
+            patch_restget.assert_called_once_with(request)
+
+    def test_team_get_membership_status(self):
+        """Get membership status when Team is passed in"""
+        with patch.object(syn, "restGET") as patch_restget:
+            syn.get_membership_status(self.userid, self.team)
+            request = "/team/{team}/member/{user}/membershipStatus".format(
+                team=self.team.id,
+                user=self.userid)
+            patch_restget.assert_called_once_with(request)
+
+    def test_bothuseremail_invite_member_to_team(self):
+        """Raise error when user and email is passed in"""
+        assert_raises(ValueError, syn.invite_member_to_team, self.team,
+                      user=self.userid, email=self.email)
+
+    def test_email_invite_member_to_team(self):
+        """Invite email to team"""
+        invite_body = {'teamId': str(self.team.id),
+                       'message': self.message,
+                       'inviteeEmail': self.email}
+        with patch.object(syn, "getUserProfile",
+                          return_value={'ownerId': self.userid}) as patch_getprofile,\
+             patch.object(syn, "restPOST",
+                          return_value=self.response) as patch_restpost:
+            invite = syn.invite_member_to_team(self.team, email=self.email,
+                                               message=self.message)
+            assert invite == self.response
+            patch_getprofile.assert_not_called()
+            patch_restpost.assert_called_once_with("/membershipInvitation",
+                                                   body=json.dumps(invite_body))
+
+    def test_user_invite_member_to_team(self):
+        """Invite user to team"""
+        self.member_status['isMember'] = False
+        invite_body = {'teamId': str(self.team.id),
+                       'message': None,
+                       'inviteeId': str(self.userid)}
+        with patch.object(syn, "get_membership_status",
+                          return_value=self.member_status) as patch_getmem,\
+             patch.object(syn, "getUserProfile",
+                          return_value={'ownerId': self.userid}) as patch_getprofile,\
+             patch.object(syn, "restPOST",
+                          return_value=self.response) as patch_restpost:
+            invite = syn.invite_member_to_team(self.team, user=self.userid)
+            patch_getmem.assert_called_once_with(self.userid,
+                                                 str(self.team.id))
+            patch_getprofile.assert_called_once_with(self.userid)
+            patch_restpost.assert_called_once_with("/membershipInvitation",
+                                                   body=json.dumps(invite_body))
+            assert invite is self.response
+
+    def test_ismember_invite_member_to_team(self):
+        """None returned when user is already a member"""
+        with patch.object(syn, "get_membership_status",
+                          return_value=self.member_status) as patch_getmem,\
+             patch.object(syn, "getUserProfile",
+                          return_value={'ownerId': self.userid}) as patch_getprofile,\
+             patch.object(syn, "restPOST") as patch_restpost:
+            invite = syn.invite_member_to_team(self.team, user=self.userid,
+                                               message=None)
+            patch_getmem.assert_called_once_with(self.userid,
+                                                 str(self.team.id))
+            patch_getprofile.assert_called_once_with(self.userid)
+            assert invite is None
+            patch_restpost.assert_not_called()

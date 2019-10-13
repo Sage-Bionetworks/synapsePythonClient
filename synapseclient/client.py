@@ -2172,45 +2172,59 @@ class Synapse(object):
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
+    def get_membership_status(self, userid, team):
+        """Retrieve a user's Team Membership Status bundle.
+        https://docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html
+
+        :param user: Synapse userid
+        :param team: A :py:class:`synapseclient.team.Team` object or a team's ID.
+
+        :returns: dict of TeamMembershipStatus"""
+        teamid = id_of(team)
+        request = "/team/{team}/member/{user}/membershipStatus".format(
+            team=teamid,
+            user=userid)
+        membership_status = self.restGET(request)
+        return membership_status
+
     def invite_member_to_team(self, team, user=None, email=None,
                               message=None):
-        """
-        Invite members to a team
+        """Invite user to a Synapse team via Synapse username or email
+        (choose one or the other)
 
-        Args:
-            syn: Synapse object
-            team: Synapse Team id or name
-            user: Synapse username or profile id
-            email: Email of user, do not specify both email and user,
-                   but must specify one
-            message: Message for people getting invited to the team
+        :param syn: Synapse object
+        :param team: A :py:class:`synapseclient.team.Team` object or a
+                     team's ID.
+        :param user: Synapse username or profile id of user
+        :param email: Email of user
+        :param message: Additional message for the user getting invited to the
+                        team. Default to None.
 
         Returns:
-            Invitation response or None
+            Invitation or None if user is already a member
         """
-        teamid = self.getTeam(team)['id']
+        if email is not None and user is not None:
+            raise ValueError("Must only specify 'user' or 'email'")
+
+        teamid = id_of(team)
         is_member = False
-        invite = {'teamId': str(teamid)}
+        # Message can be None
+        invite = {'teamId': str(teamid),
+                  'message': message}
 
         if email is None:
             userid = self.getUserProfile(user)['ownerId']
-            request = \
-                "/team/{teamId}/member/{individualId}/membershipStatus".format(
-                    teamId=str(teamid),
-                    individualId=str(userid))
-            membership_status = self.restGET(request)
+            membership_status = self.get_membership_status(userid, teamid)
             is_member = membership_status['isMember']
             invite['inviteeId'] = str(userid)
         else:
             invite['inviteeEmail'] = email
 
-        if message is not None:
-            invite['message'] = message
-
         if not is_member:
-            invite = self.restPOST("/membershipInvitation", body=json.dumps(invite))
+            invite = self.restPOST("/membershipInvitation",
+                                   body=json.dumps(invite))
             return invite
-
+        # Return None if no invite is sent.  Should an error should be thrown?
         return None
 
     def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None):
