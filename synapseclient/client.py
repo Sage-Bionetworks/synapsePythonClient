@@ -2177,7 +2177,8 @@ class Synapse(object):
         https://docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html
 
         :param user: Synapse userid
-        :param team: A :py:class:`synapseclient.team.Team` object or a team's ID.
+        :param team: A :py:class:`synapseclient.team.Team` object or a
+                     team's ID.
 
         :returns: dict of TeamMembershipStatus"""
         teamid = id_of(team)

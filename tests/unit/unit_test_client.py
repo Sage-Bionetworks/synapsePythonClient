@@ -831,6 +831,7 @@ class MembershipInvitation:
         self.member_status = {'isMember': True}
         self.response = {'inviteeId': self.userid}
         self.message = "custom message"
+        self.profile = {'ownerId': self.userid}
 
     def test_teamid_get_membership_status(self):
         """Get membership status when team id is passed in"""
@@ -861,7 +862,7 @@ class MembershipInvitation:
                        'message': self.message,
                        'inviteeEmail': self.email}
         with patch.object(syn, "getUserProfile",
-                          return_value={'ownerId': self.userid}) as patch_getprofile,\
+                          return_value=self.profile) as patch_getprofile,\
              patch.object(syn, "restPOST",
                           return_value=self.response) as patch_restpost:
             invite = syn.invite_member_to_team(self.team, email=self.email,
@@ -880,7 +881,7 @@ class MembershipInvitation:
         with patch.object(syn, "get_membership_status",
                           return_value=self.member_status) as patch_getmem,\
              patch.object(syn, "getUserProfile",
-                          return_value={'ownerId': self.userid}) as patch_getprofile,\
+                          return_value=self.profile) as patch_getprofile,\
              patch.object(syn, "restPOST",
                           return_value=self.response) as patch_restpost:
             invite = syn.invite_member_to_team(self.team, user=self.userid)
@@ -896,7 +897,7 @@ class MembershipInvitation:
         with patch.object(syn, "get_membership_status",
                           return_value=self.member_status) as patch_getmem,\
              patch.object(syn, "getUserProfile",
-                          return_value={'ownerId': self.userid}) as patch_getprofile,\
+                          return_value=self.profile) as patch_getprofile,\
              patch.object(syn, "restPOST") as patch_restpost:
             invite = syn.invite_member_to_team(self.team, user=self.userid,
                                                message=None)
