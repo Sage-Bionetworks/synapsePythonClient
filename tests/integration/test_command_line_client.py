@@ -1002,7 +1002,7 @@ def test_create__same_project_name():
 
     output_second = run('synapse',
                         'create',
-                        '-name',
+                        '--name',
                         name,
                         'Project')
 
