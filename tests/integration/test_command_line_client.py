@@ -991,7 +991,7 @@ def test_create__same_project_name():
     name = str(uuid.uuid4())
     output_first = run('synapse',
                        'create',
-                       '-name',
+                       '--name',
                        name,
                        'Project')
 
