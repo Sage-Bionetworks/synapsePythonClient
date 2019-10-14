@@ -310,10 +310,10 @@ def create(args, syn):
     _descriptionFile_arg_check(args)
 
     entity = {'name': args.name,
-                'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
+              'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
 
     if args.parentid is not None:
-        entity['parentId']= args.parentid
+        entity['parentId'] = args.parentid
 
     entity = syn.store(entity)
 
