@@ -2172,6 +2172,20 @@ class Synapse(object):
         for result in self._GET_paginated('/teamMembers/{id}'.format(id=id_of(team))):
             yield TeamMember(**result)
 
+    def get_team_open_invitations(self, team):
+        """Retrieve the open requests submitted to a Team
+        https://docs.synapse.org/rest/GET/team/id/openInvitation.html
+
+        :param team: A :py:class:`synapseclient.team.Team` object or a
+                     team's ID.
+
+        :returns: generator of MembershipRequest
+        """
+        teamid = id_of(team)
+        request = "/team/{team}/openInvitation".format(team=teamid)
+        open_requests = self._GET_paginated(request)
+        return open_requests
+
     def get_membership_status(self, userid, team):
         """Retrieve a user's Team Membership Status bundle.
         https://docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html
@@ -2188,8 +2202,21 @@ class Synapse(object):
         membership_status = self.restGET(request)
         return membership_status
 
-    def invite_member_to_team(self, team, user=None, email=None,
+    def membership_invitation(self, teamId, inviteeId=None, inviteeEmail=None,
                               message=None):
+        invite_request = {'teamId': str(teamId),
+                          'message': message}
+        if inviteeEmail is not None:
+            invite_request['inviteeEmail'] = str(inviteeId)
+        if inviteeId is not None:
+            invite_request['inviteeId'] = str(inviteeEmail)
+
+        response = self.restPOST("/membershipInvitation",
+                                 body=json.dumps(invite_request))
+
+        return response
+
+    def invite_to_team(self, team, **kwargs):
         """Invite user to a Synapse team via Synapse username or email
         (choose one or the other)
 
@@ -2204,27 +2231,27 @@ class Synapse(object):
         Returns:
             Invitation or None if user is already a member
         """
+        user = kwargs.get("inviteeId")
+        email = kwargs.get("inviteeEmail")
         if email is not None and user is not None:
             raise ValueError("Must only specify 'user' or 'email'")
 
         teamid = id_of(team)
         is_member = False
-        # Message can be None
-        invite = {'teamId': str(teamid),
-                  'message': message}
+        open_invitations = self.get_team_open_invitations(teamid)
 
-        if email is None:
+        if user is not None:
             userid = self.getUserProfile(user)['ownerId']
             membership_status = self.get_membership_status(userid, teamid)
             is_member = membership_status['isMember']
-            invite['inviteeId'] = str(userid)
+            open_invites = [invitation for invitation in open_invitations
+                            if invitation.get('inviteeId') == user]
         else:
-            invite['inviteeEmail'] = email
+            open_invites = [invitation for invitation in open_invitations
+                            if invitation.get('inviteeEmail') == email]
 
-        if not is_member:
-            invite = self.restPOST("/membershipInvitation",
-                                   body=json.dumps(invite))
-            return invite
+        if not is_member and not open_invites:
+            self.membership_invitation(teamid, **kwargs)
         # Return None if no invite is sent.  Should an error should be thrown?
         return None
 
