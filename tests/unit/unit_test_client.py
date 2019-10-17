@@ -822,7 +822,7 @@ class TestSetStorageLocation:
         self.mock_restPOST.assert_not_called()
 
 
-class MembershipInvitation:
+class TestMembershipInvitation:
 
     def setup(self):
         self.team = synapseclient.Team(id=222)
