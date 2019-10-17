@@ -2202,34 +2202,54 @@ class Synapse(object):
         membership_status = self.restGET(request)
         return membership_status
 
+    def _delete_membership_invitation(self, invitationid):
+        """Delete open membership invitation
+
+        :param invitationid: Open invitation id
+        """
+        self.restDELETE("/membershipInvitation/{id}".format(id=invitationid))
+
     def membership_invitation(self, teamId, inviteeId=None, inviteeEmail=None,
                               message=None):
+        """Create a membership invitation and send an email notification
+        to the invitee.
+
+        :param teamId: Synapse teamId
+        :param inviteeId: Synapse username or profile id of user
+        :param inviteeEmail: Email of user
+        :param message: Additional message for the user getting invited to the
+                        team. Default to None.
+
+        :returns: MembershipInvitation
+        """
+
         invite_request = {'teamId': str(teamId),
                           'message': message}
         if inviteeEmail is not None:
-            invite_request['inviteeEmail'] = str(inviteeId)
+            invite_request['inviteeEmail'] = str(inviteeEmail)
         if inviteeId is not None:
-            invite_request['inviteeId'] = str(inviteeEmail)
+            invite_request['inviteeId'] = str(inviteeId)
 
         response = self.restPOST("/membershipInvitation",
                                  body=json.dumps(invite_request))
-
         return response
 
-    def invite_to_team(self, team, **kwargs):
+    def invite_to_team(self, team, force=False, **kwargs):
         """Invite user to a Synapse team via Synapse username or email
         (choose one or the other)
 
         :param syn: Synapse object
         :param team: A :py:class:`synapseclient.team.Team` object or a
                      team's ID.
-        :param user: Synapse username or profile id of user
-        :param email: Email of user
+        :param force: If an open invitation exists for the invitee,
+                      the old invite will be cancelled. Default to False.
+        :param inviteeId: Synapse username or profile id of user
+        :param inviteeEmail: Email of user
         :param message: Additional message for the user getting invited to the
                         team. Default to None.
 
-        Returns:
-            Invitation or None if user is already a member
+
+        :returns: MembershipInvitation or None if user is already a member
         """
         user = kwargs.get("inviteeId")
         email = kwargs.get("inviteeEmail")
@@ -2249,9 +2269,13 @@ class Synapse(object):
         else:
             open_invites = [invitation for invitation in open_invitations
                             if invitation.get('inviteeEmail') == email]
-
-        if not is_member and not open_invites:
-            self.membership_invitation(teamid, **kwargs)
+        # Only invite if the invitee is not a member and
+        # if invitee doesn't have an open invitation unless force=True
+        if not is_member and (not open_invites or force):
+            # Delete all old invitations
+            for invite in open_invites:
+                self._delete_membership_invitation(invite['id'])
+            return self.membership_invitation(teamid, **kwargs)
         # Return None if no invite is sent.  Should an error should be thrown?
         return None
 
