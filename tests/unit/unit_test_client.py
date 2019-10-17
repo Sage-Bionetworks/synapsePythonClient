@@ -833,6 +833,9 @@ class MembershipInvitation:
         self.message = "custom message"
         self.profile = {'ownerId': self.userid}
 
+    def test_get_team_open_invitations(self):
+        pass
+
     def test_teamid_get_membership_status(self):
         """Get membership status when team id is passed in"""
         with patch.object(syn, "restGET") as patch_restget:
