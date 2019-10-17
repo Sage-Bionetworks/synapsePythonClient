@@ -2225,6 +2225,7 @@ class Synapse(object):
             invite = self.restPOST("/membershipInvitation",
                                    body=json.dumps(invite))
             return invite
+
         # Return None if no invite is sent.  Should an error should be thrown?
         return None
 
