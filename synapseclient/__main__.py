@@ -310,9 +310,12 @@ def create(args, syn):
     _descriptionFile_arg_check(args)
 
     entity = {'name': args.name,
-              'parentId': args.parentid,
               'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
-    entity = syn.createEntity(entity)
+
+    if args.parentid is not None:
+        entity['parentId'] = args.parentid
+
+    entity = syn.store(entity)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
