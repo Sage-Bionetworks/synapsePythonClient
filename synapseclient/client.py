@@ -2235,20 +2235,20 @@ class Synapse(object):
                                  body=json.dumps(invite_request))
         return response
 
-    def invite_to_team(self, team, force=False, **kwargs):
+    def invite_to_team(self, team, inviteeId=None, inviteeEmail=None,
+                       message=None, force=False):
         """Invite user to a Synapse team via Synapse username or email
         (choose one or the other)
 
         :param syn: Synapse object
         :param team: A :py:class:`synapseclient.team.Team` object or a
                      team's ID.
-        :param force: If an open invitation exists for the invitee,
-                      the old invite will be cancelled. Default to False.
         :param inviteeId: Synapse username or profile id of user
         :param inviteeEmail: Email of user
         :param message: Additional message for the user getting invited to the
                         team. Default to None.
-
+        :param force: If an open invitation exists for the invitee,
+                      the old invite will be cancelled. Default to False.
 
         :returns: MembershipInvitation or None if user is already a member
         """
@@ -2265,18 +2265,22 @@ class Synapse(object):
             userid = self.getUserProfile(user)['ownerId']
             membership_status = self.get_membership_status(userid, teamid)
             is_member = membership_status['isMember']
-            open_invites = [invitation for invitation in open_invitations
-                            if invitation.get('inviteeId') == user]
+            open_invites_to_user = [invitation
+                                    for invitation in open_invitations
+                                    if invitation.get('inviteeId') == user]
         else:
-            open_invites = [invitation for invitation in open_invitations
-                            if invitation.get('inviteeEmail') == email]
+            open_invites_to_user = [invitation
+                                    for invitation in open_invitations
+                                    if invitation.get('inviteeEmail') == email]
         # Only invite if the invitee is not a member and
         # if invitee doesn't have an open invitation unless force=True
-        if not is_member and (not open_invites or force):
+        if not is_member and (not open_invites_to_user or force):
             # Delete all old invitations
-            for invite in open_invites:
+            for invite in open_invites_to_user:
                 self._delete_membership_invitation(invite['id'])
-            return self.send_membership_invitation(teamid, **kwargs)
+            return self.send_membership_invitation(teamid, inviteeId=inviteeId,
+                                                   inviteeEmail=inviteeEmail,
+                                                   message=message)
         # Return None if no invite is sent.  Should an error should be thrown?
         return None
 
