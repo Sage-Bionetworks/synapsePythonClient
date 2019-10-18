@@ -2190,7 +2190,7 @@ class Synapse(object):
         """Retrieve a user's Team Membership Status bundle.
         https://docs.synapse.org/rest/GET/team/id/member/principalId/membershipStatus.html
 
-        :param user: Synapse userid
+        :param user: Synapse user ID
         :param team: A :py:class:`synapseclient.team.Team` object or a
                      team's ID.
 
