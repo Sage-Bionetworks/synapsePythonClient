@@ -2255,7 +2255,7 @@ class Synapse(object):
         user = kwargs.get("inviteeId")
         email = kwargs.get("inviteeEmail")
         if email is not None and user is not None:
-            raise ValueError("Must only specify 'user' or 'email'")
+            raise ValueError("Must only specify one of 'inviteeId' or 'inviteeEmail'")
 
         teamid = id_of(team)
         is_member = False
@@ -2281,7 +2281,7 @@ class Synapse(object):
             return self.send_membership_invitation(teamid, inviteeId=inviteeId,
                                                    inviteeEmail=inviteeEmail,
                                                    message=message)
-        # Return None if no invite is sent.  Should an error should be thrown?
+        # Return None if no invite is sent.
         return None
 
     def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None):
