@@ -965,10 +965,68 @@ class TestMembershipInvitation:
             assert_is_none(invite)
 
     def test_invite_to_team__user_openinvite(self):
-        pass
+        """None returned when user already has an invitation"""
+        self.member_status['isMember'] = False
+        invite_body = {'inviteeId': self.userid}
+        with patch.object(syn, "get_membership_status",
+                          return_value=self.member_status) as patch_getmem,\
+             patch.object(syn, "get_team_open_invitations",
+                          return_value=[invite_body]) as patch_get_invites,\
+             patch.object(syn, "getUserProfile",
+                          return_value=self.profile) as patch_get_profile,\
+             patch.object(syn, "_delete_membership_invitation") as patch_delete,\
+             patch.object(syn, "send_membership_invitation",
+                          return_value=self.response) as patch_invitation:
+            invite = syn.invite_to_team(self.team, inviteeId=self.userid)
+            patch_getmem.assert_called_once_with(self.userid,
+                                                 self.team.id)
+            patch_get_profile.assert_called_once_with(self.userid)
+            patch_get_invites.assert_called_once_with(self.team.id)
+            patch_invitation.assert_not_called()
+            patch_delete.assert_not_called()
+            assert_is_none(invite)
 
-    def test_invite_to_team__team_openinvite(self):
-        pass
+    def test_invite_to_team__email_openinvite(self):
+        """None returned when email already has an invitation"""
+        invite_body = {'inviteeEmail': self.email}
+        with patch.object(syn, "get_team_open_invitations",
+                          return_value=[invite_body]) as patch_get_invites,\
+             patch.object(syn, "_delete_membership_invitation") as patch_delete,\
+             patch.object(syn, "send_membership_invitation",
+                          return_value=self.response) as patch_invitation:
+            invite = syn.invite_to_team(self.team, inviteeEmail=self.email)
+            patch_get_invites.assert_called_once_with(self.team.id)
+            patch_invitation.assert_not_called()
+            patch_delete.assert_not_called()
+            assert_is_none(invite)
+            patch_delete.assert_not_called()
 
-    def test_invite_to_team__force(self):
-        pass
+    def test_invite_to_team__none_matching_invitation(self):
+        """Invitation sent when no matching open invitations"""
+        invite_body = {'inviteeEmail': self.email + "foo"}
+        with patch.object(syn, "get_team_open_invitations",
+                          return_value=[invite_body]) as patch_get_invites,\
+             patch.object(syn, "_delete_membership_invitation") as patch_delete,\
+             patch.object(syn, "send_membership_invitation",
+                          return_value=self.response) as patch_invitation:
+            invite = syn.invite_to_team(self.team, inviteeEmail=self.email)
+            patch_get_invites.assert_called_once_with(self.team.id)
+            patch_delete.assert_not_called()
+            assert_equal(invite, self.response)
+            patch_invitation.assert_called_once()
+
+    def test_invite_to_team__force_invite(self):
+        """Invitation sent when force the invite, make sure open invitation
+        is deleted"""
+        open_invitations = {'inviteeEmail': self.email, 'id': '9938'}
+        with patch.object(syn, "get_team_open_invitations",
+                          return_value=[open_invitations]) as patch_get_invites,\
+             patch.object(syn, "_delete_membership_invitation") as patch_delete,\
+             patch.object(syn, "send_membership_invitation",
+                          return_value=self.response) as patch_invitation:
+            invite = syn.invite_to_team(self.team, inviteeEmail=self.email,
+                                        force=True)
+            patch_get_invites.assert_called_once_with(self.team.id)
+            patch_delete.assert_called_once_with(open_invitations['id'])
+            assert_equal(invite, self.response)
+            patch_invitation.assert_called_once()
