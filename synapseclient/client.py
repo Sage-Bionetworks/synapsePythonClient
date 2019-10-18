@@ -2209,8 +2209,9 @@ class Synapse(object):
         """
         self.restDELETE("/membershipInvitation/{id}".format(id=invitationid))
 
-    def membership_invitation(self, teamId, inviteeId=None, inviteeEmail=None,
-                              message=None):
+    def send_membership_invitation(self, teamId, inviteeId=None,
+                                   inviteeEmail=None,
+                                   message=None):
         """Create a membership invitation and send an email notification
         to the invitee.
 
@@ -2275,7 +2276,7 @@ class Synapse(object):
             # Delete all old invitations
             for invite in open_invites:
                 self._delete_membership_invitation(invite['id'])
-            return self.membership_invitation(teamid, **kwargs)
+            return self.send_membership_invitation(teamid, **kwargs)
         # Return None if no invite is sent.  Should an error should be thrown?
         return None
 

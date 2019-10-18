@@ -879,7 +879,7 @@ class TestMembershipInvitation:
                 user=self.userid)
             patch_restget.assert_called_once_with(request)
 
-    def test_membership_invitation(self):
+    def test_send_membership_invitation(self):
         """Test membership invitation post"""
         invite_body = {'teamId': self.team.id,
                        'message': self.message,
@@ -887,9 +887,9 @@ class TestMembershipInvitation:
                        'inviteeId': self.userid}
         with patch.object(syn, "restPOST",
                           return_value=self.response) as patch_rest_post:
-            syn.membership_invitation(self.team.id, inviteeId=self.userid,
-                                      inviteeEmail=self.email,
-                                      message=self.message)
+            syn.send_membership_invitation(self.team.id, inviteeId=self.userid,
+                                           inviteeEmail=self.email,
+                                           message=self.message)
             patch_rest_post.assert_called_once_with("/membershipInvitation",
                                                     body=json.dumps(invite_body))
 
@@ -906,7 +906,7 @@ class TestMembershipInvitation:
                           return_value=[]) as patch_get_invites,\
              patch.object(syn, "getUserProfile",
                           return_value=self.profile) as patch_get_profile,\
-             patch.object(syn, "membership_invitation",
+             patch.object(syn, "send_membership_invitation",
                           return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, inviteeEmail=self.email,
                                         message=self.message)
@@ -926,7 +926,7 @@ class TestMembershipInvitation:
                           return_value=[]) as patch_get_invites,\
              patch.object(syn, "getUserProfile",
                           return_value=self.profile) as patch_get_profile,\
-             patch.object(syn, "membership_invitation",
+             patch.object(syn, "send_membership_invitation",
                           return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, inviteeId=self.userid)
             patch_getmem.assert_called_once_with(self.userid,
@@ -946,7 +946,7 @@ class TestMembershipInvitation:
                           return_value=[]) as patch_get_invites,\
              patch.object(syn, "getUserProfile",
                           return_value=self.profile) as patch_get_profile,\
-             patch.object(syn, "membership_invitation",
+             patch.object(syn, "send_membership_invitation",
                           return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, inviteeId=self.userid)
             patch_getmem.assert_called_once_with(self.userid,
