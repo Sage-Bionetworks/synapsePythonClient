@@ -833,25 +833,25 @@ class TestMembershipInvitation:
         self.message = "custom message"
         self.profile = {'ownerId': self.userid}
 
-    def test_team_get_team_open_invitations(self):
+    def test_get_team_open_invitations__team(self):
         """Get team open invitations when Team is passed in"""
         with patch.object(syn, "_GET_paginated",
                           return_value=self.response) as patch_get_paginated:
             response = syn.get_team_open_invitations(self.team)
             request = "/team/{team}/openInvitation".format(team=self.team.id)
             patch_get_paginated.assert_called_once_with(request)
-            assert response == self.response
+            assert_equal(response, self.response)
 
-    def test_teamid_get_team_open_invitations(self):
+    def test_get_team_open_invitations__teamid(self):
         """Get team open invitations when team id is passed in"""
         with patch.object(syn, "_GET_paginated",
                           return_value=self.response) as patch_get_paginated:
             response = syn.get_team_open_invitations(self.team.id)
             request = "/team/{team}/openInvitation".format(team=self.team.id)
             patch_get_paginated.assert_called_once_with(request)
-            assert response == self.response
+            assert_equal(response, self.response)
 
-    def test_teamid_get_membership_status(self):
+    def test_teamid_get_membership_status__rest_get(self):
         """Get membership status when team id is passed in"""
         with patch.object(syn, "restGET",
                           return_value=self.response) as patch_restget:
@@ -860,9 +860,9 @@ class TestMembershipInvitation:
                 team=self.team.id,
                 user=self.userid)
             patch_restget.assert_called_once_with(request)
-            assert response == self.response
+            assert_equal(response, self.response)
 
-    def test_delete_membership_invitation(self):
+    def test_delete_membership_invitation__rest_delete(self):
         """Delete open membership invitation"""
         invitationid = 1111
         with patch.object(syn, "restDELETE") as patch_rest_delete:
@@ -870,7 +870,7 @@ class TestMembershipInvitation:
             request = "/membershipInvitation/{id}".format(id=invitationid)
             patch_rest_delete.assert_called_once_with(request)
 
-    def test_team_get_membership_status(self):
+    def test_team_get_membership_status__rest_get(self):
         """Get membership status when Team is passed in"""
         with patch.object(syn, "restGET") as patch_restget:
             syn.get_membership_status(self.userid, self.team)
@@ -879,7 +879,7 @@ class TestMembershipInvitation:
                 user=self.userid)
             patch_restget.assert_called_once_with(request)
 
-    def test_send_membership_invitation(self):
+    def test_send_membership_invitation__rest_post(self):
         """Test membership invitation post"""
         invite_body = {'teamId': self.team.id,
                        'message': self.message,
@@ -893,15 +893,21 @@ class TestMembershipInvitation:
             patch_rest_post.assert_called_once_with("/membershipInvitation",
                                                     body=json.dumps(invite_body))
 
-    def test_bothuseremail_invite_to_team(self):
+    def test_invite_to_team__bothuseremail_specified(self):
         """Raise error when user and email is passed in"""
         assert_raises(ValueError, syn.invite_to_team, self.team,
                       inviteeId=self.userid, inviteeEmail=self.email)
 
-    def test_email_invite_to_team(self):
+    def test_invite_to_team__bothuseremail_notspecified(self):
+        """Raise error when user and email is passed in"""
+        assert_raises(ValueError, syn.invite_to_team, self.team,
+                      inviteeId=None, inviteeEmail=None)
+
+    def test_invite_to_team__email(self):
         """Invite user to team via their email"""
         invite_body = {'message': self.message,
-                       'inviteeEmail': self.email}
+                       'inviteeEmail': self.email,
+                       'inviteeId':None}
         with patch.object(syn, "get_team_open_invitations",
                           return_value=[]) as patch_get_invites,\
              patch.object(syn, "getUserProfile",
@@ -910,16 +916,18 @@ class TestMembershipInvitation:
                           return_value=self.response) as patch_invitation:
             invite = syn.invite_to_team(self.team, inviteeEmail=self.email,
                                         message=self.message)
-            assert invite == self.response
+            assert_equal(invite, self.response)
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_get_profile.assert_not_called()
             patch_invitation.assert_called_once_with(self.team.id,
                                                      **invite_body)
 
-    def test_user_invite_to_team(self):
+    def test_invite_to_team__user(self):
         """Invite user to team via their Synapse user"""
         self.member_status['isMember'] = False
-        invite_body = {'inviteeId': self.userid}
+        invite_body = {'inviteeId': self.userid,
+                       'inviteeEmail': None,
+                       'message': None}
         with patch.object(syn, "get_membership_status",
                           return_value=self.member_status) as patch_getmem,\
              patch.object(syn, "get_team_open_invitations",
@@ -935,9 +943,9 @@ class TestMembershipInvitation:
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_invitation.assert_called_once_with(self.team.id,
                                                      **invite_body)
-            assert invite is self.response
+            assert_equal(invite, self.response)
 
-    def test_ismember_invite_to_team(self):
+    def test_invite_to_team__ismember(self):
         """None returned when user is already a member"""
         invite_body = {'inviteeId': self.userid}
         with patch.object(syn, "get_membership_status",
@@ -954,13 +962,13 @@ class TestMembershipInvitation:
             patch_get_profile.assert_called_once_with(self.userid)
             patch_get_invites.assert_called_once_with(self.team.id)
             patch_invitation.assert_not_called()
-            assert invite is None
+            assert_is_none(invite)
 
-    def test_user_openinvite_invite_to_team(self):
+    def test_invite_to_team__user_openinvite(self):
         pass
 
-    def test_team_openinvite_invite_to_team(self):
+    def test_invite_to_team__team_openinvite(self):
         pass
 
-    def test_force_invite_to_team(self):
+    def test_invite_to_team__force(self):
         pass

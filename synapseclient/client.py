@@ -2252,26 +2252,28 @@ class Synapse(object):
 
         :returns: MembershipInvitation or None if user is already a member
         """
-        user = kwargs.get("inviteeId")
-        email = kwargs.get("inviteeEmail")
-        if email is not None and user is not None:
-            raise ValueError("Must only specify one of 'inviteeId' or 'inviteeEmail'")
+        # Throw error if both user and email is specified and if both not
+        # specified
+        id_email_specified = inviteeEmail is not None and inviteeId is not None
+        id_email_notspecified = inviteeEmail is None and inviteeId is None
+        if id_email_specified or id_email_notspecified:
+            raise ValueError("Must specify either 'inviteeId' or 'inviteeEmail'")
 
         teamid = id_of(team)
         is_member = False
         open_invitations = self.get_team_open_invitations(teamid)
 
-        if user is not None:
-            userid = self.getUserProfile(user)['ownerId']
+        if inviteeId is not None:
+            userid = self.getUserProfile(inviteeId)['ownerId']
             membership_status = self.get_membership_status(userid, teamid)
             is_member = membership_status['isMember']
             open_invites_to_user = [invitation
                                     for invitation in open_invitations
-                                    if invitation.get('inviteeId') == user]
+                                    if invitation.get('inviteeId') == inviteeId]
         else:
             open_invites_to_user = [invitation
                                     for invitation in open_invitations
-                                    if invitation.get('inviteeEmail') == email]
+                                    if invitation.get('inviteeEmail') == inviteeEmail]
         # Only invite if the invitee is not a member and
         # if invitee doesn't have an open invitation unless force=True
         if not is_member and (not open_invites_to_user or force):
