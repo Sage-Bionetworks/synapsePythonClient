@@ -2277,7 +2277,7 @@ class Synapse(object):
             for invite in open_invites:
                 self._delete_membership_invitation(invite['id'])
             return self.send_membership_invitation(teamid, **kwargs)
-        # Return None if no invite is sent.  Should an error should be thrown?
+        # Return None if no invite is sent.
         return None
 
     def submit(self, evaluation, entity, name=None, team=None, silent=False, submitterAlias=None, teamName=None):
