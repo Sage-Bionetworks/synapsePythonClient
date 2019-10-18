@@ -2255,7 +2255,7 @@ class Synapse(object):
         user = kwargs.get("inviteeId")
         email = kwargs.get("inviteeEmail")
         if email is not None and user is not None:
-            raise ValueError("Must only specify 'user' or 'email'")
+            raise ValueError("Must only specify one of 'inviteeId' or 'inviteeEmail'")
 
         teamid = id_of(team)
         is_member = False
