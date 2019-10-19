@@ -2264,8 +2264,8 @@ class Synapse(object):
         open_invitations = self.get_team_open_invitations(teamid)
 
         if inviteeId is not None:
-            userid = self.getUserProfile(inviteeId)['ownerId']
-            membership_status = self.get_membership_status(userid, teamid)
+            inviteeId = self.getUserProfile(inviteeId)['ownerId']
+            membership_status = self.get_membership_status(inviteeId, teamid)
             is_member = membership_status['isMember']
             open_invites_to_user = [invitation
                                     for invitation in open_invitations
