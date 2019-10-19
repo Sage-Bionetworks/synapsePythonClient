@@ -2243,7 +2243,7 @@ class Synapse(object):
         :param syn: Synapse object
         :param team: A :py:class:`synapseclient.team.Team` object or a
                      team's ID.
-        :param inviteeId: Synapse username or profile id of user
+        :param user: Synapse username or profile id of user
         :param inviteeEmail: Email of user
         :param message: Additional message for the user getting invited to the
                         team. Default to None.
