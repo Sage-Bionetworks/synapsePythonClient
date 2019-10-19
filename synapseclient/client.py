@@ -2235,7 +2235,7 @@ class Synapse(object):
                                  body=json.dumps(invite_request))
         return response
 
-    def invite_to_team(self, team, inviteeId=None, inviteeEmail=None,
+    def invite_to_team(self, team, user=None, inviteeEmail=None,
                        message=None, force=False):
         """Invite user to a Synapse team via Synapse username or email
         (choose one or the other)
@@ -2254,23 +2254,24 @@ class Synapse(object):
         """
         # Throw error if both user and email is specified and if both not
         # specified
-        id_email_specified = inviteeEmail is not None and inviteeId is not None
-        id_email_notspecified = inviteeEmail is None and inviteeId is None
+        id_email_specified = inviteeEmail is not None and user is not None
+        id_email_notspecified = inviteeEmail is None and user is None
         if id_email_specified or id_email_notspecified:
-            raise ValueError("Must specify either 'inviteeId' or 'inviteeEmail'")
+            raise ValueError("Must specify either 'user' or 'inviteeEmail'")
 
         teamid = id_of(team)
         is_member = False
         open_invitations = self.get_team_open_invitations(teamid)
 
-        if inviteeId is not None:
-            inviteeId = self.getUserProfile(inviteeId)['ownerId']
+        if user is not None:
+            inviteeId = self.getUserProfile(user)['ownerId']
             membership_status = self.get_membership_status(inviteeId, teamid)
             is_member = membership_status['isMember']
             open_invites_to_user = [invitation
                                     for invitation in open_invitations
                                     if invitation.get('inviteeId') == inviteeId]
         else:
+            inviteeId = None
             open_invites_to_user = [invitation
                                     for invitation in open_invitations
                                     if invitation.get('inviteeEmail') == inviteeEmail]
