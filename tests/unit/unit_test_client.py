@@ -907,7 +907,7 @@ class TestMembershipInvitation:
         """Invite user to team via their email"""
         invite_body = {'message': self.message,
                        'inviteeEmail': self.email,
-                       'inviteeId':None}
+                       'inviteeId': None}
         with patch.object(syn, "get_team_open_invitations",
                           return_value=[]) as patch_get_invites,\
              patch.object(syn, "getUserProfile",
