@@ -40,6 +40,7 @@ Commands
   * **get**              - download an entity and associated data
   * **sync**             - Synchronize files described in a manifest to Synapse
   * **store**            - uploads and adds a file to Synapse
+  * **store-table**      - uploads a table to Syanpse given a csv
   * **add**              - add or modify content to Synapse
   * **mv**               - move a dataset in Synapse
   * **cp**               - copy an entity/dataset in Synapse
@@ -412,6 +413,7 @@ def getAnnotations(args, syn):
 
 
 def storeTable(args, syn):
+    """Store table given csv"""
     table = synapseclient.table.build_table(args.name,
                                             args.parentid,
                                             args.csv)
