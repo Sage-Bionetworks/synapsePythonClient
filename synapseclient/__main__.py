@@ -418,8 +418,8 @@ def storeTable(args, syn):
                                             args.parentid,
                                             args.csv)
     table_ent = syn.store(table)
-    print({'tableId': table_ent.tableId})
-
+    #print("Created entity: {}".format(table_ent.tableId))
+    print('{"tableId": "%s"}' % table_ent.tableId)
 
 
 def submit(args, syn):

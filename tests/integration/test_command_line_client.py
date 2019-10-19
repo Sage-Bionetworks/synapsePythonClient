@@ -1010,3 +1010,17 @@ def test_create__same_project_name():
                              output_second)
 
     assert entity_id_first == entity_id_second
+
+
+def test_storeTable__csv():
+    output = run('synapse',
+                 'store-table',
+                 '--csv',
+                 desc_filename,
+                 '--name',
+                 str(uuid.uuid4()),
+                 '--parentid',
+                 project.id
+                 )
+    mapping = json.loads(output)
+    schedule_for_cleanup(mapping['tableId'])
