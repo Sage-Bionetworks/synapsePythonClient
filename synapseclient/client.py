@@ -2284,6 +2284,13 @@ class Synapse(object):
             return self.send_membership_invitation(teamid, inviteeId=inviteeId,
                                                    inviteeEmail=inviteeEmail,
                                                    message=message)
+        if is_member:
+            not_sent_reason = "invitee is already a member"
+        else:
+            not_sent_reason = ("invitee already has an open invitation "
+                               "Set force=True to send new invite.")
+
+        self.logger.info("No invitation sent: {}".format(not_sent_reason))
         # Return None if no invite is sent.
         return None
 
