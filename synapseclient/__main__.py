@@ -40,6 +40,7 @@ Commands
   * **get**              - download an entity and associated data
   * **sync**             - Synchronize files described in a manifest to Synapse
   * **store**            - uploads and adds a file to Synapse
+  * **store-table**      - uploads a table to Syanpse given a csv
   * **add**              - add or modify content to Synapse
   * **mv**               - move a dataset in Synapse
   * **cp**               - copy an entity/dataset in Synapse
@@ -409,6 +410,15 @@ def getAnnotations(args, syn):
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
             f.write('\n')
+
+
+def storeTable(args, syn):
+    """Store table given csv"""
+    table = synapseclient.table.build_table(args.name,
+                                            args.parentid,
+                                            args.csv)
+    table_ent = syn.store(table)
+    print('{"tableId": "%s"}' % table_ent.tableId)
 
 
 def submit(args, syn):
@@ -822,6 +832,20 @@ def build_parser():
     # parser_update.add_argument('file', type=str,
     #         help='file to be added to synapse.')
     # parser_update.set_defaults(func=update)
+
+    parser_store_table = subparsers.add_parser('store-table',
+                                               help='Creates a Synapse Table given a csv')
+    parser_store_table.add_argument('--name', metavar='NAME', type=str,
+                                    required=True, help='Name of Table')
+    parser_store_table.add_argument('--parentid', '--parentId',
+                                    metavar='syn123', type=str,
+                                    dest='parentid', required=False,
+                                    help='Synapse ID of project')
+    parser_store_table.add_argument('--csv',
+                                    metavar='foo.csv', type=str,
+                                    required=False,
+                                    help='Path to csv')
+    parser_store_table.set_defaults(func=storeTable)
 
     parser_onweb = subparsers.add_parser('onweb',
                                          help='opens Synapse website for Entity')
