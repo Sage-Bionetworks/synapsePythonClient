@@ -197,13 +197,13 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     permissions = syn.getPermissions(ent, profile_username)
     # Don't copy entities without DOWNLOAD permissions
     if "DOWNLOAD" not in permissions:
-        print("%s not copied" % ent.id)
+        print("%s not copied - this file lacks download permission" % ent.id)
         return mapping
 
     access_requirements = syn.restGET('/entity/{}/accessRequirement'.format(ent.id))
     # If there are any access requirements, don't copy files
     if access_requirements['results']:
-        print("{} not copied".format(ent.id))
+        print("{} not copied - this file has access restrictions".format(ent.id))
         return mapping
     copiedId = None
 
