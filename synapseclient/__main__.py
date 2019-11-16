@@ -37,23 +37,32 @@ Optional arguments
 
 Commands
 ========
-  * **login**            - login to Synapse and (optionally) cache credentials
   * **get**              - download an entity and associated data
+  * **sync**             - Synchronize files described in a manifest to Synapse
+  * **store**            - uploads and adds a file to Synapse
+  * **store-table**      - uploads a table to Syanpse given a csv
   * **add**              - add or modify content to Synapse
-  * **delete**           - removes a dataset from Synapse
   * **mv**               - move a dataset in Synapse
   * **cp**               - copy an entity/dataset in Synapse
+  * **associate**        - Associate local files with the files stored in Synapse so
+                           that calls to 'syntapse get' and 'synapse show' don't
+                           re-download the files, but use the already existing file.
+  * **delete**           - removes a dataset from Synapse
   * **query**            - performs SQL like queries on Synapse
   * **submit**           - submit an entity for evaluation
+  * **show**             - displays information about a Entity
+  * **cat**              - prints a dataset from Synapse
+  * **list**             - List Synapse entities contained by the given Project or
+                           Folder. Note: May not be supported in future versions of
+                           the client.
   * **set-provenance**   - create provenance records
   * **get-provenance**   - show provenance records
   * **set-annotations**  - create annotations
   * **get-annotations**  - show annotations
+  * **create**           - Creates folders or projects on Synapse
   * **onweb**            - opens Synapse website for Entity
-  * **show**             - displays information about a Entity
-
-A few more commands (cat, create, update, associate)
-
+  * **login**            - login to Synapse and (optionally) cache credentials
+  * **test-encoding**    - test character encoding to help diagnose problems
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -169,6 +178,10 @@ def store(args, syn):
     args.file = args.FILE if args.FILE is not None else args.file
     args.type = 'FileEntity' if args.type == 'File' else args.type
 
+    # Since force_version defaults to True, negate to determine what
+    # forceVersion action should be
+    force_version = not args.noForceVersion
+
     if args.id is not None:
         entity = syn.get(args.id, downloadFile=False)
     else:
@@ -183,7 +196,8 @@ def store(args, syn):
 
     used = syn._convertProvenanceList(args.used, args.limitSearch)
     executed = syn._convertProvenanceList(args.executed, args.limitSearch)
-    entity = syn.store(entity, used=used, executed=executed)
+    entity = syn.store(entity, used=used, executed=executed,
+                       forceVersion=force_version)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
@@ -297,9 +311,12 @@ def create(args, syn):
     _descriptionFile_arg_check(args)
 
     entity = {'name': args.name,
-              'parentId': args.parentid,
               'concreteType': 'org.sagebionetworks.repo.model.%s' % args.type}
-    entity = syn.createEntity(entity)
+
+    if args.parentid is not None:
+        entity['parentId'] = args.parentid
+
+    entity = syn.store(entity)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
@@ -393,6 +410,15 @@ def getAnnotations(args, syn):
         with open(args.output, 'w') as f:
             f.write(json.dumps(annotations))
             f.write('\n')
+
+
+def storeTable(args, syn):
+    """Store table given csv"""
+    table = synapseclient.table.build_table(args.name,
+                                            args.parentid,
+                                            args.csv)
+    table_ent = syn.store(table)
+    print('{"tableId": "%s"}' % table_ent.tableId)
 
 
 def submit(args, syn):
@@ -552,7 +578,8 @@ def build_parser():
     parser_store.add_argument('--limitSearch', metavar='projId', type=str,
                               help='Synapse ID of a container such as project or folder to limit search for provenance '
                                    'files.')
-
+    parser_store.add_argument('--noForceVersion', action='store_true',
+                              help='Do not force a new version to be created if the contents of the file have not changed. The default is a new version is created.')  # noqa: E501
     parser_store.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
                               help="Annotations to add as a JSON formatted string, should evaluate to a dictionary "
                                    "(key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
@@ -593,6 +620,8 @@ def build_parser():
     parser_add.add_argument('--limitSearch', metavar='projId', type=str,
                             help='Synapse ID of a container such as project or folder to limit search for provenance '
                                  'files.')
+    parser_add.add_argument('--noForceVersion', action='store_true',
+                            help='Do not force a new version to be created if the contents of the file have not changed. The default is a new version is created.')  # noqa: E501
     parser_add.add_argument('--annotations', metavar='ANNOTATIONS', type=str, required=False, default=None,
                             help="Annotations to add as a JSON formatted string, should evaluate to a dictionary "
                                  "(key/value pairs). Example: '{\"foo\": 1, \"bar\":\"quux\"}'")
@@ -803,6 +832,20 @@ def build_parser():
     # parser_update.add_argument('file', type=str,
     #         help='file to be added to synapse.')
     # parser_update.set_defaults(func=update)
+
+    parser_store_table = subparsers.add_parser('store-table',
+                                               help='Creates a Synapse Table given a csv')
+    parser_store_table.add_argument('--name', metavar='NAME', type=str,
+                                    required=True, help='Name of Table')
+    parser_store_table.add_argument('--parentid', '--parentId',
+                                    metavar='syn123', type=str,
+                                    dest='parentid', required=False,
+                                    help='Synapse ID of project')
+    parser_store_table.add_argument('--csv',
+                                    metavar='foo.csv', type=str,
+                                    required=False,
+                                    help='Path to csv')
+    parser_store_table.set_defaults(func=storeTable)
 
     parser_onweb = subparsers.add_parser('onweb',
                                          help='opens Synapse website for Entity')

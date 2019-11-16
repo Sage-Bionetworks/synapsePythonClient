@@ -1,6 +1,6 @@
 {
   "client":"synapsePythonClient",
-  "latestVersion":"1.9.3",
+  "latestVersion":"1.9.4",
   "blacklist":["0.0.0", "0.4.1", "0.4.0", "0.3.0", "0.2.1", "0.2.0", "0.1.4"],
   "releaseNotes":"https://python-docs.synapse.org/build/html/news.html"
 }
