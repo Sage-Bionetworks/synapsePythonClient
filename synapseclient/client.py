@@ -2290,7 +2290,7 @@ class Synapse(object):
             not_sent_reason = ("invitee already has an open invitation "
                                "Set force=True to send new invite.")
 
-        self.logger.info("No invitation sent: {}".format(not_sent_reason))
+        self.logger.warning("No invitation sent: {}".format(not_sent_reason))
         # Return None if no invite is sent.
         return None
 
