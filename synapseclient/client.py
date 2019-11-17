@@ -194,8 +194,8 @@ class Synapse(object):
 
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
-                 debug=None, skip_checks=False, configPath=CONFIG_FILE):
-        self._requests_session = requests.Session()
+                 debug=None, skip_checks=False, configPath=CONFIG_FILE, session=requests.Session()):
+        self._requests_session = session
 
         cache_root_dir = cache.CACHE_ROOT_DIR
 
