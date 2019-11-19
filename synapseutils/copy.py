@@ -195,6 +195,10 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
 
     profile_username = syn.username
     permissions = syn.getPermissions(ent, profile_username)
+    # Must check if authenticated users are added in the permission list
+    registered_permissions = syn.getPermissions(ent,
+                                                synapseclient.AUTHENTICATED_USERS)
+    permissions.append(registered_permissions)
     # Don't copy entities without DOWNLOAD permissions
     if "DOWNLOAD" not in permissions:
         print("%s not copied - this file lacks download permission" % ent.id)

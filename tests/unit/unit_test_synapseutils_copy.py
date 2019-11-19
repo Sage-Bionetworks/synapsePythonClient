@@ -9,7 +9,7 @@ from nose.tools import assert_raises, assert_equals
 import unit
 import uuid
 
-from synapseclient import Project, File
+from synapseclient import Project, File, AUTHENTICATED_USERS
 import synapseutils
 
 def setup(module):
@@ -72,8 +72,9 @@ class TestCopyPermissions:
             assert_equals(copied_file, dict())
             patch_syn_get.assert_called_once_with(self.file_ent,
                                                   downloadFile=False)
-            patch_syn_permissions.assert_called_once_with(self.file_ent,
-                                                          syn.username)
+            calls = [call(self.file_ent, syn.username),
+                     call(self.file_ent, AUTHENTICATED_USERS)]
+            patch_syn_permissions.assert_has_calls(calls)
 
 
 class TestCopyAccessRestriction:
@@ -101,7 +102,7 @@ class TestCopyAccessRestriction:
             patch_syn_get.assert_called_once_with(self.file_ent,
                                                   downloadFile=False)
             patch_restget.assert_called_once_with('/entity/{}/accessRequirement'.format(self.file_ent.id))
-
+            patch_syn_permissions.call_count == 2
 
 class TestCopy:
     """Test that entities with access restrictions aren't copied"""
