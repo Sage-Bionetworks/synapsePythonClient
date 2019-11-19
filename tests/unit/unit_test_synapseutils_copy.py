@@ -105,7 +105,7 @@ class TestCopyAccessRestriction:
             patch_syn_permissions.call_count == 2
 
 class TestCopy:
-    """Test that entities with access restrictions aren't copied"""
+    """Test that certain entities aren't copied"""
     def setup(self):
         self.project_entity = Project(name=str(uuid.uuid4()), id="syn1234")
         self.second_project = Project(name=str(uuid.uuid4()), id="syn2345")
@@ -135,3 +135,31 @@ class TestCopy:
             patch_get_children.assert_called_once_with(self.project_entity,
                                                        includeTypes=['folder', 'file',
                                                                      'table', 'link'])
+
+    def test_authenticated_user_download(self):
+        """Test that having download permission on registered Synapse users
+        will initiate download"""
+        access_requirements = {'results': []}
+        permissions = []
+        authen_user_perms = ['DOWNLOAD']
+        total_perms = [permissions, authen_user_perms]
+        with patch.object(syn, "get",
+                          return_value=self.project_entity) as patch_syn_get,\
+             patch.object(syn, "getPermissions",
+                          side_effect=total_perms) as patch_syn_permissions,\
+             patch.object(syn, "restGET",
+                          return_value=access_requirements) as patch_restget,\
+             patch.object(syn, "getChildren") as patch_get_children:
+            copied_file = synapseutils.copy(syn, self.project_entity,
+                                            destinationId=self.second_project.id,
+                                            skipCopyWikiPage=True)
+            assert_equals(copied_file, {self.project_entity.id:
+                                        self.second_project.id})
+            calls = [call(self.project_entity, downloadFile=False),
+                     call(self.second_project.id)]
+            patch_syn_get.assert_has_calls(calls)
+            patch_restget.assert_called_once_with('/entity/{}/accessRequirement'.format(self.project_entity.id))
+            patch_get_children.assert_called_once_with(self.project_entity,
+                                                       includeTypes=['folder', 'file',
+                                                                     'table', 'link'])
+            patch_syn_permissions.call_count = 2
