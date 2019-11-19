@@ -99,7 +99,9 @@ class TestCopyAccessRestriction:
             assert_equals(copied_file, dict())
             patch_syn_get.assert_called_once_with(self.file_ent,
                                                   downloadFile=False)
-            # patch_rest_get.assert_called_once_with('/entity/{}/accessRequirement'.format(self.file_ent.id))
+            calls = [call('/entity/{}/accessRequirement'.format(self.file_ent.id)),
+                     call("/entity/{}/permissions".format(self.file_ent.id))]
+            patch_rest_get.has_calls(calls)
 
 
 class TestCopy:
@@ -128,7 +130,9 @@ class TestCopy:
             calls = [call(self.project_entity, downloadFile=False),
                      call(self.second_project.id)]
             patch_syn_get.assert_has_calls(calls)
-            # patch_restget.assert_called_once_with('/entity/{}/accessRequirement'.format(self.project_entity.id))
+            calls = [call('/entity/{}/accessRequirement'.format(self.file_ent.id)),
+                     call("/entity/{}/permissions".format(self.file_ent.id))]
+            patch_rest_get.has_calls(calls)
             patch_get_children.assert_called_once_with(self.project_entity,
                                                        includeTypes=['folder', 'file',
                                                                      'table', 'link'])
