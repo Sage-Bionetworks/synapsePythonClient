@@ -10,6 +10,7 @@ import math
 import os
 import sys
 import tempfile
+import time
 from builtins import zip
 from mock import MagicMock
 from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_in, assert_sequence_equal,\
@@ -25,10 +26,11 @@ from synapseclient.entity import split_entity_namespaces
 from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, cast_values, \
     as_table_columns, Table, build_table, RowSet, SelectColumn, EntityViewSchema, RowSetTable, Row, PartialRow, \
     PartialRowset, SchemaBase, _get_view_type_mask_for_deprecated_type, EntityViewType, _get_view_type_mask
+from synapseclient.utils import from_unix_epoch_time
 from mock import patch
 from collections import OrderedDict
 from .unit_utils import StringIOContextManager
-
+from datetime import  datetime
 
 def setup(module):
     module.syn = unit.syn
@@ -97,10 +99,10 @@ def test_cast_values__list_type():
                      {'id': '358',
                       'name': 'boom',
                       'columnType': 'DATE_LIST'}]
-
-    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]', '[1231232,345353345]')
+    now_millis = round(time.time() * 1000);
+    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]', '['+ str(now_millis) +']')
     assert_equals(cast_values(row, selectColumns),
-                  [["foo", "bar"], [1,2,3], [True, False], [1231232,345353345]])
+                  [["foo", "bar"], [1,2,3], [True, False], [from_unix_epoch_time(now_millis)]])
 
 
 

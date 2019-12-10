@@ -530,8 +530,10 @@ def cast_values(values, headers):
             result.append(to_boolean(field))
         elif columnType == 'DATE':
             result.append(from_unix_epoch_time(field))
-        elif columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST', 'DATE_LIST'}:
+        elif columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
             result.append(json.loads(field))
+        elif columnType == 'DATE_LIST':
+            result.append(json.loads(field, parse_int=from_unix_epoch_time))
         else:
             # default to string for unknown column type
             result.append(field)
