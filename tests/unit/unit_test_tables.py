@@ -70,6 +70,39 @@ def test_cast_values():
     row = ('true', '211', '1.61803398875', '1421365')
     assert_equals(cast_values(row, selectColumns), [True, 211, 1.61803398875, 1421365])
 
+def test_cast_values__unknown_column_type():
+    selectColumns = [{'id': '353',
+                      'name': 'name',
+                      'columnType': 'INTEGER'},
+                     {'id': '354',
+                      'name': 'foo',
+                      'columnType': 'DEFINTELY_NOT_A_EXISTING_TYPE'},
+                    ]
+
+    row = ('123', 'othervalue')
+    assert_equals(cast_values(row, selectColumns),
+                  [123, 'othervalue'])
+
+
+def test_cast_values__list_type():
+    selectColumns = [{'id': '354',
+                      'name': 'foo',
+                      'columnType': 'STRING_LIST'},
+                     {'id': '356',
+                      'name': 'n',
+                      'columnType': 'INTEGER_LIST'},
+                     {'id': '357',
+                      'name': 'bonk',
+                      'columnType': 'BOOLEAN_LIST'},
+                     {'id': '358',
+                      'name': 'boom',
+                      'columnType': 'DATE_LIST'}]
+
+    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]', '[1231232,345353345]')
+    assert_equals(cast_values(row, selectColumns),
+                  [["foo", "bar"], [1,2,3], [True, False], [1231232,345353345]])
+
+
 
 def test_schema():
     schema = Schema(name='My Table', parent="syn1000001")
