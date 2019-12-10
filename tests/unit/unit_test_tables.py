@@ -99,7 +99,7 @@ def test_cast_values__list_type():
                      {'id': '358',
                       'name': 'boom',
                       'columnType': 'DATE_LIST'}]
-    now_millis = round(time.time() * 1000);
+    now_millis = int(round(time.time() * 1000));
     row = ('["foo", "bar"]', '[1,2,3]', '[true, false]', '['+ str(now_millis) +']')
     assert_equals(cast_values(row, selectColumns),
                   [["foo", "bar"], [1,2,3], [True, False], [from_unix_epoch_time(now_millis)]])
