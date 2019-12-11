@@ -29,10 +29,8 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 """
 import configparser
 import collections
-import os
 import errno
 import sys
-import time
 import hashlib
 import webbrowser
 import shutil
@@ -41,7 +39,6 @@ import mimetypes
 import tempfile
 import warnings
 import getpass
-import json
 import logging
 import urllib.parse as urllib_urlparse
 
@@ -55,6 +52,7 @@ from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import SchemaBase, Column, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
+from .producer_consumer_download_threads import *
 from synapseclient.core import cache, exceptions
 from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
@@ -93,7 +91,7 @@ PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 REDIRECT_LIMIT = 5
-
+NUM_THREADS = 14
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
@@ -199,6 +197,7 @@ class Synapse(object):
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
+        self.multi_threaded = False
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
@@ -540,12 +539,14 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
-    def get(self, entity, **kwargs):
+    def get(self, entity, multi_threaded=False, **kwargs):
         """
         Gets a Synapse entity from the repository service.
 
         :param entity:           A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a
                                  Synapse ID or a local file that is stored in Synapse (found by the file MD5)
+        :param multi_threaded:   Whether to use multiple threads for downloads.
+                                 Defaults to False.
         :param version:          The specific version to get.
                                  Defaults to the most recent version.
         :param downloadFile:     Whether associated files(s) should be downloaded.
@@ -580,6 +581,8 @@ class Synapse(object):
            print(syn.getProvenance(entity))
 
         """
+        # Sets multi_threaded to True if passed (optional parameter), else False (by default)
+        self.multi_threaded = multi_threaded
 
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
@@ -1605,8 +1608,20 @@ class Synapse(object):
                                                                     fileHandle['fileKey'], destination,
                                                                     profile_name=profile)
                 else:
-                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'], destination, fileHandle['id'],
-                                                              expected_md5=fileHandle.get('contentMd5'))
+                    if self.multi_threaded:
+                        expected_md5 = fileHandle.get('contentMd5')
+                        url = fileResult['preSignedURL']
+                        downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
+                                                                                 objectId,
+                                                                                 objectType,
+                                                                                 destination,
+                                                                                 url,
+                                                                                 expected_md5=expected_md5)
+                    else:
+                        downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
+                                                                  destination,
+                                                                  fileHandle['id'],
+                                                                  expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
             except Exception as ex:
@@ -1622,6 +1637,59 @@ class Synapse(object):
 
         raise Exception("should not reach this line")
 
+    def _download_from_url_multi_threaded(self,
+                                          file_handle_id,
+                                          object_id,
+                                          object_type,
+                                          destination,
+                                          url,
+                                          expected_md5=None):
+        destination = os.path.abspath(destination)
+        actual_md5 = None
+        redirect_count = 0
+        delete_on_md5_mismatch = True
+        scheme = urllib_urlparse.urlparse(url).scheme
+        if scheme == 'http' or scheme == 'https':
+            request = DownloadRequest(file_handle_id=int(file_handle_id),
+                                      object_id=object_id,
+                                      object_type=object_type,
+                                      path=destination)
+            download_files(self, [request], NUM_THREADS)
+        else:
+            while redirect_count < REDIRECT_LIMIT:
+                redirect_count += 1
+                if scheme == 'file':
+                    delete_on_md5_mismatch = False
+                    destination = utils.file_url_to_path(url, verify_exists=True)
+                    if destination is None:
+                        raise IOError("Local file (%s) does not exist." % url)
+                    break
+                elif scheme == 'sftp':
+                    username, password = self._getUserCredentials(url)
+                    destination = SFTPWrapper.download_file(url, destination, username, password)
+                    break
+                elif scheme == 'ftp':
+                    urllib_urlparse.urlretrieve(url, destination)
+                    break
+                else:
+                    self.logger.error('Unable to download URLs of type %s' % scheme)
+                    return None
+
+            else:  # didn't break out of loop
+                raise SynapseHTTPError('Too many redirects')
+
+        if actual_md5 is None:  # if md5 not set (should be the case for all except http download)
+            actual_md5 = utils.md5_for_file(destination).hexdigest()
+
+        # check md5 if given
+        if expected_md5 and actual_md5 != expected_md5:
+            if delete_on_md5_mismatch and os.path.exists(destination):
+                os.remove(destination)
+            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                                          " {expected_md5}".format(filename=destination, md5=actual_md5,
+                                                                   expected_md5=expected_md5))
+        return destination
+
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
         """
         Download a file from the given URL to the local file system.
@@ -1635,7 +1703,6 @@ class Synapse(object):
 
         :returns: path to downloaded file
         """
-
         destination = os.path.abspath(destination)
         actual_md5 = None
         redirect_count = 0

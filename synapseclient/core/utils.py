@@ -601,7 +601,7 @@ def printTransferProgress(transferred, toBeTransferred, prefix='', postfix='', i
     :param transferred:             a number of items/bytes completed
     :param toBeTransferred:         total number of items/bytes when completed
     :param prefix:                  String printed before progress bar
-    :param prefix:                  String printed after progress bar
+    :param postfix:                 String printed after progress bar
     :param isBytes:                 A boolean indicating whether to convert bytes to kB, MB, GB etc.
     :param dt:                      The time in seconds that has passed since transfer started is used to calculate rate
     :param previouslyTransferred:   the number of bytes that were already transferred before this transfer began
