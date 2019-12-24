@@ -1104,16 +1104,19 @@ class Synapse(object):
         """
         Removes an object from Synapse.
 
-        :param obj:         An existing object stored on Synapse such as Evaluation, File, Project, or Wiki
-        :param version:     For entities, specify a particular version to delete.
+        :param obj:         An existing object stored on Synapse such as
+                            Evaluation, File, Project, or Wiki
+        :param version:     For entities, specify a particular version to
+                            delete.
 
         """
         # Handle all strings as the Entity ID for backward compatibility
         if isinstance(obj, str):
             if version:
-                self.restDELETE(uri='/entity/%s/version/%s' % (id_of(obj), version))
+                self.restDELETE(uri='/entity/{}/version/{}'.format(id_of(obj),
+                                                                   version))
             else:
-                self.restDELETE(uri='/entity/%s' % id_of(obj))
+                self.restDELETE(uri='/entity/{}'.format(id_of(obj)))
         elif hasattr(obj, "_synapse_delete"):
             return obj._synapse_delete(self)
         else:
@@ -1123,8 +1126,8 @@ class Synapse(object):
                 else:
                     self.restDELETE(obj.deleteURI())
             except AttributeError:
-                SynapseError("Can't delete a %s" % type(obj))
-
+                raise SynapseError("Can't delete a {}. Please specify a "
+                                   "Synapse object or id".format(type(obj)))
 
     _user_name_cache = {}
 
