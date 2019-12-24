@@ -40,7 +40,7 @@ setuptools.setup(
     ],
     extras_require={
         'pandas': ["pandas==0.23.0"],
-        'pysftp': ["pysftp==0.2.8"],
+        'pysftp': ["pysftp==0.2.9"],
         'boto3' : ["boto3==2.49.0"],
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
     },
