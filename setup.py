@@ -4,8 +4,8 @@ import sys
 from os.path import expanduser, exists
 
 # check Python version, before we do anything
-if sys.version_info[:2] not in [(2, 7), (3, 5), (3, 6), (3, 7)]:
-    sys.stderr.write("The Synapse Client for Python requires Python 2.7, 3.5, 3.6, or 3.7.\n")
+if sys.version_info[:2] not in [(2, 7), (3, 5), (3, 6), (3, 7), (3, 8)]:
+    sys.stderr.write("The Synapse Client for Python requires Python 2.7, 3.5, 3.6, 3.7, or 3.8.\n")
     sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
     sys.exit(-1)
 
