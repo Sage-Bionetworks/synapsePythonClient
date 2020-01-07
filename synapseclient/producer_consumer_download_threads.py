@@ -1,7 +1,7 @@
+import time
 from queue import Queue
 from threading import Thread, Lock
 from typing import Generator, Sequence
-from time import time
 from datetime import datetime
 from math import ceil
 from urllib.parse import urlparse, parse_qs
@@ -137,7 +137,7 @@ class ConsumerDownloadThread(Thread):
             global transferred
             with lock:
                 transferred += len(data)
-            printTransferProgress(transferred, to_be_transferred, 'Downloading ', basename(path), dt=time()-t0)
+            printTransferProgress(transferred, to_be_transferred, 'Downloading ', basename(path), dt=time.time()-t0)
 
 
 def download_files(client,
@@ -184,7 +184,7 @@ def download_files(client,
         transferred = 0
 
         global t0
-        t0 = time()
+        t0 = time.time()
 
         for chunk in pre_signed_url_chunk_generator:
             range_queue.put(chunk)
