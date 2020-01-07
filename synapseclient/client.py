@@ -41,7 +41,8 @@ import warnings
 import getpass
 import logging
 import urllib.parse as urllib_urlparse
-
+import json
+import os
 
 import synapseclient
 from .annotations import from_synapse_annotations, to_synapse_annotations
@@ -197,7 +198,7 @@ class Synapse(object):
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
-        self.multi_threaded = False
+        self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
@@ -539,14 +540,12 @@ class Synapse(object):
     #                   Get / Store methods                    #
     ############################################################
 
-    def get(self, entity, multi_threaded=False, **kwargs):
+    def get(self, entity, **kwargs):
         """
         Gets a Synapse entity from the repository service.
 
         :param entity:           A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a
                                  Synapse ID or a local file that is stored in Synapse (found by the file MD5)
-        :param multi_threaded:   Whether to use multiple threads for downloads.
-                                 Defaults to False.
         :param version:          The specific version to get.
                                  Defaults to the most recent version.
         :param downloadFile:     Whether associated files(s) should be downloaded.
@@ -581,9 +580,6 @@ class Synapse(object):
            print(syn.getProvenance(entity))
 
         """
-        # Sets multi_threaded to True if passed (optional parameter), else False (by default)
-        self.multi_threaded = multi_threaded
-
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
             bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
@@ -1646,7 +1642,6 @@ class Synapse(object):
                                           expected_md5=None):
         destination = os.path.abspath(destination)
         actual_md5 = None
-        redirect_count = 0
         delete_on_md5_mismatch = True
         scheme = urllib_urlparse.urlparse(url).scheme
         if scheme == 'http' or scheme == 'https':
@@ -1656,27 +1651,7 @@ class Synapse(object):
                                       path=destination)
             download_files(self, [request], NUM_THREADS)
         else:
-            while redirect_count < REDIRECT_LIMIT:
-                redirect_count += 1
-                if scheme == 'file':
-                    delete_on_md5_mismatch = False
-                    destination = utils.file_url_to_path(url, verify_exists=True)
-                    if destination is None:
-                        raise IOError("Local file (%s) does not exist." % url)
-                    break
-                elif scheme == 'sftp':
-                    username, password = self._getUserCredentials(url)
-                    destination = SFTPWrapper.download_file(url, destination, username, password)
-                    break
-                elif scheme == 'ftp':
-                    urllib_urlparse.urlretrieve(url, destination)
-                    break
-                else:
-                    self.logger.error('Unable to download URLs of type %s' % scheme)
-                    return None
-
-            else:  # didn't break out of loop
-                raise SynapseHTTPError('Too many redirects')
+            self._download_from_URL(url, destination, fileHandleId=file_handle_id, expected_md5=expected_md5)
 
         if actual_md5 is None:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(destination).hexdigest()
