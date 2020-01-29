@@ -937,8 +937,6 @@ class Synapse(object):
 
             # Check if the File already exists in Synapse by fetching metadata on it
             bundle = self._getEntityBundle(entity)
-            if bundle and 'entity' in bundle:
-                properties.update(bundle['entity'])
 
             if bundle:
                 # Check if the file should be uploaded
