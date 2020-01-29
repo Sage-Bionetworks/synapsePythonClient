@@ -982,7 +982,9 @@ class Synapse(object):
             # update the file_handle metadata if the FileEntity's FileHandle id has changed
             if '_file_handle' in local_state \
                     and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
-                local_state['_file_handle'] = find_data_file_handle(self._getEntityBundle(properties['id'], bitFlags=0x800|0x1))
+                local_state['_file_handle'] = find_data_file_handle(
+                    self._getEntityBundle(properties['id'], bitFlags=0x800 | 0x1)
+                )
 
                 # check if we already have the filehandleid cached somewhere
                 cached_path = self.cache.get(properties['dataFileHandleId'])
