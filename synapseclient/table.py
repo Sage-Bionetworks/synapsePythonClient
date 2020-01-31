@@ -559,6 +559,7 @@ def _csv_to_pandas_df(filepath,
                       contain_headers=True,
                       lines_to_skip=0,
                       date_columns=None,
+                      list_columns=None,
                       rowIdAndVersionInIndex=True):
     test_import_pandas()
     import pandas as pd
@@ -580,6 +581,11 @@ def _csv_to_pandas_df(filepath,
                      skiprows=lines_to_skip,
                      parse_dates=date_columns,
                      date_parser=datetime_millisecond_parser)
+    # Turn list columns into lists
+    if list_columns:
+        for col in list_columns:
+            df[col] = df[col].apply(json.loads)
+
     if rowIdAndVersionInIndex and "ROW_ID" in df.columns and "ROW_VERSION" in df.columns:
         # combine row-ids (in index) and row-versions (in column 0) to
         # make new row labels consisting of the row id and version
@@ -1848,7 +1854,10 @@ class CsvFileTable(TableAbstractBaseClass):
                 for select_column in self.headers:
                     if select_column.columnType == "DATE":
                         date_columns.append(select_column.name)
-
+            list_columns = []
+            for select_column in self.headers:
+                if select_column.columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
+                    list_columns.append(select_column.name)
             # assign line terminator only if for single character
             # line terminators (e.g. not '\r\n') 'cause pandas doesn't
             # longer line terminators. See:
@@ -1861,6 +1870,7 @@ class CsvFileTable(TableAbstractBaseClass):
                                      contain_headers=self.header,
                                      lines_to_skip=self.linesToSkip,
                                      date_columns=date_columns,
+                                     list_columns=list_columns,
                                      rowIdAndVersionInIndex=rowIdAndVersionInIndex)
         except pd.parser.CParserError:
             return pd.DataFrame()
