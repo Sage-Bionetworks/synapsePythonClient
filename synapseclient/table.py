@@ -297,6 +297,8 @@ import itertools
 import collections
 import abc
 import enum
+import json
+from builtins import zip
 
 from synapseclient.core.utils import id_of, from_unix_epoch_time
 from synapseclient.core.exceptions import *
@@ -315,11 +317,6 @@ DTYPE_2_TABLETYPE = {'?': 'BOOLEAN',
                      'a': 'STRING', 'p': 'INTEGER', 'M': 'DATE'}
 
 MAX_NUM_TABLE_COLUMNS = 152
-
-# allowed column types
-# see https://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/ColumnType.html
-ColumnTypes = {'STRING', 'DOUBLE', 'INTEGER', 'BOOLEAN', 'DATE', 'FILEHANDLEID', 'ENTITYID', 'LINK', 'LARGETEXT',
-               'USERID'}
 
 
 DEFAULT_QUOTE_CHARACTER = '"'
@@ -510,8 +507,13 @@ def cast_values(values, headers):
             result.append(to_boolean(field))
         elif columnType == 'DATE':
             result.append(from_unix_epoch_time(field))
+        elif columnType in {'STRING_LIST', 'INTEGER_LIST', 'BOOLEAN_LIST'}:
+            result.append(json.loads(field))
+        elif columnType == 'DATE_LIST':
+            result.append(json.loads(field, parse_int=from_unix_epoch_time))
         else:
-            raise ValueError("Unknown column type: %s" % columnType)
+            # default to string for unknown column type
+            result.append(field)
 
     return result
 
@@ -888,8 +890,6 @@ class SelectColumn(DictObject):
             self.name = name
 
         if columnType:
-            if columnType not in ColumnTypes:
-                raise ValueError('Unrecognized columnType: %s' % columnType)
             self.columnType = columnType
 
         # Notes that this param is only used to support forward compatibility.

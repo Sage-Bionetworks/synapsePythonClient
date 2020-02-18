@@ -5,8 +5,8 @@ import os
 import setuptools
 
 # check Python version, before we do anything
-if sys.version_info[:2] not in [(3, 5), (3, 6), (3, 7)]:
-    sys.stderr.write("The Synapse Client for Python requires Python 3.5, 3.6, or 3.7.\n")
+if sys.version_info.major < 3 and sys.version_info.minor < 5:
+    sys.stderr.write("The Synapse Client for Python requires Python 3.5+\n")
     sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
     sys.exit(-1)
 

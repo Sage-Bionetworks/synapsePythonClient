@@ -1,6 +1,47 @@
 =============
 Release Notes
 =============
+
+1.9.4 (2019-06-28)
+==================
+
+Bug
+===
+
+-  [`SYNPY-881 <https://sagebionetworks.jira.com/browse/SYNPY-881>`__] -
+   Synu.copy fails when copying a file with READ permissions
+-  [`SYNPY-888 <https://sagebionetworks.jira.com/browse/SYNPY-888>`__] -
+   Docker repositories cannot be copied
+-  [`SYNPY-927 <https://sagebionetworks.jira.com/browse/SYNPY-927>`__] -
+   trying to create a project with name that already exists hangs
+-  [`SYNPY-1005 <https://sagebionetworks.jira.com/browse/SYNPY-1005>`__]
+   - cli docs missing sub-commands
+-  [`SYNPY-1018 <https://sagebionetworks.jira.com/browse/SYNPY-1018>`__]
+   - Synu.copy shouldn't copy any files with access restrictions
+
+New Feature
+===========
+
+-  [`SYNPY-851 <https://sagebionetworks.jira.com/browse/SYNPY-851>`__] -
+   invite user or list of users to a team
+
+Improvement
+===========
+
+-  [`SYNPY-608 <https://sagebionetworks.jira.com/browse/SYNPY-608>`__] -
+   Add how to contribute md to github project
+-  [`SYNPY-735 <https://sagebionetworks.jira.com/browse/SYNPY-735>`__] -
+   command line for building a table
+-  [`SYNPY-864 <https://sagebionetworks.jira.com/browse/SYNPY-864>`__] -
+   docstring for the command line client doesn't have complete list of
+   sub-commands available
+-  [`SYNPY-926 <https://sagebionetworks.jira.com/browse/SYNPY-926>`__] -
+   allow forceVersion false for command line client
+-  [`SYNPY-1013 <https://sagebionetworks.jira.com/browse/SYNPY-1013>`__]
+   - Documentation of "store" command for Synapse command line client
+-  [`SYNPY-1021 <https://sagebionetworks.jira.com/browse/SYNPY-1021>`__]
+   - change email contact for code of conduct
+
 1.9.3 (2019-06-28)
 ==================
 
