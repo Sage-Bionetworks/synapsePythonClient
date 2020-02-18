@@ -24,7 +24,7 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
     MAX_NUM_TABLE_COLUMNS
 from tests import unit
 
-from synapseclient.utils import from_unix_epoch_time
+from synapseclient.core.utils import from_unix_epoch_time
 from mock import patch
 from collections import OrderedDict
 from .unit_utils import StringIOContextManager
