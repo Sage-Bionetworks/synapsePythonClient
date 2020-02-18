@@ -2022,7 +2022,7 @@ class Synapse(object):
             if isinstance(id, str):
                 for team in self._findTeam(id):
                     if team.name == id:
-                        id = team.id
+                        teamid = team.id
                         break
                 else:
                     raise ValueError("Can't find team \"{}\"".format(teamid))
