@@ -12,7 +12,7 @@ from nose.tools import assert_raises, assert_not_equals, assert_false, assert_no
     assert_true, assert_is_none, assert_is_instance, raises, assert_equals
 import pandas as pd
 
-from tests.unit.synapseclient.core.unit_utils import StringIOContextManager
+from tests.unit.test_utils.unit_utils import StringIOContextManager
 
 from synapseclient import *
 from synapseclient.core.exceptions import *
@@ -27,7 +27,6 @@ from tests import unit
 from synapseclient.core.utils import from_unix_epoch_time
 from mock import patch
 from collections import OrderedDict
-from .unit_utils import StringIOContextManager
 
 def setup(module):
     module.syn = unit.syn
