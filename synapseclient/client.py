@@ -89,7 +89,7 @@ from .activity import Activity
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from .dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass
+from .table import Schema, SchemaBase, Column, TableQueryResult, CsvFileTable, TableAbstractBaseClass, EntityViewSchema
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
 from .retry import _with_retry
@@ -2811,6 +2811,60 @@ class Synapse(object):
                 yield Column(**result)
         else:
             ValueError("Can't get columns for a %s" % type(x))
+
+    def create_snapshot(self, table, comment=None, label=None, activity=None):
+        """Creates Table or EntityView snapshots"""
+        ent = self.get(tableid, downloadFile=False)
+        if isinstance(ent, EntityViewSchema):
+            self._update_entityview(table, create_snapshot=True,
+                                    comment=comment, label=label,
+                                    activity=activity)
+        elif isinstance(ent, Schema):
+            self._create_table_snapshot(table, comment=comment, label=label,
+                                        activity=activity)
+        else:
+            raise ValueError("This funciton only accept Synapse ids of Tables or EntityViews")
+
+
+    def _create_table_snapshot(self, table, comment=None, label=None, activity=None):
+        """Creates Table snapshot
+
+        :param table:  The schema of the Table
+        :param comment:  Optional snapshot comment.
+        :param label:  Optional snapshot label.
+        :param activity:  Optional activity ID applied to snapshot version.
+
+        :return:  Snapshot Response
+        """
+        snapshot_body = {"snapshotComment": comment,
+                         "snapshotLabel": label,
+                         "snapshotActivityId": activity}
+        snapshot = self.syn.restPOST("/entity/{}/table/snapshot".format(id_of(table)),
+                                     body=json.dumps(snapshot_body))
+        return snapshot
+
+    def _update_entityview(self, table, changes=[], create_snapshot=False,
+                           comment=None, label=None, activity=None):
+        """Creates entityview update, also creates snapshots
+
+        :param table:  The schema of the EntityView
+        :param changes: Array of Table changes
+        :param create_snapshot: Create snapshot
+        :param comment:  Optional snapshot comment.
+        :param label:  Optional snapshot label.
+        :param activity:  Optional activity ID applied to snapshot version.
+
+        :return:  Snapshot Response
+        """
+
+        table_update_body = {'changes': changes,
+                             'createSnapshot': create_snapshot,
+                             'snapshotOptions': {'snapshotComment': comment,
+                                                 'snapshotLabel': label,
+                                                 'snapshotActivityId': activity}}
+        snapshot = self.syn.restPOST("/entity/{}/table/transaction/async/start".format(id_of(table)),
+                                     body=json.dumps(table_update_body))
+        return snapshot
 
     def getTableColumns(self, table):
         """
