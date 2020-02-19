@@ -34,12 +34,12 @@ setuptools.setup(
     # requirements
     python_requires='>=3.5.*',
     install_requires=[
-        'requests>=2.21.0',
+        'requests>=2.22.0',
         'keyring==12.0.2',
         'deprecated==1.2.4',
     ],
     extras_require={
-        'pandas': ["pandas==0.23.0"],
+        'pandas': ["pandas==0.25.0"],
         'pysftp': ["pysftp>=0.2.8"],
         'boto3' : ["boto3"],
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
