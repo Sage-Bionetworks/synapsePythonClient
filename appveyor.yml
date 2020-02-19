@@ -1,5 +1,3 @@
-build: off
-
 environment:
     matrix:
         - PYTHON: "C:\\Python36-x64"
@@ -10,6 +8,8 @@ install:
     - "%PYTHON%\\python.exe -m pip install nose mock pysftp cython pandas boto3"
     - "cd %APPVEYOR_BUILD_FOLDER%"
     - "%PYTHON%\\python.exe setup.py install"
+
+build: off
 
 before_test:
     - IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( ssh-keyscan -t ecdsa ec2-18-209-45-78.compute-1.amazonaws.com >> %userprofile%\\.ssh\\known_hosts )
