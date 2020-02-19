@@ -2820,7 +2820,7 @@ class Synapse(object):
         :param label:  Optional snapshot label.
         :param activity:  Optional activity ID applied to snapshot version.
         """
-        ent = self.get(tableid, downloadFile=False)
+        ent = self.get(id_of(table), downloadFile=False)
         if isinstance(ent, EntityViewSchema):
             self._update_entityview(table, create_snapshot=True,
                                     comment=comment, label=label,
