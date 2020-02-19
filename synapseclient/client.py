@@ -2829,7 +2829,7 @@ class Synapse(object):
             self._create_table_snapshot(table, comment=comment, label=label,
                                         activity=activity)
         else:
-            raise ValueError("This funciton only accept Synapse ids of Tables or EntityViews")
+            raise ValueError("This function only accepts Synapse ids of Tables or EntityViews")
 
     def _create_table_snapshot(self, table, comment=None, label=None, activity=None):
         """Creates Table snapshot
