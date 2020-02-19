@@ -2813,7 +2813,13 @@ class Synapse(object):
             ValueError("Can't get columns for a %s" % type(x))
 
     def create_snapshot(self, table, comment=None, label=None, activity=None):
-        """Creates Table or EntityView snapshots"""
+        """Creates Table or EntityView snapshots
+
+        :param table:  The schema of the Table
+        :param comment:  Optional snapshot comment.
+        :param label:  Optional snapshot label.
+        :param activity:  Optional activity ID applied to snapshot version.
+        """
         ent = self.get(tableid, downloadFile=False)
         if isinstance(ent, EntityViewSchema):
             self._update_entityview(table, create_snapshot=True,
@@ -2824,7 +2830,6 @@ class Synapse(object):
                                         activity=activity)
         else:
             raise ValueError("This funciton only accept Synapse ids of Tables or EntityViews")
-
 
     def _create_table_snapshot(self, table, comment=None, label=None, activity=None):
         """Creates Table snapshot
