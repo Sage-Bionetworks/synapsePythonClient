@@ -15,10 +15,10 @@ before_test:
     - IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( ssh-keyscan -t ecdsa ec2-18-209-45-78.compute-1.amazonaws.com >> %userprofile%\\.ssh\\known_hosts )
 
 test_script:
-    - cmd: "%PYTHON%\\python.exe -m nose -s tests\\unit"
+    - cmd: "%PYTHON%\\python.exe -m nose --traverse-namespace -s tests\\unit"
     - ps: |
         if ( -Not $env:APPVEYOR_PULL_REQUEST_NUMBER ){
           openssl aes-256-cbc -K $env:encrypted_d17283647768_key -iv $env:encrypted_d17283647768_iv -in test.synapseConfig.enc -out test.synapseConfig -d
           move -force test.synapseConfig ${env:userprofile}\\.synapseConfig
         }
-    - cmd: "IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( %PYTHON%\\python.exe -m nose -s -v tests\\integration ) ELSE ( ECHO Skipping integration tests )"
+    - cmd: "IF NOT DEFINED APPVEYOR_PULL_REQUEST_NUMBER ( %PYTHON%\\python.exe -m nose --traverse-namespace -s -v tests\\integration ) ELSE ( ECHO Skipping integration tests )"
