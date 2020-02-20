@@ -5,8 +5,8 @@ import os
 import setuptools
 
 # check Python version, before we do anything
-if sys.version_info[:2] not in [(3, 5), (3, 6), (3, 7)]:
-    sys.stderr.write("The Synapse Client for Python requires Python 3.5, 3.6, or 3.7.\n")
+if sys.version_info.major < 3 and sys.version_info.minor < 5:
+    sys.stderr.write("The Synapse Client for Python requires Python 3.5+\n")
     sys.stderr.write("Your Python appears to be version %d.%d.%d\n" % sys.version_info[:3])
     sys.exit(-1)
 
@@ -34,12 +34,12 @@ setuptools.setup(
     # requirements
     python_requires='>=3.5.*',
     install_requires=[
-        'requests>=2.21.0',
+        'requests>=2.22.0',
         'keyring==12.0.2',
         'deprecated==1.2.4',
     ],
     extras_require={
-        'pandas': ["pandas==0.23.0"],
+        'pandas': ["pandas==0.25.0"],
         'pysftp': ["pysftp>=0.2.8"],
         'boto3' : ["boto3"],
         ':sys_platform=="linux2" or sys_platform=="linux"': ['keyrings.alt==3.1'],
@@ -75,12 +75,13 @@ setuptools.setup(
     classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Operating System :: MacOS',
         'Operating System :: Microsoft :: Windows',
         'Operating System :: Unix',
+        'Operating System :: POSIX :: Linux',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',
