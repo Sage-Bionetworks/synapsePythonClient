@@ -53,7 +53,7 @@ from .evaluation import Evaluation, Submission, SubmissionStatus
 from .table import SchemaBase, Column, TableQueryResult, CsvFileTable
 from .team import UserProfile, Team, TeamMember, UserGroupHeader
 from .wiki import Wiki, WikiAttachment
-from .producer_consumer_download_threads import *
+from synapseclient.core.download.producer_consumer_download_threads import *
 from synapseclient.core import cache, exceptions
 from synapseclient.core.constants import config_file_constants
 from synapseclient.core.constants import concrete_types
