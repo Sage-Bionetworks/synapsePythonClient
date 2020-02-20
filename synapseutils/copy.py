@@ -590,7 +590,7 @@ def copyWiki(syn, entity, destinationId, entitySubPageId=None, destinationSubPag
                        for filehandleId in wiki['attachmentFileHandleIds']]
             # Get rid of the previews
             nopreviews = [attach['fileHandle'] for attach in results
-                          if attach['fileHandle']['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+                          if not attach['fileHandle']['isPreview']]
             contentTypes = [attach['contentType'] for attach in nopreviews]
             fileNames = [attach['fileName'] for attach in nopreviews]
             copiedFileHandles = copyFileHandles(syn, nopreviews, ["WikiAttachment"]*len(nopreviews),
