@@ -4,15 +4,15 @@ import io
 import math
 import os
 import tempfile
-from collections import OrderedDict
 
+import time
+from builtins import zip
 from mock import MagicMock
 from nose.tools import assert_raises, assert_not_equals, assert_false, assert_not_in, assert_in, assert_sequence_equal,\
     assert_true, assert_is_none, assert_is_instance, raises, assert_equals
 import pandas as pd
-from mock import patch
 
-from tests.unit.synapseclient.core.unit_utils import StringIOContextManager
+from tests.unit.test_utils.unit_utils import StringIOContextManager
 
 from synapseclient import *
 from synapseclient.core.exceptions import *
@@ -24,7 +24,9 @@ from synapseclient.table import Column, Schema, CsvFileTable, TableQueryResult, 
     MAX_NUM_TABLE_COLUMNS
 from tests import unit
 
-
+from synapseclient.core.utils import from_unix_epoch_time
+from mock import patch
+from collections import OrderedDict
 
 def setup(module):
     module.syn = unit.syn
@@ -65,6 +67,39 @@ def test_cast_values():
                       'columnType': 'INTEGER'}]
     row = ('true', '211', '1.61803398875', '1421365')
     assert_equals(cast_values(row, selectColumns), [True, 211, 1.61803398875, 1421365])
+
+def test_cast_values__unknown_column_type():
+    selectColumns = [{'id': '353',
+                      'name': 'name',
+                      'columnType': 'INTEGER'},
+                     {'id': '354',
+                      'name': 'foo',
+                      'columnType': 'DEFINTELY_NOT_A_EXISTING_TYPE'},
+                    ]
+
+    row = ('123', 'othervalue')
+    assert_equals(cast_values(row, selectColumns),
+                  [123, 'othervalue'])
+
+
+def test_cast_values__list_type():
+    selectColumns = [{'id': '354',
+                      'name': 'foo',
+                      'columnType': 'STRING_LIST'},
+                     {'id': '356',
+                      'name': 'n',
+                      'columnType': 'INTEGER_LIST'},
+                     {'id': '357',
+                      'name': 'bonk',
+                      'columnType': 'BOOLEAN_LIST'},
+                     {'id': '358',
+                      'name': 'boom',
+                      'columnType': 'DATE_LIST'}]
+    now_millis = int(round(time.time() * 1000));
+    row = ('["foo", "bar"]', '[1,2,3]', '[true, false]', '['+ str(now_millis) +']')
+    assert_equals(cast_values(row, selectColumns),
+                  [["foo", "bar"], [1,2,3], [True, False], [from_unix_epoch_time(now_millis)]])
+
 
 
 def test_schema():

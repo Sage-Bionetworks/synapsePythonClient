@@ -100,9 +100,9 @@ class TestCopyWiki:
             new_attach = syn.getWikiAttachments(new_wikiPage)
 
             orig_file = [i['fileName'] for i in orig_attach
-                         if i['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+                         if not i['isPreview']]
             new_file = [i['fileName'] for i in new_attach
-                        if i['concreteType'] != "org.sagebionetworks.repo.model.file.PreviewFileHandle"]
+                        if  not i['isPreview']]
 
             # check that attachment file names are the same
             assert_equals(orig_file, new_file)
