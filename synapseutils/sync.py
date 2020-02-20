@@ -1,18 +1,13 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
+import csv
 import errno
 from .monitor import notifyMe
 from synapseclient.entity import is_container
-from synapseclient.utils import id_of, is_url, is_synapse_id
+from synapseclient.core.utils import id_of, is_url, is_synapse_id
 from synapseclient import File, table
-from synapseclient.exceptions import *
+from synapseclient.core.exceptions import *
 import os
 import io
 import sys
-from backports import csv
 
 REQUIRED_FIELDS = ['path', 'parent']
 FILE_CONSTRUCTOR_FIELDS = ['name', 'synapseStore', 'contentType']
@@ -202,12 +197,12 @@ def _sortAndFixProvenance(syn, df):
         allRefs = []
         if 'used' in row:
             used = row['used'].split(';') if (row['used'].strip() != '') else []  # Get None or split if string
-            df.set_value(path, 'used', [_checkProvenace(item, path) for item in used])
+            df.at[path, 'used']=[_checkProvenace(item, path) for item in used]
             allRefs.extend(df.loc[path, 'used'])
         if 'executed' in row:
             # Get None or split if string
             executed = row['executed'].split(';') if (row['executed'].strip() != '') else []
-            df.set_value(path, 'executed', [_checkProvenace(item, path) for item in executed])
+            df.at[path, 'executed'] = [_checkProvenace(item, path) for item in executed]
             allRefs.extend(df.loc[path, 'executed'])
         uploadOrder[path] = allRefs
 
@@ -248,8 +243,8 @@ def readManifestFile(syn, manifestFile):
     df = pd.read_csv(manifestFile, sep='\t')
     if 'synapseStore' not in df:
         df = df.assign(synapseStore=None)
-    df.synapseStore[df['path'].apply(is_url)] = False  # override synapseStore values to False when path is a url
-    df.synapseStore[df['synapseStore'].isnull()] = True  # remaining unset values default to True
+    df.loc[df['path'].apply(is_url), 'synapseStore'] = False  # override synapseStore values to False when path is a url
+    df.loc[df['synapseStore'].isnull(), 'synapseStore'] = True  # remaining unset values default to True
     df.synapseStore = df.synapseStore.astype(bool)
     df = df.fillna('')
 
