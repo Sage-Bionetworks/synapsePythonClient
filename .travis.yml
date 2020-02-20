@@ -4,19 +4,18 @@ language: python
 matrix:
   include:
     - os: linux
-      python: 3.5.3
-      env:
-      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
-      - PY_ENABLE_SHARD=0
-    - os: linux
-      python: 3.6.2
+      python: 3.6
       env:
       - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
       - PY_ENABLE_SHARD=0
     - os: linux
       python: 3.7
-      # travis issue with Python 3.7 https://github.com/travis-ci/travis-ci/issues/9069
-      dist: xenial
+      env:
+      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+      - PY_ENABLE_SHARD=0
+    - os: linux
+      python: 3.8
+      dist: bionic
       sudo: required
       env:
       - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
@@ -25,13 +24,13 @@ matrix:
 
     - os: osx
       language: generic
-      env: PY_VERSION=3.5.3
+      env: PY_VERSION=3.6.10
     - os: osx
       language: generic
-      env: PY_VERSION=3.6.2
+      env: PY_VERSION=3.7.6
     - os: osx
       language: generic
-      env: PY_VERSION=3.7.1
+      env: PY_VERSION=3.8.1
 
 addons:
   # This is used for SFTP integration tests
@@ -70,10 +69,10 @@ before_script:
 
 
 script:
-- nosetests -s tests/unit
+- nosetests --traverse-namespace -s tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
-    nosetests -s -v tests/integration
+    nosetests --traverse-namespace -s -v tests/integration
   else
     echo "Skipping integration tests";
   fi

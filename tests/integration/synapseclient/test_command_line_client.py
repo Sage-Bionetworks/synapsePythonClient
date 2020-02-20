@@ -77,6 +77,7 @@ def parse(regex, output):
 
 
 def test_command_line_client():
+    print("TESTING CMD LINE CLIENT")
     # Create a Project
     output = run('synapse',
                  '--skip-checks',
@@ -138,6 +139,26 @@ def test_command_line_client():
     schedule_for_cleanup(downloaded_filename)
     assert_true(os.path.exists(downloaded_filename))
     assert_true(filecmp.cmp(filename, downloaded_filename))
+
+    # Store the same file and don't force a new version
+
+    # Get the existing file to determine it's current version
+    current_file = syn.get(file_entity_id, downloadFile=False)
+    current_version = current_file.versionNumber
+
+    # Store it without forcing version
+    output = run('synapse',
+                 '--skip-checks',
+                 'store',
+                 '--noForceVersion',
+                 '--id',
+                 file_entity_id,
+                 filename)
+
+    # Get the File again and check that the version did not change
+    new_file = syn.get(file_entity_id, downloadFile=False)
+    new_version = new_file.versionNumber
+    assert_equals(current_version, new_version)
 
     # Move the file to new folder
     folder = syn.store(Folder(parentId=project_id))
@@ -889,3 +910,46 @@ def test_add__update_description():
                  update_description_text
                  )
     _description_wiki_check(output, update_description_text)
+
+
+def test_create__same_project_name():
+    """Test creating project that already exists returns the existing project.
+
+    """
+
+    name = str(uuid.uuid4())
+    output_first = run('synapse',
+                       'create',
+                       '--name',
+                       name,
+                       'Project')
+
+    entity_id_first = parse(r'Created entity:\s+(syn\d+)\s+',
+                            output_first)
+
+    schedule_for_cleanup(entity_id_first)
+
+    output_second = run('synapse',
+                        'create',
+                        '--name',
+                        name,
+                        'Project')
+
+    entity_id_second = parse(r'Created entity:\s+(syn\d+)\s+',
+                             output_second)
+
+    assert entity_id_first == entity_id_second
+
+
+def test_storeTable__csv():
+    output = run('synapse',
+                 'store-table',
+                 '--csv',
+                 desc_filename,
+                 '--name',
+                 str(uuid.uuid4()),
+                 '--parentid',
+                 project.id
+                 )
+    mapping = json.loads(output)
+    schedule_for_cleanup(mapping['tableId'])
