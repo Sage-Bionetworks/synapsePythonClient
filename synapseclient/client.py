@@ -2822,9 +2822,9 @@ class Synapse(object):
         """
         ent = self.get(id_of(table), downloadFile=False)
         if isinstance(ent, EntityViewSchema):
-            self._update_entityview(table, create_snapshot=True,
-                                    comment=comment, label=label,
-                                    activity=activity)
+            self._async_table_update(table, create_snapshot=True,
+                                     comment=comment, label=label,
+                                     activity=activity)
         elif isinstance(ent, Schema):
             self._create_table_snapshot(table, comment=comment, label=label,
                                         activity=activity)
@@ -2848,8 +2848,8 @@ class Synapse(object):
                                      body=json.dumps(snapshot_body))
         return snapshot
 
-    def _update_entityview(self, table, changes=[], create_snapshot=False,
-                           comment=None, label=None, activity=None):
+    def _async_table_update(self, table, changes=[], create_snapshot=False,
+                            comment=None, label=None, activity=None):
         """Creates entityview update, also creates snapshots
 
         :param table:  The schema of the EntityView
