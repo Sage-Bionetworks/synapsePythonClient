@@ -81,17 +81,12 @@ Wiki methods
  - :py:meth:`synapseclient.Synapse.delete`
 
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-import six
 
 import os
 import json
 
-from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of
+from synapseclient.core.models.dict_object import DictObject
+from synapseclient.core.utils import id_of
 
 
 class Wiki(DictObject):
@@ -134,7 +129,7 @@ class Wiki(DictObject):
 
     def json(self):
         """Returns the JSON representation of the Wiki object."""
-        return json.dumps({k: v for k, v in six.iteritems(self) if k in self.__PROPERTIES})
+        return json.dumps({k: v for k, v in self.items() if k in self.__PROPERTIES})
 
     def getURI(self):
         """For internal use."""
