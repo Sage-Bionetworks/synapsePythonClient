@@ -1,39 +1,34 @@
 import time
+from dataclasses import dataclass
 from queue import Queue
 from threading import Thread, Lock
-from typing import Generator, Sequence
+from typing import Generator, Sequence, NamedTuple
 from datetime import datetime
 from math import ceil
 from urllib.parse import urlparse, parse_qs
 from urllib3.util.retry import Retry
 from synapseclient.core.utils import printTransferProgress
 from synapseclient.core.exceptions import SynapseError
+from synapseclient.client import Synapse
 from requests import Session, Response
 from requests.adapters import HTTPAdapter
 from os.path import basename
+from http import HTTPStatus
 
 # constants
-BUF_SIZE = 20
-MAX_RETRIES = 5
-MB = 2**20
-SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE = 8 * MB
-ISO_AWS_STR_FORMAT = '%Y%m%dT%H%M%SZ'
-PARTIAL_CONTENT_CODE = 206
-CONNECT_FACTOR = 3
-BACK_OFF_FACTOR = 0.5
-TIME_BUFFER = 2  # offset parameter used to buffer url expiration checks, time in seconds
+MAX_QUEUE_SIZE: int = 20
+MAX_RETRIES: int = 5
+MB: int = 2**20
+SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MB
+ISO_AWS_STR_FORMAT: str = '%Y%m%dT%H%M%SZ'
+CONNECT_FACTOR: int = 3
+BACK_OFF_FACTOR: float = 0.5
+TIME_BUFFER: int = 2  # offset parameter used to buffer url expiration checks, time in seconds
 
-# transfer progress parameters
-transferred = 0
-t0 = 0
-to_be_transferred = 0
+transfer_status = None
 lock = Lock()
 
-# Sentinel object to signal producer queue is done producing
-SENTINEL = object()
-
-
-class DownloadRequest:
+class DownloadRequest(NamedTuple):
     """
     A request to download a file from Synapse
 
@@ -51,39 +46,61 @@ class DownloadRequest:
         The local path to download the file to.
         This path can be either absolute path or relative path from where the code is executed to the download location.
     """
+    file_handle_id: int
+    object_id: str
+    object_type: str
+    path: str
 
-    def __init__(self, file_handle_id: int, object_id: str, object_type: str, path: str):
+
+class TransferStatus(object):
+    """
+    Transfer progress parameters
+        Attributes
+    ----------
+    t0: int
+        initial time of transfer
+    total_to_be_transferred: int
+    transferred: int
+    """
+    total_bytes_to_be_transferred: int
+    transferred: int
+
+    #TODO: introduce locking mechanism on this class as a context manager?
+
+    def __init__(self, total_bytes_to_be_transferred: int):
+        self.total_bytes_to_be_transferred = total_bytes_to_be_transferred
+        self.transferred = 0
+        self._t0 = time.time()
+
+    def elapsed_time(self) -> float :
         """
-
-        :param file_handle_id:
-        :param object_id:
-        :param object_type:
-        :param path:
+        Returns time since this object was created (assuming same time as transfer started)
+        :return:
         """
-
-        self.file_handle_id = file_handle_id
-        self.object_id = object_id
-        self.object_type = object_type
-        self.path = path
-
+        return time.time() - self._t0
 
 class CloseableQueue(Queue):
     """
     A closeable queue used to signal when producers are finished producing so consumer threads know when to terminate.
     Adopted from Effective Python Item 39.
     """
+    # Sentinel object to signal producer is done producing
+    __SENTINEL = object()
 
     def close(self):
-        self.put(SENTINEL)
+        self.put(CloseableQueue.__SENTINEL)
+        #TODO: must put one sentinel for each consumer? because other consumers will block waiting for next item until they see a sentinel
+        #TODO: add threaded test to verify behavior when consumers use a for loop to iterate the queue
 
     def __iter__(self):
         while True:
             item = self.get()
             try:
-                if item is SENTINEL:
+                if item is CloseableQueue.__SENTINEL:
                     return  # cause the thread to exit
                 yield item
             finally:
+                # This is invoked after all processing has been done on the yielded item in the for loop
                 self.task_done()
 
 
@@ -92,7 +109,7 @@ class ProducerDownloadThread(Thread):
     The producer threads that make the GET request and obtain the data for a download chunk
     """
     def __init__(self, client, request, range_queue, data_queue):
-        Thread.__init__(self)
+        super().__init__()
         self.setDaemon(True)
         self.client = client
         self.request = request
@@ -108,11 +125,11 @@ class ProducerDownloadThread(Thread):
 
             # try request until successful or out of retries
             try_counter = 0
-            while response.status_code != PARTIAL_CONTENT_CODE and try_counter < MAX_RETRIES:
+            while response.status_code != HTTPStatus.PARTIAL_CONTENT and try_counter < MAX_RETRIES:
                 try_counter += 1
                 response = _get_response_with_refresh(url, self.client, self.request, headers, self.session)
 
-            if response.status_code == PARTIAL_CONTENT_CODE:
+            if response.status_code == HTTPStatus.PARTIAL_CONTENT:
                 self.data_queue.put((start, file_name, path, response.content))
             else:
                 raise SynapseError("Could not download the file: %s, please try again." % file_name)
@@ -122,8 +139,8 @@ class ConsumerDownloadThread(Thread):
     """
     The worker threads that write download chunks to file
     """
-    def __init__(self, data_queue):
-        Thread.__init__(self)
+    def __init__(self, data_queue:CloseableQueue):
+        super().__init__()
         self.setDaemon(True)
         self.data_queue = data_queue
 
@@ -134,13 +151,13 @@ class ConsumerDownloadThread(Thread):
             with open(path, "r+b") as file_write:
                 file_write.seek(start)
                 file_write.write(data)
-            global transferred
+            global transfer_status
             with lock:
-                transferred += len(data)
-            printTransferProgress(transferred, to_be_transferred, 'Downloading ', basename(path), dt=time.time()-t0)
+                transfer_status.transferred += len(data)
+            printTransferProgress(transfer_status.transferred, transfer_status.total_bytes_to_be_transferred, 'Downloading ', basename(path), dt=transfer_status.elapsed_time())
 
 
-def download_files(client,
+def download_files(client: Synapse,
                    download_requests: Sequence[DownloadRequest],
                    num_threads: int):
     """
@@ -153,8 +170,8 @@ def download_files(client,
     :return: Map between each DownloadRequest in download_requests object and the corresponding DownloadResponse object
     """
 
-    data_queue = CloseableQueue(BUF_SIZE)
-    range_queue = CloseableQueue(BUF_SIZE)
+    data_queue = CloseableQueue(MAX_QUEUE_SIZE)
+    range_queue = CloseableQueue(MAX_QUEUE_SIZE)
 
     for request in download_requests:
         producer_threads = []
@@ -177,20 +194,15 @@ def download_files(client,
                                                                    request.path)
         _create_empty_file(file_size, request.path)
 
-        global to_be_transferred
-        to_be_transferred = file_size
-
-        global transferred
-        transferred = 0
-
-        global t0
-        t0 = time.time()
+        global transfer_status
+        transfer_status = TransferStatus(file_size)
 
         for chunk in pre_signed_url_chunk_generator:
             range_queue.put(chunk)
         range_queue.close()
 
     range_queue.join()
+    # wait for all jobs in the producer's queue to be completed before signaling end of consumer queue
     data_queue.close()
     data_queue.join()
 
