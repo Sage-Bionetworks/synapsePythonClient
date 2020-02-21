@@ -181,33 +181,38 @@ def download_files(client: Synapse,
             consumer_worker = ConsumerDownloadThread(data_queue)
             producer_threads.append(producer_worker)
             consumer_threads.append(consumer_worker)
-
-        for producer_thread, consumer_thread in zip(producer_threads, consumer_threads):
-            producer_thread.start()
-            consumer_thread.start()
+            producer_worker.start()
+            consumer_worker.start()
 
         file_name, pre_signed_url = _get_pre_signed_batch_request_json(client, request)
         file_size = _get_file_size(pre_signed_url)
-        pre_signed_url_chunk_generator = _get_chunk_pre_signed_url(file_size,
-                                                                   file_name,
-                                                                   pre_signed_url,
-                                                                   request.path)
+
         _create_empty_file(file_size, request.path)
 
         global transfer_status
         transfer_status = TransferStatus(file_size)
 
+        pre_signed_url_chunk_generator = _get_chunk_pre_signed_url(file_size,
+                                                                   file_name,
+                                                                   pre_signed_url,
+                                                                   request.path)
+        
         for chunk in pre_signed_url_chunk_generator:
             range_queue.put(chunk)
         range_queue.close()
 
-    range_queue.join()
-    # wait for all jobs in the producer's queue to be completed before signaling end of consumer queue
-    data_queue.close()
-    data_queue.join()
+        for producer_thread in producer_threads:
+            producer_thread.join()
+        range_queue.join()
+
+        for consumer_thread in consumer_threads:
+            consumer_thread.join()
+        # wait for all jobs in the producer's queue to be completed before signaling end of consumer queue
+        data_queue.close()
+        data_queue.join()
 
 
-def _get_pre_signed_batch_request_json(client, request: DownloadRequest) -> tuple:
+def _get_pre_signed_batch_request_json(client: Synapse, request: DownloadRequest) -> tuple:
     """
     Returns the file_name and pre-signed url for download as specified in request
 
