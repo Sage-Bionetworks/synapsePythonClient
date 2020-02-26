@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 from queue import Queue
-from synapseclient.core.download.producer_consumer_download_threads import CloseableQueue
+from synapseclient.core.multithread_download.producer_consumer_download_threads import CloseableQueue
 from nose.tools import assert_equal
 
 class TestClosableQueueu(unittest.TestCase):

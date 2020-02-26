@@ -18,15 +18,14 @@ from http import HTTPStatus
 # constants
 MAX_QUEUE_SIZE: int = 20
 MAX_RETRIES: int = 5
-MB: int = 2**20
-SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MB
+MiB: int = 2 ** 20
+KiB: int = 2 ** 10
+SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MiB
+MAX_CHUNK_WRITE_SIZE = 16 * KiB
 ISO_AWS_STR_FORMAT: str = '%Y%m%dT%H%M%SZ'
 CONNECT_FACTOR: int = 3
 BACK_OFF_FACTOR: float = 0.5
 TIME_BUFFER: int = 2  # offset parameter used to buffer url expiration checks, time in seconds
-
-transfer_status = None
-lock = Lock()
 
 class DownloadRequest(NamedTuple):
     """
@@ -65,12 +64,11 @@ class TransferStatus(object):
     total_bytes_to_be_transferred: int
     transferred: int
 
-    #TODO: introduce locking mechanism on this class as a context manager?
-
     def __init__(self, total_bytes_to_be_transferred: int):
         self.total_bytes_to_be_transferred = total_bytes_to_be_transferred
         self.transferred = 0
         self._t0 = time.time()
+        self._lock = Lock()
 
     def elapsed_time(self) -> float :
         """
@@ -79,6 +77,18 @@ class TransferStatus(object):
         """
         return time.time() - self._t0
 
+    def __enter__(self) -> bool:
+        """
+        Blocks and waits to acquire lock on this TransferStatus
+        :return: bool indicating whether lock was acquired
+        """
+        return self._lock.__enter__()
+
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._lock.__exit__(exc_type, exc_val, exc_tb)
+
+
 class CloseableQueue(Queue):
     """
     A closeable queue used to signal when producers are finished producing so consumer threads know when to terminate.
@@ -86,6 +96,8 @@ class CloseableQueue(Queue):
     """
     # Sentinel object to signal producer is done producing
     __SENTINEL = object()
+
+    #TODO: prevent additonal work from being added done if an exception occurrs elsewhere that would prevent a full completion
 
     def close(self):
         self.put(CloseableQueue.__SENTINEL)
@@ -104,7 +116,7 @@ class CloseableQueue(Queue):
                 self.task_done()
 
 
-class ProducerDownloadThread(Thread):
+class DataChunkDownloadThread(Thread):
     """
     The producer threads that make the GET request and obtain the data for a download chunk
     """
@@ -123,6 +135,8 @@ class ProducerDownloadThread(Thread):
             headers = {'Range': 'bytes=%d-%d' % (start, end)}
             response = _get_response_with_refresh(url, self.client, self.request, headers, self.session)
 
+            #TODO: synchronize a shared un-expired presigned-url. curerntly, after the expiration we start retrieving a new pre-signed url for each chunk
+
             # try request until successful or out of retries
             try_counter = 0
             while response.status_code != HTTPStatus.PARTIAL_CONTENT and try_counter < MAX_RETRIES:
@@ -130,19 +144,22 @@ class ProducerDownloadThread(Thread):
                 response = _get_response_with_refresh(url, self.client, self.request, headers, self.session)
 
             if response.status_code == HTTPStatus.PARTIAL_CONTENT:
-                self.data_queue.put((start, file_name, path, response.content))
+                for bytes in response.iter_content(MAX_CHUNK_WRITE_SIZE):
+                    self.data_queue.put((start, file_name, path, bytes))
+                    start += len(bytes)
             else:
                 raise SynapseError("Could not download the file: %s, please try again." % file_name)
 
 
-class ConsumerDownloadThread(Thread):
+class DataChunkWriteToFileThread(Thread):
     """
     The worker threads that write download chunks to file
     """
-    def __init__(self, data_queue:CloseableQueue):
+    def __init__(self, data_queue:CloseableQueue, transfer_status:TransferStatus):
         super().__init__()
         self.setDaemon(True)
         self.data_queue = data_queue
+        self.transfer_status = transfer_status
 
     def run(self):
         for item in self.data_queue:
@@ -151,10 +168,9 @@ class ConsumerDownloadThread(Thread):
             with open(path, "r+b") as file_write:
                 file_write.seek(start)
                 file_write.write(data)
-            global transfer_status
-            with lock:
-                transfer_status.transferred += len(data)
-            printTransferProgress(transfer_status.transferred, transfer_status.total_bytes_to_be_transferred, 'Downloading ', basename(path), dt=transfer_status.elapsed_time())
+            with self.transfer_status:
+                self.transfer_status.transferred += len(data)
+                printTransferProgress(self.transfer_status.transferred, self.transfer_status.total_bytes_to_be_transferred, 'Downloading ', basename(path), dt=self.transfer_status.elapsed_time())
 
 
 def download_files(client: Synapse,
@@ -174,24 +190,24 @@ def download_files(client: Synapse,
     range_queue = CloseableQueue(MAX_QUEUE_SIZE)
 
     for request in download_requests:
-        producer_threads = []
-        consumer_threads = []
-        for _ in range(num_threads):
-            producer_worker = ProducerDownloadThread(client, request, range_queue, data_queue)
-            consumer_worker = ConsumerDownloadThread(data_queue)
-            producer_threads.append(producer_worker)
-            consumer_threads.append(consumer_worker)
-            producer_worker.start()
-            consumer_worker.start()
-
         file_name, pre_signed_url = _get_pre_signed_batch_request_json(client, request)
         file_size = _get_file_size(pre_signed_url)
 
         _create_empty_file(file_size, request.path)
 
-        global transfer_status
+        # shared transfer status across all threads
         transfer_status = TransferStatus(file_size)
 
+        data_chunk_download_threads = []
+        write_to_file_threads = []
+        for _ in range(num_threads):
+            data_chunk_download_worker = DataChunkDownloadThread(client, request, range_queue, data_queue)
+            write_to_file_worker = DataChunkWriteToFileThread(data_queue, transfer_status)
+            data_chunk_download_threads.append(data_chunk_download_worker)
+            write_to_file_threads.append(write_to_file_worker)
+            data_chunk_download_worker.start()
+            write_to_file_worker.start()
+            #TODO: consider single writer thread
         pre_signed_url_chunk_generator = _get_chunk_pre_signed_url(file_size,
                                                                    file_name,
                                                                    pre_signed_url,
@@ -199,16 +215,24 @@ def download_files(client: Synapse,
         
         for chunk in pre_signed_url_chunk_generator:
             range_queue.put(chunk)
+
+
+
+        #send signal for producer_threads to stop
         range_queue.close()
 
-        for producer_thread in producer_threads:
+        for producer_thread in data_chunk_download_threads:
             producer_thread.join()
+
         range_queue.join()
 
-        for consumer_thread in consumer_threads:
-            consumer_thread.join()
+
         # wait for all jobs in the producer's queue to be completed before signaling end of consumer queue
         data_queue.close()
+
+        for consumer_thread in write_to_file_threads:
+            consumer_thread.join()
+
         data_queue.join()
 
 

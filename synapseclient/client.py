@@ -47,6 +47,7 @@ import os
 import synapseclient
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
+import synapseclient.core.multithread_download as multithread_download
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
@@ -91,7 +92,7 @@ PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 REDIRECT_LIMIT = 5
-NUM_THREADS = 14
+NUM_THREADS = os.cpu_count()
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
@@ -1644,11 +1645,11 @@ class Synapse(object):
         delete_on_md5_mismatch = True
         scheme = urllib_urlparse.urlparse(url).scheme
         if scheme == 'http' or scheme == 'https':
-            request = DownloadRequest(file_handle_id=int(file_handle_id),
+            request = multithread_download.DownloadRequest(file_handle_id=int(file_handle_id),
                                       object_id=object_id,
                                       object_type=object_type,
                                       path=destination)
-            download_files(self, [request], NUM_THREADS)
+            multithread_download.download_files(self, [request], NUM_THREADS)
         else:
             self._download_from_URL(url, destination, fileHandleId=file_handle_id, expected_md5=expected_md5)
 
