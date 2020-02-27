@@ -43,6 +43,7 @@ import logging
 import urllib.parse as urllib_urlparse
 import json
 import os
+import time
 
 import synapseclient
 from .annotations import from_synapse_annotations, to_synapse_annotations

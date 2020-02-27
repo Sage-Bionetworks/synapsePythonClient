@@ -1,9 +1,10 @@
 import time
-from dataclasses import dataclass
+from concurrent import futures
+import datetime
+from functools import lru_cache
 from queue import Queue
 from threading import Thread, Lock
-from typing import Generator, Sequence, NamedTuple
-from datetime import datetime
+from typing import Generator, Sequence, NamedTuple, Tuple
 from math import ceil
 from urllib.parse import urlparse, parse_qs
 from urllib3.util.retry import Retry
@@ -25,7 +26,6 @@ MAX_CHUNK_WRITE_SIZE = 16 * KiB
 ISO_AWS_STR_FORMAT: str = '%Y%m%dT%H%M%SZ'
 CONNECT_FACTOR: int = 3
 BACK_OFF_FACTOR: float = 0.5
-TIME_BUFFER: int = 2  # offset parameter used to buffer url expiration checks, time in seconds
 
 class DownloadRequest(NamedTuple):
     """
@@ -53,8 +53,8 @@ class DownloadRequest(NamedTuple):
 
 class TransferStatus(object):
     """
-    Transfer progress parameters
-        Attributes
+    Transfer progress parameters. Lock should be acquired via `with trasfer_status:` before accessing attributes
+    Attributes
     ----------
     t0: int
         initial time of transfer
@@ -101,55 +101,102 @@ class CloseableQueue(Queue):
 
     def close(self):
         self.put(CloseableQueue.__SENTINEL)
-        #TODO: must put one sentinel for each consumer? because other consumers will block waiting for next item until they see a sentinel
-        #TODO: add threaded test to verify behavior when consumers use a for loop to iterate the queue
 
     def __iter__(self):
         while True:
             item = self.get()
             try:
                 if item is CloseableQueue.__SENTINEL:
-                    return  # cause the thread to exit
+                    return  # stop providing iteration
                 yield item
             finally:
                 # This is invoked after all processing has been done on the yielded item in the for loop
                 self.task_done()
+
+class PresignedUrlInfo(NamedTuple):
+    """
+    Information about a retrieved presigned-url
+
+    ...
+
+    Attributes
+    ----------
+    file_name: str
+        name of the file for the presigned url
+    url: str
+        the actual presigned url
+    expiration_utc: datetime.datetime
+        datetime in UTC at which the url will expire
+    """
+    file_name: str
+    url: str
+    expiration_utc: datetime.datetime
+
+class PresignedUrlProvider(object):
+    client: Synapse
+    request: DownloadRequest
+    _cached_info: PresignedUrlInfo
+
+    # offset parameter used to buffer url expiration checks, time in seconds
+    _TIME_BUFFER: datetime.timedelta = datetime.timedelta(seconds=5)
+
+    def __init__(self, client:Synapse, request: DownloadRequest):
+        self.client: Synapse = client
+        self.request: DownloadRequest = request
+        self._cached_info: PresignedUrlInfo = None
+        self._lock = Lock()
+
+    def get_info(self) -> PresignedUrlInfo:
+        with self._lock:
+            if datetime.datetime.utcnow() + PresignedUrlProvider._TIME_BUFFER >= self._cached_info.expiration_utc:
+                self._cached_info = self._get_pre_signed_batch_request_json()
+
+            return self._cached_info
+
+    def _get_pre_signed_batch_request_json(self) -> PresignedUrlInfo:
+        """
+        Returns the file_name and pre-signed url for download as specified in request
+
+        :return: PresignedUrlInfo
+        """
+        # noinspection PyProtectedMember
+        response = self.client._getFileHandleDownload(self.request.file_handle_id, self.request.object_id)
+        file_name = response["fileHandle"]["fileName"]
+        pre_signed_url = response["preSignedURL"]
+        return PresignedUrlInfo(file_name, pre_signed_url, _pre_signed_url_expiration_time(pre_signed_url))
 
 
 class DataChunkDownloadThread(Thread):
     """
     The producer threads that make the GET request and obtain the data for a download chunk
     """
-    def __init__(self, client, request, range_queue, data_queue):
+    def __init__(self, presigned_url_provider: PresignedUrlProvider, range_queue:CloseableQueue, data_queue:CloseableQueue):
         super().__init__()
         self.setDaemon(True)
-        self.client = client
-        self.request = request
+        self.presigned_url_provider = presigned_url_provider
         self.range_queue = range_queue
         self.data_queue = data_queue
         self.session = _get_new_session()
-
+#TODO: see if filename is needed to be passed around
     def run(self):
         for item in self.range_queue:
+            #TODO: remove file_name and url
             start, end, file_name, url, path = item
-            headers = {'Range': 'bytes=%d-%d' % (start, end)}
-            response = _get_response_with_refresh(url, self.client, self.request, headers, self.session)
-
-            #TODO: synchronize a shared un-expired presigned-url. curerntly, after the expiration we start retrieving a new pre-signed url for each chunk
+            headers = {'Range': f'bytes={start}-{end}'}
+            response = self.session.get(self.presigned_url_provider.get_info().url, headers=headers, stream=True)
 
             # try request until successful or out of retries
             try_counter = 0
             while response.status_code != HTTPStatus.PARTIAL_CONTENT and try_counter < MAX_RETRIES:
                 try_counter += 1
-                response = _get_response_with_refresh(url, self.client, self.request, headers, self.session)
+                response = self.session.get(self.presigned_url_provider.get_info().url, headers=headers, stream=True)
 
             if response.status_code == HTTPStatus.PARTIAL_CONTENT:
                 for bytes in response.iter_content(MAX_CHUNK_WRITE_SIZE):
                     self.data_queue.put((start, file_name, path, bytes))
                     start += len(bytes)
             else:
-                raise SynapseError("Could not download the file: %s, please try again." % file_name)
-
+                raise SynapseError(f"Could not download the file: {file_name}, please try again.")
 
 class DataChunkWriteToFileThread(Thread):
     """
@@ -199,15 +246,15 @@ def download_files(client: Synapse,
         transfer_status = TransferStatus(file_size)
 
         data_chunk_download_threads = []
-        write_to_file_threads = []
         for _ in range(num_threads):
             data_chunk_download_worker = DataChunkDownloadThread(client, request, range_queue, data_queue)
-            write_to_file_worker = DataChunkWriteToFileThread(data_queue, transfer_status)
             data_chunk_download_threads.append(data_chunk_download_worker)
-            write_to_file_threads.append(write_to_file_worker)
             data_chunk_download_worker.start()
-            write_to_file_worker.start()
-            #TODO: consider single writer thread
+
+        #use a single worker to write to the file
+        write_to_file_worker = DataChunkWriteToFileThread(data_queue, transfer_status)
+        write_to_file_worker.start()
+
         pre_signed_url_chunk_generator = _get_chunk_pre_signed_url(file_size,
                                                                    file_name,
                                                                    pre_signed_url,
@@ -230,25 +277,12 @@ def download_files(client: Synapse,
         # wait for all jobs in the producer's queue to be completed before signaling end of consumer queue
         data_queue.close()
 
-        for consumer_thread in write_to_file_threads:
-            consumer_thread.join()
+        write_to_file_worker.join()
 
         data_queue.join()
 
 
-def _get_pre_signed_batch_request_json(client: Synapse, request: DownloadRequest) -> tuple:
-    """
-    Returns the file_name and pre-signed url for download as specified in request
 
-    :param client: The synapseclient being used for download
-    :param request: An individual entry in the form of a DownloadRequest
-    :return: A tuple containing the file_name and pre-signed url
-    """
-    # noinspection PyProtectedMember
-    response = client._getFileHandleDownload(request.file_handle_id,  request.object_id)
-    file_name = response["fileHandle"]["fileName"]
-    pre_signed_url = response["preSignedURL"]
-    return file_name, pre_signed_url
 
 
 def _get_chunk_pre_signed_url(file_size: int,
@@ -272,20 +306,21 @@ def _get_chunk_pre_signed_url(file_size: int,
         end = start + SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
         yield start, end, file_name, url, path
 
-
-def _url_is_valid(url: str) -> bool:
+def _pre_signed_url_expiration_time(url: str) -> datetime:
     """
-    Checks if url is expired
+    Returns time at which a presigned url will expire
 
     :param url: A pre-signed download url from AWS
-    :return: True if url is not expired (i.e. valid), False otherwise
+    :return: datetime in UTC of when the url will expire
     """
-    parsed_url = urlparse(url)
-    time_made = parse_qs(parsed_url.query)['X-Amz-Date'][0]
-    time_made_datetime = datetime.strptime(time_made, ISO_AWS_STR_FORMAT)
-    expires = parse_qs(parsed_url.query)['X-Amz-Expires'][0]
-    time_delta_seconds = (datetime.utcnow() - time_made_datetime).total_seconds()
-    return time_delta_seconds + TIME_BUFFER < int(expires)
+    if url is None:
+        return datetime.datetime.utcfromtimestamp(0)
+
+    parsed_query:dict = parse_qs(urlparse(url).query)
+    time_made:str = parsed_query['X-Amz-Date'][0]
+    time_made_datetime:datetime.datetime = datetime.datetime.strptime(time_made, ISO_AWS_STR_FORMAT)
+    expires:str = parsed_query['X-Amz-Expires'][0]
+    return time_made_datetime + datetime.timedelta(seconds=int(expires))
 
 
 def _create_empty_file(file_size, path) -> None:
@@ -325,21 +360,7 @@ def _get_file_size(url: str) -> int:
     return int(res_get.headers['Content-Length'])
 
 
-def _refresh_url_if_expired(url: str, client, request: DownloadRequest) -> str:
-    """
-    Checks if url is expired, if so returns refresh pre-signed url
-    :param url: A pre-signed url to be checked and possibly refreshed
-    :param client: The synapseclient being used to download
-    :param request: The DownloadRequest specifying the file located at url
-    :param return: A pre-signed url for the file defined in request
-    """
-    if not _url_is_valid(url):
-        _, pre_signed_url_new = _get_pre_signed_batch_request_json(client, request)
-        return pre_signed_url_new
-    return url
-
-
-def _get_response_with_refresh(url: str, client, request: DownloadRequest,
+def _get_response_with_refresh(presigned_url_provider: PresignedUrlProvider,
                                headers: dict, session: Session) -> Response:
     """
     Performs refresh on url if necessary and returns response for range request on url specified by headers
@@ -350,5 +371,5 @@ def _get_response_with_refresh(url: str, client, request: DownloadRequest,
     :param session: The current request.Session object to make the get call with
     :return: The requests.Response from calling get on url
     """
-    url = _refresh_url_if_expired(url, client, request)
+    url = presigned_url_provider.get_info().url
     return session.get(url, headers=headers, stream=True)
