@@ -1,7 +1,7 @@
 import time
-from concurrent import futures
 import datetime
-from functools import lru_cache
+import os
+
 from queue import Queue
 from threading import Thread, Lock
 from typing import Generator, Sequence, NamedTuple, Tuple
@@ -10,10 +10,8 @@ from urllib.parse import urlparse, parse_qs
 from urllib3.util.retry import Retry
 from synapseclient.core.utils import printTransferProgress
 from synapseclient.core.exceptions import SynapseError
-from synapseclient.client import Synapse
 from requests import Session, Response
 from requests.adapters import HTTPAdapter
-from os.path import basename
 from http import HTTPStatus
 
 # constants
@@ -97,17 +95,18 @@ class CloseableQueue(Queue):
     # Sentinel object to signal producer is done producing
     __SENTINEL = object()
 
-    #TODO: prevent additonal work from being added done if an exception occurrs elsewhere that would prevent a full completion
+    #TODO: prevent additonal work from being added done if an exception occurs elsewhere that would prevent a full completion
 
-    def close(self):
-        self.put(CloseableQueue.__SENTINEL)
+    def send_sentinel(self, num_sentinels = 1):
+        for _ in range (num_sentinels):
+            self.put(CloseableQueue.__SENTINEL)
 
     def __iter__(self):
         while True:
             item = self.get()
             try:
                 if item is CloseableQueue.__SENTINEL:
-                    return  # stop providing iteration
+                    return  # stop iteration
                 yield item
             finally:
                 # This is invoked after all processing has been done on the yielded item in the for loop
@@ -133,22 +132,26 @@ class PresignedUrlInfo(NamedTuple):
     expiration_utc: datetime.datetime
 
 class PresignedUrlProvider(object):
-    client: Synapse
+    """
+    Provides an un-exipired pre-signed url to download a file
+    """
     request: DownloadRequest
     _cached_info: PresignedUrlInfo
+
 
     # offset parameter used to buffer url expiration checks, time in seconds
     _TIME_BUFFER: datetime.timedelta = datetime.timedelta(seconds=5)
 
-    def __init__(self, client:Synapse, request: DownloadRequest):
-        self.client: Synapse = client
+    def __init__(self, client, request: DownloadRequest):
+        self.client = client
         self.request: DownloadRequest = request
-        self._cached_info: PresignedUrlInfo = None
+        self._cached_info: PresignedUrlInfo = self._get_pre_signed_batch_request_json()
         self._lock = Lock()
 
     def get_info(self) -> PresignedUrlInfo:
         with self._lock:
             if datetime.datetime.utcnow() + PresignedUrlProvider._TIME_BUFFER >= self._cached_info.expiration_utc:
+                print("it's expired")
                 self._cached_info = self._get_pre_signed_batch_request_json()
 
             return self._cached_info
@@ -172,55 +175,58 @@ class DataChunkDownloadThread(Thread):
     """
     def __init__(self, presigned_url_provider: PresignedUrlProvider, range_queue:CloseableQueue, data_queue:CloseableQueue):
         super().__init__()
-        self.setDaemon(True)
+        # self.daemon = True
         self.presigned_url_provider = presigned_url_provider
         self.range_queue = range_queue
         self.data_queue = data_queue
         self.session = _get_new_session()
-#TODO: see if filename is needed to be passed around
     def run(self):
         for item in self.range_queue:
-            #TODO: remove file_name and url
-            start, end, file_name, url, path = item
-            headers = {'Range': f'bytes={start}-{end}'}
-            response = self.session.get(self.presigned_url_provider.get_info().url, headers=headers, stream=True)
+            start, end = item
+            range_header = {'Range': f'bytes={start}-{end}'}
+            response = self.session.get(self.presigned_url_provider.get_info().url, headers=range_header, stream=True)
 
             # try request until successful or out of retries
             try_counter = 0
             while response.status_code != HTTPStatus.PARTIAL_CONTENT and try_counter < MAX_RETRIES:
                 try_counter += 1
-                response = self.session.get(self.presigned_url_provider.get_info().url, headers=headers, stream=True)
+                response = self.session.get(self.presigned_url_provider.get_info().url, headers=range_header, stream=True)
 
             if response.status_code == HTTPStatus.PARTIAL_CONTENT:
                 for bytes in response.iter_content(MAX_CHUNK_WRITE_SIZE):
-                    self.data_queue.put((start, file_name, path, bytes))
+                    self.data_queue.put((start, bytes))
                     start += len(bytes)
             else:
-                raise SynapseError(f"Could not download the file: {file_name}, please try again.")
+                #remove
+                print(response.status_code)
+                raise SynapseError(f"Could not download the file: {self.presigned_url_provider.get_info().file_name}, please try again.")
 
 class DataChunkWriteToFileThread(Thread):
     """
     The worker threads that write download chunks to file
     """
-    def __init__(self, data_queue:CloseableQueue, transfer_status:TransferStatus):
+    def __init__(self, data_queue: CloseableQueue, path: str, transfer_status: TransferStatus):
         super().__init__()
-        self.setDaemon(True)
+        self.daemon = True
         self.data_queue = data_queue
         self.transfer_status = transfer_status
+        self.path = path
 
     def run(self):
-        for item in self.data_queue:
-            start, file_name, path, data = item
-            # write data to file
-            with open(path, "r+b") as file_write:
+        # write data to file
+        with open(self.path, "w+b") as file_write:
+            for start, data in self.data_queue:
                 file_write.seek(start)
                 file_write.write(data)
-            with self.transfer_status:
-                self.transfer_status.transferred += len(data)
-                printTransferProgress(self.transfer_status.transferred, self.transfer_status.total_bytes_to_be_transferred, 'Downloading ', basename(path), dt=self.transfer_status.elapsed_time())
+                with self.transfer_status:
+                    self.transfer_status.transferred += len(data)
+                    printTransferProgress(self.transfer_status.transferred,
+                                          self.transfer_status.total_bytes_to_be_transferred,
+                                          'Downloading ', os.path.basename(self.path),
+                                          dt=self.transfer_status.elapsed_time())
 
 
-def download_files(client: Synapse,
+def download_files(client,
                    download_requests: Sequence[DownloadRequest],
                    num_threads: int):
     """
@@ -237,59 +243,50 @@ def download_files(client: Synapse,
     range_queue = CloseableQueue(MAX_QUEUE_SIZE)
 
     for request in download_requests:
-        file_name, pre_signed_url = _get_pre_signed_batch_request_json(client, request)
-        file_size = _get_file_size(pre_signed_url)
+        pre_signed_url_provider = PresignedUrlProvider(client, request)
 
-        _create_empty_file(file_size, request.path)
+        file_size = _get_file_size(pre_signed_url_provider.get_info().url)
 
         # shared transfer status across all threads
         transfer_status = TransferStatus(file_size)
 
         data_chunk_download_threads = []
         for _ in range(num_threads):
-            data_chunk_download_worker = DataChunkDownloadThread(client, request, range_queue, data_queue)
+            data_chunk_download_worker = DataChunkDownloadThread(pre_signed_url_provider, range_queue, data_queue)
             data_chunk_download_threads.append(data_chunk_download_worker)
             data_chunk_download_worker.start()
 
         #use a single worker to write to the file
-        write_to_file_worker = DataChunkWriteToFileThread(data_queue, transfer_status)
+        write_to_file_worker = DataChunkWriteToFileThread(data_queue, request.path, transfer_status)
         write_to_file_worker.start()
 
-        pre_signed_url_chunk_generator = _get_chunk_pre_signed_url(file_size,
-                                                                   file_name,
-                                                                   pre_signed_url,
-                                                                   request.path)
+        chunk_range_generator = _generate_chunk_ranges(file_size)
         
-        for chunk in pre_signed_url_chunk_generator:
+        for chunk in chunk_range_generator:
+            # This operation will block if the queue's max size has been reached
             range_queue.put(chunk)
 
+        # send signal for download threads to stop
+        range_queue.send_sentinel(num_threads)
 
-
-        #send signal for producer_threads to stop
-        range_queue.close()
-
-        for producer_thread in data_chunk_download_threads:
-            producer_thread.join()
-
+        # wait for download threads to complete
+        for data_chunk_download_thread in data_chunk_download_threads:
+            data_chunk_download_thread.join()
         range_queue.join()
 
+        # once download threads are done, send sentinel to the data queue to tell the file worker to stop
+        data_queue.send_sentinel(1)
 
-        # wait for all jobs in the producer's queue to be completed before signaling end of consumer queue
-        data_queue.close()
-
+        # wait for the writer workers to shutdown
         write_to_file_worker.join()
-
         data_queue.join()
 
 
 
 
 
-def _get_chunk_pre_signed_url(file_size: int,
-                              file_name: str,
-                              url: str,
-                              path: str
-                              ) -> Generator:
+def _generate_chunk_ranges(file_size: int,
+                           ) -> Generator:
     """
     Creates a generator which yields byte ranges and meta data required to make a range request download of url and
     write the data to file_name located at path. Download chunk sizes are 8MB by default.
@@ -304,7 +301,7 @@ def _get_chunk_pre_signed_url(file_size: int,
     for i in range(num_chunks):
         start = SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE * i
         end = start + SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE
-        yield start, end, file_name, url, path
+        yield start, end
 
 def _pre_signed_url_expiration_time(url: str) -> datetime:
     """
@@ -321,20 +318,6 @@ def _pre_signed_url_expiration_time(url: str) -> datetime:
     time_made_datetime:datetime.datetime = datetime.datetime.strptime(time_made, ISO_AWS_STR_FORMAT)
     expires:str = parsed_query['X-Amz-Expires'][0]
     return time_made_datetime + datetime.timedelta(seconds=int(expires))
-
-
-def _create_empty_file(file_size, path) -> None:
-    """
-    Creates an empty file named file_name at location path and of size file_size
-
-    :param file_size: The size of the file (in Bytes)
-    :param path: The local path describing where to download the file
-    :return: None
-    """
-    with open(path, "wb") as file:
-        file.seek(file_size - 1)
-        file.write(b'\0')
-
 
 def _get_new_session() -> Session:
     """
