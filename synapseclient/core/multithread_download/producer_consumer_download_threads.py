@@ -18,9 +18,8 @@ from http import HTTPStatus
 MAX_QUEUE_SIZE: int = 20
 MAX_RETRIES: int = 5
 MiB: int = 2 ** 20
-KiB: int = 2 ** 10
 SYNAPSE_DEFAULT_DOWNLOAD_PART_SIZE: int = 8 * MiB
-MAX_CHUNK_WRITE_SIZE = 16 * KiB
+MAX_CHUNK_WRITE_SIZE = 2 * MiB
 ISO_AWS_STR_FORMAT: str = '%Y%m%dT%H%M%SZ'
 CONNECT_FACTOR: int = 3
 BACK_OFF_FACTOR: float = 0.5
@@ -151,7 +150,6 @@ class PresignedUrlProvider(object):
     def get_info(self) -> PresignedUrlInfo:
         with self._lock:
             if datetime.datetime.utcnow() + PresignedUrlProvider._TIME_BUFFER >= self._cached_info.expiration_utc:
-                print("it's expired")
                 self._cached_info = self._get_pre_signed_batch_request_json()
 
             return self._cached_info
@@ -197,8 +195,6 @@ class DataChunkDownloadThread(Thread):
                     self.data_queue.put((start, bytes))
                     start += len(bytes)
             else:
-                #remove
-                print(response.status_code)
                 raise SynapseError(f"Could not download the file: {self.presigned_url_provider.get_info().file_name}, please try again.")
 
 class DataChunkWriteToFileThread(Thread):
@@ -212,6 +208,7 @@ class DataChunkWriteToFileThread(Thread):
         self.transfer_status = transfer_status
         self.path = path
 
+    #TODO: make downloaders stop if writer encounters error and delete the partially downloaded file
     def run(self):
         # write data to file
         with open(self.path, "w+b") as file_write:
@@ -224,7 +221,6 @@ class DataChunkWriteToFileThread(Thread):
                                           self.transfer_status.total_bytes_to_be_transferred,
                                           'Downloading ', os.path.basename(self.path),
                                           dt=self.transfer_status.elapsed_time())
-
 
 def download_files(client,
                    download_requests: Sequence[DownloadRequest],
@@ -251,38 +247,36 @@ def download_files(client,
         transfer_status = TransferStatus(file_size)
 
         data_chunk_download_threads = []
-        for _ in range(num_threads):
-            data_chunk_download_worker = DataChunkDownloadThread(pre_signed_url_provider, range_queue, data_queue)
-            data_chunk_download_threads.append(data_chunk_download_worker)
-            data_chunk_download_worker.start()
+        write_to_file_worker = None
+        try:
+            # use a single worker to write to the file
+            write_to_file_worker = DataChunkWriteToFileThread(data_queue, request.path, transfer_status)
+            write_to_file_worker.start()
 
-        #use a single worker to write to the file
-        write_to_file_worker = DataChunkWriteToFileThread(data_queue, request.path, transfer_status)
-        write_to_file_worker.start()
+            for _ in range(num_threads):
+                data_chunk_download_worker = DataChunkDownloadThread(pre_signed_url_provider, range_queue, data_queue)
+                data_chunk_download_threads.append(data_chunk_download_worker)
+                data_chunk_download_worker.start()
 
-        chunk_range_generator = _generate_chunk_ranges(file_size)
-        
-        for chunk in chunk_range_generator:
-            # This operation will block if the queue's max size has been reached
-            range_queue.put(chunk)
+            for chunk in _generate_chunk_ranges(file_size):
+                # will usually block here since the downloading from network is the bottleneck
+                range_queue.put(chunk)
 
-        # send signal for download threads to stop
-        range_queue.send_sentinel(num_threads)
+        finally:
+            #TODO: prevent download threads from finishng tasks in the range_queue when KeyboardInterrupt
 
-        # wait for download threads to complete
-        for data_chunk_download_thread in data_chunk_download_threads:
-            data_chunk_download_thread.join()
-        range_queue.join()
+            # send signal for download threads to stop
+            range_queue.send_sentinel(num_threads)
 
-        # once download threads are done, send sentinel to the data queue to tell the file worker to stop
-        data_queue.send_sentinel(1)
+            # wait for download threads to complete
+            for data_chunk_download_thread in data_chunk_download_threads:
+                data_chunk_download_thread.join()
 
-        # wait for the writer workers to shutdown
-        write_to_file_worker.join()
-        data_queue.join()
-
-
-
+            if write_to_file_worker:
+                # once download threads are done, send sentinel to the data queue to tell the file worker to stop
+                data_queue.send_sentinel()
+                # wait for the writer workers to shutdown
+                write_to_file_worker.join()
 
 
 def _generate_chunk_ranges(file_size: int,
