@@ -1654,7 +1654,7 @@ class Synapse(object):
         else:
             self._download_from_URL(url, destination, fileHandleId=file_handle_id, expected_md5=expected_md5)
 
-        if actual_md5 is None:  # if md5 not set (should be the case for all except http download)
+        if expected_md5 and actual_md5 is None:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(destination).hexdigest()
 
         # check md5 if given
