@@ -1604,21 +1604,17 @@ class Synapse(object):
                     downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'],
                                                                     fileHandle['fileKey'], destination,
                                                                     profile_name=profile)
+                elif self.multi_threaded and fileHandle['concreteType'] == concrete_types.S3_FILE_HANDLE:
+                    downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
+                                                                             objectId,
+                                                                             objectType,
+                                                                             destination,
+                                                                             expected_md5=fileHandle.get('contentMd5'))
                 else:
-                    if self.multi_threaded:
-                        expected_md5 = fileHandle.get('contentMd5')
-                        url = fileResult['preSignedURL']
-                        downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
-                                                                                 objectId,
-                                                                                 objectType,
-                                                                                 destination,
-                                                                                 url,
-                                                                                 expected_md5=expected_md5)
-                    else:
-                        downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
-                                                                  destination,
-                                                                  fileHandle['id'],
-                                                                  expected_md5=fileHandle.get('contentMd5'))
+                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
+                                                              destination,
+                                                              fileHandle['id'],
+                                                              expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
             except Exception as ex:
@@ -1630,7 +1626,7 @@ class Synapse(object):
                     retries -= 1
                 if retries <= 0:
                     # Re-raise exception
-                    raise exc_info[0](exc_info[1])
+                    raise
 
         raise Exception("should not reach this line")
 
@@ -1639,31 +1635,31 @@ class Synapse(object):
                                           object_id,
                                           object_type,
                                           destination,
-                                          url,
                                           expected_md5=None):
         destination = os.path.abspath(destination)
-        actual_md5 = None
-        delete_on_md5_mismatch = True
-        scheme = urllib_urlparse.urlparse(url).scheme
-        if scheme == 'http' or scheme == 'https':
-            request = multithread_download.DownloadRequest(file_handle_id=int(file_handle_id),
-                                      object_id=object_id,
-                                      object_type=object_type,
-                                      path=destination)
-            multithread_download.download_files(self, [request], NUM_THREADS)
-        else:
-            self._download_from_URL(url, destination, fileHandleId=file_handle_id, expected_md5=expected_md5)
+        temp_destination = utils.temp_download_filename(destination, file_handle_id)
 
-        if expected_md5 and actual_md5 is None:  # if md5 not set (should be the case for all except http download)
-            actual_md5 = utils.md5_for_file(destination).hexdigest()
+        request = multithread_download.DownloadRequest(file_handle_id=int(file_handle_id),
+                                  object_id=object_id,
+                                  object_type=object_type,
+                                  path=temp_destination)
+        multithread_download.download_files(self, [request], NUM_THREADS)
 
-        # check md5 if given
-        if expected_md5 and actual_md5 != expected_md5:
-            if delete_on_md5_mismatch and os.path.exists(destination):
-                os.remove(destination)
-            raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
-                                          " {expected_md5}".format(filename=destination, md5=actual_md5,
-                                                                   expected_md5=expected_md5))
+        if expected_md5:  # if md5 not set (should be the case for all except http download)
+            actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
+            # check md5 if given
+            if actual_md5 != expected_md5:
+                try:
+                    os.remove(temp_destination)
+                except FileNotFoundError:
+                    #file already does not exist. nothing to do
+                    pass
+                raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                                              " {expected_md5}".format(filename=temp_destination, md5=actual_md5,
+                                                                       expected_md5=expected_md5))
+        #once download completed, rename to desired destination
+        shutil.move(temp_destination, destination)
+
         return destination
 
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
