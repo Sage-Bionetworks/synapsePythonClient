@@ -1643,7 +1643,7 @@ class Synapse(object):
                                   object_id=object_id,
                                   object_type=object_type,
                                   path=temp_destination)
-        multithread_download.download_files(self, [request], NUM_THREADS)
+        multithread_download.download_file(self, request, NUM_THREADS)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
