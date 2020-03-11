@@ -253,6 +253,9 @@ def test_mock_download():
 
 class Test__downloadFileHandle(unittest.TestCase):
 
+    def tearDown(self) -> None:
+        syn.multi_threaded=False
+
     def test_multithread_true__S3_fileHandle(self):
         with patch.object(os, "makedirs") as mock_makedirs,\
             patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload,\
@@ -315,7 +318,7 @@ class Test__downloadFileHandle(unittest.TestCase):
 
 class Test_download_from_url_multi_threaded:
     def test_md5_mis_match(self):
-        with patch.object(multithread_download, "download_files"),\
+        with patch.object(multithread_download, "download_file"),\
             patch.object(utils, "md5_for_file") as mock_md5_for_file,\
             patch.object(os, "remove") as mock_os_remove,\
             patch.object(shutil, "move") as mock_move:
@@ -334,7 +337,7 @@ class Test_download_from_url_multi_threaded:
 
 
     def test_md5_mismatch(self):
-        with patch.object(multithread_download, "download_files"), \
+        with patch.object(multithread_download, "download_file"), \
              patch.object(utils, "md5_for_file") as mock_md5_for_file, \
                 patch.object(os, "remove") as mock_os_remove, \
                 patch.object(shutil, "move") as mock_move:

@@ -235,6 +235,7 @@ def test_download_multithreaded():
 
     assert_equals(entity['files'][0], os.path.basename(fname))
     assert_true(filecmp.cmp(fname, entity['path']))
+    syn.multi_threaded=False
 
 def test_downloadFile():
     # See if the a "wget" works

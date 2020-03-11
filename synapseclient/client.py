@@ -2587,7 +2587,7 @@ class Synapse(object):
             cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            path = self._downloadFileHandle(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown', cache_dir)
+            path = self._downloadFileHandle(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown', os.path.join(cache_dir, str(wiki.markdownFileHandleId) + ".md"))
         try:
             import gzip
             with gzip.open(path) as f:
@@ -2988,7 +2988,7 @@ class Synapse(object):
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
             path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
-                                            'TableEntity', cache_dir)
+                                            'TableEntity', os.path.join(cache_dir, str(file_handle_id) + ".csv"))
         return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
