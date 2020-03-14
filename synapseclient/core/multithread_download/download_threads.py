@@ -123,7 +123,7 @@ class CloseableQueue(queue.Queue):
     """
         Once closed, the queue will always return the sentinel, even though nothing else was added to the queue.
         Therefore, calling task_done() can not be relied upon
-        for tracking progress for a join() once the queue is closed. 
+        for tracking progress for a join() once the queue is closed.
     """
 
     def join(self):

@@ -209,8 +209,8 @@ class TestDataChunkDownloadThread:
         self.mock_data_queue.put.side_effect = download_threads.QueueClosedException('')
 
         with mock.patch.object(download_threads, "_get_new_session", return_value=self.mock_requests_session), \
-             mock.patch.object(download_threads.DataChunkDownloadThread, "_get_response_with_retry",
-                               return_value=self.mock_requests_response):
+            mock.patch.object(download_threads.DataChunkDownloadThread, "_get_response_with_retry",
+                              return_value=self.mock_requests_response):
             t = download_threads.DataChunkDownloadThread(self.mock_presigned_url_provider,
                                                          self.mock_range_queue,
                                                          self.mock_data_queue)
