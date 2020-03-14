@@ -298,11 +298,6 @@ class Test__downloadFileHandle(unittest.TestCase):
 
             mock_download_from_URL.assert_called_once_with("asdf.com", "/myfakepath", "123", expected_md5="someMD5")
 
-    def test_destination_is_directory(self):
-        with patch.object(os.path, "isdir", return_value=True):
-            assert_raises(ValueError, syn._downloadFileHandle, fileHandleId=123, objectId=456,
-                          objectType="FileEntity", destination="/myfakepath")
-
     def test_multithread_false__S3_fileHandle(self):
         with patch.object(os, "makedirs") as mock_makedirs, \
                 patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
