@@ -1590,11 +1590,8 @@ class Synapse(object):
 
         :returns: path to downloaded file
         """
-        try:
-            os.makedirs(os.path.dirname(destination))
-        except OSError as exception:
-            if exception.errno != errno.EEXIST:
-                raise
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+
         while retries > 0:
             try:
                 fileResult = self._getFileHandleDownload(fileHandleId, objectId, objectType)
@@ -1640,9 +1637,9 @@ class Synapse(object):
         temp_destination = utils.temp_download_filename(destination, file_handle_id)
 
         request = multithread_download.DownloadRequest(file_handle_id=int(file_handle_id),
-                                  object_id=object_id,
-                                  object_type=object_type,
-                                  path=temp_destination)
+                                                       object_id=object_id,
+                                                       object_type=object_type,
+                                                       path=temp_destination)
         multithread_download.download_file(self, request, NUM_THREADS)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
@@ -1652,12 +1649,12 @@ class Synapse(object):
                 try:
                     os.remove(temp_destination)
                 except FileNotFoundError:
-                    #file already does not exist. nothing to do
+                    # file already does not exist. nothing to do
                     pass
                 raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
                                               " {expected_md5}".format(filename=temp_destination, md5=actual_md5,
                                                                        expected_md5=expected_md5))
-        #once download completed, rename to desired destination
+        # once download completed, rename to desired destination
         shutil.move(temp_destination, destination)
 
         return destination

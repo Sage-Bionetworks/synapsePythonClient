@@ -1,18 +1,21 @@
+import hashlib
+import json
+import os
 import shutil
 import tempfile
-import os
-import hashlib
 import unittest
-
 from unittest.mock import MagicMock, patch, mock_open, call
-from nose.tools import assert_raises, assert_equals, assert_false
-from synapseclient import client
 
-from synapseclient import *
-from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, SynapseFileNotFoundError
+import requests
+from nose.tools import assert_raises, assert_equals, assert_false
+
 import synapseclient.core.constants.concrete_types as concrete_types
 import synapseclient.core.multithread_download as multithread_download
+from synapseclient import *
+from synapseclient import client
 from synapseclient.core import utils
+from synapseclient.core.exceptions import SynapseHTTPError, SynapseMd5MismatchError, SynapseError, \
+    SynapseFileNotFoundError
 from tests import unit
 
 
@@ -251,78 +254,82 @@ def test_mock_download():
         assert_raises(SynapseHTTPError, syn._downloadFileHandle, fileHandleId, objectId, objectType,
                       destination=temp_dir)
 
+
 class Test__downloadFileHandle(unittest.TestCase):
 
     def tearDown(self) -> None:
-        syn.multi_threaded=False
+        syn.multi_threaded = False
 
     def test_multithread_true__S3_fileHandle(self):
-        with patch.object(os, "makedirs") as mock_makedirs,\
-            patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload,\
-            patch.object(syn, "_download_from_url_multi_threaded") as mock_multi_thread_download,\
-            patch.object(syn, "cache") as mock_cache:
-
+        with patch.object(os, "makedirs") as mock_makedirs, \
+                patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
+                patch.object(syn, "_download_from_url_multi_threaded") as mock_multi_thread_download, \
+                patch.object(syn, "cache") as mock_cache:
             mock_getFileHandleDownload.return_value = {
-                'fileHandle':{
-                    'id':'123',
-                    'concreteType':concrete_types.S3_FILE_HANDLE,
-                    'contentMd5':'someMD5'
+                'fileHandle': {
+                    'id': '123',
+                    'concreteType': concrete_types.S3_FILE_HANDLE,
+                    'contentMd5': 'someMD5'
                 }
             }
 
-            syn.multi_threaded=True
+            syn.multi_threaded = True
             syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath")
 
-            mock_multi_thread_download.assert_called_once_with(123,456,"FileEntity","/myfakepath", expected_md5="someMD5")
+            mock_multi_thread_download.assert_called_once_with(123, 456, "FileEntity", "/myfakepath",
+                                                               expected_md5="someMD5")
 
     def test_multithread_True__other_file_handle_type(self):
-        with patch.object(os, "makedirs") as mock_makedirs,\
-            patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload,\
-            patch.object(syn, "_download_from_URL") as mock_download_from_URL,\
-            patch.object(syn, "cache") as mock_cache:
-
+        with patch.object(os, "makedirs") as mock_makedirs, \
+                patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
+                patch.object(syn, "_download_from_URL") as mock_download_from_URL, \
+                patch.object(syn, "cache") as mock_cache:
             mock_getFileHandleDownload.return_value = {
-                'fileHandle':{
-                    'id':'123',
+                'fileHandle': {
+                    'id': '123',
                     'concreteType': "someFakeConcreteType",
-                    'contentMd5':'someMD5'
+                    'contentMd5': 'someMD5'
                 },
                 'preSignedURL': 'asdf.com'
             }
 
-            syn.multi_threaded=True
+            syn.multi_threaded = True
             syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath")
 
             mock_download_from_URL.assert_called_once_with("asdf.com", "/myfakepath", "123", expected_md5="someMD5")
 
-    def test_multithread_false__S3_fileHandle(self):
-        with patch.object(os, "makedirs") as mock_makedirs,\
-            patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload,\
-            patch.object(syn, "_download_from_URL") as mock_download_from_URL,\
-            patch.object(syn, "cache") as mock_cache:
+    def test_destination_is_directory(self):
+        with patch.object(os.path, "isdir", return_value=True):
+            assert_raises(ValueError, syn._downloadFileHandle, fileHandleId=123, objectId=456,
+                          objectType="FileEntity", destination="/myfakepath")
 
+
+    def test_multithread_false__S3_fileHandle(self):
+        with patch.object(os, "makedirs") as mock_makedirs, \
+                patch.object(syn, "_getFileHandleDownload") as mock_getFileHandleDownload, \
+                patch.object(syn, "_download_from_URL") as mock_download_from_URL, \
+                patch.object(syn, "cache") as mock_cache:
             mock_getFileHandleDownload.return_value = {
-                'fileHandle':{
-                    'id':'123',
-                    'concreteType':concrete_types.S3_FILE_HANDLE,
-                    'contentMd5':'someMD5'
+                'fileHandle': {
+                    'id': '123',
+                    'concreteType': concrete_types.S3_FILE_HANDLE,
+                    'contentMd5': 'someMD5'
                 },
                 'preSignedURL': 'asdf.com'
             }
 
-            syn.multi_threaded=False
+            syn.multi_threaded = False
             syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath")
 
             mock_download_from_URL.assert_called_once_with("asdf.com", "/myfakepath", "123", expected_md5="someMD5")
 
 
 class Test_download_from_url_multi_threaded:
-    def test_md5_mis_match(self):
-        with patch.object(multithread_download, "download_file"),\
-            patch.object(utils, "md5_for_file") as mock_md5_for_file,\
-            patch.object(os, "remove") as mock_os_remove,\
-            patch.object(shutil, "move") as mock_move:
-
+    def test_md5_mismatch(self):
+        with patch.object(multithread_download, "download_file"), \
+             patch.object(utils, "md5_for_file") as mock_md5_for_file, \
+                patch.object(os, "remove") as mock_os_remove, \
+                patch.object(shutil, "move") as mock_move:
             path = os.path.abspath("/myfakepath")
 
             mock_md5_for_file.return_value.hexdigest.return_value = "unexpetedMd5"
@@ -334,9 +341,7 @@ class Test_download_from_url_multi_threaded:
             mock_os_remove.assert_called_once_with(utils.temp_download_filename(path, 123))
             mock_move.assert_not_called()
 
-
-
-    def test_md5_mismatch(self):
+    def test_md5_match(self):
         with patch.object(multithread_download, "download_file"), \
              patch.object(utils, "md5_for_file") as mock_md5_for_file, \
                 patch.object(os, "remove") as mock_os_remove, \
@@ -348,8 +353,8 @@ class Test_download_from_url_multi_threaded:
             mock_md5_for_file.return_value.hexdigest.return_value = expected_md5
 
             syn._download_from_url_multi_threaded(file_handle_id=123,
-                          object_id=456, object_type="FileEntity",
-                          destination=path, expected_md5=expected_md5)
+                                                  object_id=456, object_type="FileEntity",
+                                                  destination=path, expected_md5=expected_md5)
 
             mock_os_remove.assert_not_called()
             mock_move.assert_called_once_with(utils.temp_download_filename(path, 123), path)
@@ -382,11 +387,11 @@ def test_download_end_early_retry():
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
          patch.object(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
-         patch.object(client, 'open', new_callable=mock_open(), create=True) as mocked_open, \
-         patch.object(os.path, 'exists', side_effect=[False, True]) as mocked_exists, \
-         patch.object(os.path, 'getsize', return_value=partial_content_break) as mocked_getsize, \
-         patch.object(utils, 'md5_for_file'), \
-         patch.object(shutil, 'move') as mocked_move:
+            patch.object(client, 'open', new_callable=mock_open(), create=True) as mocked_open, \
+            patch.object(os.path, 'exists', side_effect=[False, True]) as mocked_exists, \
+            patch.object(os.path, 'getsize', return_value=partial_content_break) as mocked_getsize, \
+            patch.object(utils, 'md5_for_file'), \
+            patch.object(shutil, 'move') as mocked_move:
         # function under test
         syn._download_from_URL(url, destination)
 
@@ -424,10 +429,10 @@ def test_download_md5_mismatch__not_local_file():
     with patch.object(syn._requests_session, 'get', side_effect=mock_requests_get), \
          patch.object(Synapse, '_generateSignedHeaders', side_effect=mock_generateSignedHeaders), \
          patch.object(utils, 'temp_download_filename', return_value=temp_destination) as mocked_temp_dest, \
-         patch.object(client, 'open', new_callable=mock_open(), create=True) as mocked_open, \
-         patch.object(os.path, 'exists', side_effect=[False, True]) as mocked_exists, \
-         patch.object(shutil, 'move') as mocked_move, \
-         patch.object(os, 'remove') as mocked_remove:
+            patch.object(client, 'open', new_callable=mock_open(), create=True) as mocked_open, \
+            patch.object(os.path, 'exists', side_effect=[False, True]) as mocked_exists, \
+            patch.object(shutil, 'move') as mocked_move, \
+            patch.object(os, 'remove') as mocked_remove:
         # function under test
         assert_raises(SynapseMd5MismatchError, syn._download_from_URL, url, destination,
                       expected_md5="fake md5 is fake")
