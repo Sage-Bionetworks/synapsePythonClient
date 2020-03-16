@@ -713,14 +713,14 @@ class TestPrivateGetEntityBundle:
         self.patch_restGET.stop()
 
     def test__getEntityBundle__with_version_as_number(self):
-        assert_equal(self.bundle, syn._getEntityBundle("syn10101", 6))
+        assert_equal(self.bundle, syn._getEntityBundleV2("syn10101", 6))
 
     def test__getEntityBundle__with_version_as_string(self):
-        assert_equal(self.bundle, syn._getEntityBundle("syn10101", '6'))
-        assert_raises(ValueError, syn._getEntityBundle, "syn10101", 'current')
+        assert_equal(self.bundle, syn._getEntityBundleV2("syn10101", '6'))
+        assert_raises(ValueError, syn._getEntityBundleV2, "syn10101", 'current')
 
     def test_access_restrictions(self):
-        with patch.object(syn, '_getEntityBundle', return_value={
+        with patch.object(syn, '_getEntityBundleV2', return_value={
             'annotations': {
                 'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
                 'id': 'syn1000002',
