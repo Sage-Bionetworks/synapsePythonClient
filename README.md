@@ -56,9 +56,9 @@ The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclien
 
     (sudo) pip install --upgrade synapseclient
 
-The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://docs.synapse.org/python/#tables) integrate
+The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://python-docs.synapse.org/build/html/#tables) integrate
 with [Pandas](http://pandas.pydata.org/). The library `pysftp` is required for users of
-[SFTP](http://docs.synapse.org/python/sftp.html) file storage. Both libraries require native code
+[SFTP](http://python-docs.synapse.org/build/html/sftp.html) file storage. Both libraries require native code
 to be compiled or installed separately from prebuilt binaries.
 
 ### Install from source

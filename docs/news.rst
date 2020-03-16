@@ -485,7 +485,7 @@ Improvements
 
 Release 1.7 is a large bugfix release with several new features. The main ones include:
 
-* We have expanded the `synapseutils packages <docs.synapse.org/python/synapseutils.html#module-synapseutils>`_ to add the ability to:
+* We have expanded the `synapseutils packages <python-docs.synapse.org/build/html/synapseutils.html#module-synapseutils>`_ to add the ability to:
 
     * Bulk upload files to synapse (synapseutils.syncToSynapse).
     * Notify you via email on the progress of a function (useful for jobs like large file uploads that may take a long time to complete).

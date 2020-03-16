@@ -9,7 +9,7 @@ Installation
 ============
 
 The command line client is installed along with `installation of the Synapse Python client \
-<http://docs.synapse.org/python/index.html#installation>`_.
+<http://python-docs.synapse.org/build/html/index.html#installation>`_.
 
 Help
 ====

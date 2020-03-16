@@ -97,7 +97,7 @@ class SFTPWrapper:
                               "For Windows systems without a C/C++ compiler, install the appropriate binary "
                               "distribution of pycrypto from:\n"
                               "http://www.voidspace.org.uk/python/modules.shtml#pycrypto\n\n"
-                              "For more information, see: http://docs.synapse.org/python/sftp.html")
+                              "For more information, see: http://python-docs.synapse.org/build/html/sftp.html")
 
     @staticmethod
     def _parse_for_sftp(url):
