@@ -596,7 +596,7 @@ class Synapse(object):
                              " Please use syn.store() to save your entity and try again.")
         else:
             version = kwargs.get('version', None)
-            bundle = self._getEntityBundle(entity, version)
+            bundle = self._getEntityBundleV2(entity, version)
         # Check and warn for unmet access requirements
         self._check_entity_restrictions(bundle['restrictionInformation'], entity, kwargs.get('downloadFile', True))
 
@@ -637,7 +637,7 @@ class Synapse(object):
                                 '%s version %i\n' % (filepath,  id_txts, results[0]['id'], results[0]['versionNumber']))
         entity = results[0]
 
-        bundle = self._getEntityBundle(entity, version=entity['versionNumber'])
+        bundle = self._getEntityBundleV2(entity, version=entity['versionNumber'])
         self.cache.add(bundle['entity']['dataFileHandleId'], filepath)
 
         return bundle
@@ -694,7 +694,7 @@ class Synapse(object):
         if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link' and followLink:
             targetId = entityBundle['entity']['linksTo']['targetId']
             targetVersion = entityBundle['entity']['linksTo'].get('targetVersionNumber')
-            entityBundle = self._getEntityBundle(targetId, targetVersion)
+            entityBundle = self._getEntityBundleV2(targetId, targetVersion)
 
         # TODO is it an error to specify both downloadFile=False and downloadLocation?
         # TODO this matters if we want to return already cached files when downloadFile=False
@@ -906,7 +906,7 @@ class Synapse(object):
             entity['path'] = os.path.expanduser(entity['path'])
 
             # Check if the File already exists in Synapse by fetching metadata on it
-            bundle = self._getEntityBundle(entity)
+            bundle = self._getEntityBundleV2(entity)
 
             if bundle:
                 # Check if the file should be uploaded
@@ -951,7 +951,8 @@ class Synapse(object):
             if '_file_handle' in local_state \
                     and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
                 local_state['_file_handle'] = find_data_file_handle(
-                    self._getEntityBundle(properties['id'], bitFlags=0x800 | 0x1)
+                    self._getEntityBundleV2(properties['id'], requestedObjects={'includeEntity': True,
+                                                                                'includeFileHandles': True})
                 )
 
                 # check if we already have the filehandleid cached somewhere
@@ -991,7 +992,9 @@ class Synapse(object):
 
                     # get existing properties and annotations
                     if not bundle:
-                        bundle = self._getEntityBundle(existing_entity_id, bitFlags=0x1 | 0x2)
+                        bundle = self._getEntityBundleV2(existing_entity_id,
+                                                         requestedObjects={'includeEntity': True,
+                                                                           'includeAnnotations': True})
 
                     # Need some fields from the existing entity: id, etag, and version info.
                     existing_entity = bundle['entity']
@@ -1100,6 +1103,74 @@ class Synapse(object):
         else:
             uri = '/entity/%s/bundle?mask=%d' % (id_of(entity), bitFlags)
         bundle = self.restGET(uri)
+
+        return bundle
+
+    def _getEntityBundleV2(self, entity, version=None, requestedObjects=None):
+        """
+        Gets some information about the Entity.
+
+        :parameter entity:      a Synapse Entity or Synapse ID
+        :parameter version:     the entity's version (defaults to None meaning most recent version)
+        :parameter requestedObjects:    A dict indicating settings for what to include
+
+        default value for requestedObjects is::
+            requestedObjects = {'includeEntity': True,
+                                'includeAnnotations': True,
+                                'includeFileHandles': True,
+                                'includeRestrictionInformation': True}
+
+        Keys available for requestedObjects::
+
+            includeEntity
+            includeAnnotations
+            includePermissions
+            includeEntityPath
+            includeHasChildren
+            includeAccessControlList
+            includeFileHandles
+            includeTableBundle
+            includeRootWikiId
+            includeBenefactorACL
+            includeDOIAssociation
+            includeFileName
+            includeThreadCount
+            includeRestrictionInformation
+
+
+        For example, we might ask for an entity bundle containing file handles, annotations, and properties::
+            requested_objects = {'includeEntity':True
+                                 'includeAnnotations':True,
+                                 'includeFileHandles':True}
+            bundle = syn._getEntityBundle('syn111111', )
+
+        :returns: An EntityBundle with the requested fields or by default Entity header, annotations, unmet access
+         requirements, and file handles
+        """
+
+        # If 'entity' is given without an ID, try to find it by 'parentId' and 'name'.
+        # Use case:
+        #     If the user forgets to catch the return value of a syn.store(e)
+        #     this allows them to recover by doing: e = syn.get(e)
+        if requestedObjects is None:
+            requestedObjects = {'includeEntity': True,
+                                'includeAnnotations': True,
+                                'includeFileHandles': True,
+                                'includeRestrictionInformation': True}
+        if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
+            entity = self.findEntityId(entity['name'], entity.get('parentId', None))
+
+        # Avoid an exception from finding an ID from a NoneType
+        try:
+            id_of(entity)
+        except ValueError:
+            return None
+
+        if version is not None:
+            uri = f'/entity/{id_of(entity)}/version/{int(version):d}/bundle2'
+        else:
+            uri = f'/entity/{id_of(entity)}/bundle2'
+        bundle = self.restGET(uri, body=json.dumps(requestedObjects))
 
         return bundle
 
