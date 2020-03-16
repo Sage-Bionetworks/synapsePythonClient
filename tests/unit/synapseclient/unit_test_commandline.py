@@ -2,7 +2,7 @@
 
 """
 
-from nose.tools import assert_equals
+from nose.tools import assert_equals, assert_true, assert_false
 from mock import patch
 
 import synapseutils
@@ -38,3 +38,21 @@ def test_command_sync():
                                                     dryRun=args.dryRun,
                                                     sendMessages=args.sendMessages,
                                                     retries=args.retries)
+
+
+def test_get_multi_threaded_flag():
+    """Test the sync function.
+
+    Since this function only passes argparse arguments for the sync subcommand
+    straight to `synapseutils.sync.syncToSynapse`, the only tests here are for
+    the command line arguments provided and that the function is called once.
+
+    """
+
+    parser = cmdline.build_parser()
+    args = parser.parse_args(['get', '--multiThreaded', 'syn123'])
+
+    assert_true(args.multiThreaded)
+
+    args = parser.parse_args(['get', 'syn123'])
+    assert_false(args.multiThreaded)
