@@ -596,7 +596,7 @@ class Synapse(object):
                              " Please use syn.store() to save your entity and try again.")
         else:
             version = kwargs.get('version', None)
-            bundle = self._getEntityBundleV2(entity, version)
+            bundle = self._getEntityBundle(entity, version)
         # Check and warn for unmet access requirements
         self._check_entity_restrictions(bundle['restrictionInformation'], entity, kwargs.get('downloadFile', True))
 
@@ -637,7 +637,7 @@ class Synapse(object):
                                 '%s version %i\n' % (filepath,  id_txts, results[0]['id'], results[0]['versionNumber']))
         entity = results[0]
 
-        bundle = self._getEntityBundleV2(entity, version=entity['versionNumber'])
+        bundle = self._getEntityBundle(entity, version=entity['versionNumber'])
         self.cache.add(bundle['entity']['dataFileHandleId'], filepath)
 
         return bundle
@@ -694,7 +694,7 @@ class Synapse(object):
         if entityBundle['entity']['concreteType'] == 'org.sagebionetworks.repo.model.Link' and followLink:
             targetId = entityBundle['entity']['linksTo']['targetId']
             targetVersion = entityBundle['entity']['linksTo'].get('targetVersionNumber')
-            entityBundle = self._getEntityBundleV2(targetId, targetVersion)
+            entityBundle = self._getEntityBundle(targetId, targetVersion)
 
         # TODO is it an error to specify both downloadFile=False and downloadLocation?
         # TODO this matters if we want to return already cached files when downloadFile=False
@@ -906,7 +906,7 @@ class Synapse(object):
             entity['path'] = os.path.expanduser(entity['path'])
 
             # Check if the File already exists in Synapse by fetching metadata on it
-            bundle = self._getEntityBundleV2(entity)
+            bundle = self._getEntityBundle(entity)
 
             if bundle:
                 # Check if the file should be uploaded
@@ -951,7 +951,7 @@ class Synapse(object):
             if '_file_handle' in local_state \
                     and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
                 local_state['_file_handle'] = find_data_file_handle(
-                    self._getEntityBundleV2(properties['id'], requestedObjects={'includeEntity': True,
+                    self._getEntityBundle(properties['id'], requestedObjects={'includeEntity': True,
                                                                                 'includeFileHandles': True})
                 )
 
@@ -992,7 +992,7 @@ class Synapse(object):
 
                     # get existing properties and annotations
                     if not bundle:
-                        bundle = self._getEntityBundleV2(existing_entity_id,
+                        bundle = self._getEntityBundle(existing_entity_id,
                                                          requestedObjects={'includeEntity': True,
                                                                            'includeAnnotations': True})
 
@@ -1052,61 +1052,7 @@ class Synapse(object):
         if len(existingRestrictions['results']) <= 0:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
-    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x40000 | 0x2 | 0x1):
-        """
-        Gets some information about the Entity.
-
-        :parameter entity:      a Synapse Entity or Synapse ID
-        :parameter version:     the entity's version (defaults to None meaning most recent version)
-        :parameter bitFlags:    Bit flags representing which entity components to return
-
-        EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)::
-
-            ENTITY                     = 0x1
-            ANNOTATIONS                = 0x2
-            PERMISSIONS                = 0x4
-            ENTITY_PATH                = 0x8
-            HAS_CHILDREN               = 0x20
-            ACL                        = 0x40
-            FILE_HANDLES               = 0x800
-            TABLE_DATA                 = 0x1000
-            ROOT_WIKI_ID               = 0x2000
-            BENEFACTOR_ACL             = 0x4000
-            DOI                        = 0x8000
-            FILE_NAME                  = 0x10000
-            THREAD_COUNT               = 0x20000
-            RESTRICTION_INFORMATION    = 0x40000
-
-        For example, we might ask for an entity bundle containing file handles, annotations, and properties::
-
-            bundle = syn._getEntityBundle('syn111111', bitFlags=0x800|0x2|0x1)
-
-        :returns: An EntityBundle with the requested fields or by default Entity header, annotations, unmet access
-         requirements, and file handles
-        """
-
-        # If 'entity' is given without an ID, try to find it by 'parentId' and 'name'.
-        # Use case:
-        #     If the user forgets to catch the return value of a syn.store(e)
-        #     this allows them to recover by doing: e = syn.get(e)
-        if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
-            entity = self.findEntityId(entity['name'], entity.get('parentId', None))
-
-        # Avoid an exception from finding an ID from a NoneType
-        try:
-            id_of(entity)
-        except ValueError:
-            return None
-
-        if version is not None:
-            uri = '/entity/%s/version/%d/bundle?mask=%d' % (id_of(entity), int(version), bitFlags)
-        else:
-            uri = '/entity/%s/bundle?mask=%d' % (id_of(entity), bitFlags)
-        bundle = self.restGET(uri)
-
-        return bundle
-
-    def _getEntityBundleV2(self, entity, version=None, requestedObjects=None):
+    def _getEntityBundle(self, entity, version=None, requestedObjects=None):
         """
         Gets some information about the Entity.
 

@@ -360,7 +360,7 @@ def _copyFile(syn, entity, destinationId, version=None, updateExisting=False, se
     else:
         raise ValueError('setProvenance must be one of None, existing, or traceback')
     # Grab entity bundle
-    bundle = syn._getEntityBundleV2(ent.id, version=ent.versionNumber, requestedObjects={'includeEntity': True,
+    bundle = syn._getEntityBundle(ent.id, version=ent.versionNumber, requestedObjects={'includeEntity': True,
                                                                                          'includeFileHandles': True})
     fileHandle = synapseclient.core.utils.find_data_file_handle(bundle)
     createdBy = fileHandle['createdBy']
