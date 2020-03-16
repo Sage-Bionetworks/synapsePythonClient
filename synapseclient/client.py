@@ -952,7 +952,7 @@ class Synapse(object):
                     and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
                 local_state['_file_handle'] = find_data_file_handle(
                     self._getEntityBundle(properties['id'], requestedObjects={'includeEntity': True,
-                                                                                'includeFileHandles': True})
+                                                                              'includeFileHandles': True})
                 )
 
                 # check if we already have the filehandleid cached somewhere
@@ -993,8 +993,8 @@ class Synapse(object):
                     # get existing properties and annotations
                     if not bundle:
                         bundle = self._getEntityBundle(existing_entity_id,
-                                                         requestedObjects={'includeEntity': True,
-                                                                           'includeAnnotations': True})
+                                                       requestedObjects={'includeEntity': True,
+                                                                         'includeAnnotations': True})
 
                     # Need some fields from the existing entity: id, etag, and version info.
                     existing_entity = bundle['entity']
