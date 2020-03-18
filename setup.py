@@ -3,6 +3,7 @@
 import sys
 import os
 import setuptools
+import json
 
 # check Python version, before we do anything
 if sys.version_info.major < 3 and sys.version_info.minor < 6:
