@@ -5,7 +5,7 @@ Python Synapse Client
  ---|---------|-------------
 Travis | develop | [![Build Status develop branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
 Travis | master  | [![Build Status master branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
-AppVeyor | develop | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/master.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
+AppVeyor | develop | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/develop.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
 AppVeyor | master | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/master.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
 
 
