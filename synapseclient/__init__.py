@@ -266,24 +266,22 @@ To get information about new versions of the client, see:
 
 """
 
-import json
+from .__version__ import __version__
 
-import pkg_resources
-
-from .activity import Activity
-from .client import PUBLIC, AUTHENTICATED_USERS
 # public APIs
 from .client import Synapse, login
-from .core.version_check import check_for_updates, release_notes
+from .client import PUBLIC, AUTHENTICATED_USERS
+
+from .activity import Activity
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, \
+from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset,\
     EntityViewType, build_table
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-__version__ = json.load(pkg_resources.resource_stream(__name__,
-                                                       'synapsePythonClient'))['latestVersion']
+from .core.version_check import check_for_updates, release_notes
+
 
 __all__ = [
     # objects
