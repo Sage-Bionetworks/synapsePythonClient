@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 import base64
-from mock import patch, call, create_autospec
+from mock import patch, call, create_autospec, MagicMock
 
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
@@ -783,14 +783,10 @@ def test_delete__string_version():
         patch_rest_delete.assert_called_once_with(uri="/entity/syn1235/version/1")
 
 
-class mock_synapse_delete:
-    def _synapse_delete(self):
-        return True
-
-
 def test_delete__has_synapse_delete_attr():
-    delete_obj = syn.delete(mock_synapse_delete)
-    assert_true(delete_obj)
+    mock_obj = MagicMock()
+    delete_obj = syn.delete(mock_obj)
+    mock_obj._synapse_delete.assert_called_once()
 
 
 def test_delete__entity():

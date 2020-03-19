@@ -1113,10 +1113,9 @@ class Synapse(object):
         # Handle all strings as the Entity ID for backward compatibility
         if isinstance(obj, str):
             if version:
-                self.restDELETE(uri='/entity/{}/version/{}'.format(id_of(obj),
-                                                                   version))
+                self.restDELETE(uri=f'/entity/{id_of(obj)}/version/{version}')
             else:
-                self.restDELETE(uri='/entity/{}'.format(id_of(obj)))
+                self.restDELETE(uri=f'/entity/{id_of(obj)}')
         elif hasattr(obj, "_synapse_delete"):
             return obj._synapse_delete(self)
         else:
@@ -1126,8 +1125,8 @@ class Synapse(object):
                 else:
                     self.restDELETE(obj.deleteURI())
             except AttributeError:
-                raise SynapseError("Can't delete a {}. Please specify a "
-                                   "Synapse object or id".format(type(obj)))
+                raise SynapseError(f"Can't delete a {type(obj)}. Please "
+                                   "specify a Synapse object or id")
 
     _user_name_cache = {}
 
