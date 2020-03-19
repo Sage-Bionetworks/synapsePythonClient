@@ -12,7 +12,10 @@ if sys.version_info.major < 3 and sys.version_info.minor < 6:
     sys.exit(-1)
 
 # figure out the version
-__version__=json.loads(open('synapseclient/synapsePythonClient').read())['latestVersion']
+about = {}
+here = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(here, "synapseclient", "__version__.py")) as f:
+    exec(f.read(), about)
 
 description = """A client for Synapse, a collaborative compute space 
 that allows scientists to share and analyze data together.""".replace("\n", " ")
@@ -26,7 +29,7 @@ data_files = [(os.path.expanduser('~'), ['synapseclient/.synapseConfig'])] if no
 setuptools.setup(
     # basic
     name='synapseclient',
-    version=__version__,
+    version=about["__version__"],
     packages=setuptools.find_packages(exclude=["tests", "tests.*"]),
 
     # requirements
