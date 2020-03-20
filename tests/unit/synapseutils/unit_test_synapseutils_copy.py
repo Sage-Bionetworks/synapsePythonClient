@@ -296,7 +296,7 @@ class TestCopyPermissions:
         """Entities with READ permissions not copied"""
         permissions = {'canDownload': False}
         with patch.object(syn, "get",
-                         return_value=self.file_ent) as patch_syn_get,\
+                          return_value=self.file_ent) as patch_syn_get,\
              patch.object(syn, "restGET",
                           return_value=permissions) as patch_rest_get:
             copied_file = synapseutils.copy(syn, self.file_ent,
