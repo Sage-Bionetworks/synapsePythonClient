@@ -1,5 +1,8 @@
+import uuid
+
 from nose.tools import assert_raises, assert_equal
 from mock import patch, call
+
 import synapseutils
 from synapseutils.copy import *
 from synapseutils.copy import _copy_file_handles_batch, _create_batch_file_handle_copy_request, \
