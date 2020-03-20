@@ -4,6 +4,7 @@ import uuid
 from mock import patch, call
 from nose.tools import assert_raises, assert_equal
 
+import synapseclient
 import synapseutils
 from synapseutils.copy_functions import _copy_file_handles_batch, _create_batch_file_handle_copy_request, \
     _batch_iterator_generator
@@ -291,10 +292,13 @@ class TestProtectedBatchIteratorGenerator:
 class TestCopyPermissions:
     """Test copy entities with different permissions"""
     def setup(self):
-        self.project_entity = Project(name=str(uuid.uuid4()), id="syn1234")
-        self.second_project = Project(name=str(uuid.uuid4()), id="syn2345")
-        self.file_ent = File(name='File', parent=self.project_entity.id,
-                             id="syn3456")
+        self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
+                                                    id="syn1234")
+        self.second_project = synapseclient.Project(name=str(uuid.uuid4()),
+                                                    id="syn2345")
+        self.file_ent = synapseclient.File(name='File',
+                                           parent=self.project_entity.id,
+                                           id="syn3456")
 
     def test_dont_copy_read_permissions(self):
         """Entities with READ permissions not copied"""
@@ -306,7 +310,7 @@ class TestCopyPermissions:
             copied_file = synapseutils.copy(syn, self.file_ent,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
-            assert_equals(copied_file, dict())
+            assert_equal(copied_file, dict())
             patch_syn_get.assert_called_once_with(self.file_ent,
                                                   downloadFile=False)
             rest_call = "/entity/{}/permissions".format(self.file_ent.id)
@@ -316,9 +320,12 @@ class TestCopyPermissions:
 class TestCopyAccessRestriction:
     """Test that entities with access restrictions aren't copied"""
     def setup(self):
-        self.project_entity = Project(name=str(uuid.uuid4()), id="syn1234")
-        self.second_project = Project(name=str(uuid.uuid4()), id="syn2345")
-        self.file_ent = File(name='File', parent=self.project_entity.id)
+        self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
+                                                    id="syn1234")
+        self.second_project = synapseclient.Project(name=str(uuid.uuid4()),
+                                                    id="syn2345")
+        self.file_ent = synapseclient.File(name='File',
+                                           parent=self.project_entity.id)
         self.file_ent.id = "syn3456"
 
     def test_copy_entity_access_requirements(self):
@@ -333,7 +340,7 @@ class TestCopyAccessRestriction:
             copied_file = synapseutils.copy(syn, self.file_ent,
                                             destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
-            assert_equals(copied_file, dict())
+            assert_equal(copied_file, dict())
             patch_syn_get.assert_called_once_with(self.file_ent,
                                                   downloadFile=False)
             calls = [call('/entity/{}/accessRequirement'.format(self.file_ent.id)),
@@ -344,9 +351,12 @@ class TestCopyAccessRestriction:
 class TestCopy:
     """Test that certain entities aren't copied"""
     def setup(self):
-        self.project_entity = Project(name=str(uuid.uuid4()), id="syn1234")
-        self.second_project = Project(name=str(uuid.uuid4()), id="syn2345")
-        self.file_ent = File(name='File', parent=self.project_entity.id)
+        self.project_entity = synapseclient.Project(name=str(uuid.uuid4()),
+                                                    id="syn1234")
+        self.second_project = synapseclient.Project(name=str(uuid.uuid4()),
+                                                    id="syn2345")
+        self.file_ent = synapseclient.File(name='File',
+                                           parent=self.project_entity.id)
         self.file_ent.id = "syn3456"
 
     def test_no_copy_types(self):
@@ -362,8 +372,8 @@ class TestCopy:
             copied_file = synapseutils.copy(syn, self.project_entity,
                                              destinationId=self.second_project.id,
                                             skipCopyWikiPage=True)
-            assert_equals(copied_file, {self.project_entity.id:
-                                        self.second_project.id})
+            assert_equal(copied_file, {self.project_entity.id:
+                                       self.second_project.id})
             calls = [call(self.project_entity, downloadFile=False),
                      call(self.second_project.id)]
             patch_syn_get.assert_has_calls(calls)
