@@ -1,8 +1,10 @@
-from nose.tools import assert_raises, assert_equal
+import json
+
 from mock import patch, call
+from nose.tools import assert_raises, assert_equal
+
 import synapseutils
-from synapseutils.copy import *
-from synapseutils.copy import _copy_file_handles_batch, _create_batch_file_handle_copy_request, \
+from synapseutils.copy_functions import _copy_file_handles_batch, _create_batch_file_handle_copy_request, \
     _batch_iterator_generator
 from tests import unit
 
@@ -48,7 +50,7 @@ def test_copyWiki_input_validation():
 class TestCopyFileHandles:
 
     def setup(self):
-        self.patch_private_copy = patch.object(synapseutils.copy, "_copy_file_handles_batch")
+        self.patch_private_copy = patch.object(synapseutils.copy_functions, "_copy_file_handles_batch")
         self.mock_private_copy = self.patch_private_copy.start()
 
     def teardown(self):
@@ -80,7 +82,7 @@ class TestCopyFileHandles:
         self.mock_private_copy.assert_not_called()
 
     def test_copy_file_handles__multiple_batch_calls(self):
-        synapseutils.copy.MAX_FILE_HANDLE_PER_COPY_REQUEST = 1  # set batch size to 1
+        synapseutils.copy_functions.MAX_FILE_HANDLE_PER_COPY_REQUEST = 1  # set batch size to 1
         file_handles = ["789", "NotAccessibleFile"]
         obj_types = ["FileEntity", "FileEntity"]
         obj_ids = ["0987", "2352"]
@@ -117,7 +119,8 @@ class TestCopyFileHandles:
 
         self.mock_private_copy.side_effect = [return_val_1, return_val_2]  # define multiple returns
         result = synapseutils.copyFileHandles(syn, file_handles, obj_types, obj_ids, con_types, file_names)
-        assert_equal(self.mock_private_copy.call_args_list, expected_calls)
+        assert_equal(expected_calls, self.mock_private_copy.call_args_list)
+
         assert_equal(result, expected_return)
         assert_equal(self.mock_private_copy.call_count, 2)
 
