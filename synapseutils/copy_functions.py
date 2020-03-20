@@ -304,10 +304,9 @@ def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations
     if not isinstance(ent, (Project, Folder, File, Link, Schema, Entity)):
         raise ValueError("Not able to copy this type of file")
 
-    profile_username = syn.username
-    permissions = syn.getPermissions(ent, profile_username)
+    permissions = syn.restGET("/entity/{}/permissions".format(ent.id))
     # Don't copy entities without DOWNLOAD permissions
-    if "DOWNLOAD" not in permissions:
+    if not permissions['canDownload']:
         print("%s not copied - this file lacks download permission" % ent.id)
         return mapping
 
