@@ -247,6 +247,16 @@ def associate(args, syn):
             print('%s.%i\t%s' % (ent.id, ent.versionNumber, fp))
 
 
+def copy(args, syn):
+    mappings = synapseutils.copy(syn, args.id, args.destinationId,
+                                 skipCopyWikiPage=args.skipCopyWiki,
+                                 skipCopyAnnotations=args.skipCopyAnnotations,
+                                 excludeTypes=args.excludeTypes,
+                                 version=args.version, updateExisting=args.updateExisting,
+                                 setProvenance=args.setProvenance)
+    print(mappings)
+
+
 def cat(args, syn):
     try:
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
@@ -628,6 +638,35 @@ def build_parser():
                            required=True, dest='parentid',
                            help='Synapse ID of project or folder where file/folder will be moved ')
     parser_mv.set_defaults(func=move)
+
+    parser_cp = subparsers.add_parser('cp',
+                                      help='Copies specific versions of synapse content such as files, folders and '
+                                           'projects by recursively copying all sub-content')
+    parser_cp.add_argument('id', metavar='syn123', type=str,
+                           help='Id of entity in Synapse to be copied.')
+    parser_cp.add_argument('--destinationId', metavar='syn123', required=True,
+                           help='Synapse ID of project or folder where file will be copied to.')
+    parser_cp.add_argument('--version', '-v', metavar='1', type=int, default=None,
+                           help=('Synapse version number of File or Link to retrieve. '
+                                 'This parameter cannot be used when copying Projects or Folders. '
+                                 'Defaults to most recent version.'))
+    parser_cp.add_argument('--setProvenance', metavar='traceback', type=str, default='traceback',
+                           help=('Has three values to set the provenance of the copied entity-'
+                                 'traceback: Sets to the source entity'
+                                 'existing: Sets to source entity\'s original provenance (if it exists)'
+                                 'None/none: No provenance is set'))
+    parser_cp.add_argument('--updateExisting', action='store_true',
+                           help='Will update the file if there is already a file that is named the same in the '
+                                'destination')
+    parser_cp.add_argument('--skipCopyAnnotations', action='store_true',
+                           help='Do not copy the annotations')
+    parser_cp.add_argument('--excludeTypes', nargs='*', metavar='file table', type=str, default=list(),
+                           help='Accepts a list of entity types (file, table, link) which determines which entity'
+                                ' types to not copy.')
+    parser_cp.add_argument('--skipCopyWiki', action='store_true',
+                           help='Do not copy the wiki pages')
+    parser_cp.set_defaults(func=copy)
+
     parser_associate = subparsers.add_parser('associate',
                                              help=(
                                                  'Associate local files with the files stored in Synapse so that calls'

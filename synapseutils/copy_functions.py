@@ -198,6 +198,76 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
     ent = syn.store(ent)
     return ent
 
+def copy(syn, entity, destinationId, skipCopyWikiPage=False, skipCopyAnnotations=False, **kwargs):
+    """
+    - This function will assist users in copying entities (Tables, Links, Files, Folders, Projects),
+      and will recursively copy everything in directories.
+    - A Mapping of the old entities to the new entities will be created and all the wikis of each entity
+      will also be copied over and links to synapse Ids will be updated.
+
+    :param syn:                 A synapse object: syn = synapseclient.login()- Must be logged into synapse
+
+    :param entity:              A synapse entity ID
+
+    :param destinationId:       Synapse ID of a folder/project that the copied entity is being copied to
+
+    :param skipCopyWikiPage:    Skip copying the wiki pages
+                                Default is False
+
+    :param skipCopyAnnotations: Skips copying the annotations
+                                Default is False
+
+    Examples::                        
+    import synapseutils
+    import synapseclient
+    syn = synapseclient.login()
+    synapseutils.copy(syn, ...)
+
+    Examples and extra parameters unique to each copy function
+    -- COPYING FILES
+
+    :param version:         Can specify version of a file. 
+                            Default to None
+
+    :param updateExisting:  When the destination has an entity that has the same name, 
+                            users can choose to update that entity.  
+                            It must be the same entity type
+                            Default to False
+    
+    :param setProvenance:   Has three values to set the provenance of the copied entity:
+                            traceback: Sets to the source entity
+                            existing: Sets to source entity's original provenance (if it exists)
+                            None: No provenance is set
+
+    Examples::
+        synapseutils.copy(syn, "syn12345", "syn45678", updateExisting=False, setProvenance = "traceback",version=None)
+
+    -- COPYING FOLDERS/PROJECTS
+
+    :param excludeTypes:    Accepts a list of entity types (file, table, link) which determines which entity types to
+                            not copy.
+                            Defaults to an empty list.
+
+    Examples::
+    #This will copy everything in the project into the destinationId except files and tables.
+    synapseutils.copy(syn, "syn123450","syn345678",excludeTypes=["file","table"])
+
+    :returns: a mapping between the original and copied entity: {'syn1234':'syn33455'}
+    """
+    updateLinks = kwargs.get('updateLinks', True)
+    updateSynIds = kwargs.get('updateSynIds', True)
+    entitySubPageId = kwargs.get('entitySubPageId', None)
+    destinationSubPageId = kwargs.get('destinationSubPageId', None)
+
+    mapping = _copyRecursive(syn, entity, destinationId, skipCopyAnnotations=skipCopyAnnotations, **kwargs)
+    if not skipCopyWikiPage:
+        for oldEnt in mapping:
+            copyWiki(syn, oldEnt, mapping[oldEnt], entitySubPageId=entitySubPageId,
+                     destinationSubPageId=destinationSubPageId, updateLinks=updateLinks,
+                     updateSynIds=updateSynIds, entityMap=mapping)
+    return mapping
+
+
 def _copyRecursive(syn, entity, destinationId, mapping=None, skipCopyAnnotations=False, **kwargs):
     """
     Recursively copies synapse entites, but does not copy the wikis
