@@ -179,11 +179,11 @@ def changeFileMetaData(syn, entity, downloadAs=None, contentType=None):
 
     :return:              Synapse Entity
 
-    Can be used to change the fileaname or the file content-type without downloading::
+    Can be used to change the filename or the file content-type without downloading::
 
-        e = syn.get(synid)
-        print(os.path.basename(e.path))  ## prints, e.g., "my_file.txt"
-        e = synapseutils.changeFileMetaData(syn, e, "my_newname_file.txt")
+        file_entity = syn.get(synid)
+        print(os.path.basename(file_entity.path))  ## prints, e.g., "my_file.txt"
+        file_entity = synapseutils.changeFileMetaData(syn, file_entity, "my_new_name_file.txt")
     """
     ent = syn.get(entity, downloadFile=False)
     fileResult = syn._getFileHandleDownload(ent.dataFileHandleId, ent.id)
