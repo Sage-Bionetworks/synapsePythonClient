@@ -9,7 +9,7 @@ Installation
 ============
 
 The command line client is installed along with `installation of the Synapse Python client \
-<http://docs.synapse.org/python/index.html#installation>`_.
+<http://python-docs.synapse.org/build/html/index.html#installation>`_.
 
 Help
 ====
@@ -122,6 +122,7 @@ def _getIdsFromQuery(queryString, syn):
 
 
 def get(args, syn):
+    syn.multi_threaded = args.multiThreaded
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
@@ -517,6 +518,10 @@ def build_parser():
                                  'if using a path.')
     parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
                             help='Directory to download file to [default: %(default)s].')
+    parser_get.add_argument('--multiThreaded', action='store_true',
+                            default=False, help='Download file using a multiple threaded implementation. '
+                                                'This flag will be removed in the future when multi-threaded download '
+                                                'is deemed fully stable and becomes the default implementation.')
     parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)

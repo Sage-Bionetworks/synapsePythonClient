@@ -9,7 +9,7 @@ import configparser
 
 from datetime import datetime
 from nose.tools import assert_raises, assert_equals, assert_true, assert_false, assert_not_in
-from mock import patch
+from unittest.mock import patch
 from synapseclient import client
 
 from synapseclient import *
@@ -221,6 +221,22 @@ def test_uploadFileEntity():
     assert_equals(entity['files'][0], os.path.basename(fname))
     assert_true(filecmp.cmp(fname, entity['path']))
 
+
+def test_download_multithreaded():
+    # Create a FileEntity
+    # Dictionaries default to FileEntity as a type
+    fname = utils.make_bogus_data_file()
+    schedule_for_cleanup(fname)
+    entity = File(name='testMultiThreadDownload' + str(uuid.uuid4()), path=fname, parentId=project['id'])
+    entity = syn.store(entity)
+
+    # Download and verify
+    syn.multi_threaded = True
+    entity = syn.get(entity)
+
+    assert_equals(entity['files'][0], os.path.basename(fname))
+    assert_true(filecmp.cmp(fname, entity['path']))
+    syn.multi_threaded = False
 
 def test_downloadFile():
     # See if the a "wget" works
