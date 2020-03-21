@@ -22,6 +22,7 @@ Highlights:
     syn.get("syn123")
 
   Multi-threaded download currently will only work with files stored in AWS S3, where most files on Synapse reside.
+  Files not stored in S3 will fall back to single-threaded download even if :code:`syn.multi_threaded==True`
 - :code:`synapseutils.copy()` will no longer copy entities that have access requirements
   nor entities to which the user does not have download permissions
 - :code:`contentTypes` and :code:`fileNames` are optional parameters in :code:`synapseutils.copyFileHandles()`
