@@ -2,11 +2,83 @@
 Release Notes
 =============
 
+2.0.0 (2020-03-23)
+==================
+This release requires Python 3.6+. **Python 2 is no longer supported as of this release**
+
+Highlights:
+----------------
+
+- Multi-threaded download of files from Syanpse can be toggled by setting :code:`syn.multi_threaded=True` on a
+  :code:`synapseclient.Synapse` object. This will become the default implementation in the future,
+  but to ensure stability for the first release of this feature, it must be intentionally toggled.
+
+  .. code-block:: python
+
+    import synapseclient
+    syn = synapseclient.login()
+    syn.multi_threaded = True
+    # syn123 now will be downloaded via the multi-threaded implementation
+    syn.get("syn123")
+
+  Multi-threaded download currently will only work with files stored in AWS S3, where most files on Synapse reside.
+- :code:`synapseutils.copy()` will no longer copy entities that have access requirements
+  nor entities to which the user does not have download permissions
+- :code:`contentTypes` and :code:`fileNames` are optional parameters in :code:`synapseutils.copyFileHandles()`
+
+- Synapse Docker Repository(:code:`synapseclient.DockerRepository`) objects can be used as the :code:`entity` argument
+  in :code:`synapseclient.Synapse.submit()`. Optional argument :code:`docker_tag="latest"` has also been added
+  to :code:`synapseclient.Synapse.submit()`
+
+
+
+Full set of addressed are issues are listed below.
+
+
+Bug
+---
+
+-  [`SYNPY-271 <https://sagebionetworks.jira.com/browse/SYNPY-271>`__] -
+   cache.remove fails to return the file handles we removed
+-  [`SYNPY-1032 <https://sagebionetworks.jira.com/browse/SYNPY-1032>`__]
+   - Support new columnTypes defined in backend
+
+Task
+----
+
+-  [`SYNPY-999 <https://sagebionetworks.jira.com/browse/SYNPY-999>`__] -
+   Remove unsafe copy functions from client
+-  [`SYNPY-1027 <https://sagebionetworks.jira.com/browse/SYNPY-1027>`__]
+   - Copy function should copy things when users are part of a Team that
+   has DOWNLOAD access
+
+Improvement
+-----------
+
+-  [`SYNPY-389 <https://sagebionetworks.jira.com/browse/SYNPY-389>`__] -
+   submission of Docker repository
+-  [`SYNPY-537 <https://sagebionetworks.jira.com/browse/SYNPY-537>`__] -
+   synapseutils.copyFileHandles requires fields that does not require at
+   rest
+-  [`SYNPY-680 <https://sagebionetworks.jira.com/browse/SYNPY-680>`__] -
+   synapseutils.changeFileMetaData() needs description in documentation
+-  [`SYNPY-682 <https://sagebionetworks.jira.com/browse/SYNPY-682>`__] -
+   improve download speeds to be comparable to AWS
+-  [`SYNPY-807 <https://sagebionetworks.jira.com/browse/SYNPY-807>`__] -
+   Drop support for Python 2
+-  [`SYNPY-907 <https://sagebionetworks.jira.com/browse/SYNPY-907>`__] -
+   Replace \`from <module> import ...\` with \`import <module>\`
+-  [`SYNPY-962 <https://sagebionetworks.jira.com/browse/SYNPY-962>`__] -
+   remove 'password' as an option in default synapse config file
+-  [`SYNPY-972 <https://sagebionetworks.jira.com/browse/SYNPY-972>`__] -
+   Link on Synapse Python Client Documentation points back at itself
+
+
 1.9.4 (2019-06-28)
 ==================
 
 Bug
-===
+---
 
 -  [`SYNPY-881 <https://sagebionetworks.jira.com/browse/SYNPY-881>`__] -
    Synu.copy fails when copying a file with READ permissions
@@ -20,13 +92,13 @@ Bug
    - Synu.copy shouldn't copy any files with access restrictions
 
 New Feature
-===========
+-----------
 
 -  [`SYNPY-851 <https://sagebionetworks.jira.com/browse/SYNPY-851>`__] -
    invite user or list of users to a team
 
 Improvement
-===========
+-----------
 
 -  [`SYNPY-608 <https://sagebionetworks.jira.com/browse/SYNPY-608>`__] -
    Add how to contribute md to github project
