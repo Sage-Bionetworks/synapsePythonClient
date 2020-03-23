@@ -38,7 +38,7 @@ Changing File Names
 A Synapse File Entity has a name separate from the name of the actual file it represents. When a file is uploaded to
 Synapse, its filename is fixed, even though the name of the entity can be changed at any time. Synapse provides a way
 to change this filename and the content-type of the file for future downloads by creating a new version of the file
-with a modified copy of itself.  This can be done with the synapseutils.copy.changeFileMetaData function.
+with a modified copy of itself.  This can be done with the synapseutils.copy_functions.changeFileMetaData function.
 
 >>> import synapseutils
 >>> e = syn.get(synid)
