@@ -9,7 +9,7 @@ Installation
 ============
 
 The command line client is installed along with `installation of the Synapse Python client \
-<http://docs.synapse.org/python/index.html#installation>`_.
+<http://python-docs.synapse.org/build/html/index.html#installation>`_.
 
 Help
 ====
@@ -64,27 +64,20 @@ Commands
   * **login**            - login to Synapse and (optionally) cache credentials
   * **test-encoding**    - test character encoding to help diagnose problems
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from builtins import input
-import six
-
 import argparse
 import os
-import collections
 import sys
-import synapseclient
-import synapseutils
-from . import Activity
 import signal
 import json
-from .exceptions import *
-from .wiki import Wiki
 import getpass
 import csv
 import re
+
+import synapseclient
+import synapseutils
+from . import Activity
+from .wiki import Wiki
+from synapseclient.core.exceptions import *
 
 
 def query(args, syn):
@@ -129,6 +122,7 @@ def _getIdsFromQuery(queryString, syn):
 
 
 def get(args, syn):
+    syn.multi_threaded = args.multiThreaded
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
@@ -141,7 +135,7 @@ def get(args, syn):
             syn.get(id, downloadLocation=args.downloadLocation)
     else:
         # search by MD5
-        if isinstance(args.id, six.string_types) and os.path.isfile(args.id):
+        if isinstance(args.id, str) and os.path.isfile(args.id):
             entity = syn.get(args.id, version=args.version, limitSearch=args.limitSearch, downloadFile=False)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print("Associated file: %s with synapse ID %s" % (entity.path, entity.id))
@@ -534,6 +528,10 @@ def build_parser():
                                  'if using a path.')
     parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
                             help='Directory to download file to [default: %(default)s].')
+    parser_get.add_argument('--multiThreaded', action='store_true',
+                            default=False, help='Download file using a multiple threaded implementation. '
+                                                'This flag will be removed in the future when multi-threaded download '
+                                                'is deemed fully stable and becomes the default implementation.')
     parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)

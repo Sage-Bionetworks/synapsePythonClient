@@ -14,12 +14,7 @@ The ``synapseutils`` package provides both higher level functions as well as uti
 - :py:func:`monitor.notifyMe`
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-from .copy import copy, copyWiki, copyFileHandles, changeFileMetaData
+from .copy_functions import copy, copyWiki, copyFileHandles, changeFileMetaData
 from .walk import walk
 from .sync import syncFromSynapse, syncToSynapse
 from .monitor import notifyMe, with_progress_bar

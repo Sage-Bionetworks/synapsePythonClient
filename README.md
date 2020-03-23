@@ -5,7 +5,7 @@ Python Synapse Client
  ---|---------|-------------
 Travis | develop | [![Build Status develop branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
 Travis | master  | [![Build Status master branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
-AppVeyor | develop | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/master.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
+AppVeyor | develop | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/develop.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
 AppVeyor | master | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/master.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
 
 
@@ -21,7 +21,10 @@ Python 2 Support
 
 The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
 
-The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3 on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019), Synapse Python client will require Python 3.**
+The last version that works with Python 2 is Synapse Python client version 1.9.4. 
+There are no plans for future maintenance of version 1.9.x.
+
+**Starting from Synapse Python client version 2.0, Synapse Python client requires Python 3.6+**
 
 
 Documentation
@@ -41,7 +44,7 @@ For more information about interacting with Synapse, see:
 Installation
 ------------
 
-The Python Synapse client has been tested on Python 2.7, 3.5 and 3.6 on Mac OS X, Ubuntu Linux and Windows.
+The Python Synapse client has been tested on 3.6, 3.7, and 3.8 on Mac OS X, Ubuntu Linux and Windows.
 
 ### Install using pip
 
@@ -53,9 +56,9 @@ The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclien
 
     (sudo) pip install --upgrade synapseclient
 
-The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://docs.synapse.org/python/#tables) integrate
+The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://python-docs.synapse.org/build/html/#tables) integrate
 with [Pandas](http://pandas.pydata.org/). The library `pysftp` is required for users of
-[SFTP](http://docs.synapse.org/python/sftp.html) file storage. Both libraries require native code
+[SFTP](http://python-docs.synapse.org/build/html/sftp.html) file storage. Both libraries require native code
 to be compiled or installed separately from prebuilt binaries.
 
 ### Install from source
@@ -65,24 +68,6 @@ Clone the [source code repository](https://github.com/Sage-Bionetworks/synapsePy
     git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
     cd synapsePythonClient
     python setup.py install
-
-#### Install release candidate branch
-
-For validation, validators would install a release candidate branch to verify that a bug has been fix or a new feature/ an improvement works as expected. To prevent overwriting your working environment, using [virtualenv](https://virtualenv.pypa.io/) to create an isolated test environment is a good idea.
-
-    git clone git://github.com/Sage-Bionetworks/synapsePythonClient.git
-    cd synapsePythonClient
-    git checkout v1.8.2-rc
-    python setup.py install
-
-Replace `python setup.py install` with `python setup.py develop` to make the installation follow the head without having to reinstall.
-
-#### Installing a tagged version
-
-After a version is release, a tag will be created for the released version. To install a specific release, instead of checking out the release candidate branch, check out the tag instead, for example:
-
-    git checkout v1.8.2
-
 
 
 Command line usage
@@ -195,6 +180,6 @@ The purpose of synapseutils is to create a space filled with convenience functio
 License and Copyright
 ---------------------
 
-&copy; Copyright 2013-18 Sage Bionetworks
+&copy; Copyright 2013-19 Sage Bionetworks
 
 This software is licensed under the [Apache License, Version 2.0](http://www.apache.org/licenses/LICENSE-2.0).

@@ -38,7 +38,7 @@ Changing File Names
 A Synapse File Entity has a name separate from the name of the actual file it represents. When a file is uploaded to
 Synapse, its filename is fixed, even though the name of the entity can be changed at any time. Synapse provides a way
 to change this filename and the content-type of the file for future downloads by creating a new version of the file
-with a modified copy of itself.  This can be done with the synapseutils.copy.changeFileMetaData function.
+with a modified copy of itself.  This can be done with the synapseutils.copy_functions.changeFileMetaData function.
 
 >>> import synapseutils
 >>> e = syn.get(synid)
@@ -138,26 +138,16 @@ See also:
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-from future.utils import python_2_unicode_compatible
-from builtins import str
-import six
-
 import collections
 import itertools
-if six.PY2:
-    from StringIO import StringIO
-else:
-    from io import StringIO
-
-from synapseclient.dict_object import DictObject
-from synapseclient.utils import id_of, itersubclasses
-from synapseclient.exceptions import *
+import io
 import os
 import inspect
+import urllib.parse as urllib_parse
+
+from synapseclient.core.models.dict_object import DictObject
+from synapseclient.core.utils import id_of, itersubclasses
+from synapseclient.core.exceptions import *
 
 
 class Versionable(object):
@@ -177,7 +167,6 @@ class Versionable(object):
 # entity_object branch)
 # - giving up on hiding the difference between properties and annotations
 
-@python_2_unicode_compatible
 class Entity(collections.MutableMapping):
     """
     A Synapse entity is an object that has metadata, access control, and potentially a file. It can represent data,
@@ -224,8 +213,8 @@ class Entity(collections.MutableMapping):
 
         if cls == Entity \
                 and 'concreteType' in properties \
-                and properties['concreteType'] in _entity_type_to_class:
-            cls = _entity_type_to_class[properties['concreteType']]
+                and properties['concreteType'] in entity_type_to_class:
+            cls = entity_type_to_class[properties['concreteType']]
         return cls(properties=properties, annotations=annotations, local_state=local_state)
 
     @classmethod
@@ -286,7 +275,7 @@ class Entity(collections.MutableMapping):
 
         # Note: that this will work properly if derived classes declare their internal state variable *before* invoking
         # super(...).__init__(...)
-        for key, value in six.iteritems(kwargs):
+        for key, value in kwargs.items():
             self.__setitem__(key, value)
 
         if 'concreteType' not in self:
@@ -317,11 +306,11 @@ class Entity(collections.MutableMapping):
         :param state: A dictionary
         """
         if state:
-            for key, value in six.iteritems(state):
+            for key, value in state.items():
                 if key not in ['annotations', 'properties']:
                     self.__dict__[key] = value
         result = {}
-        for key, value in six.iteritems(self.__dict__):
+        for key, value in self.__dict__.items():
             if key not in ['annotations', 'properties'] and not key.startswith('__'):
                 result[key] = value
         return result
@@ -399,7 +388,7 @@ class Entity(collections.MutableMapping):
                 f.write('\n')
 
     def __str__(self):
-        f = StringIO()
+        f = io.StringIO()
 
         f.write('%s: %s (%s)\n' % (self.__class__.__name__, self.properties.get('name', 'None'),
                                    self['id'] if 'id' in self else '-',))
@@ -425,16 +414,16 @@ class Entity(collections.MutableMapping):
     def __repr__(self):
         """Returns an eval-able representation of the Entity."""
 
-        f = StringIO()
+        f = io.StringIO()
         f.write(self.__class__.__name__)
         f.write("(")
         f.write(", ".join(
             {"%s=%s" % (str(key), value.__repr__(),) for key, value in
                 itertools.chain(
-                    list([k_v for k_v in six.iteritems(self.__dict__)
+                    list([k_v for k_v in self.__dict__.items()
                           if not (k_v[0] in ['properties', 'annotations'] or k_v[0].startswith('__'))]),
-                    six.iteritems(self.properties),
-                    six.iteritems(self.annotations))}))
+                    self.properties.items(),
+                    self.annotations.items())}))
         f.write(")")
         return f.getvalue()
 
@@ -605,7 +594,7 @@ class File(Entity, Versionable):
 
         if file_handle_update_dict is not None \
                 and file_handle_update_dict.get('concreteType') == "org.sagebionetworks.repo.model.file.ExternalFileHandle"\
-                and utils.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
+                and urllib_parse.urlparse(file_handle_update_dict.get('externalURL')).scheme != 'sftp':
             self.__dict__['synapseStore'] = False
 
         # initialize all nonexistent keys to have value of None
@@ -682,9 +671,9 @@ class DockerRepository(Entity):
 
 
 # Create a mapping from Synapse class (as a string) to the equivalent Python class.
-_entity_type_to_class = {}
+entity_type_to_class = {}
 for cls in itersubclasses(Entity):
-    _entity_type_to_class[cls._synapse_entity_type] = cls
+    entity_type_to_class[cls._synapse_entity_type] = cls
 
 _entity_types = ["project", "folder", "file", "table", "link", "entityview", "dockerrepo"]
 
@@ -704,8 +693,8 @@ def split_entity_namespaces(entity):
     if not isinstance(entity, collections.Mapping):
         raise SynapseMalformedEntityError("Can't split a %s object." % entity.__class__.__name__)
 
-    if 'concreteType' in entity and entity['concreteType'] in _entity_type_to_class:
-        entity_class = _entity_type_to_class[entity['concreteType']]
+    if 'concreteType' in entity and entity['concreteType'] in entity_type_to_class:
+        entity_class = entity_type_to_class[entity['concreteType']]
     else:
         entity_class = Entity
 
@@ -715,7 +704,7 @@ def split_entity_namespaces(entity):
 
     property_keys = entity_class._property_keys
     local_keys = entity_class._local_keys
-    for key, value in six.iteritems(entity):
+    for key, value in entity.items():
         if key in property_keys:
             properties[key] = value
         elif key in local_keys:
@@ -750,7 +739,7 @@ def is_versionable(entity):
         return True
 
     try:
-        entity_class = _entity_type_to_class[entity['concreteType']]
+        entity_class = entity_type_to_class[entity['concreteType']]
         return issubclass(entity_class, Versionable)
     except (KeyError, TypeError):
         # the dict input is not an entity

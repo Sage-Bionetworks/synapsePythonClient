@@ -18,8 +18,7 @@ the `web <https://www.synapse.org/>`_. The Python client can also be used from t
 `command line <CommandLineClient.html>`_.
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for
-`Synapse <https://docs.synapse.org/articles/getting_started.html>`_ and
-`the Python client <https://python-docs.synapse.org/>`_.
+`Synapse <https://docs.synapse.org/articles/getting_started.html>`_.
 
 Installation
 ============
@@ -266,33 +265,43 @@ To get information about new versions of the client, see:
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
+import json
 
-from .client import Synapse, login
-from .client import PUBLIC, AUTHENTICATED_USERS
-from .client import ROOT_ENTITY
+import pkg_resources
 
 from .activity import Activity
+from .client import PUBLIC, AUTHENTICATED_USERS
+# public APIs
+from .client import Synapse, login
+from .core.version_check import check_for_updates, release_notes
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, EntityViewType
+from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, \
+    EntityViewType, build_table
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-from .version_check import check_for_updates
-from .version_check import release_notes
+__version__ = json.load(pkg_resources.resource_stream(__name__,
+                                                       'synapsePythonClient'))['latestVersion']
 
-import json
-from . import custom_json
-import pkg_resources
-__version__ = json.loads(pkg_resources.resource_string('synapseclient',
-                                                       'synapsePythonClient').decode())['latestVersion']
+__all__ = [
+    # objects
+    'Synapse', 'Activity', 'Entity', 'Project', 'Folder', 'File', 'Link', 'DockerRepository', 'Evaluation',
+    'Submission', 'SubmissionStatus', 'Schema', 'EntityViewSchema', 'Column', 'Row', 'RowSet', 'Table', 'PartialRowset',
+    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki',
+    # functions
+    'login', 'build_table', 'as_table_columns', 'check_for_updates', 'release_notes',
+    # enum
+    'EntityViewType',
+    # constants
+    'PUBLIC', 'AUTHENTICATED_USERS']
 
+
+# ensure user-agent is set to track Synapse Python client usage
 import requests
 USER_AGENT = {'User-Agent': 'synapseclient/%s %s' % (__version__, requests.utils.default_user_agent())}
 
-from . import logging_setup as __logingsetup
-from .logging_setup import DEBUG_LOGGER_NAME, DEFAULT_LOGGER_NAME
+# patch json
+from .core.models import custom_json
+# patch logging
+from .core import logging_setup
