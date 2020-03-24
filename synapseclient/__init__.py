@@ -18,8 +18,7 @@ the `web <https://www.synapse.org/>`_. The Python client can also be used from t
 `command line <CommandLineClient.html>`_.
 
 If you're just getting started with Synapse, have a look at the Getting Started guides for
-`Synapse <https://docs.synapse.org/articles/getting_started.html>`_ and
-`the Python client <https://python-docs.synapse.org/>`_.
+`Synapse <https://docs.synapse.org/articles/getting_started.html>`_.
 
 Installation
 ============
@@ -266,22 +265,24 @@ To get information about new versions of the client, see:
 
 """
 
-from .__version__ import __version__
+import json
 
-# public APIs
-from .client import Synapse, login
-from .client import PUBLIC, AUTHENTICATED_USERS
+import pkg_resources
 
 from .activity import Activity
+from .client import PUBLIC, AUTHENTICATED_USERS
+# public APIs
+from .client import Synapse, login
+from .core.version_check import check_for_updates, release_notes
 from .entity import Entity, Project, Folder, File, Link, DockerRepository
 from .evaluation import Evaluation, Submission, SubmissionStatus
-from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset,\
+from .table import Schema, EntityViewSchema, Column, RowSet, Row, as_table_columns, Table, PartialRowset, \
     EntityViewType, build_table
 from .team import Team, UserProfile, UserGroupHeader, TeamMember
 from .wiki import Wiki
 
-from .core.version_check import check_for_updates, release_notes
-
+__version__ = json.load(pkg_resources.resource_stream(__name__,
+                                                       'synapsePythonClient'))['latestVersion']
 
 __all__ = [
     # objects

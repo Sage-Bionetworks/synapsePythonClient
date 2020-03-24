@@ -29,10 +29,8 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 """
 import configparser
 import collections
-import os
 import errno
 import sys
-import time
 import hashlib
 import webbrowser
 import shutil
@@ -41,14 +39,16 @@ import mimetypes
 import tempfile
 import warnings
 import getpass
-import json
 import logging
 import urllib.parse as urllib_urlparse
-
+import json
+import os
+import time
 
 import synapseclient
 from .annotations import from_synapse_annotations, to_synapse_annotations
 from .activity import Activity
+import synapseclient.core.multithread_download as multithread_download
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
@@ -93,7 +93,7 @@ PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 REDIRECT_LIMIT = 5
-
+NUM_THREADS = os.cpu_count() + 4
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
@@ -199,6 +199,7 @@ class Synapse(object):
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
+        self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
@@ -580,7 +581,6 @@ class Synapse(object):
            print(syn.getProvenance(entity))
 
         """
-
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
             bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
@@ -1610,11 +1610,8 @@ class Synapse(object):
 
         :returns: path to downloaded file
         """
-        try:
-            os.makedirs(os.path.dirname(destination))
-        except OSError as exception:
-            if exception.errno != errno.EEXIST:
-                raise
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+
         while retries > 0:
             try:
                 fileResult = self._getFileHandleDownload(fileHandleId, objectId, objectType)
@@ -1624,8 +1621,16 @@ class Synapse(object):
                     downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'],
                                                                     fileHandle['fileKey'], destination,
                                                                     profile_name=profile)
+                elif self.multi_threaded and fileHandle['concreteType'] == concrete_types.S3_FILE_HANDLE:
+                    downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
+                                                                             objectId,
+                                                                             objectType,
+                                                                             destination,
+                                                                             expected_md5=fileHandle.get('contentMd5'))
                 else:
-                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'], destination, fileHandle['id'],
+                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
+                                                              destination,
+                                                              fileHandle['id'],
                                                               expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
@@ -1638,9 +1643,41 @@ class Synapse(object):
                     retries -= 1
                 if retries <= 0:
                     # Re-raise exception
-                    raise exc_info[0](exc_info[1])
+                    raise
 
         raise Exception("should not reach this line")
+
+    def _download_from_url_multi_threaded(self,
+                                          file_handle_id,
+                                          object_id,
+                                          object_type,
+                                          destination,
+                                          expected_md5=None):
+        destination = os.path.abspath(destination)
+        temp_destination = utils.temp_download_filename(destination, file_handle_id)
+
+        request = multithread_download.DownloadRequest(file_handle_id=int(file_handle_id),
+                                                       object_id=object_id,
+                                                       object_type=object_type,
+                                                       path=temp_destination)
+        multithread_download.download_file(self, request, NUM_THREADS)
+
+        if expected_md5:  # if md5 not set (should be the case for all except http download)
+            actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
+            # check md5 if given
+            if actual_md5 != expected_md5:
+                try:
+                    os.remove(temp_destination)
+                except FileNotFoundError:
+                    # file already does not exist. nothing to do
+                    pass
+                raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                                              " {expected_md5}".format(filename=temp_destination, md5=actual_md5,
+                                                                       expected_md5=expected_md5))
+        # once download completed, rename to desired destination
+        shutil.move(temp_destination, destination)
+
+        return destination
 
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
         """
@@ -1655,7 +1692,6 @@ class Synapse(object):
 
         :returns: path to downloaded file
         """
-
         destination = os.path.abspath(destination)
         actual_md5 = None
         redirect_count = 0
@@ -2568,7 +2604,8 @@ class Synapse(object):
             cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            path = self._downloadFileHandle(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown', cache_dir)
+            path = self._downloadFileHandle(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown',
+                                            os.path.join(cache_dir, str(wiki.markdownFileHandleId) + ".md"))
         try:
             import gzip
             with gzip.open(path) as f:
@@ -2969,7 +3006,7 @@ class Synapse(object):
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
             path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
-                                            'TableEntity', cache_dir)
+                                            'TableEntity', os.path.join(cache_dir, str(file_handle_id) + ".csv"))
         return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
