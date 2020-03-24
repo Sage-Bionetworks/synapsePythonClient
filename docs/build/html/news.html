@@ -168,13 +168,13 @@
 <h1>Release Notes<a class="headerlink" href="#release-notes" title="Permalink to this headline">¶</a></h1>
 <div class="section" id="id1">
 <h2>2.0.0 (2020-03-23)<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h2>
-<p>This release requires Python 3.6+. <strong>Python 2 is no longer supported as of this release</strong></p>
+<p><strong>Python 2 is no longer supported as of this release.</strong> This release requires Python 3.6+.</p>
 <div class="section" id="highlights">
 <h3>Highlights:<a class="headerlink" href="#highlights" title="Permalink to this headline">¶</a></h3>
 <ul>
-<li><p>Multi-threaded download of files from Syanpse can be toggled by setting <code class="code docutils literal notranslate"><span class="pre">syn.multi_threaded=True</span></code> on a
+<li><p>Multi-threaded download of files from Synapse can be enabled by setting <code class="code docutils literal notranslate"><span class="pre">syn.multi_threaded</span></code> to <code class="code docutils literal notranslate"><span class="pre">True</span></code> on a
 <code class="code docutils literal notranslate"><span class="pre">synapseclient.Synapse</span></code> object. This will become the default implementation in the future,
-but to ensure stability for the first release of this feature, it must be intentionally toggled.</p>
+but to ensure stability for the first release of this feature, it must be intentionally enabled.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">synapseclient</span>
 <span class="n">syn</span> <span class="o">=</span> <span class="n">synapseclient</span><span class="o">.</span><span class="n">login</span><span class="p">()</span>
 <span class="n">syn</span><span class="o">.</span><span class="n">multi_threaded</span> <span class="o">=</span> <span class="kc">True</span>
@@ -182,17 +182,26 @@ but to ensure stability for the first release of this feature, it must be intent
 <span class="n">syn</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;syn123&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Multi-threaded download currently will only work with files stored in AWS S3, where most files on Synapse reside.
-Files not stored in S3 will fall back to single-threaded download even if <code class="code docutils literal notranslate"><span class="pre">syn.multi_threaded==True</span></code></p>
+<p>Currently, multi-threaded download only works with files stored in AWS S3, where most files on Synapse reside.
+This also includes <a class="reference external" href="https://docs.synapse.org/articles/custom_storage_location.html">custom storage locations</a>
+that point to an AWS S3 bucket.
+Files not stored in S3 will fall back to single-threaded download even if <code class="code docutils literal notranslate"><span class="pre">syn.multi_threaded==True</span></code>.</p>
 </li>
-<li><p><code class="code docutils literal notranslate"><span class="pre">synapseutils.copy()</span></code> will no longer copy entities that have access requirements
-nor entities to which the user does not have download permissions</p></li>
-<li><p><code class="code docutils literal notranslate"><span class="pre">contentTypes</span></code> and <code class="code docutils literal notranslate"><span class="pre">fileNames</span></code> are optional parameters in <code class="code docutils literal notranslate"><span class="pre">synapseutils.copyFileHandles()</span></code></p></li>
-<li><p>Synapse Docker Repository(<code class="code docutils literal notranslate"><span class="pre">synapseclient.DockerRepository</span></code>) objects can be used as the <code class="code docutils literal notranslate"><span class="pre">entity</span></code> argument
-in <code class="code docutils literal notranslate"><span class="pre">synapseclient.Synapse.submit()</span></code>. Optional argument <code class="code docutils literal notranslate"><span class="pre">docker_tag=&quot;latest&quot;</span></code> has also been added
-to <code class="code docutils literal notranslate"><span class="pre">synapseclient.Synapse.submit()</span></code></p></li>
+<li><dl class="simple">
+<dt><code class="code docutils literal notranslate"><span class="pre">synapseutils.copy()</span></code> now has limitations on what can be copied:</dt><dd><ul class="simple">
+<li><p>A user must have download permissions on the entity they want to copy.</p></li>
+<li><p>Users cannot copy any entities that have <a class="reference external" href="https://docs.synapse.org/articles/access_controls.html">access requirements</a>.</p></li>
 </ul>
-<p>Full set of addressed are issues are listed below.</p>
+</dd>
+</dl>
+</li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">contentTypes</span></code> and <code class="code docutils literal notranslate"><span class="pre">fileNames</span></code> are optional parameters in <code class="code docutils literal notranslate"><span class="pre">synapseutils.copyFileHandles()</span></code></p></li>
+<li><p>Synapse Docker Repository(<code class="code docutils literal notranslate"><span class="pre">synapseclient.DockerRepository</span></code>) objects can now be submitted to Synapse evaluation
+queues using the <code class="code docutils literal notranslate"><span class="pre">entity</span></code> argument in <code class="code docutils literal notranslate"><span class="pre">synapseclient.Synapse.submit()</span></code>.
+An optional argument <code class="code docutils literal notranslate"><span class="pre">docker_tag=&quot;latest&quot;</span></code> has also been added to <code class="code docutils literal notranslate"><span class="pre">synapseclient.Synapse.submit()</span></code>”
+to designate which tagged Docker image to submit.</p></li>
+</ul>
+<p>A full list of issues addressed in this release are below.</p>
 </div>
 <div class="section" id="bug">
 <h3>Bug<a class="headerlink" href="#bug" title="Permalink to this headline">¶</a></h3>
