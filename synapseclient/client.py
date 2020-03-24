@@ -1231,9 +1231,9 @@ class Synapse(object):
         # even if the version is the most recent.
         # See `PLFM-1874 <https://sagebionetworks.jira.com/browse/PLFM-1874>`_ for more details.
         if version:
-            uri = '/entity/%s/version/%s/annotations' % (id_of(entity), str(version))
+            uri = '/entity/%s/version/%s/annotations2' % (id_of(entity), str(version))
         else:
-            uri = '/entity/%s/annotations' % id_of(entity)
+            uri = '/entity/%s/annotations2' % id_of(entity)
         return self.restGET(uri)
 
     def getAnnotations(self, entity, version=None):

@@ -53,7 +53,23 @@ See also:
 import collections
 import warnings
 from synapseclient.core.utils import to_unix_epoch_time, from_unix_epoch_time, is_date, to_list
+import typing
 
+def _identity(x):
+    return x
+
+def raise_anno_type_error(anno_type: str):
+    raise ValueError(f"Unknown type in annotations response: {anno_type}")
+
+ANNO_TYPE_TO_FUNC: typing.Dict[str, typing.Callable[[str], typing.Any]] = collections.defaultdict(
+    raise_anno_type_error,
+    {
+        'STRING':_identity,
+        'LONG':int,
+        'DOUBLE':float,
+        'TIMESTAMP_MS':from_unix_epoch_time
+    }
+)
 
 def is_synapse_annotations(annotations):
     """Tests if the given object is a Synapse-style Annotations object."""
@@ -134,6 +150,20 @@ def from_synapse_annotations(annotations):
             warnings.warn('Unknown key in annotations response: %s' % key)
     return annos
 
+def from_synapse_annotations2(annotations: typing.Dict[str, typing.Dict[str,typing.Any]]):
+    annos = Annotations()
+
+    """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
+    for key, value_and_type in annotations.items():
+        if key in Annotations.system_properties:
+            setattr(annos, key, value_and_type['value'])
+
+        values: typing.List[str] = value_and_type['value']
+        conversion_func = ANNO_TYPE_TO_FUNC[value_and_type['type']]
+
+        converted_values = [conversion_func(v) for v in values]
+
+        annos[key] = converted_values
 
 def is_submission_status_annotations(annotations):
     """Tests if the given dictionary is in the form of annotations to submission status"""
@@ -245,7 +275,7 @@ def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'do
                     return kvp
     raise KeyError('The key "%s" couldn\'t be found in the annotations.' % key)
 
-
+#TODO: we don't actually end up using this at all in our Entity objects
 class Annotations(dict):
     """
     Represent Synapse Entity annotations as a flat dictionary with the system assigned properties id, etag, creationDate
