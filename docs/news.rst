@@ -4,14 +4,14 @@ Release Notes
 
 2.0.0 (2020-03-23)
 ==================
-This release requires Python 3.6+. **Python 2 is no longer supported as of this release**
+**Python 2 is no longer supported as of this release.** This release requires Python 3.6+.
 
 Highlights:
 ----------------
 
-- Multi-threaded download of files from Syanpse can be toggled by setting :code:`syn.multi_threaded=True` on a
+- Multi-threaded download of files from Synapse can be enabled by setting :code:`syn.multi_threaded` to :code:`True` on a
   :code:`synapseclient.Synapse` object. This will become the default implementation in the future,
-  but to ensure stability for the first release of this feature, it must be intentionally toggled.
+  but to ensure stability for the first release of this feature, it must be intentionally enabled.
 
   .. code-block:: python
 
@@ -21,20 +21,23 @@ Highlights:
     # syn123 now will be downloaded via the multi-threaded implementation
     syn.get("syn123")
 
-  Multi-threaded download currently will only work with files stored in AWS S3, where most files on Synapse reside.
-  Files not stored in S3 will fall back to single-threaded download even if :code:`syn.multi_threaded==True`
-- :code:`synapseutils.copy()` will no longer copy entities that have access requirements
-  nor entities to which the user does not have download permissions
+  Currently, multi-threaded download only works with files stored in AWS S3, where most files on Synapse reside.
+  This also includes `custom storage locations <https://docs.synapse.org/articles/custom_storage_location.html>`__
+  that point to an AWS S3 bucket.
+  Files not stored in S3 will fall back to single-threaded download even if :code:`syn.multi_threaded==True`.
+- :code:`synapseutils.copy()` now has limitations on what can be copied:
+   - A user must have download permissions on the entity they want to copy.
+   - Users cannot copy any entities that have `access requirements <https://docs.synapse.org/articles/access_controls.html>`__.
 - :code:`contentTypes` and :code:`fileNames` are optional parameters in :code:`synapseutils.copyFileHandles()`
 
-- Synapse Docker Repository(:code:`synapseclient.DockerRepository`) objects can be used as the :code:`entity` argument
-  in :code:`synapseclient.Synapse.submit()`. Optional argument :code:`docker_tag="latest"` has also been added
-  to :code:`synapseclient.Synapse.submit()`
+- Synapse Docker Repository(:code:`synapseclient.DockerRepository`) objects can now be submitted to Synapse evaluation
+  queues using the :code:`entity` argument in :code:`synapseclient.Synapse.submit()`.
+  An optional argument :code:`docker_tag="latest"` has also been added to :code:`synapseclient.Synapse.submit()`"
+  to designate which tagged Docker image to submit.
 
 
 
-Full set of addressed are issues are listed below.
-
+A full list of issues addressed in this release are below.
 
 Bug
 ---
