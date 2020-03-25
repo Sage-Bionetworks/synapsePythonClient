@@ -1,12 +1,12 @@
 # unit tests for python synapse client
 ############################################################
 
-from collections import OrderedDict
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_greater, assert_is_instance
 from math import pi
 
-from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations,\
+from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_greater, assert_is_instance
+
+from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations, \
     to_submission_status_annotations, from_submission_status_annotations, set_privacy
 from synapseclient.core.exceptions import *
 
@@ -15,54 +15,57 @@ def test_annotations():
     """Test string annotations"""
     a = dict(foo='bar', zoo=['zing', 'zaboo'], species='Platypus')
     sa = to_synapse_annotations(a)
-    assert_equals(sa['stringAnnotations']['foo'], ['bar'])
-    assert_equals(sa['stringAnnotations']['zoo'], ['zing', 'zaboo'])
-    assert_equals(sa['stringAnnotations']['species'], ['Platypus'])
-
-
-def test_annotation_name_collision():
-    """Test handling of a name collisions between typed user generated and untyped
-       system generated annotations, see SYNPY-203 and PLFM-3248"""
-
-    # order is important: to repro the erro, the key uri has to come before stringAnnotations
-    sa = OrderedDict()
-    sa[u'uri'] = u'/entity/syn47396/annotations'
-    sa[u'doubleAnnotations'] = {}
-    sa[u'longAnnotations'] = {}
-    sa[u'stringAnnotations'] = {
-            'tissueType': ['Blood'],
-            'uri': ['/repo/v1/dataset/47396']}
-    sa[u'creationDate'] = u'1321168909232'
-    sa[u'id'] = u'syn47396'
-
-    a = from_synapse_annotations(sa)
-    assert_equals(a['tissueType'], ['Blood'])
-
+    expected = {
+        'annotations': {
+            'foo': {'value': ['bar'],
+                    'type': 'STRING'},
+            'zoo': {'value': ['zing', 'zaboo'],
+                    'type': 'STRING'},
+            'species': {'value': ['Platypus'],
+                        'type': 'STRING'}
+        }
+    }
+    assert_equals(expected, sa)
 
 def test_more_annotations():
     """Test long, float and data annotations"""
-    a = dict(foo=1234,
-             zoo=[123.1, 456.2, 789.3],
-             species='Platypus',
-             birthdays=[Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)],
-             test_boolean=True,
-             test_mo_booleans=[False, True, True, False])
+    a = {'foo': 1234,
+         'zoo': [123.1, 456.2, 789.3],
+         'species': 'Platypus',
+         'birthdays': [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)],
+         'test_boolean': True,
+         'test_mo_booleans': [False, True, True, False]}
     sa = to_synapse_annotations(a)
-    assert_equals(sa['longAnnotations']['foo'], [1234])
-    assert_equals(sa['doubleAnnotations']['zoo'], [123.1, 456.2, 789.3])
-    assert_equals(sa['stringAnnotations']['species'], ['Platypus'])
-    assert_equals(sa['stringAnnotations']['test_boolean'], ['true'])
-    assert_equals(sa['stringAnnotations']['test_mo_booleans'], ['false', 'true', 'true', 'false'])
 
-    # this part of the test is kinda fragile. It it breaks again, it should be removed
-    bdays = [utils.from_unix_epoch_time(t) for t in sa['dateAnnotations']['birthdays']]
-    assert_true(all([t in bdays for t in [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)]]))
+    expected = {
+        'annotations': {
+            'foo': {'value': ['1234'],
+                    'type': 'LONG'},
+            'zoo': {'value': ['123.1', '456.2', '789.3'],
+                    'type': 'DOUBLE'},
+            'species': {'value': ['Platypus'],
+                        'type': 'STRING'},
+            'birthdays': {'value':['-21427200000', '124156800000', '1199318400000'],
+                          'type':'TIMESTAMP_MS'},
+            'test_boolean': {'value': ['true'],
+                             'type': 'STRING'},
+            'test_mo_booleans': {'value': ['false', 'true', 'true', 'false'],
+                                 'type': 'STRING'}
+        }
+    }
+    assert_equals(expected, sa)
 
 
 def test_annotations_unicode():
-    a = {'files': [u'tmp6y5tVr.txt'], 'cacheDir': u'/Users/chris/.synapseCache/python/syn1809087', u'foo': 1266}
+    a = {'files': [u'文件.txt'], 'cacheDir': u'/Users/chris/.synapseCache/python/syn1809087', u'foo': 1266}
     sa = to_synapse_annotations(a)
-    assert_equals(sa['stringAnnotations']['cacheDir'], [u'/Users/chris/.synapseCache/python/syn1809087'])
+    expected = {'annotations': {'cacheDir': {'type': 'STRING',
+                                             'value': ['/Users/chris/.synapseCache/python/syn1809087']},
+                                'files': {'type': 'STRING',
+                                          'value': ['文件.txt']},
+                                'foo': {'type': 'LONG',
+                                        'value': ['1266']}}}
+    assert_equals(expected, sa)
 
 
 def test_round_trip_annotations():

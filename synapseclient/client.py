@@ -44,6 +44,7 @@ import urllib.parse as urllib_urlparse
 import json
 import os
 import time
+import typing
 
 import synapseclient
 from .annotations import from_synapse_annotations, to_synapse_annotations
@@ -1250,7 +1251,7 @@ class Synapse(object):
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
 
-    def setAnnotations(self, entity, annotations={}, **kwargs):
+    def setAnnotations(self, entity, annotations: typing.Dict[str, typing.Any]=None, **kwargs):
         """
         Store annotations for an Entity in the Synapse Repository.
 
@@ -1262,6 +1263,9 @@ class Synapse(object):
         """
         uri = '/entity/%s/annotations' % id_of(entity)
 
+        if not annotations:
+            annotations = {}
+
         annotations.update(kwargs)
         synapseAnnos = to_synapse_annotations(annotations)
         synapseAnnos['id'] = id_of(entity)
@@ -1272,7 +1276,7 @@ class Synapse(object):
                 old_annos = self.restGET(uri)
                 synapseAnnos['etag'] = old_annos['etag']
 
-        return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
+            return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
 
     ############################################################
     #                         Querying                         #
