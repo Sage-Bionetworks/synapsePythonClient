@@ -1,18 +1,15 @@
 """
-This module allow us to simplify the logic of any method that can run with either multiple threads or single thread.
+This module provides access to thread pools to use in concurrent work.
+Both a multiprocessing style ThreadPool and an Executor based pool
+are available, Executors should be preferred for new work as it provides
+a more modern interface.
 
-To use this wrapper with multiple threads::
-    pool = pool_provider.get_pool()
-    try:
-        pool.map(function, iterable)
-    finally:
-        pool.terminate()
+To use these wrappers for single thread environment, set the following:
 
-To use this wrapper for single thread, change the synapseclient.config.single_threaded::
     synapseclient.config.single_threaded = True
-
 """
 
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
 import multiprocessing
 import multiprocessing.dummy
 
@@ -32,6 +29,25 @@ class SingleThreadPool:
         pass
 
 
+class SingleThreadExecutor(Executor):
+    def __init__(self):
+        self._shutdown = False
+
+    def submit(self, fn, *args, **kwargs):
+       if self._shutdown:
+           raise RuntimeError('cannot schedule new futures after shutdown')
+
+       f = Future()
+       try:
+           result = fn(*args, **kwargs)
+       except BaseException as e:
+           f.set_exception(e)
+       else:
+           f.set_result(result)
+
+       return f
+
+
 class FakeLock:
 
     def __enter__(self):
@@ -39,6 +55,7 @@ class FakeLock:
 
     def __exit__(self, type, value, traceback):
         pass
+
 
 class SingleValue:
 
@@ -50,11 +67,27 @@ class SingleValue:
     def get_lock(self):
         return FakeLock()
 
+
 def get_pool():
     if config.single_threaded:
         return SingleThreadPool()
     else:
         return multiprocessing.dummy.Pool(DEFAULT_POOL_SIZE)
+
+
+def get_executor(thread_count=DEFAULT_POOL_SIZE):
+    """
+    Provides an Executor as defined by the client config suitable
+    for running tasks work as defined by the client config.
+
+    :param thread_count:        number of concurrent threads
+
+    :return: an Executor
+    """
+    if config.single_threaded:
+        return SingleThreadExecutor()
+    else:
+        return ThreadPoolExecutor(max_workers=thread_count)
 
 
 def get_value(type, value):
