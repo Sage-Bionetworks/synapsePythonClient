@@ -148,6 +148,7 @@ import urllib.parse as urllib_parse
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of, itersubclasses
 from synapseclient.core.exceptions import *
+from synapseclient.annotations import Annotations
 
 
 class Versionable(object):
@@ -202,7 +203,7 @@ class Entity(collections.MutableMapping):
         # Create a new Entity using an existing Entity as a prototype
         if isinstance(properties, Entity):
             if annotations is None:
-                annotations = {}
+                annotations = DictObject()
             if local_state is None:
                 local_state = {}
             annotations.update(properties.annotations)
@@ -246,7 +247,7 @@ class Entity(collections.MutableMapping):
         if annotations:
             if isinstance(annotations, collections.Mapping):
                 self.__dict__['annotations'].update(annotations)
-            elif isinstance(annotations, str):
+            elif isinstance(annotations, str): #TODO: what does this even do??????
                 self.properties['annotations'] = annotations
             else:
                 raise SynapseMalformedEntityError('Unknown argument type: annotations is a %s' % str(type(annotations)))

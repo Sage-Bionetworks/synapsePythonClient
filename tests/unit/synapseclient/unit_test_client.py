@@ -706,11 +706,11 @@ class TestPrivateGetEntityBundle:
             'restrictionInformation': {
                 'hasUnmetAccessRequirement': {}
             }}
-        self.patch_restGET = patch.object(syn, 'restGET', return_value=self.bundle)
-        self.patch_restGET.start()
+        self.patch_restPOST = patch.object(syn, 'restPOST', return_value=self.bundle)
+        self.patch_restPOST.start()
 
     def teardown(self):
-        self.patch_restGET.stop()
+        self.patch_restPOST.stop()
 
     def test__getEntityBundle__with_version_as_number(self):
         assert_equal(self.bundle, syn._getEntityBundle("syn10101", 6))
@@ -724,7 +724,7 @@ class TestPrivateGetEntityBundle:
             'annotations': {
                 'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
                 'id': 'syn1000002',
-                'stringAnnotations': {}},
+                'annotations': {}},
             'entity': {
                 'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
                 'createdBy': 'Miles Dewey Davis',

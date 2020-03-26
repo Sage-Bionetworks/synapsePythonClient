@@ -7,7 +7,7 @@ from math import pi
 from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_greater, assert_is_instance
 
 from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations, \
-    to_submission_status_annotations, from_submission_status_annotations, set_privacy
+    to_submission_status_annotations, from_submission_status_annotations, set_privacy, is_synapse_annotations
 from synapseclient.core.exceptions import *
 
 
@@ -146,3 +146,35 @@ def test_submission_status_double_annos():
     ssa2 = to_submission_status_annotations(annotations)
     assert_equals({'three', 'pi'}, set([kvp['key'] for kvp in ssa2['doubleAnnos']]))
     assert_equals({'lucky'}, set([kvp['key'] for kvp in ssa2['longAnnos']]))
+
+def test_from_synapse_annotations__empty():
+    ssa = {}
+    assert_equals({}, from_synapse_annotations(ssa))
+
+
+def test_to_synapse_annotations__empty():
+    python_client_annos = {}
+    assert_equals({'annotations':{}}, to_synapse_annotations(python_client_annos))
+
+
+def test_is_synapse_annotation():
+    assert_true(
+        is_synapse_annotations({'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}}))
+    # missing id
+    assert_false(
+        is_synapse_annotations({'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}}))
+    # missing etag
+    assert_false(
+        is_synapse_annotations({'id': 'syn123', 'annotations': {}}))
+    # missing annotations
+    assert_false(
+        is_synapse_annotations({'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604'}))
+    # has additional keys
+    assert_false(is_synapse_annotations(
+        {'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}, 'foo': 'bar'}))
+
+    # annotations only
+    assert_true(is_synapse_annotations({'annotations': {}}))
+
+    # annotations + other keys
+    assert_false(is_synapse_annotations({'annotations': {}, 'bar':'baz'}))

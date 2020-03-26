@@ -270,6 +270,7 @@ import json
 import pkg_resources
 
 from .activity import Activity
+from .annotations import Annotations
 from .client import PUBLIC, AUTHENTICATED_USERS
 # public APIs
 from .client import Synapse, login
@@ -288,7 +289,7 @@ __all__ = [
     # objects
     'Synapse', 'Activity', 'Entity', 'Project', 'Folder', 'File', 'Link', 'DockerRepository', 'Evaluation',
     'Submission', 'SubmissionStatus', 'Schema', 'EntityViewSchema', 'Column', 'Row', 'RowSet', 'Table', 'PartialRowset',
-    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki',
+    'Team', 'UserProfile', 'UserGroupHeader', 'TeamMember', 'Wiki', 'Annotations'
     # functions
     'login', 'build_table', 'as_table_columns', 'check_for_updates', 'release_notes',
     # enum

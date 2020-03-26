@@ -812,7 +812,8 @@ class Synapse(object):
                                  'for "ifcollision"' % ifcollision)
         return downloadPath
 
-    def store(self, obj, **kwargs):
+    def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
+              activity=None, used=None, executed=None, activityName=None, activityDescription=None):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
@@ -821,7 +822,7 @@ class Synapse(object):
                                     these)
         :param executed:            The Entity, Synapse ID, or URL representing code executed to create the object
                                     (can also be a list of these)
-        :param activity:            Activity object specifying the user's provenance
+        :param activity:            Activity object specifying the user's provenance.
         :param activityName:        Activity name to be used in conjunction with *used* and *executed*.
         :param activityDescription: Activity description to be used in conjunction with *used* and *executed*.
         :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj'
@@ -859,10 +860,6 @@ class Synapse(object):
             test_entity = syn.store(test_entity, activity=activity)
 
         """
-        createOrUpdate = kwargs.get('createOrUpdate', True)
-        forceVersion = kwargs.get('forceVersion', True)
-        versionLabel = kwargs.get('versionLabel', None)
-        isRestricted = kwargs.get('isRestricted', False)
 
         # _before_store hook
         # give objects a chance to do something before being stored
@@ -1016,21 +1013,14 @@ class Synapse(object):
             self._createAccessRequirementIfNone(properties)
 
         # Update annotations
-        annotations['etag'] = properties['etag']
         annotations = self.setAnnotations(properties, annotations)
         properties['etag'] = annotations.etag
 
         # If the parameters 'used' or 'executed' are given, create an Activity object
-        activity = kwargs.get('activity', None)
-        used = kwargs.get('used', None)
-        executed = kwargs.get('executed', None)
-
         if used or executed:
             if activity is not None:
                 raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed'
                                              ' item(s), but not both.')
-            activityName = kwargs.get('activityName', None)
-            activityDescription = kwargs.get('activityDescription', None)
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
         # If we have an Activity, set it as the Entity's provenance record
@@ -1117,7 +1107,7 @@ class Synapse(object):
             uri = f'/entity/{id_of(entity)}/version/{int(version):d}/bundle2'
         else:
             uri = f'/entity/{id_of(entity)}/bundle2'
-        bundle = self.restGET(uri, body=json.dumps(requestedObjects))
+        bundle = self.restPOST(uri, body=json.dumps(requestedObjects))
 
         return bundle
 
@@ -1251,32 +1241,25 @@ class Synapse(object):
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
 
-    def setAnnotations(self, entity, annotations: typing.Dict[str, typing.Any]=None, **kwargs):
+    def setAnnotations(self, annotations: Annotations):
         """
         Store annotations for an Entity in the Synapse Repository.
 
-        :param entity:      The Entity or Synapse Entity ID whose annotations are to be updated
         :param annotations: A dictionary of annotation names and values
         :param kwargs:      annotation names and values
 
         :returns: the updated annotations for the entity
         """
-        uri = '/entity/%s/annotations' % id_of(entity)
 
-        if not annotations:
-            annotations = {}
+        if not annotations.id or not annotations.etag:
+            raise ValueError("annotations must have Id and Etag")
 
-        annotations.update(kwargs)
+        entity_id = id_of(annotations)
+
         synapseAnnos = to_synapse_annotations(annotations)
-        synapseAnnos['id'] = id_of(entity)
-        if 'etag' not in synapseAnnos:
-            if 'etag' in entity:
-                synapseAnnos['etag'] = entity['etag']
-            else:
-                old_annos = self.restGET(uri)
-                synapseAnnos['etag'] = old_annos['etag']
 
-            return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
+        uri = '/entity/%s/annotations2' % entity_id
+        return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
 
     ############################################################
     #                         Querying                         #
