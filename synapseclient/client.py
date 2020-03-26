@@ -3283,6 +3283,16 @@ class Synapse(object):
         headers.update(self.credentials.get_signed_headers(url))
         return headers
 
+    def _rest_session(self, kwargs) -> requests.Session:
+        """Obtain a requests.Session from the kwargs if one was passed,
+        otherwise default to instance session. Meant for now to be
+        an internal feature to allow for multiple threads to make
+        rest calls via the same Synapse object, so we bury it undocumented
+        in kwargs. requests.Session is not otherwise documented as thread-safe.
+        https://github.com/psf/requests/issues/2766"""
+        session = kwargs.pop('session', None)
+        return session or self._requests_session
+
     def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
         """
         Sends an HTTP GET request to the Synapse server.
@@ -3298,7 +3308,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = with_retry(lambda: self._requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
+        response = with_retry(lambda: self._rest_session(kwargs).get(uri, headers=headers, **kwargs), verbose=self.debug,
                               **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
@@ -3318,7 +3328,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = with_retry(lambda: self._requests_session.post(uri, data=body, headers=headers, **kwargs),
+        response = with_retry(lambda: self._rest_session(kwargs).post(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
@@ -3339,7 +3349,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = with_retry(lambda: self._requests_session.put(uri, data=body, headers=headers, **kwargs),
+        response = with_retry(lambda: self._rest_session(kwargs).put(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
@@ -3357,7 +3367,7 @@ class Synapse(object):
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
 
-        response = with_retry(lambda: self._requests_session.delete(uri, headers=headers, **kwargs),
+        response = with_retry(lambda: self._rest_session(kwargs).delete(uri, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
 

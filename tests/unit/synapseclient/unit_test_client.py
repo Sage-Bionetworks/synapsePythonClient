@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 import base64
-from mock import patch, call, create_autospec
+from mock import call, create_autospec, Mock, patch
 
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
@@ -1132,3 +1132,54 @@ class TestMembershipInvitation:
             patch_delete.assert_called_once_with(open_invitations['id'])
             assert_equal(invite, self.response)
             patch_invitation.assert_called_once()
+
+
+class TestRequestsSession:
+    """Verify we can optionally pass in a requests.Session in kwargs
+    to have the client use that session instead of the instance session."""
+
+    def setup(self):
+        self._path = '/foo'
+        self._headers = {}
+
+    def _http_method_test(self, method):
+        status_ok = Mock(status_code=200)
+        with patch.object(syn._requests_session, method) as requests_call:
+            requests_call.return_value = status_ok
+
+            # make call, check that it flowed through to the instance session
+            rest_call = getattr(syn, "rest{}".format(method.upper()))
+            rest_call(
+                self._path,
+                headers=self._headers
+            )
+            requests_call.assert_called_once()
+            requests_call.reset_mock()
+
+            # make call, check that it flowed through to the passed session
+            # (and not to the instance session)
+            external_session = Mock()
+            getattr(external_session, method).return_value = status_ok
+            rest_call(
+                self._path,
+                headers=self._headers,
+                session=external_session
+            )
+            getattr(external_session, method).assert_called_once()
+            requests_call.assert_not_called()
+
+    def test_get(self):
+        """Test restGET session handling"""
+        self._http_method_test('get')
+
+    def test_put(self):
+        """Test restPUT session handling"""
+        self._http_method_test('put')
+
+    def test_post(self):
+        """Test restPOST session handling"""
+        self._http_method_test('put')
+
+    def test_delete(self):
+        """Test restDELETE session handling"""
+        self._http_method_test('put')
