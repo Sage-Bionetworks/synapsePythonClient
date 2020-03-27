@@ -1053,6 +1053,7 @@ class Synapse(object):
         :parameter requestedObjects:    A dict indicating settings for what to include
 
         default value for requestedObjects is::
+
             requestedObjects = {'includeEntity': True,
                                 'includeAnnotations': True,
                                 'includeFileHandles': True,
@@ -1223,9 +1224,9 @@ class Synapse(object):
         # even if the version is the most recent.
         # See `PLFM-1874 <https://sagebionetworks.jira.com/browse/PLFM-1874>`_ for more details.
         if version:
-            uri = '/entity/%s/version/%s/annotations2' % (id_of(entity), str(version))
+            uri = f'/entity/{id_of(entity)}/version/{str(version)}/annotations2'
         else:
-            uri = '/entity/%s/annotations2' % id_of(entity)
+            uri = f'/entity/{id_of(entity)}/annotations2'
         return self.restGET(uri)
 
     @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`get_annotations`')

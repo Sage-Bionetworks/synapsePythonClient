@@ -202,7 +202,7 @@ class Entity(collections.MutableMapping):
         # Create a new Entity using an existing Entity as a prototype
         if isinstance(properties, Entity):
             if annotations is None:
-                annotations = DictObject()
+                annotations = {}
             if local_state is None:
                 local_state = {}
             annotations.update(properties.annotations)
@@ -246,7 +246,7 @@ class Entity(collections.MutableMapping):
         if annotations:
             if isinstance(annotations, collections.Mapping):
                 self.__dict__['annotations'].update(annotations)
-            elif isinstance(annotations, str): #TODO: what does this even do??????
+            elif isinstance(annotations, str):
                 self.properties['annotations'] = annotations
             else:
                 raise SynapseMalformedEntityError('Unknown argument type: annotations is a %s' % str(type(annotations)))
