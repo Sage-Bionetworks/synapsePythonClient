@@ -89,8 +89,7 @@ def is_synapse_annotations(annotations: typing.Dict):
     """Tests if the given object is a Synapse-style Annotations object."""
     if not isinstance(annotations, collections.Mapping):
         return False
-    #new annoation translated from the one used in the python client or annotation retrieved from Synapse
-    return annotations.keys() == {'annotations'} or annotations.keys() == {'id', 'etag', 'annotations'}
+    return annotations.keys() >= {'id', 'etag', 'annotations'}
 
 def _annotation_value_list_element_type(annotation_values: typing.List):
     if not annotation_values:
@@ -276,9 +275,8 @@ def to_synapse_annotations(annotations: Annotations)\
         return annotations
     synapse_annos = {}
 
-    if not hasattr(annotations,'id') or not annotations.id \
-        or not hasattr(annotations, 'etag') or not annotations.etag:
-        raise ValueError("annotations must be a synapseclient.Annotations object with 'id' and 'etag' attributes")
+    if not hasattr(annotations,'id') or not hasattr(annotations, 'etag'):
+        raise TypeError("annotations must be a synapseclient.Annotations object with 'id' and 'etag' attributes")
 
     synapse_annos['id'] = annotations.id
     synapse_annos['etag'] = annotations.etag
@@ -310,9 +308,11 @@ def to_synapse_annotations(annotations: Annotations)\
 def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any])\
     -> Annotations:
     """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
+    if not is_synapse_annotations(raw_annotations):
+        raise ValueError('Unexpected format of annotations from Synapse. Must include keys: "id", "etag", and "annotations"')
 
-    annos = Annotations(raw_annotations.get('id'), raw_annotations.get('etag'))
-    for key, value_and_type in raw_annotations.get('annotations',{}).items():
+    annos = Annotations(raw_annotations['id'], raw_annotations['etag'])
+    for key, value_and_type in raw_annotations['annotations'].items():
         key: str
         conversion_func = ANNO_TYPE_TO_FUNC[value_and_type['type']]
         annos[key] = [conversion_func(v) for v in value_and_type['value']]

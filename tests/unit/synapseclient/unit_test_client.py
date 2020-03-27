@@ -105,12 +105,16 @@ class TestPrivateGetWithEntityBundle:
         bundle = {
             'entity': {
                 'id': 'syn10101',
+                'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
                 'name': 'anonymous',
                 'dataFileHandleId': '-1337',
                 'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
                 'parentId': 'syn12345'},
             'fileHandles': [],
-            'annotations': {}}
+            'annotations': {'id': 'syn10101',
+                            'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
+                            'annotations': {}}
+        }
 
         with patch.object(syn.logger, "warning") as mocked_warn:
             entity_no_download = syn._getWithEntityBundle(entityBundle=bundle)
@@ -128,6 +132,7 @@ class TestPrivateGetWithEntityBundle:
         bundle = {
             'entity': {
                 'id': 'syn10101',
+                'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
                 'name': 'anonymous',
                 'dataFileHandleId': '-1337',
                 'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
@@ -138,7 +143,10 @@ class TestPrivateGetWithEntityBundle:
                 'contentType': 'application/flapdoodle',
                 'contentMd5': '1698d26000d60816caab15169efcd23a',
                 'id': '-1337'}],
-            'annotations': {}}
+            'annotations': {'id': 'syn10101',
+                            'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
+                            'annotations': {}}
+        }
 
         fileHandle = bundle['fileHandles'][0]['id']
         cacheDir = syn.cache.get_cache_dir(fileHandle)
