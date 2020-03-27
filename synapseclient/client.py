@@ -1896,8 +1896,10 @@ class Synapse(object):
 
         return self.restPOST('/externalFileHandle', json.dumps(file_handle), self.fileHandleEndpoint)
 
-    def _getFileHandle(self, fileHandle):
-        """Retrieve a fileHandle from the fileHandle service (experimental)."""
+    def _get_file_handle_as_creator(self, fileHandle):
+        """Retrieve a fileHandle from the fileHandle service.
+        You must be the creator of the filehandle to use this method. Otherwise, an 403-Forbidden error will be raised
+        """
 
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
         return self.restGET(uri, endpoint=self.fileHandleEndpoint)

@@ -107,7 +107,7 @@ def test_command_line_client():
 
     # Verify that we stored the file in Synapse
     f1 = syn.get(file_entity_id)
-    fh = syn._getFileHandle(f1.dataFileHandleId)
+    fh = syn._get_file_handle_as_creator(f1.dataFileHandleId)
     assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
 
     # Get File from the command line
@@ -225,7 +225,7 @@ def test_command_line_client():
 
     # Verify that we created an external file handle
     f2 = syn.get(exteral_entity_id)
-    fh = syn._getFileHandle(f2.dataFileHandleId)
+    fh = syn._get_file_handle_as_creator(f2.dataFileHandleId)
     assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
     output = run('synapse',
@@ -408,7 +408,7 @@ def test_command_line_store_and_submit():
 
     # Verify that we stored the file in Synapse
     f1 = syn.get(file_entity_id)
-    fh = syn._getFileHandle(f1.dataFileHandleId)
+    fh = syn._get_file_handle_as_creator(f1.dataFileHandleId)
     assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
 
     # Test that entity is named after the file it contains
@@ -488,7 +488,7 @@ def test_command_line_store_and_submit():
 
     # Verify that we created an external file handle
     f2 = syn.get(exteral_entity_id)
-    fh = syn._getFileHandle(f2.dataFileHandleId)
+    fh = syn._get_file_handle_as_creator(f2.dataFileHandleId)
     assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.ExternalFileHandle')
 
     # submit an external file to an evaluation and use provenance
@@ -789,7 +789,7 @@ def test_configPath():
 
     # Verify that we stored the file in Synapse
     f1 = syn.get(file_entity_id)
-    fh = syn._getFileHandle(f1.dataFileHandleId)
+    fh = syn._get_file_handle_as_creator(f1.dataFileHandleId)
     assert_equals(fh['concreteType'], 'org.sagebionetworks.repo.model.file.S3FileHandle')
 
 
