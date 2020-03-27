@@ -1295,12 +1295,21 @@ class Synapse(object):
 
             annos = syn.get_annotations('syn123')
 
-            #set key 'foo' to have value of 'bar' and 'baz'
+            # annos will contain the id and etag associated with the entity upon retrieval
+            print(annos.id)
+            # syn123
+            print(annos.etag)
+            # 7bdb83e9-a50a-46e4-987a-4962559f090f   (Usually some UUID in the form of a string)
+
+            # returned annos object from get_annotations() can be used as if it were a dict
+
+            # set key 'foo' to have value of 'bar' and 'baz'
             annos['foo'] = ['bar', 'baz']
-            #'asdf' will automatically be wrapped in a list once stored
+
+            # single values will automatically be wrapped in a list once stored
             annos['qwerty'] = 'asdf'
 
-            #store the annotations
+            # store the annotations
             annos = syn.set_annotations(annos)
 
             print(annos)
