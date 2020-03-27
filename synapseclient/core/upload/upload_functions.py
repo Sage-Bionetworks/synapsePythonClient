@@ -108,7 +108,7 @@ def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
 
 
 def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
-    file_handle_id = multipart_upload_file(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)
+    file_handle_id = multipart_upload_file(syn, file_path, content_type=mimetype, storage_location_id=storageLocationId)
     syn.cache.add(file_handle_id, file_path)
 
     return syn._getFileHandle(file_handle_id)

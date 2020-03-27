@@ -570,8 +570,8 @@ class TestPrivateUploadExternallyStoringProjects:
             upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path'])
 
             mock_upload_destination.assert_called_once_with(test_file['parentId'])
-            mocked_multipart_upload.assert_called_once_with(syn, expected_path_expanded, contentType=None,
-                                                            storageLocationId=expected_storage_location_id)
+            mocked_multipart_upload.assert_called_once_with(syn, expected_path_expanded, content_type=None,
+                                                            storage_location_id=expected_storage_location_id)
             mocked_cache_add.assert_called_once_with(expected_file_handle_id, expected_path_expanded)
             mocked_getFileHandle.assert_called_once_with(expected_file_handle_id)
             # test
