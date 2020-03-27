@@ -247,8 +247,9 @@ class Annotations(dict):
 
         """
         super().__init__()
-        self.id = id_of(id)
-        self.etag = str(etag)
+        #the . operator is overridden (__getattr__/__setattr__) so we have to manually modify __dict__
+        self.__dict__['id'] = id_of(id)
+        self.__dict__['etag'] = str(etag)
 
         if values:
             self.update(values)
@@ -256,19 +257,13 @@ class Annotations(dict):
             self.update(kwargs)
 
     def __getattr__(self, key):
-        val = self.get(key)
-        if val:
-            return val
-        return super(Annotations, self).__getattr__(key)
+        return self.get(key) or super(Annotations, self).__getattr__(key)
 
     def __setattr__(self, key, value):
         if hasattr(self, key):
             return super(Annotations, self).__setattr__(key, value)
         else:
             return self.__setitem__(key, value)
-
-    def __setitem__(self, key, value):
-        super(Annotations, self).__setitem__(key, to_list(value))
 
 
 def to_synapse_annotations(annotations: Annotations)\

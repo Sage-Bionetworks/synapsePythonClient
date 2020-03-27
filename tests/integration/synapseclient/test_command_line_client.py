@@ -599,8 +599,8 @@ def test_command_copy():
     schedule_for_cleanup(filename)
     file_entity = syn.store(File(filename, parent=folder_entity))
     externalURL_entity = syn.store(File(repo_url, name='rand', parent=folder_entity, synapseStore=False))
-    syn.setAnnotations(file_entity, annots)
-    syn.setAnnotations(externalURL_entity, annots)
+    syn.set_annotations(Annotations(file_entity, file_entity.etag, annots))
+    syn.set_annotations(Annotations(externalURL_entity, externalURL_entity.etag, annots))
     schedule_for_cleanup(file_entity.id)
     schedule_for_cleanup(externalURL_entity.id)
 
@@ -616,8 +616,8 @@ def test_command_copy():
     copied_URL_ent = syn.get(copied_URL_id, downloadFile=False)
     schedule_for_cleanup(copied_id)
     schedule_for_cleanup(copied_URL_id)
-    copied_ent_annot = syn.getAnnotations(copied_id)
-    copied_url_annot = syn.getAnnotations(copied_URL_id)
+    copied_ent_annot = syn.get_annotations(copied_id)
+    copied_url_annot = syn.get_annotations(copied_URL_id)
 
     copied_prov = syn.getProvenance(copied_id)['used'][0]['reference']['targetId']
     copied_url_prov = syn.getProvenance(copied_URL_id)['used'][0]['reference']['targetId']

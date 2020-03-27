@@ -77,6 +77,7 @@ import synapseclient
 import synapseutils
 from . import Activity
 from .wiki import Wiki
+from .annotations import Annotations
 from synapseclient.core.exceptions import *
 
 
@@ -382,21 +383,20 @@ def setAnnotations(args, syn):
             "For example, to set an annotations called 'foo' to the value 1, the format should be "
             "'{\"foo\": 1, \"bar\":\"quux\"}'.")
 
-    entity = syn.get(args.id, downloadFile=False)
+    annots = syn.get_annotations(args.id)
 
     if args.replace:
-        annots = newannots
+        annots = Annotations(annots.id, annots.etag, newannots)
     else:
-        annots = syn.getAnnotations(entity)
         annots.update(newannots)
 
-    syn.setAnnotations(entity, annots)
+    syn.set_annotations(annots)
 
     sys.stderr.write('Set annotations on entity %s\n' % (args.id,))
 
 
 def getAnnotations(args, syn):
-    annotations = syn.getAnnotations(args.id)
+    annotations = syn.get_annotations(args.id)
 
     if args.output is None or args.output == 'STDOUT':
         print(json.dumps(annotations, sort_keys=True, indent=2))

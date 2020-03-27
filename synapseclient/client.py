@@ -1228,10 +1228,9 @@ class Synapse(object):
             uri = '/entity/%s/annotations2' % id_of(entity)
         return self.restGET(uri)
 
-    @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`get_annotations`',
-                                  action='module')
+    @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`get_annotations`')
     def getAnnotations(self, entity, version=None):
-        return get_annotations(entity, version=version)
+        return self.get_annotations(entity, version=version)
 
     def get_annotations(self, entity:typing.Union[str, Entity], version: typing.Union[str, int]=None) -> Annotations:
         """
@@ -1252,8 +1251,7 @@ class Synapse(object):
     @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`set_annotations` '
                                                           ' This method is UNSAFE and may overwrite existing annotations'
                                                           ' without confirming that you have retrieved and'
-                                                          ' updated the latest version',
-                                  action='module')
+                                                          ' updated the latest annotations')
     def setAnnotations(self, entity, annotations=None, **kwargs):
         """
         Store annotations for an Entity in the Synapse Repository.
@@ -1270,7 +1268,7 @@ class Synapse(object):
         annotations.update(kwargs)
 
         id = id_of(entity)
-        etag = annotations.etag if hasattr(annotations, etag) else annotations.get('etag')
+        etag = annotations.etag if hasattr(annotations, 'etag') else annotations.get('etag')
 
         if not etag:
             if 'etag' in entity:
@@ -1280,7 +1278,7 @@ class Synapse(object):
                 old_annos = self.restGET(uri)
                 etag = old_annos['etag']
 
-        return set_annotations(Annotations(id, etag, annotations))
+        return self.set_annotations(Annotations(id, etag, annotations))
 
     def set_annotations(self, annotations: Annotations):
         """
@@ -1308,15 +1306,13 @@ class Synapse(object):
             # {'foo':['bar','baz], 'qwerty':['asdf']}
         """
         #TODO: test
-        if not annotations or not annotations.id or not annotations.etag:
+        if annotations is None or not annotations.id or not annotations.etag:
             raise ValueError("annotations must have Id and Etag")
-
-        entity_id = id_of(annotations)
 
         synapseAnnos = to_synapse_annotations(annotations)
 
-        uri = '/entity/%s/annotations2' % entity_id
-        return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
+        return from_synapse_annotations(self.restPUT(f'/entity/{id_of(annotations)}/annotations2',
+                                                     body=json.dumps(synapseAnnos)))
 
     ############################################################
     #                         Querying                         #
