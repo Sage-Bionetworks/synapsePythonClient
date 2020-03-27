@@ -574,7 +574,7 @@ class TestPrivateUploadExternallyStoringProjects:
         with patch.object(upload_functions, "multipart_upload_file",
                           return_value=expected_file_handle_id) as mocked_multipart_upload, \
                 patch.object(syn.cache, "add") as mocked_cache_add,\
-                patch.object(syn, "_getFileHandle") as mocked_getFileHandle:
+                patch.object(syn, "_get_file_handle_as_creator") as mocked_getFileHandle:
             upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path'])
 
             mock_upload_destination.assert_called_once_with(test_file['parentId'])
