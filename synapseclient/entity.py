@@ -148,7 +148,6 @@ import urllib.parse as urllib_parse
 from synapseclient.core.models.dict_object import DictObject
 from synapseclient.core.utils import id_of, itersubclasses
 from synapseclient.core.exceptions import *
-from synapseclient.annotations import Annotations
 
 
 class Versionable(object):

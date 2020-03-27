@@ -24,8 +24,8 @@ Record when we collected the data::
 
 See:
 
-- :py:meth:`synapseclient.Synapse.getAnnotations`
-- :py:meth:`synapseclient.Synapse.setAnnotations`
+- :py:meth:`synapseclient.Synapse.get_annotations`
+- :py:meth:`synapseclient.Synapse.set_annotations`
 
 ~~~~~~~~~~~~~~~~~~~~~~~
 Annotating data sources
@@ -48,11 +48,23 @@ See also:
 - :py:class:`synapseclient.entity.Entity`
 - :py:mod:`synapseclient.entity`
 
+
+~~~~~~~
+Classes
+~~~~~~~
+.. autoclass:: synapseclient.annotations.Annotations
+    :members:
+
+    .. automethod:: __init__
+
+
+
 """
 
 import collections
-import warnings
-from synapseclient.core.utils import to_unix_epoch_time, from_unix_epoch_time, is_date, to_list
+
+from .entity import Entity
+from synapseclient.core.utils import to_unix_epoch_time, from_unix_epoch_time, is_date, to_list, id_of
 import typing
 import datetime
 
@@ -212,25 +224,36 @@ class Annotations(dict):
     id:str
     etag:str
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, id: typing.Union[str, int, Entity], etag: str, values: typing.Dict=None, **kwargs):
         """
         Create an Annotations object taking key value pairs from a dictionary or from keyword arguments.
         System properties id, etag, creationDate and uri become attributes of the object.
-        """
-        # make sure all system properties exist
-        super().__init__()
-        for key in Annotations.__annotations__.keys():
-            self.__dict__[key] = None
 
-        for arg in args + (kwargs,):
-            if isinstance(arg, collections.Mapping):
-                for key in arg:
-                    if key in Annotations.__annotations__.keys():
-                        self.__dict__[key] = arg[key]
-                    else:
-                        self.__setitem__(key, arg[key])
-            else:
-                raise ValueError("Unrecognized argument to constructor of Annotations: %s" + str(arg))
+        :param id:  A Synapse ID, a Synapse Entity object, a plain dictionary in which 'id' maps to a Synapse ID
+        :param etag: etag of the Synapse Entity
+        :param values:  (Optional) dictionary of values to be copied into annotations
+
+        :param \**kwargs: additional key-value pairs to be added as annotations
+
+        Example::
+
+            example1 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', {'foo':'bar'})
+
+            example2 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984', foo='bar')
+
+
+            example3 = Annotations('syn123','40256475-6fb3-11ea-bb0a-9cb6d0d8d984')
+            example3['foo'] = 'bar'
+
+        """
+        super().__init__()
+        self.id = id_of(id)
+        self.etag = str(etag)
+
+        if values:
+            self.update(values)
+        if kwargs:
+            self.update(kwargs)
 
     def __getattr__(self, key):
         val = self.get(key)
@@ -243,6 +266,9 @@ class Annotations(dict):
             return super(Annotations, self).__setattr__(key, value)
         else:
             return self.__setitem__(key, value)
+
+    def __setitem__(self, key, value):
+        super(Annotations, self).__setitem__(key, to_list(value))
 
 
 def to_synapse_annotations(annotations: Annotations)\
@@ -289,11 +315,8 @@ def to_synapse_annotations(annotations: Annotations)\
 def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any])\
     -> Annotations:
     """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
-    annos = Annotations()
 
-    annos.id = raw_annotations.get('id')
-    annos.etag = raw_annotations.get('etag')
-
+    annos = Annotations(raw_annotations.get('id'), raw_annotations.get('etag'))
     for key, value_and_type in raw_annotations.get('annotations',{}).items():
         key: str
         conversion_func = ANNO_TYPE_TO_FUNC[value_and_type['type']]

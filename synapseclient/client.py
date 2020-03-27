@@ -29,6 +29,7 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 """
 import configparser
 import collections
+import deprecated
 import errno
 import sys
 import hashlib
@@ -47,7 +48,7 @@ import time
 import typing
 
 import synapseclient
-from .annotations import from_synapse_annotations, to_synapse_annotations
+from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations
 from .activity import Activity
 import synapseclient.core.multithread_download as multithread_download
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -1013,7 +1014,7 @@ class Synapse(object):
             self._createAccessRequirementIfNone(properties)
 
         # Update annotations
-        annotations = self.setAnnotations(properties, annotations)
+        annotations = self.set_annotations(Annotations(properties['id'], properties['etag'], annotations))
         properties['etag'] = annotations.etag
 
         # If the parameters 'used' or 'executed' are given, create an Activity object
@@ -1227,7 +1228,12 @@ class Synapse(object):
             uri = '/entity/%s/annotations2' % id_of(entity)
         return self.restGET(uri)
 
+    @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`get_annotations`',
+                                  action='module')
     def getAnnotations(self, entity, version=None):
+        return get_annotations(entity, version=version)
+
+    def get_annotations(self, entity:typing.Union[str, Entity], version: typing.Union[str, int]=None) -> Annotations:
         """
         Retrieve annotations for an Entity from the Synapse Repository as a Python dict.
 
@@ -1237,21 +1243,72 @@ class Synapse(object):
         :param entity:  An Entity or Synapse ID to lookup
         :param version: The version of the Entity to retrieve.
 
-        :returns: A dictionary
+        :returns: A :py:class:`synapseclient.annotations.Annotations` object, \
+        a dict that also has id and etag attributes
+        :rtype: :py:class:`synapseclient.annotations.Annotations`
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
 
-    def setAnnotations(self, annotations: Annotations):
+    @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`set_annotations` '
+                                                          ' This method is UNSAFE and may overwrite existing annotations'
+                                                          ' without confirming that you have retrieved and'
+                                                          ' updated the latest version',
+                                  action='module')
+    def setAnnotations(self, entity, annotations=None, **kwargs):
         """
         Store annotations for an Entity in the Synapse Repository.
 
+        :param entity:      The Entity or Synapse Entity ID whose annotations are to be updated
         :param annotations: A dictionary of annotation names and values
         :param kwargs:      annotation names and values
-
         :returns: the updated annotations for the entity
-        """
 
-        if not annotations.id or not annotations.etag:
+        """
+        if not annotations:
+            annotations = {}
+
+        annotations.update(kwargs)
+
+        id = id_of(entity)
+        etag = annotations.etag if hasattr(annotations, etag) else annotations.get('etag')
+
+        if not etag:
+            if 'etag' in entity:
+                etag = entity['etag']
+            else:
+                uri = '/entity/%s/annotations2' % id_of(entity)
+                old_annos = self.restGET(uri)
+                etag = old_annos['etag']
+
+        return set_annotations(Annotations(id, etag, annotations))
+
+    def set_annotations(self, annotations: Annotations):
+        """
+        Store annotations for an Entity in the Synapse Repository.
+
+        :param annotations: A :py:class:`synapseclient.annotations.Annotations` of annotation names and values,
+         with the id and etag attribute set
+
+        :returns: the updated :py:class:`synapseclient.annotations.Annotations` for the entity
+
+
+        Example::
+
+            annos = syn.get_annotations('syn123')
+
+            #set key 'foo' to have value of 'bar' and 'baz'
+            annos['foo'] = ['bar', 'baz']
+            #'asdf' will automatically be wrapped in a list once stored
+            annos['qwerty'] = 'asdf'
+
+            #store the annotations
+            annos = syn.set_annotations(annos)
+
+            print(annos)
+            # {'foo':['bar','baz], 'qwerty':['asdf']}
+        """
+        #TODO: test
+        if not annotations or not annotations.id or not annotations.etag:
             raise ValueError("annotations must have Id and Etag")
 
         entity_id = id_of(annotations)
