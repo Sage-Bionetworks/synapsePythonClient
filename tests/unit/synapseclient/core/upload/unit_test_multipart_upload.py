@@ -622,8 +622,17 @@ class TestMultipartUpload:
         with mock.patch.object(
             synapseclient.core.upload.multipart_upload,
             'UploadAttempt'
-        ) as mock_upload_attempt:
+        ) as mock_upload_attempt,\
+            mock.patch.object(
+                 synapseclient.core.upload.multipart_upload,
+                 'multiprocessing',
+                ) as mock_multiprocessing:
+
             mock_upload_attempt.side_effect = upload_side_effect
+
+            # predictable value so things don't vary by test environment
+            mock_multiprocessing.cpu_count.return_value = 4
+
             return _multipart_upload(*args, **kwargs), mock_upload_attempt
 
     def test_multipart_upload(self):
