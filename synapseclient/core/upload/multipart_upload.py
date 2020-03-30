@@ -25,7 +25,13 @@ import threading
 import time
 from typing import List
 
-from synapseclient.core import exceptions, pool_provider
+from synapseclient.core import pool_provider
+from synapseclient.core.exceptions import (
+    _raise_for_status,  # why is is this a single underscore
+    SynapseHTTPError,
+    SynapseUploadAbortedException,
+    SynapseUploadFailedException,
+)
 from synapseclient.core.utils import printTransferProgress, md5_for_file, MB
 
 # AWS limits
@@ -42,17 +48,6 @@ MAX_RETRIES = 7
 
 
 thread_local = threading.local()
-
-
-class UploadAbortedException(Exception):
-    """Raised when a worker thread detects the upload was
-    aborted and stops further processing."""
-    pass
-
-
-class UploadFailedException(Exception):
-    """Raised when an upload failed. Should be chained to a cause Exception"""
-    pass
 
 
 class UploadAttempt:
@@ -202,7 +197,7 @@ class UploadAttempt:
             if self._aborted:
                 # this upload attempt has already been aborted
                 # so we short circuit the attempt to upload this part
-                raise UploadAbortedException(
+                raise SynapseUploadAbortedException(
                     "Upload aborted, skipping part {}".format(part_number)
                 )
 
@@ -222,12 +217,12 @@ class UploadAttempt:
                     pre_signed_part_url,
                     chunk,
                 )
-                exceptions._raise_for_status(response)
+                _raise_for_status(response)
 
                 # completed upload part to s3 successfully
                 break
 
-            except exceptions.SynapseHTTPError as ex:
+            except SynapseHTTPError as ex:
                 if ex.response.status_code == 403 and retry < 1:
                     # we interpret this to mean our pre_signed url expired.
                     self._syn.logger.debug(
@@ -322,9 +317,13 @@ class UploadAttempt:
                     self._aborted = True
 
                 if isinstance(cause, KeyboardInterrupt):
-                    raise UploadAbortedException("User interrupted upload")
+                    raise SynapseUploadAbortedException(
+                        "User interrupted upload"
+                    )
 
-                raise UploadFailedException("Part upload failed") from cause
+                raise SynapseUploadFailedException(
+                    "Part upload failed"
+                ) from cause
 
         upload_status_response = self._syn.restPUT(
             "/file/multipart/{upload_id}/complete".format(
@@ -339,7 +338,7 @@ class UploadAttempt:
             # at this point we think successfully uploaded all the parts
             # but the upload status isn't complete, we'll throw an error
             # and let a subsequent attempt try to reconcile
-            raise UploadFailedException(
+            raise SynapseUploadFailedException(
                 "Upload status has an unexpected state {}".format(upload_state)
             )
 
@@ -548,7 +547,7 @@ def _multipart_upload(
             # success
             return upload_status_response['resultFileHandleId']
 
-        except UploadFailedException:
+        except SynapseUploadFailedException:
             if retry < MAX_RETRIES:
                 retry += 1
             else:

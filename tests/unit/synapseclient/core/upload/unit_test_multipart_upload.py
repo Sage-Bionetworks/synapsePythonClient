@@ -7,7 +7,11 @@ import math
 from unittest import mock
 from nose.tools import assert_equal, assert_false, assert_raises, assert_true
 
-from synapseclient.core.exceptions import SynapseHTTPError
+from synapseclient.core.exceptions import (
+    SynapseHTTPError,
+    SynapseUploadAbortedException,
+    SynapseUploadFailedException,
+)
 import synapseclient.core.upload.multipart_upload
 from synapseclient.core.upload.multipart_upload import (
     DEFAULT_PART_SIZE,
@@ -18,9 +22,7 @@ from synapseclient.core.upload.multipart_upload import (
     multipart_upload_file,
     multipart_upload_string,
     pool_provider,
-    UploadAbortedException,
     UploadAttempt,
-    UploadFailedException,
 )
 
 
@@ -210,7 +212,7 @@ class TestUploadAttempt:
         upload = self._init_upload_attempt()
         upload._aborted = True
 
-        with assert_raises(UploadAbortedException):
+        with assert_raises(SynapseUploadAbortedException):
             upload._handle_part(5)
 
     def _handle_part_success_test(
@@ -468,7 +470,7 @@ class TestUploadAttempt:
 
             get_executor.return_value.submit.return_value = future
 
-            with assert_raises(UploadFailedException):
+            with assert_raises(SynapseUploadFailedException):
                 upload()
 
 
@@ -742,8 +744,8 @@ class TestMultipartUpload:
         storage_location_id = 3210
         result_file_handle_id = 'foo'
         upload_side_effect = [
-            UploadFailedException(),
-            UploadFailedException(),
+            SynapseUploadFailedException(),
+            SynapseUploadFailedException(),
             mock.Mock(
                 return_value={'resultFileHandleId': result_file_handle_id}
             )
@@ -778,9 +780,9 @@ class TestMultipartUpload:
         dest_file_name = 'foo'
         content_type = 'text/plain'
         storage_location_id = 3210
-        upload_side_effect = UploadFailedException()
+        upload_side_effect = SynapseUploadFailedException()
 
-        with assert_raises(UploadFailedException):
+        with assert_raises(SynapseUploadFailedException):
             self._multipart_upload_test(
                 upload_side_effect,
                 syn,
