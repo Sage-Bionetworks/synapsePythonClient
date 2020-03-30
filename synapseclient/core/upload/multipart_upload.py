@@ -13,7 +13,6 @@ not need to call any of these functions directly.
 """
 
 import concurrent.futures
-from collections import OrderedDict
 import hashlib
 import json
 import math
@@ -23,7 +22,7 @@ import os
 import requests
 import threading
 import time
-from typing import List
+from typing import List, Mapping
 
 from synapseclient.core import pool_provider
 from synapseclient.core.exceptions import (
@@ -83,7 +82,7 @@ class UploadAttempt:
 
         # populated later
         self._upload_id: str = None
-        self._pre_signed_part_urls: OrderedDict[int, str] = None
+        self._pre_signed_part_urls: Mapping[int, str] = None
 
     @classmethod
     def _get_remaining_part_numbers(cls, upload_status):
@@ -134,7 +133,7 @@ class UploadAttempt:
         upload_id: str,
         part_numbers: List[int],
         session: requests.Session = None,
-    ) -> 'OrderedDict[int, str]':
+    ) -> Mapping[int, str]:
 
         uri = "/file/multipart/{upload_id}/presigned/url/batch".format(
             upload_id=upload_id
@@ -151,7 +150,7 @@ class UploadAttempt:
             endpoint=self._syn.fileHandleEndpoint,
         )
 
-        part_urls = OrderedDict()
+        part_urls = {}
         for part in response['partPresignedUrls']:
             part_urls[part['partNumber']] = part['uploadPresignedUrl']
 
@@ -312,7 +311,7 @@ class UploadAttempt:
                     dt=time.time() - time_upload_started,
                     previouslyTransferred=previously_transferred,
                 )
-            except Exception as cause:
+            except BaseException as cause:
                 with self._lock:
                     self._aborted = True
 

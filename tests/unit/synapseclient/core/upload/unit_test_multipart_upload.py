@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from concurrent.futures import Future
 import hashlib
 import json
@@ -104,12 +103,10 @@ class TestUploadAttempt:
         }
         upload._syn.restPOST.return_value = response
 
-        expected_return = OrderedDict(
-            {
-                i['partNumber']: i['uploadPresignedUrl']
-                for i in response['partPresignedUrls']
-            }
-        )
+        expected_return = {
+            i['partNumber']: i['uploadPresignedUrl']
+            for i in response['partPresignedUrls']
+        }
 
         pre_signed_urls = upload._fetch_pre_signed_part_urls(
             upload_id,
