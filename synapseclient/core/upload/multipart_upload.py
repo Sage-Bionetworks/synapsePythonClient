@@ -162,14 +162,40 @@ class UploadAttempt:
 
         return part_urls
 
-    def _refresh_pre_signed_part_urls(self, part_number: int):
-        with self._lock:
-            self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
-                self._upload_id,
-                list(self._pre_signed_part_urls.keys()),
-            )
+    def _refresh_pre_signed_part_urls(
+        self,
+        part_number: int,
+        expired_url: str,
+    ):
+        """Refresh all unfetched presigned urls, and return the refreshed
+        url for the given part number. If an existing expired_url is passed
+        and the url for the given part has already changed that new url
+        will be returned without a refresh (i.e. it is assumed that another
+        thread has already refreshed the url since the passed url expired).
 
-            return self._pre_signed_part_urls[part_number]
+        :param part_number: the part number whose refreshed url should
+            be returned
+        :param expired_url: the url that was detected as expired triggering
+            this refresh
+
+        """
+        with self._lock:
+            current_url = self._pre_signed_part_urls[part_number]
+            if current_url != expired_url:
+                # if the url has already changed since the given url
+                # was detected as expired we can assume that another
+                # thread already refreshed the url and can avoid the extra
+                # fetch.
+                refreshed_url = current_url
+            else:
+                self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
+                    self._upload_id,
+                    list(self._pre_signed_part_urls.keys()),
+                )
+
+                refreshed_url = self._pre_signed_part_urls[part_number]
+
+            return refreshed_url
 
     def _handle_part(self, part_number):
         with self._lock:
@@ -212,7 +238,8 @@ class UploadAttempt:
                     # we refresh all the urls and obtain this part's
                     # specific url for the retry
                     pre_signed_part_url = self._refresh_pre_signed_part_urls(
-                        part_number
+                        part_number,
+                        pre_signed_part_url,
                     )
 
                 else:

@@ -6,6 +6,7 @@ import json
 from unittest import mock
 from nose.tools import assert_equal, assert_false, assert_raises, assert_true
 
+from synapseclient.core.exceptions import SynapseHTTPError
 from synapseclient.core.upload.multipart_upload import (
     pool_provider,
     UploadAbortedException,
@@ -123,15 +124,21 @@ class TestUploadAttempt:
             endpoint=upload._syn.fileHandleEndpoint,
         )
 
-    def test_refresh_pre_signed_part_urls(self):
+    def test_refresh_presigned_part_url__fetch_required(self):
+        """Verify that when calling the refresh function that if the
+        url that was passed as expired is that last known available
+        url for the given part number then we know that no other
+        thread has already refreshed and this thread needs to do so."""
+
         upload = self._init_upload_attempt()
 
+        part_number = 2
+        current_url = "http://bar.com{}".format(part_number)
         original_presigned_urls = {
-           2: "http://bar.com",
+           2: current_url,
         }
         upload._pre_signed_part_urls = original_presigned_urls
 
-        part_number = 2
         pre_signed_url = "http://foo.com/{}".format(part_number)
         with mock.patch.object(
             upload,
@@ -141,13 +148,51 @@ class TestUploadAttempt:
                 part_number: pre_signed_url,
             }
 
-            refreshed_url = upload._refresh_pre_signed_part_urls(2)
+            # the passed url that expired is the same that as the last
+            # one available for this part number, so a refresh is required.
+            refreshed_url = upload._refresh_pre_signed_part_urls(
+                part_number,
+                current_url,
+            )
+
             assert_equal(refreshed_url, pre_signed_url)
 
             fetch_urls.assert_called_once_with(
                 upload._upload_id,
                 list(original_presigned_urls.keys())
             )
+
+    def test_refresh_presigned_part_url__no_fetch_required(self):
+        """Test that if another thread already refreshed all the
+        signed urls after this thread's url was detected as expired
+        then we don't need to fetch new urls from synapse."""
+
+        upload = self._init_upload_attempt()
+
+        part_number = 2
+
+        current_url = "http://bar.com{}".format(part_number)
+        original_presigned_urls = {
+           2: current_url,
+        }
+        upload._pre_signed_part_urls = original_presigned_urls
+
+        pre_signed_url = "http://foo.com/{}".format(part_number)
+        with mock.patch.object(
+            upload,
+            '_fetch_pre_signed_part_urls',
+        ) as fetch_urls:
+            # the passed url that expired is the same that as the last
+            # one available for this part number, so a refresh is required.
+            refreshed_url = upload._refresh_pre_signed_part_urls(
+                part_number,
+                pre_signed_url,
+            )
+
+            # should return the new url already on file without having
+            # to have made a remote call.
+            assert_equal(refreshed_url, current_url)
+            fetch_urls.assert_not_called()
 
     def test_handle_part_aborted(self):
         """Verify that handle part processing short circuits when
@@ -163,10 +208,12 @@ class TestUploadAttempt:
         self,
         upload,
         part_number,
+        expired_url,
         aws_calls,
         chunk,
         refresh_url_response,
     ):
+
         mock_session = mock.Mock()
 
         md5_hex = hashlib.md5(chunk).hexdigest()
@@ -202,7 +249,10 @@ class TestUploadAttempt:
         )
 
         if refresh_url_response:
-            refresh_urls.assert_called_once_with(part_number)
+            refresh_urls.assert_called_once_with(
+                part_number,
+                expired_url,
+            )
         else:
             assert_false(refresh_urls.called)
 
@@ -220,7 +270,7 @@ class TestUploadAttempt:
         assert_true(part_number not in upload._pre_signed_part_urls)
 
     def test_handle_part_success(self):
-        """Verify behavior of a successul processing of a part.
+        """Verify behavior of a successful processing of a part.
         Part bytes should be uploaded to aws, and """
 
         upload = self._init_upload_attempt()
@@ -234,6 +284,7 @@ class TestUploadAttempt:
         self._handle_part_success_test(
             upload,
             part_number,
+            pre_signed_url_1,
             [(mock.call(pre_signed_url_1, chunk), mock.Mock(status_code=200))],
             chunk,
             None,
@@ -257,6 +308,7 @@ class TestUploadAttempt:
         self._handle_part_success_test(
             upload,
             part_number,
+            pre_signed_url_1,
 
             # initial call is expired and results in a 403
             # second call is successful
@@ -277,6 +329,48 @@ class TestUploadAttempt:
             chunk,
             pre_signed_url_2,
         )
+
+    def test_handle_part__url_expired_twice(self):
+        """Verify that consecutive attempts to upload a part resulting
+        in a 403 from AWS results in the expected error."""
+
+        upload = self._init_upload_attempt()
+        upload._upload_id = '123'
+        part_number = 1
+        chunk = b'1234'
+
+        pre_signed_url_1 = 'https://foo.com/1'
+        pre_signed_url_2 = 'https://bar.com/1'
+
+        upload._pre_signed_part_urls = {part_number: pre_signed_url_1}
+        mock_session = mock.Mock()
+
+        with mock.patch.object(upload, '_chunk_fn')\
+                as chunk_fn,\
+                mock.patch.object(upload, '_get_thread_session')\
+                as get_session,\
+                mock.patch.object(upload, '_refresh_pre_signed_part_urls')\
+                as refresh_urls:
+
+            get_session.return_value = mock_session
+            chunk_fn.return_value = chunk
+            refresh_urls.side_effect = [
+                {
+                    part_number: url for url in [
+                        pre_signed_url_1,
+                        pre_signed_url_2,
+                    ]
+                }
+            ]
+
+            mock_session.put.return_value = mock.Mock(
+                status_code=403,
+                headers={},
+                reason=''
+            )
+
+            with assert_raises(SynapseHTTPError):
+                upload._handle_part(1)
 
     def test_call_upload(self):
         """Verify the behavior of an upload call, it should trigger
