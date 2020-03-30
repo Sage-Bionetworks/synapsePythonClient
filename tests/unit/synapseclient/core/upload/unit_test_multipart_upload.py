@@ -2,12 +2,21 @@ from collections import OrderedDict
 from concurrent.futures import Future
 import hashlib
 import json
+import math
 
 from unittest import mock
 from nose.tools import assert_equal, assert_false, assert_raises, assert_true
 
 from synapseclient.core.exceptions import SynapseHTTPError
+import synapseclient.core.upload.multipart_upload
 from synapseclient.core.upload.multipart_upload import (
+    DEFAULT_PART_SIZE,
+    DEFAULT_MAX_WORKERS,
+    MAX_NUMBER_OF_PARTS,
+    MIN_PART_SIZE,
+    _multipart_upload,
+    multipart_upload_file,
+    multipart_upload_string,
     pool_provider,
     UploadAbortedException,
     UploadAttempt,
@@ -461,3 +470,317 @@ class TestUploadAttempt:
 
             with assert_raises(UploadFailedException):
                 upload()
+
+
+class TestMultipartUpload:
+
+    def test_multipart_upload_file(self):
+        """Verify multipart_upload_file passes through its
+        args, validating and supplying defaults as expected."""
+
+        syn = mock.Mock()
+
+        file_path = '/foo/bar/baz'
+        file_size = 1234
+        md5_hex = 'abc123'
+
+        with mock.patch('os.path.exists') as os_path_exists,\
+                mock.patch('os.path.isdir') as os_path_is_dir,\
+                mock.patch('os.path.getsize') as os_path_getsize,\
+                mock.patch.object(
+                    synapseclient.core.upload.multipart_upload,
+                    'md5_for_file',
+                ) as md5_for_file,\
+                mock.patch.object(
+                    synapseclient.core.upload.multipart_upload,
+                    '_multipart_upload',
+                ) as mock_multipart_upload:
+
+            os_path_getsize.return_value = file_size
+            md5_for_file.return_value.hexdigest.return_value = md5_hex
+
+            os_path_exists.return_value = False
+
+            # bad file
+            with assert_raises(IOError):
+                multipart_upload_file(syn, file_path)
+
+            os_path_exists.return_value = True
+            os_path_is_dir.return_value = True
+
+            with assert_raises(IOError):
+                multipart_upload_file(syn, file_path)
+
+            os_path_is_dir.return_value = False
+
+            # call w/ defaults
+            multipart_upload_file(syn, file_path)
+            mock_multipart_upload.assert_called_once_with(
+                syn,
+                mock.ANY,  # lambda chunk function
+                file_size,
+                None,  # part_size
+                'baz',
+                md5_hex,
+                'application/octet-stream',  # content_type
+                None,  # storage_location_id
+                True,  # preview
+                False,  # force_restart
+                None,  # max_workers
+            )
+
+            mock_multipart_upload.reset_mock()
+
+            # call specifying all optional kwargs
+            kwargs = {
+                'dest_file_name': 'blort',
+                'content_type': 'text/plain',
+                'part_size': 9876,
+                'storage_location_id': 5432,
+                'preview': False,
+                'force_restart': True,
+                'max_workers': 8,
+            }
+            multipart_upload_file(
+                syn,
+                file_path,
+                **kwargs
+            )
+            mock_multipart_upload.assert_called_once_with(
+                syn,
+                mock.ANY,  # lambda chunk function
+                file_size,
+                kwargs['part_size'],
+                kwargs['dest_file_name'],
+                md5_hex,
+                kwargs['content_type'],
+                kwargs['storage_location_id'],
+                kwargs['preview'],
+                kwargs['force_restart'],
+                kwargs['max_workers'],
+            )
+
+    def test_multipart_upload_string(self):
+        """Verify multipart_upload_string passes through its
+        args, validating and supplying defaults as expected."""
+
+        syn = mock.Mock()
+        upload_text = 'foobarbaz'
+
+        with mock.patch.object(
+               synapseclient.core.upload.multipart_upload,
+               '_multipart_upload',
+           ) as mock_multipart_upload:
+
+            encoded = upload_text.encode('utf-8')
+            md5_hex = hashlib.md5(encoded).hexdigest()
+
+            # call w/ default args
+            multipart_upload_string(syn, upload_text)
+            mock_multipart_upload.assert_called_once_with(
+                syn,
+                mock.ANY,  # lambda chunk function
+                len(encoded),
+                None,  # part_size
+                'message.txt',
+                md5_hex,
+                'text/plain; charset=utf-8',
+                None,  # storage_location_id
+                True,  # preview
+                False,  # force_restart
+                None,  # max_workers
+            )
+
+            mock_multipart_upload.reset_mock()
+
+            # call specifying all optional kwargs
+            kwargs = {
+                'dest_file_name': 'blort',
+                'content_type': 'text/csv',
+                'part_size': 9876,
+                'storage_location_id': 5432,
+                'preview': False,
+                'force_restart': True,
+                'max_workers': 8,
+            }
+            multipart_upload_string(syn, upload_text, **kwargs)
+            mock_multipart_upload.assert_called_once_with(
+                syn,
+                mock.ANY,  # lambda chunk function
+                len(encoded),
+                kwargs['part_size'],
+                kwargs['dest_file_name'],
+                md5_hex,
+                kwargs['content_type'],
+                kwargs['storage_location_id'],
+                kwargs['preview'],
+                kwargs['force_restart'],
+                kwargs['max_workers'],
+            )
+
+    def _multipart_upload_test(self, upload_side_effect, *args, **kwargs):
+        with mock.patch.object(
+            synapseclient.core.upload.multipart_upload,
+            'UploadAttempt'
+        ) as mock_upload_attempt:
+            mock_upload_attempt.side_effect = upload_side_effect
+            return _multipart_upload(*args, **kwargs), mock_upload_attempt
+
+    def test_multipart_upload(self):
+        """"Verify the behavior of a successful call to multipart_upload
+        with various parameterizations applied.  Verify that parameters
+        are validated/adjusted as expected."""
+
+        syn = mock.Mock()
+        chunk_fn = mock.Mock()
+        md5_hex = 'ab123'
+        dest_file_name = 'foo'
+        content_type = 'text/plain'
+        storage_location_id = 3210
+        result_file_handle_id = 'foo'
+        upload_side_effect = [
+            mock.Mock(
+                return_value={'resultFileHandleId': result_file_handle_id}
+            )
+        ]
+
+        # (file_size, in_part_size, in_max_workers, in_force_restart)
+        # (out_part_size, out_max_workers, out_force_restart)
+        tests = [
+
+            # part_size exceeds file size, so only 1 part expect 1 worker
+            (
+                (1234, None, None, False),
+                (DEFAULT_PART_SIZE, 1, False)
+            ),
+
+            # multiple parts, but less parts than specified max workers
+            # so we expect max workers to be num of parts
+            (
+               (pow(2, 24), pow(2, 23) - 1000, None, False),
+               (pow(2, 23) - 1000, 3, False),
+            ),
+
+            # parts exceeds specified max_workers, so specified max_workers
+            # passes through unchanged, also specify force_restart
+            (
+               (pow(2, 28), None, 8, True),
+               (DEFAULT_PART_SIZE, 8, True),
+            ),
+
+            # many parts, no max_workers, specified, should use default
+            (
+                (pow(2, 28), None, DEFAULT_MAX_WORKERS, False),
+                (DEFAULT_PART_SIZE, DEFAULT_MAX_WORKERS, False),
+            ),
+
+            # part size specified below min, should be raised
+            (
+                (1000, 1, None, False),
+                (MIN_PART_SIZE, 1, False),
+            ),
+
+            # part size would exceed max number of parts,
+            # should be adjusted accordingly
+            (
+                (pow(2, 36), MIN_PART_SIZE + 1, 32, True),
+                (int(math.ceil(pow(2, 36) / MAX_NUMBER_OF_PARTS)), 32, True),
+            )
+        ]
+
+        for (file_size, in_part_size, in_max_workers, in_force_restart),\
+            (out_part_size, out_max_workers, out_force_restart)\
+                in tests:
+
+            result, upload_mock = self._multipart_upload_test(
+                upload_side_effect,
+                syn,
+                chunk_fn,
+                file_size,
+                in_part_size,
+                dest_file_name,
+                md5_hex,
+                content_type,
+                storage_location_id,
+                max_workers=in_max_workers,
+                force_restart=in_force_restart,
+            )
+
+            upload_mock.assert_called_once_with(
+                syn,
+                chunk_fn,
+                dest_file_name,
+                file_size,
+                out_part_size,
+                md5_hex,
+                content_type,
+                True,
+                storage_location_id,
+                out_max_workers,
+                force_restart=out_force_restart,
+            )
+
+    def test_multipart_upload__retry_success(self):
+        """Verify we recover on a failed upload if a subsequent
+        retry succeeds."""
+
+        syn = mock.Mock()
+        chunk_fn = mock.Mock()
+        md5_hex = 'ab123'
+        file_size = 1234
+        dest_file_name = 'foo'
+        content_type = 'text/plain'
+        storage_location_id = 3210
+        result_file_handle_id = 'foo'
+        upload_side_effect = [
+            UploadFailedException(),
+            UploadFailedException(),
+            mock.Mock(
+                return_value={'resultFileHandleId': result_file_handle_id}
+            )
+        ]
+
+        result, upload_mock = self._multipart_upload_test(
+            upload_side_effect,
+            syn,
+            chunk_fn,
+            file_size,
+            None,  # part_size
+            dest_file_name,
+            md5_hex,
+            content_type,
+            storage_location_id,
+            None,  # max_workers
+        )
+
+        # should have been called multiple times but returned
+        # the result in the end.
+        assert_equal(result_file_handle_id, result)
+        assert_equal(len(upload_side_effect), upload_mock.call_count)
+
+    def test_multipart_upload__retry_failure(self):
+        """Verify if we run out of upload attempts we give up
+        and raise the failure."""
+
+        syn = mock.Mock()
+        chunk_fn = mock.Mock()
+        md5_hex = 'ab123'
+        file_size = 1234
+        dest_file_name = 'foo'
+        content_type = 'text/plain'
+        storage_location_id = 3210
+        upload_side_effect = UploadFailedException()
+
+        with assert_raises(UploadFailedException):
+            self._multipart_upload_test(
+                upload_side_effect,
+                syn,
+                chunk_fn,
+                file_size,
+                None,  # part_size
+                dest_file_name,
+                md5_hex,
+                content_type,
+                storage_location_id,
+                None,  # max_workers
+            )
