@@ -1250,7 +1250,7 @@ class Synapse(object):
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
 
     @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`set_annotations` '
-                                                          ' This method is UNSAFE and may overwrite existing annotations'
+                                                          'This method is UNSAFE and may overwrite existing annotations'
                                                           ' without confirming that you have retrieved and'
                                                           ' updated the latest annotations')
     def setAnnotations(self, entity, annotations=None, **kwargs):

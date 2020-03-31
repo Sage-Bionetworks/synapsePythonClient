@@ -1159,3 +1159,4 @@ class TestMembershipInvitation:
                                                            ' "annotations": {"foo": {"type": "STRING", '
                                                            '"value": ["bar"]}}}')
 
+

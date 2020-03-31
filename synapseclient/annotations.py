@@ -287,8 +287,7 @@ class Annotations(dict):
         self._etag = str(value)
 
 
-def to_synapse_annotations(annotations: Annotations) \
-    -> typing.Dict[str, typing.Any]:
+def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.Any]:
     """Transforms a simple flat dictionary to a Synapse-style Annotation object.
     https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html
     """
@@ -328,8 +327,7 @@ def to_synapse_annotations(annotations: Annotations) \
     return synapse_annos
 
 
-def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any]) \
-    -> Annotations:
+def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any]) -> Annotations:
     """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
     if not is_synapse_annotations(raw_annotations):
         raise ValueError(
