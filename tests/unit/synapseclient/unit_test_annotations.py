@@ -10,6 +10,7 @@ from synapseclient.annotations import to_synapse_annotations, from_synapse_annot
     to_submission_status_annotations, from_submission_status_annotations, set_privacy, is_synapse_annotations, \
     Annotations
 from synapseclient.core.exceptions import *
+from synapseclient.entity import File
 
 
 def test_annotations():
@@ -210,3 +211,32 @@ def test_is_synapse_annotation():
 
     # annotations + other keys
     assert_false(is_synapse_annotations({'annotations': {}, 'bar':'baz'}))
+
+    # sanity check: Any Entity subclass has id etag and annotations,
+    # but its annotations are not in the format Synapse expects
+    assert_false(is_synapse_annotations(File('~/asdf.txt',
+                                             id='syn123',
+                                             etag='0f2977b9-0261-4811-a89e-c13e37ce4604',
+                                             parentId='syn135')))
+
+class TestAnnotations:
+    def test__None_id_and_etag(self):
+        #in constuctor
+        assert_raises(ValueError, Annotations,'syn123', None)
+        assert_raises(ValueError, Annotations, None, '0f2977b9-0261-4811-a89e-c13e37ce4604')
+
+        #after constuction
+        annot = Annotations('syn123', '0f2977b9-0261-4811-a89e-c13e37ce4604', {'asdf': 'qwerty'})
+        def change_id_to_None():
+            annot.id = None
+        assert_raises(ValueError, change_id_to_None)
+
+        def change_etag_to_None():
+            annot.etag = None
+        assert_raises(ValueError, change_etag_to_None)
+
+    def test_annotations(self):
+        annot = Annotations('syn123', '0f2977b9-0261-4811-a89e-c13e37ce4604', {'asdf':'qwerty'})
+        assert_equals('syn123', annot.id)
+        assert_equals('0f2977b9-0261-4811-a89e-c13e37ce4604', annot.etag)
+        assert_equals({'asdf':'qwerty'}, annot)

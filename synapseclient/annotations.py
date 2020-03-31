@@ -85,9 +85,9 @@ ANNO_TYPE_TO_FUNC: typing.Dict[str, typing.Callable[[str], typing.Union[str,int,
         }
     )
 
-def is_synapse_annotations(annotations: typing.Dict):
+def is_synapse_annotations(annotations: typing.Mapping):
     """Tests if the given object is a Synapse-style Annotations object."""
-    if not isinstance(annotations, collections.Mapping):
+    if not isinstance(annotations, collections.abc.Mapping):
         return False
     return annotations.keys() >= {'id', 'etag', 'annotations'}
 
@@ -214,7 +214,6 @@ def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'do
                     return kvp
     raise KeyError('The key "%s" couldn\'t be found in the annotations.' % key)
 
- #TODO: test
 class Annotations(dict):
     """
      Represent Synapse Entity annotations as a flat dictionary with the system assigned properties id, etag
@@ -247,22 +246,40 @@ class Annotations(dict):
         """
         super().__init__()
         #the . operator is overridden (__getattr__/__setattr__) so we have to manually modify __dict__
-        self.__dict__['id'] = id_of(id)
-        self.__dict__['etag'] = str(etag)
+
+        # if id is None:
+        #     raise ValueError("id must not be None")
+        #
+        # if etag is None:
+        #     raise ValueError("etag must not be None")
+
+        self.id = id
+        self.etag = etag
 
         if values:
             self.update(values)
         if kwargs:
             self.update(kwargs)
 
-    def __getattr__(self, key):
-        return self.get(key) or super(Annotations, self).__getattr__(key)
+    @property
+    def id(self):
+        return self._id
 
-    def __setattr__(self, key, value):
-        if hasattr(self, key):
-            return super(Annotations, self).__setattr__(key, value)
-        else:
-            return self.__setitem__(key, value)
+    @id.setter
+    def id(self, value):
+        if value is None:
+            raise ValueError("id must not be None")
+        self._id = id_of(value)
+
+    @property
+    def etag(self):
+        return self._etag
+
+    @etag.setter
+    def etag(self, value):
+        if value is None:
+            raise ValueError("etag must not be None")
+        self._etag = str(value)
 
 
 def to_synapse_annotations(annotations: Annotations)\

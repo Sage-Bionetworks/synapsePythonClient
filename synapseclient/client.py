@@ -1315,9 +1315,9 @@ class Synapse(object):
             print(annos)
             # {'foo':['bar','baz], 'qwerty':['asdf']}
         """
-        #TODO: test
-        if annotations is None or not annotations.id or not annotations.etag:
-            raise ValueError("annotations must have Id and Etag")
+
+        if not isinstance(annotations, Annotations):
+            raise TypeError("Expected a synapseclient.Annotations object")
 
         synapseAnnos = to_synapse_annotations(annotations)
 

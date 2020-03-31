@@ -1140,3 +1140,22 @@ class TestMembershipInvitation:
             patch_delete.assert_called_once_with(open_invitations['id'])
             assert_equal(invite, self.response)
             patch_invitation.assert_called_once()
+
+    class TestSetAnnotations():
+        def test_not_annotation(self):
+            with patch.object(syn, "restPUT") as mock_rest_put:
+                # pass in non-annotation object
+                assert_raises(ValueError, syn.set_annotations, {})
+                mock_rest_put.assert_not_called()
+
+        def test_with_annotations(self):
+            with patch.object(syn, "restPUT") as mock_rest_put:
+                # pass in non-annotation object
+                assert_raises(ValueError, syn.set_annotations,
+                              Annotations('syn123', '1d6c46e4-4d52-44e1-969f-e77b458d815a', {'foo': 'bar'}))
+                mock_rest_put.assert_called_once_with('/entity/syn123/annotations2',
+                                                      body='{"id": "syn123",'
+                                                           ' "etag": "1d6c46e4-4d52-44e1-969f-e77b458d815a",'
+                                                           ' "annotations": {"foo": {"type": "STRING", '
+                                                           '"value": ["bar"]}}}')
+
