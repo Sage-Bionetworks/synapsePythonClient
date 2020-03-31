@@ -1077,6 +1077,7 @@ class Synapse(object):
             includeRestrictionInformation
 
 
+        Keys with values set to False may simply be omitted.
         For example, we might ask for an entity bundle containing file handles, annotations, and properties::
             requested_objects = {'includeEntity':True
                                  'includeAnnotations':True,

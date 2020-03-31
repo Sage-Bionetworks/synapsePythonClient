@@ -1145,14 +1145,16 @@ class TestMembershipInvitation:
         def test_not_annotation(self):
             with patch.object(syn, "restPUT") as mock_rest_put:
                 # pass in non-annotation object
-                assert_raises(ValueError, syn.set_annotations, {})
+                assert_raises(TypeError, syn.set_annotations, {})
                 mock_rest_put.assert_not_called()
 
         def test_with_annotations(self):
             with patch.object(syn, "restPUT") as mock_rest_put:
+                mock_rest_put.return_value = {'id':'syn123',
+                                              'etag':'82196a4c-d383-439a-a08a-c07090a8c147',
+                                              'annotations':{'foo': {'type': 'STRING', 'value': ['bar']}}}
                 # pass in non-annotation object
-                assert_raises(ValueError, syn.set_annotations,
-                              Annotations('syn123', '1d6c46e4-4d52-44e1-969f-e77b458d815a', {'foo': 'bar'}))
+                syn.set_annotations(Annotations('syn123', '1d6c46e4-4d52-44e1-969f-e77b458d815a', {'foo': 'bar'}))
                 mock_rest_put.assert_called_once_with('/entity/syn123/annotations2',
                                                       body='{"id": "syn123",'
                                                            ' "etag": "1d6c46e4-4d52-44e1-969f-e77b458d815a",'

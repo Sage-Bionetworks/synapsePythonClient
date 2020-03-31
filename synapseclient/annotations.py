@@ -250,13 +250,6 @@ class Annotations(dict):
 
         """
         super().__init__()
-        # the . operator is overridden (__getattr__/__setattr__) so we have to manually modify __dict__
-
-        # if id is None:
-        #     raise ValueError("id must not be None")
-        #
-        # if etag is None:
-        #     raise ValueError("etag must not be None")
 
         self.id = id
         self.etag = etag
@@ -296,7 +289,7 @@ def to_synapse_annotations(annotations: Annotations) -> typing.Dict[str, typing.
         return annotations
     synapse_annos = {}
 
-    if not hasattr(annotations, 'id') or not hasattr(annotations, 'etag'):
+    if not isinstance(annotations, Annotations):
         raise TypeError("annotations must be a synapseclient.Annotations object with 'id' and 'etag' attributes")
 
     synapse_annos['id'] = annotations.id
