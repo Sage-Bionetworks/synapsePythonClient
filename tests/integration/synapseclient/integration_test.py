@@ -102,8 +102,8 @@ def test_entity_version():
     entity['path'] = utils.make_bogus_data_file()
     schedule_for_cleanup(entity['path'])
     entity = syn.store(entity)
-    
-    syn.setAnnotations(entity, {'fizzbuzz': 111222})
+
+    syn.set_annotations(Annotations(entity, entity.etag, {'fizzbuzz': 111222}))
     entity = syn.get(entity)
     assert_equals(entity.versionNumber, 1)
 
@@ -111,11 +111,11 @@ def test_entity_version():
     entity.foo = 998877
     entity['name'] = 'foobarbat'
     entity['description'] = 'This is a test entity...'
-    entity = syn.store(entity, incrementVersion=True, versionLabel="Prada remix")
+    entity = syn.store(entity, forceVersion=True, versionLabel="Prada remix")
     assert_equals(entity.versionNumber, 2)
 
     # Get the older data and verify the random stuff is still there
-    annotations = syn.getAnnotations(entity, version=1)
+    annotations = syn.get_annotations(entity, version=1)
     assert_equals(annotations['fizzbuzz'][0], 111222)
     returnEntity = syn.get(entity, version=1)
     assert_equals(returnEntity.versionNumber, 1)
@@ -310,7 +310,7 @@ def test_provenance():
 def test_annotations():
     # Get the annotations of an Entity
     entity = syn.store(Folder(parent=project['id']))
-    anno = syn.getAnnotations(entity)
+    anno = syn.get_annotations(entity)
     assert_true(hasattr(anno, 'id'))
     assert_true(hasattr(anno, 'etag'))
     assert_equals(anno.id, entity.id)
@@ -318,10 +318,10 @@ def test_annotations():
 
     # Set the annotations, with keywords too
     anno['bogosity'] = 'total'
-    syn.setAnnotations(entity, anno, wazoo='Frank', label='Barking Pumpkin', shark=16776960)
+    syn.set_annotations(Annotations(entity, entity.etag, anno, wazoo='Frank', label='Barking Pumpkin', shark=16776960))
 
     # Check the update
-    annote = syn.getAnnotations(entity)
+    annote = syn.get_annotations(entity)
     assert_equals(annote['bogosity'], ['total'])
     assert_equals(annote['wazoo'], ['Frank'])
     assert_equals(annote['label'], ['Barking Pumpkin'])
@@ -332,10 +332,10 @@ def test_annotations():
     annote['phat_numbers'] = [1234.5678, 8888.3333, 1212.3434, 6677.8899]
     annote['goobers'] = ['chris', 'jen', 'jane']
     annote['present_time'] = datetime.now()
-    syn.setAnnotations(entity, annote)
+    syn.set_annotations(annote)
     
     # Check it again
-    annotation = syn.getAnnotations(entity)
+    annotation = syn.get_annotations(entity)
     assert_equals(annotation['primes'], [2, 3, 5, 7, 11, 13, 17, 19, 23, 29])
     assert_equals(annotation['phat_numbers'], [1234.5678, 8888.3333, 1212.3434, 6677.8899])
     assert_equals(annotation['goobers'], ['chris', 'jen', 'jane'])

@@ -111,7 +111,7 @@ def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
     file_handle_id = multipart_upload_file(syn, file_path, content_type=mimetype, storage_location_id=storageLocationId)
     syn.cache.add(file_handle_id, file_path)
 
-    return syn._getFileHandle(file_handle_id)
+    return syn._get_file_handle_as_creator(file_handle_id)
 
 
 def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id, mimetype=None):

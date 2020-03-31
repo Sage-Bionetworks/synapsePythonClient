@@ -105,12 +105,16 @@ class TestPrivateGetWithEntityBundle:
         bundle = {
             'entity': {
                 'id': 'syn10101',
+                'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
                 'name': 'anonymous',
                 'dataFileHandleId': '-1337',
                 'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
                 'parentId': 'syn12345'},
             'fileHandles': [],
-            'annotations': {}}
+            'annotations': {'id': 'syn10101',
+                            'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
+                            'annotations': {}}
+        }
 
         with patch.object(syn.logger, "warning") as mocked_warn:
             entity_no_download = syn._getWithEntityBundle(entityBundle=bundle)
@@ -128,6 +132,7 @@ class TestPrivateGetWithEntityBundle:
         bundle = {
             'entity': {
                 'id': 'syn10101',
+                'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
                 'name': 'anonymous',
                 'dataFileHandleId': '-1337',
                 'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
@@ -138,7 +143,10 @@ class TestPrivateGetWithEntityBundle:
                 'contentType': 'application/flapdoodle',
                 'contentMd5': '1698d26000d60816caab15169efcd23a',
                 'id': '-1337'}],
-            'annotations': {}}
+            'annotations': {'id': 'syn10101',
+                            'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
+                            'annotations': {}}
+        }
 
         fileHandle = bundle['fileHandles'][0]['id']
         cacheDir = syn.cache.get_cache_dir(fileHandle)
@@ -566,7 +574,7 @@ class TestPrivateUploadExternallyStoringProjects:
         with patch.object(upload_functions, "multipart_upload_file",
                           return_value=expected_file_handle_id) as mocked_multipart_upload, \
                 patch.object(syn.cache, "add") as mocked_cache_add,\
-                patch.object(syn, "_getFileHandle") as mocked_getFileHandle:
+                patch.object(syn, "_get_file_handle_as_creator") as mocked_getFileHandle:
             upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path'])
 
             mock_upload_destination.assert_called_once_with(test_file['parentId'])
@@ -706,11 +714,11 @@ class TestPrivateGetEntityBundle:
             'restrictionInformation': {
                 'hasUnmetAccessRequirement': {}
             }}
-        self.patch_restGET = patch.object(syn, 'restGET', return_value=self.bundle)
-        self.patch_restGET.start()
+        self.patch_restPOST = patch.object(syn, 'restPOST', return_value=self.bundle)
+        self.patch_restPOST.start()
 
     def teardown(self):
-        self.patch_restGET.stop()
+        self.patch_restPOST.stop()
 
     def test__getEntityBundle__with_version_as_number(self):
         assert_equal(self.bundle, syn._getEntityBundle("syn10101", 6))
@@ -724,7 +732,7 @@ class TestPrivateGetEntityBundle:
             'annotations': {
                 'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
                 'id': 'syn1000002',
-                'stringAnnotations': {}},
+                'annotations': {}},
             'entity': {
                 'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
                 'createdBy': 'Miles Dewey Davis',
@@ -1183,3 +1191,26 @@ class TestRequestsSession:
     def test_delete(self):
         """Test restDELETE session handling"""
         self._http_method_test('put')
+
+
+class TestSetAnnotations:
+
+    def test_not_annotation(self):
+        with patch.object(syn, "restPUT") as mock_rest_put:
+            # pass in non-annotation object
+            assert_raises(TypeError, syn.set_annotations, {})
+            mock_rest_put.assert_not_called()
+
+    def test_with_annotations(self):
+        with patch.object(syn, "restPUT") as mock_rest_put:
+            mock_rest_put.return_value = {'id':'syn123',
+                                          'etag':'82196a4c-d383-439a-a08a-c07090a8c147',
+                                          'annotations':{'foo': {'type': 'STRING', 'value': ['bar']}}}
+            # pass in non-annotation object
+            syn.set_annotations(Annotations('syn123', '1d6c46e4-4d52-44e1-969f-e77b458d815a', {'foo': 'bar'}))
+            mock_rest_put.assert_called_once_with('/entity/syn123/annotations2',
+                                                  body='{"id": "syn123",'
+                                                       ' "etag": "1d6c46e4-4d52-44e1-969f-e77b458d815a",'
+                                                       ' "annotations": {"foo": {"type": "STRING", '
+                                                       '"value": ["bar"]}}}')
+

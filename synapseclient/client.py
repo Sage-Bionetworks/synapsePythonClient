@@ -29,6 +29,7 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 """
 import configparser
 import collections
+import deprecated
 import errno
 import sys
 import hashlib
@@ -44,9 +45,10 @@ import urllib.parse as urllib_urlparse
 import json
 import os
 import time
+import typing
 
 import synapseclient
-from .annotations import from_synapse_annotations, to_synapse_annotations
+from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations
 from .activity import Activity
 import synapseclient.core.multithread_download as multithread_download
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
@@ -811,7 +813,8 @@ class Synapse(object):
                                  'for "ifcollision"' % ifcollision)
         return downloadPath
 
-    def store(self, obj, **kwargs):
+    def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
+              activity=None, used=None, executed=None, activityName=None, activityDescription=None):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
@@ -820,7 +823,7 @@ class Synapse(object):
                                     these)
         :param executed:            The Entity, Synapse ID, or URL representing code executed to create the object
                                     (can also be a list of these)
-        :param activity:            Activity object specifying the user's provenance
+        :param activity:            Activity object specifying the user's provenance.
         :param activityName:        Activity name to be used in conjunction with *used* and *executed*.
         :param activityDescription: Activity description to be used in conjunction with *used* and *executed*.
         :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj'
@@ -858,10 +861,6 @@ class Synapse(object):
             test_entity = syn.store(test_entity, activity=activity)
 
         """
-        createOrUpdate = kwargs.get('createOrUpdate', True)
-        forceVersion = kwargs.get('forceVersion', True)
-        versionLabel = kwargs.get('versionLabel', None)
-        isRestricted = kwargs.get('isRestricted', False)
 
         # _before_store hook
         # give objects a chance to do something before being stored
@@ -950,7 +949,11 @@ class Synapse(object):
             # update the file_handle metadata if the FileEntity's FileHandle id has changed
             if '_file_handle' in local_state \
                     and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
-                local_state['_file_handle'] = self._getFileHandle(properties['dataFileHandleId'])
+                local_state['_file_handle'] = find_data_file_handle(
+                    self._getEntityBundle(properties['id'], requestedObjects={'includeEntity': True,
+                                                                              'includeFileHandles': True})
+                )
+
                 # check if we already have the filehandleid cached somewhere
                 cached_path = self.cache.get(properties['dataFileHandleId'])
                 if cached_path is None:
@@ -988,7 +991,9 @@ class Synapse(object):
 
                     # get existing properties and annotations
                     if not bundle:
-                        bundle = self._getEntityBundle(existing_entity_id, bitFlags=0x1 | 0x2)
+                        bundle = self._getEntityBundle(existing_entity_id,
+                                                       requestedObjects={'includeEntity': True,
+                                                                         'includeAnnotations': True})
 
                     # Need some fields from the existing entity: id, etag, and version info.
                     existing_entity = bundle['entity']
@@ -1009,21 +1014,14 @@ class Synapse(object):
             self._createAccessRequirementIfNone(properties)
 
         # Update annotations
-        annotations['etag'] = properties['etag']
-        annotations = self.setAnnotations(properties, annotations)
+        annotations = self.set_annotations(Annotations(properties['id'], properties['etag'], annotations))
         properties['etag'] = annotations.etag
 
         # If the parameters 'used' or 'executed' are given, create an Activity object
-        activity = kwargs.get('activity', None)
-        used = kwargs.get('used', None)
-        executed = kwargs.get('executed', None)
-
         if used or executed:
             if activity is not None:
                 raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed'
                                              ' item(s), but not both.')
-            activityName = kwargs.get('activityName', None)
-            activityDescription = kwargs.get('activityDescription', None)
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
         # If we have an Activity, set it as the Entity's provenance record
@@ -1046,34 +1044,45 @@ class Synapse(object):
         if len(existingRestrictions['results']) <= 0:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
-    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x40000 | 0x2 | 0x1):
+    def _getEntityBundle(self, entity, version=None, requestedObjects=None):
         """
         Gets some information about the Entity.
 
         :parameter entity:      a Synapse Entity or Synapse ID
         :parameter version:     the entity's version (defaults to None meaning most recent version)
-        :parameter bitFlags:    Bit flags representing which entity components to return
+        :parameter requestedObjects:    A dict indicating settings for what to include
 
-        EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)::
+        default value for requestedObjects is::
 
-            ENTITY                     = 0x1
-            ANNOTATIONS                = 0x2
-            PERMISSIONS                = 0x4
-            ENTITY_PATH                = 0x8
-            HAS_CHILDREN               = 0x20
-            ACL                        = 0x40
-            FILE_HANDLES               = 0x800
-            TABLE_DATA                 = 0x1000
-            ROOT_WIKI_ID               = 0x2000
-            BENEFACTOR_ACL             = 0x4000
-            DOI                        = 0x8000
-            FILE_NAME                  = 0x10000
-            THREAD_COUNT               = 0x20000
-            RESTRICTION_INFORMATION    = 0x40000
+            requestedObjects = {'includeEntity': True,
+                                'includeAnnotations': True,
+                                'includeFileHandles': True,
+                                'includeRestrictionInformation': True}
 
+        Keys available for requestedObjects::
+
+            includeEntity
+            includeAnnotations
+            includePermissions
+            includeEntityPath
+            includeHasChildren
+            includeAccessControlList
+            includeFileHandles
+            includeTableBundle
+            includeRootWikiId
+            includeBenefactorACL
+            includeDOIAssociation
+            includeFileName
+            includeThreadCount
+            includeRestrictionInformation
+
+
+        Keys with values set to False may simply be omitted.
         For example, we might ask for an entity bundle containing file handles, annotations, and properties::
-
-            bundle = syn._getEntityBundle('syn111111', bitFlags=0x800|0x2|0x1)
+            requested_objects = {'includeEntity':True
+                                 'includeAnnotations':True,
+                                 'includeFileHandles':True}
+            bundle = syn._getEntityBundle('syn111111', )
 
         :returns: An EntityBundle with the requested fields or by default Entity header, annotations, unmet access
          requirements, and file handles
@@ -1083,6 +1092,11 @@ class Synapse(object):
         # Use case:
         #     If the user forgets to catch the return value of a syn.store(e)
         #     this allows them to recover by doing: e = syn.get(e)
+        if requestedObjects is None:
+            requestedObjects = {'includeEntity': True,
+                                'includeAnnotations': True,
+                                'includeFileHandles': True,
+                                'includeRestrictionInformation': True}
         if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
             entity = self.findEntityId(entity['name'], entity.get('parentId', None))
 
@@ -1093,10 +1107,10 @@ class Synapse(object):
             return None
 
         if version is not None:
-            uri = '/entity/%s/version/%d/bundle?mask=%d' % (id_of(entity), int(version), bitFlags)
+            uri = f'/entity/{id_of(entity)}/version/{int(version):d}/bundle2'
         else:
-            uri = '/entity/%s/bundle?mask=%d' % (id_of(entity), bitFlags)
-        bundle = self.restGET(uri)
+            uri = f'/entity/{id_of(entity)}/bundle2'
+        bundle = self.restPOST(uri, body=json.dumps(requestedObjects))
 
         return bundle
 
@@ -1211,12 +1225,16 @@ class Synapse(object):
         # even if the version is the most recent.
         # See `PLFM-1874 <https://sagebionetworks.jira.com/browse/PLFM-1874>`_ for more details.
         if version:
-            uri = '/entity/%s/version/%s/annotations' % (id_of(entity), str(version))
+            uri = f'/entity/{id_of(entity)}/version/{str(version)}/annotations2'
         else:
-            uri = '/entity/%s/annotations' % id_of(entity)
+            uri = f'/entity/{id_of(entity)}/annotations2'
         return self.restGET(uri)
 
+    @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`get_annotations`')
     def getAnnotations(self, entity, version=None):
+        return self.get_annotations(entity, version=version)
+
+    def get_annotations(self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None) -> Annotations:
         """
         Retrieve annotations for an Entity from the Synapse Repository as a Python dict.
 
@@ -1226,33 +1244,86 @@ class Synapse(object):
         :param entity:  An Entity or Synapse ID to lookup
         :param version: The version of the Entity to retrieve.
 
-        :returns: A dictionary
+        :returns: A :py:class:`synapseclient.annotations.Annotations` object, \
+        a dict that also has id and etag attributes
+        :rtype: :py:class:`synapseclient.annotations.Annotations`
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
 
-    def setAnnotations(self, entity, annotations={}, **kwargs):
+    @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`set_annotations` '
+                                                          'This method is UNSAFE and may overwrite existing annotations'
+                                                          ' without confirming that you have retrieved and'
+                                                          ' updated the latest annotations')
+    def setAnnotations(self, entity, annotations=None, **kwargs):
         """
         Store annotations for an Entity in the Synapse Repository.
 
         :param entity:      The Entity or Synapse Entity ID whose annotations are to be updated
         :param annotations: A dictionary of annotation names and values
         :param kwargs:      annotation names and values
-
         :returns: the updated annotations for the entity
+
         """
-        uri = '/entity/%s/annotations' % id_of(entity)
+        if not annotations:
+            annotations = {}
 
         annotations.update(kwargs)
-        synapseAnnos = to_synapse_annotations(annotations)
-        synapseAnnos['id'] = id_of(entity)
-        if 'etag' not in synapseAnnos:
-            if 'etag' in entity:
-                synapseAnnos['etag'] = entity['etag']
-            else:
-                old_annos = self.restGET(uri)
-                synapseAnnos['etag'] = old_annos['etag']
 
-        return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
+        id = id_of(entity)
+        etag = annotations.etag if hasattr(annotations, 'etag') else annotations.get('etag')
+
+        if not etag:
+            if 'etag' in entity:
+                etag = entity['etag']
+            else:
+                uri = '/entity/%s/annotations2' % id_of(entity)
+                old_annos = self.restGET(uri)
+                etag = old_annos['etag']
+
+        return self.set_annotations(Annotations(id, etag, annotations))
+
+    def set_annotations(self, annotations: Annotations):
+        """
+        Store annotations for an Entity in the Synapse Repository.
+
+        :param annotations: A :py:class:`synapseclient.annotations.Annotations` of annotation names and values,
+         with the id and etag attribute set
+
+        :returns: the updated :py:class:`synapseclient.annotations.Annotations` for the entity
+
+
+        Example::
+
+            annos = syn.get_annotations('syn123')
+
+            # annos will contain the id and etag associated with the entity upon retrieval
+            print(annos.id)
+            # syn123
+            print(annos.etag)
+            # 7bdb83e9-a50a-46e4-987a-4962559f090f   (Usually some UUID in the form of a string)
+
+            # returned annos object from get_annotations() can be used as if it were a dict
+
+            # set key 'foo' to have value of 'bar' and 'baz'
+            annos['foo'] = ['bar', 'baz']
+
+            # single values will automatically be wrapped in a list once stored
+            annos['qwerty'] = 'asdf'
+
+            # store the annotations
+            annos = syn.set_annotations(annos)
+
+            print(annos)
+            # {'foo':['bar','baz], 'qwerty':['asdf']}
+        """
+
+        if not isinstance(annotations, Annotations):
+            raise TypeError("Expected a synapseclient.Annotations object")
+
+        synapseAnnos = to_synapse_annotations(annotations)
+
+        return from_synapse_annotations(self.restPUT(f'/entity/{id_of(annotations)}/annotations2',
+                                                     body=json.dumps(synapseAnnos)))
 
     ############################################################
     #                         Querying                         #
@@ -1826,8 +1897,10 @@ class Synapse(object):
 
         return self.restPOST('/externalFileHandle', json.dumps(file_handle), self.fileHandleEndpoint)
 
-    def _getFileHandle(self, fileHandle):
-        """Retrieve a fileHandle from the fileHandle service (experimental)."""
+    def _get_file_handle_as_creator(self, fileHandle):
+        """Retrieve a fileHandle from the fileHandle service.
+        You must be the creator of the filehandle to use this method. Otherwise, an 403-Forbidden error will be raised
+        """
 
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
         return self.restGET(uri, endpoint=self.fileHandleEndpoint)
