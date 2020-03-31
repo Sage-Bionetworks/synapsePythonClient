@@ -32,11 +32,11 @@ def test_annotations():
     }
     assert_equals(expected, sa)
 
+
 def test_to_synapse_annotations__require_id_and_etag():
     """Test string annotations"""
     a = {'foo': 'bar', 'zoo': ['zing', 'zaboo'], 'species': 'Platypus'}
     assert_raises(TypeError, to_synapse_annotations, a)
-
 
 
 def test_more_annotations():
@@ -60,8 +60,8 @@ def test_more_annotations():
                     'type': 'DOUBLE'},
             'species': {'value': ['Platypus'],
                         'type': 'STRING'},
-            'birthdays': {'value':['-21427200000', '124156800000', '1199318400000'],
-                          'type':'TIMESTAMP_MS'},
+            'birthdays': {'value': ['-21427200000', '124156800000', '1199318400000'],
+                          'type': 'TIMESTAMP_MS'},
             'test_boolean': {'value': ['true'],
                              'type': 'STRING'},
             'test_mo_booleans': {'value': ['false', 'true', 'true', 'false'],
@@ -94,7 +94,7 @@ def test_round_trip_annotations():
                                    Datetime(2013, 3, 15)]})
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
-    assert_equals(a,a2)
+    assert_equals(a, a2)
     assert_equals(a.id, a2.id)
     assert_equals(a.etag, a2.etag)
 
@@ -163,7 +163,7 @@ def test_submission_status_annotations_round_trip():
 
 
 def test_submission_status_double_annos():
-    ssa = {'longAnnos':   [{'isPrivate': False, 'value': 13, 'key': 'lucky'}],
+    ssa = {'longAnnos': [{'isPrivate': False, 'value': 13, 'key': 'lucky'}],
            'doubleAnnos': [{'isPrivate': False, 'value': 3, 'key': 'three'},
                            {'isPrivate': False, 'value': pi, 'key': 'pi'}]}
     # test that the double annotation 'three':3 is interpreted as a floating
@@ -173,6 +173,7 @@ def test_submission_status_double_annos():
     ssa2 = to_submission_status_annotations(annotations)
     assert_equals({'three', 'pi'}, set([kvp['key'] for kvp in ssa2['doubleAnnos']]))
     assert_equals({'lucky'}, set([kvp['key'] for kvp in ssa2['longAnnos']]))
+
 
 def test_from_synapse_annotations__empty():
     ssa = {'id': 'syn123',
@@ -210,7 +211,7 @@ def test_is_synapse_annotation():
     assert_false(is_synapse_annotations({'annotations': {}}))
 
     # annotations + other keys
-    assert_false(is_synapse_annotations({'annotations': {}, 'bar':'baz'}))
+    assert_false(is_synapse_annotations({'annotations': {}, 'bar': 'baz'}))
 
     # sanity check: Any Entity subclass has id etag and annotations,
     # but its annotations are not in the format Synapse expects
@@ -219,24 +220,28 @@ def test_is_synapse_annotation():
                                              etag='0f2977b9-0261-4811-a89e-c13e37ce4604',
                                              parentId='syn135')))
 
+
 class TestAnnotations:
     def test__None_id_and_etag(self):
-        #in constuctor
-        assert_raises(ValueError, Annotations,'syn123', None)
+        # in constuctor
+        assert_raises(ValueError, Annotations, 'syn123', None)
         assert_raises(ValueError, Annotations, None, '0f2977b9-0261-4811-a89e-c13e37ce4604')
 
-        #after constuction
+        # after constuction
         annot = Annotations('syn123', '0f2977b9-0261-4811-a89e-c13e37ce4604', {'asdf': 'qwerty'})
+
         def change_id_to_None():
             annot.id = None
+
         assert_raises(ValueError, change_id_to_None)
 
         def change_etag_to_None():
             annot.etag = None
+
         assert_raises(ValueError, change_etag_to_None)
 
     def test_annotations(self):
-        annot = Annotations('syn123', '0f2977b9-0261-4811-a89e-c13e37ce4604', {'asdf':'qwerty'})
+        annot = Annotations('syn123', '0f2977b9-0261-4811-a89e-c13e37ce4604', {'asdf': 'qwerty'})
         assert_equals('syn123', annot.id)
         assert_equals('0f2977b9-0261-4811-a89e-c13e37ce4604', annot.etag)
-        assert_equals({'asdf':'qwerty'}, annot)
+        assert_equals({'asdf': 'qwerty'}, annot)

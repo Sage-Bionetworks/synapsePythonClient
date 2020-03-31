@@ -102,8 +102,8 @@ def test_entity_version():
     entity['path'] = utils.make_bogus_data_file()
     schedule_for_cleanup(entity['path'])
     entity = syn.store(entity)
-    
-    syn.set_annotations(Annotations(entity, entity.etag,{'fizzbuzz': 111222}))
+
+    syn.set_annotations(Annotations(entity, entity.etag, {'fizzbuzz': 111222}))
     entity = syn.get(entity)
     assert_equals(entity.versionNumber, 1)
 

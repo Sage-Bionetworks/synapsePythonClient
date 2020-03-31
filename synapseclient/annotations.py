@@ -68,28 +68,33 @@ from synapseclient.core.utils import to_unix_epoch_time, from_unix_epoch_time, i
 import typing
 import datetime
 
+
 def _identity(x):
     return x
+
 
 def raise_anno_type_error(anno_type: str):
     raise ValueError(f"Unknown type in annotations response: {anno_type}")
 
-ANNO_TYPE_TO_FUNC: typing.Dict[str, typing.Callable[[str], typing.Union[str,int,float,datetime.datetime]]] = \
+
+ANNO_TYPE_TO_FUNC: typing.Dict[str, typing.Callable[[str], typing.Union[str, int, float, datetime.datetime]]] = \
     collections.defaultdict(
         raise_anno_type_error,
         {
-            'STRING':_identity,
-            'LONG':int,
-            'DOUBLE':float,
+            'STRING': _identity,
+            'LONG': int,
+            'DOUBLE': float,
             'TIMESTAMP_MS': lambda time_str: from_unix_epoch_time(int(time_str))
         }
     )
+
 
 def is_synapse_annotations(annotations: typing.Mapping):
     """Tests if the given object is a Synapse-style Annotations object."""
     if not isinstance(annotations, collections.abc.Mapping):
         return False
     return annotations.keys() >= {'id', 'etag', 'annotations'}
+
 
 def _annotation_value_list_element_type(annotation_values: typing.List):
     if not annotation_values:
@@ -101,7 +106,6 @@ def _annotation_value_list_element_type(annotation_values: typing.List):
         return first_element_type
 
     return object
-
 
 
 def is_submission_status_annotations(annotations):
@@ -148,22 +152,22 @@ def to_submission_status_annotations(annotations, is_private=True):
         if key in ['objectId', 'scopeId', 'stringAnnos', 'longAnnos', 'doubleAnnos']:
             synapseAnnos[key] = value
         elif isinstance(value, bool):
-            synapseAnnos.setdefault('stringAnnos', [])\
+            synapseAnnos.setdefault('stringAnnos', []) \
                 .append({'key': key, 'value': str(value).lower(), 'isPrivate': is_private})
         elif isinstance(value, int):
-            synapseAnnos.setdefault('longAnnos', [])\
+            synapseAnnos.setdefault('longAnnos', []) \
                 .append({'key': key, 'value': value, 'isPrivate': is_private})
         elif isinstance(value, float):
-            synapseAnnos.setdefault('doubleAnnos', [])\
+            synapseAnnos.setdefault('doubleAnnos', []) \
                 .append({'key': key, 'value': value, 'isPrivate': is_private})
         elif isinstance(value, str):
-            synapseAnnos.setdefault('stringAnnos', [])\
+            synapseAnnos.setdefault('stringAnnos', []) \
                 .append({'key': key, 'value': value, 'isPrivate': is_private})
         elif is_date(value):
-            synapseAnnos.setdefault('longAnnos', [])\
+            synapseAnnos.setdefault('longAnnos', []) \
                 .append({'key': key, 'value': to_unix_epoch_time(value), 'isPrivate': is_private})
         else:
-            synapseAnnos.setdefault('stringAnnos', [])\
+            synapseAnnos.setdefault('stringAnnos', []) \
                 .append({'key': key, 'value': str(value), 'isPrivate': is_private})
     return synapseAnnos
 
@@ -214,15 +218,16 @@ def set_privacy(annotations, key, is_private=True, value_types=['longAnnos', 'do
                     return kvp
     raise KeyError('The key "%s" couldn\'t be found in the annotations.' % key)
 
+
 class Annotations(dict):
     """
      Represent Synapse Entity annotations as a flat dictionary with the system assigned properties id, etag
      as object attributes.
     """
-    id:str
-    etag:str
+    id: str
+    etag: str
 
-    def __init__(self, id: typing.Union[str, int, Entity], etag: str, values: typing.Dict=None, **kwargs):
+    def __init__(self, id: typing.Union[str, int, Entity], etag: str, values: typing.Dict = None, **kwargs):
         """
         Create an Annotations object taking key value pairs from a dictionary or from keyword arguments.
         System properties id, etag, creationDate and uri become attributes of the object.
@@ -245,7 +250,7 @@ class Annotations(dict):
 
         """
         super().__init__()
-        #the . operator is overridden (__getattr__/__setattr__) so we have to manually modify __dict__
+        # the . operator is overridden (__getattr__/__setattr__) so we have to manually modify __dict__
 
         # if id is None:
         #     raise ValueError("id must not be None")
@@ -282,7 +287,7 @@ class Annotations(dict):
         self._etag = str(value)
 
 
-def to_synapse_annotations(annotations: Annotations)\
+def to_synapse_annotations(annotations: Annotations) \
     -> typing.Dict[str, typing.Any]:
     """Transforms a simple flat dictionary to a Synapse-style Annotation object.
     https://rest-docs.synapse.org/rest/org/sagebionetworks/repo/model/annotation/v2/Annotations.html
@@ -292,7 +297,7 @@ def to_synapse_annotations(annotations: Annotations)\
         return annotations
     synapse_annos = {}
 
-    if not hasattr(annotations,'id') or not hasattr(annotations, 'etag'):
+    if not hasattr(annotations, 'id') or not hasattr(annotations, 'etag'):
         raise TypeError("annotations must be a synapseclient.Annotations object with 'id' and 'etag' attributes")
 
     synapse_annos['id'] = annotations.id
@@ -300,33 +305,35 @@ def to_synapse_annotations(annotations: Annotations)\
 
     nested_annos = synapse_annos.setdefault('annotations', {})
     for key, value in annotations.items():
-            elements = to_list(value)
-            element_cls = _annotation_value_list_element_type(elements)
-            if issubclass(element_cls, str):
-                nested_annos[key] = {'type':'STRING',
-                                     'value':elements}
-            elif issubclass(element_cls, bool):
-                nested_annos[key] =  {'type':'STRING',
-                                     'value':[str(e).lower() for e in elements]}
-            elif issubclass(element_cls, int):
-                nested_annos[key] = {'type':'LONG',
-                                     'value':[str(e) for e in elements]}
-            elif issubclass(element_cls, float):
-                nested_annos[key] = {'type': 'DOUBLE',
-                                     'value': [str(e) for e in elements]}
-            elif issubclass(element_cls, (datetime.date, datetime.datetime)):
-                nested_annos[key] = {'type': 'TIMESTAMP_MS',
-                                     'value': [str(to_unix_epoch_time(e)) for e in elements]}
-            else:
-                nested_annos[key] = {'type': 'STRING',
-                                     'value': [str(e) for e in elements]}
+        elements = to_list(value)
+        element_cls = _annotation_value_list_element_type(elements)
+        if issubclass(element_cls, str):
+            nested_annos[key] = {'type': 'STRING',
+                                 'value': elements}
+        elif issubclass(element_cls, bool):
+            nested_annos[key] = {'type': 'STRING',
+                                 'value': [str(e).lower() for e in elements]}
+        elif issubclass(element_cls, int):
+            nested_annos[key] = {'type': 'LONG',
+                                 'value': [str(e) for e in elements]}
+        elif issubclass(element_cls, float):
+            nested_annos[key] = {'type': 'DOUBLE',
+                                 'value': [str(e) for e in elements]}
+        elif issubclass(element_cls, (datetime.date, datetime.datetime)):
+            nested_annos[key] = {'type': 'TIMESTAMP_MS',
+                                 'value': [str(to_unix_epoch_time(e)) for e in elements]}
+        else:
+            nested_annos[key] = {'type': 'STRING',
+                                 'value': [str(e) for e in elements]}
     return synapse_annos
 
-def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any])\
+
+def from_synapse_annotations(raw_annotations: typing.Dict[str, typing.Any]) \
     -> Annotations:
     """Transforms a Synapse-style Annotation object to a simple flat dictionary."""
     if not is_synapse_annotations(raw_annotations):
-        raise ValueError('Unexpected format of annotations from Synapse. Must include keys: "id", "etag", and "annotations"')
+        raise ValueError(
+            'Unexpected format of annotations from Synapse. Must include keys: "id", "etag", and "annotations"')
 
     annos = Annotations(raw_annotations['id'], raw_annotations['etag'])
     for key, value_and_type in raw_annotations['annotations'].items():

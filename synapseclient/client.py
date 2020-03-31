@@ -1233,7 +1233,7 @@ class Synapse(object):
     def getAnnotations(self, entity, version=None):
         return self.get_annotations(entity, version=version)
 
-    def get_annotations(self, entity:typing.Union[str, Entity], version: typing.Union[str, int]=None) -> Annotations:
+    def get_annotations(self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None) -> Annotations:
         """
         Retrieve annotations for an Entity from the Synapse Repository as a Python dict.
 
