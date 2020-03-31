@@ -1,94 +1,123 @@
 # unit tests for python synapse client
 ############################################################
 
-from collections import OrderedDict
 from datetime import datetime as Datetime
-from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_greater, assert_is_instance
 from math import pi
 
-from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations,\
-    to_submission_status_annotations, from_submission_status_annotations, set_privacy
+from nose.tools import assert_raises, assert_equals, assert_false, assert_true, assert_greater, assert_is_instance
+
+from synapseclient.annotations import to_synapse_annotations, from_synapse_annotations, \
+    to_submission_status_annotations, from_submission_status_annotations, set_privacy, is_synapse_annotations, \
+    Annotations
 from synapseclient.core.exceptions import *
+from synapseclient.entity import File
 
 
 def test_annotations():
     """Test string annotations"""
-    a = dict(foo='bar', zoo=['zing', 'zaboo'], species='Platypus')
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
+                    {'foo': 'bar', 'zoo': ['zing', 'zaboo'], 'species': 'Platypus'})
     sa = to_synapse_annotations(a)
-    assert_equals(sa['stringAnnotations']['foo'], ['bar'])
-    assert_equals(sa['stringAnnotations']['zoo'], ['zing', 'zaboo'])
-    assert_equals(sa['stringAnnotations']['species'], ['Platypus'])
+    expected = {
+        'id': 'syn123',
+        'etag': '7bdb83e9-a50a-46e4-987a-4962559f090f',
+        'annotations': {
+            'foo': {'value': ['bar'],
+                    'type': 'STRING'},
+            'zoo': {'value': ['zing', 'zaboo'],
+                    'type': 'STRING'},
+            'species': {'value': ['Platypus'],
+                        'type': 'STRING'}
+        }
+    }
+    assert_equals(expected, sa)
 
 
-def test_annotation_name_collision():
-    """Test handling of a name collisions between typed user generated and untyped
-       system generated annotations, see SYNPY-203 and PLFM-3248"""
-
-    # order is important: to repro the erro, the key uri has to come before stringAnnotations
-    sa = OrderedDict()
-    sa[u'uri'] = u'/entity/syn47396/annotations'
-    sa[u'doubleAnnotations'] = {}
-    sa[u'longAnnotations'] = {}
-    sa[u'stringAnnotations'] = {
-            'tissueType': ['Blood'],
-            'uri': ['/repo/v1/dataset/47396']}
-    sa[u'creationDate'] = u'1321168909232'
-    sa[u'id'] = u'syn47396'
-
-    a = from_synapse_annotations(sa)
-    assert_equals(a['tissueType'], ['Blood'])
+def test_to_synapse_annotations__require_id_and_etag():
+    """Test string annotations"""
+    a = {'foo': 'bar', 'zoo': ['zing', 'zaboo'], 'species': 'Platypus'}
+    assert_raises(TypeError, to_synapse_annotations, a)
 
 
 def test_more_annotations():
     """Test long, float and data annotations"""
-    a = dict(foo=1234,
-             zoo=[123.1, 456.2, 789.3],
-             species='Platypus',
-             birthdays=[Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)],
-             test_boolean=True,
-             test_mo_booleans=[False, True, True, False])
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
+                    {'foo': 1234,
+                     'zoo': [123.1, 456.2, 789.3],
+                     'species': 'Platypus',
+                     'birthdays': [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)],
+                     'test_boolean': True,
+                     'test_mo_booleans': [False, True, True, False]})
     sa = to_synapse_annotations(a)
-    assert_equals(sa['longAnnotations']['foo'], [1234])
-    assert_equals(sa['doubleAnnotations']['zoo'], [123.1, 456.2, 789.3])
-    assert_equals(sa['stringAnnotations']['species'], ['Platypus'])
-    assert_equals(sa['stringAnnotations']['test_boolean'], ['true'])
-    assert_equals(sa['stringAnnotations']['test_mo_booleans'], ['false', 'true', 'true', 'false'])
 
-    # this part of the test is kinda fragile. It it breaks again, it should be removed
-    bdays = [utils.from_unix_epoch_time(t) for t in sa['dateAnnotations']['birthdays']]
-    assert_true(all([t in bdays for t in [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3)]]))
+    expected = {
+        'id': 'syn123',
+        'etag': '7bdb83e9-a50a-46e4-987a-4962559f090f',
+        'annotations': {
+            'foo': {'value': ['1234'],
+                    'type': 'LONG'},
+            'zoo': {'value': ['123.1', '456.2', '789.3'],
+                    'type': 'DOUBLE'},
+            'species': {'value': ['Platypus'],
+                        'type': 'STRING'},
+            'birthdays': {'value': ['-21427200000', '124156800000', '1199318400000'],
+                          'type': 'TIMESTAMP_MS'},
+            'test_boolean': {'value': ['true'],
+                             'type': 'STRING'},
+            'test_mo_booleans': {'value': ['false', 'true', 'true', 'false'],
+                                 'type': 'STRING'}
+        }
+    }
+    assert_equals(expected, sa)
 
 
 def test_annotations_unicode():
-    a = {'files': [u'tmp6y5tVr.txt'], 'cacheDir': u'/Users/chris/.synapseCache/python/syn1809087', u'foo': 1266}
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
+                    {'files': [u'文件.txt'], 'cacheDir': u'/Users/chris/.synapseCache/python/syn1809087', u'foo': 1266})
     sa = to_synapse_annotations(a)
-    assert_equals(sa['stringAnnotations']['cacheDir'], [u'/Users/chris/.synapseCache/python/syn1809087'])
+    expected = {'id': 'syn123',
+                'etag': '7bdb83e9-a50a-46e4-987a-4962559f090f',
+                'annotations': {'cacheDir': {'type': 'STRING',
+                                             'value': ['/Users/chris/.synapseCache/python/syn1809087']},
+                                'files': {'type': 'STRING',
+                                          'value': ['文件.txt']},
+                                'foo': {'type': 'LONG',
+                                        'value': ['1266']}}}
+    assert_equals(expected, sa)
 
 
 def test_round_trip_annotations():
     """Test that annotations can make the round trip from a simple dictionary to the synapse format and back"""
-    a = dict(foo=1234, zoo=[123.1, 456.2, 789.3], species='Moose',
-             birthdays=[Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3), Datetime(2013, 3, 15)])
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
+                    {'foo': [1234], 'zoo': [123.1, 456.2, 789.3], 'species': ['Moose'],
+                     'birthdays': [Datetime(1969, 4, 28), Datetime(1973, 12, 8), Datetime(2008, 1, 3),
+                                   Datetime(2013, 3, 15)]})
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
-    a = a2
+    assert_equals(a, a2)
+    assert_equals(a.id, a2.id)
+    assert_equals(a.etag, a2.etag)
 
 
 def test_mixed_annotations():
     """test that to_synapse_annotations will coerce a list of mixed types to strings"""
-    a = dict(foo=[1, 'a', Datetime(1969, 4, 28, 11, 47)])
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
+                    {'foo': [1, 'a', Datetime(1969, 4, 28, 11, 47)]})
     sa = to_synapse_annotations(a)
     a2 = from_synapse_annotations(sa)
     assert_equals(a2['foo'][0], '1')
     assert_equals(a2['foo'][1], 'a')
     assert_greater(a2['foo'][2].find('1969'), -1)
+    assert_equals('syn123', a2.id)
+    assert_equals('7bdb83e9-a50a-46e4-987a-4962559f090f', a2.etag)
 
 
 def test_idempotent_annotations():
     """test that to_synapse_annotations won't mess up a dictionary that's already in the synapse format"""
-    a = dict(species='Moose', n=42, birthday=Datetime(1969, 4, 28))
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
+                    {'species': 'Moose', 'n': 42, 'birthday': Datetime(1969, 4, 28)})
     sa = to_synapse_annotations(a)
-    a2 = dict()
+    a2 = {}
     a2.update(sa)
     sa2 = to_synapse_annotations(a2)
     assert_equals(sa, sa2)
@@ -96,7 +125,8 @@ def test_idempotent_annotations():
 
 def test_submission_status_annotations_round_trip():
     april_28_1969 = Datetime(1969, 4, 28)
-    a = dict(screen_name='Bullwinkle', species='Moose', lucky=13, pi=pi, birthday=april_28_1969)
+    a = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f',
+                    {'screen_name': 'Bullwinkle', 'species': 'Moose', 'lucky': 13, 'pi': pi, 'birthday': april_28_1969})
     sa = to_submission_status_annotations(a)
     assert_equals({'screen_name', 'species'}, set([kvp['key'] for kvp in sa['stringAnnos']]))
     assert_equals({'Bullwinkle', 'Moose'}, set([kvp['value'] for kvp in sa['stringAnnos']]))
@@ -133,7 +163,7 @@ def test_submission_status_annotations_round_trip():
 
 
 def test_submission_status_double_annos():
-    ssa = {'longAnnos':   [{'isPrivate': False, 'value': 13, 'key': 'lucky'}],
+    ssa = {'longAnnos': [{'isPrivate': False, 'value': 13, 'key': 'lucky'}],
            'doubleAnnos': [{'isPrivate': False, 'value': 3, 'key': 'three'},
                            {'isPrivate': False, 'value': pi, 'key': 'pi'}]}
     # test that the double annotation 'three':3 is interpreted as a floating
@@ -143,3 +173,75 @@ def test_submission_status_double_annos():
     ssa2 = to_submission_status_annotations(annotations)
     assert_equals({'three', 'pi'}, set([kvp['key'] for kvp in ssa2['doubleAnnos']]))
     assert_equals({'lucky'}, set([kvp['key'] for kvp in ssa2['longAnnos']]))
+
+
+def test_from_synapse_annotations__empty():
+    ssa = {'id': 'syn123',
+           'etag': '7bdb83e9-a50a-46e4-987a-4962559f090f',
+           'annotations': {}}
+    annos = from_synapse_annotations(ssa)
+    assert_equals({}, annos)
+    assert_equals('syn123', annos.id)
+    assert_equals('7bdb83e9-a50a-46e4-987a-4962559f090f', annos.etag)
+
+
+def test_to_synapse_annotations__empty():
+    python_client_annos = Annotations('syn123', '7bdb83e9-a50a-46e4-987a-4962559f090f', {})
+    assert_equals({'id': 'syn123', 'etag': '7bdb83e9-a50a-46e4-987a-4962559f090f', 'annotations': {}},
+                  to_synapse_annotations(python_client_annos))
+
+
+def test_is_synapse_annotation():
+    assert_true(
+        is_synapse_annotations({'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}}))
+    # missing id
+    assert_false(
+        is_synapse_annotations({'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}}))
+    # missing etag
+    assert_false(
+        is_synapse_annotations({'id': 'syn123', 'annotations': {}}))
+    # missing annotations
+    assert_false(
+        is_synapse_annotations({'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604'}))
+    # has additional keys
+    assert_true(is_synapse_annotations(
+        {'id': 'syn123', 'etag': '0f2977b9-0261-4811-a89e-c13e37ce4604', 'annotations': {}, 'foo': 'bar'}))
+
+    # annotations only
+    assert_false(is_synapse_annotations({'annotations': {}}))
+
+    # annotations + other keys
+    assert_false(is_synapse_annotations({'annotations': {}, 'bar': 'baz'}))
+
+    # sanity check: Any Entity subclass has id etag and annotations,
+    # but its annotations are not in the format Synapse expects
+    assert_false(is_synapse_annotations(File('~/asdf.txt',
+                                             id='syn123',
+                                             etag='0f2977b9-0261-4811-a89e-c13e37ce4604',
+                                             parentId='syn135')))
+
+
+class TestAnnotations:
+    def test__None_id_and_etag(self):
+        # in constuctor
+        assert_raises(ValueError, Annotations, 'syn123', None)
+        assert_raises(ValueError, Annotations, None, '0f2977b9-0261-4811-a89e-c13e37ce4604')
+
+        # after constuction
+        annot = Annotations('syn123', '0f2977b9-0261-4811-a89e-c13e37ce4604', {'asdf': 'qwerty'})
+
+        def change_id_to_None():
+            annot.id = None
+
+        assert_raises(ValueError, change_id_to_None)
+
+        def change_etag_to_None():
+            annot.etag = None
+
+        assert_raises(ValueError, change_etag_to_None)
+
+    def test_annotations(self):
+        annot = Annotations('syn123', '0f2977b9-0261-4811-a89e-c13e37ce4604', {'asdf': 'qwerty'})
+        assert_equals('syn123', annot.id)
+        assert_equals('0f2977b9-0261-4811-a89e-c13e37ce4604', annot.etag)
+        assert_equals({'asdf': 'qwerty'}, annot)
