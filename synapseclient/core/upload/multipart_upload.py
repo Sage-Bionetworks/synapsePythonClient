@@ -127,7 +127,7 @@ class UploadAttempt:
         self,
         upload_id: str,
         part_numbers: List[int],
-        session: requests.Session = None,
+        requests_session: requests.Session = None,
     ) -> Mapping[int, str]:
 
         uri = "/file/multipart/{upload_id}/presigned/url/batch".format(
@@ -141,7 +141,7 @@ class UploadAttempt:
         response = self._syn.restPOST(
             uri,
             json.dumps(body),
-            session=session,
+            requests_session=requests_session,
             endpoint=self._syn.fileHandleEndpoint,
         )
 
@@ -242,7 +242,7 @@ class UploadAttempt:
                 part_number=part_number,
                 md5=md5_hex,
             ),
-            session=session,
+            requests_session=session,
             endpoint=self._syn.fileHandleEndpoint
         )
 
@@ -323,7 +323,7 @@ class UploadAttempt:
             "/file/multipart/{upload_id}/complete".format(
                 upload_id=self._upload_id,
             ),
-            session=self._get_thread_session(),
+            requests_session=self._get_thread_session(),
             endpoint=self._syn.fileHandleEndpoint
         )
 

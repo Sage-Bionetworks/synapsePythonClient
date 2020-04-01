@@ -110,7 +110,7 @@ class TestUploadAttempt:
         pre_signed_urls = upload._fetch_pre_signed_part_urls(
             upload_id,
             part_numbers,
-            session=session,
+            requests_session=session,
         )
 
         assert_equal(pre_signed_urls, expected_return)
@@ -127,7 +127,7 @@ class TestUploadAttempt:
         upload._syn.restPOST.assert_called_once_with(
             expected_uri,
             json.dumps(expected_body),
-            session=session,
+            requests_session=session,
             endpoint=upload._syn.fileHandleEndpoint,
         )
 
@@ -270,7 +270,7 @@ class TestUploadAttempt:
                 part_number=part_number,
                 md5=md5_hex,
             ),
-            session=mock_session,
+            requests_session=mock_session,
             endpoint=upload._syn.fileHandleEndpoint
         )
 
@@ -432,7 +432,7 @@ class TestUploadAttempt:
                 "/file/multipart/{upload_id}/complete".format(
                     upload_id=upload_id
                 ),
-                session=mock_session,
+                requests_session=mock_session,
                 endpoint=upload._syn.fileHandleEndpoint,
             )
 
@@ -633,22 +633,15 @@ class TestMultipartUpload:
                 kwargs['max_threads'],
             )
 
-    def _multipart_upload_test(self, upload_side_effect, *args, **kwargs):
+    def _multipart_upload_test(self, upload_side_effect, syn, *args, **kwargs):
         with mock.patch.object(
             synapseclient.core.upload.multipart_upload,
             'UploadAttempt'
-        ) as mock_upload_attempt,\
-            mock.patch.object(
-                 synapseclient.core.upload.multipart_upload,
-                 'multiprocessing',
-                ) as mock_multiprocessing:
-
+        ) as mock_upload_attempt:
+            syn.NUM_THREADS = 4
             mock_upload_attempt.side_effect = upload_side_effect
 
-            # predictable value so things don't vary by test environment
-            mock_multiprocessing.cpu_count.return_value = 4
-
-            return _multipart_upload(*args, **kwargs), mock_upload_attempt
+            return _multipart_upload(syn, *args, **kwargs), mock_upload_attempt
 
     def test_multipart_upload(self):
         """"Verify the behavior of a successful call to multipart_upload
