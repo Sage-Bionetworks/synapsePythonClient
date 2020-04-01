@@ -14,7 +14,6 @@ from synapseclient.core.exceptions import (
 import synapseclient.core.upload.multipart_upload
 from synapseclient.core.upload.multipart_upload import (
     DEFAULT_PART_SIZE,
-    DEFAULT_MAX_WORKERS,
     MAX_NUMBER_OF_PARTS,
     MIN_PART_SIZE,
     _multipart_upload,
@@ -37,7 +36,7 @@ class TestUploadAttempt:
         content_type = "application/text"
         preview = False
         storage_location_id = "1234"
-        max_workers = 8
+        max_threads = 8
         force_restart = True
 
         return UploadAttempt(
@@ -50,7 +49,7 @@ class TestUploadAttempt:
             content_type,
             preview,
             storage_location_id,
-            max_workers,
+            max_threads,
             force_restart=force_restart,
         )
 
@@ -525,7 +524,7 @@ class TestMultipartUpload:
                 None,  # storage_location_id
                 True,  # preview
                 False,  # force_restart
-                None,  # max_workers
+                None,  # max_threads
             )
 
             mock_multipart_upload.reset_mock()
@@ -538,7 +537,7 @@ class TestMultipartUpload:
                 'storage_location_id': 5432,
                 'preview': False,
                 'force_restart': True,
-                'max_workers': 8,
+                'max_threads': 8,
             }
             multipart_upload_file(
                 syn,
@@ -556,7 +555,7 @@ class TestMultipartUpload:
                 kwargs['storage_location_id'],
                 kwargs['preview'],
                 kwargs['force_restart'],
-                kwargs['max_workers'],
+                kwargs['max_threads'],
             )
 
     def test_multipart_upload_string(self):
@@ -587,7 +586,7 @@ class TestMultipartUpload:
                 None,  # storage_location_id
                 True,  # preview
                 False,  # force_restart
-                None,  # max_workers
+                None,  # max_threads
             )
 
             mock_multipart_upload.reset_mock()
@@ -600,7 +599,7 @@ class TestMultipartUpload:
                 'storage_location_id': 5432,
                 'preview': False,
                 'force_restart': True,
-                'max_workers': 8,
+                'max_threads': 8,
             }
             multipart_upload_string(syn, upload_text, **kwargs)
             mock_multipart_upload.assert_called_once_with(
@@ -614,7 +613,7 @@ class TestMultipartUpload:
                 kwargs['storage_location_id'],
                 kwargs['preview'],
                 kwargs['force_restart'],
-                kwargs['max_workers'],
+                kwargs['max_threads'],
             )
 
     def _multipart_upload_test(self, upload_side_effect, *args, **kwargs):
@@ -639,7 +638,8 @@ class TestMultipartUpload:
         with various parameterizations applied.  Verify that parameters
         are validated/adjusted as expected."""
 
-        syn = mock.Mock()
+        default_num_threads = 10
+        syn = mock.Mock(NUM_THREADS=default_num_threads)
         chunk_fn = mock.Mock()
         md5_hex = 'ab123'
         dest_file_name = 'foo'
@@ -652,8 +652,8 @@ class TestMultipartUpload:
             )
         ]
 
-        # (file_size, in_part_size, in_max_workers, in_force_restart)
-        # (out_part_size, out_max_workers, out_force_restart)
+        # (file_size, in_part_size, in_max_threads, in_force_restart)
+        # (out_part_size, out_max_threads, out_force_restart)
         tests = [
 
             # part_size exceeds file size, so only 1 part expect 1 worker
@@ -669,17 +669,17 @@ class TestMultipartUpload:
                (pow(2, 23) - 1000, 3, False),
             ),
 
-            # parts exceeds specified max_workers, so specified max_workers
+            # parts exceeds specified max_threads, so specified max_threads
             # passes through unchanged, also specify force_restart
             (
                (pow(2, 28), None, 8, True),
                (DEFAULT_PART_SIZE, 8, True),
             ),
 
-            # many parts, no max_workers, specified, should use default
+            # many parts, no max_threads, specified, should use default
             (
-                (pow(2, 28), None, DEFAULT_MAX_WORKERS, False),
-                (DEFAULT_PART_SIZE, DEFAULT_MAX_WORKERS, False),
+                (pow(2, 28), None, default_num_threads, False),
+                (DEFAULT_PART_SIZE, default_num_threads, False),
             ),
 
             # part size specified below min, should be raised
@@ -696,8 +696,8 @@ class TestMultipartUpload:
             )
         ]
 
-        for (file_size, in_part_size, in_max_workers, in_force_restart),\
-            (out_part_size, out_max_workers, out_force_restart)\
+        for (file_size, in_part_size, in_max_threads, in_force_restart),\
+            (out_part_size, out_max_threads, out_force_restart)\
                 in tests:
 
             result, upload_mock = self._multipart_upload_test(
@@ -710,7 +710,7 @@ class TestMultipartUpload:
                 md5_hex,
                 content_type,
                 storage_location_id,
-                max_workers=in_max_workers,
+                max_threads=in_max_threads,
                 force_restart=in_force_restart,
             )
 
@@ -724,7 +724,7 @@ class TestMultipartUpload:
                 content_type,
                 True,
                 storage_location_id,
-                out_max_workers,
+                out_max_threads,
                 force_restart=out_force_restart,
             )
 
@@ -732,7 +732,7 @@ class TestMultipartUpload:
         """Verify we recover on a failed upload if a subsequent
         retry succeeds."""
 
-        syn = mock.Mock()
+        syn = mock.Mock(NUM_THREADS=12)
         chunk_fn = mock.Mock()
         md5_hex = 'ab123'
         file_size = 1234
@@ -758,7 +758,7 @@ class TestMultipartUpload:
             md5_hex,
             content_type,
             storage_location_id,
-            None,  # max_workers
+            None,  # max_threads
         )
 
         # should have been called multiple times but returned
@@ -770,7 +770,7 @@ class TestMultipartUpload:
         """Verify if we run out of upload attempts we give up
         and raise the failure."""
 
-        syn = mock.Mock()
+        syn = mock.Mock(NUM_THREADS=5)
         chunk_fn = mock.Mock()
         md5_hex = 'ab123'
         file_size = 1234
@@ -790,5 +790,5 @@ class TestMultipartUpload:
                 md5_hex,
                 content_type,
                 storage_location_id,
-                None,  # max_workers
+                None,  # max_threads
             )

@@ -816,7 +816,7 @@ class Synapse(object):
         return downloadPath
 
     def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
-              activity=None, used=None, executed=None, activityName=None, activityDescription=None):
+              activity=None, used=None, executed=None, activityName=None, activityDescription=None, max_threads=None):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
@@ -837,6 +837,8 @@ class Synapse(object):
                                     the process of adding terms-of-use or review board approval for this entity.
                                     You will be contacted with regards to the specific data being restricted and the
                                     requirements of access.
+        :param max_threads:         The maximum number of threads to use when uploading the file (currently only
+                                    applies to S3 uploads)
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
@@ -939,7 +941,8 @@ class Synapse(object):
                                                 synapseStore=synapseStore,
                                                 md5=local_state_fh.get('contentMd5'),
                                                 file_size=local_state_fh.get('contentSize'),
-                                                mimetype=local_state_fh.get('contentType'))
+                                                mimetype=local_state_fh.get('contentType'),
+                                                max_threads=max_threads)
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 

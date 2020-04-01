@@ -569,17 +569,23 @@ class TestPrivateUploadExternallyStoringProjects:
                                                 'concreteType': concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
 
         test_file = File(expected_path, parent="syn12345")
+        max_threads = 8
 
         # method under test
         with patch.object(upload_functions, "multipart_upload_file",
                           return_value=expected_file_handle_id) as mocked_multipart_upload, \
                 patch.object(syn.cache, "add") as mocked_cache_add,\
                 patch.object(syn, "_get_file_handle_as_creator") as mocked_getFileHandle:
-            upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path'])
+            upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path'], max_threads=max_threads)
 
             mock_upload_destination.assert_called_once_with(test_file['parentId'])
-            mocked_multipart_upload.assert_called_once_with(syn, expected_path_expanded, content_type=None,
-                                                            storage_location_id=expected_storage_location_id)
+            mocked_multipart_upload.assert_called_once_with(
+                syn,
+                expected_path_expanded,
+                content_type=None,
+                storage_location_id=expected_storage_location_id,
+                max_threads=max_threads,
+            )
             mocked_cache_add.assert_called_once_with(expected_file_handle_id, expected_path_expanded)
             mocked_getFileHandle.assert_called_once_with(expected_file_handle_id)
             # test

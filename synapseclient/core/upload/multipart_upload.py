@@ -37,10 +37,6 @@ from synapseclient.core.utils import printTransferProgress, md5_for_file, MB
 MAX_NUMBER_OF_PARTS = 10000
 MIN_PART_SIZE = 5 * MB
 
-# default number of threads to use if none specified.
-# default may be adjusted down depending on the specifics of the upload.
-DEFAULT_MAX_WORKERS = 16
-
 # ancient tribal knowledge
 DEFAULT_PART_SIZE = 8 * MB
 MAX_RETRIES = 7
@@ -62,7 +58,7 @@ class UploadAttempt:
         content_type: str,
         preview: bool,
         storage_location_id: str,
-        max_workers: int,
+        max_threads: int,
         force_restart: bool,
     ):
         self._syn = syn
@@ -74,7 +70,7 @@ class UploadAttempt:
         self._content_type = content_type
         self._preview = preview
         self._storage_location_id = storage_location_id
-        self._max_workers = max_workers
+        self._max_threads = max_threads
         self._force_restart = force_restart
 
         self._lock = threading.Lock()
@@ -289,7 +285,7 @@ class UploadAttempt:
         )
 
         futures = []
-        executor = pool_provider.get_executor(thread_count=self._max_workers)
+        executor = pool_provider.get_executor(thread_count=self._max_threads)
         for part_number in remaining_part_numbers:
             futures.append(
                 executor.submit(
@@ -369,7 +365,7 @@ def multipart_upload_file(
     storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
-    max_workers: int = None,
+    max_threads: int = None,
 ) -> str:
     """
     Upload a file to a Synapse upload destination in chunks.
@@ -385,7 +381,7 @@ def multipart_upload_file(
     :param preview:             True to generate a preview
     :param force_restart        True to restart a previously initiated upload
                                 from scratch, False to try to resume
-    :param max_workers          number of concurrent threads to devote
+    :param max_threads          number of concurrent threads to devote
                                 to upload
 
     :return: a File Handle ID
@@ -422,7 +418,7 @@ def multipart_upload_file(
         storage_location_id,
         preview,
         force_restart,
-        max_workers,
+        max_threads,
     )
 
 
@@ -435,7 +431,7 @@ def multipart_upload_string(
     storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
-    max_workers: int = None,
+    max_threads: int = None,
 ):
     """
     Upload a file to a Synapse upload destination in chunks.
@@ -451,7 +447,7 @@ def multipart_upload_string(
     :param preview:             True to generate a preview
     :param force_restart        True to restart a previously initiated upload
                                 from scratch, False to try to resume
-    :param max_workers          number of concurrent threads to devote
+    :param max_threads          number of concurrent threads to devote
                                 to upload
 
     :return: a File Handle ID
@@ -484,7 +480,7 @@ def multipart_upload_string(
         storage_location_id,
         preview,
         force_restart,
-        max_workers,
+        max_threads,
     )
 
 
@@ -499,7 +495,7 @@ def _multipart_upload(
     storage_location_id: str = None,
     preview: bool = True,
     force_restart: bool = False,
-    max_workers: int = None,
+    max_threads: int = None,
 ):
 
     part_size = part_size or DEFAULT_PART_SIZE
@@ -509,18 +505,16 @@ def _multipart_upload(
         int(math.ceil(file_size / MAX_NUMBER_OF_PARTS))
     )
 
-    if max_workers is None:
-        # not really much to be gained by allocating more threads
-        # than there are cores on the machine or than there are parts
-        # of to upload
+    if max_threads is None:
+        # default to a number of threads based on the cpu count,
+        # but no point in exceeding the number of parts
         part_count = math.ceil(file_size / part_size)
-        max_workers = min(
-            DEFAULT_MAX_WORKERS,
+        max_threads = min(
             part_count,
-            multiprocessing.cpu_count(),
+            syn.NUM_THREADS,
         )
     else:
-        max_workers = max(max_workers, 1)
+        max_threads = max(max_threads, 1)
 
     retry = 0
     while True:
@@ -535,7 +529,7 @@ def _multipart_upload(
                 content_type,
                 preview,
                 storage_location_id,
-                max_workers,
+                max_threads,
 
                 # only force_restart the first time through (if requested).
                 # a retry after a caught exception will not restart the upload

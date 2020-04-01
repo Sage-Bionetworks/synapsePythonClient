@@ -192,7 +192,8 @@ def store(args, syn):
     used = syn._convertProvenanceList(args.used, args.limitSearch)
     executed = syn._convertProvenanceList(args.executed, args.limitSearch)
     entity = syn.store(entity, used=used, executed=executed,
-                       forceVersion=force_version)
+                       forceVersion=force_version,
+                       max_threads=args.maxThreads)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
@@ -587,6 +588,8 @@ def build_parser():
     parser_store.add_argument('--file', type=str, help=argparse.SUPPRESS)
     parser_store.add_argument('FILE', nargs='?', type=str,
                               help='file to be added to synapse.')
+    parser_store.add_argument('--maxThreads', type=int, default=None,
+                              help='The maximum number of threads to use for concurrent uploads.')
     parser_store.set_defaults(func=store)
 
     parser_add = subparsers.add_parser('add',  # Python 3.2+ would support alias=['store']
