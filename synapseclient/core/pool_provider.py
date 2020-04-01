@@ -15,8 +15,9 @@ import multiprocessing.dummy
 
 from . import config
 
-
-DEFAULT_POOL_SIZE = 8
+# +4 matches ThreadPoolExecutor, at least 5 threads for I/O bound tasks
+# https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ThreadPoolExecutor
+DEFAULT_NUM_THREADS = multiprocessing.cpu_count() + 4
 
 
 class SingleThreadPool:
@@ -72,10 +73,10 @@ def get_pool():
     if config.single_threaded:
         return SingleThreadPool()
     else:
-        return multiprocessing.dummy.Pool(DEFAULT_POOL_SIZE)
+        return multiprocessing.dummy.Pool(DEFAULT_NUM_THREADS)
 
 
-def get_executor(thread_count=DEFAULT_POOL_SIZE):
+def get_executor(thread_count=DEFAULT_NUM_THREADS):
     """
     Provides an Executor as defined by the client config suitable
     for running tasks work as defined by the client config.

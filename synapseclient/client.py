@@ -65,6 +65,7 @@ from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from synapseclient.core.exceptions import *
 from synapseclient.core.version_check import version_check
+from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
     find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
 from synapseclient.core.retry import with_retry
@@ -95,7 +96,6 @@ PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 REDIRECT_LIMIT = 5
-NUM_THREADS = os.cpu_count() + 4
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
@@ -1716,7 +1716,7 @@ class Synapse(object):
                                                        object_id=object_id,
                                                        object_type=object_type,
                                                        path=temp_destination)
-        multithread_download.download_file(self, request, NUM_THREADS)
+        multithread_download.download_file(self, request, DEFAULT_NUM_THREADS)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(temp_destination).hexdigest()

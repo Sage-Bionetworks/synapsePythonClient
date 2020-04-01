@@ -510,7 +510,7 @@ def _multipart_upload(
         part_count = math.ceil(file_size / part_size)
         max_threads = min(
             part_count,
-            syn.NUM_THREADS,
+            pool_provider.DEFAULT_NUM_THREADS,
         )
     else:
         max_threads = max(max_threads, 1)

@@ -638,7 +638,6 @@ class TestMultipartUpload:
             synapseclient.core.upload.multipart_upload,
             'UploadAttempt'
         ) as mock_upload_attempt:
-            syn.NUM_THREADS = 4
             mock_upload_attempt.side_effect = upload_side_effect
 
             return _multipart_upload(syn, *args, **kwargs), mock_upload_attempt
@@ -648,8 +647,7 @@ class TestMultipartUpload:
         with various parameterizations applied.  Verify that parameters
         are validated/adjusted as expected."""
 
-        default_num_threads = 10
-        syn = mock.Mock(NUM_THREADS=default_num_threads)
+        syn = mock.Mock()
         chunk_fn = mock.Mock()
         md5_hex = 'ab123'
         dest_file_name = 'foo'
@@ -688,8 +686,8 @@ class TestMultipartUpload:
 
             # many parts, no max_threads, specified, should use default
             (
-                (pow(2, 28), None, default_num_threads, False),
-                (DEFAULT_PART_SIZE, default_num_threads, False),
+                (pow(2, 28), None, None, False),
+                (DEFAULT_PART_SIZE, pool_provider.DEFAULT_NUM_THREADS, False),
             ),
 
             # part size specified below min, should be raised
@@ -742,7 +740,7 @@ class TestMultipartUpload:
         """Verify we recover on a failed upload if a subsequent
         retry succeeds."""
 
-        syn = mock.Mock(NUM_THREADS=12)
+        syn = mock.Mock()
         chunk_fn = mock.Mock()
         md5_hex = 'ab123'
         file_size = 1234
@@ -780,7 +778,7 @@ class TestMultipartUpload:
         """Verify if we run out of upload attempts we give up
         and raise the failure."""
 
-        syn = mock.Mock(NUM_THREADS=5)
+        syn = mock.Mock()
         chunk_fn = mock.Mock()
         md5_hex = 'ab123'
         file_size = 1234
