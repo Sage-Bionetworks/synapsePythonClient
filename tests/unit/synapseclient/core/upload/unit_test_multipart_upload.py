@@ -436,9 +436,11 @@ class TestUploadAttempt:
                 endpoint=upload._syn.fileHandleEndpoint,
             )
 
-    def test_call_upload__part_failure(self):
-        """Verify that an error raised while processing one part
-        results in an error on the upload."""
+    def _test_call_upload__part_exception(
+            self,
+            part_exception,
+            expected_raised_exception
+    ):
         upload = self._init_upload_attempt()
 
         upload_id = '1234'
@@ -452,7 +454,7 @@ class TestUploadAttempt:
         }
 
         future = Future()
-        future.set_exception(Exception())
+        future.set_exception(part_exception())
 
         with mock.patch.object(upload, '_create_synapse_upload')\
             as create_synapse_upload,\
@@ -466,8 +468,23 @@ class TestUploadAttempt:
 
             get_executor.return_value.submit.return_value = future
 
-            with assert_raises(SynapseUploadFailedException):
+            with assert_raises(expected_raised_exception):
                 upload()
+
+    def test_call_upload__part_failure(self):
+        """Verify that an error raised while processing one part
+        results in an error on the upload."""
+        self._test_call_upload__part_exception(
+            Exception,
+            SynapseUploadFailedException,
+        )
+
+    def test_call_upload__interrupt(self):
+        """Verify that a KeyboardInterrupt raises an abort exception"""
+        self._test_call_upload__part_exception(
+            KeyboardInterrupt,
+            SynapseUploadAbortedException,
+        )
 
 
 class TestMultipartUpload:

@@ -17,7 +17,6 @@ import hashlib
 import json
 import math
 import mimetypes
-import multiprocessing
 import os
 import requests
 import threading
@@ -307,7 +306,7 @@ class UploadAttempt:
                     dt=time.time() - time_upload_started,
                     previouslyTransferred=previously_transferred,
                 )
-            except BaseException as cause:
+            except (Exception, KeyboardInterrupt) as cause:
                 with self._lock:
                     self._aborted = True
 
