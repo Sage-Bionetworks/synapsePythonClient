@@ -3361,7 +3361,6 @@ class Synapse(object):
         headers.update(self.credentials.get_signed_headers(url))
         return headers
 
-
     def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP GET request to the Synapse server.

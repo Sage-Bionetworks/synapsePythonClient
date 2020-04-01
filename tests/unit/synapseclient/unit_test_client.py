@@ -1219,9 +1219,9 @@ class TestSetAnnotations:
 
     def test_with_annotations(self):
         with patch.object(syn, "restPUT") as mock_rest_put:
-            mock_rest_put.return_value = {'id':'syn123',
-                                          'etag':'82196a4c-d383-439a-a08a-c07090a8c147',
-                                          'annotations':{'foo': {'type': 'STRING', 'value': ['bar']}}}
+            mock_rest_put.return_value = {'id': 'syn123',
+                                          'etag': '82196a4c-d383-439a-a08a-c07090a8c147',
+                                          'annotations': {'foo': {'type': 'STRING', 'value': ['bar']}}}
             # pass in non-annotation object
             syn.set_annotations(Annotations('syn123', '1d6c46e4-4d52-44e1-969f-e77b458d815a', {'foo': 'bar'}))
             mock_rest_put.assert_called_once_with('/entity/syn123/annotations2',
