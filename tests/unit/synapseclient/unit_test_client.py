@@ -1229,4 +1229,3 @@ class TestSetAnnotations:
                                                        ' "etag": "1d6c46e4-4d52-44e1-969f-e77b458d815a",'
                                                        ' "annotations": {"foo": {"type": "STRING", '
                                                        '"value": ["bar"]}}}')
-
