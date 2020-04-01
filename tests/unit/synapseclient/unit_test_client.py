@@ -1150,6 +1150,16 @@ class TestRequestsSession:
         self._path = '/foo'
         self._headers = {}
 
+    def test_init(self):
+        """Verify that an external requests session supplied at
+        instantiation is used for calls via a Synapse object."""
+        requests_session = Mock()
+        requests_session.get.return_value = Mock(status_code=200)
+
+        syn = Synapse(debug=False, skip_checks=True, requests_session=requests_session)
+        syn.restGET(self._path, headers=self._headers)
+        requests_session.get.assert_called_once()
+
     def _http_method_test(self, method):
         status_ok = Mock(status_code=200)
         with patch.object(syn._requests_session, method) as requests_call:
@@ -1171,7 +1181,7 @@ class TestRequestsSession:
             rest_call(
                 self._path,
                 headers=self._headers,
-                session=external_session
+                requests_session=external_session
             )
             getattr(external_session, method).assert_called_once()
             requests_call.assert_not_called()

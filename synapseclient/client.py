@@ -155,6 +155,8 @@ class Synapse(object):
     :param skip_checks:           Skip version and endpoint checks
     :param configPath:            Path to config File with setting for Synapse
                                   defaults to ~/.synapseConfig
+    :param requests_session       a custom requests.Session object that this Synapse instance will use
+                                  when making http requests
 
     Typically, no parameters are needed::
 
@@ -169,8 +171,8 @@ class Synapse(object):
 
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
-                 debug=None, skip_checks=False, configPath=CONFIG_FILE):
-        self._requests_session = requests.Session()
+                 debug=None, skip_checks=False, configPath=CONFIG_FILE, requests_session=None):
+        self._requests_session = requests_session or requests.Session()
 
         cache_root_dir = cache.CACHE_ROOT_DIR
 
@@ -3356,91 +3358,94 @@ class Synapse(object):
         headers.update(self.credentials.get_signed_headers(url))
         return headers
 
-    def _rest_session(self, kwargs) -> requests.Session:
-        """Obtain a requests.Session from the kwargs if one was passed,
-        otherwise default to instance session. Meant for now to be
-        an internal feature to allow for multiple threads to make
-        rest calls via the same Synapse object, so we bury it undocumented
-        in kwargs. requests.Session is not otherwise documented as thread-safe.
-        https://github.com/psf/requests/issues/2766"""
-        session = kwargs.pop('session', None)
-        return session or self._requests_session
 
-    def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP GET request to the Synapse server.
 
-        :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI on which get is performed
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.Session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
 
         :returns: JSON encoding of response
         """
 
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._rest_session(kwargs).get(uri, headers=headers, **kwargs), verbose=self.debug,
+        response = with_retry(lambda: requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
                               **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
-    def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP POST request to the Synapse server.
 
-        :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param body:     The payload to be delivered
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI on which get is performed
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param body:                The payload to be delivered
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.Session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
 
         :returns: JSON encoding of response
         """
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._rest_session(kwargs).post(uri, data=body, headers=headers, **kwargs),
+        response = with_retry(lambda: requests_session.post(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
-    def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP PUT request to the Synapse server.
 
-        :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param body:     The payload to be delivered
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI on which get is performed
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param body:                The payload to be delivered
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
 
         :returns: JSON encoding of response
         """
 
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._rest_session(kwargs).put(uri, data=body, headers=headers, **kwargs),
+        response = with_retry(lambda: requests_session.put(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
-    def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP DELETE request to the Synapse server.
 
-        :param uri:      URI of resource to be deleted
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI of resource to be deleted
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
         """
 
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._rest_session(kwargs).delete(uri, headers=headers, **kwargs),
+        response = with_retry(lambda: requests_session.delete(uri, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
 
