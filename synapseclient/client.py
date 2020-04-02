@@ -65,6 +65,7 @@ from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from synapseclient.core.exceptions import *
 from synapseclient.core.version_check import version_check
+from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
     find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
 from synapseclient.core.retry import with_retry
@@ -95,7 +96,6 @@ PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 REDIRECT_LIMIT = 5
-NUM_THREADS = os.cpu_count() + 4
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
@@ -155,6 +155,8 @@ class Synapse(object):
     :param skip_checks:           Skip version and endpoint checks
     :param configPath:            Path to config File with setting for Synapse
                                   defaults to ~/.synapseConfig
+    :param requests_session       a custom requests.Session object that this Synapse instance will use
+                                  when making http requests
 
     Typically, no parameters are needed::
 
@@ -169,8 +171,8 @@ class Synapse(object):
 
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
-                 debug=None, skip_checks=False, configPath=CONFIG_FILE):
-        self._requests_session = requests.Session()
+                 debug=None, skip_checks=False, configPath=CONFIG_FILE, requests_session=None):
+        self._requests_session = requests_session or requests.Session()
 
         cache_root_dir = cache.CACHE_ROOT_DIR
 
@@ -814,7 +816,7 @@ class Synapse(object):
         return downloadPath
 
     def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
-              activity=None, used=None, executed=None, activityName=None, activityDescription=None):
+              activity=None, used=None, executed=None, activityName=None, activityDescription=None, max_threads=None):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
@@ -835,6 +837,8 @@ class Synapse(object):
                                     the process of adding terms-of-use or review board approval for this entity.
                                     You will be contacted with regards to the specific data being restricted and the
                                     requirements of access.
+        :param max_threads:         The maximum number of threads to use when uploading the file (currently only
+                                    applies to S3 uploads)
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
@@ -937,7 +941,8 @@ class Synapse(object):
                                                 synapseStore=synapseStore,
                                                 md5=local_state_fh.get('contentMd5'),
                                                 file_size=local_state_fh.get('contentSize'),
-                                                mimetype=local_state_fh.get('contentType'))
+                                                mimetype=local_state_fh.get('contentType'),
+                                                max_threads=max_threads)
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 
@@ -1711,7 +1716,7 @@ class Synapse(object):
                                                        object_id=object_id,
                                                        object_type=object_type,
                                                        path=temp_destination)
-        multithread_download.download_file(self, request, NUM_THREADS)
+        multithread_download.download_file(self, request, DEFAULT_NUM_THREADS)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
@@ -3356,81 +3361,93 @@ class Synapse(object):
         headers.update(self.credentials.get_signed_headers(url))
         return headers
 
-    def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP GET request to the Synapse server.
 
-        :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI on which get is performed
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.Session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
 
         :returns: JSON encoding of response
         """
 
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
+        response = with_retry(lambda: requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
                               **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
-    def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP POST request to the Synapse server.
 
-        :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param body:     The payload to be delivered
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI on which get is performed
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param body:                The payload to be delivered
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.Session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
 
         :returns: JSON encoding of response
         """
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._requests_session.post(uri, data=body, headers=headers, **kwargs),
+        response = with_retry(lambda: requests_session.post(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
-    def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP PUT request to the Synapse server.
 
-        :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param body:     The payload to be delivered
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI on which get is performed
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param body:                The payload to be delivered
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
 
         :returns: JSON encoding of response
         """
 
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._requests_session.put(uri, data=body, headers=headers, **kwargs),
+        response = with_retry(lambda: requests_session.put(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
-    def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP DELETE request to the Synapse server.
 
-        :param uri:      URI of resource to be deleted
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI of resource to be deleted
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
         """
 
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._requests_session.delete(uri, headers=headers, **kwargs),
+        response = with_retry(lambda: requests_session.delete(uri, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
 

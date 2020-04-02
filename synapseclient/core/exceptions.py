@@ -62,6 +62,17 @@ class SynapseHTTPError(SynapseError, requests.exceptions.HTTPError):
     `HTTPError <http://docs.python-requests.org/en/latest/api/?highlight=exceptions#requests.exceptions.HTTPError>`_"""
 
 
+class SynapseUploadAbortedException(SynapseError):
+    """Raised when a worker thread detects the upload was
+    aborted and stops further processing."""
+    pass
+
+
+class SynapseUploadFailedException(SynapseError):
+    """Raised when an upload failed. Should be chained to a cause Exception"""
+    pass
+
+
 def _raise_for_status(response, verbose=False):
     """
     Replacement for requests.response.raise_for_status(). 
