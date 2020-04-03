@@ -2,6 +2,36 @@
 Release Notes
 =============
 
+2.1.0 (2020-04-0X)
+==================
+
+Highlights:
+----------------
+
+- The Synapse client object's :code:`store` and :code:`get` methods have been enhanced with an optional
+  :code:`maxThreads` keyword parameter that allows explicit specification of the number of concurrent threads
+  and connections that will be used to perform uploads and downloads. Currently these parameters only apply
+  to files whose underlying storage is AWS S3, and will be ignored if passed for other operations. If no parameter
+  is passed reasonable defaults will be chosen. If local resources allow adjusting these values higher can reduce
+  transfer times.
+
+  Alternately, a value can be stored in the synapseConfig configuration file that will automatically apply
+  as the default.
+
+  .. code-block::
+
+     [transfer]
+     maxThreads=16
+
+A full list of issues addressed in this release are below.
+
+Bug
+---
+
+-  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1036>`__] -
+   different users storing same file to same folder results in 403
+
+
 2.0.0 (2020-03-23)
 ==================
 **Python 2 is no longer supported as of this release.** This release requires Python 3.6+.
