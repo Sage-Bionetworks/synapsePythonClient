@@ -55,7 +55,6 @@
 ## Settings to configure how Synapse uploads/downloads data
 #[transfer]
 
-# use this to confiurable how many threads/connections Synapse will use to perform file transfers
-# currently this applies to files whose underlying storage is AWS S3.
-# max_threads=16
-#
+# use this to configure the default for how many threads/connections Synapse will use to perform file transfers.
+# Currently this applies to files whose underlying storage is AWS S3.
+# maxThreads=16

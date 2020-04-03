@@ -117,7 +117,7 @@ class TestPrivateGetWithEntityBundle:
         }
 
         with patch.object(syn.logger, "warning") as mocked_warn:
-            entity_no_download = syn._getWithEntityBundle(entityBundle=bundle, max_threads=5)
+            entity_no_download = syn._getWithEntityBundle(entityBundle=bundle, maxThreads=5)
             mocked_warn.assert_called_once()
             assert_is_none(entity_no_download.path)
 
@@ -1231,22 +1231,25 @@ class TestSetAnnotations:
                                                        '"value": ["bar"]}}}')
 
 def test_get_transfer_config_max_threads():
-    """Verify reading transfer.max_threads from synapseConfig"""
+    """Verify reading transfer.maxThreads from synapseConfig"""
+
+    # note that RawConfigParser lower cases its option values so we
+    # simulate that behavior in our mocked values here
 
     with patch.object(syn, "_get_config_section_dict") as mock_config_dict:
         empty_value_dicts = [{}]
-        empty_value_dicts.extend([{'max_threads': v} for v in ('', None)])
+        empty_value_dicts.extend([{'maxthreads': v} for v in ('', None)])
         for empty_value_dict in empty_value_dicts:
             mock_config_dict.return_value = empty_value_dict
             assert_is_none(syn._get_transfer_config_max_threads())
 
         for max_threads in (1, 7, 100):
-            mock_config_dict.return_value = {'max_threads': str(max_threads)}
+            mock_config_dict.return_value = {'maxthreads': str(max_threads)}
             assert_equal(max_threads, syn._get_transfer_config_max_threads())
 
         with patch.object(syn, 'logger') as logger:
             for invalid_value in ('not a number', '12.2', 'true'):
-                mock_config_dict.return_value = {'max_threads': invalid_value}
+                mock_config_dict.return_value = {'maxthreads': invalid_value}
                 assert_is_none(syn._get_transfer_config_max_threads())
                 logger.warning.assert_called_once()
                 logger.reset_mock()

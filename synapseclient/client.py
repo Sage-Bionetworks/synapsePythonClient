@@ -395,12 +395,13 @@ class Synapse(object):
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
     def _get_transfer_config_max_threads(self):
-        max_threads =  self._get_config_section_dict('transfer').get('max_threads')
+        # note RawConfigParser lowercases so maxThreads -> maxthreads
+        max_threads =  self._get_config_section_dict('transfer').get('maxthreads')
         if max_threads:
             try:
                 return int(max_threads)
             except ValueError:
-                self.logger.warning("Invalid transfer.max_threads config setting (%s), igoring.", max_threads)
+                self.logger.warning("Invalid transfer.maxThreads config setting (%s), igoring.", max_threads)
         return None
 
     def _getSessionToken(self, email, password):
@@ -574,7 +575,7 @@ class Synapse(object):
         :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                  file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                  in the specified folder/project will be returned.
-        :param max_threads:      The maximum number of threads to use when downloading the file (currently only
+        :param maxThreads:      The maximum number of threads to use when downloading the file (currently only
                                  applies to S3 uploads)
 
         :returns: A new Synapse Entity object of the appropriate type
@@ -700,7 +701,7 @@ class Synapse(object):
         submission = kwargs.pop('submission', None)
         followLink = kwargs.pop('followLink', False)
         path = kwargs.pop('path', None)
-        max_threads = kwargs.pop('max_threads', None) or self._get_transfer_config_max_threads()
+        max_threads = kwargs.pop('maxThreads', None) or self._get_transfer_config_max_threads()
 
         # make sure user didn't accidentlaly pass a kwarg that we don't handle
         if kwargs:  # if there are remaining items in the kwargs
@@ -830,7 +831,7 @@ class Synapse(object):
         return downloadPath
 
     def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
-              activity=None, used=None, executed=None, activityName=None, activityDescription=None, max_threads=None):
+              activity=None, used=None, executed=None, activityName=None, activityDescription=None, maxThreads=None):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
@@ -851,7 +852,7 @@ class Synapse(object):
                                     the process of adding terms-of-use or review board approval for this entity.
                                     You will be contacted with regards to the specific data being restricted and the
                                     requirements of access.
-        :param max_threads:         The maximum number of threads to use when uploading the file (currently only
+        :param maxThreads:         The maximum number of threads to use when uploading the file (currently only
                                     applies to S3 uploads)
 
         :returns: A Synapse Entity, Evaluation, or Wiki
@@ -945,8 +946,6 @@ class Synapse(object):
                 needs_upload = True
 
             if needs_upload:
-                max_threads = max_threads or self._get_transfer_config_max_threads()
-
                 local_state_fh = local_state.get('_file_handle', {})
                 synapseStore = local_state.get('synapseStore', True)
                 fileHandle = upload_file_handle(self,
@@ -958,7 +957,7 @@ class Synapse(object):
                                                 md5=local_state_fh.get('contentMd5'),
                                                 file_size=local_state_fh.get('contentSize'),
                                                 mimetype=local_state_fh.get('contentType'),
-                                                max_threads=max_threads)
+                                                max_threads=maxThreads or self._get_transfer_config_max_threads())
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 

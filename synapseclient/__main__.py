@@ -145,7 +145,7 @@ def get(args, syn):
             entity = syn.get(args.id, version=args.version,  # limitSearch=args.limitSearch,
                              followLink=args.followLink,
                              downloadLocation=args.downloadLocation,
-                             max_threads=args.maxThreads)
+                             maxThreads=args.maxThreads)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print("Downloaded file: %s" % os.path.basename(entity.path))
             else:
@@ -194,7 +194,7 @@ def store(args, syn):
     executed = syn._convertProvenanceList(args.executed, args.limitSearch)
     entity = syn.store(entity, used=used, executed=executed,
                        forceVersion=force_version,
-                       max_threads=args.maxThreads)
+                       maxThreads=args.maxThreads)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
