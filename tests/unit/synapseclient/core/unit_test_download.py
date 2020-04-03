@@ -274,10 +274,11 @@ class Test__downloadFileHandle(unittest.TestCase):
             }
 
             syn.multi_threaded = True
-            syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath")
+            syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath",
+                                    max_threads=5)
 
             mock_multi_thread_download.assert_called_once_with(123, 456, "FileEntity", "/myfakepath",
-                                                               expected_md5="someMD5")
+                                                               expected_md5="someMD5", max_threads=5)
 
     def test_multithread_True__other_file_handle_type(self):
         with patch.object(os, "makedirs") as mock_makedirs, \
@@ -293,8 +294,10 @@ class Test__downloadFileHandle(unittest.TestCase):
                 'preSignedURL': 'asdf.com'
             }
 
+            # multi_threaded/max_threads will have efffect
             syn.multi_threaded = True
-            syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath")
+            syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath",
+                                    max_threads=7)
 
             mock_download_from_URL.assert_called_once_with("asdf.com", "/myfakepath", "123", expected_md5="someMD5")
 

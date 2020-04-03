@@ -565,6 +565,8 @@ class Synapse(object):
         :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                  file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                  in the specified folder/project will be returned.
+        :param max_threads:      The maximum number of threads to use when downloading the file (currently only
+                                 applies to S3 uploads)
 
         :returns: A new Synapse Entity object of the appropriate type
 
@@ -689,6 +691,7 @@ class Synapse(object):
         submission = kwargs.pop('submission', None)
         followLink = kwargs.pop('followLink', False)
         path = kwargs.pop('path', None)
+        max_threads = kwargs.pop('max_threads', None)
 
         # make sure user didn't accidentlaly pass a kwarg that we don't handle
         if kwargs:  # if there are remaining items in the kwargs
@@ -720,7 +723,8 @@ class Synapse(object):
 
             if downloadFile:
                 if file_handle:
-                    self._download_file_entity(downloadLocation, entity, ifcollision, submission)
+                    self._download_file_entity(downloadLocation, entity, ifcollision, submission,
+                                               max_threads=max_threads)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD " \
                                       "permission. The file has NOT been downloaded."
@@ -728,7 +732,7 @@ class Synapse(object):
                                         + '!'*len(warning_message)+'\n')
         return entity
 
-    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
+    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission, max_threads=None):
         # set the initial local state
         entity.path = None
         entity.files = []
@@ -778,7 +782,8 @@ class Synapse(object):
             # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
             # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
             # _downloadFileHandle may also return None to indicate that the download failed
-            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType, downloadPath)
+            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType, downloadPath,
+                                                    max_threads=max_threads)
 
             if downloadPath is None or not os.path.exists(downloadPath):
                 return
@@ -1654,7 +1659,7 @@ class Synapse(object):
 
         return result
 
-    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
+    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5, max_threads=None):
         """
         Download a file from the given URL to the local file system.
 
@@ -1663,6 +1668,8 @@ class Synapse(object):
         :param objectType:   type of the Synapse object that uses the FileHandle e.g. "FileEntity"
         :param destination:  destination on local file system
         :param retries:      (default=5) Number of download retries attempted before throwing an exception.
+        :param max_threads:  the maximum number of threads to use when downloading a file
+                             (currently applies only to S3).
 
         :returns: path to downloaded file
         """
@@ -1677,12 +1684,14 @@ class Synapse(object):
                     downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'],
                                                                     fileHandle['fileKey'], destination,
                                                                     profile_name=profile)
-                elif self.multi_threaded and fileHandle['concreteType'] == concrete_types.S3_FILE_HANDLE:
+                elif ((max_threads is not None or self.multi_threaded)
+                      and fileHandle['concreteType'] == concrete_types.S3_FILE_HANDLE):
                     downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
                                                                              objectId,
                                                                              objectType,
                                                                              destination,
-                                                                             expected_md5=fileHandle.get('contentMd5'))
+                                                                             expected_md5=fileHandle.get('contentMd5'),
+                                                                             max_threads=max_threads)
                 else:
                     downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
                                                               destination,
@@ -1708,7 +1717,8 @@ class Synapse(object):
                                           object_id,
                                           object_type,
                                           destination,
-                                          expected_md5=None):
+                                          expected_md5=None,
+                                          max_threads=None):
         destination = os.path.abspath(destination)
         temp_destination = utils.temp_download_filename(destination, file_handle_id)
 
@@ -1716,7 +1726,9 @@ class Synapse(object):
                                                        object_id=object_id,
                                                        object_type=object_type,
                                                        path=temp_destination)
-        multithread_download.download_file(self, request, DEFAULT_NUM_THREADS)
+
+        max_threads = max_threads or DEFAULT_NUM_THREADS
+        multithread_download.download_file(self, request, max_threads)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
