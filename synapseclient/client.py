@@ -396,7 +396,7 @@ class Synapse(object):
 
     def _get_transfer_config_max_threads(self):
         # note RawConfigParser lowercases so maxThreads -> maxthreads
-        max_threads =  self._get_config_section_dict('transfer').get('maxthreads')
+        max_threads = self._get_config_section_dict('transfer').get('maxthreads')
         if max_threads:
             try:
                 return int(max_threads)

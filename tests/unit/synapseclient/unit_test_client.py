@@ -1230,6 +1230,7 @@ class TestSetAnnotations:
                                                        ' "annotations": {"foo": {"type": "STRING", '
                                                        '"value": ["bar"]}}}')
 
+
 def test_get_transfer_config_max_threads():
     """Verify reading transfer.maxThreads from synapseConfig"""
 
@@ -1253,4 +1254,3 @@ def test_get_transfer_config_max_threads():
                 assert_is_none(syn._get_transfer_config_max_threads())
                 logger.warning.assert_called_once()
                 logger.reset_mock()
-

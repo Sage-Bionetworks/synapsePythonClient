@@ -536,7 +536,7 @@ def build_parser():
                                                 'is deemed fully stable and becomes the default implementation.')
     parser_get.add_argument('--maxThreads', type=int, default=None,
                             help='The maximum number of threads to use to speed up a file download. '
-                                  'Currently only applies to files stored in S3. If this is set multiThreaded '
+                                 'Currently only applies to files stored in S3. If this is set multiThreaded '
                                  'is implicitly assumed.')
     parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
