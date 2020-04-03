@@ -117,7 +117,7 @@ class TestPrivateGetWithEntityBundle:
         }
 
         with patch.object(syn.logger, "warning") as mocked_warn:
-            entity_no_download = syn._getWithEntityBundle(entityBundle=bundle)
+            entity_no_download = syn._getWithEntityBundle(entityBundle=bundle, max_threads=5)
             mocked_warn.assert_called_once()
             assert_is_none(entity_no_download.path)
 
@@ -1229,3 +1229,25 @@ class TestSetAnnotations:
                                                        ' "etag": "1d6c46e4-4d52-44e1-969f-e77b458d815a",'
                                                        ' "annotations": {"foo": {"type": "STRING", '
                                                        '"value": ["bar"]}}}')
+
+def test_get_transfer_config_max_threads():
+    """Verify reading transfer.max_threads from synapseConfig"""
+
+    with patch.object(syn, "_get_config_section_dict") as mock_config_dict:
+        empty_value_dicts = [{}]
+        empty_value_dicts.extend([{'max_threads': v} for v in ('', None)])
+        for empty_value_dict in empty_value_dicts:
+            mock_config_dict.return_value = empty_value_dict
+            assert_is_none(syn._get_transfer_config_max_threads())
+
+        for max_threads in (1, 7, 100):
+            mock_config_dict.return_value = {'max_threads': str(max_threads)}
+            assert_equal(max_threads, syn._get_transfer_config_max_threads())
+
+        with patch.object(syn, 'logger') as logger:
+            for invalid_value in ('not a number', '12.2', 'true'):
+                mock_config_dict.return_value = {'max_threads': invalid_value}
+                assert_is_none(syn._get_transfer_config_max_threads())
+                logger.warning.assert_called_once()
+                logger.reset_mock()
+

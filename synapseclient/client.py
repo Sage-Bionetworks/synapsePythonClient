@@ -394,6 +394,15 @@ class Synapse(object):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
+    def _get_transfer_config_max_threads(self):
+        max_threads =  self._get_config_section_dict('transfer').get('max_threads')
+        if max_threads:
+            try:
+                return int(max_threads)
+            except ValueError:
+                self.logger.warning("Invalid transfer.max_threads config setting (%s), igoring.", max_threads)
+        return None
+
     def _getSessionToken(self, email, password):
         """Returns a validated session token."""
         try:
@@ -691,7 +700,7 @@ class Synapse(object):
         submission = kwargs.pop('submission', None)
         followLink = kwargs.pop('followLink', False)
         path = kwargs.pop('path', None)
-        max_threads = kwargs.pop('max_threads', None)
+        max_threads = kwargs.pop('max_threads', None) or self._get_transfer_config_max_threads()
 
         # make sure user didn't accidentlaly pass a kwarg that we don't handle
         if kwargs:  # if there are remaining items in the kwargs
@@ -936,6 +945,8 @@ class Synapse(object):
                 needs_upload = True
 
             if needs_upload:
+                max_threads = max_threads or self._get_transfer_config_max_threads()
+
                 local_state_fh = local_state.get('_file_handle', {})
                 synapseStore = local_state.get('synapseStore', True)
                 fileHandle = upload_file_handle(self,
