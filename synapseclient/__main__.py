@@ -9,7 +9,7 @@ Installation
 ============
 
 The command line client is installed along with `installation of the Synapse Python client \
-<http://docs.synapse.org/python/index.html#installation>`_.
+<http://python-docs.synapse.org/build/html/index.html#installation>`_.
 
 Help
 ====
@@ -77,6 +77,7 @@ import synapseclient
 import synapseutils
 from . import Activity
 from .wiki import Wiki
+from .annotations import Annotations
 from synapseclient.core.exceptions import *
 
 
@@ -122,6 +123,7 @@ def _getIdsFromQuery(queryString, syn):
 
 
 def get(args, syn):
+    syn.multi_threaded = args.multiThreaded
     if args.recursive:
         if args.version is not None:
             raise ValueError('You cannot specify a version making a recursive download.')
@@ -190,7 +192,8 @@ def store(args, syn):
     used = syn._convertProvenanceList(args.used, args.limitSearch)
     executed = syn._convertProvenanceList(args.executed, args.limitSearch)
     entity = syn.store(entity, used=used, executed=executed,
-                       forceVersion=force_version)
+                       forceVersion=force_version,
+                       max_threads=args.maxThreads)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
@@ -244,6 +247,16 @@ def associate(args, syn):
             print('WARNING: The file %s is not available in Synapse' % fp)
         else:
             print('%s.%i\t%s' % (ent.id, ent.versionNumber, fp))
+
+
+def copy(args, syn):
+    mappings = synapseutils.copy(syn, args.id, args.destinationId,
+                                 skipCopyWikiPage=args.skipCopyWiki,
+                                 skipCopyAnnotations=args.skipCopyAnnotations,
+                                 excludeTypes=args.excludeTypes,
+                                 version=args.version, updateExisting=args.updateExisting,
+                                 setProvenance=args.setProvenance)
+    print(mappings)
 
 
 def cat(args, syn):
@@ -371,21 +384,20 @@ def setAnnotations(args, syn):
             "For example, to set an annotations called 'foo' to the value 1, the format should be "
             "'{\"foo\": 1, \"bar\":\"quux\"}'.")
 
-    entity = syn.get(args.id, downloadFile=False)
+    annots = syn.get_annotations(args.id)
 
     if args.replace:
-        annots = newannots
+        annots = Annotations(annots.id, annots.etag, newannots)
     else:
-        annots = syn.getAnnotations(entity)
         annots.update(newannots)
 
-    syn.setAnnotations(entity, annots)
+    syn.set_annotations(annots)
 
     sys.stderr.write('Set annotations on entity %s\n' % (args.id,))
 
 
 def getAnnotations(args, syn):
-    annotations = syn.getAnnotations(args.id)
+    annotations = syn.get_annotations(args.id)
 
     if args.output is None or args.output == 'STDOUT':
         print(json.dumps(annotations, sort_keys=True, indent=2))
@@ -517,6 +529,10 @@ def build_parser():
                                  'if using a path.')
     parser_get.add_argument('--downloadLocation', metavar='path', type=str, default="./",
                             help='Directory to download file to [default: %(default)s].')
+    parser_get.add_argument('--multiThreaded', action='store_true',
+                            default=False, help='Download file using a multiple threaded implementation. '
+                                                'This flag will be removed in the future when multi-threaded download '
+                                                'is deemed fully stable and becomes the default implementation.')
     parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)
@@ -572,6 +588,8 @@ def build_parser():
     parser_store.add_argument('--file', type=str, help=argparse.SUPPRESS)
     parser_store.add_argument('FILE', nargs='?', type=str,
                               help='file to be added to synapse.')
+    parser_store.add_argument('--maxThreads', type=int, default=None,
+                              help='The maximum number of threads to use for concurrent uploads.')
     parser_store.set_defaults(func=store)
 
     parser_add = subparsers.add_parser('add',  # Python 3.2+ would support alias=['store']
@@ -623,6 +641,35 @@ def build_parser():
                            required=True, dest='parentid',
                            help='Synapse ID of project or folder where file/folder will be moved ')
     parser_mv.set_defaults(func=move)
+
+    parser_cp = subparsers.add_parser('cp',
+                                      help='Copies specific versions of synapse content such as files, folders and '
+                                           'projects by recursively copying all sub-content')
+    parser_cp.add_argument('id', metavar='syn123', type=str,
+                           help='Id of entity in Synapse to be copied.')
+    parser_cp.add_argument('--destinationId', metavar='syn123', required=True,
+                           help='Synapse ID of project or folder where file will be copied to.')
+    parser_cp.add_argument('--version', '-v', metavar='1', type=int, default=None,
+                           help=('Synapse version number of File or Link to retrieve. '
+                                 'This parameter cannot be used when copying Projects or Folders. '
+                                 'Defaults to most recent version.'))
+    parser_cp.add_argument('--setProvenance', metavar='traceback', type=str, default='traceback',
+                           help=('Has three values to set the provenance of the copied entity-'
+                                 'traceback: Sets to the source entity'
+                                 'existing: Sets to source entity\'s original provenance (if it exists)'
+                                 'None/none: No provenance is set'))
+    parser_cp.add_argument('--updateExisting', action='store_true',
+                           help='Will update the file if there is already a file that is named the same in the '
+                                'destination')
+    parser_cp.add_argument('--skipCopyAnnotations', action='store_true',
+                           help='Do not copy the annotations')
+    parser_cp.add_argument('--excludeTypes', nargs='*', metavar='file table', type=str, default=list(),
+                           help='Accepts a list of entity types (file, table, link) which determines which entity'
+                                ' types to not copy.')
+    parser_cp.add_argument('--skipCopyWiki', action='store_true',
+                           help='Do not copy the wiki pages')
+    parser_cp.set_defaults(func=copy)
+
     parser_associate = subparsers.add_parser('associate',
                                              help=(
                                                  'Associate local files with the files stored in Synapse so that calls'

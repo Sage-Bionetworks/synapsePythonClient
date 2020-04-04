@@ -5,7 +5,7 @@ Python Synapse Client
  ---|---------|-------------
 Travis | develop | [![Build Status develop branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=develop)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
 Travis | master  | [![Build Status master branch](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient.svg?branch=master)](https://travis-ci.org/Sage-Bionetworks/synapsePythonClient)
-AppVeyor | develop | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/master.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
+AppVeyor | develop | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/develop.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
 AppVeyor | master | [![AppVeyor branch](https://img.shields.io/appveyor/ci/SageBionetworks/synapsePythonClient/master.svg)](https://ci.appveyor.com/project/SageBionetworks/synapsepythonclient)
 
 
@@ -21,7 +21,10 @@ Python 2 Support
 
 The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
 
-The Synapse engineering team will step down Python 2.7 support to only bug fixes, and require Python 3 on new feature releases. **Starting with Synapse Python client version 2.0 (will be released in Q1 2019), Synapse Python client will require Python 3.**
+The last version that works with Python 2 is Synapse Python client version 1.9.4. 
+There are no plans for future maintenance of version 1.9.x.
+
+**Starting from Synapse Python client version 2.0, Synapse Python client requires Python 3.6+**
 
 
 Documentation
@@ -53,9 +56,9 @@ The [Python Synapse Client is on PyPI](https://pypi.python.org/pypi/synapseclien
 
     (sudo) pip install --upgrade synapseclient
 
-The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://docs.synapse.org/python/#tables) integrate
+The dependencies on `pandas` and `pysftp` are optional. Synapse [Tables](http://python-docs.synapse.org/build/html/#tables) integrate
 with [Pandas](http://pandas.pydata.org/). The library `pysftp` is required for users of
-[SFTP](http://docs.synapse.org/python/sftp.html) file storage. Both libraries require native code
+[SFTP](http://python-docs.synapse.org/build/html/sftp.html) file storage. Both libraries require native code
 to be compiled or installed separately from prebuilt binaries.
 
 ### Install from source

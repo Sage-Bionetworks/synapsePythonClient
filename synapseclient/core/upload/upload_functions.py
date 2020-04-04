@@ -8,7 +8,16 @@ from synapseclient.core.upload.multipart_upload import multipart_upload_file
 from synapseclient.core.exceptions import SynapseMd5MismatchError
 
 
-def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, file_size=None, mimetype=None):
+def upload_file_handle(
+        syn,
+        parent_entity,
+        path,
+        synapseStore=True,
+        md5=None,
+        file_size=None,
+        mimetype=None,
+        max_threads=None,
+):
     """Uploads the file in the provided path (if necessary) to a storage location based on project settings.
     Returns a new FileHandle as a dict to represent the stored file.
 
@@ -49,7 +58,13 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
             else 'your external S3'
         syn.logger.info('\n' + '#' * 50 + '\n Uploading file to ' + storageString + ' storage \n' + '#' * 50 + '\n')
 
-        return upload_synapse_s3(syn, expanded_upload_path, location['storageLocationId'], mimetype=mimetype)
+        return upload_synapse_s3(
+            syn,
+            expanded_upload_path,
+            location['storageLocationId'],
+            mimetype=mimetype,
+            max_threads=max_threads
+        )
     # external file handle (sftp)
     elif upload_destination_type == concrete_types.EXTERNAL_UPLOAD_DESTINATION:
         if location['uploadType'] == 'SFTP':
@@ -69,7 +84,7 @@ def upload_file_handle(syn, parent_entity, path, synapseStore=True, md5=None, fi
     else:  # unknown storage location
         syn.logger.info('\n%s\n%s\nUNKNOWN STORAGE LOCATION. Defaulting upload to Synapse.\n%s\n'
                         % ('!' * 50, location.get('banner', ''), '!' * 50))
-        return upload_synapse_s3(syn, expanded_upload_path, None, mimetype=mimetype)
+        return upload_synapse_s3(syn, expanded_upload_path, None, mimetype=mimetype, max_threads=max_threads)
 
 
 def create_external_file_handle(syn, path, mimetype=None, md5=None, file_size=None):
@@ -107,11 +122,17 @@ def upload_external_file_handle_sftp(syn, file_path, sftp_url, mimetype=None):
     return file_handle
 
 
-def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None):
-    file_handle_id = multipart_upload_file(syn, file_path, contentType=mimetype, storageLocationId=storageLocationId)
+def upload_synapse_s3(syn, file_path, storageLocationId=None, mimetype=None, max_threads=None):
+    file_handle_id = multipart_upload_file(
+        syn,
+        file_path,
+        content_type=mimetype,
+        storage_location_id=storageLocationId,
+        max_threads=max_threads,
+    )
     syn.cache.add(file_handle_id, file_path)
 
-    return syn._getFileHandle(file_handle_id)
+    return syn._get_file_handle_as_creator(file_handle_id)
 
 
 def upload_client_auth_s3(syn, file_path, bucket, endpoint_url, key_prefix, storage_location_id, mimetype=None):

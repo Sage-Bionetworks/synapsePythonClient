@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 import base64
-from mock import patch, call, create_autospec, MagicMock
+from mock import call, create_autospec, Mock, patch
 
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
@@ -105,12 +105,16 @@ class TestPrivateGetWithEntityBundle:
         bundle = {
             'entity': {
                 'id': 'syn10101',
+                'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
                 'name': 'anonymous',
                 'dataFileHandleId': '-1337',
                 'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
                 'parentId': 'syn12345'},
             'fileHandles': [],
-            'annotations': {}}
+            'annotations': {'id': 'syn10101',
+                            'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
+                            'annotations': {}}
+        }
 
         with patch.object(syn.logger, "warning") as mocked_warn:
             entity_no_download = syn._getWithEntityBundle(entityBundle=bundle)
@@ -128,6 +132,7 @@ class TestPrivateGetWithEntityBundle:
         bundle = {
             'entity': {
                 'id': 'syn10101',
+                'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
                 'name': 'anonymous',
                 'dataFileHandleId': '-1337',
                 'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
@@ -138,7 +143,10 @@ class TestPrivateGetWithEntityBundle:
                 'contentType': 'application/flapdoodle',
                 'contentMd5': '1698d26000d60816caab15169efcd23a',
                 'id': '-1337'}],
-            'annotations': {}}
+            'annotations': {'id': 'syn10101',
+                            'etag': 'f826b84e-b325-48d9-a658-3929bf687129',
+                            'annotations': {}}
+        }
 
         fileHandle = bundle['fileHandles'][0]['id']
         cacheDir = syn.cache.get_cache_dir(fileHandle)
@@ -561,17 +569,23 @@ class TestPrivateUploadExternallyStoringProjects:
                                                 'concreteType': concrete_types.EXTERNAL_S3_UPLOAD_DESTINATION}
 
         test_file = File(expected_path, parent="syn12345")
+        max_threads = 8
 
         # method under test
         with patch.object(upload_functions, "multipart_upload_file",
                           return_value=expected_file_handle_id) as mocked_multipart_upload, \
                 patch.object(syn.cache, "add") as mocked_cache_add,\
-                patch.object(syn, "_getFileHandle") as mocked_getFileHandle:
-            upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path'])
+                patch.object(syn, "_get_file_handle_as_creator") as mocked_getFileHandle:
+            upload_functions.upload_file_handle(syn, test_file['parentId'], test_file['path'], max_threads=max_threads)
 
             mock_upload_destination.assert_called_once_with(test_file['parentId'])
-            mocked_multipart_upload.assert_called_once_with(syn, expected_path_expanded, contentType=None,
-                                                            storageLocationId=expected_storage_location_id)
+            mocked_multipart_upload.assert_called_once_with(
+                syn,
+                expected_path_expanded,
+                content_type=None,
+                storage_location_id=expected_storage_location_id,
+                max_threads=max_threads,
+            )
             mocked_cache_add.assert_called_once_with(expected_file_handle_id, expected_path_expanded)
             mocked_getFileHandle.assert_called_once_with(expected_file_handle_id)
             # test
@@ -706,11 +720,11 @@ class TestPrivateGetEntityBundle:
             'restrictionInformation': {
                 'hasUnmetAccessRequirement': {}
             }}
-        self.patch_restGET = patch.object(syn, 'restGET', return_value=self.bundle)
-        self.patch_restGET.start()
+        self.patch_restPOST = patch.object(syn, 'restPOST', return_value=self.bundle)
+        self.patch_restPOST.start()
 
     def teardown(self):
-        self.patch_restGET.stop()
+        self.patch_restPOST.stop()
 
     def test__getEntityBundle__with_version_as_number(self):
         assert_equal(self.bundle, syn._getEntityBundle("syn10101", 6))
@@ -724,7 +738,7 @@ class TestPrivateGetEntityBundle:
             'annotations': {
                 'etag': 'cbda8e02-a83e-4435-96d0-0af4d3684a90',
                 'id': 'syn1000002',
-                'stringAnnotations': {}},
+                'annotations': {}},
             'entity': {
                 'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
                 'createdBy': 'Miles Dewey Davis',
@@ -784,7 +798,7 @@ def test_delete__string_version():
 
 
 def test_delete__has_synapse_delete_attr():
-    mock_obj = MagicMock()
+    mock_obj = Mock()
     delete_obj = syn.delete(mock_obj)
     mock_obj._synapse_delete.assert_called_once()
 
@@ -1168,3 +1182,86 @@ class TestMembershipInvitation:
             patch_delete.assert_called_once_with(open_invitations['id'])
             assert_equal(invite, self.response)
             patch_invitation.assert_called_once()
+
+
+class TestRequestsSession:
+    """Verify we can optionally pass in a requests.Session in kwargs
+    to have the client use that session instead of the instance session."""
+
+    def setup(self):
+        self._path = '/foo'
+        self._headers = {}
+
+    def test_init(self):
+        """Verify that an external requests session supplied at
+        instantiation is used for calls via a Synapse object."""
+        requests_session = Mock()
+        requests_session.get.return_value = Mock(status_code=200)
+
+        syn = Synapse(debug=False, skip_checks=True, requests_session=requests_session)
+        syn.restGET(self._path, headers=self._headers)
+        requests_session.get.assert_called_once()
+
+    def _http_method_test(self, method):
+        status_ok = Mock(status_code=200)
+        with patch.object(syn._requests_session, method) as requests_call:
+            requests_call.return_value = status_ok
+
+            # make call, check that it flowed through to the instance session
+            rest_call = getattr(syn, "rest{}".format(method.upper()))
+            rest_call(
+                self._path,
+                headers=self._headers
+            )
+            requests_call.assert_called_once()
+            requests_call.reset_mock()
+
+            # make call, check that it flowed through to the passed session
+            # (and not to the instance session)
+            external_session = Mock()
+            getattr(external_session, method).return_value = status_ok
+            rest_call(
+                self._path,
+                headers=self._headers,
+                requests_session=external_session
+            )
+            getattr(external_session, method).assert_called_once()
+            requests_call.assert_not_called()
+
+    def test_get(self):
+        """Test restGET session handling"""
+        self._http_method_test('get')
+
+    def test_put(self):
+        """Test restPUT session handling"""
+        self._http_method_test('put')
+
+    def test_post(self):
+        """Test restPOST session handling"""
+        self._http_method_test('put')
+
+    def test_delete(self):
+        """Test restDELETE session handling"""
+        self._http_method_test('put')
+
+
+class TestSetAnnotations:
+
+    def test_not_annotation(self):
+        with patch.object(syn, "restPUT") as mock_rest_put:
+            # pass in non-annotation object
+            assert_raises(TypeError, syn.set_annotations, {})
+            mock_rest_put.assert_not_called()
+
+    def test_with_annotations(self):
+        with patch.object(syn, "restPUT") as mock_rest_put:
+            mock_rest_put.return_value = {'id': 'syn123',
+                                          'etag': '82196a4c-d383-439a-a08a-c07090a8c147',
+                                          'annotations': {'foo': {'type': 'STRING', 'value': ['bar']}}}
+            # pass in non-annotation object
+            syn.set_annotations(Annotations('syn123', '1d6c46e4-4d52-44e1-969f-e77b458d815a', {'foo': 'bar'}))
+            mock_rest_put.assert_called_once_with('/entity/syn123/annotations2',
+                                                  body='{"id": "syn123",'
+                                                       ' "etag": "1d6c46e4-4d52-44e1-969f-e77b458d815a",'
+                                                       ' "annotations": {"foo": {"type": "STRING", '
+                                                       '"value": ["bar"]}}}')

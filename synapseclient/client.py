@@ -29,10 +29,9 @@ See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 """
 import configparser
 import collections
-import os
+import deprecated
 import errno
 import sys
-import time
 import hashlib
 import webbrowser
 import shutil
@@ -41,14 +40,17 @@ import mimetypes
 import tempfile
 import warnings
 import getpass
-import json
 import logging
 import urllib.parse as urllib_urlparse
-
+import json
+import os
+import time
+import typing
 
 import synapseclient
-from .annotations import from_synapse_annotations, to_synapse_annotations
+from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations
 from .activity import Activity
+import synapseclient.core.multithread_download as multithread_download
 from .entity import Entity, File, Versionable, split_entity_namespaces, is_versionable, is_container, is_synapse_entity
 from synapseclient.core.models.dict_object import DictObject
 from .evaluation import Evaluation, Submission, SubmissionStatus
@@ -63,6 +65,7 @@ from synapseclient.core.credentials import cached_sessions
 from synapseclient.core.logging_setup import DEFAULT_LOGGER_NAME, DEBUG_LOGGER_NAME
 from synapseclient.core.exceptions import *
 from synapseclient.core.version_check import version_check
+from synapseclient.core.pool_provider import DEFAULT_NUM_THREADS
 from synapseclient.core.utils import id_of, get_properties, MB, memoize, is_json, extract_synapse_id_from_query, \
     find_data_file_handle, extract_zip_file_to_directory, is_integer, require_param
 from synapseclient.core.retry import with_retry
@@ -93,7 +96,6 @@ PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 REDIRECT_LIMIT = 5
-
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
@@ -153,6 +155,8 @@ class Synapse(object):
     :param skip_checks:           Skip version and endpoint checks
     :param configPath:            Path to config File with setting for Synapse
                                   defaults to ~/.synapseConfig
+    :param requests_session       a custom requests.Session object that this Synapse instance will use
+                                  when making http requests
 
     Typically, no parameters are needed::
 
@@ -167,8 +171,8 @@ class Synapse(object):
 
     # TODO: add additional boolean for write to disk?
     def __init__(self, repoEndpoint=None, authEndpoint=None, fileHandleEndpoint=None, portalEndpoint=None,
-                 debug=None, skip_checks=False, configPath=CONFIG_FILE):
-        self._requests_session = requests.Session()
+                 debug=None, skip_checks=False, configPath=CONFIG_FILE, requests_session=None):
+        self._requests_session = requests_session or requests.Session()
 
         cache_root_dir = cache.CACHE_ROOT_DIR
 
@@ -199,6 +203,7 @@ class Synapse(object):
         self.table_query_backoff = 1.1
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
+        self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
@@ -580,7 +585,6 @@ class Synapse(object):
            print(syn.getProvenance(entity))
 
         """
-
         # If entity is a local file determine the corresponding synapse entity
         if isinstance(entity, str) and os.path.isfile(entity):
             bundle = self._getFromFile(entity, kwargs.pop('limitSearch', None))
@@ -811,7 +815,8 @@ class Synapse(object):
                                  'for "ifcollision"' % ifcollision)
         return downloadPath
 
-    def store(self, obj, **kwargs):
+    def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
+              activity=None, used=None, executed=None, activityName=None, activityDescription=None, max_threads=None):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
@@ -820,7 +825,7 @@ class Synapse(object):
                                     these)
         :param executed:            The Entity, Synapse ID, or URL representing code executed to create the object
                                     (can also be a list of these)
-        :param activity:            Activity object specifying the user's provenance
+        :param activity:            Activity object specifying the user's provenance.
         :param activityName:        Activity name to be used in conjunction with *used* and *executed*.
         :param activityDescription: Activity description to be used in conjunction with *used* and *executed*.
         :param createOrUpdate:      Indicates whether the method should automatically perform an update if the 'obj'
@@ -832,6 +837,8 @@ class Synapse(object):
                                     the process of adding terms-of-use or review board approval for this entity.
                                     You will be contacted with regards to the specific data being restricted and the
                                     requirements of access.
+        :param max_threads:         The maximum number of threads to use when uploading the file (currently only
+                                    applies to S3 uploads)
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
@@ -858,10 +865,6 @@ class Synapse(object):
             test_entity = syn.store(test_entity, activity=activity)
 
         """
-        createOrUpdate = kwargs.get('createOrUpdate', True)
-        forceVersion = kwargs.get('forceVersion', True)
-        versionLabel = kwargs.get('versionLabel', None)
-        isRestricted = kwargs.get('isRestricted', False)
 
         # _before_store hook
         # give objects a chance to do something before being stored
@@ -938,7 +941,8 @@ class Synapse(object):
                                                 synapseStore=synapseStore,
                                                 md5=local_state_fh.get('contentMd5'),
                                                 file_size=local_state_fh.get('contentSize'),
-                                                mimetype=local_state_fh.get('contentType'))
+                                                mimetype=local_state_fh.get('contentType'),
+                                                max_threads=max_threads)
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 
@@ -950,7 +954,11 @@ class Synapse(object):
             # update the file_handle metadata if the FileEntity's FileHandle id has changed
             if '_file_handle' in local_state \
                     and properties['dataFileHandleId'] != local_state['_file_handle'].get('id', None):
-                local_state['_file_handle'] = self._getFileHandle(properties['dataFileHandleId'])
+                local_state['_file_handle'] = find_data_file_handle(
+                    self._getEntityBundle(properties['id'], requestedObjects={'includeEntity': True,
+                                                                              'includeFileHandles': True})
+                )
+
                 # check if we already have the filehandleid cached somewhere
                 cached_path = self.cache.get(properties['dataFileHandleId'])
                 if cached_path is None:
@@ -988,7 +996,9 @@ class Synapse(object):
 
                     # get existing properties and annotations
                     if not bundle:
-                        bundle = self._getEntityBundle(existing_entity_id, bitFlags=0x1 | 0x2)
+                        bundle = self._getEntityBundle(existing_entity_id,
+                                                       requestedObjects={'includeEntity': True,
+                                                                         'includeAnnotations': True})
 
                     # Need some fields from the existing entity: id, etag, and version info.
                     existing_entity = bundle['entity']
@@ -1009,21 +1019,14 @@ class Synapse(object):
             self._createAccessRequirementIfNone(properties)
 
         # Update annotations
-        annotations['etag'] = properties['etag']
-        annotations = self.setAnnotations(properties, annotations)
+        annotations = self.set_annotations(Annotations(properties['id'], properties['etag'], annotations))
         properties['etag'] = annotations.etag
 
         # If the parameters 'used' or 'executed' are given, create an Activity object
-        activity = kwargs.get('activity', None)
-        used = kwargs.get('used', None)
-        executed = kwargs.get('executed', None)
-
         if used or executed:
             if activity is not None:
                 raise SynapseProvenanceError('Provenance can be specified as an Activity object or as used/executed'
                                              ' item(s), but not both.')
-            activityName = kwargs.get('activityName', None)
-            activityDescription = kwargs.get('activityDescription', None)
             activity = Activity(name=activityName, description=activityDescription, used=used, executed=executed)
 
         # If we have an Activity, set it as the Entity's provenance record
@@ -1046,34 +1049,45 @@ class Synapse(object):
         if len(existingRestrictions['results']) <= 0:
             self.restPOST('/entity/%s/lockAccessRequirement' % id_of(entity), body="")
 
-    def _getEntityBundle(self, entity, version=None, bitFlags=0x800 | 0x40000 | 0x2 | 0x1):
+    def _getEntityBundle(self, entity, version=None, requestedObjects=None):
         """
         Gets some information about the Entity.
 
         :parameter entity:      a Synapse Entity or Synapse ID
         :parameter version:     the entity's version (defaults to None meaning most recent version)
-        :parameter bitFlags:    Bit flags representing which entity components to return
+        :parameter requestedObjects:    A dict indicating settings for what to include
 
-        EntityBundle bit-flags (see the Java class org.sagebionetworks.repo.model.EntityBundle)::
+        default value for requestedObjects is::
 
-            ENTITY                     = 0x1
-            ANNOTATIONS                = 0x2
-            PERMISSIONS                = 0x4
-            ENTITY_PATH                = 0x8
-            HAS_CHILDREN               = 0x20
-            ACL                        = 0x40
-            FILE_HANDLES               = 0x800
-            TABLE_DATA                 = 0x1000
-            ROOT_WIKI_ID               = 0x2000
-            BENEFACTOR_ACL             = 0x4000
-            DOI                        = 0x8000
-            FILE_NAME                  = 0x10000
-            THREAD_COUNT               = 0x20000
-            RESTRICTION_INFORMATION    = 0x40000
+            requestedObjects = {'includeEntity': True,
+                                'includeAnnotations': True,
+                                'includeFileHandles': True,
+                                'includeRestrictionInformation': True}
 
+        Keys available for requestedObjects::
+
+            includeEntity
+            includeAnnotations
+            includePermissions
+            includeEntityPath
+            includeHasChildren
+            includeAccessControlList
+            includeFileHandles
+            includeTableBundle
+            includeRootWikiId
+            includeBenefactorACL
+            includeDOIAssociation
+            includeFileName
+            includeThreadCount
+            includeRestrictionInformation
+
+
+        Keys with values set to False may simply be omitted.
         For example, we might ask for an entity bundle containing file handles, annotations, and properties::
-
-            bundle = syn._getEntityBundle('syn111111', bitFlags=0x800|0x2|0x1)
+            requested_objects = {'includeEntity':True
+                                 'includeAnnotations':True,
+                                 'includeFileHandles':True}
+            bundle = syn._getEntityBundle('syn111111', )
 
         :returns: An EntityBundle with the requested fields or by default Entity header, annotations, unmet access
          requirements, and file handles
@@ -1083,6 +1097,11 @@ class Synapse(object):
         # Use case:
         #     If the user forgets to catch the return value of a syn.store(e)
         #     this allows them to recover by doing: e = syn.get(e)
+        if requestedObjects is None:
+            requestedObjects = {'includeEntity': True,
+                                'includeAnnotations': True,
+                                'includeFileHandles': True,
+                                'includeRestrictionInformation': True}
         if isinstance(entity, collections.Mapping) and 'id' not in entity and 'name' in entity:
             entity = self.findEntityId(entity['name'], entity.get('parentId', None))
 
@@ -1093,10 +1112,10 @@ class Synapse(object):
             return None
 
         if version is not None:
-            uri = '/entity/%s/version/%d/bundle?mask=%d' % (id_of(entity), int(version), bitFlags)
+            uri = f'/entity/{id_of(entity)}/version/{int(version):d}/bundle2'
         else:
-            uri = '/entity/%s/bundle?mask=%d' % (id_of(entity), bitFlags)
-        bundle = self.restGET(uri)
+            uri = f'/entity/{id_of(entity)}/bundle2'
+        bundle = self.restPOST(uri, body=json.dumps(requestedObjects))
 
         return bundle
 
@@ -1213,12 +1232,16 @@ class Synapse(object):
         # even if the version is the most recent.
         # See `PLFM-1874 <https://sagebionetworks.jira.com/browse/PLFM-1874>`_ for more details.
         if version:
-            uri = '/entity/%s/version/%s/annotations' % (id_of(entity), str(version))
+            uri = f'/entity/{id_of(entity)}/version/{str(version)}/annotations2'
         else:
-            uri = '/entity/%s/annotations' % id_of(entity)
+            uri = f'/entity/{id_of(entity)}/annotations2'
         return self.restGET(uri)
 
+    @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`get_annotations`')
     def getAnnotations(self, entity, version=None):
+        return self.get_annotations(entity, version=version)
+
+    def get_annotations(self, entity: typing.Union[str, Entity], version: typing.Union[str, int] = None) -> Annotations:
         """
         Retrieve annotations for an Entity from the Synapse Repository as a Python dict.
 
@@ -1228,33 +1251,86 @@ class Synapse(object):
         :param entity:  An Entity or Synapse ID to lookup
         :param version: The version of the Entity to retrieve.
 
-        :returns: A dictionary
+        :returns: A :py:class:`synapseclient.annotations.Annotations` object, \
+        a dict that also has id and etag attributes
+        :rtype: :py:class:`synapseclient.annotations.Annotations`
         """
         return from_synapse_annotations(self._getRawAnnotations(entity, version))
 
-    def setAnnotations(self, entity, annotations={}, **kwargs):
+    @deprecated.sphinx.deprecated(version='2.1.0', reason='deprecated and replaced with :py:meth:`set_annotations` '
+                                                          'This method is UNSAFE and may overwrite existing annotations'
+                                                          ' without confirming that you have retrieved and'
+                                                          ' updated the latest annotations')
+    def setAnnotations(self, entity, annotations=None, **kwargs):
         """
         Store annotations for an Entity in the Synapse Repository.
 
         :param entity:      The Entity or Synapse Entity ID whose annotations are to be updated
         :param annotations: A dictionary of annotation names and values
         :param kwargs:      annotation names and values
-
         :returns: the updated annotations for the entity
+
         """
-        uri = '/entity/%s/annotations' % id_of(entity)
+        if not annotations:
+            annotations = {}
 
         annotations.update(kwargs)
-        synapseAnnos = to_synapse_annotations(annotations)
-        synapseAnnos['id'] = id_of(entity)
-        if 'etag' not in synapseAnnos:
-            if 'etag' in entity:
-                synapseAnnos['etag'] = entity['etag']
-            else:
-                old_annos = self.restGET(uri)
-                synapseAnnos['etag'] = old_annos['etag']
 
-        return from_synapse_annotations(self.restPUT(uri, body=json.dumps(synapseAnnos)))
+        id = id_of(entity)
+        etag = annotations.etag if hasattr(annotations, 'etag') else annotations.get('etag')
+
+        if not etag:
+            if 'etag' in entity:
+                etag = entity['etag']
+            else:
+                uri = '/entity/%s/annotations2' % id_of(entity)
+                old_annos = self.restGET(uri)
+                etag = old_annos['etag']
+
+        return self.set_annotations(Annotations(id, etag, annotations))
+
+    def set_annotations(self, annotations: Annotations):
+        """
+        Store annotations for an Entity in the Synapse Repository.
+
+        :param annotations: A :py:class:`synapseclient.annotations.Annotations` of annotation names and values,
+         with the id and etag attribute set
+
+        :returns: the updated :py:class:`synapseclient.annotations.Annotations` for the entity
+
+
+        Example::
+
+            annos = syn.get_annotations('syn123')
+
+            # annos will contain the id and etag associated with the entity upon retrieval
+            print(annos.id)
+            # syn123
+            print(annos.etag)
+            # 7bdb83e9-a50a-46e4-987a-4962559f090f   (Usually some UUID in the form of a string)
+
+            # returned annos object from get_annotations() can be used as if it were a dict
+
+            # set key 'foo' to have value of 'bar' and 'baz'
+            annos['foo'] = ['bar', 'baz']
+
+            # single values will automatically be wrapped in a list once stored
+            annos['qwerty'] = 'asdf'
+
+            # store the annotations
+            annos = syn.set_annotations(annos)
+
+            print(annos)
+            # {'foo':['bar','baz], 'qwerty':['asdf']}
+        """
+
+        if not isinstance(annotations, Annotations):
+            raise TypeError("Expected a synapseclient.Annotations object")
+
+        synapseAnnos = to_synapse_annotations(annotations)
+
+        return from_synapse_annotations(self.restPUT(f'/entity/{id_of(annotations)}/annotations2',
+                                                     body=json.dumps(synapseAnnos)))
 
     ############################################################
     #                         Querying                         #
@@ -1592,11 +1668,8 @@ class Synapse(object):
 
         :returns: path to downloaded file
         """
-        try:
-            os.makedirs(os.path.dirname(destination))
-        except OSError as exception:
-            if exception.errno != errno.EEXIST:
-                raise
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+
         while retries > 0:
             try:
                 fileResult = self._getFileHandleDownload(fileHandleId, objectId, objectType)
@@ -1606,8 +1679,16 @@ class Synapse(object):
                     downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'],
                                                                     fileHandle['fileKey'], destination,
                                                                     profile_name=profile)
+                elif self.multi_threaded and fileHandle['concreteType'] == concrete_types.S3_FILE_HANDLE:
+                    downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
+                                                                             objectId,
+                                                                             objectType,
+                                                                             destination,
+                                                                             expected_md5=fileHandle.get('contentMd5'))
                 else:
-                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'], destination, fileHandle['id'],
+                    downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
+                                                              destination,
+                                                              fileHandle['id'],
                                                               expected_md5=fileHandle.get('contentMd5'))
                 self.cache.add(fileHandle['id'], downloaded_path)
                 return downloaded_path
@@ -1620,9 +1701,41 @@ class Synapse(object):
                     retries -= 1
                 if retries <= 0:
                     # Re-raise exception
-                    raise exc_info[0](exc_info[1])
+                    raise
 
         raise Exception("should not reach this line")
+
+    def _download_from_url_multi_threaded(self,
+                                          file_handle_id,
+                                          object_id,
+                                          object_type,
+                                          destination,
+                                          expected_md5=None):
+        destination = os.path.abspath(destination)
+        temp_destination = utils.temp_download_filename(destination, file_handle_id)
+
+        request = multithread_download.DownloadRequest(file_handle_id=int(file_handle_id),
+                                                       object_id=object_id,
+                                                       object_type=object_type,
+                                                       path=temp_destination)
+        multithread_download.download_file(self, request, DEFAULT_NUM_THREADS)
+
+        if expected_md5:  # if md5 not set (should be the case for all except http download)
+            actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
+            # check md5 if given
+            if actual_md5 != expected_md5:
+                try:
+                    os.remove(temp_destination)
+                except FileNotFoundError:
+                    # file already does not exist. nothing to do
+                    pass
+                raise SynapseMd5MismatchError("Downloaded file {filename}'s md5 {md5} does not match expected MD5 of"
+                                              " {expected_md5}".format(filename=temp_destination, md5=actual_md5,
+                                                                       expected_md5=expected_md5))
+        # once download completed, rename to desired destination
+        shutil.move(temp_destination, destination)
+
+        return destination
 
     def _download_from_URL(self, url, destination, fileHandleId=None, expected_md5=None):
         """
@@ -1637,7 +1750,6 @@ class Synapse(object):
 
         :returns: path to downloaded file
         """
-
         destination = os.path.abspath(destination)
         actual_md5 = None
         redirect_count = 0
@@ -1792,8 +1904,10 @@ class Synapse(object):
 
         return self.restPOST('/externalFileHandle', json.dumps(file_handle), self.fileHandleEndpoint)
 
-    def _getFileHandle(self, fileHandle):
-        """Retrieve a fileHandle from the fileHandle service (experimental)."""
+    def _get_file_handle_as_creator(self, fileHandle):
+        """Retrieve a fileHandle from the fileHandle service.
+        You must be the creator of the filehandle to use this method. Otherwise, an 403-Forbidden error will be raised
+        """
 
         uri = "/fileHandle/%s" % (id_of(fileHandle),)
         return self.restGET(uri, endpoint=self.fileHandleEndpoint)
@@ -2550,7 +2664,8 @@ class Synapse(object):
             cache_dir = self.cache.get_cache_dir(wiki.markdownFileHandleId)
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
-            path = self._downloadFileHandle(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown', cache_dir)
+            path = self._downloadFileHandle(wiki['markdownFileHandleId'], wiki['id'], 'WikiMarkdown',
+                                            os.path.join(cache_dir, str(wiki.markdownFileHandleId) + ".md"))
         try:
             import gzip
             with gzip.open(path) as f:
@@ -2951,7 +3066,7 @@ class Synapse(object):
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir)
             path = self._downloadFileHandle(file_handle_id, extract_synapse_id_from_query(query),
-                                            'TableEntity', cache_dir)
+                                            'TableEntity', os.path.join(cache_dir, str(file_handle_id) + ".csv"))
         return download_from_table_result, path
 
     # This is redundant with syn.store(Column(...)) and will be removed unless people prefer this method.
@@ -3248,81 +3363,93 @@ class Synapse(object):
         headers.update(self.credentials.get_signed_headers(url))
         return headers
 
-    def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restGET(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP GET request to the Synapse server.
 
-        :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI on which get is performed
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.Session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
 
         :returns: JSON encoding of response
         """
 
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
+        response = with_retry(lambda: requests_session.get(uri, headers=headers, **kwargs), verbose=self.debug,
                               **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
-    def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restPOST(self, uri, body, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP POST request to the Synapse server.
 
-        :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param body:     The payload to be delivered
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI on which get is performed
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param body:                The payload to be delivered
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.Session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
 
         :returns: JSON encoding of response
         """
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._requests_session.post(uri, data=body, headers=headers, **kwargs),
+        response = with_retry(lambda: requests_session.post(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
-    def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restPUT(self, uri, body=None, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP PUT request to the Synapse server.
 
-        :param uri:      URI on which get is performed
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param body:     The payload to be delivered
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI on which get is performed
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param body:                The payload to be delivered
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
 
         :returns: JSON encoding of response
         """
 
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._requests_session.put(uri, data=body, headers=headers, **kwargs),
+        response = with_retry(lambda: requests_session.put(uri, data=body, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
         return self._return_rest_body(response)
 
-    def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, **kwargs):
+    def restDELETE(self, uri, endpoint=None, headers=None, retryPolicy={}, requests_session=None, **kwargs):
         """
         Sends an HTTP DELETE request to the Synapse server.
 
-        :param uri:      URI of resource to be deleted
-        :param endpoint: Server endpoint, defaults to self.repoEndpoint
-        :param headers:  Dictionary of headers to use rather than the API-key-signed default set of headers
-        :param kwargs:   Any other arguments taken by a `requests <http://docs.python-requests.org/en/latest/>`_ method
+        :param uri:                 URI of resource to be deleted
+        :param endpoint:            Server endpoint, defaults to self.repoEndpoint
+        :param headers:             Dictionary of headers to use rather than the API-key-signed default set of headers
+        :param requests_session:    an external requests.session object to use when making this specific call
+        :param kwargs:              Any other arguments taken by a
+                                    `requests <http://docs.python-requests.org/en/latest/>`_ method
         """
 
         uri, headers = self._build_uri_and_headers(uri, endpoint, headers)
         retryPolicy = self._build_retry_policy(retryPolicy)
+        requests_session = requests_session or self._requests_session
 
-        response = with_retry(lambda: self._requests_session.delete(uri, headers=headers, **kwargs),
+        response = with_retry(lambda: requests_session.delete(uri, headers=headers, **kwargs),
                               verbose=self.debug, **retryPolicy)
         exceptions._raise_for_status(response, verbose=self.debug)
 
