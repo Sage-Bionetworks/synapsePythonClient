@@ -1,8 +1,10 @@
 import filecmp
 import traceback
 from io import open
+import requests
 
 from nose.tools import assert_equals, assert_true, assert_is_not_none
+from unittest import mock
 
 import synapseclient.core.config
 from synapseclient.core.utils import *
@@ -56,51 +58,52 @@ def test_single_thread_upload():
 
 
 def test_randomly_failing_parts():
-    FAILURE_RATE = 1.0/3.0
+    """Verify that we can recover gracefully with some randomly inserted errors
+    while uploading parts."""
+
+    # fail every nth request, with n randomly generated within a given range.
+    # we fail every nth request rather than randomly fail with some given
+    # chance because the latter is non-deterministic and could always result
+    # in a failure if the test run was unlucky.
+    fail_every = random.randint(3, 8)
     fhid = None
-    MIN_PART_SIZE = 5 * MB
-    MAX_RETRIES = 20
 
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + 777771)
 
-    normal_put_chunk = None
+    put_count = 0
+    normal_put = requests.Session.put
 
-    def _put_chunk_or_fail_randomly(url, chunk, verbose=False):
-        if random.random() < FAILURE_RATE:
+    def _put_chunk_or_fail_randomly(self, *args, **kwargs):
+        nonlocal put_count
+        put_count += 1
+
+        if put_count % fail_every == 0:
             raise IOError("Ooops! Artificial upload failure for testing.")
-        else:
-            return normal_put_chunk(url, chunk, verbose)
+        return normal_put(self, *args, **kwargs)
 
-    # Mock _put_chunk to fail randomly
-    normal_put_chunk = multipart_upload._put_chunk
-    multipart_upload._put_chunk = _put_chunk_or_fail_randomly
-
-    try:
-        fhid = multipart_upload_file(syn, filepath)
-
-        # Download the file and compare it with the original
-        junk = File(parent=project, dataFileHandleId=fhid)
-        junk.properties.update(syn._createEntity(junk.properties))
-        (tmp_f, tmp_path) = tempfile.mkstemp()
-        schedule_for_cleanup(tmp_path)
-
-        junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
-        assert_true(filecmp.cmp(filepath, junk.path))
-
-    finally:
-        # Un-mock _put_chunk
-        if normal_put_chunk:
-            multipart_upload._put_chunk = normal_put_chunk
-
+    with mock.patch('requests.Session.put', side_effect=_put_chunk_or_fail_randomly, autospec=True):
         try:
-            if 'junk' in locals():
-                syn.delete(junk)
-        except Exception:
-            print(traceback.format_exc())
-        try:
-            os.remove(filepath)
-        except Exception:
-            print(traceback.format_exc())
+            fhid = multipart_upload_file(syn, filepath)
+
+            # Download the file and compare it with the original
+            junk = File(parent=project, dataFileHandleId=fhid)
+            junk.properties.update(syn._createEntity(junk.properties))
+            (tmp_f, tmp_path) = tempfile.mkstemp()
+            schedule_for_cleanup(tmp_path)
+
+            junk['path'] = syn._downloadFileHandle(fhid, junk['id'], 'FileEntity', tmp_path)
+            assert_true(filecmp.cmp(filepath, junk.path))
+
+        finally:
+            try:
+                if 'junk' in locals():
+                    syn.delete(junk)
+            except Exception:
+                print(traceback.format_exc())
+            try:
+                os.remove(filepath)
+            except Exception:
+                print(traceback.format_exc())
 
 
 def test_multipart_upload_big_string():
