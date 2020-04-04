@@ -61,29 +61,30 @@ def test_randomly_failing_parts():
     """Verify that we can recover gracefully with some randomly inserted errors
     while uploading parts."""
 
-    # fail every nth request, with n randomly generated within a given range.
-    # we fail every nth request rather than randomly fail with some given
-    # chance because the latter is non-deterministic and could always result
-    # in a failure if the test run was unlucky.
-    fail_every = random.randint(3, 8)
+    fail_every = 3  # fail every nth request
     fhid = None
 
-    filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + 777771)
+    filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + (MIN_PART_SIZE / 2))
 
     put_count = 0
     normal_put = requests.Session.put
 
-    def _put_chunk_or_fail_randomly(self, *args, **kwargs):
+    def _put_chunk_or_fail_randomly(self, url, *args, **kwargs):
+        # fail every nth put to aws s3
+        if not 's3.amazonaws.com' in url:
+            return normal_put(self, url, *args, **kwargs)
+
         nonlocal put_count
         put_count += 1
 
         if put_count % fail_every == 0:
             raise IOError("Ooops! Artificial upload failure for testing.")
-        return normal_put(self, *args, **kwargs)
+
+        return normal_put(self, url, *args, **kwargs)
 
     with mock.patch('requests.Session.put', side_effect=_put_chunk_or_fail_randomly, autospec=True):
         try:
-            fhid = multipart_upload_file(syn, filepath)
+            fhid = multipart_upload_file(syn, filepath, part_size=MIN_PART_SIZE)
 
             # Download the file and compare it with the original
             junk = File(parent=project, dataFileHandleId=fhid)

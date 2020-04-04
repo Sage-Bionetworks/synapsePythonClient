@@ -318,6 +318,12 @@ class UploadAttempt:
                     with self._lock:
                         self._aborted = True
 
+                    # wait for all threads to complete before
+                    # raising the exception, we don't want to return
+                    # control while there are still threads from this
+                    # upload attempt running
+                    concurrent.futures.wait(futures)
+
                     if isinstance(cause, KeyboardInterrupt):
                         raise SynapseUploadAbortedException(
                             "User interrupted upload"
