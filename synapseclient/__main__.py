@@ -193,7 +193,7 @@ def store(args, syn):
     executed = syn._convertProvenanceList(args.executed, args.limitSearch)
     entity = syn.store(entity, used=used, executed=executed,
                        forceVersion=force_version,
-                       max_threads=args.maxThreads)
+                       max_threads=getattr(args, 'maxThreads', None))
 
     _create_wiki_description_if_necessary(args, entity, syn)
 

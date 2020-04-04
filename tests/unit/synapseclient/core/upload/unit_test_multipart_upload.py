@@ -559,7 +559,6 @@ class TestUploadAttempt:
             assert_false(get_executor.called)
 
 
-
 class TestMultipartUpload:
 
     def test_multipart_upload_file(self):
