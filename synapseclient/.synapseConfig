@@ -56,5 +56,5 @@
 #[transfer]
 
 # use this to configure the default for how many threads/connections Synapse will use to perform file transfers.
-# Currently this applies to files whose underlying storage is AWS S3.
-# maxThreads=16
+# Currently this applies only to files whose underlying storage is AWS S3.
+# max_threads=16

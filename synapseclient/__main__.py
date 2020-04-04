@@ -144,8 +144,7 @@ def get(args, syn):
         else:
             entity = syn.get(args.id, version=args.version,  # limitSearch=args.limitSearch,
                              followLink=args.followLink,
-                             downloadLocation=args.downloadLocation,
-                             maxThreads=args.maxThreads)
+                             downloadLocation=args.downloadLocation)
             if "path" in entity and entity.path is not None and os.path.exists(entity.path):
                 print("Downloaded file: %s" % os.path.basename(entity.path))
             else:
@@ -193,8 +192,7 @@ def store(args, syn):
     used = syn._convertProvenanceList(args.used, args.limitSearch)
     executed = syn._convertProvenanceList(args.executed, args.limitSearch)
     entity = syn.store(entity, used=used, executed=executed,
-                       forceVersion=force_version,
-                       maxThreads=args.maxThreads)
+                       forceVersion=force_version)
 
     _create_wiki_description_if_necessary(args, entity, syn)
 
@@ -534,10 +532,6 @@ def build_parser():
                             default=False, help='Download file using a multiple threaded implementation. '
                                                 'This flag will be removed in the future when multi-threaded download '
                                                 'is deemed fully stable and becomes the default implementation.')
-    parser_get.add_argument('--maxThreads', type=int, default=None,
-                            help='The maximum number of threads to use to speed up a file download. '
-                                 'Currently only applies to files stored in S3. If this is set multiThreaded '
-                                 'is implicitly assumed.')
     parser_get.add_argument('id', metavar='syn123', nargs='?', type=str,
                             help='Synapse ID of form syn123 of desired data object.')
     parser_get.set_defaults(func=get)
@@ -593,9 +587,6 @@ def build_parser():
     parser_store.add_argument('--file', type=str, help=argparse.SUPPRESS)
     parser_store.add_argument('FILE', nargs='?', type=str,
                               help='file to be added to synapse.')
-    parser_store.add_argument('--maxThreads', type=int, default=None,
-                              help='The maximum number of threads to use to speed up a file upload. '
-                                   'Currently only applies to files stored in S3.')
     parser_store.set_defaults(func=store)
 
     parser_add = subparsers.add_parser('add',  # Python 3.2+ would support alias=['store']

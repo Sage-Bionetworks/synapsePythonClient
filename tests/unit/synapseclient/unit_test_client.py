@@ -1,14 +1,15 @@
+import base64
+import configparser
 import json
 import os
 import tempfile
-import base64
-from mock import call, create_autospec, Mock, patch
 
+from mock import call, create_autospec, Mock, patch
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
-from synapseclient import client
 
 import synapseclient
+from synapseclient import client
 from synapseclient import *
 from synapseclient.core.exceptions import *
 from synapseclient.core.upload import upload_functions, multipart_upload
@@ -117,7 +118,7 @@ class TestPrivateGetWithEntityBundle:
         }
 
         with patch.object(syn.logger, "warning") as mocked_warn:
-            entity_no_download = syn._getWithEntityBundle(entityBundle=bundle, maxThreads=5)
+            entity_no_download = syn._getWithEntityBundle(entityBundle=bundle)
             mocked_warn.assert_called_once()
             assert_is_none(entity_no_download.path)
 
@@ -1231,6 +1232,29 @@ class TestSetAnnotations:
                                                        '"value": ["bar"]}}}')
 
 
+def test_get_config_file_caching():
+    """Verify we read a config file once per Synapse and are not
+    parsing the file multiple times just on init."""
+
+    with patch.object(Synapse, '_getConfigFile') as get_config_file:
+        get_config_file.return_value = configparser.ConfigParser()
+
+        syn1 = Synapse(debug=False, skip_checks=True, configPath='/foo')
+
+        # additional calls shouldn't be returned via a cached value
+        config1a = syn1.getConfigFile('/foo')
+        config1b = syn1.getConfigFile('/foo')
+        assert_equal(config1a, config1b)
+        assert_equal(1, get_config_file.call_count)
+
+        # however a new instance should not be cached
+        syn2 = Synapse(debug=False, skip_checks=True, configPath='/foo')
+        assert_equal(2, get_config_file.call_count)
+
+        # but an additional call on that instance should be
+        assert_equal(2, get_config_file.call_count)
+
+
 def test_get_transfer_config_max_threads():
     """Verify reading transfer.maxThreads from synapseConfig"""
 
@@ -1239,18 +1263,16 @@ def test_get_transfer_config_max_threads():
 
     with patch.object(syn, "_get_config_section_dict") as mock_config_dict:
         empty_value_dicts = [{}]
-        empty_value_dicts.extend([{'maxthreads': v} for v in ('', None)])
+        empty_value_dicts.extend([{'max_threads': v} for v in ('', None)])
         for empty_value_dict in empty_value_dicts:
             mock_config_dict.return_value = empty_value_dict
             assert_is_none(syn._get_transfer_config_max_threads())
 
         for max_threads in (1, 7, 100):
-            mock_config_dict.return_value = {'maxthreads': str(max_threads)}
+            mock_config_dict.return_value = {'max_threads': str(max_threads)}
             assert_equal(max_threads, syn._get_transfer_config_max_threads())
 
-        with patch.object(syn, 'logger') as logger:
+        with assert_raises(ValueError) :
             for invalid_value in ('not a number', '12.2', 'true'):
-                mock_config_dict.return_value = {'maxthreads': invalid_value}
-                assert_is_none(syn._get_transfer_config_max_threads())
-                logger.warning.assert_called_once()
-                logger.reset_mock()
+                mock_config_dict.return_value = {'max_threads': invalid_value}
+                syn._get_transfer_config_max_threads()

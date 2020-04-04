@@ -27,25 +27,25 @@ More information
 See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 
 """
-import configparser
 import collections
+import configparser
 import deprecated
-import errno
-import sys
-import hashlib
-import webbrowser
-import shutil
-import zipfile
-import mimetypes
-import tempfile
-import warnings
+import functools
 import getpass
-import logging
-import urllib.parse as urllib_urlparse
+import hashlib
 import json
+import logging
+import mimetypes
 import os
+import shutil
+import sys
+import tempfile
 import time
 import typing
+import urllib.parse as urllib_urlparse
+import warnings
+import webbrowser
+import zipfile
 
 import synapseclient
 from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations
@@ -176,6 +176,10 @@ class Synapse(object):
 
         cache_root_dir = cache.CACHE_ROOT_DIR
 
+        # cache reading the config file at an instance level (i.e.
+        # the config will be read once per instantiated Synapse object).
+        self.getConfigFile = functools.lru_cache(self._getConfigFile)
+
         config_debug = None
         # Check for a config file
         self.configPath = configPath
@@ -204,6 +208,7 @@ class Synapse(object):
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
         self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
+        self.max_threads = self._get_transfer_config_max_threads() or DEFAULT_NUM_THREADS
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
@@ -226,7 +231,9 @@ class Synapse(object):
         # for backwards compatability when username was a part of the Synapse object and not in credentials
         return self.credentials.username if self.credentials is not None else None
 
-    def getConfigFile(self, configPath):
+    # we wrap this with an instance decorator in the constructor so it
+    # is only read once per instance
+    def _getConfigFile(self, configPath):
         """
         Retrieves the client configuration information.
 
@@ -395,13 +402,12 @@ class Synapse(object):
         return self._get_config_section_dict(config_section).get("profile_name", "default")
 
     def _get_transfer_config_max_threads(self):
-        # note RawConfigParser lowercases so maxThreads -> maxthreads
-        max_threads = self._get_config_section_dict('transfer').get('maxthreads')
+        max_threads = self._get_config_section_dict('transfer').get('max_threads')
         if max_threads:
             try:
                 return int(max_threads)
-            except ValueError:
-                self.logger.warning("Invalid transfer.maxThreads config setting (%s), igoring.", max_threads)
+            except ValueError as cause:
+                raise ValueError("Invalid transfer.maxThreads config setting (%s)", max_threads) from cause
         return None
 
     def _getSessionToken(self, email, password):
@@ -701,7 +707,6 @@ class Synapse(object):
         submission = kwargs.pop('submission', None)
         followLink = kwargs.pop('followLink', False)
         path = kwargs.pop('path', None)
-        max_threads = kwargs.pop('maxThreads', None) or self._get_transfer_config_max_threads()
 
         # make sure user didn't accidentlaly pass a kwarg that we don't handle
         if kwargs:  # if there are remaining items in the kwargs
@@ -733,8 +738,7 @@ class Synapse(object):
 
             if downloadFile:
                 if file_handle:
-                    self._download_file_entity(downloadLocation, entity, ifcollision, submission,
-                                               max_threads=max_threads)
+                    self._download_file_entity(downloadLocation, entity, ifcollision, submission)
                 else:  # no filehandle means that we do not have DOWNLOAD permission
                     warning_message = "WARNING: You have READ permission on this file entity but not DOWNLOAD " \
                                       "permission. The file has NOT been downloaded."
@@ -742,7 +746,7 @@ class Synapse(object):
                                         + '!'*len(warning_message)+'\n')
         return entity
 
-    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission, max_threads=None):
+    def _download_file_entity(self, downloadLocation, entity, ifcollision, submission):
         # set the initial local state
         entity.path = None
         entity.files = []
@@ -792,8 +796,7 @@ class Synapse(object):
             # reassign downloadPath because if url points to local file (e.g. file://~/someLocalFile.txt)
             # it won't be "downloaded" and, instead, downloadPath will just point to '~/someLocalFile.txt'
             # _downloadFileHandle may also return None to indicate that the download failed
-            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType, downloadPath,
-                                                    max_threads=max_threads)
+            downloadPath = self._downloadFileHandle(entity.dataFileHandleId, objectId, objectType, downloadPath)
 
             if downloadPath is None or not os.path.exists(downloadPath):
                 return
@@ -831,7 +834,7 @@ class Synapse(object):
         return downloadPath
 
     def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
-              activity=None, used=None, executed=None, activityName=None, activityDescription=None, maxThreads=None):
+              activity=None, used=None, executed=None, activityName=None, activityDescription=None):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
@@ -852,8 +855,6 @@ class Synapse(object):
                                     the process of adding terms-of-use or review board approval for this entity.
                                     You will be contacted with regards to the specific data being restricted and the
                                     requirements of access.
-        :param maxThreads:         The maximum number of threads to use when uploading the file (currently only
-                                    applies to S3 uploads)
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
@@ -957,7 +958,7 @@ class Synapse(object):
                                                 md5=local_state_fh.get('contentMd5'),
                                                 file_size=local_state_fh.get('contentSize'),
                                                 mimetype=local_state_fh.get('contentType'),
-                                                max_threads=maxThreads or self._get_transfer_config_max_threads())
+                                                max_threads=self.max_threads)
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 
@@ -1669,7 +1670,7 @@ class Synapse(object):
 
         return result
 
-    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5, max_threads=None):
+    def _downloadFileHandle(self, fileHandleId, objectId, objectType, destination, retries=5):
         """
         Download a file from the given URL to the local file system.
 
@@ -1694,14 +1695,12 @@ class Synapse(object):
                     downloaded_path = S3ClientWrapper.download_file(fileHandle['bucket'], fileHandle['endpointUrl'],
                                                                     fileHandle['fileKey'], destination,
                                                                     profile_name=profile)
-                elif ((max_threads is not None or self.multi_threaded)
-                      and fileHandle['concreteType'] == concrete_types.S3_FILE_HANDLE):
+                elif self.multi_threaded and fileHandle['concreteType'] == concrete_types.S3_FILE_HANDLE:
                     downloaded_path = self._download_from_url_multi_threaded(fileHandleId,
                                                                              objectId,
                                                                              objectType,
                                                                              destination,
-                                                                             expected_md5=fileHandle.get('contentMd5'),
-                                                                             max_threads=max_threads)
+                                                                             expected_md5=fileHandle.get('contentMd5'))
                 else:
                     downloaded_path = self._download_from_URL(fileResult['preSignedURL'],
                                                               destination,
@@ -1727,8 +1726,7 @@ class Synapse(object):
                                           object_id,
                                           object_type,
                                           destination,
-                                          expected_md5=None,
-                                          max_threads=None):
+                                          expected_md5=None):
         destination = os.path.abspath(destination)
         temp_destination = utils.temp_download_filename(destination, file_handle_id)
 
@@ -1737,8 +1735,7 @@ class Synapse(object):
                                                        object_type=object_type,
                                                        path=temp_destination)
 
-        max_threads = max_threads or DEFAULT_NUM_THREADS
-        multithread_download.download_file(self, request, max_threads)
+        multithread_download.download_file(self, request, self.max_threads)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
