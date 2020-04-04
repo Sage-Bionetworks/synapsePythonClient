@@ -178,7 +178,7 @@ class Synapse(object):
 
         # cache reading the config file at an instance level (i.e.
         # the config will be read once per instantiated Synapse object).
-        self.getConfigFile = functools.lru_cache(self._getConfigFile)
+        self.getConfigFile = functools.lru_cache()(self._getConfigFile)
 
         config_debug = None
         # Check for a config file
