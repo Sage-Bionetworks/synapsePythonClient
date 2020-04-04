@@ -2974,7 +2974,7 @@ class Synapse(object):
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
-        fileHandleId = multipart_upload_file(self, filepath, contentType="text/csv")
+        fileHandleId = multipart_upload_file(self, filepath, content_type="text/csv")
 
         uploadRequest = {
             "concreteType": "org.sagebionetworks.repo.model.table.UploadToTableRequest",
@@ -3355,7 +3355,7 @@ class Synapse(object):
         :returns: The metadata of the created message
         """
 
-        fileHandleId = multipart_upload_string(self, messageBody, contentType=contentType)
+        fileHandleId = multipart_upload_string(self, messageBody, content_type=contentType)
         message = dict(
             recipients=userIds,
             subject=messageSubject,

@@ -554,7 +554,7 @@ def test_send_message():
         assert_equal(msg["fileHandleId"], "7365905", msg)
         assert_equal(msg["recipients"], [1421212], msg)
         assert_equal(msg["subject"], "Xanadu", msg)
-        mock_upload_string.assert_called_once_with(syn, messageBody, contentType="text/plain")
+        mock_upload_string.assert_called_once_with(syn, messageBody, content_type="text/plain")
 
 
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
