@@ -253,71 +253,79 @@ class UploadAttempt:
         return part_number, part_size
 
     def __call__(self):
-        upload_status = self._create_synapse_upload()
+        upload_status_response = self._create_synapse_upload()
+        upload_state = upload_status_response.get('state')
+        if upload_state == 'COMPLETED':
+            # didn't force restart and already done
+            return upload_status_response
 
-        self._upload_id = upload_status['uploadId']
+        self._upload_id = upload_status_response['uploadId']
         part_count, remaining_part_numbers = self._get_remaining_part_numbers(
-            upload_status
+            upload_status_response
         )
 
-        time_upload_started = time.time()
-        completed_part_count = part_count - len(remaining_part_numbers)
+        # if no remaining part numbers then all the parts have been
+        # uploaded but the upload has not been marked complete.
+        if remaining_part_numbers:
 
-        # note this is an estimate, may not be exact since the final part
-        # may be smaller and might be included in the completed parts.
-        # it's good enough though.
-        progress = previously_transferred = min(
-            completed_part_count * self._part_size,
-            self._file_size
-        )
-        printTransferProgress(
-            progress,
-            self._file_size,
-            prefix='Uploading',
-            postfix=self._dest_file_name,
-            previouslyTransferred=previously_transferred,
-        )
+            time_upload_started = time.time()
+            completed_part_count = part_count - len(remaining_part_numbers)
 
-        self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
-            self._upload_id,
-            remaining_part_numbers,
-        )
-
-        futures = []
-        executor = pool_provider.get_executor(thread_count=self._max_threads)
-        for part_number in remaining_part_numbers:
-            futures.append(
-                executor.submit(
-                    self._handle_part,
-                    part_number,
-                )
+            # note this is an estimate, may not be exact since the final part
+            # may be smaller and might be included in the completed parts.
+            # it's good enough though.
+            progress = previously_transferred = min(
+                completed_part_count * self._part_size,
+                self._file_size
             )
-        executor.shutdown(wait=False)
+            printTransferProgress(
+                progress,
+                self._file_size,
+                prefix='Uploading',
+                postfix=self._dest_file_name,
+                previouslyTransferred=previously_transferred,
+            )
 
-        for result in concurrent.futures.as_completed(futures):
-            try:
-                _, part_size = result.result()
-                progress += part_size
-                printTransferProgress(
-                    min(progress, self._file_size),
-                    self._file_size,
-                    prefix='Uploading',
-                    postfix=self._dest_file_name,
-                    dt=time.time() - time_upload_started,
-                    previouslyTransferred=previously_transferred,
-                )
-            except (Exception, KeyboardInterrupt) as cause:
-                with self._lock:
-                    self._aborted = True
+            self._pre_signed_part_urls = self._fetch_pre_signed_part_urls(
+                self._upload_id,
+                remaining_part_numbers,
+            )
 
-                if isinstance(cause, KeyboardInterrupt):
-                    raise SynapseUploadAbortedException(
-                        "User interrupted upload"
+            futures = []
+            executor = pool_provider.get_executor(thread_count=self._max_threads)
+            for part_number in remaining_part_numbers:
+                futures.append(
+                    executor.submit(
+                        self._handle_part,
+                        part_number,
                     )
+                )
+            executor.shutdown(wait=False)
 
-                raise SynapseUploadFailedException(
-                    "Part upload failed"
-                ) from cause
+            for result in concurrent.futures.as_completed(futures):
+                try:
+                    _, part_size = result.result()
+                    progress += part_size
+                    printTransferProgress(
+                        min(progress, self._file_size),
+                        self._file_size,
+                        prefix='Uploading',
+                        postfix=self._dest_file_name,
+                        dt=time.time() - time_upload_started,
+                        previouslyTransferred=previously_transferred,
+                    )
+                except (Exception, KeyboardInterrupt) as cause:
+                    with self._lock:
+                        self._aborted = True
+
+                    if isinstance(cause, KeyboardInterrupt):
+                        raise SynapseUploadAbortedException(
+                            "User interrupted upload"
+                        )
+
+                    raise SynapseUploadFailedException(
+                        "Part upload failed"
+                    ) from cause
 
         upload_status_response = self._syn.restPUT(
             "/file/multipart/{upload_id}/complete".format(
