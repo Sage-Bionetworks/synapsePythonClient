@@ -541,8 +541,8 @@ class TestUploadAttempt:
             mock.patch.object(upload, '_fetch_pre_signed_part_urls')\
             as fetch_pre_signed_urls,\
             mock.patch.object(pool_provider, 'get_executor')\
-                as get_executor,\
-            mock.patch.object(upload._syn, 'restPUT') as restPUT:
+            as get_executor,\
+                mock.patch.object(upload._syn, 'restPUT') as restPUT:
 
             create_synapse_upload.return_value = create_status_response
             restPUT.return_value = complete_status_response

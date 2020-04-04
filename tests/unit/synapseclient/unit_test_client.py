@@ -1272,7 +1272,7 @@ def test_get_transfer_config_max_threads():
             mock_config_dict.return_value = {'max_threads': str(max_threads)}
             assert_equal(max_threads, syn._get_transfer_config_max_threads())
 
-        with assert_raises(ValueError) :
+        with assert_raises(ValueError):
             for invalid_value in ('not a number', '12.2', 'true'):
                 mock_config_dict.return_value = {'max_threads': invalid_value}
                 syn._get_transfer_config_max_threads()

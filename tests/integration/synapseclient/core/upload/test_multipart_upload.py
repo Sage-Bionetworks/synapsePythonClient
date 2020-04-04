@@ -71,7 +71,7 @@ def test_randomly_failing_parts():
 
     def _put_chunk_or_fail_randomly(self, url, *args, **kwargs):
         # fail every nth put to aws s3
-        if not 's3.amazonaws.com' in url:
+        if 's3.amazonaws.com' not in url:
             return normal_put(self, url, *args, **kwargs)
 
         nonlocal put_count
