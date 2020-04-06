@@ -1255,6 +1255,15 @@ def test_get_config_file_caching():
         assert_equal(2, get_config_file.call_count)
 
 
+def test_max_threads_bounded():
+    """Verify we disallow setting max threads higher than our cap."""
+    syn.max_threads = client.MAX_THREADS_CAP + 1
+    assert_equal(syn.max_threads, client.MAX_THREADS_CAP)
+
+    syn.max_threads = 0
+    assert_equal(syn.max_threads, 1)
+
+
 def test_get_transfer_config_max_threads():
     """Verify reading transfer.maxThreads from synapseConfig"""
 

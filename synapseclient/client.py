@@ -96,6 +96,7 @@ PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 REDIRECT_LIMIT = 5
+MAX_THREADS_CAP = 128
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
@@ -208,7 +209,7 @@ class Synapse(object):
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
         self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
-        self.max_threads = self._get_transfer_config_max_threads() or DEFAULT_NUM_THREADS
+        self._max_threads = self._get_transfer_config_max_threads() or DEFAULT_NUM_THREADS
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
@@ -225,6 +226,14 @@ class Synapse(object):
         self.logger = logging.getLogger(logger_name)
         self._debug = value
         logging.getLogger('py.warnings').handlers = self.logger.handlers
+
+    @property
+    def max_threads(self):
+        return self._max_threads
+
+    @max_threads.setter
+    def max_threads(self, value: int):
+        self._max_threads = min(max(value, 1), MAX_THREADS_CAP)
 
     @property
     def username(self):
@@ -1679,8 +1688,6 @@ class Synapse(object):
         :param objectType:   type of the Synapse object that uses the FileHandle e.g. "FileEntity"
         :param destination:  destination on local file system
         :param retries:      (default=5) Number of download retries attempted before throwing an exception.
-        :param max_threads:  the maximum number of threads to use when downloading a file
-                             (currently applies only to S3).
 
         :returns: path to downloaded file
         """
