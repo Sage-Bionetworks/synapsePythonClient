@@ -8,12 +8,18 @@ Release Notes
 Highlights:
 ----------------
 
-- The Synapse client object's :code:`store` and :code:`get` methods have been enhanced with an optional
-  :code:`maxThreads` keyword parameter that allows explicit specification of the number of concurrent threads
-  and connections that will be used to perform uploads and downloads. Currently these parameters only apply
-  to files whose underlying storage is AWS S3, and will be ignored if passed for other operations. If no parameter
-  is passed reasonable defaults will be chosen. If local resources allow adjusting these values higher can reduce
-  transfer times.
+- A :code:`max_threads` property of the Synapse object has been added to customize the number of concurrent threads
+  that will be used to transfer files.
+
+  .. code-block:: python
+
+    import synapseclient
+    syn = synapseclient.login()
+    syn.max_threads = 20
+
+  If not customized the default value is (cpu count + 4). Adjusting this value
+  higher may speed up file transfers if the underlying system resources can take advantage of the higher setting.
+
 
   Alternately, a value can be stored in the synapseConfig configuration file that will automatically apply
   as the default.
@@ -21,7 +27,7 @@ Highlights:
   .. code-block::
 
      [transfer]
-     maxThreads=16
+     max_threads=16
 
 A full list of issues addressed in this release are below.
 
