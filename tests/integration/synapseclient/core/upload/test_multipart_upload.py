@@ -62,6 +62,7 @@ def test_randomly_failing_parts():
     while uploading parts."""
 
     fail_every = 3  # fail every nth request
+    fail_cycle = random.randint(0, fail_every - 1)  # randomly vary which n of the request cycle we fail
     fhid = None
 
     filepath = utils.make_bogus_binary_file(MIN_PART_SIZE * 2 + (MIN_PART_SIZE / 2))
@@ -77,7 +78,7 @@ def test_randomly_failing_parts():
         nonlocal put_count
         put_count += 1
 
-        if put_count % fail_every == 0:
+        if (put_count + fail_cycle) % fail_every == 0:
             raise IOError("Ooops! Artificial upload failure for testing.")
 
         return normal_put(self, url, *args, **kwargs)
