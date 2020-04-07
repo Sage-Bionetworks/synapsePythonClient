@@ -1236,8 +1236,8 @@ def test_get_config_file_caching():
     """Verify we read a config file once per Synapse and are not
     parsing the file multiple times just on init."""
 
-    with patch.object(Synapse, '_getConfigFile') as get_config_file:
-        get_config_file.return_value = configparser.ConfigParser()
+    with patch('configparser.RawConfigParser.read') as read_config:
+        read_config.return_value = configparser.ConfigParser()
 
         syn1 = Synapse(debug=False, skip_checks=True, configPath='/foo')
 
@@ -1245,14 +1245,14 @@ def test_get_config_file_caching():
         config1a = syn1.getConfigFile('/foo')
         config1b = syn1.getConfigFile('/foo')
         assert_equal(config1a, config1b)
-        assert_equal(1, get_config_file.call_count)
+        assert_equal(1, read_config.call_count)
 
         # however a new instance should not be cached
         syn2 = Synapse(debug=False, skip_checks=True, configPath='/foo')
-        assert_equal(2, get_config_file.call_count)
+        assert_equal(2, read_config.call_count)
 
         # but an additional call on that instance should be
-        assert_equal(2, get_config_file.call_count)
+        assert_equal(2, read_config.call_count)
 
 
 def test_max_threads_bounded():

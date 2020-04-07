@@ -177,10 +177,6 @@ class Synapse(object):
 
         cache_root_dir = cache.CACHE_ROOT_DIR
 
-        # cache reading the config file at an instance level (i.e.
-        # the config will be read once per instantiated Synapse object).
-        self.getConfigFile = functools.lru_cache()(self._getConfigFile)
-
         config_debug = None
         # Check for a config file
         self.configPath = configPath
@@ -240,9 +236,8 @@ class Synapse(object):
         # for backwards compatability when username was a part of the Synapse object and not in credentials
         return self.credentials.username if self.credentials is not None else None
 
-    # we wrap this with an instance decorator in the constructor so it
-    # is only read once per instance
-    def _getConfigFile(self, configPath):
+    @functools.lru_cache()
+    def getConfigFile(self, configPath):
         """
         Retrieves the client configuration information.
 
