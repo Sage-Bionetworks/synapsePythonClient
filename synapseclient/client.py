@@ -205,7 +205,7 @@ class Synapse(object):
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
         self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
-        self._max_threads = self._get_transfer_config_max_threads() or DEFAULT_NUM_THREADS
+        self.max_threads = self._get_transfer_config_max_threads() or DEFAULT_NUM_THREADS
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
