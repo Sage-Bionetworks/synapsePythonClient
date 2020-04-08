@@ -879,4 +879,5 @@ def attempt_import(module_name, fail_message):
 
 def require_param(param, name):
     if param is None:
-        raise ValueError("%s parameter is required." %name)
+        raise ValueError("%s parameter is required." % name)
+

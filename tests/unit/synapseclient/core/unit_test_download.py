@@ -293,6 +293,7 @@ class Test__downloadFileHandle(unittest.TestCase):
                 'preSignedURL': 'asdf.com'
             }
 
+            # multi_threaded/max_threads will have effect
             syn.multi_threaded = True
             syn._downloadFileHandle(fileHandleId=123, objectId=456, objectType="FileEntity", destination="/myfakepath")
 

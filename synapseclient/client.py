@@ -27,25 +27,25 @@ More information
 See also the `Synapse API documentation <https://docs.synapse.org/rest/>`_.
 
 """
-import configparser
 import collections
+import configparser
 import deprecated
-import errno
-import sys
-import hashlib
-import webbrowser
-import shutil
-import zipfile
-import mimetypes
-import tempfile
-import warnings
+import functools
 import getpass
-import logging
-import urllib.parse as urllib_urlparse
+import hashlib
 import json
+import logging
+import mimetypes
 import os
+import shutil
+import sys
+import tempfile
 import time
 import typing
+import urllib.parse as urllib_urlparse
+import warnings
+import webbrowser
+import zipfile
 
 import synapseclient
 from .annotations import from_synapse_annotations, to_synapse_annotations, Annotations
@@ -96,6 +96,7 @@ PUBLIC = 273949  # PrincipalId of public "user"
 AUTHENTICATED_USERS = 273948
 DEBUG_DEFAULT = False
 REDIRECT_LIMIT = 5
+MAX_THREADS_CAP = 128
 
 # Defines the standard retry policy applied to the rest methods
 # The retry period needs to span a minute because sending messages is limited to 10 per 60 seconds.
@@ -204,6 +205,7 @@ class Synapse(object):
         self.table_query_max_sleep = 20
         self.table_query_timeout = 600  # in seconds
         self.multi_threaded = False  # if set to True, multi threaded download will be used for http and https URLs
+        self.max_threads = self._get_transfer_config_max_threads() or DEFAULT_NUM_THREADS
 
         # TODO: remove once most clients are no longer on versions <= 1.7.5
         cached_sessions.migrate_old_session_file_credentials_if_necessary(self)
@@ -222,10 +224,19 @@ class Synapse(object):
         logging.getLogger('py.warnings').handlers = self.logger.handlers
 
     @property
+    def max_threads(self):
+        return self._max_threads
+
+    @max_threads.setter
+    def max_threads(self, value: int):
+        self._max_threads = min(max(value, 1), MAX_THREADS_CAP)
+
+    @property
     def username(self):
         # for backwards compatability when username was a part of the Synapse object and not in credentials
         return self.credentials.username if self.credentials is not None else None
 
+    @functools.lru_cache()
     def getConfigFile(self, configPath):
         """
         Retrieves the client configuration information.
@@ -393,6 +404,15 @@ class Synapse(object):
     def _get_client_authenticated_s3_profile(self, endpoint, bucket):
         config_section = endpoint + "/" + bucket
         return self._get_config_section_dict(config_section).get("profile_name", "default")
+
+    def _get_transfer_config_max_threads(self):
+        max_threads = self._get_config_section_dict('transfer').get('max_threads')
+        if max_threads:
+            try:
+                return int(max_threads)
+            except ValueError as cause:
+                raise ValueError("Invalid transfer.maxThreads config setting (%s)", max_threads) from cause
+        return None
 
     def _getSessionToken(self, email, password):
         """Returns a validated session token."""
@@ -565,6 +585,8 @@ class Synapse(object):
         :param limitSearch:      a Synanpse ID used to limit the search in Synapse if entity is specified as a local
                                  file.  That is, if the file is stored in multiple locations in Synapse only the ones
                                  in the specified folder/project will be returned.
+        :param maxThreads:      The maximum number of threads to use when downloading the file (currently only
+                                 applies to S3 uploads)
 
         :returns: A new Synapse Entity object of the appropriate type
 
@@ -816,7 +838,7 @@ class Synapse(object):
         return downloadPath
 
     def store(self, obj, *, createOrUpdate=True, forceVersion=True, versionLabel=None, isRestricted=False,
-              activity=None, used=None, executed=None, activityName=None, activityDescription=None, max_threads=None):
+              activity=None, used=None, executed=None, activityName=None, activityDescription=None):
         """
         Creates a new Entity or updates an existing Entity, uploading any files in the process.
 
@@ -837,8 +859,6 @@ class Synapse(object):
                                     the process of adding terms-of-use or review board approval for this entity.
                                     You will be contacted with regards to the specific data being restricted and the
                                     requirements of access.
-        :param max_threads:         The maximum number of threads to use when uploading the file (currently only
-                                    applies to S3 uploads)
 
         :returns: A Synapse Entity, Evaluation, or Wiki
 
@@ -942,7 +962,7 @@ class Synapse(object):
                                                 md5=local_state_fh.get('contentMd5'),
                                                 file_size=local_state_fh.get('contentSize'),
                                                 mimetype=local_state_fh.get('contentType'),
-                                                max_threads=max_threads)
+                                                max_threads=self.max_threads)
                 properties['dataFileHandleId'] = fileHandle['id']
                 local_state['_file_handle'] = fileHandle
 
@@ -1716,7 +1736,8 @@ class Synapse(object):
                                                        object_id=object_id,
                                                        object_type=object_type,
                                                        path=temp_destination)
-        multithread_download.download_file(self, request, DEFAULT_NUM_THREADS)
+
+        multithread_download.download_file(self, request, self.max_threads)
 
         if expected_md5:  # if md5 not set (should be the case for all except http download)
             actual_md5 = utils.md5_for_file(temp_destination).hexdigest()
@@ -2955,7 +2976,7 @@ class Synapse(object):
          <http://docs.synapse.org/rest/org/sagebionetworks/repo/model/table/UploadToTableResult.html>`_
         """
 
-        fileHandleId = multipart_upload_file(self, filepath, contentType="text/csv")
+        fileHandleId = multipart_upload_file(self, filepath, content_type="text/csv")
 
         uploadRequest = {
             "concreteType": "org.sagebionetworks.repo.model.table.UploadToTableRequest",
@@ -3336,7 +3357,7 @@ class Synapse(object):
         :returns: The metadata of the created message
         """
 
-        fileHandleId = multipart_upload_string(self, messageBody, contentType=contentType)
+        fileHandleId = multipart_upload_string(self, messageBody, content_type=contentType)
         message = dict(
             recipients=userIds,
             subject=messageSubject,

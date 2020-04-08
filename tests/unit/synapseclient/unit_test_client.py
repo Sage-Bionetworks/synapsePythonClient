@@ -1,14 +1,15 @@
+import base64
+import configparser
 import json
 import os
 import tempfile
-import base64
-from mock import call, create_autospec, Mock, patch
 
+from mock import call, create_autospec, Mock, patch
 from nose.tools import assert_equal, assert_in, assert_raises, assert_is_none, assert_is_not_none, \
     assert_not_equals, assert_true
-from synapseclient import client
 
 import synapseclient
+from synapseclient import client
 from synapseclient import *
 from synapseclient.core.exceptions import *
 from synapseclient.core.upload import upload_functions, multipart_upload
@@ -155,7 +156,7 @@ class TestPrivateGetWithEntityBundle:
         if os.path.exists(cacheMap):
             os.remove(cacheMap)
 
-        def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5):
+        def _downloadFileHandle(fileHandleId,  objectId, objectType, path, retries=5, max_threads=None):
             # touch file at path
             with open(path, 'a'):
                 os.utime(path, None)
@@ -553,7 +554,7 @@ def test_send_message():
         assert_equal(msg["fileHandleId"], "7365905", msg)
         assert_equal(msg["recipients"], [1421212], msg)
         assert_equal(msg["subject"], "Xanadu", msg)
-        mock_upload_string.assert_called_once_with(syn, messageBody, contentType="text/plain")
+        mock_upload_string.assert_called_once_with(syn, messageBody, content_type="text/plain")
 
 
 @patch("synapseclient.Synapse._getDefaultUploadDestination")
@@ -1229,3 +1230,58 @@ class TestSetAnnotations:
                                                        ' "etag": "1d6c46e4-4d52-44e1-969f-e77b458d815a",'
                                                        ' "annotations": {"foo": {"type": "STRING", '
                                                        '"value": ["bar"]}}}')
+
+
+def test_get_config_file_caching():
+    """Verify we read a config file once per Synapse and are not
+    parsing the file multiple times just on init."""
+
+    with patch('configparser.RawConfigParser.read') as read_config:
+        read_config.return_value = configparser.ConfigParser()
+
+        syn1 = Synapse(debug=False, skip_checks=True, configPath='/foo')
+
+        # additional calls shouldn't be returned via a cached value
+        config1a = syn1.getConfigFile('/foo')
+        config1b = syn1.getConfigFile('/foo')
+        assert_equal(config1a, config1b)
+        assert_equal(1, read_config.call_count)
+
+        # however a new instance should not be cached
+        syn2 = Synapse(debug=False, skip_checks=True, configPath='/foo')
+        assert_equal(2, read_config.call_count)
+
+        # but an additional call on that instance should be
+        assert_equal(2, read_config.call_count)
+
+
+def test_max_threads_bounded():
+    """Verify we disallow setting max threads higher than our cap."""
+    syn.max_threads = client.MAX_THREADS_CAP + 1
+    assert_equal(syn.max_threads, client.MAX_THREADS_CAP)
+
+    syn.max_threads = 0
+    assert_equal(syn.max_threads, 1)
+
+
+def test_get_transfer_config_max_threads():
+    """Verify reading transfer.maxThreads from synapseConfig"""
+
+    # note that RawConfigParser lower cases its option values so we
+    # simulate that behavior in our mocked values here
+
+    with patch.object(syn, "_get_config_section_dict") as mock_config_dict:
+        empty_value_dicts = [{}]
+        empty_value_dicts.extend([{'max_threads': v} for v in ('', None)])
+        for empty_value_dict in empty_value_dicts:
+            mock_config_dict.return_value = empty_value_dict
+            assert_is_none(syn._get_transfer_config_max_threads())
+
+        for max_threads in (1, 7, 100):
+            mock_config_dict.return_value = {'max_threads': str(max_threads)}
+            assert_equal(max_threads, syn._get_transfer_config_max_threads())
+
+        with assert_raises(ValueError):
+            for invalid_value in ('not a number', '12.2', 'true'):
+                mock_config_dict.return_value = {'max_threads': invalid_value}
+                syn._get_transfer_config_max_threads()

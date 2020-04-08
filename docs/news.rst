@@ -2,6 +2,42 @@
 Release Notes
 =============
 
+2.1.0 (2020-04-0X)
+==================
+
+Highlights:
+----------------
+
+- A :code:`max_threads` property of the Synapse object has been added to customize the number of concurrent threads
+  that will be used to transfer files.
+
+  .. code-block:: python
+
+    import synapseclient
+    syn = synapseclient.login()
+    syn.max_threads = 20
+
+  If not customized the default value is (cpu count + 4). Adjusting this value
+  higher may speed up file transfers if the underlying system resources can take advantage of the higher setting.
+
+
+  Alternately, a value can be stored in the synapseConfig configuration file that will automatically apply
+  as the default.
+
+  .. code-block::
+
+     [transfer]
+     max_threads=16
+
+A full list of issues addressed in this release are below.
+
+Bug
+---
+
+-  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1036>`__] -
+   different users storing same file to same folder results in 403
+
+
 2.0.0 (2020-03-23)
 ==================
 **Python 2 is no longer supported as of this release.** This release requires Python 3.6+.

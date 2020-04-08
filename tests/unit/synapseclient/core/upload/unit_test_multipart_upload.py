@@ -486,6 +486,78 @@ class TestUploadAttempt:
             SynapseUploadAbortedException,
         )
 
+    def test_already_completed(self):
+        """Verify that uploading a file that is already complete
+        but that wasn't force restarted returns without attempting
+        to reupload the file."""
+        upload = self._init_upload_attempt()
+
+        upload_id = '1234'
+        parts_state = '0'
+        upload_status_response = {
+            'uploadId': upload_id,
+            'partsState': parts_state,
+            'state': 'COMPLETED',
+        }
+
+        with mock.patch.object(upload, '_create_synapse_upload')\
+            as create_synapse_upload,\
+            mock.patch.object(upload, '_fetch_pre_signed_part_urls')\
+            as fetch_pre_signed_urls,\
+            mock.patch.object(pool_provider, 'get_executor')\
+                as get_executor:
+            create_synapse_upload.return_value = upload_status_response
+
+            upload_result = upload()
+            assert_equal(upload_status_response, upload_result)
+
+            # we should have been able to short circuit any further
+            # upload work and have returned immediately
+            assert_false(fetch_pre_signed_urls.called)
+            assert_false(get_executor.called)
+
+    def test_all_parts_completed(self):
+        """Verify that if all the parts are already complete but
+        the upload itself hasn't been marked as complete then
+        we mark it as such without re-uploading any of the parts."""
+
+        upload = self._init_upload_attempt()
+
+        upload_id = '1234'
+        parts_state = '11'
+
+        create_status_response = {
+            'uploadId': upload_id,
+            'partsState': parts_state,
+            'state': 'UPLOADING',
+        }
+        complete_status_response = {
+            'uploadId': upload_id,
+            'state': 'COMPLETED',
+        }
+
+        with mock.patch.object(upload, '_create_synapse_upload')\
+            as create_synapse_upload,\
+            mock.patch.object(upload, '_fetch_pre_signed_part_urls')\
+            as fetch_pre_signed_urls,\
+            mock.patch.object(pool_provider, 'get_executor')\
+            as get_executor,\
+                mock.patch.object(upload._syn, 'restPUT') as restPUT:
+
+            create_synapse_upload.return_value = create_status_response
+            restPUT.return_value = complete_status_response
+
+            upload_result = upload()
+            assert_equal(complete_status_response, upload_result)
+
+            restPUT.assert_called_once()
+            assert_true(f"/file/multipart/{upload_id}/complete" in restPUT.call_args_list[0][0])
+
+            # we should have been able to short circuit any further
+            # upload work and have returned immediately
+            assert_false(fetch_pre_signed_urls.called)
+            assert_false(get_executor.called)
+
 
 class TestMultipartUpload:
 

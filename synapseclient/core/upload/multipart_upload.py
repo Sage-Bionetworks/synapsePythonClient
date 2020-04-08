@@ -252,14 +252,7 @@ class UploadAttempt:
 
         return part_number, part_size
 
-    def __call__(self):
-        upload_status = self._create_synapse_upload()
-
-        self._upload_id = upload_status['uploadId']
-        part_count, remaining_part_numbers = self._get_remaining_part_numbers(
-            upload_status
-        )
-
+    def _upload_parts(self, part_count, remaining_part_numbers):
         time_upload_started = time.time()
         completed_part_count = part_count - len(remaining_part_numbers)
 
@@ -310,6 +303,12 @@ class UploadAttempt:
                 with self._lock:
                     self._aborted = True
 
+                # wait for all threads to complete before
+                # raising the exception, we don't want to return
+                # control while there are still threads from this
+                # upload attempt running
+                concurrent.futures.wait(futures)
+
                 if isinstance(cause, KeyboardInterrupt):
                     raise SynapseUploadAbortedException(
                         "User interrupted upload"
@@ -319,12 +318,13 @@ class UploadAttempt:
                     "Part upload failed"
                 ) from cause
 
+    def _complete_upload(self):
         upload_status_response = self._syn.restPUT(
             "/file/multipart/{upload_id}/complete".format(
                 upload_id=self._upload_id,
             ),
             requests_session=self._get_thread_session(),
-            endpoint=self._syn.fileHandleEndpoint
+            endpoint=self._syn.fileHandleEndpoint,
         )
 
         upload_state = upload_status_response.get('state')
@@ -335,6 +335,26 @@ class UploadAttempt:
             raise SynapseUploadFailedException(
                 "Upload status has an unexpected state {}".format(upload_state)
             )
+
+        return upload_status_response
+
+    def __call__(self):
+        upload_status_response = self._create_synapse_upload()
+        upload_state = upload_status_response.get('state')
+
+        if upload_state != 'COMPLETED':
+            self._upload_id = upload_status_response['uploadId']
+            part_count, remaining_part_numbers =\
+                self._get_remaining_part_numbers(
+                    upload_status_response
+                )
+
+            # if no remaining part numbers then all the parts have been
+            # uploaded but the upload has not been marked complete.
+            if remaining_part_numbers:
+                self._upload_parts(part_count, remaining_part_numbers)
+
+            upload_status_response = self._complete_upload()
 
         return upload_status_response
 
