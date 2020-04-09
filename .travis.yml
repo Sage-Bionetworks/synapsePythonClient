@@ -72,7 +72,7 @@ script:
 - nosetests --traverse-namespace -s tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
-    nosetests --traverse-namespace -s -v tests/integration
+    nosetests --processes=-1 --process-timeout=180 --traverse-namespace -s -v tests/integration
   else
     echo "Skipping integration tests";
   fi
