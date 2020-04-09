@@ -1,3 +1,9 @@
+_linux_env: &linux_env
+  env:
+  - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
+  - PY_ENABLE_SHARD=0
+  - MULTI_PROCESS_PARAMS="--processes=-1 --process-timeout=180"
+
 sudo: required
 language: python
 
@@ -5,23 +11,15 @@ matrix:
   include:
     - os: linux
       python: 3.6
-      env:
-      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
-      - PY_ENABLE_SHARD=0
+      <<: *linux_env
     - os: linux
       python: 3.7
-      env:
-      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
-      - PY_ENABLE_SHARD=0
+      <<: *linux_env
     - os: linux
       python: 3.8
       dist: bionic
       sudo: required
-      env:
-      - 'PYTHON_LIBS="-L$(python-config --prefix)/lib $(python-config --libs)"'
-      - PY_ENABLE_SHARD=0
-
-
+      <<: *linux_env
     - os: osx
       language: generic
       env: PY_VERSION=3.6.10
@@ -72,10 +70,7 @@ script:
 - nosetests --traverse-namespace -s tests/unit
 - |
   if [ "${TRAVIS_PULL_REQUEST}" = "false" ];then
-    nosetests --processes=-1 --process-timeout=180 --traverse-namespace -s -v tests/integration
+    nosetests $MULTI_PROCESS_PARAMS --traverse-namespace -s -v tests/integration
   else
     echo "Skipping integration tests";
   fi
-
-
-
