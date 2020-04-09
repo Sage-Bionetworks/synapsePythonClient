@@ -21,6 +21,11 @@ from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 
 QUERY_TIMEOUT_SEC = 25
 
+# when running integration tests using the nose multiprocess plugin
+# the fixtures in this module should be invoked once in the parent process
+# prior to the fork.
+_multiprocess_shared_ = True
+
 
 def setup_module(module):
     print("Python version:", sys.version)
