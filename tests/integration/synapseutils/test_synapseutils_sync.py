@@ -8,14 +8,12 @@ import pandas as pd
 
 from synapseclient.core.exceptions import *
 from synapseclient import *
-from tests import integration
-from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+from tests.integration import init_module, QUERY_TIMEOUT_SEC
 import synapseutils
 
 
 def setup(module):
-
-    module.syn = integration.syn
+    init_module(module)
 
     module.project = syn.store(Project(name=str(uuid.uuid4())))
     schedule_for_cleanup(module.project)
@@ -41,7 +39,7 @@ def _makeManifest(content):
     with tempfile.NamedTemporaryFile(mode='w', suffix=".dat", delete=False) as f:
         f.write(content)
         filepath = utils.normalize_path(f.name)
-    schedule_for_cleanup(filepath)        
+    schedule_for_cleanup(filepath)
     return filepath
 
 
@@ -52,7 +50,7 @@ def test_readManifest():
     assert_raises(ValueError, synapseutils.sync.readManifestFile, syn, manifest)
 
     # Test that there are no circular references in file and that Provenance is correct
-    manifest = _makeManifest(header+row1+row2+row4) 
+    manifest = _makeManifest(header+row1+row2+row4)
     assert_raises(RuntimeError, synapseutils.sync.readManifestFile, syn, manifest)
 
     # Test non existent parent
@@ -60,7 +58,7 @@ def test_readManifest():
     assert_raises(SynapseHTTPError, synapseutils.sync.readManifestFile, syn, manifest)
 
     # Test that all files exist in manifest
-    manifest = _makeManifest(header+row1+row2+'/bara/basdfasdf/8hiuu.txt	syn123\n') 
+    manifest = _makeManifest(header+row1+row2+'/bara/basdfasdf/8hiuu.txt	syn123\n')
     assert_raises(IOError, synapseutils.sync.readManifestFile, syn, manifest)
 
 
@@ -75,8 +73,8 @@ def test_syncToSynapse():
     # Download using syncFromSynapse
     tmpdir = tempfile.mkdtemp()
     schedule_for_cleanup(tmpdir)
-    entities = synapseutils.syncFromSynapse(syn, project, path=tmpdir)
-    
+    synapseutils.syncFromSynapse(syn, project, path=tmpdir)
+
     orig_df = pd.read_csv(manifest, sep='\t')
     orig_df.index = [os.path.basename(p) for p in orig_df.path]
     new_df = pd.read_csv(os.path.join(tmpdir, synapseutils.sync.MANIFEST_FILENAME), sep='\t')
@@ -90,12 +88,12 @@ def test_syncToSynapse():
 
     # Validate that annotations were set
     cols = synapseutils.sync.REQUIRED_FIELDS + synapseutils.sync.FILE_CONSTRUCTOR_FIELDS\
-           + synapseutils.sync.STORE_FUNCTION_FIELDS
+        + synapseutils.sync.STORE_FUNCTION_FIELDS
     orig_anots = orig_df.drop(cols, axis=1, errors='ignore')
     new_anots = new_df.drop(cols, axis=1, errors='ignore')
     assert_equals(orig_anots.shape[1], new_anots.shape[1])  # Verify that we have the same number of cols
     assert_true(new_anots.equals(orig_anots.loc[:, new_anots.columns]), 'Annotations different')
-    
+
     # Validate that provenance is correct
     for provenanceType in ['executed', 'used']:
         # Go through each row
@@ -105,13 +103,13 @@ def test_syncToSynapse():
                 orig_list = ['%s.%s' % (i.id, i.versionNumber) if isinstance(i, Entity) else i
                              for i in syn._convertProvenanceList(orig.split(';'))]
                 new_list = ['%s.%s' % (i.id, i.versionNumber) if isinstance(i, Entity) else i
-                             for i in syn._convertProvenanceList(new.split(';'))]
+                            for i in syn._convertProvenanceList(new.split(';'))]
                 assert_equals(set(orig_list), set(new_list))
 
-        
+
 def test_syncFromSynapse():
     """This function tests recursive download as defined in syncFromSynapse
-    most of the functionality of this function are already tested in the 
+    most of the functionality of this function are already tested in the
     tests/integration/test_command_line_client::test_command_get_recursive_and_query
 
     which means that the only test if for path=None
@@ -172,7 +170,7 @@ def test_syncFromSynapse__children_contain_non_file():
 
 def test_syncFromSynapse_Links():
     """This function tests recursive download of links as defined in syncFromSynapse
-    most of the functionality of this function are already tested in the 
+    most of the functionality of this function are already tested in the
     tests/integration/test_command_line_client::test_command_get_recursive_and_query
 
     which means that the only test if for path=None
@@ -276,4 +274,3 @@ def test_syncFromSynapse__given_file_id():
     all_files = synapseutils.syncFromSynapse(syn, file.id)
     assert_equals(1, len(all_files))
     assert_equals(file, all_files[0])
-

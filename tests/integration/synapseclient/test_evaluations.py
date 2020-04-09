@@ -7,25 +7,23 @@ from nose.tools import assert_raises, assert_false, assert_is_not_none, assert_t
 
 from synapseclient.core.exceptions import *
 from synapseclient import *
-from tests import integration
-from tests.integration import schedule_for_cleanup
+from tests.integration import init_module
 from synapseclient.annotations import to_submission_status_annotations, from_submission_status_annotations, set_privacy
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    init_module(module)
 
 
 def test_evaluations():
     # Create an Evaluation
     name = 'Test Evaluation %s' % str(uuid.uuid4())
-    ev = Evaluation(name=name, description='Evaluation for testing', 
+    ev = Evaluation(name=name, description='Evaluation for testing',
                     contentSource=project['id'], status='CLOSED')
     ev = syn.store(ev)
 
     try:
-        
+
         # -- Get the Evaluation by name
         evalNamed = syn.getEvaluationByName(name)
         assert_equals(ev['contentSource'], evalNamed['contentSource'])
@@ -36,7 +34,7 @@ def test_evaluations():
         assert_equals(ev['name'], evalNamed['name'])
         assert_equals(ev['ownerId'], evalNamed['ownerId'])
         assert_equals(ev['status'], evalNamed['status'])
-        
+
         # -- Get the Evaluation by project
         evalProj = syn.getEvaluationByContentSource(project)
         evalProj = next(evalProj)
@@ -48,7 +46,7 @@ def test_evaluations():
         assert_equals(ev['name'], evalProj['name'])
         assert_equals(ev['ownerId'], evalProj['ownerId'])
         assert_equals(ev['status'], evalProj['status'])
-        
+
         # Update the Evaluation
         ev['status'] = 'OPEN'
         ev = syn.store(ev, createOrUpdate=True)
@@ -194,5 +192,3 @@ def test_teams():
             if tries > 0:
                 time.sleep(1)
     assert_equals(team, found_team)
-
-

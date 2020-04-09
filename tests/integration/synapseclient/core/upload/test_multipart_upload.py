@@ -10,15 +10,12 @@ import synapseclient.core.config
 from synapseclient.core.utils import *
 from synapseclient.core.exceptions import *
 from synapseclient import *
-from synapseclient.core.upload import multipart_upload
 from synapseclient.core.upload.multipart_upload import *
-from tests import integration
-from tests.integration import schedule_for_cleanup
+from tests.integration import init_module
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    init_module(module)
 
 
 def test_round_trip():
@@ -137,4 +134,3 @@ def test_multipart_upload_big_string():
         retrieved_text = f.read()
 
     assert_equals(retrieved_text, text)
-

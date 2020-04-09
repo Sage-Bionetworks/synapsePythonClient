@@ -9,14 +9,11 @@ import time
 
 from synapseclient.core.exceptions import *
 from synapseclient import *
-from tests import integration
-from tests.integration import schedule_for_cleanup
+from tests.integration import init_module
 
 
 def setup(module):
-
-    module.syn = integration.syn
-    module.project = integration.project
+    init_module(module)
 
 
 def test_download_check_md5():
@@ -38,7 +35,6 @@ def test_download_check_md5():
 
 def test_resume_partial_download():
     original_file = utils.make_bogus_data_file(40000)
-    original_md5 = utils.md5_for_file(original_file).hexdigest()
 
     entity = File(original_file, parent=project['id'])
     entity = syn.store(entity)

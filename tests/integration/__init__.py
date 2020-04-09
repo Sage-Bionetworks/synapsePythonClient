@@ -37,7 +37,7 @@ def setup_module(module):
     syn.login()
     module.syn = syn
     module._to_cleanup = []
-    
+
     # Make one project for all the tests to use
     project = syn.store(Project(name="integration_test_project"+str(uuid.uuid4())))
     schedule_for_cleanup(project)
@@ -48,6 +48,32 @@ def setup_module(module):
     working_directory = tempfile.mkdtemp(prefix="someTestFolder")
     schedule_for_cleanup(working_directory)
     os.chdir(working_directory)
+
+
+def init_module(module, teardown=None):
+    """Instrument the given module with integration test facilities.
+    Adds a logged in Synapse object, a project that can be used for
+    with testing, a schedule_for_cleanup function, and a teardown
+    that will automatically invoke the cleanup in when the module
+    is torn down.
+
+    :param module: the module being instrumented
+    :param teardown: a teardown function if there is additional behavior
+        that needs to be invoked on module teardown
+    """
+    module.syn = syn
+    module.project = project
+
+    to_cleanup = []
+    module._to_cleanup = to_cleanup
+    module.schedule_for_cleanup = lambda item: to_cleanup.append(item)
+
+    def _teardown(module):
+        if teardown:
+            teardown(module)
+        cleanup(to_cleanup)
+
+    module.teardown = _teardown
 
 
 def teardown_module(module):

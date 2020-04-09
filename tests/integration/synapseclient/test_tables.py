@@ -1,15 +1,13 @@
 import csv
 import io
-import filecmp
 import os
 import random
 import tempfile
 import time
 import uuid
-from nose.tools import assert_equals, assert_less, assert_not_equal, assert_false, assert_true, assert_is_not_none
+from nose.tools import assert_equals, assert_less, assert_not_equal, assert_true, assert_is_not_none
 from pandas.util.testing import assert_frame_equal
 from datetime import datetime
-from mock import patch
 
 import pandas as pd
 import numpy as np
@@ -17,13 +15,11 @@ import numpy as np
 from synapseclient.core.utils import id_of
 from synapseclient.core.exceptions import *
 from synapseclient import *
-from tests import integration
-from tests.integration import schedule_for_cleanup, QUERY_TIMEOUT_SEC
+from tests.integration import init_module, QUERY_TIMEOUT_SEC
 
 
 def setup(module):
-    module.syn = integration.syn
-    module.project = integration.project
+    init_module(module)
 
     module.syn.table_query_timeout = 423
 
@@ -136,7 +132,8 @@ def test_entity_view_add_annotation_columns():
     syn.store(entity_view)
 
     entity_view = EntityViewSchema(name=str(uuid.uuid4()), scopeIds=scopeIds, addDefaultViewColumns=False,
-                                   addAnnotationColumns=True, includeEntityTypes=[EntityViewType.PROJECT], parent=project)
+                                   addAnnotationColumns=True, includeEntityTypes=[EntityViewType.PROJECT],
+                                   parent=project)
     syn.store(entity_view)
 
 
@@ -310,6 +307,7 @@ def test_synapse_integer_columns_with_missing_values_from_dataframe():
     df2 = table_from_dataframe.asDataFrame()
     assert_frame_equal(df, df2)
 
+
 def test_store_table_datetime():
     current_datetime = datetime.fromtimestamp(round(time.time(), 3))
     schema = syn.store(Schema("testTable", [Column(name="testerino", columnType='DATE')], project))
@@ -423,4 +421,3 @@ class TestPartialRowSet(object):
         return syn.store(
             EntityViewSchema(name='PartialRowTestViews' + str(uuid.uuid4()), columns=cols, addDefaultViewColumns=False,
                              parent=project, scopes=[folder]))
-
