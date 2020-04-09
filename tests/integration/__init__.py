@@ -5,6 +5,9 @@ To run all the tests      : nosetests -vs tests
 To run a single test suite: nosetests -vs tests/integration
 To run a single test set  : nosetests -vs tests/integration/integration_test_Entity.py
 To run a single test      : nosetests -vs tests/integration/integration_test_Entity.py:test_Entity
+
+On linux supports the nost multiprocess plugin to parallize test runs, e.g.:
+nosetests -vs --processes=-1 --process-timeout=180 tests/integration
 """
 
 import logging
@@ -22,8 +25,7 @@ from synapseclient.core.logging_setup import SILENT_LOGGER_NAME
 QUERY_TIMEOUT_SEC = 25
 
 # when running integration tests using the nose multiprocess plugin
-# the fixtures in this module should be invoked once in the parent process
-# prior to the fork.
+# the fixtures in this module should be invoked once in the parent process.
 _multiprocess_shared_ = True
 
 _parent_pid = os.getpid()
@@ -89,8 +91,8 @@ def _init_cleanup(module):
 def init_module(module, teardown=None):
     """Instrument the given module with integration test facilities.
     Adds a logged in Synapse object, a project that can be used for
-    with testing, a schedule_for_cleanup function, and a teardown
-    that will automatically invoke the cleanup in when the module
+    testing, a schedule_for_cleanup function, and a teardown
+    that will automatically invoke the cleanup when the module
     is torn down.
 
     :param module: the module being instrumented
