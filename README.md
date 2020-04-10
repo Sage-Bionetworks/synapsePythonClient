@@ -28,6 +28,13 @@ For more information about interacting with Synapse, see:
  * [User guides (including Python examples)](http://docs.synapse.org/articles/)
  * [Getting Started Guide to Synapse](http://docs.synapse.org/articles/getting_started.html)
 
+For release information, see:
+
+ * [Release notes](https://python-docs.synapse.org/build/html/news.html)
+
+Subscribe to release and other announcements [here](https://groups.google.com/a/sagebase.org/forum/#!forum/python-announce)
+or by sending an email to [python-announce+subscribe@sagebase.org](mailto:python-announce+subscribe@sagebase.org)
+
 
 Installation
 ------------
