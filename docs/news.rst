@@ -17,11 +17,11 @@ Highlights:
     syn = synapseclient.login()
     syn.max_threads = 20
 
-  If not customized the default value is (cpu count + 4). Adjusting this value
+  If not customized the default value is (CPU count + 4). Adjusting this value
   higher may speed up file transfers if the local system resources can take advantage of the higher setting.
   Currently this value applies only to files whose underlying storage is AWS S3.
 
-  Alternately, a value can be stored in the synapseConfig configuration file that will automatically apply
+  Alternately, a value can be stored in the `synapseConfig configuration file <https://docs.synapse.org/articles/client_configuration.html>`__ that will automatically apply
   as the default if a value is not explicitly set.
 
   .. code-block::
