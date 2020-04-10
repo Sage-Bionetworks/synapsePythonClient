@@ -57,6 +57,10 @@ Bug
 
 -  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1036>`__] -
    different users storing same file to same folder results in 403
+-  [`SYNPY-913 <https://sagebionetworks.jira.com/browse/SYNPY-913>`__] -
+   Travis Build badge for develop branch is pointing to pull request
+-  [`SYNPY-960 <https://sagebionetworks.jira.com/browse/SYNPY-960>`__] -
+   AppVeyor build badge appears to be failed while the builds are passed
 
 Improvement
 -----------
