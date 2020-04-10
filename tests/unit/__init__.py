@@ -15,3 +15,8 @@ def setup_module(module):
     syn = Synapse(debug=False, skip_checks=True)
     syn.logger = logging.getLogger(SILENT_LOGGER_NAME)
     module.syn = syn
+
+def test_always_fail():
+    from nose.tools import assert_true
+    assert_true(False)
+
