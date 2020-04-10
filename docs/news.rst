@@ -2,14 +2,14 @@
 Release Notes
 =============
 
-2.1.0 (2020-04-0X)
+2.1.0 (2020-04-1?)
 ==================
 
 Highlights:
 ----------------
 
 - A :code:`max_threads` property of the Synapse object has been added to customize the number of concurrent threads
-  that will be used to transfer files.
+  that will be used during file transfers.
 
   .. code-block:: python
 
@@ -17,17 +17,38 @@ Highlights:
     syn = synapseclient.login()
     syn.max_threads = 20
 
-  If not customized the default value is (cpu count + 4). Adjusting this value
-  higher may speed up file transfers if the underlying system resources can take advantage of the higher setting.
+  If not customized the default value is (CPU count + 4). Adjusting this value
+  higher may speed up file transfers if the local system resources can take advantage of the higher setting.
+  Currently this value applies only to files whose underlying storage is AWS S3.
 
-
-  Alternately, a value can be stored in the synapseConfig configuration file that will automatically apply
-  as the default.
+  Alternately, a value can be stored in the `synapseConfig configuration file <https://docs.synapse.org/articles/client_configuration.html>`__ that will automatically apply
+  as the default if a value is not explicitly set.
 
   .. code-block::
 
      [transfer]
      max_threads=16
+
+  This release also includes other optimizations associated with file uploads.
+
+- The :code:`getAnnotations` and :code:`setAnnotations` methods of the Synapse object have been **deprecated** in
+  favor of newer :code:`get_annotations` and :code:`set_annotations` methods, respectively. The newer versions
+  are parameterized with a typed :code:`Annotations` dictionary rather than a plain Python dictionary to prevent
+  existing annotations from being accidentally overwritten. The expected usage for setting annotations is to first
+  retrieve the existing :code:`Annotations` for an entity before saving changes by passing back a modified value.
+
+  .. code-block::
+
+     annos = syn.get_annotations('syn123')
+
+     # set key 'foo' to have value of 'bar' and 'baz'
+     annos['foo'] = ['bar', 'baz']
+     # single values will automatically be wrapped in a list once stored
+     annos['qwerty'] = 'asdf'
+
+     annos = syn.set_annotations(annos)
+
+  The deprecated annotations methods may be removed in a future release.
 
 A full list of issues addressed in this release are below.
 
@@ -36,6 +57,16 @@ Bug
 
 -  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1036>`__] -
    different users storing same file to same folder results in 403
+-  [`SYNPY-913 <https://sagebionetworks.jira.com/browse/SYNPY-913>`__] -
+   Travis Build badge for develop branch is pointing to pull request
+-  [`SYNPY-960 <https://sagebionetworks.jira.com/browse/SYNPY-960>`__] -
+   AppVeyor build badge appears to be failed while the builds are passed
+
+Improvement
+-----------
+
+-  [`SYNPY-1036 <https://sagebionetworks.jira.com/browse/SYNPY-1029>`__] -
+   Make upload speeds comparable to those of the AWS S3 CLI
 
 
 2.0.0 (2020-03-23)
