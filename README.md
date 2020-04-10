@@ -15,18 +15,6 @@ A Python client for [Sage Bionetworks'](https://www.sagebase.org) [Synapse](http
 
 There is also a [Synapse client for R](https://github.com/Sage-Bionetworks/synapser/).
 
-
-Python 2 Support
-----------------
-
-The sun is setting on Python 2. Many major open source Python packages are moving to require Python 3.
-
-The last version that works with Python 2 is Synapse Python client version 1.9.4. 
-There are no plans for future maintenance of version 1.9.x.
-
-**Starting from Synapse Python client version 2.0, Synapse Python client requires Python 3.6+**
-
-
 Documentation
 -------------
 
@@ -45,6 +33,8 @@ Installation
 ------------
 
 The Python Synapse client has been tested on 3.6, 3.7, and 3.8 on Mac OS X, Ubuntu Linux and Windows.
+
+**Starting from Synapse Python client version 2.0, Synapse Python client requires Python 3.6+**
 
 ### Install using pip
 
