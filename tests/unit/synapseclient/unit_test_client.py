@@ -1285,3 +1285,27 @@ def test_get_transfer_config_max_threads():
             for invalid_value in ('not a number', '12.2', 'true'):
                 mock_config_dict.return_value = {'max_threads': invalid_value}
                 syn._get_transfer_config_max_threads()
+
+def test_store__needsUploadFalse__fileHandleId_not_in_local_state():
+    returned_file_handle = {
+        'id': '1234'
+    }
+    returned_bundle = {'entity': {'name': 'fake_file.txt',
+                                  'id': 'syn123',
+                                  'etag': 'db9bc70b-1eb6-4a21-b3e8-9bf51d964031',
+                                  'concreteType': 'org.sagebionetworks.repo.model.FileEntity',
+                                  'dataFileHandleId': '123412341234'},
+                       'entityType': 'file',
+                       'fileHandles': [{'id': '123412341234',
+                                        'concreteType': 'org.sagebionetworks.repo.model.file.S3FileHandle'}]
+                       }
+    with patch.object(syn, '_getEntityBundle', return_value=returned_bundle), \
+         patch.object(synapseclient.client, 'upload_file_handle', return_value=returned_file_handle), \
+         patch.object(syn.cache, 'contains', return_value=True), \
+         patch.object(syn, '_createEntity'), \
+         patch.object(syn, 'set_annotations'), \
+         patch.object(Entity, 'create'), \
+         patch.object(syn, 'get'):
+        f = File('/fake_file.txt', parent='syn123')
+        syn.store(f)
+        # test passes if no KeyError exception is thrown
